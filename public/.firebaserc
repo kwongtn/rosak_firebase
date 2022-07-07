@@ -1,0 +1,14 @@
+{
+  "targets": {
+    "rosak-7223b": {
+      "hosting": {
+        "public": [
+          "rosak-7223b"
+        ]
+      }
+    }
+  },
+  "projects": {
+    "default": "rosak-7223b"
+  }
+}

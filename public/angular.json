@@ -103,6 +103,16 @@
             ],
             "scripts": []
           }
+        },
+        "deploy": {
+          "builder": "@angular/fire:deploy",
+          "options": {
+            "prerender": false,
+            "ssr": false,
+            "browserTarget": "public:build:production",
+            "firebaseProject": "rosak-7223b",
+            "firebaseHostingSite": "rosak-7223b"
+          }
         }
       }
     }
