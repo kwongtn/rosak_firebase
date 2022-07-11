@@ -21,7 +21,7 @@
 		"quotes": ["error", "double"],
 		"semi": ["error", "always"],
 		"sort-imports": [
-			"error",
+			"warn",
 			{
 				"ignoreCase": false,
 				"ignoreDeclarationSort": false,
