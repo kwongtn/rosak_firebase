@@ -1,7 +1,14 @@
 import { CascaderItem } from "ng-devui";
 import { FormLayout } from "ng-devui/form";
+import { AppendToBodyDirection } from "ng-devui/utils";
 
 import { Component, OnInit } from "@angular/core";
+import {
+    FormBuilder,
+    FormControl,
+    FormGroup,
+    Validators,
+} from "@angular/forms";
 
 @Component({
     selector: "app-spotting-form",
@@ -10,22 +17,10 @@ import { Component, OnInit } from "@angular/core";
 })
 export class SpottingFormComponent implements OnInit {
     layoutDirection: FormLayout = FormLayout.Horizontal;
-    inputDemoConfig: any;
-    textareaDemoConfig: any;
-    selectDemoConfig: any;
-    multipleSelectDemoConfig: any;
-    multipleSelect2DemoConfig: any;
-    radioDemoConfig: any;
-    toggleDemoConfig: any;
-    checkboxDemoConfig: any;
-    singleDateDemoConfig: any;
-    multiDateDemoConfig: any;
-    inputDemoConfig2: any;
-    selectDemoconfig2: any;
-    multipleSelectDemoConfig3: any;
-    singleDateDemoConfig2: any;
-
-    disabled: false = false;
+    appendToBodyDirections: AppendToBodyDirection[] = [
+        "rightDown",
+        "centerDown",
+    ];
 
     vehicleOptions: CascaderItem[] = [
         {
@@ -76,6 +71,7 @@ export class SpottingFormComponent implements OnInit {
         {
             name: "Location",
             value: "LOCATION",
+            disabled: true,
         },
         {
             name: "Between Stations",
@@ -125,42 +121,26 @@ export class SpottingFormComponent implements OnInit {
         },
     ];
 
-    currentOption4 = {};
-
-    value1: Array<string | number>[] = [];
-    value2: Array<string | number>[] = [
-        [1, 4, 8],
-        [1, 4, 9, 81],
-        [1, 41],
-    ];
-
-    formData = {
-        inputValue: "",
-        textareaValue: "",
-        radioValue: {},
-        toggleValue: false,
-        singDateValue: "",
-        multiDateValue: {
-            startDate: "",
-            endDate: "",
-        },
-
-        inputValue2: "",
-        singDateValue2: "",
-    };
-
+    /**
+     * Form stuff
+     */
+    formGroup: FormGroup;
     selectedDate1 = new Date();
 
-    // constructor() {}
+    constructor(private fb: FormBuilder) {
+        this.formGroup = this.fb.group({
+            vehicle: new FormControl("", [Validators.required]),
+            spottingDate: new FormControl(new Date(), [Validators.required]),
+            status: new FormControl("", [Validators.required]),
+            type: new FormControl("", [Validators.required]),
+            originStation: new FormControl("", []),
+            destinationStation: new FormControl("", []),
+            notes: new FormControl("", []),
+        });
+    }
 
     ngOnInit(): void {
-        this.multipleSelect2DemoConfig = {
-            key: "multipleSelect-demo2",
-            label: "Options(Multiple selection with delete)",
-            isSearch: true,
-            multiple: "true",
-            labelization: { enable: true, labelMaxWidth: "120px" },
-        };
+        return;
     }
 
     onChanges(event: Event): void {
