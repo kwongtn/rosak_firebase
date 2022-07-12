@@ -1,3 +1,4 @@
+import { CascaderItem } from "ng-devui";
 import { FormLayout } from "ng-devui/form";
 
 import { Component, OnInit } from "@angular/core";
@@ -26,182 +27,105 @@ export class SpottingFormComponent implements OnInit {
 
     disabled: false = false;
 
-    labelList = [
+    vehicleOptions: CascaderItem[] = [
         {
-            id: 1,
-            label: "Option1",
-        },
-        {
-            id: 2,
-            label: "Option2",
-        },
-        {
-            id: 3,
-            label: "Option3",
-        },
-    ];
-
-    addedLabelList = [];
-
-    selectOptions = [
-        {
-            id: 1,
-            label: "Option1",
-        },
-        {
-            id: 2,
-            label: "Option2",
-        },
-        {
-            id: 3,
-            label: "Option3",
-        },
-    ];
-
-    radioOptions = [
-        {
-            id: 1,
-            label: "Manual execution",
-        },
-        {
-            id: 2,
-            label: "Daily execution",
-        },
-        {
-            id: 3,
-            label: "Weekly execution",
-        },
-    ];
-
-    checkboxOptions = [
-        { id: "1", label: "Mon", checked: true },
-        { id: "2", label: "Tue" },
-        { id: "3", label: "Wed" },
-        { id: "4", label: "Thur" },
-        { id: "5", label: "Fri" },
-        { id: "6", label: "Sat" },
-        { id: "0", label: "Sun" },
-    ];
-
-    options2 = [
-        {
-            name: "Option 1",
+            label: "KJL - MRT Kajang Line",
             value: 1,
-        },
-        {
-            name: "Option 2",
-            value: 2,
-        },
-        {
-            name: "Option 3",
-            value: 3,
-        },
-        {
-            name: "Option 4",
-            value: 4,
+            children: [
+                {
+                    label: "B.Innov. 2-Car",
+                    value: 1,
+                    children: [
+                        {
+                            label: "01 @ SBK",
+                            value: 1,
+                            isLeaf: true,
+                        },
+                        {
+                            label: "02 @ SBK",
+                            value: 2,
+                            isLeaf: true,
+                        },
+                        {
+                            label: "03 @ SBK",
+                            value: 3,
+                            isLeaf: true,
+                        },
+                    ],
+                },
+            ],
+            isLeaf: false,
+            disabled: false,
+            icon: "icon-folder",
         },
     ];
+
+    statusOptions = [
+        { name: "In Service", value: "IN_SERVICE" },
+        { name: "Not Spotted", value: "NOT_SPOTTED" },
+        { name: "Decommissioned", value: "DECOMMISSIONED" },
+        { name: "Testing", value: "TESTING" },
+        { name: "Unknown", value: "UNKNOWN" },
+    ];
+
+    typeOptions = [
+        {
+            name: "Depot",
+            value: "DEPOT",
+        },
+        {
+            name: "Location",
+            value: "LOCATION",
+        },
+        {
+            name: "Between Stations",
+            value: "BETWEEN_STATIONS",
+        },
+    ];
+
+    // TODO: Check that origin and destination options are not the same
+    stationOptions: CascaderItem[] = [
+        {
+            label: "KGL - MRT Kajang Line",
+            value: 1,
+            children: [
+                { value: 1, label: "KG04 - Kwasa Damansara" },
+                { value: 2, label: "KG05 - Kwasa Sentral" },
+                { value: 3, label: "KG06 - Kota Damansara" },
+                { value: 4, label: "KG07 - Surian" },
+                { value: 5, label: "KG08 - Mutiara Damansara" },
+                { value: 6, label: "KG09 - Bandar Utama" },
+                { value: 7, label: "KG10 - Taman Tun Dr Ismail (TTDI)" },
+                { value: 8, label: "KG11 - Phileo Damansara" },
+                { value: 9, label: "KG12 - Pusat Bandar Damansara" },
+                { value: 10, label: "KG14 - Semantan" },
+                { value: 11, label: "KG15 - Muzium Negara" },
+                { value: 12, label: "KG16 - Pasar Seni" },
+                { value: 13, label: "KG17 - Merdeka" },
+                { value: 14, label: "KG18A - Bukit Bintang" },
+                { value: 15, label: "KG20 - Tun Razak Exchange (TRX)" },
+                { value: 16, label: "KG21 - Cochrane" },
+                { value: 17, label: "KG22 - Maluri" },
+                { value: 18, label: "KG23 - Taman Pertama" },
+                { value: 19, label: "KG24 - Taman Midah" },
+                { value: 20, label: "KG25 - Taman Mutiara" },
+                { value: 21, label: "KG26 - Taman Connaught" },
+                { value: 22, label: "KG27 - Taman Suntex" },
+                { value: 23, label: "KG28 - Sri Raya" },
+                { value: 24, label: "KG29 - Bandar Tun Hussein Onn" },
+                { value: 25, label: "KG30 - Batu 11 Cheras" },
+                { value: 26, label: "KG31 - Bukit Dukung" },
+                { value: 27, label: "KG33 - Sungai Jernih" },
+                { value: 28, label: "KG34 - Stadium Kajang" },
+                { value: 29, label: "KG35 - Kajang" },
+            ],
+            isLeaf: false,
+            disabled: false,
+            icon: "icon-folder",
+        },
+    ];
+
     currentOption4 = {};
-
-    options = [
-        {
-            label: "option1",
-            value: 1,
-            children: [
-                {
-                    label: "option1-1",
-                    value: 4,
-                    children: [
-                        {
-                            label: "option1-1-1",
-                            value: 8,
-                            isLeaf: true,
-                        },
-                        {
-                            label: "option1-1-2",
-                            value: 9,
-                            children: [
-                                {
-                                    label: "option1-1-2-1",
-                                    value: 81,
-                                    isLeaf: true,
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    label: "option1-2",
-                    value: 41,
-                    isLeaf: true,
-                },
-                {
-                    label: "option1-3",
-                    value: 42,
-                    isLeaf: true,
-                },
-                {
-                    label: "option1-4",
-                    value: 43,
-                    isLeaf: true,
-                },
-            ],
-            icon: "icon-folder",
-        },
-        {
-            label: "option2",
-            value: 2,
-            children: [
-                {
-                    label: "option2-1",
-                    value: 5,
-                    children: [
-                        {
-                            label: "option2-1-1",
-                            value: 51,
-                            isLeaf: true,
-                        },
-                        {
-                            label: "option2-1-2",
-                            value: 61,
-                            isLeaf: true,
-                            disabled: true,
-                        },
-                    ],
-                },
-                {
-                    label: "option2-2",
-                    value: 6,
-                    children: [
-                        {
-                            label: "option2-2-1",
-                            value: 512,
-                            isLeaf: true,
-                        },
-                        {
-                            label: "option2-2-2",
-                            value: 611,
-                            isLeaf: true,
-                        },
-                    ],
-                },
-                {
-                    label: "option2-3",
-                    value: 712,
-                    isLeaf: true,
-                },
-            ],
-            icon: "icon-folder",
-        },
-        {
-            label: "option3",
-            value: 3,
-            children: [],
-            isLeaf: true,
-            disabled: true,
-            icon: "icon-folder",
-        },
-    ];
 
     value1: Array<string | number>[] = [];
     value2: Array<string | number>[] = [
@@ -213,9 +137,6 @@ export class SpottingFormComponent implements OnInit {
     formData = {
         inputValue: "",
         textareaValue: "",
-        selectValue: this.selectOptions[1],
-        multipleSelectValue: [this.selectOptions[1], this.selectOptions[2]],
-        multipleSelect2Value: [this.selectOptions[1], this.selectOptions[2]],
         radioValue: {},
         toggleValue: false,
         singDateValue: "",
@@ -239,9 +160,11 @@ export class SpottingFormComponent implements OnInit {
             isSearch: true,
             multiple: "true",
             labelization: { enable: true, labelMaxWidth: "120px" },
-            options: this.selectOptions,
         };
     }
 
-    // onChanges(event: Event): void{    }
+    onChanges(event: Event): void {
+        console.log(event);
+        return;
+    }
 }

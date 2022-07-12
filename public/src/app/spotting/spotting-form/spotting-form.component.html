@@ -1,41 +1,22 @@
 <div style="margin-left: 40px">
     <form dForm [layout]="layoutDirection" [labelSize]="'sm'">
-        <!-- <d-form-item>
-            <d-form-label [required]="true">Name</d-form-label>
-            <d-form-control [extraInfo]="
-            'Enter a short name that meets reading habits, up to 30 characters, cannot be a system field, and cannot be the same as an existing field.'
-          ">
-                <input dTextInput name="userName" />
-            </d-form-control>
-        </d-form-item> 
-    
-        - Spotting date
-        - Vehicle -> Narrow down selection -> Line -> Type (optional)
-        - Notes -- TextField
-        - Status -- Search
-        - Type - Search
-        - Origin Station - Search (narrow via line)
-        - Destination Station - Search (narrow via line)
-    - Location -- map or lat long input
+        <!-- 
+        TODO: - Location -- map or lat long input
+        -->
 
-    
-    
-    
-    -->
         <d-form-item>
             <d-form-label>Vehicle</d-form-label>
-            <d-cascader [options]="options" [placeholder]="'Please select, or type to search'" [(ngModel)]="value1"
-                (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300" [dropdownWidth]="200"
-                [allowClear]="true" [allowSearch]="true">
+            <d-cascader [options]="vehicleOptions" [placeholder]="'Please select, or type to search'"
+                [(ngModel)]="value1" (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300"
+                [dropdownWidth]="200" [allowClear]="true" [allowSearch]="true">
             </d-cascader>
         </d-form-item>
-
 
         <d-form-item>
             <d-form-label>Spotting Date</d-form-label>
             <input class="devui-input devui-form-control" placeholder="y/MM/dd" (click)="datePicker1.toggle()" name="dp"
-                [(ngModel)]="selectedDate1" autocomplete="off" dDatepicker #datePicker1="datepicker" />
-            <div *ngIf="selectedDate1" class="devui-input-group-addon close-icon-wrapper"
+                [(ngModel)]="selectedDate1" autocomplete="off" dDatepicker #datePicker1="datepicker" locale="en-us" />
+            <div *ngIf=" selectedDate1" class="devui-input-group-addon close-icon-wrapper"
                 (click)="datePicker1.clearAll()">
                 <i class="icon icon-close"></i>
             </div>
@@ -43,29 +24,32 @@
                 <i class="icon icon-calendar"></i>
             </div>
         </d-form-item>
+
         <d-form-item>
             <d-form-label>Status</d-form-label>
-            <d-select [options]="options2" [isSearch]="true" [filterKey]="'name'" [(ngModel)]="currentOption4"
+            <d-select [options]="statusOptions" [isSearch]="true" [filterKey]="'name'" [(ngModel)]="currentOption4"
                 [placeholder]="'Status'"></d-select>
         </d-form-item>
+
         <d-form-item>
             <d-form-label>Type</d-form-label>
-            <d-select [options]="options2" [isSearch]="true" [filterKey]="'name'" [(ngModel)]="currentOption4"
+            <d-select [options]="typeOptions" [isSearch]="true" [filterKey]="'name'" [(ngModel)]="currentOption4"
                 [placeholder]="'Type'"></d-select>
         </d-form-item>
 
         <d-form-item>
             <d-form-label>Origin Station</d-form-label>
-            <d-cascader [options]="options" [placeholder]="'Please select, or type to search'" [(ngModel)]="value1"
-                (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300" [dropdownWidth]="200"
-                [allowClear]="true" [allowSearch]="true">
+            <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
+                [(ngModel)]="value1" (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300"
+                [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
             </d-cascader>
         </d-form-item>
+
         <d-form-item>
             <d-form-label>Destination Station</d-form-label>
-            <d-cascader [options]="options" [placeholder]="'Please select, or type to search'" [(ngModel)]="value1"
-                (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300" [dropdownWidth]="200"
-                [allowClear]="true" [allowSearch]="true">
+            <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
+                [(ngModel)]="value1" (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300"
+                [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
             </d-cascader>
         </d-form-item>
 
@@ -73,13 +57,12 @@
             <d-form-label>Notes</d-form-label>
             <textarea dTextarea placeholder="Please Enter" resize="both"></textarea>
         </d-form-item>
+
         <d-form-operation>
             <d-button bsStyle="primary" class="mr-element-spacing" circled="true" style="margin-right: 4px">Submit
             </d-button>
             <d-button bsStyle="common" circled="true">Cancel</d-button>
         </d-form-operation>
     </form>
-    <ng-template #customTemplate>
-        <span>Choose your execution cycle, it is recommended to choose Monday, Wednesday, Friday.</span>
-    </ng-template>
+
 </div>
