@@ -14,16 +14,18 @@
 
         <d-form-item>
             <d-form-label>Spotting Date</d-form-label>
-            <input class="devui-input devui-form-control" placeholder="y/MM/dd" (click)="datePicker1.toggle()" name="dp"
-                formControlName="spottingDate" (ngModelChange)="onChanges($event)" autocomplete="off" dDatepicker
-                #datePicker1="datepicker" locale="en-us" appendToBody
-                [appendToBodyDirections]="appendToBodyDirections" />
-            <div *ngIf="selectedDate1" class="devui-input-group-addon close-icon-wrapper"
-                (click)="datePicker1.clearAll()">
-                <i class="icon icon-close"></i>
-            </div>
-            <div class="devui-input-group-addon" (click)="datePicker1.toggle()">
-                <i class="icon icon-calendar"></i>
+            <div class="devui-input-group devui-dropdown-origin">
+                <input class="devui-input devui-form-control" placeholder="y/MM/dd" (click)="datePicker1.toggle()"
+                    name="dp" formControlName="spottingDate" (ngModelChange)="onChanges($event)" autocomplete="off"
+                    dDatepicker #datePicker1="datepicker" locale="en-us" appendToBody
+                    [appendToBodyDirections]="appendToBodyDirections" />
+                <div *ngIf="selectedDate1" class="devui-input-group-addon close-icon-wrapper"
+                    (click)="datePicker1.clearAll()">
+                    <i class="icon icon-close"></i>
+                </div>
+                <div class="devui-input-group-addon" (click)="datePicker1.toggle()">
+                    <i class="icon icon-calendar"></i>
+                </div>
             </div>
         </d-form-item>
 
