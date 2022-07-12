@@ -1,7 +1,8 @@
+import { DevUIModule } from "ng-devui";
+
 import { NgModule } from "@angular/core";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { DevUIModule } from "ng-devui";
 
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
