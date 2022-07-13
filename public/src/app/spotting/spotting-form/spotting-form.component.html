@@ -6,68 +6,84 @@
 
         <d-form-item>
             <d-form-label>Vehicle</d-form-label>
-            <d-cascader [options]="vehicleOptions" [placeholder]="'Please select, or type to search'"
-                formControlName="vehicle" (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300"
-                [dropdownWidth]="200" [allowClear]="true" [allowSearch]="true">
-            </d-cascader>
+            <d-form-control [feedbackStatus]="getStatus('vehicle')">
+                <d-cascader [options]="vehicleOptions" [placeholder]="'Please select, or type to search'"
+                    formControlName="vehicle" (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300"
+                    [dropdownWidth]="200" [allowSearch]="true">
+                </d-cascader>
+            </d-form-control>
         </d-form-item>
 
         <d-form-item>
             <d-form-label>Spotting Date</d-form-label>
-            <div class="devui-input-group devui-dropdown-origin">
-                <input class="devui-input devui-form-control" placeholder="y/MM/dd" (click)="datePicker1.toggle()"
-                    name="dp" formControlName="spottingDate" (ngModelChange)="onChanges($event)" autocomplete="off"
-                    dDatepicker #datePicker1="datepicker" locale="en-us" appendToBody
-                    [appendToBodyDirections]="appendToBodyDirections" />
-                <div *ngIf="selectedDate1" class="devui-input-group-addon close-icon-wrapper"
-                    (click)="datePicker1.clearAll()">
-                    <i class="icon icon-close"></i>
+            <d-form-control [feedbackStatus]="getStatus('spottingDate')">
+                <div class="devui-input-group devui-dropdown-origin">
+                    <input class="devui-input devui-form-control" placeholder="y/MM/dd" (click)="datePicker1.toggle()"
+                        name="dp" formControlName="spottingDate" (ngModelChange)="onChanges($event)" autocomplete="off"
+                        dDatepicker #datePicker1="datepicker" locale="en-us" appendToBody
+                        [appendToBodyDirections]="appendToBodyDirections" />
+                    <div *ngIf="selectedDate1" class="devui-input-group-addon close-icon-wrapper"
+                        (click)="datePicker1.clearAll()">
+                        <i class="icon icon-close"></i>
+                    </div>
+                    <div class="devui-input-group-addon" (click)="datePicker1.toggle()">
+                        <i class="icon icon-calendar"></i>
+                    </div>
                 </div>
-                <div class="devui-input-group-addon" (click)="datePicker1.toggle()">
-                    <i class="icon icon-calendar"></i>
-                </div>
-            </div>
+            </d-form-control>
         </d-form-item>
 
         <d-form-item>
             <d-form-label>Status</d-form-label>
-            <d-select [options]="statusOptions" [isSearch]="true" [filterKey]="'name'" formControlName="status"
-                [placeholder]="'Status'" (ngModelChange)="onChanges($event)"></d-select>
+            <d-form-control [feedbackStatus]="getStatus('status')">
+                <d-select [options]="statusOptions" [isSearch]="true" [filterKey]="'name'" formControlName="status"
+                    [placeholder]="'Status'" (ngModelChange)="onChanges($event)"></d-select>
+            </d-form-control>
         </d-form-item>
 
         <d-form-item>
             <d-form-label>Type</d-form-label>
-            <d-select [options]="typeOptions" [isSearch]="true" [filterKey]="'name'" formControlName="type"
-                [placeholder]="'Type'" (ngModelChange)="onChanges($event)"></d-select>
+            <d-form-control [feedbackStatus]="getStatus('type')">
+                <d-select [options]="typeOptions" [isSearch]="true" [filterKey]="'name'" formControlName="type"
+                    [placeholder]="'Type'" (ngModelChange)="onChanges($event)"></d-select>
+            </d-form-control>
         </d-form-item>
 
         <div *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'">
             <d-form-item>
                 <d-form-label>Origin Station</d-form-label>
-                <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
-                    formControlName="originStation" (ngModelChange)="onChanges($event)" [trigger]="'click'"
-                    [width]="300" [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
-                </d-cascader>
+
+                <d-form-control [feedbackStatus]="getStatus('originStation')">
+                    <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
+                        formControlName="originStation" (ngModelChange)="onChanges($event)" [trigger]="'click'"
+                        [width]="300" [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
+                    </d-cascader>
+                </d-form-control>
             </d-form-item>
 
             <d-form-item>
                 <d-form-label>Destination Station</d-form-label>
-                <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
-                    formControlName="destinationStation" (ngModelChange)="onChanges($event)" [trigger]="'click'"
-                    [width]="300" [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
-                </d-cascader>
+                <d-form-control [feedbackStatus]="getStatus('destinationStation')">
+                    <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
+                        formControlName="destinationStation" (ngModelChange)="onChanges($event)" [trigger]="'click'"
+                        [width]="300" [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
+                    </d-cascader>
+                </d-form-control>
             </d-form-item>
 
         </div>
 
         <d-form-item>
             <d-form-label>Notes</d-form-label>
-            <textarea dTextarea placeholder="Additional notes" formControlName="notes" resize="both"
-                (ngModelChange)="onChanges($event)"></textarea>
+            <d-form-control>
+                <textarea dTextarea placeholder="Additional notes" formControlName="notes" resize="both"
+                    (ngModelChange)="onChanges($event)"></textarea>
+            </d-form-control>
         </d-form-item>
 
         <d-form-operation>
-            <d-button bsStyle="primary" class="mr-element-spacing" circled="true" style="margin-right: 4px">Submit
+            <d-button bsStyle="primary" class="mr-element-spacing" circled="true" style="margin-right: 4px"
+                (click)="onSubmit()">Submit
             </d-button>
             <d-button bsStyle="common" circled="true">Cancel</d-button>
         </d-form-operation>

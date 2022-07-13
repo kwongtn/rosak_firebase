@@ -21,6 +21,7 @@ export class SpottingFormComponent implements OnInit {
         "rightDown",
         "centerDown",
     ];
+    submitButtonClicked: boolean = false;
 
     vehicleOptions: CascaderItem[] = [
         {
@@ -121,6 +122,19 @@ export class SpottingFormComponent implements OnInit {
         },
     ];
 
+    getStatus(fieldName: string): null | "success" | "error" {
+        if (this.formGroup.controls[fieldName].valid) {
+            return "success";
+        } else if (
+            !this.submitButtonClicked &&
+            this.formGroup.controls[fieldName].pristine
+        ) {
+            return null;
+        } else {
+            return "error";
+        }
+    }
+
     /**
      * Form stuff
      */
@@ -131,10 +145,22 @@ export class SpottingFormComponent implements OnInit {
         this.formGroup = this.fb.group({
             vehicle: new FormControl("", [Validators.required]),
             spottingDate: new FormControl(new Date(), [Validators.required]),
-            status: new FormControl("", [Validators.required]),
-            type: new FormControl("", [Validators.required]),
-            originStation: new FormControl("", []),
-            destinationStation: new FormControl("", []),
+            status: new FormControl(
+                {
+                    name: "In Service",
+                    value: "IN_SERVICE",
+                },
+                [Validators.required]
+            ),
+            type: new FormControl(
+                {
+                    name: "Between Stations",
+                    value: "BETWEEN_STATIONS",
+                },
+                [Validators.required]
+            ),
+            originStation: new FormControl("", [Validators.required]),
+            destinationStation: new FormControl("", [Validators.required]),
             notes: new FormControl("", []),
         });
     }
@@ -145,6 +171,13 @@ export class SpottingFormComponent implements OnInit {
 
     onChanges(event: Event): void {
         console.log(event);
+        return;
+    }
+
+    onSubmit(): void {
+        console.log(this.formGroup);
+        this.submitButtonClicked = true;
+
         return;
     }
 }
