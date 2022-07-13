@@ -178,6 +178,16 @@ export class SpottingFormComponent implements OnInit {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
+        const formValues = this.formGroup.value;
+
+        // Form Distillation
+        if (formValues.type.value !== "BETWEEN_STATIONS") {
+            formValues["originStation"] = null;
+            formValues["destinationStation"] = null;
+        }
+
+        console.log(formValues);
+
         return;
     }
 }
