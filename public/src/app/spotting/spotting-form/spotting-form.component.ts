@@ -1,8 +1,10 @@
+import { Apollo, gql } from "apollo-angular";
 import { CascaderItem } from "ng-devui";
-import { FormLayout } from "ng-devui/form";
+import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { AppendToBodyDirection } from "ng-devui/utils";
+import { Subscription } from "rxjs";
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
     FormBuilder,
     FormControl,
@@ -10,12 +12,37 @@ import {
     Validators,
 } from "@angular/forms";
 
+const GET_LINES = gql`
+    query GetLinesAndVehicles {
+        lines {
+            id
+            code
+            displayName
+            stationLine {
+                id
+                displayName
+                internalRepresentation
+            }
+            vehicleTypes {
+                id
+                internalName
+                displayName
+                vehicles {
+                    id
+                    identificationNo
+                    status
+                }
+            }
+        }
+    }
+`;
+
 @Component({
     selector: "app-spotting-form",
     templateUrl: "./spotting-form.component.html",
     styleUrls: ["./spotting-form.component.scss"],
 })
-export class SpottingFormComponent implements OnInit {
+export class SpottingFormComponent implements OnInit, OnDestroy {
     layoutDirection: FormLayout = FormLayout.Horizontal;
     appendToBodyDirections: AppendToBodyDirection[] = [
         "rightDown",
@@ -23,38 +50,7 @@ export class SpottingFormComponent implements OnInit {
     ];
     submitButtonClicked: boolean = false;
 
-    vehicleOptions: CascaderItem[] = [
-        {
-            label: "KJL - MRT Kajang Line",
-            value: 1,
-            children: [
-                {
-                    label: "B.Innov. 2-Car",
-                    value: 1,
-                    children: [
-                        {
-                            label: "01 @ SBK",
-                            value: 1,
-                            isLeaf: true,
-                        },
-                        {
-                            label: "02 @ SBK",
-                            value: 2,
-                            isLeaf: true,
-                        },
-                        {
-                            label: "03 @ SBK",
-                            value: 3,
-                            isLeaf: true,
-                        },
-                    ],
-                },
-            ],
-            isLeaf: false,
-            disabled: false,
-            icon: "icon-folder",
-        },
-    ];
+    vehicleOptions: CascaderItem[] = [];
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
@@ -81,49 +77,18 @@ export class SpottingFormComponent implements OnInit {
     ];
 
     // TODO: Check that origin and destination options are not the same
-    stationOptions: CascaderItem[] = [
-        {
-            label: "KGL - MRT Kajang Line",
-            value: 1,
-            children: [
-                { value: 1, label: "KG04 - Kwasa Damansara" },
-                { value: 2, label: "KG05 - Kwasa Sentral" },
-                { value: 3, label: "KG06 - Kota Damansara" },
-                { value: 4, label: "KG07 - Surian" },
-                { value: 5, label: "KG08 - Mutiara Damansara" },
-                { value: 6, label: "KG09 - Bandar Utama" },
-                { value: 7, label: "KG10 - Taman Tun Dr Ismail (TTDI)" },
-                { value: 8, label: "KG11 - Phileo Damansara" },
-                { value: 9, label: "KG12 - Pusat Bandar Damansara" },
-                { value: 10, label: "KG14 - Semantan" },
-                { value: 11, label: "KG15 - Muzium Negara" },
-                { value: 12, label: "KG16 - Pasar Seni" },
-                { value: 13, label: "KG17 - Merdeka" },
-                { value: 14, label: "KG18A - Bukit Bintang" },
-                { value: 15, label: "KG20 - Tun Razak Exchange (TRX)" },
-                { value: 16, label: "KG21 - Cochrane" },
-                { value: 17, label: "KG22 - Maluri" },
-                { value: 18, label: "KG23 - Taman Pertama" },
-                { value: 19, label: "KG24 - Taman Midah" },
-                { value: 20, label: "KG25 - Taman Mutiara" },
-                { value: 21, label: "KG26 - Taman Connaught" },
-                { value: 22, label: "KG27 - Taman Suntex" },
-                { value: 23, label: "KG28 - Sri Raya" },
-                { value: 24, label: "KG29 - Bandar Tun Hussein Onn" },
-                { value: 25, label: "KG30 - Batu 11 Cheras" },
-                { value: 26, label: "KG31 - Bukit Dukung" },
-                { value: 27, label: "KG33 - Sungai Jernih" },
-                { value: 28, label: "KG34 - Stadium Kajang" },
-                { value: 29, label: "KG35 - Kajang" },
-            ],
-            isLeaf: false,
-            disabled: false,
-            icon: "icon-folder",
-        },
-    ];
+    stationOptions: CascaderItem[] = [];
 
-    getStatus(fieldName: string): null | "success" | "error" {
-        if (this.formGroup.controls[fieldName].valid) {
+    loading: { [key: string]: boolean } = {
+        originStation: true,
+        destinationStation: true,
+        vehicle: true,
+    };
+
+    getStatus(fieldName: string): DFormControlStatus | null {
+        if (this.loading[fieldName]) {
+            return "pending";
+        } else if (this.formGroup.controls[fieldName].valid) {
             return "success";
         } else if (
             !this.submitButtonClicked &&
@@ -141,7 +106,9 @@ export class SpottingFormComponent implements OnInit {
     formGroup: FormGroup;
     selectedDate1 = new Date();
 
-    constructor(private fb: FormBuilder) {
+    private querySubscription!: Subscription;
+
+    constructor(private fb: FormBuilder, private apollo: Apollo) {
         this.formGroup = this.fb.group({
             vehicle: new FormControl("", [Validators.required]),
             spottingDate: new FormControl(new Date(), [Validators.required]),
@@ -166,7 +133,74 @@ export class SpottingFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        return;
+        this.querySubscription = this.apollo
+            .watchQuery<any>({
+                query: GET_LINES,
+            })
+            .valueChanges.subscribe(({ data, loading }) => {
+                console.log("Query loading: ", loading);
+                console.log("Query data: ", data);
+                const stationOptions: CascaderItem[] = [];
+                for (const line of data.lines) {
+                    const lineObj: CascaderItem = {
+                        label: `${line.code} - ${line.displayName}`,
+                        value: line.id,
+                        isLeaf: false,
+                        disabled: false,
+                        children: [],
+                    };
+                    for (const stationLine of line.stationLine) {
+                        lineObj.children?.push({
+                            label: `${stationLine.internalRepresentation} - ${stationLine.displayName}`,
+                            value: stationLine.id,
+                            isLeaf: true,
+                            disabled: false,
+                        });
+                    }
+                    stationOptions.push(lineObj);
+                }
+                this.loading["originStation"] = loading;
+                this.loading["destinationStation"] = loading;
+                this.stationOptions = stationOptions;
+
+                const vehicleOptions: CascaderItem[] = [];
+                for (const line of data.lines) {
+                    const lineObj: CascaderItem = {
+                        label: `${line.code} - ${line.displayName}`,
+                        value: line.id,
+                        isLeaf: false,
+                        disabled: false,
+                        children: [],
+                    };
+                    for (const vehicleType of line.vehicleTypes) {
+                        const vehicles: CascaderItem[] = [];
+
+                        for (const vehicle of vehicleType.vehicles) {
+                            vehicles.push({
+                                label: `${vehicle.identificationNo} @ ${line.code}`,
+                                value: vehicle.id,
+                                isLeaf: true,
+                                disabled: false,
+                            });
+                        }
+
+                        lineObj.children?.push({
+                            label: `${vehicleType.internalName}`,
+                            value: vehicleType.id,
+                            isLeaf: false,
+                            disabled: false,
+                            children: vehicles,
+                        });
+                    }
+                    vehicleOptions.push(lineObj);
+                }
+                this.loading["vehicle"] = loading;
+                this.vehicleOptions = vehicleOptions;
+            });
+    }
+
+    ngOnDestroy() {
+        this.querySubscription.unsubscribe();
     }
 
     onChanges(event: Event): void {
