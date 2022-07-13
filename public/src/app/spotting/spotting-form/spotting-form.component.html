@@ -37,7 +37,8 @@
             <d-form-label>Status</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('status')">
                 <d-select [options]="statusOptions" [isSearch]="true" [filterKey]="'name'" formControlName="status"
-                    [placeholder]="'Status'" (ngModelChange)="onChanges($event)"></d-select>
+                    [placeholder]="'Status'" (ngModelChange)="onChanges($event)" [optionDisabledKey]="'disabled'">
+                </d-select>
             </d-form-control>
         </d-form-item>
 
@@ -45,7 +46,8 @@
             <d-form-label>Type</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('type')">
                 <d-select [options]="typeOptions" [isSearch]="true" [filterKey]="'name'" formControlName="type"
-                    [placeholder]="'Type'" (ngModelChange)="onChanges($event)"></d-select>
+                    [placeholder]="'Type'" (ngModelChange)="onChanges($event)" [optionDisabledKey]="'disabled'">
+                </d-select>
             </d-form-control>
         </d-form-item>
 

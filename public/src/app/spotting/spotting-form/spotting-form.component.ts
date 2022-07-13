@@ -61,7 +61,7 @@ export class SpottingFormComponent implements OnInit {
         { name: "Not Spotted", value: "NOT_SPOTTED" },
         { name: "Decommissioned", value: "DECOMMISSIONED" },
         { name: "Testing", value: "TESTING" },
-        { name: "Unknown", value: "UNKNOWN" },
+        { name: "Unknown", value: "UNKNOWN", disabled: true },
     ];
 
     typeOptions = [
