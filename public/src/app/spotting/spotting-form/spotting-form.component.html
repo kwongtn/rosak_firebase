@@ -7,8 +7,8 @@
         <d-form-item>
             <d-form-label>Line</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('line')">
-                <d-select [options]="lineOptions" [isSearch]="true" [filterKey]="'name'" formControlName="status"
-                    [placeholder]="'Line'" (ngModelChange)="onChanges($event)" [optionDisabledKey]="'disabled'">
+                <d-select [options]="lineOptions" [isSearch]="true" [filterKey]="'name'" formControlName="line"
+                    [placeholder]="'Line'" (ngModelChange)="onLineChanges($event)" [optionDisabledKey]="'disabled'">
                 </d-select>
             </d-form-control>
         </d-form-item>

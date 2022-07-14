@@ -97,10 +97,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             return "pending";
         } else if (this.formGroup.controls[fieldName].valid) {
             return "success";
-        } else if (
-            !this.submitButtonClicked &&
-            this.formGroup.controls[fieldName].pristine
-        ) {
+        } else if (!this.submitButtonClicked) {
             return null;
         } else {
             return "error";
@@ -171,7 +168,28 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     onChanges(event: Event): void {
+        console.log("On changes: ", event);
+        return;
+    }
+
+    onLineChanges(event: Event): void {
         console.log(event);
+
+        this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
+            this.queryResult,
+            (event as any).value
+        );
+        this.stationOptions = lineQueryResultToStationCascaderOptions(
+            this.queryResult,
+            (event as any).value
+        );
+
+        this.formGroup.patchValue({
+            vehicle: "",
+            originStation: "",
+            destinationStation: "",
+        });
+
         return;
     }
 
@@ -183,8 +201,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         // Form Distillation
         if (formValues.type.value !== "BETWEEN_STATIONS") {
-            formValues["originStation"] = null;
-            formValues["destinationStation"] = null;
+            formValues["originStation"] = undefined;
+            formValues["destinationStation"] = undefined;
         }
 
         console.log(formValues);
