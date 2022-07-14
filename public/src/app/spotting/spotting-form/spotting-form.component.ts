@@ -50,8 +50,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
     submitButtonClicked: boolean = false;
 
-    vehicleOptions: CascaderItem[] = [];
-
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
         { name: "Not Spotted", value: "NOT_SPOTTED" },
@@ -78,11 +76,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     // TODO: Check that origin and destination options are not the same
     stationOptions: CascaderItem[] = [];
+    vehicleOptions: CascaderItem[] = [];
+    lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
     loading: { [key: string]: boolean } = {
         originStation: true,
         destinationStation: true,
         vehicle: true,
+        line: true,
     };
 
     getStatus(fieldName: string): DFormControlStatus | null {
@@ -105,11 +106,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
      */
     formGroup: FormGroup;
     selectedDate1 = new Date();
+    queryResult = {};
 
     private querySubscription!: Subscription;
 
     constructor(private fb: FormBuilder, private apollo: Apollo) {
         this.formGroup = this.fb.group({
+            line: new FormControl("", [Validators.required]),
             vehicle: new FormControl("", [Validators.required]),
             spottingDate: new FormControl(new Date(), [Validators.required]),
             status: new FormControl(
@@ -140,6 +143,23 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             .valueChanges.subscribe(({ data, loading }) => {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
+
+                const lineOptions: {
+                    name: any;
+                    value: any;
+                    disabled?: boolean;
+                }[] = [];
+                for (const line of data.lines) {
+                    const lineObj = {
+                        name: `${line.code} - ${line.displayName}`,
+                        value: line.id,
+                        disabled: false,
+                    };
+                    lineOptions.push(lineObj);
+                }
+                this.loading["line"] = loading;
+                this.lineOptions = lineOptions;
+
                 const stationOptions: CascaderItem[] = [];
                 for (const line of data.lines) {
                     const lineObj: CascaderItem = {

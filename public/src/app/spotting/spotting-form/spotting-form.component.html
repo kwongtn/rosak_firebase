@@ -3,6 +3,15 @@
         <!-- 
         TODO: - Location -- map or lat long input
         -->
+        
+        <d-form-item>
+            <d-form-label>Line</d-form-label>
+            <d-form-control [feedbackStatus]="getStatus('line')">
+                <d-select [options]="lineOptions" [isSearch]="true" [filterKey]="'name'" formControlName="status"
+                    [placeholder]="'Line'" (ngModelChange)="onChanges($event)" [optionDisabledKey]="'disabled'">
+                </d-select>
+            </d-form-control>
+        </d-form-item>
 
         <d-form-item>
             <d-form-label>Vehicle</d-form-label>
