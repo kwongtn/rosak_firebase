@@ -17,6 +17,7 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
+import { betweenStationTypeOriginDestinationStationValidator } from "./spotting-form.utils";
 
 const GET_LINES = gql`
     query GetLinesAndVehicles {
@@ -104,7 +105,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         if (this.loading[fieldName]) {
             return "pending";
         } else if (this.formGroup.controls[fieldName].valid) {
-            return "success";
+            if (
+                this.formGroup.errors &&
+                Object.keys(this.formGroup.errors).includes(fieldName)
+            ) {
+                if (this.submitButtonClicked) {
+                    return "error";
+                } else {
+                    return null;
+                }
+            } else {
+                return "success";
+            }
         } else if (!this.submitButtonClicked) {
             return null;
         } else {
@@ -122,28 +134,37 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     private querySubscription!: Subscription;
 
     constructor(private fb: FormBuilder, private apollo: Apollo) {
-        this.formGroup = this.fb.group({
-            line: new FormControl("", [Validators.required]),
-            vehicle: new FormControl("", [Validators.required]),
-            spottingDate: new FormControl(new Date(), [Validators.required]),
-            status: new FormControl(
-                {
-                    name: "In Service",
-                    value: "IN_SERVICE",
-                },
-                [Validators.required]
-            ),
-            type: new FormControl(
-                {
-                    name: "Between Stations",
-                    value: "BETWEEN_STATIONS",
-                },
-                [Validators.required]
-            ),
-            originStation: new FormControl("", [Validators.required]),
-            destinationStation: new FormControl("", [Validators.required]),
-            notes: new FormControl("", []),
-        });
+        this.formGroup = this.fb.group(
+            {
+                line: new FormControl("", [Validators.required]),
+                vehicle: new FormControl("", [Validators.required]),
+                spottingDate: new FormControl(new Date(), [
+                    Validators.required,
+                ]),
+                status: new FormControl(
+                    {
+                        name: "In Service",
+                        value: "IN_SERVICE",
+                    },
+                    [Validators.required]
+                ),
+                type: new FormControl(
+                    {
+                        name: "Between Stations",
+                        value: "BETWEEN_STATIONS",
+                    },
+                    [Validators.required]
+                ),
+                originStation: new FormControl("", []),
+                destinationStation: new FormControl("", []),
+                notes: new FormControl("", []),
+            },
+            {
+                validators: [
+                    betweenStationTypeOriginDestinationStationValidator,
+                ],
+            }
+        );
     }
 
     ngOnInit(): void {
