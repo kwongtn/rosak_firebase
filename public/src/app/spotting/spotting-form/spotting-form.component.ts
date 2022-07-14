@@ -43,6 +43,14 @@ const GET_LINES = gql`
     }
 `;
 
+const ADD_ENTRY = gql`
+    mutation AddSpottingEntry($data: EventInput!) {
+        addEvent(data: $data) {
+            id
+        }
+    }
+`;
+
 @Component({
     selector: "app-spotting-form",
     templateUrl: "./spotting-form.component.html",
@@ -193,17 +201,51 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    onSubmit(): void {
+    onSubmit(): any {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
-        const formValues = this.formGroup.value;
+        const formValues = { ...this.formGroup.value };
 
         // Form Distillation
         if (formValues.type.value !== "BETWEEN_STATIONS") {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
+        } else {
+            formValues["originStation"] = formValues["originStation"][0];
+            formValues["destinationStation"] =
+                formValues["destinationStation"][0];
         }
+
+        formValues["spottingDate"] = formValues["spottingDate"]
+            .toISOString()
+            .slice(0, 10);
+
+        formValues["vehicle"] = formValues["vehicle"].slice(-1)[0];
+        formValues["status"] = formValues["status"]["value"];
+        formValues["type"] = formValues["type"]["value"];
+
+        // Removing line option here as it is not required by GQL
+        formValues["line"] = undefined;
+
+        // TODO: To remove once authentication is done
+        formValues["reporter"] = 1;
+
+        this.apollo
+            .mutate({
+                mutation: ADD_ENTRY,
+                variables: {
+                    data: formValues,
+                },
+            })
+            .subscribe(
+                ({ data }) => {
+                    console.log("got data", data);
+                },
+                (error) => {
+                    console.log("there was an error sending the query", error);
+                }
+            );
 
         console.log(formValues);
 
