@@ -1,4 +1,6 @@
+import { MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
+import { Observable } from "rxjs";
 
 import { Component, OnInit } from "@angular/core";
 
@@ -29,8 +31,24 @@ export class SpottingMainComponent implements OnInit {
                     cssClass: "primary",
                     text: "Submit",
                     handler: () => {
-                        results.modalContentInstance.onSubmit();
-                        // results.modalInstance.hide();
+                        const submitAction =
+                            results.modalContentInstance.onSubmit() as
+                                | Observable<MutationResult<any>>
+                                | undefined;
+                        if (submitAction) {
+                            submitAction.subscribe((mutationResult) => {
+                                console.log(mutationResult);
+
+                                if (!mutationResult.data?.loading) {
+                                    if (mutationResult.data?.addEvent.id) {
+                                        console.log("Mutation successful");
+                                        // TODO: Dialog box
+
+                                        results.modalInstance.hide();
+                                    }
+                                }
+                            });
+                        }
                     },
                 },
                 {
@@ -42,15 +60,12 @@ export class SpottingMainComponent implements OnInit {
                     },
                 },
             ],
-            data: {
-                canConfirm: (value: boolean) => {
-                    results.modalInstance.updateButtonOptions([
-                        { disabled: !value },
-                    ]);
-                },
-            },
+            data: {},
         });
-        console.log(results.modalContentInstance);
+        console.log(
+            "results.modalContentInstance: ",
+            results.modalContentInstance
+        );
     }
 
     ngOnInit(): void {

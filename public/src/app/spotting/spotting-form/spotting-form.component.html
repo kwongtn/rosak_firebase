@@ -1,9 +1,9 @@
-<div style="margin-left: 40px">
+<div dLoading style="margin-left: 40px" [loading]="submitting" [backdrop]="true" >
     <form dForm [layout]="layoutDirection" [labelSize]="'sm'" [formGroup]="formGroup">
         <!-- 
         TODO: - Location -- map or lat long input
         -->
-        
+
         <d-form-item>
             <d-form-label>Line</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('line')">

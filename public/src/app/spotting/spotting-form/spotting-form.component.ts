@@ -1,8 +1,9 @@
-import { Apollo, gql } from "apollo-angular";
+import { Apollo, gql, MutationResult } from "apollo-angular";
 import { CascaderItem } from "ng-devui";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
+import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
-import { Subscription } from "rxjs";
+import { Observable, Subscription } from "rxjs";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
@@ -64,6 +65,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         "centerDown",
     ];
     submitButtonClicked: boolean = false;
+    submitting: LoadingType = undefined;
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
@@ -222,7 +224,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    onSubmit(): any {
+    onSubmit(): Observable<MutationResult<unknown>> | undefined {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
@@ -256,24 +258,17 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         // TODO: To remove once authentication is done
         formValues["reporter"] = 1;
 
-        this.apollo
-            .mutate({
-                mutation: ADD_ENTRY,
-                variables: {
-                    data: formValues,
-                },
-            })
-            .subscribe(
-                ({ data }) => {
-                    console.log("got data", data);
-                },
-                (error) => {
-                    console.log("there was an error sending the query", error);
-                }
-            );
+        const mutationObservable = this.apollo.mutate({
+            mutation: ADD_ENTRY,
+            variables: {
+                data: formValues,
+            },
+        });
+
+        this.submitting = mutationObservable;
 
         console.log(formValues);
 
-        return;
+        return mutationObservable;
     }
 }

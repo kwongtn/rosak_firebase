@@ -2,6 +2,7 @@ import { DevUIModule } from "ng-devui";
 import { CascaderModule } from "ng-devui/cascader";
 import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
+import { LoadingModule } from "ng-devui/loading";
 import { ModalModule } from "ng-devui/modal";
 import { SelectModule } from "ng-devui/select";
 
@@ -32,6 +33,7 @@ import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
         GraphQLModule,
         HttpClientModule,
         ModalModule,
+        LoadingModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [],
