@@ -12,6 +12,12 @@ import {
     Validators,
 } from "@angular/forms";
 
+import {
+    lineQueryResultToOptions,
+    lineQueryResultToStationCascaderOptions,
+    lineQueryResultToVehicleCascaderOptions,
+} from "../utils";
+
 const GET_LINES = gql`
     query GetLinesAndVehicles {
         lines {
@@ -144,78 +150,19 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
 
-                const lineOptions: {
-                    name: any;
-                    value: any;
-                    disabled?: boolean;
-                }[] = [];
-                for (const line of data.lines) {
-                    const lineObj = {
-                        name: `${line.code} - ${line.displayName}`,
-                        value: line.id,
-                        disabled: false,
-                    };
-                    lineOptions.push(lineObj);
-                }
-                this.loading["line"] = loading;
-                this.lineOptions = lineOptions;
+                this.queryResult = data;
 
-                const stationOptions: CascaderItem[] = [];
-                for (const line of data.lines) {
-                    const lineObj: CascaderItem = {
-                        label: `${line.code} - ${line.displayName}`,
-                        value: line.id,
-                        isLeaf: false,
-                        disabled: false,
-                        children: [],
-                    };
-                    for (const stationLine of line.stationLine) {
-                        lineObj.children?.push({
-                            label: `${stationLine.internalRepresentation} - ${stationLine.displayName}`,
-                            value: stationLine.id,
-                            isLeaf: true,
-                            disabled: false,
-                        });
-                    }
-                    stationOptions.push(lineObj);
-                }
+                this.loading["line"] = loading;
+                this.lineOptions = lineQueryResultToOptions(data);
+
                 this.loading["originStation"] = loading;
                 this.loading["destinationStation"] = loading;
-                this.stationOptions = stationOptions;
+                this.stationOptions =
+                    lineQueryResultToStationCascaderOptions(data);
 
-                const vehicleOptions: CascaderItem[] = [];
-                for (const line of data.lines) {
-                    const lineObj: CascaderItem = {
-                        label: `${line.code} - ${line.displayName}`,
-                        value: line.id,
-                        isLeaf: false,
-                        disabled: false,
-                        children: [],
-                    };
-                    for (const vehicleType of line.vehicleTypes) {
-                        const vehicles: CascaderItem[] = [];
-
-                        for (const vehicle of vehicleType.vehicles) {
-                            vehicles.push({
-                                label: `${vehicle.identificationNo} @ ${line.code}`,
-                                value: vehicle.id,
-                                isLeaf: true,
-                                disabled: false,
-                            });
-                        }
-
-                        lineObj.children?.push({
-                            label: `${vehicleType.internalName}`,
-                            value: vehicleType.id,
-                            isLeaf: false,
-                            disabled: false,
-                            children: vehicles,
-                        });
-                    }
-                    vehicleOptions.push(lineObj);
-                }
                 this.loading["vehicle"] = loading;
-                this.vehicleOptions = vehicleOptions;
+                this.vehicleOptions =
+                    lineQueryResultToVehicleCascaderOptions(data);
             });
     }
 
