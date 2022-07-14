@@ -13,9 +13,10 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 
 import { GraphQLModule } from "../graphql.module";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
+import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 
 @NgModule({
-    declarations: [SpottingFormComponent],
+    declarations: [SpottingFormComponent, SpottingMainComponent],
     imports: [
         CommonModule,
         BrowserModule,
@@ -30,7 +31,7 @@ import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
         GraphQLModule,
         HttpClientModule,
     ],
-    exports: [SpottingFormComponent],
+    exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [],
 })
 export class SpottingModule {}
