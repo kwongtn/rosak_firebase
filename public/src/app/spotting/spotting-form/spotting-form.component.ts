@@ -205,6 +205,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
+        if (this.formGroup.invalid) {
+            return;
+        }
+
         const formValues = { ...this.formGroup.value };
 
         // Form Distillation
