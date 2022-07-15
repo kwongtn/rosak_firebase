@@ -3,6 +3,7 @@ import { DialogService } from "ng-devui";
 
 import { Component, OnInit } from "@angular/core";
 
+import { ToastService } from "../../services/toast/toast.service";
 import { SpottingFormComponent } from "../spotting-form/spotting-form.component";
 
 @Component({
@@ -11,7 +12,10 @@ import { SpottingFormComponent } from "../spotting-form/spotting-form.component"
     styleUrls: ["./spotting-main.component.scss"],
 })
 export class SpottingMainComponent implements OnInit {
-    constructor(private dialogService: DialogService) {}
+    constructor(
+        private dialogService: DialogService,
+        private toastService: ToastService
+    ) {}
 
     openStandardDialog(dialogtype?: string) {
         const results = this.dialogService.open({
@@ -41,9 +45,21 @@ export class SpottingMainComponent implements OnInit {
                                     console.log("Mutation successful");
                                     results.modalInstance.hide();
                                 }
+
+                                this.toastService.addToast({
+                                    severity: "success",
+                                    summary: "Success",
+                                    content:
+                                        "Your spotting entry is successfully added! 🥳",
+                                });
                             })
                             .catch((reason) => {
                                 console.error(reason);
+                                this.toastService.addToast({
+                                    severity: "error",
+                                    summary: "Error",
+                                    content: "Please try again.",
+                                });
                             });
                     },
                 },

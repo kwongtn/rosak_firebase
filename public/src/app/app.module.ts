@@ -1,4 +1,5 @@
 import { DevUIModule } from "ng-devui";
+import { ToastModule } from "ng-devui/toast";
 
 import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
@@ -20,6 +21,7 @@ import { SpottingModule } from "./spotting/spotting.module";
         SpottingModule,
         GraphQLModule,
         HttpClientModule,
+        ToastModule,
     ],
     providers: [],
     bootstrap: [AppComponent],
