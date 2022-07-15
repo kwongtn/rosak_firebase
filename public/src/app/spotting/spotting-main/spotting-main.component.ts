@@ -1,6 +1,5 @@
 import { MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
-import { Observable } from "rxjs";
 
 import { Component, OnInit } from "@angular/core";
 
@@ -33,22 +32,19 @@ export class SpottingMainComponent implements OnInit {
                     handler: () => {
                         const submitAction =
                             results.modalContentInstance.onSubmit() as
-                                | Observable<MutationResult<any>>
+                                | Promise<MutationResult<any>>
                                 | undefined;
-                        if (submitAction) {
-                            submitAction.subscribe((mutationResult) => {
-                                console.log(mutationResult);
 
-                                if (!mutationResult.data?.loading) {
-                                    if (mutationResult.data?.addEvent.id) {
-                                        console.log("Mutation successful");
-                                        // TODO: Dialog box
-
-                                        results.modalInstance.hide();
-                                    }
+                        submitAction
+                            ?.then((mutationResult) => {
+                                if (mutationResult.data?.addEvent.id) {
+                                    console.log("Mutation successful");
+                                    results.modalInstance.hide();
                                 }
+                            })
+                            .catch((reason) => {
+                                console.error(reason);
                             });
-                        }
                     },
                 },
                 {

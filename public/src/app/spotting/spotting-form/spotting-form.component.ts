@@ -3,7 +3,7 @@ import { CascaderItem } from "ng-devui";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
-import { Observable, Subscription } from "rxjs";
+import { lastValueFrom, Subscription } from "rxjs";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
@@ -224,7 +224,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    onSubmit(): Observable<MutationResult<unknown>> | undefined {
+    onSubmit(): Promise<MutationResult<any>> | undefined {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
@@ -265,10 +265,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             },
         });
 
-        this.submitting = mutationObservable;
+        this.submitting = lastValueFrom(mutationObservable);
 
-        console.log(formValues);
-
-        return mutationObservable;
+        return this.submitting;
     }
 }
