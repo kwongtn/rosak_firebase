@@ -43,7 +43,7 @@ interface TableDataType {
 export class SpottingMainComponent implements OnInit, OnDestroy {
     tableData: TableDataType[] = [];
     sampleData: SourceType[] = [];
-    loading: boolean = true;
+    showLoading: boolean = true;
 
     private querySubscription!: Subscription;
 
@@ -128,7 +128,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     data: GetVehiclesReponse;
                     loading: boolean;
                 }) => {
-                    this.loading = loading;
+                    this.showLoading = loading;
 
                     const sectionData: TableDataType[] = [];
                     for (const vehicleType of data.vehicleTypes) {
