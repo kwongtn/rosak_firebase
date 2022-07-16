@@ -42,6 +42,12 @@ export class SpottingTableComponent implements OnInit {
             //     order: 5,
             // },
             {
+                field: "timesSpotted",
+                header: "Times Spotted",
+                fieldType: "number",
+                order: 5,
+            },
+            {
                 field: "notes",
                 header: "Notes",
                 fieldType: "text",
