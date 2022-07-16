@@ -93,7 +93,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                 this.toastService.addToast({
                                     severity: "error",
                                     summary: "Error",
-                                    content: "Please try again.",
+                                    content: reason.message,
                                 });
                             });
                     },
