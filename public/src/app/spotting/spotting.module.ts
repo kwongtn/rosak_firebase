@@ -1,5 +1,6 @@
 import { DevUIModule } from "ng-devui";
 import { CascaderModule } from "ng-devui/cascader";
+import { DataTableModule } from "ng-devui/data-table";
 import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
 import { LoadingModule } from "ng-devui/loading";
@@ -16,9 +17,14 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { GraphQLModule } from "../graphql.module";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
+import { SpottingTableComponent } from "./spotting-table/spotting-table.component";
 
 @NgModule({
-    declarations: [SpottingFormComponent, SpottingMainComponent],
+    declarations: [
+        SpottingFormComponent,
+        SpottingMainComponent,
+        SpottingTableComponent,
+    ],
     imports: [
         CommonModule,
         BrowserModule,
@@ -34,6 +40,7 @@ import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
         HttpClientModule,
         ModalModule,
         LoadingModule,
+        DataTableModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [],
