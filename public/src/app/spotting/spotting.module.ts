@@ -15,6 +15,7 @@ import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 
 import { GraphQLModule } from "../graphql.module";
+import { VehicleStatusPipePipe } from "../pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import { SpottingTableComponent } from "./spotting-table/spotting-table.component";
@@ -24,6 +25,7 @@ import { SpottingTableComponent } from "./spotting-table/spotting-table.componen
         SpottingFormComponent,
         SpottingMainComponent,
         SpottingTableComponent,
+        VehicleStatusPipePipe,
     ],
     imports: [
         CommonModule,
