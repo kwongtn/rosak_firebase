@@ -1,38 +1,56 @@
-import { MutationResult } from "apollo-angular";
+import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
+import { Subscription } from "rxjs";
+import { GetVehiclesReponse } from "src/app/models/query/get-vehicles";
 import { SourceType } from "src/app/models/spotting-table/source-type";
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import { ToastService } from "../../services/toast/toast.service";
 import { SpottingFormComponent } from "../spotting-form/spotting-form.component";
+
+const GET_VEHICLES = gql`
+    query {
+        vehicleTypes {
+            id
+            internalName
+            displayName
+            vehicles {
+                id
+                identificationNo
+                status
+                lastSpottings(count: 1) {
+                    spottingDate
+                }
+                inServiceSince
+                spottingCount
+                notes
+            }
+        }
+    }
+`;
+
+interface TableDataType {
+    displayName: string;
+    tableData: SourceType[];
+}
 
 @Component({
     selector: "app-spotting-main",
     templateUrl: "./spotting-main.component.html",
     styleUrls: ["./spotting-main.component.scss"],
 })
-export class SpottingMainComponent implements OnInit {
-    sampleData: SourceType[] = [
-        {
-            identificationNo: "01",
-            status: "IN_SERVICE",
-            lastSpotted: "2022-07-15",
-            timesSpotted: 42,
-            notes: "",
-        },
-        {
-            identificationNo: "02",
-            status: "IN_SERVICE",
-            lastSpotted: "2022-07-15",
-            timesSpotted: 42,
-            notes: "",
-        },
-    ];
+export class SpottingMainComponent implements OnInit, OnDestroy {
+    tableData: TableDataType[] = [];
+    sampleData: SourceType[] = [];
+    loading: boolean = true;
+
+    private querySubscription!: Subscription;
 
     constructor(
         private dialogService: DialogService,
-        private toastService: ToastService
+        private toastService: ToastService,
+        private apollo: Apollo
     ) {}
 
     openStandardDialog(dialogtype?: string) {
@@ -72,7 +90,6 @@ export class SpottingMainComponent implements OnInit {
                                 });
                             })
                             .catch((reason) => {
-                                console.error(reason);
                                 this.toastService.addToast({
                                     severity: "error",
                                     summary: "Error",
@@ -99,6 +116,46 @@ export class SpottingMainComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        return;
+        this.querySubscription = this.apollo
+            .watchQuery<any>({
+                query: GET_VEHICLES,
+            })
+            .valueChanges.subscribe(
+                ({
+                    data,
+                    loading,
+                }: {
+                    data: GetVehiclesReponse;
+                    loading: boolean;
+                }) => {
+                    this.loading = loading;
+
+                    const sectionData: TableDataType[] = [];
+                    for (const vehicleType of data.vehicleTypes) {
+                        sectionData.push({
+                            displayName: vehicleType.displayName,
+                            tableData: vehicleType.vehicles.map((value) => {
+                                return {
+                                    identificationNo: value.identificationNo,
+                                    status: value.status,
+                                    lastSpotted:
+                                        value.lastSpottings[0]?.spottingDate,
+                                    timesSpotted: value.spottingCount,
+                                    notes: value.notes,
+                                };
+                            }),
+                        });
+                    }
+
+                    console.log("sectionData: ", sectionData);
+
+                    this.tableData = sectionData;
+                    this.sampleData = this.tableData[0].tableData;
+                }
+            );
+    }
+
+    ngOnDestroy() {
+        this.querySubscription.unsubscribe();
     }
 }
