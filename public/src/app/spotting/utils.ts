@@ -36,7 +36,7 @@ export function lineQueryResultToStationCascaderOptions(
                 disabled: false,
                 children: [],
             };
-            for (const stationLine of line.stationLine) {
+            for (const stationLine of line.stationLines) {
                 lineObj.children?.push({
                     label: `${stationLine.internalRepresentation} - ${stationLine.displayName}`,
                     value: stationLine.id,

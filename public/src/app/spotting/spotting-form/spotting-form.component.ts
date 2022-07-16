@@ -26,7 +26,7 @@ const GET_LINES = gql`
             id
             code
             displayName
-            stationLine {
+            stationLines {
                 id
                 displayName
                 internalRepresentation
