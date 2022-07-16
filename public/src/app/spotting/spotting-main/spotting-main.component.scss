@@ -1,0 +1,26 @@
+@import "~ng-devui/styles-var/devui-var.scss";
+
+.spotting-main-container {
+    margin: 2.5%;
+    position: relative;
+}
+
+.spotting-form-button {
+    position: absolute;
+    display: block;
+    right: 0%;
+    top: 0%;
+}
+
+.spotting-table-container {
+    position: absolute;
+}
+
+.spotting-table-elem {
+    margin-top: 2%;
+    display: block;
+}
+
+.spotting-table-title {
+    font-size: $devui-font-size-page-title;
+}

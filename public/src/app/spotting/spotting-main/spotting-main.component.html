@@ -1,2 +1,11 @@
-<app-spotting-table [dataSource]="sampleData"></app-spotting-table>
-<d-button (click)="openStandardDialog('standard')">open dialog</d-button>
+<div class="spotting-main-container">
+    <d-button class="spotting-form-button" (click)="openStandardDialog('standard')">open dialog</d-button>
+
+    <div class="spotting-table-container">
+        <div class="spotting-table-elem" *ngFor="let elem of tableData">
+            <h1 class="spotting-table-title">{{elem.displayName}}</h1>
+            <app-spotting-table class="app-spotting-table" [dataSource]="elem.tableData"></app-spotting-table>
+        </div>
+
+    </div>
+</div>
