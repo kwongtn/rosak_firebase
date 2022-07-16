@@ -1,28 +1,6 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 
-export interface SourceType {
-    id?: number;
-    firstName: string;
-    lastName: string;
-    dob: Date;
-    gender: string;
-    detail?: string;
-    $checked?: boolean;
-    $expandConfig?: any;
-    children?: any;
-    chosen?: boolean;
-    $isChildTableOpen?: boolean;
-}
-
-export const sampleData = [
-    {
-        identificationNo: "01",
-        status: "IN_SERVICE",
-        lastSpotted: "2022-07-15",
-        lastSpottedBy: undefined,
-        notes: "",
-    },
-];
+import { SourceType } from "../../models/spotting-table/source-type";
 
 @Component({
     selector: "app-spotting-table",
@@ -30,7 +8,7 @@ export const sampleData = [
     styleUrls: ["./spotting-table.component.scss"],
 })
 export class SpottingTableComponent implements OnInit {
-    basicDataSource: Array<SourceType> = JSON.parse(JSON.stringify(sampleData));
+    @Input() dataSource: Array<SourceType> = [];
     dataTableOptions = {
         columns: [
             {
@@ -42,7 +20,7 @@ export class SpottingTableComponent implements OnInit {
             {
                 field: "status",
                 header: "Status",
-                fieldType: "text",
+                fieldType: "status",
                 order: 2,
             },
             {
@@ -52,20 +30,20 @@ export class SpottingTableComponent implements OnInit {
                 order: 3,
             },
             {
-                field: "lastSpottedBy",
-                header: "Last Spotted By",
-                fieldType: "text",
+                field: "inServiceSince",
+                header: "In Service Since",
+                fieldType: "date",
                 order: 4,
             },
+            // {
+            //     field: "lastSpottedBy",
+            //     header: "Last Spotted By",
+            //     fieldType: "text",
+            //     order: 5,
+            // },
             {
                 field: "notes",
                 header: "Notes",
-                fieldType: "text",
-                order: 5,
-            },
-            {
-                field: "inServiceSince",
-                header: "In Service Since",
                 fieldType: "text",
                 order: 6,
             },

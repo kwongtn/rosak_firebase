@@ -12,6 +12,21 @@ import { SpottingFormComponent } from "../spotting-form/spotting-form.component"
     styleUrls: ["./spotting-main.component.scss"],
 })
 export class SpottingMainComponent implements OnInit {
+    sampleData = [
+        {
+            identificationNo: "01",
+            status: "IN_SERVICE",
+            lastSpotted: "2022-07-15",
+            notes: "",
+        },
+        {
+            identificationNo: "02",
+            status: "IN_SERVICE",
+            lastSpotted: "2022-07-15",
+            notes: "",
+        },
+    ];
+
     constructor(
         private dialogService: DialogService,
         private toastService: ToastService
