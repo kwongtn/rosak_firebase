@@ -10,22 +10,33 @@ import { ToastService } from "../toast/toast.service";
     providedIn: "root",
 })
 export class AuthService {
-    userData: BehaviorSubject<firebase.auth.UserCredential | null> =
-        new BehaviorSubject<firebase.auth.UserCredential | null>(null);
+    userData: BehaviorSubject<firebase.User | null> =
+        new BehaviorSubject<firebase.User | null>(null);
+
+    loginViaLoginFunction: boolean = false;
 
     constructor(
         private angularFireAuth: AngularFireAuth,
         private toastService: ToastService
     ) {
-        return;
+        this.angularFireAuth.onAuthStateChanged(
+            (user) => {
+                this.userData.next(user);
+            },
+            (error) => {
+                this.toastService.addToast({
+                    severity: "error",
+                    summary: "Authentication Error",
+                    content: error.message,
+                });
+            }
+        );
     }
 
     login() {
         this.angularFireAuth
             .signInWithPopup(new firebase.auth.GoogleAuthProvider())
             .then((res) => {
-                this.userData.next(res);
-
                 let toastMessage: string;
                 if (res.additionalUserInfo) {
                     if (res.additionalUserInfo.isNewUser) {
@@ -64,6 +75,7 @@ export class AuthService {
                 this.toastService.addToast({
                     severity: "success",
                     summary: "Logout Successful",
+                    content: "Hope to see you again soon!",
                 });
             })
             .catch((reason) => {

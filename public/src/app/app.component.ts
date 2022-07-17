@@ -32,11 +32,9 @@ export class AppComponent implements OnInit {
     }
 
     ngOnInit() {
-        this.authService.userData.subscribe((userCredential) => {
-            if (userCredential) {
-                this.userAvatar = (
-                    userCredential.additionalUserInfo?.profile as any
-                ).picture;
+        this.authService.userData.subscribe((user) => {
+            if (user) {
+                this.userAvatar = (user.multiFactor as any).user.photoURL;
             } else {
                 this.userAvatar = "";
             }
