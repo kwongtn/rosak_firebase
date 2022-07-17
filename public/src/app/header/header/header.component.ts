@@ -18,7 +18,6 @@ import { LogoComponent } from "../logo/logo.component";
 export class HeaderComponent implements OnInit {
     @Input() showShadow = false;
     @Input() isFixed = false;
-    @Input() showGitStar = true;
     @Input() hasMaxWidth = true;
     @Input() showSlideButton = true;
     @Input() showSearch = false;
@@ -33,7 +32,6 @@ export class HeaderComponent implements OnInit {
     collapseMenuActive = false;
     showSlideMenu = true;
     curLanguage!: string;
-    searchPlaceholder!: string;
 
     @Input() userAvatar: any;
 
@@ -46,10 +44,6 @@ export class HeaderComponent implements OnInit {
     constructor(private sanitizer: DomSanitizer) {}
 
     ngOnInit(): void {
-        this.searchPlaceholder =
-            this.curLanguage === "zh-cn"
-                ? "请输入你想查找的组件"
-                : "Enter the component";
         this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;
         this.setSlideBarStyle();
         this.repoLink = this.sanitizer.bypassSecurityTrustResourceUrl(
@@ -76,13 +70,5 @@ export class HeaderComponent implements OnInit {
                 `max-width: ${this.showSlideMenu ? "260px" : "0"}`
             );
         }
-    }
-
-    changeLanguage(lang: string): void {
-        this.curLanguage = lang;
-        this.searchPlaceholder =
-            this.curLanguage === "zh-cn"
-                ? "请输入你想查找的组件"
-                : "Enter the component";
     }
 }

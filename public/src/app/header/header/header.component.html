@@ -25,12 +25,9 @@
         <div class="header-right" [ngClass]="{'active': collapseMenuActive}">
             <ng-content select="d-header-menu"></ng-content>
             <ng-content select="d-ecosystem"></ng-content>
-            <ng-content select="d-header-version-switch"></ng-content>
+            <!-- <ng-content select="d-header-version-switch"></ng-content>
             <ng-content select="d-header-theme-switch"></ng-content>
-            <ng-content select="d-header-language-switch"></ng-content>
-            <div *ngIf="showGitStar">
-                <iframe class="header-gitStar" [attr.src]="repoLink"></iframe>
-            </div>
+            <ng-content select="d-header-language-switch"></ng-content> -->
             <div *ngIf="showAvatar" class="header-avatar">
                 <d-avatar [width]="40" [height]="40" [imgSrc]="userAvatar"></d-avatar>
             </div>

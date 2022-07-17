@@ -9,20 +9,17 @@ export class AppComponent {
     title = "public";
     innerMenuList = [
         {
-            name: "设计规范",
-            enName: "DevUI Design",
-            href: "/design-cn/start",
-        },
-        {
-            name: "组件",
-            enName: "Components",
-            href: "/components/overview",
+            name: "Spotting",
+            href: "/spotting",
             target: "_self",
         },
         {
-            name: "版本历程",
-            enName: "Changelog",
-            href: "https://github.com/DevCloudFE/ng-devui/releases",
+            name: "About",
+            href: "/about",
+        },
+        {
+            name: "GitHub",
+            href: "https://github.com/kwongtn/rosak_firebase",
         },
     ];
 

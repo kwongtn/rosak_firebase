@@ -3,11 +3,11 @@
         [ngClass]="{'menu-selected-item': item === selectedItem}">
         <a *ngIf="item.href" class="menu-link" [href]="item.href" rel="noopener noreferrer"
             [target]="item.target ? item.target : '_blank'">
-            <span>{{curLanguage === 'zh-cn' ? item.name : item.enName}}</span>
+            <span>{{item.name}}</span>
         </a>
         <span class="menu-link" *ngIf="item.children" dDropDown appendToBody [trigger]="'hover'">
             <a dDropDownToggle>
-                {{curLanguage === 'zh-cn' ? item.name : item.enName}}
+                {{item.name}}
                 <span class="devui-header-open-icon">
                     <svg viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -19,21 +19,7 @@
                     </svg>
                 </span>
             </a>
-            <div dDropDownMenu class="devui-scrollbar menu-list-wrapper">
-                <div class="menu-list" *ngFor="let itemInList of item.children">
-                    <div class="menu-list-title">
-                        {{curLanguage === 'zh-cn' ? itemInList.name : itemInList.enName}}
-                    </div>
-                    <ul class="menu-sublist">
-                        <li class="menu-sublist-item" *ngFor="let itemInSubList of itemInList.children">
-                            <a *ngIf="itemInSubList.href" [href]="itemInSubList.href" rel="noopener noreferrer"
-                                [target]="itemInSubList.target ? itemInSubList.target : '_blank'">
-                                <span>{{curLanguage === 'zh-cn' ? itemInSubList.name : itemInSubList.enName}}</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
         </span>
     </div>
+    
 </div>
