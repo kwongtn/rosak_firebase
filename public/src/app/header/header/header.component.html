@@ -28,8 +28,10 @@
             <!-- <ng-content select="d-header-version-switch"></ng-content>
             <ng-content select="d-header-theme-switch"></ng-content>
             <ng-content select="d-header-language-switch"></ng-content> -->
-            <div *ngIf="showAvatar" class="header-avatar">
-                <d-avatar [width]="40" [height]="40" [imgSrc]="userAvatar"></d-avatar>
+            <div class="header-avatar">
+                <d-avatar *ngIf="!userAvatar" [name]="''" (click)="authService.login()"></d-avatar>
+                <d-avatar *ngIf="userAvatar" [width]="40" [height]="40" [imgSrc]="userAvatar"
+                    referrerpolicy="no-referrer"></d-avatar>
             </div>
         </div>
         <div id="headerCollapseMenu" class="header-collapse-menu" [ngClass]="{'active': collapseMenuActive}"

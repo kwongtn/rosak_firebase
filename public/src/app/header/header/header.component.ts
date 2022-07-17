@@ -1,3 +1,5 @@
+import { AuthService } from "src/app/services/auth/auth.service";
+
 import {
     Component,
     ContentChildren,
@@ -41,7 +43,10 @@ export class HeaderComponent implements OnInit {
         this.setSlideBarStyle();
     }
 
-    constructor(private sanitizer: DomSanitizer) {}
+    constructor(
+        private sanitizer: DomSanitizer,
+        public authService: AuthService
+    ) {}
 
     ngOnInit(): void {
         this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;

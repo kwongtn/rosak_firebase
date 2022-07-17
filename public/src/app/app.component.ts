@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 
 import { AuthService } from "./services/auth/auth.service";
 
@@ -7,7 +7,7 @@ import { AuthService } from "./services/auth/auth.service";
     templateUrl: "./app.component.html",
     styleUrls: ["./app.component.scss"],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
     title = "public";
     innerMenuList = [
         {
@@ -25,7 +25,21 @@ export class AppComponent {
         },
     ];
 
+    userAvatar: string = "";
+
     constructor(public authService: AuthService) {
         return;
+    }
+
+    ngOnInit() {
+        this.authService.userData.subscribe((userCredential) => {
+            if (userCredential) {
+                this.userAvatar = (
+                    userCredential.additionalUserInfo?.profile as any
+                ).picture;
+            } else {
+                this.userAvatar = "";
+            }
+        });
     }
 }

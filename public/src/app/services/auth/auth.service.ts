@@ -10,8 +10,8 @@ import { ToastService } from "../toast/toast.service";
     providedIn: "root",
 })
 export class AuthService {
-    userData: BehaviorSubject<firebase.User | null> =
-        new BehaviorSubject<firebase.User | null>(null);
+    userData: BehaviorSubject<firebase.auth.UserCredential | null> =
+        new BehaviorSubject<firebase.auth.UserCredential | null>(null);
 
     constructor(
         private angularFireAuth: AngularFireAuth,
@@ -24,16 +24,19 @@ export class AuthService {
         this.angularFireAuth
             .signInWithPopup(new firebase.auth.GoogleAuthProvider())
             .then((res) => {
-                this.userData.next(res.user);
+                this.userData.next(res);
 
                 let toastMessage: string;
-                if (
-                    res.additionalUserInfo &&
-                    res.additionalUserInfo.isNewUser
-                ) {
-                    toastMessage = "Welcome!";
+                if (res.additionalUserInfo) {
+                    if (res.additionalUserInfo.isNewUser) {
+                        toastMessage = "Welcome!";
+                    } else {
+                        toastMessage =
+                            "Welcome back, " +
+                            (res.additionalUserInfo.profile as any).given_name;
+                    }
                 } else {
-                    toastMessage = "Welcome back.";
+                    toastMessage = "";
                 }
 
                 this.toastService.addToast({
