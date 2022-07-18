@@ -1,6 +1,6 @@
 <div class="header-menu">
     <div *ngFor="let item of menuList" class="menu-item" (click)="onSelect(item)"
-        [ngClass]="{'menu-selected-item': item.href === router.url}">
+        [ngClass]="{'menu-selected-item': (item.href === router.url || item.href === router.url.split('/')[1])}">
         <a *ngIf="item.href" class="menu-link" [href]="item.href" rel="noopener noreferrer" [routerLink]="item.href">
             <span>{{item.name}}</span>
         </a>
