@@ -7,6 +7,7 @@ import { IconModule } from "ng-devui/icon";
 import { LoadingModule } from "ng-devui/loading";
 import { ModalModule } from "ng-devui/modal";
 import { SelectModule } from "ng-devui/select";
+import { TagsModule } from "ng-devui/tags";
 
 import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -45,6 +46,7 @@ import { SpottingTableComponent } from "./spotting-table/spotting-table.componen
         LoadingModule,
         DataTableModule,
         AlertModule,
+        TagsModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [],

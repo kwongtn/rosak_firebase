@@ -9,7 +9,26 @@
             <tr dTableRow>
                 <td dTableCell *ngFor="let colOption of dataTableOptions.columns">
                     <span [ngSwitch]="colOption.fieldType">
-                        <span *ngSwitchCase="'status'">{{rowItem[colOption.field] | vehicleStatusPipe}}</span>
+                        <span *ngSwitchCase="'status'">
+                            <span [ngSwitch]="rowItem[colOption.field]">
+
+                                <d-tag *ngSwitchCase="'IN_SERVICE'" [tag]="rowItem[colOption.field] | vehicleStatusPipe"
+                                    [labelStyle]="'green-w98'">
+                                </d-tag>
+                                <d-tag *ngSwitchCase="'NOT_SPOTTED'"
+                                    [tag]="rowItem[colOption.field] | vehicleStatusPipe" [labelStyle]="'yellow-w98'">
+                                </d-tag>
+                                <d-tag *ngSwitchCase="'TESTING'" [tag]="rowItem[colOption.field] | vehicleStatusPipe"
+                                    [labelStyle]="'blue-w98'">
+                                </d-tag>
+                                <d-tag *ngSwitchCase="'UNKNOWN'" [tag]="rowItem[colOption.field] | vehicleStatusPipe"
+                                    [labelStyle]="'red-w98'">
+                                </d-tag>
+                                <d-tag *ngSwitchDefault [tag]="rowItem[colOption.field] | vehicleStatusPipe">
+                                </d-tag>
+                            </span>
+
+                        </span>
                         <span *ngSwitchDefault>{{rowItem[colOption.field]}}</span>
                     </span>
                 </td>
