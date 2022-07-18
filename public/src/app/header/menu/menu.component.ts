@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Router } from "@angular/router";
 
 @Component({
     selector: "d-header-menu",
@@ -11,7 +12,7 @@ export class MenuComponent implements OnInit {
     @Output() menuEvent = new EventEmitter<string>();
     curLanguage!: string;
 
-    constructor() {
+    constructor(public router: Router) {
         return;
     }
 
