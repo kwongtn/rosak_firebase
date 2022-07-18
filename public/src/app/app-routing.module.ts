@@ -13,6 +13,11 @@ const routes: Routes = [
         component: SpottingMainComponent,
     },
     {
+        path: "about",
+        loadChildren: () =>
+            import("./about/about.module").then((m) => m.AboutModule),
+    },
+    {
         path: "",
         redirectTo: "",
         pathMatch: "full",
