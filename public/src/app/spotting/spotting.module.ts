@@ -13,8 +13,6 @@ import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { BrowserModule } from "@angular/platform-browser";
-import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 
 import { GraphQLModule } from "../graphql.module";
 import { VehicleStatusPipePipe } from "../pipes/vehicle-status/vehicle-status-pipe.pipe";
@@ -31,8 +29,6 @@ import { SpottingTableComponent } from "./spotting-table/spotting-table.componen
     ],
     imports: [
         CommonModule,
-        BrowserModule,
-        BrowserAnimationsModule,
         DevUIModule,
         SelectModule,
         FormsModule,

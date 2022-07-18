@@ -1,11 +1,10 @@
 <div class="header-menu">
     <div *ngFor="let item of menuList" class="menu-item" (click)="onSelect(item)"
         [ngClass]="{'menu-selected-item': item === selectedItem}">
-        <a *ngIf="item.href" class="menu-link" [href]="item.href" rel="noopener noreferrer"
-            [target]="item.target ? item.target : '_blank'">
+        <a *ngIf="item.href" class="menu-link" [href]="item.href" rel="noopener noreferrer" [routerLink]="item.href">
             <span>{{item.name}}</span>
         </a>
-        <span class="menu-link" *ngIf="item.children" dDropDown appendToBody [trigger]="'hover'">
+        <!-- <span class="menu-link" *ngIf="item.children" dDropDown appendToBody [trigger]="'hover'">
             <a dDropDownToggle>
                 {{item.name}}
                 <span class="devui-header-open-icon">
@@ -19,7 +18,7 @@
                     </svg>
                 </span>
             </a>
-        </span>
+        </span> -->
     </div>
-    
+
 </div>

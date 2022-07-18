@@ -16,7 +16,6 @@ import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { GraphQLModule } from "./graphql.module";
 import { HeaderModule } from "./header/header.module";
-import { SpottingModule } from "./spotting/spotting.module";
 
 @NgModule({
     declarations: [AppComponent],
@@ -31,7 +30,6 @@ import { SpottingModule } from "./spotting/spotting.module";
         AppRoutingModule,
         BrowserAnimationsModule,
         DevUIModule,
-        SpottingModule,
         GraphQLModule,
         HttpClientModule,
         ToastModule,
