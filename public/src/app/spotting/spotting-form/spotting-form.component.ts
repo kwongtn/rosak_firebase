@@ -48,8 +48,8 @@ const GET_LINES = gql`
 
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
-        addEvent(data: $data) {
-            id
+        addEvent(input: $data) {
+            ok
         }
     }
 `;
@@ -261,7 +261,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["line"] = undefined;
 
         // TODO: To remove once authentication is done
-        formValues["reporter"] = 1;
+        formValues["reporter"] = this.authService.userData.getValue()?.uid;
 
         const mutationObservable = this.apollo.mutate({
             mutation: ADD_ENTRY,

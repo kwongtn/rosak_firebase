@@ -77,7 +77,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
 
                         submitAction
                             ?.then((mutationResult) => {
-                                if (mutationResult.data?.addEvent.id) {
+                                if (mutationResult.data?.addEvent.ok) {
                                     console.log("Mutation successful");
                                     results.modalInstance.hide();
                                 }
