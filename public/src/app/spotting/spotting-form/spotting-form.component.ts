@@ -229,7 +229,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    onSubmit(): Promise<MutationResult<any>> | undefined {
+    async onSubmit(): Promise<MutationResult<any> | undefined> {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
@@ -267,6 +267,15 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             mutation: ADD_ENTRY,
             variables: {
                 data: formValues,
+            },
+            context: {
+                headers: {
+                    Authorization: this.authService.userData.getValue()
+                        ? `${await this.authService.userData
+                            .getValue()
+                            ?.getIdToken()}`
+                        : undefined,
+                },
             },
         });
 
