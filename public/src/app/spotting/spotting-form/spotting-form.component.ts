@@ -4,6 +4,7 @@ import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 import { lastValueFrom, Subscription } from "rxjs";
+import { AuthService } from "src/app/services/auth/auth.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
@@ -135,7 +136,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     private querySubscription!: Subscription;
 
-    constructor(private fb: FormBuilder, private apollo: Apollo) {
+    constructor(
+        private fb: FormBuilder,
+        private apollo: Apollo,
+        public authService: AuthService
+    ) {
         this.formGroup = this.fb.group(
             {
                 line: new FormControl("", [Validators.required]),

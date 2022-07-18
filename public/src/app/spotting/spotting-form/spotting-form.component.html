@@ -1,5 +1,15 @@
-<div dLoading style="margin-left: 40px" [loading]="submitting" [backdrop]="true" >
+<div dLoading style="margin-left: 40px" [loading]="submitting" [backdrop]="true">
     <form dForm [layout]="layoutDirection" [labelSize]="'sm'" [formGroup]="formGroup">
+        <div class="login-alert" *ngIf="!(authService.userData | async)">
+            <d-alert [type]="'info'" [closeable]="false">
+                It seems that you're not logged in. Users that are not logged in will have their IP Addresses recorded instead.
+
+                <p>
+                    <d-button class="login-button" (click)="authService.login()">Click here to login</d-button>
+                </p>
+            </d-alert>
+
+        </div>
         <!-- 
         TODO: - Location -- map or lat long input
         -->
