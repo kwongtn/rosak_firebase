@@ -1,5 +1,27 @@
 import { CascaderItem } from "ng-devui";
 
+import { GetLinesAndVehiclesResponse } from "../models/query/get-vehicles";
+
+export function lineQueryResultToTabEntries(
+    data: GetLinesAndVehiclesResponse
+): { id: string | number; title: string; disabled?: boolean }[] {
+    const lineOptions: {
+        id: string | number;
+        title: string;
+        disabled?: boolean;
+    }[] = [];
+    for (const line of data.lines) {
+        const lineObj = {
+            title: `${line.code}`,
+            id: line.id,
+            disabled: false,
+        };
+        lineOptions.push(lineObj);
+    }
+
+    return lineOptions;
+}
+
 export function lineQueryResultToOptions(data: any): {
     name: any;
     value: any;

@@ -1,30 +1,36 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
 import { Subscription } from "rxjs";
-import { GetVehiclesReponse } from "src/app/models/query/get-vehicles";
+import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
 import { SourceType } from "src/app/models/spotting-table/source-type";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import { ToastService } from "../../services/toast/toast.service";
 import { SpottingFormComponent } from "../spotting-form/spotting-form.component";
+import { lineQueryResultToTabEntries } from "../utils";
 
 const GET_VEHICLES = gql`
-    query {
-        vehicleTypes {
+    query GetLinesAndVehicles {
+        lines {
             id
-            internalName
+            code
             displayName
-            vehicles {
+            vehicleTypes {
                 id
-                identificationNo
-                status
-                lastSpottings(count: 1) {
-                    spottingDate
+                internalName
+                displayName
+                vehicles {
+                    id
+                    identificationNo
+                    status
+                    lastSpottings(count: 1) {
+                        spottingDate
+                    }
+                    inServiceSince
+                    spottingCount
+                    notes
                 }
-                inServiceSince
-                spottingCount
-                notes
             }
         }
     }
@@ -42,8 +48,20 @@ interface TableDataType {
 })
 export class SpottingMainComponent implements OnInit, OnDestroy {
     tableData: TableDataType[] = [];
-    sampleData: SourceType[] = [];
     showLoading: boolean = true;
+
+    tabActiveId: string | number = 1;
+    tabItems: { id: string | number; title: string; disabled?: boolean }[] = [];
+
+    /**
+     * TODO: Make such that the tables will load only after clicking on tab
+     *
+     * Steps:
+     * 1. Only load lines
+     * 2. Load vehicles of a line
+     * 3. On change tab, load more vehicles of those lines
+     */
+    vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
 
     private querySubscription!: Subscription;
 
@@ -115,6 +133,40 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         );
     }
 
+    filterTabItems(): void {
+        const data = this.vehicleAndLineData;
+
+        if (!data) {
+            return;
+        }
+
+        for (const line of data.lines) {
+            if (line.id != this.tabActiveId) {
+                continue;
+            }
+
+            const sectionData: TableDataType[] = [];
+            for (const vehicleType of line.vehicleTypes) {
+                sectionData.push({
+                    displayName: vehicleType.displayName,
+                    tableData: vehicleType.vehicles.map((value) => {
+                        return {
+                            identificationNo: value.identificationNo,
+                            status: value.status,
+                            lastSpotted: value.lastSpottings[0]?.spottingDate,
+                            timesSpotted: value.spottingCount,
+                            notes: value.notes,
+                        };
+                    }),
+                });
+            }
+
+            console.log("sectionData: ", sectionData);
+
+            this.tableData = sectionData;
+        }
+    }
+
     ngOnInit(): void {
         this.querySubscription = this.apollo
             .watchQuery<any>({
@@ -125,37 +177,28 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     data,
                     loading,
                 }: {
-                    data: GetVehiclesReponse;
+                    data: GetLinesAndVehiclesResponse;
                     loading: boolean;
                 }) => {
                     this.showLoading = loading;
+                    this.vehicleAndLineData = data;
 
-                    const sectionData: TableDataType[] = [];
-                    for (const vehicleType of data.vehicleTypes) {
-                        sectionData.push({
-                            displayName: vehicleType.displayName,
-                            tableData: vehicleType.vehicles.map((value) => {
-                                return {
-                                    identificationNo: value.identificationNo,
-                                    status: value.status,
-                                    lastSpotted:
-                                        value.lastSpottings[0]?.spottingDate,
-                                    timesSpotted: value.spottingCount,
-                                    notes: value.notes,
-                                };
-                            }),
-                        });
-                    }
+                    this.tabItems = lineQueryResultToTabEntries(data);
+                    this.tabActiveId = data.lines[0].id;
 
-                    console.log("sectionData: ", sectionData);
-
-                    this.tableData = sectionData;
-                    this.sampleData = this.tableData[0].tableData;
+                    this.filterTabItems();
                 }
             );
     }
 
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
+    }
+
+    activeTabChange(event: any) {
+        console.log("Active tab change: ", event);
+
+        this.tabActiveId = event;
+        this.filterTabItems();
     }
 }
