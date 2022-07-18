@@ -261,21 +261,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["line"] = undefined;
 
         // TODO: To remove once authentication is done
-        formValues["reporter"] = this.authService.userData.getValue()?.uid;
+        formValues["authKey"] = this.authService.userData.getValue()
+            ? `${await this.authService.userData.getValue()?.getIdToken()}`
+            : undefined;
 
         const mutationObservable = this.apollo.mutate({
             mutation: ADD_ENTRY,
             variables: {
                 data: formValues,
-            },
-            context: {
-                headers: {
-                    Authorization: this.authService.userData.getValue()
-                        ? `${await this.authService.userData
-                            .getValue()
-                            ?.getIdToken()}`
-                        : undefined,
-                },
             },
         });
 
