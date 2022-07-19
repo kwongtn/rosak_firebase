@@ -8,7 +8,7 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import { ToastService } from "../../services/toast/toast.service";
 import { SpottingFormComponent } from "../spotting-form/spotting-form.component";
-import { lineQueryResultToTabEntries } from "../utils";
+import { lineQueryResultToTabEntries, LineTabType } from "../utils";
 
 const GET_VEHICLES = gql`
     query GetLinesAndVehicles {
@@ -51,7 +51,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
 
     tabActiveId: string | number = 1;
-    tabItems: { id: string | number; title: string; disabled?: boolean }[] = [];
+    tabItems: LineTabType[] = [];
 
     /**
      * TODO: Make such that the tables will load only after clicking on tab

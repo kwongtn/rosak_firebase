@@ -2,19 +2,23 @@ import { CascaderItem } from "ng-devui";
 
 import { GetLinesAndVehiclesResponse } from "../models/query/get-vehicles";
 
+export interface LineTabType {
+    id: string | number;
+    title: string;
+    disabled?: boolean;
+    detail: string;
+}
+
 export function lineQueryResultToTabEntries(
     data: GetLinesAndVehiclesResponse
-): { id: string | number; title: string; disabled?: boolean }[] {
-    const lineOptions: {
-        id: string | number;
-        title: string;
-        disabled?: boolean;
-    }[] = [];
+): LineTabType[] {
+    const lineOptions: LineTabType[] = [];
     for (const line of data.lines) {
         const lineObj = {
             title: `${line.code}`,
             id: line.id,
             disabled: false,
+            detail: `${line.code} - ${line.displayName}`,
         };
         lineOptions.push(lineObj);
     }

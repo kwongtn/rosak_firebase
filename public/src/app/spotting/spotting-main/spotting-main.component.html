@@ -3,15 +3,22 @@
 
     <div class="spotting-table-container">
         <section>
+
             <d-tabs type="pills" size="lg" [(activeTab)]="tabActiveId" (activeTabChange)="activeTabChange($event)"
                 [scrollMode]="tabItems.length > 5">
-                <d-tab *ngFor="let item of tabItems" [id]="item.id">
-                    <ng-template dTabTitle>
-                        {{ item.title }}
+
+                <d-tab *ngFor="let item of tabItems" [id]="item.id" >
+
+                    <ng-template dTabTitle dTooltip [content]="item.detail" [position]="'bottom'" >
+                        {{ item.detail }}
                     </ng-template>
+
                 </d-tab>
+
             </d-tabs>
+
         </section>
+
         <div class="spotting-table-elem" *ngFor="let elem of tableData">
             <h1 class="spotting-table-title">{{elem.displayName}}</h1>
             <app-spotting-table class="app-spotting-table" [dataSource]="elem.tableData"></app-spotting-table>
