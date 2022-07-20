@@ -21,7 +21,7 @@ export class HeaderComponent implements OnInit {
     @Input() showShadow = false;
     @Input() isFixed = false;
     @Input() hasMaxWidth = true;
-    @Input() showSlideButton = true;
+    @Input() showSlideButton = false;
     @Input() showSearch = false;
     @Input() showAvatar = false;
     @Input() repoName = "ng-devui";
