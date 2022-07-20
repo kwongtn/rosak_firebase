@@ -7,10 +7,11 @@
             <d-tabs type="pills" size="lg" [(activeTab)]="tabActiveId" (activeTabChange)="activeTabChange($event)"
                 [scrollMode]="tabItems.length > 5">
 
-                <d-tab *ngFor="let item of tabItems" [id]="item.id" >
-
-                    <ng-template dTabTitle dTooltip [content]="item.detail" [position]="'bottom'" >
-                        {{ item.detail }}
+                <d-tab *ngFor="let item of tabItems" [id]="item.id">
+                    <ng-template dTabTitle>
+                        <div dTooltip [content]="item.detail" [position]="'bottom'">
+                            {{ item.title }}
+                        </div>
                     </ng-template>
 
                 </d-tab>

@@ -18,7 +18,7 @@ export function lineQueryResultToTabEntries(
             title: `${line.code}`,
             id: line.id,
             disabled: false,
-            detail: `${line.code} - ${line.displayName}`,
+            detail: `${line.displayName}`,
         };
         lineOptions.push(lineObj);
     }
