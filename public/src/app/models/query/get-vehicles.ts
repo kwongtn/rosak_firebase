@@ -5,7 +5,16 @@ type VehicleStatus =
     | "TESTING"
     | "UNKNOWN";
 
-interface VehicleType {
+export interface VehicleStatusCountType {
+    vehicleStatusDecommissionedCount: number;
+    vehicleStatusInServiceCount: number;
+    vehicleStatusNotSpottedCount: number;
+    vehicleStatusTestingCount: number;
+    vehicleStatusUnknownCount: number;
+    vehicleTotalCount: number;
+}
+
+interface VehicleType extends VehicleStatusCountType {
     id: string;
     internalName: string;
     displayName: string;

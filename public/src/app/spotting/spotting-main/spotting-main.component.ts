@@ -1,7 +1,10 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
 import { Subscription } from "rxjs";
-import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
+import {
+    GetLinesAndVehiclesResponse,
+    VehicleStatusCountType,
+} from "src/app/models/query/get-vehicles";
 import { SourceType } from "src/app/models/spotting-table/source-type";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
@@ -20,6 +23,12 @@ const GET_VEHICLES = gql`
                 id
                 internalName
                 displayName
+                vehicleStatusDecommissionedCount
+                vehicleStatusInServiceCount
+                vehicleStatusNotSpottedCount
+                vehicleStatusTestingCount
+                vehicleStatusUnknownCount
+                vehicleTotalCount
                 vehicles {
                     id
                     identificationNo
@@ -38,6 +47,7 @@ const GET_VEHICLES = gql`
 
 interface TableDataType {
     displayName: string;
+    vehicleStatusCount: VehicleStatusCountType;
     tableData: SourceType[];
 }
 
@@ -149,6 +159,19 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             for (const vehicleType of line.vehicleTypes) {
                 sectionData.push({
                     displayName: vehicleType.displayName,
+                    vehicleStatusCount: {
+                        vehicleStatusDecommissionedCount:
+                            vehicleType.vehicleStatusDecommissionedCount,
+                        vehicleStatusInServiceCount:
+                            vehicleType.vehicleStatusInServiceCount,
+                        vehicleStatusNotSpottedCount:
+                            vehicleType.vehicleStatusNotSpottedCount,
+                        vehicleStatusTestingCount:
+                            vehicleType.vehicleStatusTestingCount,
+                        vehicleStatusUnknownCount:
+                            vehicleType.vehicleStatusUnknownCount,
+                        vehicleTotalCount: vehicleType.vehicleTotalCount,
+                    },
                     tableData: vehicleType.vehicles.map((value) => {
                         return {
                             identificationNo: value.identificationNo,

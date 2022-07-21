@@ -11,6 +11,7 @@ import { SourceType } from "../../models/spotting-table/source-type";
 })
 export class SpottingTableComponent implements OnInit {
     @Input() dataSource: Array<SourceType> = [];
+
     dataTableOptions = {
         columns: [
             {
