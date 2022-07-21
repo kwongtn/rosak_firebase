@@ -1,3 +1,5 @@
+import { TableWidthConfig } from "ng-devui/data-table";
+
 import { Component, Input, OnInit } from "@angular/core";
 
 import { SourceType } from "../../models/spotting-table/source-type";
@@ -55,6 +57,16 @@ export class SpottingTableComponent implements OnInit {
             },
         ],
     };
+
+    tableWidthConfig: TableWidthConfig[] = [
+        { field: "identificationNo", width: "100px" },
+        { field: "status", width: "150px" },
+        { field: "lastSpotted", width: "150px" },
+        { field: "inServiceSince", width: "150px" },
+        // { field: "lastSpottedBy", width: "100px", },
+        { field: "timesSpotted", width: "150px" },
+        // { field: "notes", width: "50px", },
+    ];
 
     constructor() {
         return;

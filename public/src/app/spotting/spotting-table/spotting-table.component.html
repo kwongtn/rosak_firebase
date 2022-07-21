@@ -1,4 +1,5 @@
-<d-data-table [dataSource]="dataSource" [scrollable]="true" [tableOverflowType]="'overlay'">
+<d-data-table [dataSource]="dataSource" [scrollable]="true" [tableOverflowType]="'overlay'"
+    [tableWidthConfig]="tableWidthConfig">
     <thead dTableHead>
         <tr dTableRow>
             <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">{{ colOption.header }}</th>
