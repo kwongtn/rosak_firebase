@@ -14,14 +14,12 @@ export class AppComponent implements OnInit {
             name: "Spotting",
             href: "/spotting",
             target: "_self",
+            tag: "Alpha",
         },
         {
             name: "About",
             href: "/about",
-        },
-        {
-            name: "GitHub",
-            href: "https://github.com/kwongtn/rosak_firebase",
+            tag: "",
         },
     ];
 

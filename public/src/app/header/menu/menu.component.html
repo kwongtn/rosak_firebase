@@ -2,23 +2,23 @@
     <div *ngFor="let item of menuList" class="menu-item" (click)="onSelect(item)"
         [ngClass]="{'menu-selected-item': (item.href === router.url || item.href === router.url.split('/')[1])}">
         <a *ngIf="item.href" class="menu-link" [href]="item.href" rel="noopener noreferrer" [routerLink]="item.href">
-            <span>{{item.name}}</span>
-        </a>
-        <!-- <span class="menu-link" *ngIf="item.children" dDropDown appendToBody [trigger]="'hover'">
-            <a dDropDownToggle>
+
+            <span *ngIf="item.tag">
+                <d-badge [count]="item.tag" [offset]="[5, -5]" status="danger">
+                    {{item.name}}
+                </d-badge>
+            </span>
+            <span *ngIf="!item.tag">
                 {{item.name}}
-                <span class="devui-header-open-icon">
-                    <svg viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg"
-                        xmlns:xlink="http://www.w3.org/1999/xlink">
-                        <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                            <polygon
-                                transform="translate(8.000000, 8.000000) scale(1, -1) rotate(-360.000000) translate(-8.000000, -8.000000) "
-                                points="4 5.5 12 5.5 8 10.5"></polygon>
-                        </g>
-                    </svg>
-                </span>
-            </a>
-        </span> -->
+            </span>
+        </a>
+    </div>
+    <div class="menu-item">
+        <a class="menu-link" [href]="'https://github.com/kwongtn/rosak_firebase'" rel="noopener noreferrer"
+            target="_blank">
+            <span>GitHub</span>
+
+        </a>
     </div>
 
 </div>
