@@ -66,7 +66,7 @@ export class SpottingTableComponent implements OnInit {
         { field: "inServiceSince", width: "150px" },
         // { field: "lastSpottedBy", width: "100px", },
         { field: "timesSpotted", width: "150px" },
-        // { field: "notes", width: "50px", },
+        { field: "notes", width: "500px" },
     ];
 
     constructor() {
