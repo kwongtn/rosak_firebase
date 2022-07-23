@@ -5,6 +5,15 @@
 export const environment = {
     production: false,
     backendGraphqlUrl: "http://localhost:8000/graphql/",
+    firebase: {
+        apiKey: "",
+        authDomain: "",
+        projectId: "",
+        storageBucket: "",
+        messagingSenderId: "",
+        appId: "",
+        measurementId: "",
+    },
 };
 
 /*
