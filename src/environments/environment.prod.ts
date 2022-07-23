@@ -1,13 +1,13 @@
 export const environment = {
     production: true,
-    backendGraphqlUrl: process.env["BACKEND_GRAPHQL_URL"],
+    backendGraphqlUrl: "https://lift-rosak.ddns.net:8000/graphql/",
     firebase: {
-        apiKey: process.env["FIREBASE_API_KEY"],
-        authDomain: process.env["FIREBASE_AUTH_DOMAIN"],
-        projectId: process.env["FIREBASE_PROJECT_ID"],
-        storageBucket: process.env["FIREBASE_STORAGE_BUCKET"],
-        messagingSenderId: process.env["FIREBASE_MESSAGING_SENDER_ID"],
-        appId: process.env["FIREBASE_APP_ID"],
-        measurementId: process.env["FIREBASE_MEASUREMENT_ID"],
+        apiKey: "AIzaSyC6Z81AaCJ-PLofq0N0Ize43oWMqKKW-zA",
+        authDomain: "rosak-7223b.firebaseapp.com",
+        projectId: "rosak-7223b",
+        storageBucket: "rosak-7223b.appspot.com",
+        messagingSenderId: "840290622352",
+        appId: "1:840290622352:web:8ad6a7ca995f17042af115",
+        measurementId: "G-QSNS80GX8D",
     },
 };

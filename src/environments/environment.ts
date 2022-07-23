@@ -6,13 +6,13 @@ export const environment = {
     production: false,
     backendGraphqlUrl: "http://localhost:8000/graphql/",
     firebase: {
-        apiKey: "",
-        authDomain: "",
-        projectId: "",
-        storageBucket: "",
-        messagingSenderId: "",
-        appId: "",
-        measurementId: "",
+        apiKey: "AIzaSyC6Z81AaCJ-PLofq0N0Ize43oWMqKKW-zA",
+        authDomain: "rosak-7223b.firebaseapp.com",
+        projectId: "rosak-7223b",
+        storageBucket: "rosak-7223b.appspot.com",
+        messagingSenderId: "840290622352",
+        appId: "1:840290622352:web:8ad6a7ca995f17042af115",
+        measurementId: "G-QSNS80GX8D",
     },
 };
 
