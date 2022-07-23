@@ -12,7 +12,7 @@ jobs:
         steps:
             - uses: actions/checkout@v2
             - run: npm ci && npm run build
-              with:
+              env:
                   BACKEND_GRAPHQL_URL: "${{ secrets.BACKEND_GRAPHQL_URL}} "
                   FIREBASE_API_KEY: "${{ secrets.FIREBASE_API_KEY}} "
                   FIREBASE_AUTH_DOMAIN: "${{ secrets.FIREBASE_AUTH_DOMAIN}} "
