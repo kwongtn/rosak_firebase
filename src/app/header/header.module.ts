@@ -1,6 +1,7 @@
 import { AvatarModule } from "ng-devui/avatar";
 import { BadgeModule } from "ng-devui/badge";
 import { DropDownModule } from "ng-devui/dropdown";
+import { TooltipModule } from "ng-devui/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -18,6 +19,7 @@ import { MenuComponent } from "./menu/menu.component";
         DropDownModule,
         RouterModule,
         BadgeModule,
+        TooltipModule,
     ],
     exports: [HeaderComponent, LogoComponent, MenuComponent],
 })

@@ -22,6 +22,8 @@ export class AuthService {
         this.angularFireAuth.onAuthStateChanged(
             (user) => {
                 this.userData.next(user);
+                console.log(user);
+
             },
             (error) => {
                 this.toastService.addToast({
