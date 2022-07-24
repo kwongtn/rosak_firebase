@@ -1,7 +1,10 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
-import { SpottingMainComponent } from "./spotting/spotting-main/spotting-main.component";
+import { FallbackComponent } from "./fallback/fallback.component";
+import {
+    SpottingMainComponent,
+} from "./spotting/spotting-main/spotting-main.component";
 
 const routes: Routes = [
     {
@@ -21,6 +24,12 @@ const routes: Routes = [
         path: "",
         redirectTo: "",
         pathMatch: "full",
+    },
+    {
+        path: "**",
+        loadChildren: () =>
+            import("./fallback/fallback.module").then((m) => m.FallbackModule),
+        component: FallbackComponent,
     },
 ];
 

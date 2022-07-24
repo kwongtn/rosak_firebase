@@ -1,0 +1,21 @@
+@import "~ng-devui/styles-var/devui-var.scss";
+
+.main-container {
+    margin: auto;
+    display: table;
+}
+
+.image {
+    max-width: 500px;
+    max-height: 500px;
+}
+
+.title {
+    font-size: $devui-font-size-data-overview;
+    text-align: center;
+}
+
+.return-button-container {
+    margin: auto;
+    display: table;
+}
