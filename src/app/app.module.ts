@@ -2,7 +2,7 @@ import { DevUIModule } from "ng-devui";
 import { ToastModule } from "ng-devui/toast";
 
 import { HttpClientModule } from "@angular/common/http";
-import { NgModule } from "@angular/core";
+import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
 import { AngularFireModule } from "@angular/fire/compat";
 import { AngularFireAuthModule } from "@angular/fire/compat/auth";
 import { AngularFireDatabaseModule } from "@angular/fire/compat/database";
@@ -10,6 +10,8 @@ import { AngularFirestoreModule } from "@angular/fire/compat/firestore";
 import { AngularFireStorageModule } from "@angular/fire/compat/storage";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { Router } from "@angular/router";
+import * as Sentry from "@sentry/angular";
 
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
@@ -35,7 +37,25 @@ import { HeaderModule } from "./header/header.module";
         ToastModule,
         HeaderModule,
     ],
-    providers: [],
+    providers: [
+        {
+            provide: ErrorHandler,
+            useValue: Sentry.createErrorHandler({
+                showDialog: true,
+            }),
+        },
+        {
+            provide: Sentry.TraceService,
+            deps: [Router],
+        },
+        {
+            provide: APP_INITIALIZER,
+            // eslint-disable-next-line @typescript-eslint/no-empty-function
+            useFactory: () => () => {},
+            deps: [Sentry.TraceService],
+            multi: true,
+        },
+    ],
     bootstrap: [AppComponent],
 })
 export class AppModule {}

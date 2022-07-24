@@ -10,4 +10,12 @@ export const environment = {
         appId: "1:840290622352:web:8ad6a7ca995f17042af115",
         measurementId: "G-QSNS80GX8D",
     },
+    sentry: {
+        dsn: "http://239abe11366d4590a1c1ebd5260c63e2@o1331817.ingest.sentry.io/6596136",
+        tunnel: "https://lift-rosak.ddns.net:8000/sentry/",
+        tracingOrigins: [
+            "https://rosak-7223b.web.app",
+            "https://rosak-7223b.firebaseapp.com",
+        ]
+    },
 };

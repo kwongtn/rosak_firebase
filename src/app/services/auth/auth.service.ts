@@ -3,6 +3,7 @@ import { BehaviorSubject } from "rxjs";
 
 import { Injectable } from "@angular/core";
 import { AngularFireAuth } from "@angular/fire/compat/auth";
+import * as Sentry from "@sentry/browser";
 
 import { ToastService } from "../toast/toast.service";
 
@@ -22,8 +23,17 @@ export class AuthService {
         this.angularFireAuth.onAuthStateChanged(
             (user) => {
                 this.userData.next(user);
-                console.log(user);
+                if (user) {
+                    Sentry.setUser({
+                        email: user?.email?.toString(),
+                        id: user?.uid,
+                        ip_address: "{{auto}}",
+                    });
+                } else {
+                    Sentry.setUser(null);
+                }
 
+                console.log(user);
             },
             (error) => {
                 this.toastService.addToast({

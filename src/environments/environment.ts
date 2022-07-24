@@ -14,6 +14,14 @@ export const environment = {
         appId: "1:840290622352:web:8ad6a7ca995f17042af115",
         measurementId: "G-QSNS80GX8D",
     },
+    sentry: {
+        dsn: undefined,
+        tunnel: undefined,
+        tracingOrigins: [
+            "http://localhost:4200",
+            "https://lift-rosak.ddns.net:8000",
+        ]
+    },
 };
 
 /*
