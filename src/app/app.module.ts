@@ -23,45 +23,52 @@ import { AppComponent } from "./app.component";
 import { GraphQLModule } from "./graphql.module";
 import { HeaderModule } from "./header/header.module";
 
+const imports: any[] = [
+    // TODO: AnalyticsModule
+    AngularFireModule.initializeApp(environment.firebase),
+    AngularFireAuthModule,
+    AngularFirestoreModule,
+    AngularFireStorageModule,
+    AngularFireDatabaseModule,
+    BrowserModule,
+    AppRoutingModule,
+    BrowserAnimationsModule,
+    DevUIModule,
+    GraphQLModule,
+    HttpClientModule,
+    ToastModule,
+    HeaderModule,
+];
+
+const providers: any[] = [
+    {
+        provide: ErrorHandler,
+        useValue: Sentry.createErrorHandler({
+            showDialog: true,
+        }),
+    },
+    {
+        provide: Sentry.TraceService,
+        deps: [Router],
+    },
+    {
+        provide: APP_INITIALIZER,
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        useFactory: () => () => {},
+        deps: [Sentry.TraceService],
+        multi: true,
+    },
+];
+
+if (environment.production) {
+    imports.push(AngularFirePerformanceModule);
+    providers.push(PerformanceMonitoringService);
+}
+
 @NgModule({
     declarations: [AppComponent],
-    imports: [
-        // TODO: AnalyticsModule
-        AngularFireModule.initializeApp(environment.firebase),
-        AngularFireAuthModule,
-        AngularFirestoreModule,
-        AngularFireStorageModule,
-        AngularFireDatabaseModule,
-        AngularFirePerformanceModule,
-        BrowserModule,
-        AppRoutingModule,
-        BrowserAnimationsModule,
-        DevUIModule,
-        GraphQLModule,
-        HttpClientModule,
-        ToastModule,
-        HeaderModule,
-    ],
-    providers: [
-        {
-            provide: ErrorHandler,
-            useValue: Sentry.createErrorHandler({
-                showDialog: true,
-            }),
-        },
-        {
-            provide: Sentry.TraceService,
-            deps: [Router],
-        },
-        {
-            provide: APP_INITIALIZER,
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            useFactory: () => () => {},
-            deps: [Sentry.TraceService],
-            multi: true,
-        },
-        PerformanceMonitoringService,
-    ],
+    imports: imports,
+    providers: providers,
     bootstrap: [AppComponent],
 })
 export class AppModule {}
