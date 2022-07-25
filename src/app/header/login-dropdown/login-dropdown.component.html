@@ -1,0 +1,31 @@
+<d-card>
+    <d-card-header *ngIf="authService.userData | async">
+        <d-avatar
+            dCardAvatar
+            [imgSrc]="userAvatar"
+            [width]="60"
+            [height]="60"
+        ></d-avatar>
+        <d-card-title>{{
+            (authService.userData | async)?.displayName
+        }}</d-card-title>
+        <d-card-subtitle>{{
+            (authService.userData | async)?.email
+        }}</d-card-subtitle>
+    </d-card-header>
+    <d-card-content> </d-card-content>
+    <d-card-actions>
+        <d-button
+            *ngIf="(authService.userData | async) == null"
+            (click)="authService.login()"
+        >
+            Login with Google
+        </d-button>
+        <d-button
+            *ngIf="authService.userData | async"
+            (click)="authService.logout()"
+        >
+            Logout
+        </d-button>
+    </d-card-actions>
+</d-card>
