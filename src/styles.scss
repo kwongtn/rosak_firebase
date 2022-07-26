@@ -1,2 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
 @import "~@devui-design/icons/icomoon/devui-icon.css";
+
+/* global styling for sticky footer*/
+html,
+body,
+app-root {
+    height: 100%;
+}
+
+body {
+    margin-bottom: 0;
+    margin-top: 0;
+}

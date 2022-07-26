@@ -1,5 +1,8 @@
+import { environment } from "src/environments/environment";
+
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
+import build from "../build";
 import { AuthService } from "./services/auth/auth.service";
 
 @Component({
@@ -24,8 +27,27 @@ export class AppComponent implements OnInit, OnDestroy {
     ];
 
     userAvatar: string = "";
+    buildInfo = build;
 
     constructor(public authService: AuthService) {
+        console.log(
+            "\n%cBuild Info:\n\n" +
+                `%c > Environment: %c${
+                    environment.production ? "production 🏭" : "development 🚧"
+                }\n` +
+                `%c > Build Version: ${build.version}\n` +
+                ` > Build Timestamp: ${build.timestamp}\n` +
+                ` > Built by: ${build.git.user}\n` +
+                ` > Commit: ${build.git.hash} @ ${build.git.branch}\n` +
+                ` > Build Message: %c${build.message || "<no message>"}\n`,
+            "font-size: 14px; color: #7c7c7b;",
+            "font-size: 12px; color: #7c7c7b",
+            environment.production
+                ? "font-size: 12px; color: #95c230;"
+                : "font-size: 12px; color: #e26565;",
+            "font-size: 12px; color: #7c7c7b",
+            "font-size: 12px; color: #bdc6cf"
+        );
         return;
     }
 
