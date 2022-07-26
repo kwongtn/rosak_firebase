@@ -4,11 +4,10 @@
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
-        "build": "ng build",
+        "build": "angular-build-info && ng build",
         "watch": "ng build --watch --configuration development",
         "test": "ng test",
-        "prepare": "husky install",
-        "buildProd": "angular-build-info && ng build --prod"
+        "prepare": "husky install"
     },
     "lint-staged": {
         "*.{js,ts}": [
