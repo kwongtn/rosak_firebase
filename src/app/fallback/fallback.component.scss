@@ -1,8 +1,11 @@
 @import "~ng-devui/styles-var/devui-var.scss";
 
 .main-container {
-    margin: auto;
-    display: table;
+    // margin: auto;
+    display: grid;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
 }
 
 .image {
