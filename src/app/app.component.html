@@ -1,23 +1,22 @@
+<d-common-header
+    [showShadow]="false"
+    [hasMaxWidth]="false"
+    [isFixed]="true"
+    [showShadow]="true"
+    [showSearch]="true"
+    [userAvatar]="userAvatar"
+    class="header"
+>
+    <d-header-logo
+        [name]="'MLPTF - Malaysia Land Public Transport Fans'"
+    ></d-header-logo>
+    <d-header-menu
+        [menuList]="innerMenuList"
+        [selectedItem]="innerMenuList[0]"
+    ></d-header-menu>
+</d-common-header>
 <div class="content-outer-container">
     <div class="content-inner-container">
-        <d-common-header
-            [showShadow]="false"
-            [hasMaxWidth]="false"
-            [isFixed]="true"
-            [showShadow]="true"
-            [showSearch]="true"
-            [userAvatar]="userAvatar"
-            class="header"
-        >
-            <d-header-logo
-                [name]="'MLPTF - Malaysia Land Public Transport Fans'"
-            ></d-header-logo>
-            <d-header-menu
-                [menuList]="innerMenuList"
-                [selectedItem]="innerMenuList[0]"
-            ></d-header-menu>
-        </d-common-header>
-
         <router-outlet class="main-container"></router-outlet>
     </div>
 </div>

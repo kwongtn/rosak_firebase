@@ -7,18 +7,20 @@
 }
 
 .main-container {
-    display: block;
+    // display: block;
     margin-top: 20px;
     padding-bottom: 36px;
     min-height: 100%;
 }
 
 .footer {
-    margin-top: -100px;
+    margin-top: -90px;
+    height: 24px;
 }
 
 .copyright {
     text-align: center;
+    margin: 0 auto;
 }
 
 .content-outer-container {
@@ -26,5 +28,6 @@
 }
 
 .content-inner-container {
+    padding-top: 50px;
     padding-bottom: 150px;
 }
