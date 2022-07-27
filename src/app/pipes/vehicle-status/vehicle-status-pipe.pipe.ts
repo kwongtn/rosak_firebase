@@ -16,6 +16,7 @@ export class VehicleStatusPipePipe implements PipeTransform {
             IN_SERVICE: "In Service",
             NOT_SPOTTED: "Not Spotted",
             DECOMMISSIONED: "Decommissioned",
+            MARRIED: "Married",
             TESTING: "Testing",
             UNKNOWN: "Unknown",
         };
