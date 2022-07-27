@@ -22,7 +22,7 @@ interface VehicleType extends VehicleStatusCountType {
         id: string;
         identificationNo: string;
         status: VehicleStatus;
-        lastSpottings: Array<{ spottingDate: string }>;
+        lastSpottingDate: string;
         inServiceSince: string;
         spottingCount: number;
         notes: string;

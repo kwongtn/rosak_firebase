@@ -33,9 +33,7 @@ const GET_VEHICLES = gql`
                     id
                     identificationNo
                     status
-                    lastSpottings(count: 1) {
-                        spottingDate
-                    }
+                    lastSpottingDate
                     inServiceSince
                     spottingCount
                     notes
@@ -176,7 +174,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                         return {
                             identificationNo: value.identificationNo,
                             status: value.status,
-                            lastSpotted: value.lastSpottings[0]?.spottingDate,
+                            lastSpotted: value.lastSpottingDate,
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
                         };
