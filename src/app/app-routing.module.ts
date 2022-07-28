@@ -1,6 +1,7 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
+import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import {
     SpottingMainComponent,
@@ -18,12 +19,19 @@ const routes: Routes = [
     {
         path: "about",
         loadChildren: () =>
-            import("./about/about.module").then((m) => m.AboutModule),
+            import("./construction/construction.module").then(
+                (m) => m.ConstructionModule
+            ),
+        component: ConstructionComponent,
+        // loadChildren: () =>
+        //     import("./about/about.module").then((m) => m.AboutModule),
     },
     {
         path: "",
-        redirectTo: "",
-        pathMatch: "full",
+        loadChildren: () =>
+            import("./construction/construction.module").then(
+                (m) => m.ConstructionModule
+            ),
     },
     {
         path: "**",
