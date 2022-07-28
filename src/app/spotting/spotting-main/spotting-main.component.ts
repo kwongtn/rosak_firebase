@@ -87,6 +87,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             title: "Add spotting entry",
             content: SpottingFormComponent,
             backdropCloseable: true,
+            draggable: false,
             dialogtype: dialogtype,
             onClose: () => {
                 return;
