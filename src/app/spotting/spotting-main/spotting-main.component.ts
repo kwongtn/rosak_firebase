@@ -1,16 +1,20 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
-import { Subscription } from "rxjs";
+import { firstValueFrom, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
     VehicleStatusCountType,
 } from "src/app/models/query/get-vehicles";
 import { SourceType } from "src/app/models/spotting-table/source-type";
 
+import { HttpParams } from "@angular/common/http";
 import { Component, OnDestroy, OnInit } from "@angular/core";
+import { ActivatedRoute, Router } from "@angular/router";
 
 import { ToastService } from "../../services/toast/toast.service";
-import { SpottingFormComponent } from "../spotting-form/spotting-form.component";
+import {
+    SpottingFormComponent,
+} from "../spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "../utils";
 
 const GET_VEHICLES = gql`
@@ -69,14 +73,18 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
      * 2. Load vehicles of a line
      * 3. On change tab, load more vehicles of those lines
      */
+    currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
 
     private querySubscription!: Subscription;
+    private routeSubscription!: Subscription;
 
     constructor(
         private dialogService: DialogService,
         private toastService: ToastService,
-        private apollo: Apollo
+        private apollo: Apollo,
+        private router: Router,
+        private route: ActivatedRoute,
     ) {}
 
     openStandardDialog(dialogtype?: string) {
@@ -190,6 +198,10 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        this.routeSubscription = this.route.params.subscribe((params: any) => {
+            this.currentDataId = params["id"];
+        });
+
         this.querySubscription = this.apollo
             .watchQuery<any>({
                 query: GET_VEHICLES,
@@ -206,7 +218,18 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     this.vehicleAndLineData = data;
 
                     this.tabItems = lineQueryResultToTabEntries(data);
-                    this.tabActiveId = data.lines[0].id;
+
+                    if (!this.currentDataId) {
+                        this.tabActiveId = data.lines[0].id;
+                        firstValueFrom(this.route.url).then((value) => {
+                            this.router.navigate([
+                                value[0].path,
+                                data.lines[0].id,
+                            ]);
+                        });
+                    } else {
+                        this.tabActiveId = this.currentDataId;
+                    }
 
                     this.filterTabItems();
                 }
@@ -215,10 +238,16 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
 
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
+        this.routeSubscription.unsubscribe();
     }
 
     activeTabChange(event: any) {
         console.log("Active tab change: ", event);
+
+        const params = new HttpParams();
+        params.append("line", event);
+
+        this.router.navigate(["spotting", event]);
 
         this.tabActiveId = event;
         this.filterTabItems();

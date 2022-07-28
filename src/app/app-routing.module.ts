@@ -17,6 +17,14 @@ const routes: Routes = [
         component: SpottingMainComponent,
     },
     {
+        path: "spotting/:id",
+        loadChildren: async () => {
+            const module = await import("./spotting/spotting.module");
+            return module.SpottingModule;
+        },
+        component: SpottingMainComponent,
+    },
+    {
         path: "about",
         loadChildren: () =>
             import("./construction/construction.module").then(
