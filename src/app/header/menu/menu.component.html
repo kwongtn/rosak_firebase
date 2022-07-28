@@ -1,24 +1,38 @@
 <div class="header-menu">
-    <div *ngFor="let item of menuList" class="menu-item" (click)="onSelect(item)"
-        [ngClass]="{'menu-selected-item': (item.href === router.url || item.href === router.url.split('/')[1])}">
-        <a *ngIf="item.href" class="menu-link" [href]="item.href" rel="noopener noreferrer" [routerLink]="item.href">
-
+    <div
+        *ngFor="let item of menuList"
+        class="menu-item"
+        (click)="onSelect(item)"
+        [ngClass]="{
+            'menu-selected-item':
+                item.href.split('/')[1] === router.url.split('/')[1]
+        }"
+    >
+        <a
+            *ngIf="item.href"
+            class="menu-link"
+            [href]="item.href"
+            rel="noopener noreferrer"
+            [routerLink]="item.href"
+        >
             <span *ngIf="item.tag">
                 <d-badge [count]="item.tag" [offset]="[5, -5]" status="danger">
-                    {{item.name}}
+                    {{ item.name }}
                 </d-badge>
             </span>
             <span *ngIf="!item.tag">
-                {{item.name}}
+                {{ item.name }}
             </span>
         </a>
     </div>
     <div class="menu-item">
-        <a class="menu-link" [href]="'https://github.com/kwongtn/rosak_firebase'" rel="noopener noreferrer"
-            target="_blank">
+        <a
+            class="menu-link"
+            [href]="'https://github.com/kwongtn/rosak_firebase'"
+            rel="noopener noreferrer"
+            target="_blank"
+        >
             <span>GitHub</span>
-
         </a>
     </div>
-
 </div>
