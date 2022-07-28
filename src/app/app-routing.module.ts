@@ -28,10 +28,8 @@ const routes: Routes = [
     },
     {
         path: "",
-        loadChildren: () =>
-            import("./construction/construction.module").then(
-                (m) => m.ConstructionModule
-            ),
+        redirectTo: "/spotting",
+        pathMatch: "full",
     },
     {
         path: "**",
