@@ -19,7 +19,9 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
-import { betweenStationTypeOriginDestinationStationValidator } from "./spotting-form.utils";
+import {
+    betweenStationTypeOriginDestinationStationValidator,
+} from "./spotting-form.utils";
 
 const GET_LINES = gql`
     query GetLinesAndVehicles {
@@ -165,6 +167,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 originStation: new FormControl("", []),
                 destinationStation: new FormControl("", []),
                 notes: new FormControl("", []),
+                isAnonymous: new FormControl(false, []),
             },
             {
                 validators: [

@@ -1,14 +1,26 @@
-<div dLoading style="margin-left: 40px" [loading]="submitting" [backdrop]="true">
-    <form dForm [layout]="layoutDirection" [labelSize]="'sm'" [formGroup]="formGroup">
+<div
+    dLoading
+    style="margin-left: 40px"
+    [loading]="submitting"
+    [backdrop]="true"
+>
+    <form
+        dForm
+        [layout]="layoutDirection"
+        [labelSize]="'sm'"
+        [formGroup]="formGroup"
+    >
         <div class="login-alert" *ngIf="!(authService.userData | async)">
             <d-alert [type]="'info'" [closeable]="false">
-                It seems that you're not logged in. Users that are not logged in will have their IP Addresses recorded instead.
+                It seems that you're not logged in. Users that are not logged in
+                will have their IP Addresses recorded instead.
 
                 <p>
-                    <d-button class="login-button" (click)="authService.login()">Click here to login</d-button>
+                    <d-button class="login-button" (click)="authService.login()"
+                        >Click here to login</d-button
+                    >
                 </p>
             </d-alert>
-
         </div>
         <!-- 
         TODO: - Location -- map or lat long input
@@ -17,8 +29,15 @@
         <d-form-item>
             <d-form-label>Line</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('line')">
-                <d-select [options]="lineOptions" [isSearch]="true" [filterKey]="'name'" formControlName="line"
-                    [placeholder]="'Line'" (ngModelChange)="onLineChanges($event)" [optionDisabledKey]="'disabled'">
+                <d-select
+                    [options]="lineOptions"
+                    [isSearch]="true"
+                    [filterKey]="'name'"
+                    formControlName="line"
+                    [placeholder]="'Line'"
+                    (ngModelChange)="onLineChanges($event)"
+                    [optionDisabledKey]="'disabled'"
+                >
                 </d-select>
             </d-form-control>
         </d-form-item>
@@ -26,9 +45,16 @@
         <d-form-item>
             <d-form-label>Vehicle</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('vehicle')">
-                <d-cascader [options]="vehicleOptions" [placeholder]="'Please select, or type to search'"
-                    formControlName="vehicle" (ngModelChange)="onChanges($event)" [trigger]="'click'" [width]="300"
-                    [dropdownWidth]="200" [allowSearch]="true">
+                <d-cascader
+                    [options]="vehicleOptions"
+                    [placeholder]="'Please select, or type to search'"
+                    formControlName="vehicle"
+                    (ngModelChange)="onChanges($event)"
+                    [trigger]="'click'"
+                    [width]="300"
+                    [dropdownWidth]="200"
+                    [allowSearch]="true"
+                >
                 </d-cascader>
             </d-form-control>
         </d-form-item>
@@ -37,15 +63,31 @@
             <d-form-label>Spotting Date</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('spottingDate')">
                 <div class="devui-input-group devui-dropdown-origin">
-                    <input class="devui-input devui-form-control" placeholder="y/MM/dd" (click)="datePicker1.toggle()"
-                        name="dp" formControlName="spottingDate" (ngModelChange)="onChanges($event)" autocomplete="off"
-                        dDatepicker #datePicker1="datepicker" locale="en-us" appendToBody
-                        [appendToBodyDirections]="appendToBodyDirections" />
-                    <div *ngIf="selectedDate1" class="devui-input-group-addon close-icon-wrapper"
-                        (click)="datePicker1.clearAll()">
+                    <input
+                        class="devui-input devui-form-control"
+                        placeholder="y/MM/dd"
+                        (click)="datePicker1.toggle()"
+                        name="dp"
+                        formControlName="spottingDate"
+                        (ngModelChange)="onChanges($event)"
+                        autocomplete="off"
+                        dDatepicker
+                        #datePicker1="datepicker"
+                        locale="en-us"
+                        appendToBody
+                        [appendToBodyDirections]="appendToBodyDirections"
+                    />
+                    <div
+                        *ngIf="selectedDate1"
+                        class="devui-input-group-addon close-icon-wrapper"
+                        (click)="datePicker1.clearAll()"
+                    >
                         <i class="icon icon-close"></i>
                     </div>
-                    <div class="devui-input-group-addon" (click)="datePicker1.toggle()">
+                    <div
+                        class="devui-input-group-addon"
+                        (click)="datePicker1.toggle()"
+                    >
                         <i class="icon icon-calendar"></i>
                     </div>
                 </div>
@@ -55,8 +97,15 @@
         <d-form-item>
             <d-form-label>Status</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('status')">
-                <d-select [options]="statusOptions" [isSearch]="true" [filterKey]="'name'" formControlName="status"
-                    [placeholder]="'Status'" (ngModelChange)="onChanges($event)" [optionDisabledKey]="'disabled'">
+                <d-select
+                    [options]="statusOptions"
+                    [isSearch]="true"
+                    [filterKey]="'name'"
+                    formControlName="status"
+                    [placeholder]="'Status'"
+                    (ngModelChange)="onChanges($event)"
+                    [optionDisabledKey]="'disabled'"
+                >
                 </d-select>
             </d-form-control>
         </d-form-item>
@@ -64,8 +113,15 @@
         <d-form-item>
             <d-form-label>Type</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('type')">
-                <d-select [options]="typeOptions" [isSearch]="true" [filterKey]="'name'" formControlName="type"
-                    [placeholder]="'Type'" (ngModelChange)="onChanges($event)" [optionDisabledKey]="'disabled'">
+                <d-select
+                    [options]="typeOptions"
+                    [isSearch]="true"
+                    [filterKey]="'name'"
+                    formControlName="type"
+                    [placeholder]="'Type'"
+                    (ngModelChange)="onChanges($event)"
+                    [optionDisabledKey]="'disabled'"
+                >
                 </d-select>
             </d-form-control>
         </d-form-item>
@@ -75,32 +131,66 @@
                 <d-form-label>Origin Station</d-form-label>
 
                 <d-form-control [feedbackStatus]="getStatus('originStation')">
-                    <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
-                        formControlName="originStation" (ngModelChange)="onChanges($event)" [trigger]="'click'"
-                        [width]="300" [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
+                    <d-cascader
+                        [options]="stationOptions"
+                        [placeholder]="'Please select, or type to search'"
+                        formControlName="originStation"
+                        (ngModelChange)="onChanges($event)"
+                        [trigger]="'click'"
+                        [width]="300"
+                        [dropdownWidth]="300"
+                        [allowClear]="true"
+                        [allowSearch]="true"
+                    >
                     </d-cascader>
                 </d-form-control>
             </d-form-item>
 
             <d-form-item>
                 <d-form-label>Destination Station</d-form-label>
-                <d-form-control [feedbackStatus]="getStatus('destinationStation')">
-                    <d-cascader [options]="stationOptions" [placeholder]="'Please select, or type to search'"
-                        formControlName="destinationStation" (ngModelChange)="onChanges($event)" [trigger]="'click'"
-                        [width]="300" [dropdownWidth]="300" [allowClear]="true" [allowSearch]="true">
+                <d-form-control
+                    [feedbackStatus]="getStatus('destinationStation')"
+                >
+                    <d-cascader
+                        [options]="stationOptions"
+                        [placeholder]="'Please select, or type to search'"
+                        formControlName="destinationStation"
+                        (ngModelChange)="onChanges($event)"
+                        [trigger]="'click'"
+                        [width]="300"
+                        [dropdownWidth]="300"
+                        [allowClear]="true"
+                        [allowSearch]="true"
+                    >
                     </d-cascader>
                 </d-form-control>
             </d-form-item>
-
         </div>
+
+        <hr />
 
         <d-form-item>
             <d-form-label>Notes</d-form-label>
             <d-form-control>
-                <textarea dTextarea placeholder="Additional notes" formControlName="notes" resize="both"
-                    (ngModelChange)="onChanges($event)"></textarea>
+                <textarea
+                    dTextarea
+                    placeholder="Additional notes"
+                    formControlName="notes"
+                    resize="both"
+                    (ngModelChange)="onChanges($event)"
+                ></textarea>
+            </d-form-control>
+        </d-form-item>
+
+        <d-form-item>
+            <d-form-control>
+                <d-checkbox
+                    [label]="'Anonymous Entry'"
+                    [isShowTitle]="false"
+                    formControlName="isAnonymous"
+                >
+                </d-checkbox>
             </d-form-control>
         </d-form-item>
     </form>
-
 </div>

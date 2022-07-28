@@ -1,4 +1,4 @@
-import { DevUIModule, PanelModule } from "ng-devui";
+import { CheckBoxModule, DevUIModule, PanelModule } from "ng-devui";
 import { AlertModule } from "ng-devui/alert";
 import { CascaderModule } from "ng-devui/cascader";
 import { DataTableModule } from "ng-devui/data-table";
@@ -52,6 +52,7 @@ import {
         TabsModule,
         TooltipModule,
         PanelModule,
+        CheckBoxModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [],
