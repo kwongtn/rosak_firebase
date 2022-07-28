@@ -25,6 +25,9 @@ import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import {
     SpottingTableComponent,
 } from "./spotting-table/spotting-table.component";
+import {
+    VehicleTypeContainerComponent,
+} from "./vehicle-type-container/vehicle-type-container.component";
 
 @NgModule({
     declarations: [
@@ -32,6 +35,7 @@ import {
         SpottingMainComponent,
         SpottingTableComponent,
         VehicleStatusPipePipe,
+        VehicleTypeContainerComponent,
     ],
     imports: [
         CommonModule,
