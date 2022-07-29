@@ -11,6 +11,7 @@ export interface VehicleStatusCountType {
     vehicleStatusNotSpottedCount: number;
     vehicleStatusTestingCount: number;
     vehicleStatusUnknownCount: number;
+    vehicleStatusMarriedCount: number;
     vehicleTotalCount: number;
 }
 

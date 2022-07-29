@@ -28,6 +28,7 @@ const GET_VEHICLES = gql`
                 vehicleStatusNotSpottedCount
                 vehicleStatusTestingCount
                 vehicleStatusUnknownCount
+                vehicleStatusMarriedCount
                 vehicleTotalCount
                 vehicles {
                     id
@@ -42,7 +43,6 @@ const GET_VEHICLES = gql`
         }
     }
 `;
-
 
 @Component({
     selector: "app-spotting-main",
@@ -75,7 +75,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         private toastService: ToastService,
         private apollo: Apollo,
         private router: Router,
-        private route: ActivatedRoute,
+        private route: ActivatedRoute
     ) {}
 
     openStandardDialog(dialogtype?: string) {
@@ -168,6 +168,8 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                             vehicleType.vehicleStatusTestingCount,
                         vehicleStatusUnknownCount:
                             vehicleType.vehicleStatusUnknownCount,
+                        vehicleStatusMarriedCount:
+                            vehicleType.vehicleStatusMarriedCount,
                         vehicleTotalCount: vehicleType.vehicleTotalCount,
                     },
                     tableData: vehicleType.vehicles.map((value) => {

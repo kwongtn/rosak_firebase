@@ -70,6 +70,17 @@
             >
             </d-tag>
         </span>
+
+        <span dTooltip [content]="'Married'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'Married: ' +
+                    elem.vehicleStatusCount.vehicleStatusMarriedCount.toString()
+                "
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
     </h1>
 
     <app-spotting-table
