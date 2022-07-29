@@ -1,13 +1,9 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
 import { firstValueFrom, Subscription } from "rxjs";
-import {
-    GetLinesAndVehiclesResponse,
-    VehicleStatusCountType,
-} from "src/app/models/query/get-vehicles";
-import { SourceType } from "src/app/models/spotting-table/source-type";
+import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
+import { TableDataType } from "src/app/models/spotting-table/source-type";
 
-import { HttpParams } from "@angular/common/http";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
@@ -47,11 +43,6 @@ const GET_VEHICLES = gql`
     }
 `;
 
-interface TableDataType {
-    displayName: string;
-    vehicleStatusCount: VehicleStatusCountType;
-    tableData: SourceType[];
-}
 
 @Component({
     selector: "app-spotting-main",
@@ -243,9 +234,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
 
     activeTabChange(event: any) {
         console.log("Active tab change: ", event);
-
-        const params = new HttpParams();
-        params.append("line", event);
 
         this.router.navigate(["spotting", event]);
 

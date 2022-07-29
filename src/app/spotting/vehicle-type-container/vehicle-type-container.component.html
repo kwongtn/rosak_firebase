@@ -1,1 +1,79 @@
-<p>vehicle-type-container works!</p>
+<div class="spotting-table-elem" *ngFor="let elem of tableData">
+    <h1 class="spotting-table-title">
+        <span class="table-title-display-text">
+            {{ elem.displayName }}
+        </span>
+
+        <span dTooltip [content]="'Total'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'Total: ' +
+                    elem.vehicleStatusCount.vehicleTotalCount.toString()
+                "
+                [labelStyle]="'tag-custom'"
+            ></d-tag>
+        </span>
+
+        |
+
+        <span dTooltip [content]="'In Service'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'In service: ' +
+                    elem.vehicleStatusCount.vehicleStatusInServiceCount.toString()
+                "
+                [labelStyle]="'green-w98'"
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
+        <span dTooltip [content]="'Not Spotted'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'Not Spotted: ' +
+                    elem.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
+                "
+                [labelStyle]="'yellow-w98'"
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
+        <span dTooltip [content]="'Testing'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'Testing: ' +
+                    elem.vehicleStatusCount.vehicleStatusTestingCount.toString()
+                "
+                [labelStyle]="'blue-w98'"
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
+        <span dTooltip [content]="'Unknown'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'Unknown: ' +
+                    elem.vehicleStatusCount.vehicleStatusUnknownCount.toString()
+                "
+                [labelStyle]="'red-w98'"
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
+        <span dTooltip [content]="'Decommissioned'" [position]="'bottom'">
+            <d-tag
+                [tag]="
+                    'Decommissioned: ' +
+                    elem.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
+                "
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
+    </h1>
+
+    <app-spotting-table
+        class="app-spotting-table"
+        [dataSource]="elem.tableData"
+    ></app-spotting-table>
+</div>

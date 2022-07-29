@@ -1,7 +1,15 @@
+import { VehicleStatusCountType } from "src/app/models/query/get-vehicles";
+
 export interface SourceType {
     identificationNo: string;
     status: string;
     lastSpotted: string;
     timesSpotted: number;
     notes: string;
+}
+
+export interface TableDataType {
+    displayName: string;
+    vehicleStatusCount: VehicleStatusCountType;
+    tableData: SourceType[];
 }
