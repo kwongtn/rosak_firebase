@@ -24,7 +24,7 @@ import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import {
     SpottingTableComponent,
-} from "./spotting-table/spotting-table.component";
+} from "./vehicle-type-container/spotting-table/spotting-table.component";
 import {
     VehicleTypeContainerComponent,
 } from "./vehicle-type-container/vehicle-type-container.component";

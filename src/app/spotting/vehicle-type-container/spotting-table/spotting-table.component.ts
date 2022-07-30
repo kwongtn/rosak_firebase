@@ -2,7 +2,7 @@ import { TableWidthConfig } from "ng-devui/data-table";
 
 import { Component, Input, OnInit } from "@angular/core";
 
-import { SourceType } from "../../models/spotting-table/source-type";
+import { SourceType } from "../../../models/spotting-table/source-type";
 
 @Component({
     selector: "app-spotting-table",
