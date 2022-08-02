@@ -10,6 +10,9 @@ import {
 const routes: Routes = [
     {
         path: "spotting",
+        data: {
+            title: "'MLPTF | Spotting'",
+        },
         loadChildren: async () => {
             const module = await import("./spotting/spotting.module");
             return module.SpottingModule;
@@ -18,6 +21,9 @@ const routes: Routes = [
     },
     {
         path: "spotting/:id",
+        data: {
+            title: "'MLPTF | Spotting'",
+        },
         loadChildren: async () => {
             const module = await import("./spotting/spotting.module");
             return module.SpottingModule;
@@ -26,6 +32,9 @@ const routes: Routes = [
     },
     {
         path: "about",
+        data: {
+            title: "'MLPTF | About'",
+        },
         loadChildren: () =>
             import("./construction/construction.module").then(
                 (m) => m.ConstructionModule
@@ -41,6 +50,9 @@ const routes: Routes = [
     },
     {
         path: "**",
+        data: {
+            title: "'MLPTF | Page not Found'",
+        },
         loadChildren: () =>
             import("./fallback/fallback.module").then((m) => m.FallbackModule),
         component: FallbackComponent,
