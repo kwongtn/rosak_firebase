@@ -1,7 +1,10 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
 import { firstValueFrom, Subscription } from "rxjs";
-import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
+import {
+    GetLinesAndVehiclesResponse,
+    GetLinesResponse,
+} from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
@@ -13,33 +16,12 @@ import {
 } from "../spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "../utils";
 
-const GET_VEHICLES = gql`
+const GET_LINES = gql`
     query GetLinesAndVehicles {
         lines {
             id
             code
             displayName
-            vehicleTypes {
-                id
-                internalName
-                displayName
-                vehicleStatusDecommissionedCount
-                vehicleStatusInServiceCount
-                vehicleStatusNotSpottedCount
-                vehicleStatusTestingCount
-                vehicleStatusUnknownCount
-                vehicleStatusMarriedCount
-                vehicleTotalCount
-                vehicles {
-                    id
-                    identificationNo
-                    status
-                    lastSpottingDate
-                    inServiceSince
-                    spottingCount
-                    notes
-                }
-            }
         }
     }
 `;
@@ -53,7 +35,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     tableData: TableDataType[] = [];
     showLoading: boolean = true;
 
-    tabActiveId: string | number = 1;
+    tabActiveId: string | number | undefined = undefined;
     tabItems: LineTabType[] = [];
 
     /**
@@ -141,96 +123,33 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         );
     }
 
-    filterTabItems(): void {
-        const data = this.vehicleAndLineData;
-
-        if (!data) {
-            return;
-        }
-
-        for (const line of data.lines) {
-            if (line.id != this.tabActiveId) {
-                continue;
-            }
-
-            const sectionData: TableDataType[] = [];
-            for (const vehicleType of line.vehicleTypes) {
-                sectionData.push({
-                    displayName: vehicleType.displayName,
-                    vehicleStatusCount: {
-                        vehicleStatusDecommissionedCount:
-                            vehicleType.vehicleStatusDecommissionedCount,
-                        vehicleStatusInServiceCount:
-                            vehicleType.vehicleStatusInServiceCount,
-                        vehicleStatusNotSpottedCount:
-                            vehicleType.vehicleStatusNotSpottedCount,
-                        vehicleStatusTestingCount:
-                            vehicleType.vehicleStatusTestingCount,
-                        vehicleStatusUnknownCount:
-                            vehicleType.vehicleStatusUnknownCount,
-                        vehicleStatusMarriedCount:
-                            vehicleType.vehicleStatusMarriedCount,
-                        vehicleTotalCount: vehicleType.vehicleTotalCount,
-                    },
-                    tableData: vehicleType.vehicles.map((value) => {
-                        return {
-                            identificationNo: value.identificationNo,
-                            status: value.status,
-                            lastSpotted: value.lastSpottingDate,
-                            timesSpotted: value.spottingCount,
-                            notes: value.notes,
-                        };
-                    }),
-                });
-            }
-
-            console.log("sectionData: ", sectionData);
-
-            this.tableData = sectionData;
-        }
-    }
-
     ngOnInit(): void {
         this.routeSubscription = this.route.params.subscribe((params: any) => {
             this.currentDataId = params["id"];
         });
 
-        this.querySubscription = this.apollo
-            .watchQuery<any>({
-                query: GET_VEHICLES,
+        this.apollo
+            .query<GetLinesResponse>({
+                query: GET_LINES,
             })
-            .valueChanges.subscribe(
-                ({
-                    data,
-                    loading,
-                }: {
-                    data: GetLinesAndVehiclesResponse;
-                    loading: boolean;
-                }) => {
-                    this.showLoading = loading;
-                    this.vehicleAndLineData = data;
+            .subscribe(({ data, loading }) => {
+                this.showLoading = loading;
 
-                    this.tabItems = lineQueryResultToTabEntries(data);
+                this.tabItems = lineQueryResultToTabEntries(data);
 
-                    if (!this.currentDataId) {
-                        this.tabActiveId = data.lines[0].id;
-                        firstValueFrom(this.route.url).then((value) => {
-                            this.router.navigate([
-                                value[0].path,
-                                data.lines[0].id,
-                            ]);
-                        });
-                    } else {
-                        this.tabActiveId = this.currentDataId;
-                    }
-
-                    this.filterTabItems();
+                if (!this.currentDataId) {
+                    this.tabActiveId = data.lines[0].id;
+                    firstValueFrom(this.route.url).then((value) => {
+                        this.router.navigate([value[0].path, data.lines[0].id]);
+                    });
+                } else {
+                    this.tabActiveId = this.currentDataId;
                 }
-            );
+            });
     }
 
     ngOnDestroy() {
-        this.querySubscription.unsubscribe();
+        // this.querySubscription.unsubscribe();
         this.routeSubscription.unsubscribe();
     }
 
@@ -240,6 +159,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         this.router.navigate(["spotting", event]);
 
         this.tabActiveId = event;
-        this.filterTabItems();
+        // this.filterTabItems();
     }
 }

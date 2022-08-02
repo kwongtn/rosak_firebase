@@ -6,7 +6,7 @@
     >
 </div>
 <div dLoading class="spotting-main-container" [showLoading]="showLoading">
-    <div class="spotting-table-container">
+    <div class="spotting-table-container" *ngIf="tabActiveId">
         <section>
             <d-tabs
                 type="pills"
@@ -31,6 +31,7 @@
 
         <app-vehicle-type-container
             [tableData]="tableData"
+            [lineId]="tabActiveId"
         ></app-vehicle-type-container>
     </div>
 </div>

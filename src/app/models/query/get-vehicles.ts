@@ -15,7 +15,7 @@ export interface VehicleStatusCountType {
     vehicleTotalCount: number;
 }
 
-interface VehicleType extends VehicleStatusCountType {
+export interface VehicleType extends VehicleStatusCountType {
     id: string;
     internalName: string;
     displayName: string;
@@ -40,5 +40,13 @@ export interface GetLinesAndVehiclesResponse {
         code: string;
         displayName: string;
         vehicleTypes: Array<VehicleType>;
+    }>;
+}
+
+export interface GetLinesResponse {
+    lines: Array<{
+        id: string;
+        code: string;
+        displayName: string;
     }>;
 }

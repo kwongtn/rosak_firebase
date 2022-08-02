@@ -1,6 +1,6 @@
 import { CascaderItem } from "ng-devui";
 
-import { GetLinesAndVehiclesResponse } from "../models/query/get-vehicles";
+import { GetLinesResponse } from "../models/query/get-vehicles";
 
 export interface LineTabType {
     id: string | number;
@@ -10,7 +10,7 @@ export interface LineTabType {
 }
 
 export function lineQueryResultToTabEntries(
-    data: GetLinesAndVehiclesResponse
+    data:  GetLinesResponse
 ): LineTabType[] {
     const lineOptions: LineTabType[] = [];
     for (const line of data.lines) {
