@@ -20,7 +20,10 @@ export const environment = {
         tracingOrigins: [
             "http://localhost:4200",
             "https://lift-rosak.ddns.net:8000",
-        ]
+        ],
+    },
+    captcha: {
+        key: "6LdKj0QhAAAAAOEKyuxa6X2kIhVhgfinAorgxc4r",
     },
 };
 
