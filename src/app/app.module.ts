@@ -1,5 +1,11 @@
 import { DevUIModule } from "ng-devui";
 import { ToastModule } from "ng-devui/toast";
+import {
+    RECAPTCHA_V3_SITE_KEY,
+    RecaptchaFormsModule,
+    RecaptchaV3Module,
+    ReCaptchaV3Service,
+} from "ng-recaptcha";
 
 import { HttpClientModule } from "@angular/common/http";
 import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
@@ -38,6 +44,8 @@ const imports: any[] = [
     HttpClientModule,
     ToastModule,
     HeaderModule,
+    RecaptchaV3Module,
+    RecaptchaFormsModule,
 ];
 
 const providers: any[] = [
@@ -58,6 +66,8 @@ const providers: any[] = [
         deps: [Sentry.TraceService],
         multi: true,
     },
+    ReCaptchaV3Service,
+    { provide: RECAPTCHA_V3_SITE_KEY, useValue: environment.captcha.key },
 ];
 
 if (environment.production) {

@@ -3,7 +3,8 @@ import { CascaderItem } from "ng-devui";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
-import { lastValueFrom, Subscription } from "rxjs";
+import { ReCaptchaV3Service } from "ng-recaptcha";
+import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import { AuthService } from "src/app/services/auth/auth.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
@@ -141,7 +142,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     constructor(
         private fb: FormBuilder,
         private apollo: Apollo,
-        public authService: AuthService
+        public authService: AuthService,
+        private recaptchaV3Service: ReCaptchaV3Service
     ) {
         this.formGroup = this.fb.group(
             {
@@ -267,6 +269,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["authKey"] = this.authService.userData.getValue()
             ? `${await this.authService.userData.getValue()?.getIdToken()}`
             : undefined;
+
+        formValues["captchaKey"] = await firstValueFrom(
+            this.recaptchaV3Service.execute("importantAction")
+        );
 
         const mutationObservable = this.apollo.mutate({
             mutation: ADD_ENTRY,
