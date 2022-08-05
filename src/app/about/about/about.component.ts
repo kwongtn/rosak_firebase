@@ -1,4 +1,9 @@
+import { Observable } from "rxjs";
+
 import { Component, OnInit } from "@angular/core";
+import { AngularFirestore } from "@angular/fire/compat/firestore";
+
+import { PublicAboutDocument } from "../models/firestore";
 
 @Component({
     selector: "app-about",
@@ -6,8 +11,16 @@ import { Component, OnInit } from "@angular/core";
     styleUrls: ["./about.component.scss"],
 })
 export class AboutComponent implements OnInit {
-    constructor() {
-        return;
+    $items!: Observable<PublicAboutDocument | undefined>;
+
+    constructor(firestore: AngularFirestore) {
+        const itemDoc = firestore.doc<PublicAboutDocument>("public/about");
+
+        this.$items = itemDoc.valueChanges();
+
+        this.$items.subscribe((value) => {
+            console.log(value);
+        });
     }
 
     ngOnInit(): void {

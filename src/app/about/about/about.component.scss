@@ -1,0 +1,18 @@
+@import "~ng-devui/styles-var/devui-var.scss";
+
+h1 {
+    font-size: $devui-font-size-price;
+}
+
+.main-wrapper {
+    padding-left: 50px;
+    padding-right: 50px;
+
+    .wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: left;
+
+        left: -20px;
+    }
+}

@@ -12,7 +12,9 @@
             >
             <d-card-subtitle class="subtitle">{{ data.title }}</d-card-subtitle>
         </d-card-header>
-        <d-card-content> </d-card-content>
+        <d-card-content>
+            {{ data.description }}
+        </d-card-content>
         <d-card-actions [align]="'end'">
             <div *ngFor="let social of data.socials" class="card-block">
                 {{ social.name }}
