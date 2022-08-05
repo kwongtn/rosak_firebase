@@ -6,9 +6,12 @@ import { NgModule } from "@angular/core";
 
 import { AboutComponent } from "./about/about.component";
 import { AvatarCardComponent } from "./avatar-card/avatar-card.component";
+import {
+    TechstackCardComponent,
+} from "./techstack-card/techstack-card.component";
 
 @NgModule({
-    declarations: [AboutComponent, AvatarCardComponent],
+    declarations: [AboutComponent, AvatarCardComponent, TechstackCardComponent],
     imports: [CommonModule, CardModule, AvatarModule],
 })
 export class AboutModule {}

@@ -19,5 +19,10 @@
 
     <div class="section">
         <h1>Tech Stacks & Open Souce</h1>
+        <div class="wrapper">
+            <div *ngFor="let item of ($items | async)?.techStacks">
+                <app-techstack-card [data]="item"></app-techstack-card>
+            </div>
+        </div>
     </div>
 </div>

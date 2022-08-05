@@ -12,7 +12,15 @@ export interface Personnel {
     socials: PersonnelSocial[];
 }
 
+export interface TechStack {
+    description: string;
+    name: string;
+    iconUrl: string;
+    url: string;
+}
+
 export interface PublicAboutDocument {
     personnel: Personnel[];
+    techStacks: TechStack[];
     aboutProject: string;
 }
