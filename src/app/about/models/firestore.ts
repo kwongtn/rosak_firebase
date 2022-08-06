@@ -21,8 +21,16 @@ export interface TechStack {
     url: string;
 }
 
+export interface Project {
+    description: string;
+    name: string;
+    startDate: Date;
+    status: "alpha" | "beta" | "stable" | "planned";
+}
+
 export interface PublicAboutDocument {
     personnel: Personnel[];
     techStacks: TechStack[];
+    projects: Project[];
     aboutProject: string;
 }

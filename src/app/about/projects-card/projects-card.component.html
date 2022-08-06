@@ -1,1 +1,39 @@
-<p>projects-card works!</p>
+<div class="components">
+    <d-card class="list">
+        <d-card-header>
+            <!-- <d-avatar
+                dCardAvatar
+                [imgSrc]="data.avatar"
+                [width]="100"
+                [height]="100"
+            ></d-avatar> -->
+            <d-card-title class="title">
+                <h2>{{ data.name }}</h2>
+            </d-card-title>
+            <d-card-subtitle class="subtitle"></d-card-subtitle>
+        </d-card-header>
+        <d-card-content>
+            {{ data.description }}
+        </d-card-content>
+        <d-card-actions [align]="'end'">
+            <span [ngSwitch]="data.status">
+                <d-tag
+                    [tag]="'Alpha'"
+                    [labelStyle]="'red-w98'"
+                    *ngSwitchCase="'alpha'"
+                ></d-tag>
+                <d-tag
+                    [tag]="'Beta'"
+                    [labelStyle]="'green-w98'"
+                    *ngSwitchCase="'beta'"
+                ></d-tag>
+                <d-tag
+                    [tag]="'Stable'"
+                    [labelStyle]="'blue-w98'"
+                    *ngSwitchCase="'stable'"
+                ></d-tag>
+                <d-tag [tag]="'Planned'" *ngSwitchDefault></d-tag>
+            </span>
+        </d-card-actions>
+    </d-card>
+</div>

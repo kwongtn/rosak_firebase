@@ -9,6 +9,7 @@ import { TechStack } from "../models/firestore";
 })
 export class TechstackCardComponent implements OnInit {
     @Input() data!: TechStack;
+    
     constructor() {
         return;
     }

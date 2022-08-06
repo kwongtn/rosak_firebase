@@ -1,4 +1,6 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
+
+import { Project } from "../models/firestore";
 
 @Component({
     selector: "app-projects-card",
@@ -6,11 +8,13 @@ import { Component, OnInit } from "@angular/core";
     styleUrls: ["./projects-card.component.scss"],
 })
 export class ProjectsCardComponent implements OnInit {
-    constructor() {
-        return;
-    }
+  @Input() data!: Project;
 
-    ngOnInit(): void {
-        return;
-    }
+  constructor() {
+      return;
+  }
+
+  ngOnInit(): void {
+      return;
+  }
 }

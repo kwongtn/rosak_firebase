@@ -2,6 +2,11 @@
     <div class="section">
         <h1>About the project</h1>
         {{ ($items | async)?.aboutProject }}
+        <div class="wrapper">
+            <div *ngFor="let item of ($items | async)?.projects">
+                <app-projects-card [data]="item"></app-projects-card>
+            </div>
+        </div>
     </div>
 
     <div class="section">
