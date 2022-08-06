@@ -9,9 +9,10 @@ import { AvatarCardComponent } from "./avatar-card/avatar-card.component";
 import {
     TechstackCardComponent,
 } from "./techstack-card/techstack-card.component";
+import { ProjectsCardComponent } from "./projects-card/projects-card.component";
 
 @NgModule({
-    declarations: [AboutComponent, AvatarCardComponent, TechstackCardComponent],
+    declarations: [AboutComponent, AvatarCardComponent, TechstackCardComponent, ProjectsCardComponent],
     imports: [CommonModule, CardModule, AvatarModule],
 })
 export class AboutModule {}
