@@ -1,5 +1,6 @@
 import { AvatarModule } from "ng-devui/avatar";
 import { CardModule } from "ng-devui/card";
+import { LoadingModule } from "ng-devui/loading";
 import { TagsModule } from "ng-devui/tags";
 
 import { CommonModule } from "@angular/common";
@@ -19,6 +20,12 @@ import {
         TechstackCardComponent,
         ProjectsCardComponent,
     ],
-    imports: [CommonModule, CardModule, AvatarModule, TagsModule],
+    imports: [
+        CommonModule,
+        CardModule,
+        AvatarModule,
+        TagsModule,
+        LoadingModule,
+    ],
 })
 export class AboutModule {}

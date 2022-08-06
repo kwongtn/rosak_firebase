@@ -12,6 +12,7 @@ import { sortOrder } from "../utils";
     styleUrls: ["./about.component.scss"],
 })
 export class AboutComponent implements OnInit, OnDestroy {
+    showLoading: boolean = true;
     $items!: Observable<PublicAboutDocument | undefined>;
     itemSubscription!: Subscription;
 
@@ -28,6 +29,8 @@ export class AboutComponent implements OnInit, OnDestroy {
             this.personnel = sortOrder(
                 (value as PublicAboutDocument).personnel
             );
+
+            this.showLoading = false;
         });
     }
 

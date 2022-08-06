@@ -1,4 +1,4 @@
-<div class="main-wrapper">
+<div dLoading class="main-wrapper" [showLoading]="showLoading">
     <div class="section">
         <h1>About the project</h1>
         {{ ($items | async)?.aboutProject }}
