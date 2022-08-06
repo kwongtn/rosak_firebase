@@ -7,15 +7,18 @@
     <div class="section">
         <h1>About the team</h1>
         <div class="wrapper">
-            <div *ngFor="let item of ($items | async)?.personnel">
-                <app-avatar-card [data]="item"></app-avatar-card>
+            <div *ngFor="let item of personnel">
+                <app-avatar-card
+                    [data]="item"
+                    *ngIf="item.display"
+                ></app-avatar-card>
             </div>
         </div>
     </div>
 
-    <div class="section">
+    <!-- <div class="section">
         <h1>Special Mentions</h1>
-    </div>
+    </div> -->
 
     <div class="section">
         <h1>Tech Stacks & Open Souce</h1>

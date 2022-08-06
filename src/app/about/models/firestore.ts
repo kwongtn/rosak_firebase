@@ -9,6 +9,8 @@ export interface Personnel {
     avatar: string;
     title: string;
     description: string;
+    display: boolean;
+    order: number;
     socials: PersonnelSocial[];
 }
 
