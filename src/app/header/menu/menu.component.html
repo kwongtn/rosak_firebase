@@ -16,7 +16,11 @@
             [routerLink]="item.href"
         >
             <span *ngIf="item.tag">
-                <d-badge [count]="item.tag" [offset]="[5, -5]" status="danger">
+                <d-badge
+                    [count]="item.tag"
+                    [offset]="[5, -5]"
+                    [status]="item.style"
+                >
                     {{ item.name }}
                 </d-badge>
             </span>

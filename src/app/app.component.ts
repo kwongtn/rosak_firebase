@@ -18,11 +18,13 @@ export class AppComponent implements OnInit, OnDestroy {
             href: "/spotting",
             target: "_self",
             tag: "Alpha",
+            style: "danger",
         },
         {
             name: "About",
             href: "/about",
-            tag: "",
+            tag: "Prelim",
+            style: "default",
         },
     ];
 
