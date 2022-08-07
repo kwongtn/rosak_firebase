@@ -102,28 +102,15 @@ implements OnInit, OnChanges, OnDestroy
     }
 
     ngOnInit(): void {
-        // this.querySubscription = this.apollo
-        //     .watchQuery<{ vehicleTypes: VehicleType[] }>({
-        //         query: GET_VEHICLES,
-        //         variables: {
-        //             vehicleTypeFilter: {
-        //                 lineId: this.lineId,
-        //             },
-        //         },
-        //     })
-        //     .valueChanges.subscribe(({ data, loading }) => {
-        //         this.showLoading = loading;
-        //         console.log(data);
-        //         this.filterTabItems(data.vehicleTypes);
-        //         // this.vehicleAndLineData = data;
-        //         // this.tabItems = lineQueryResultToTabEntries(data);
-        //     });
+        return;
     }
 
     ngOnChanges(changes: SimpleChanges): void {
         console.log(changes);
 
         this.tableData = [];
+
+        this.showLoading = true;
 
         this.apollo
             .query<{ vehicleTypes: VehicleType[] }>({
@@ -135,12 +122,9 @@ implements OnInit, OnChanges, OnDestroy
                 },
             })
             .subscribe(({ data, loading }) => {
-                this.showLoading = loading;
+                this.showLoading = false;
                 console.log(data);
                 this.filterTabItems(data.vehicleTypes);
-                // this.vehicleAndLineData = data;
-
-                // this.tabItems = lineQueryResultToTabEntries(data);
             });
     }
 
