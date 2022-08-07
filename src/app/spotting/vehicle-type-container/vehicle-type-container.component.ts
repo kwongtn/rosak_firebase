@@ -112,7 +112,7 @@ implements OnInit, OnChanges, OnDestroy
 
         this.showLoading = true;
 
-        this.apollo
+        this.querySubscription = this.apollo
             .query<{ vehicleTypes: VehicleType[] }>({
                 query: GET_VEHICLES,
                 variables: {
