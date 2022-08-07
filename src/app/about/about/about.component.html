@@ -1,1 +1,36 @@
-<p>about works!</p>
+<div dLoading class="main-wrapper" [showLoading]="showLoading">
+    <div class="section">
+        <h1>About the project</h1>
+        {{ ($items | async)?.aboutProject }}
+        <div class="wrapper">
+            <div *ngFor="let item of ($items | async)?.projects">
+                <app-projects-card [data]="item"></app-projects-card>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h1>About the team</h1>
+        <div class="wrapper">
+            <div *ngFor="let item of personnel">
+                <app-avatar-card
+                    [data]="item"
+                    *ngIf="item.display"
+                ></app-avatar-card>
+            </div>
+        </div>
+    </div>
+
+    <!-- <div class="section">
+        <h1>Special Mentions</h1>
+    </div> -->
+
+    <div class="section">
+        <h1>Tech Stacks & Open Souce</h1>
+        <div class="wrapper">
+            <div *ngFor="let item of ($items | async)?.techStacks">
+                <app-techstack-card [data]="item"></app-techstack-card>
+            </div>
+        </div>
+    </div>
+</div>
