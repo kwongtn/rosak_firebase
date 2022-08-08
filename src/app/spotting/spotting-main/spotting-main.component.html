@@ -13,7 +13,7 @@
                 size="lg"
                 [(activeTab)]="tabActiveId"
                 (activeTabChange)="activeTabChange($event)"
-                [scrollMode]="tabItems.length > 5"
+                [scrollMode]="tabItems.length > 10"
             >
                 <d-tab *ngFor="let item of tabItems" [id]="item.id">
                     <ng-template dTabTitle>
