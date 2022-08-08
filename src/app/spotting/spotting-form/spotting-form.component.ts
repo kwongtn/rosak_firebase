@@ -145,13 +145,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         public authService: AuthService,
         private recaptchaV3Service: ReCaptchaV3Service
     ) {
+        const date = new Date();
+        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+
         this.formGroup = this.fb.group(
             {
                 line: new FormControl("", [Validators.required]),
                 vehicle: new FormControl("", [Validators.required]),
-                spottingDate: new FormControl(new Date(), [
-                    Validators.required,
-                ]),
+                spottingDate: new FormControl(date, [Validators.required]),
                 status: new FormControl(
                     {
                         name: "In Service",
