@@ -93,6 +93,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             name: "Between Stations",
             value: "BETWEEN_STATIONS",
         },
+        {
+            name: "Just Spotting",
+            value: "JUST_SPOTTING",
+        },
     ];
 
     // TODO: Check that origin and destination options are not the same
@@ -162,8 +166,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 ),
                 type: new FormControl(
                     {
-                        name: "Between Stations",
-                        value: "BETWEEN_STATIONS",
+                        name: "Just Spotting",
+                        value: "JUST_SPOTTING",
                     },
                     [Validators.required]
                 ),
