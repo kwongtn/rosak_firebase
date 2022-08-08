@@ -25,6 +25,7 @@ export interface Project {
     description: string;
     name: string;
     startDate: Date;
+    display: boolean;
     status: "alpha" | "beta" | "stable" | "planned";
 }
 
