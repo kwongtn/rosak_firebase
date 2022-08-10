@@ -271,19 +271,20 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         // Removing line option here as it is not required by GQL
         formValues["line"] = undefined;
 
-        // TODO: To remove once authentication is done
-        formValues["authKey"] = this.authService.userData.getValue()
-            ? `${await this.authService.userData.getValue()?.getIdToken()}`
-            : undefined;
-
-        formValues["captchaKey"] = await firstValueFrom(
-            this.recaptchaV3Service.execute("importantAction")
-        );
-
         const mutationObservable = this.apollo.mutate({
             mutation: ADD_ENTRY,
             variables: {
                 data: formValues,
+            },
+            context: {
+                headers: {
+                    "g-recaptcha-response": await firstValueFrom(
+                        this.recaptchaV3Service.execute("spottingEntry")
+                    ),
+                    "firebase-auth-key": await this.authService.userData
+                        .getValue()
+                        ?.getIdToken(),
+                },
             },
         });
 
