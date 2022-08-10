@@ -10,7 +10,7 @@ export interface LineTabType {
 }
 
 export function lineQueryResultToTabEntries(
-    data:  GetLinesResponse
+    data: GetLinesResponse
 ): LineTabType[] {
     const lineOptions: LineTabType[] = [];
     for (const line of data.lines) {
@@ -45,7 +45,9 @@ export function lineQueryResultToOptions(data: any): {
         lineOptions.push(lineObj);
     }
 
-    return lineOptions;
+    return lineOptions.sort((a, b) => {
+        return a.name.localeCompare(b.name);
+    });
 }
 
 export function lineQueryResultToStationCascaderOptions(
@@ -112,7 +114,9 @@ export function lineQueryResultToVehicleCascaderOptions(
                     value: vehicleType.id,
                     isLeaf: false,
                     disabled: false,
-                    children: vehicles,
+                    children: vehicles.sort((a, b) => {
+                        return a.label.localeCompare(b.label);
+                    }),
                 });
             }
             vehicleOptions.push(lineObj);

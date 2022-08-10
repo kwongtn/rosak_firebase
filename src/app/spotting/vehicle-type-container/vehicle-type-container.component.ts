@@ -63,10 +63,6 @@ implements OnInit, OnChanges, OnDestroy
 
         const sectionData: TableDataType[] = [];
         for (const vehicleType of data) {
-            // if (line.id != this.tabActiveId) {
-            //     continue;
-            // }
-
             sectionData.push({
                 displayName: vehicleType.displayName,
                 vehicleStatusCount: {
@@ -84,15 +80,21 @@ implements OnInit, OnChanges, OnDestroy
                         vehicleType.vehicleStatusMarriedCount,
                     vehicleTotalCount: vehicleType.vehicleTotalCount,
                 },
-                tableData: vehicleType.vehicles.map((value) => {
-                    return {
-                        identificationNo: value.identificationNo,
-                        status: value.status,
-                        lastSpotted: value.lastSpottingDate,
-                        timesSpotted: value.spottingCount,
-                        notes: value.notes,
-                    };
-                }),
+                tableData: vehicleType.vehicles
+                    .map((value) => {
+                        return {
+                            identificationNo: value.identificationNo,
+                            status: value.status,
+                            lastSpotted: value.lastSpottingDate,
+                            timesSpotted: value.spottingCount,
+                            notes: value.notes,
+                        };
+                    })
+                    .sort((a, b) => {
+                        return a.identificationNo.localeCompare(
+                            b.identificationNo
+                        );
+                    }),
             });
         }
 
