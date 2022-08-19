@@ -85,6 +85,7 @@ implements OnInit, OnChanges, OnDestroy
                         return {
                             identificationNo: value.identificationNo,
                             status: value.status,
+                            inServiceSince: value.inServiceSince,
                             lastSpotted: value.lastSpottingDate,
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
