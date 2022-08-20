@@ -17,7 +17,7 @@
             <tr dTableRow>
                 <td dTableCell class="cursor-pointer">
                     <span
-                        *ngIf="rowItem.$expandConfig"
+                        *ngIf="rowItem.$expandConfig.expandable"
                         (click)="toggleExpand(rowItem)"
                         class="expand-icon"
                     >

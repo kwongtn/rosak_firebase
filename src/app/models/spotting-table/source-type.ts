@@ -1,5 +1,10 @@
 import { VehicleStatusCountType } from "src/app/models/query/get-vehicles";
 
+interface ExpandConfig {
+    expandable: boolean;
+    expand: boolean;
+}
+
 export interface SourceType {
     identificationNo: string;
     status: string;
@@ -7,7 +12,7 @@ export interface SourceType {
     lastSpotted: string;
     timesSpotted: number;
     notes: string;
-    $expandConfig: boolean;
+    $expandConfig: ExpandConfig;
 }
 
 export interface TableDataType {

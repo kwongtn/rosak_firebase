@@ -90,7 +90,9 @@ implements OnInit, OnChanges, OnDestroy
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
                             $expandConfig:
-                                value.spottingCount > 0 ? true : false,
+                                value.spottingCount > 0
+                                    ? { expandable: true, expand: false }
+                                    : { expandable: false, expand: false },
                         };
                     })
                     .sort((a, b) => {
