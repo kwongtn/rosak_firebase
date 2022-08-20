@@ -10,7 +10,7 @@ import { Component, Input, OnInit } from "@angular/core";
 export class InlineHistoryComponent implements OnInit {
     @Input() vehicleId: string = "1";
 
-    data = [
+    dataSource = [
         {
             spottingDate: "2022-08-07",
             status: "IN_SERVICE",
@@ -22,8 +22,8 @@ export class InlineHistoryComponent implements OnInit {
     dataTableOptions = {
         columns: [
             {
-                field: "date",
-                header: "spottingDate",
+                field: "spottingDate",
+                header: "Spotting Date",
                 fieldType: "date",
                 order: 1,
             },
@@ -36,9 +36,9 @@ export class InlineHistoryComponent implements OnInit {
             {
                 field: "type",
                 header: "Type",
-                fieldType: "text",
+                fieldType: "type",
                 order: 3,
-            },
+            }, 
             {
                 field: "notes",
                 header: "Notes",
@@ -49,7 +49,7 @@ export class InlineHistoryComponent implements OnInit {
     };
 
     tableWidthConfig: TableWidthConfig[] = [
-        { field: "date", width: "100px" },
+        { field: "spottingDate", width: "100px" },
         { field: "status", width: "150px" },
         { field: "type", width: "150px" },
         { field: "notes", width: "500px" },
