@@ -17,7 +17,17 @@
 
             |
 
-            <span dTooltip [content]="'In Service'" [position]="'bottom'">
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (elem.vehicleStatusCount.vehicleStatusInServiceCount /
+                            elem.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
                 <d-tag
                     [tag]="
                         'In service: ' +
@@ -28,7 +38,17 @@
                 >
                 </d-tag>
             </span>
-            <span dTooltip [content]="'Not Spotted'" [position]="'bottom'">
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (elem.vehicleStatusCount.vehicleStatusNotSpottedCount /
+                            elem.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
                 <d-tag
                     [tag]="
                         'Not Spotted: ' +
@@ -39,7 +59,17 @@
                 >
                 </d-tag>
             </span>
-            <span dTooltip [content]="'Testing'" [position]="'bottom'">
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (elem.vehicleStatusCount.vehicleStatusTestingCount /
+                            elem.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
                 <d-tag
                     [tag]="
                         'Testing: ' +
@@ -50,7 +80,17 @@
                 >
                 </d-tag>
             </span>
-            <span dTooltip [content]="'Unknown'" [position]="'bottom'">
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (elem.vehicleStatusCount.vehicleStatusUnknownCount /
+                            elem.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
                 <d-tag
                     [tag]="
                         'Unknown: ' +
@@ -61,7 +101,18 @@
                 >
                 </d-tag>
             </span>
-            <span dTooltip [content]="'Decommissioned'" [position]="'bottom'">
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (elem.vehicleStatusCount
+                            .vehicleStatusDecommissionedCount /
+                            elem.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
                 <d-tag
                     [tag]="
                         'Decommissioned: ' +
@@ -72,7 +123,17 @@
                 </d-tag>
             </span>
 
-            <span dTooltip [content]="'Married'" [position]="'bottom'">
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (elem.vehicleStatusCount.vehicleStatusMarriedCount /
+                            elem.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
                 <d-tag
                     [tag]="
                         'Married: ' +
