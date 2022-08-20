@@ -49,6 +49,17 @@ implements OnInit, OnChanges, OnDestroy
     @Input() tableData!: TableDataType[];
     @Input() lineId!: string | number;
 
+    tagList = {
+        inService: false,
+        notSpotted: false,
+        testing: false,
+        unknown: false,
+        decommissioned: false,
+        married: false,
+    };
+
+    totalChecked: boolean = true;
+
     showLoading: boolean = true;
     private querySubscription!: Subscription;
 
@@ -133,5 +144,37 @@ implements OnInit, OnChanges, OnDestroy
 
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
+    }
+
+    changeChecked($event: boolean, status: string) {
+        if (status === "total") {
+            this.totalChecked = true;
+            this.tagList.inService = false;
+            this.tagList.notSpotted = false;
+            this.tagList.testing = false;
+            this.tagList.unknown = false;
+            this.tagList.decommissioned = false;
+            this.tagList.married = false;
+            return;
+        } else if (status === "inService") {
+            this.tagList.inService = $event;
+        } else if (status === "notSpotted") {
+            this.tagList.notSpotted = $event;
+        } else if (status === "testing") {
+            this.tagList.testing = $event;
+        } else if (status === "unknown") {
+            this.tagList.unknown = $event;
+        } else if (status === "decommissioned") {
+            this.tagList.decommissioned = $event;
+        } else if (status === "married") {
+            this.tagList.married = $event;
+        } else {
+            console.error("Unknown status type: " + status);
+        }
+
+        this.totalChecked = !Object.values(this.tagList).some((value) => {
+            return value;
+        });
+
     }
 }

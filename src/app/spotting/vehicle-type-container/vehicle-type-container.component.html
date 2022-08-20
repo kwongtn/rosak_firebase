@@ -11,9 +11,12 @@
                         'Total: ' +
                         elem.vehicleStatusCount.vehicleTotalCount.toString()
                     "
-                    [mode]="'checkable'"
+                    [mode]="!totalChecked ? 'checkable' : 'default'"
                     [customColor]="'#637bce'"
-                ></d-tag>
+                    [(checked)]="totalChecked"
+                    (checkedChange)="changeChecked($event, 'total')"
+                >
+                </d-tag>
             </span>
 
             |
@@ -37,6 +40,8 @@
                     [mode]="'checkable'"
                     [labelStyle]="'green-w98'"
                     class="status-icon"
+                    [(checked)]="tagList.inService"
+                    (checkedChange)="changeChecked($event, 'inService')"
                 >
                 </d-tag>
             </span>
@@ -59,6 +64,8 @@
                     [mode]="'checkable'"
                     [labelStyle]="'yellow-w98'"
                     class="status-icon"
+                    [(checked)]="tagList.notSpotted"
+                    (checkedChange)="changeChecked($event, 'notSpotted')"
                 >
                 </d-tag>
             </span>
@@ -81,6 +88,8 @@
                     [mode]="'checkable'"
                     [labelStyle]="'blue-w98'"
                     class="status-icon"
+                    [(checked)]="tagList.testing"
+                    (checkedChange)="changeChecked($event, 'testing')"
                 >
                 </d-tag>
             </span>
@@ -103,6 +112,8 @@
                     [mode]="'checkable'"
                     [labelStyle]="'red-w98'"
                     class="status-icon"
+                    [(checked)]="tagList.unknown"
+                    (checkedChange)="changeChecked($event, 'unknown')"
                 >
                 </d-tag>
             </span>
@@ -126,6 +137,8 @@
                     [mode]="'checkable'"
                     [customColor]="'#71737a'"
                     class="status-icon"
+                    [(checked)]="tagList.decommissioned"
+                    (checkedChange)="changeChecked($event, 'decommissioned')"
                 >
                 </d-tag>
             </span>
@@ -149,6 +162,8 @@
                     [mode]="'checkable'"
                     [customColor]="'#71737a'"
                     class="status-icon"
+                    [(checked)]="tagList.married"
+                    (checkedChange)="changeChecked($event, 'married')"
                 >
                 </d-tag>
             </span>
