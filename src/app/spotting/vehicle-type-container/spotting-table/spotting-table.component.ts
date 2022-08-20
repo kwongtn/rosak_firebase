@@ -1,4 +1,5 @@
 import { TableWidthConfig } from "ng-devui/data-table";
+import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 
 import { Component, Input, OnInit } from "@angular/core";
@@ -21,6 +22,15 @@ export class SpottingTableComponent implements OnInit {
         decommissioned: false,
         married: false,
     };
+
+    allowedStatuses: Set<VehicleStatus> = new Set<VehicleStatus>([
+        "IN_SERVICE",
+        "NOT_SPOTTED",
+        "DECOMMISSIONED",
+        "TESTING",
+        "UNKNOWN",
+        "MARRIED",
+    ]);
 
     totalChecked: boolean = true;
 
@@ -89,7 +99,7 @@ export class SpottingTableComponent implements OnInit {
         return;
     }
 
-    changeChecked($event: boolean, status: string) {
+    changeChecked($event: boolean, status: VehicleStatus | "total") {
         if (status === "total") {
             this.totalChecked = true;
             this.tagList.inService = false;
@@ -98,6 +108,17 @@ export class SpottingTableComponent implements OnInit {
             this.tagList.unknown = false;
             this.tagList.decommissioned = false;
             this.tagList.married = false;
+            [
+                "IN_SERVICE",
+                "NOT_SPOTTED",
+                "DECOMMISSIONED",
+                "TESTING",
+                "UNKNOWN",
+                "MARRIED",
+            ].forEach((value) => {
+                this.allowedStatuses.add(value as VehicleStatus);
+            });
+
             return;
         } else if (status === "IN_SERVICE") {
             this.tagList.inService = $event;
@@ -113,6 +134,16 @@ export class SpottingTableComponent implements OnInit {
             this.tagList.married = $event;
         } else {
             console.error("Unknown status type: " + status);
+        }
+
+        if (this.totalChecked == true) {
+            this.allowedStatuses.clear();
+        }
+
+        if ($event) {
+            this.allowedStatuses.add(status);
+        } else {
+            this.allowedStatuses.delete(status);
         }
 
         this.totalChecked = !Object.values(this.tagList).some((value) => {

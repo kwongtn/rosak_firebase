@@ -182,7 +182,7 @@
     </thead>
     <tbody dTableBody>
         <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
-            <tr dTableRow>
+            <tr dTableRow *ngIf="allowedStatuses.has(rowItem.status)">
                 <td
                     dTableCell
                     *ngFor="let colOption of dataTableOptions.columns"
