@@ -14,13 +14,6 @@
 }
 
 .status-icon {
-    pointer-events: none;
     margin-left: 2px;
     margin-right: 2px;
-}
-
-:host ::ng-deep .devui-tag-item.tag-custom {
-    background-color: $devui-brand;
-    color: $devui-light-text;
-    box-sizing: border-box;
 }

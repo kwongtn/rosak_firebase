@@ -11,7 +11,8 @@
                         'Total: ' +
                         elem.vehicleStatusCount.vehicleTotalCount.toString()
                     "
-                    [labelStyle]="'tag-custom'"
+                    [mode]="'checkable'"
+                    [labelStyle]="'blue-w98'"
                 ></d-tag>
             </span>
 
@@ -33,6 +34,7 @@
                         'In service: ' +
                         elem.vehicleStatusCount.vehicleStatusInServiceCount.toString()
                     "
+                    [mode]="'checkable'"
                     [labelStyle]="'green-w98'"
                     class="status-icon"
                 >
@@ -54,6 +56,7 @@
                         'Not Spotted: ' +
                         elem.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
                     "
+                    [mode]="'checkable'"
                     [labelStyle]="'yellow-w98'"
                     class="status-icon"
                 >
@@ -75,6 +78,7 @@
                         'Testing: ' +
                         elem.vehicleStatusCount.vehicleStatusTestingCount.toString()
                     "
+                    [mode]="'checkable'"
                     [labelStyle]="'blue-w98'"
                     class="status-icon"
                 >
@@ -96,6 +100,7 @@
                         'Unknown: ' +
                         elem.vehicleStatusCount.vehicleStatusUnknownCount.toString()
                     "
+                    [mode]="'checkable'"
                     [labelStyle]="'red-w98'"
                     class="status-icon"
                 >
@@ -118,6 +123,8 @@
                         'Decommissioned: ' +
                         elem.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
                     "
+                    [mode]="'checkable'"
+                    [customColor]="'#71737a'"
                     class="status-icon"
                 >
                 </d-tag>
@@ -139,6 +146,8 @@
                         'Married: ' +
                         elem.vehicleStatusCount.vehicleStatusMarriedCount.toString()
                     "
+                    [mode]="'checkable'"
+                    [customColor]="'#71737a'"
                     class="status-icon"
                 >
                 </d-tag>
