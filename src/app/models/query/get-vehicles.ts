@@ -1,9 +1,10 @@
-type VehicleStatus =
+export type VehicleStatus =
     | "IN_SERVICE"
     | "NOT_SPOTTED"
     | "DECOMMISSIONED"
     | "TESTING"
-    | "UNKNOWN";
+    | "UNKNOWN"
+    | "MARRIED";
 
 export interface VehicleStatusCountType {
     vehicleStatusDecommissionedCount: number;

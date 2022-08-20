@@ -39,7 +39,7 @@
             [labelStyle]="'green-w98'"
             class="status-icon"
             [(checked)]="tagList.inService"
-            (checkedChange)="changeChecked($event, 'inService')"
+            (checkedChange)="changeChecked($event, 'IN_SERVICE')"
         >
         </d-tag>
     </span>
@@ -63,7 +63,7 @@
             [labelStyle]="'yellow-w98'"
             class="status-icon"
             [(checked)]="tagList.notSpotted"
-            (checkedChange)="changeChecked($event, 'notSpotted')"
+            (checkedChange)="changeChecked($event, 'NOT_SPOTTED')"
         >
         </d-tag>
     </span>
@@ -87,7 +87,7 @@
             [labelStyle]="'blue-w98'"
             class="status-icon"
             [(checked)]="tagList.testing"
-            (checkedChange)="changeChecked($event, 'testing')"
+            (checkedChange)="changeChecked($event, 'TESTING')"
         >
         </d-tag>
     </span>
@@ -111,7 +111,7 @@
             [labelStyle]="'red-w98'"
             class="status-icon"
             [(checked)]="tagList.unknown"
-            (checkedChange)="changeChecked($event, 'unknown')"
+            (checkedChange)="changeChecked($event, 'UNKNOWN')"
         >
         </d-tag>
     </span>
@@ -136,7 +136,7 @@
             [customColor]="'#71737a'"
             class="status-icon"
             [(checked)]="tagList.decommissioned"
-            (checkedChange)="changeChecked($event, 'decommissioned')"
+            (checkedChange)="changeChecked($event, 'DECOMMISSIONED')"
         >
         </d-tag>
     </span>
@@ -161,7 +161,7 @@
             [customColor]="'#71737a'"
             class="status-icon"
             [(checked)]="tagList.married"
-            (checkedChange)="changeChecked($event, 'married')"
+            (checkedChange)="changeChecked($event, 'MARRIED')"
         >
         </d-tag>
     </span>

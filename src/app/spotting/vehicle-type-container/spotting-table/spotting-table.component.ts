@@ -99,17 +99,17 @@ export class SpottingTableComponent implements OnInit {
             this.tagList.decommissioned = false;
             this.tagList.married = false;
             return;
-        } else if (status === "inService") {
+        } else if (status === "IN_SERVICE") {
             this.tagList.inService = $event;
-        } else if (status === "notSpotted") {
+        } else if (status === "NOT_SPOTTED") {
             this.tagList.notSpotted = $event;
-        } else if (status === "testing") {
+        } else if (status === "TESTING") {
             this.tagList.testing = $event;
-        } else if (status === "unknown") {
+        } else if (status === "UNKNOWN") {
             this.tagList.unknown = $event;
-        } else if (status === "decommissioned") {
+        } else if (status === "DECOMMISSIONED") {
             this.tagList.decommissioned = $event;
-        } else if (status === "married") {
+        } else if (status === "MARRIED") {
             this.tagList.married = $event;
         } else {
             console.error("Unknown status type: " + status);
