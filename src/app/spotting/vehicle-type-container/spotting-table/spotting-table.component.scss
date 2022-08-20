@@ -1,0 +1,14 @@
+@import "~ng-devui/styles-var/devui-var.scss";
+
+.spotting-table-title {
+    font-size: $devui-font-size-page-title;
+
+    .table-title-display-text {
+        margin-right: 80px;
+    }
+}
+
+.status-icon {
+    margin-left: 2px;
+    margin-right: 2px;
+}

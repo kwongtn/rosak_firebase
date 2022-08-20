@@ -1,8 +1,7 @@
 import { TableWidthConfig } from "ng-devui/data-table";
+import { TableDataType } from "src/app/models/spotting-table/source-type";
 
 import { Component, Input, OnInit } from "@angular/core";
-
-import { SourceType } from "../../../models/spotting-table/source-type";
 
 @Component({
     selector: "app-spotting-table",
@@ -10,7 +9,20 @@ import { SourceType } from "../../../models/spotting-table/source-type";
     styleUrls: ["./spotting-table.component.scss"],
 })
 export class SpottingTableComponent implements OnInit {
-    @Input() dataSource: Array<SourceType> = [];
+    @Input() dataSource!: TableDataType;
+
+    displayData: TableDataType[] = [];
+
+    tagList = {
+        inService: false,
+        notSpotted: false,
+        testing: false,
+        unknown: false,
+        decommissioned: false,
+        married: false,
+    };
+
+    totalChecked: boolean = true;
 
     dataTableOptions = {
         columns: [
@@ -75,5 +87,40 @@ export class SpottingTableComponent implements OnInit {
 
     ngOnInit() {
         return;
+    }
+
+    changeChecked($event: boolean, status: string) {
+        if (status === "total") {
+            this.totalChecked = true;
+            this.tagList.inService = false;
+            this.tagList.notSpotted = false;
+            this.tagList.testing = false;
+            this.tagList.unknown = false;
+            this.tagList.decommissioned = false;
+            this.tagList.married = false;
+            return;
+        } else if (status === "inService") {
+            this.tagList.inService = $event;
+        } else if (status === "notSpotted") {
+            this.tagList.notSpotted = $event;
+        } else if (status === "testing") {
+            this.tagList.testing = $event;
+        } else if (status === "unknown") {
+            this.tagList.unknown = $event;
+        } else if (status === "decommissioned") {
+            this.tagList.decommissioned = $event;
+        } else if (status === "married") {
+            this.tagList.married = $event;
+        } else {
+            console.error("Unknown status type: " + status);
+        }
+
+        this.totalChecked = !Object.values(this.tagList).some((value) => {
+            return value;
+        });
+
+        // console.log($event, status);
+        // console.log(this.tagList);
+        console.log(this.displayData);
     }
 }
