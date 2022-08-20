@@ -23,6 +23,9 @@ import {
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import {
+    InlineHistoryComponent,
+} from "./vehicle-type-container/spotting-table/inline-history/inline-history.component";
+import {
     SpottingTableComponent,
 } from "./vehicle-type-container/spotting-table/spotting-table.component";
 import {
@@ -36,6 +39,7 @@ import {
         SpottingTableComponent,
         VehicleStatusPipePipe,
         VehicleTypeContainerComponent,
+        InlineHistoryComponent,
     ],
     imports: [
         CommonModule,
