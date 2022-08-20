@@ -6,6 +6,7 @@
 >
     <thead dTableHead>
         <tr dTableRow>
+            <th dHeadCell></th>
             <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
                 {{ colOption.header }}
             </th>
@@ -14,6 +15,22 @@
     <tbody dTableBody>
         <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
             <tr dTableRow>
+                <td dTableCell class="cursor-pointer">
+                    <span
+                        *ngIf="rowItem.$expandConfig"
+                        (click)="toggleExpand(rowItem)"
+                        class="expand-icon"
+                    >
+                        <span
+                            class="icon-chevron-right"
+                            *ngIf="!rowItem.$expandConfig?.expand"
+                        ></span>
+                        <span
+                            class="icon-chevron-down"
+                            *ngIf="rowItem.$expandConfig?.expand"
+                        ></span>
+                    </span>
+                </td>
                 <td
                     dTableCell
                     *ngFor="let colOption of dataTableOptions.columns"

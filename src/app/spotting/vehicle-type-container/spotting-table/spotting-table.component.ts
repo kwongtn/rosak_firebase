@@ -60,6 +60,7 @@ export class SpottingTableComponent implements OnInit {
     };
 
     tableWidthConfig: TableWidthConfig[] = [
+        { field: "", width: "30px" },
         { field: "identificationNo", width: "100px" },
         { field: "status", width: "150px" },
         { field: "lastSpotted", width: "150px" },
@@ -75,5 +76,12 @@ export class SpottingTableComponent implements OnInit {
 
     ngOnInit() {
         return;
+    }
+
+    toggleExpand(rowItem: any) {
+        console.log(rowItem);
+        if (rowItem.$expandConfig) {
+            rowItem.$expandConfig.expand = !rowItem.$expandConfig.expand;
+        }
     }
 }

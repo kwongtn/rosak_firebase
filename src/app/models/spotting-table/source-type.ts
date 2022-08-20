@@ -7,6 +7,7 @@ export interface SourceType {
     lastSpotted: string;
     timesSpotted: number;
     notes: string;
+    $expandConfig: boolean;
 }
 
 export interface TableDataType {

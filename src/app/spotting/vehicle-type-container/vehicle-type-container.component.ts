@@ -89,6 +89,8 @@ implements OnInit, OnChanges, OnDestroy
                             lastSpotted: value.lastSpottingDate,
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
+                            $expandConfig:
+                                value.spottingCount > 0 ? true : false,
                         };
                     })
                     .sort((a, b) => {
