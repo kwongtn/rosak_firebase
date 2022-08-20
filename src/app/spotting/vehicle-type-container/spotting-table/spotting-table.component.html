@@ -15,10 +15,13 @@
     <tbody dTableBody>
         <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
             <tr dTableRow>
-                <td dTableCell class="cursor-pointer">
+                <td
+                    dTableCell
+                    class="cursor-pointer"
+                    (click)="toggleExpand(rowItem)"
+                >
                     <span
                         *ngIf="rowItem.$expandConfig.expandable"
-                        (click)="toggleExpand(rowItem)"
                         class="expand-icon"
                     >
                         <span
@@ -88,6 +91,18 @@
                             rowItem[colOption.field]
                         }}</span>
                     </span>
+                </td>
+            </tr>
+
+            <tr
+                dTableRow
+                class="expand-row"
+                *ngIf="rowItem.$expandConfig?.expand"
+            >
+                <td dTableCell [attr.colspan]="tableWidthConfig.length">
+                    <app-inline-history
+                        class="inline-history"
+                    ></app-inline-history>
                 </td>
             </tr>
         </ng-template>
