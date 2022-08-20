@@ -99,26 +99,29 @@ export class SpottingTableComponent implements OnInit {
         return;
     }
 
+    private markTotalCheckedTrue() {
+        this.totalChecked = true;
+        this.tagList.inService = false;
+        this.tagList.notSpotted = false;
+        this.tagList.testing = false;
+        this.tagList.unknown = false;
+        this.tagList.decommissioned = false;
+        this.tagList.married = false;
+        [
+            "IN_SERVICE",
+            "NOT_SPOTTED",
+            "DECOMMISSIONED",
+            "TESTING",
+            "UNKNOWN",
+            "MARRIED",
+        ].forEach((value) => {
+            this.allowedStatuses.add(value as VehicleStatus);
+        });
+    }
+
     changeChecked($event: boolean, status: VehicleStatus | "total") {
         if (status === "total") {
-            this.totalChecked = true;
-            this.tagList.inService = false;
-            this.tagList.notSpotted = false;
-            this.tagList.testing = false;
-            this.tagList.unknown = false;
-            this.tagList.decommissioned = false;
-            this.tagList.married = false;
-            [
-                "IN_SERVICE",
-                "NOT_SPOTTED",
-                "DECOMMISSIONED",
-                "TESTING",
-                "UNKNOWN",
-                "MARRIED",
-            ].forEach((value) => {
-                this.allowedStatuses.add(value as VehicleStatus);
-            });
-
+            this.markTotalCheckedTrue();
             return;
         } else if (status === "IN_SERVICE") {
             this.tagList.inService = $event;
@@ -150,8 +153,8 @@ export class SpottingTableComponent implements OnInit {
             return value;
         });
 
-        // console.log($event, status);
-        // console.log(this.tagList);
-        console.log(this.displayData);
+        if (this.totalChecked == true) {
+            this.markTotalCheckedTrue();
+        }
     }
 }
