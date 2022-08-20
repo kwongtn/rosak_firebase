@@ -17,6 +17,7 @@ import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
 import { GraphQLModule } from "../graphql.module";
+import { SpottingTypePipe } from "../pipes/spotting-type/spotting-type.pipe";
 import {
     VehicleStatusPipePipe,
 } from "../pipes/vehicle-status/vehicle-status-pipe.pipe";
@@ -38,6 +39,7 @@ import {
         SpottingMainComponent,
         SpottingTableComponent,
         VehicleStatusPipePipe,
+        SpottingTypePipe,
         VehicleTypeContainerComponent,
         InlineHistoryComponent,
     ],
