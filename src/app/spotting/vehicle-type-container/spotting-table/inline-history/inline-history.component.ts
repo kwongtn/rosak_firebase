@@ -1,23 +1,38 @@
+import { Apollo, gql } from "apollo-angular";
 import { TableWidthConfig } from "ng-devui";
+import { Subscription } from "rxjs";
+import {
+    GetVehiclesLastSpottingResponse,
+    LastSpottings,
+} from "src/app/models/query/get-vehicles";
 
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, Input, OnDestroy, OnInit } from "@angular/core";
+
+const GET_VEHICLE_LAST_SPOTTINGS = gql`
+    query ($filters: VehicleFilter, $lastSpottingCount: Int) {
+        vehicles(filters: $filters) {
+            lastSpottings(count: $lastSpottingCount) {
+                spottingDate
+                status
+                type
+                notes
+            }
+        }
+    }
+`;
 
 @Component({
     selector: "app-inline-history",
     templateUrl: "./inline-history.component.html",
     styleUrls: ["./inline-history.component.scss"],
 })
-export class InlineHistoryComponent implements OnInit {
-    @Input() vehicleId: string = "1";
+export class InlineHistoryComponent implements OnInit, OnDestroy {
+    @Input() vehicleId!: string | number;
 
-    dataSource = [
-        {
-            spottingDate: "2022-08-07",
-            status: "IN_SERVICE",
-            type: "JUST_SPOTTING",
-            notes: "",
-        },
-    ];
+    showLoading: boolean = true;
+    private querySubscription!: Subscription;
+
+    dataSource: LastSpottings[] = [];
 
     dataTableOptions = {
         columns: [
@@ -38,7 +53,7 @@ export class InlineHistoryComponent implements OnInit {
                 header: "Type",
                 fieldType: "type",
                 order: 3,
-            }, 
+            },
             {
                 field: "notes",
                 header: "Notes",
@@ -55,11 +70,28 @@ export class InlineHistoryComponent implements OnInit {
         { field: "notes", width: "500px" },
     ];
 
-    constructor() {
+    constructor(private apollo: Apollo) {
         return;
     }
 
     ngOnInit(): void {
-        return;
+        this.querySubscription = this.apollo
+            .query<GetVehiclesLastSpottingResponse>({
+                query: GET_VEHICLE_LAST_SPOTTINGS,
+                variables: {
+                    filters: {
+                        id: this.vehicleId,
+                    },
+                    lastSpottingCount: 5,
+                },
+            })
+            .subscribe(({ data, loading }) => {
+                this.showLoading = false;
+                this.dataSource = data.vehicles[0].lastSpottings;
+            });
+    }
+
+    ngOnDestroy() {
+        this.querySubscription.unsubscribe();
     }
 }

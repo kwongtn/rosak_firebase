@@ -49,8 +49,6 @@ implements OnInit, OnChanges, OnDestroy
     @Input() tableData!: TableDataType[];
     @Input() lineId!: string | number;
 
-
-
     showLoading: boolean = true;
     private querySubscription!: Subscription;
 
@@ -85,6 +83,7 @@ implements OnInit, OnChanges, OnDestroy
                 tableData: vehicleType.vehicles
                     .map((value) => {
                         return {
+                            id: value.id,
                             identificationNo: value.identificationNo,
                             status: value.status,
                             inServiceSince: value.inServiceSince,
@@ -140,5 +139,4 @@ implements OnInit, OnChanges, OnDestroy
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
     }
-
 }
