@@ -183,7 +183,10 @@
     </thead>
     <tbody dTableBody>
         <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
-            <tr dTableRow *ngIf="allowedStatuses.has(rowItem.status)">
+            <tr
+                dTableRow
+                *ngIf="totalChecked || allowedStatuses.has(rowItem.status)"
+            >
                 <td
                     dTableCell
                     class="cursor-pointer"
