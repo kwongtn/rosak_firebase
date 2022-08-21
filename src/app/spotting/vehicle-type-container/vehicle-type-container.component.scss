@@ -4,23 +4,3 @@
     margin-top: 2%;
     display: block;
 }
-
-.spotting-table-title {
-    font-size: $devui-font-size-page-title;
-
-    .table-title-display-text {
-        margin-right: 80px;
-    }
-}
-
-.status-icon {
-    pointer-events: none;
-    margin-left: 2px;
-    margin-right: 2px;
-}
-
-:host ::ng-deep .devui-tag-item.tag-custom {
-    background-color: $devui-brand;
-    color: $devui-light-text;
-    box-sizing: border-box;
-}

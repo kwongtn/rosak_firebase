@@ -49,6 +49,8 @@ implements OnInit, OnChanges, OnDestroy
     @Input() tableData!: TableDataType[];
     @Input() lineId!: string | number;
 
+
+
     showLoading: boolean = true;
     private querySubscription!: Subscription;
 
@@ -138,4 +140,5 @@ implements OnInit, OnChanges, OnDestroy
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
     }
+
 }
