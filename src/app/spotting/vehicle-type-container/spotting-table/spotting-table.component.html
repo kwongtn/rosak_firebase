@@ -189,7 +189,9 @@
             >
                 <td
                     dTableCell
-                    class="cursor-pointer"
+                    [ngClass]="
+                        rowItem.$expandConfig.expandable ? 'cursor-pointer' : ''
+                    "
                     (click)="toggleExpand(rowItem)"
                 >
                     <span

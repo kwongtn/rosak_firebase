@@ -161,7 +161,7 @@ export class SpottingTableComponent implements OnInit {
 
     toggleExpand(rowItem: any) {
         console.log(rowItem);
-        if (rowItem.$expandConfig) {
+        if (rowItem.$expandConfig && rowItem.$expandConfig.expandable) {
             rowItem.$expandConfig.expand = !rowItem.$expandConfig.expand;
         }
     }
