@@ -49,8 +49,6 @@ implements OnInit, OnChanges, OnDestroy
     @Input() tableData!: TableDataType[];
     @Input() lineId!: string | number;
 
-
-
     showLoading: boolean = true;
     private querySubscription!: Subscription;
 
@@ -85,12 +83,17 @@ implements OnInit, OnChanges, OnDestroy
                 tableData: vehicleType.vehicles
                     .map((value) => {
                         return {
+                            id: value.id,
                             identificationNo: value.identificationNo,
                             status: value.status,
                             inServiceSince: value.inServiceSince,
                             lastSpotted: value.lastSpottingDate,
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
+                            $expandConfig:
+                                value.spottingCount > 0
+                                    ? { expandable: true, expand: false }
+                                    : { expandable: false, expand: false },
                         };
                     })
                     .sort((a, b) => {
@@ -136,5 +139,4 @@ implements OnInit, OnChanges, OnDestroy
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
     }
-
 }

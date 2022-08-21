@@ -1,3 +1,5 @@
+import { SpottingType } from "../spotting-table/source-type";
+
 export type VehicleStatus =
     | "IN_SERVICE"
     | "NOT_SPOTTED"
@@ -49,5 +51,18 @@ export interface GetLinesResponse {
         id: string;
         code: string;
         displayName: string;
+    }>;
+}
+
+export interface LastSpottings {
+    spottingDate: string;
+    status: VehicleStatus;
+    type: SpottingType;
+    notes: string;
+}
+
+export interface GetVehiclesLastSpottingResponse {
+    vehicles: Array<{
+        lastSpottings: Array<LastSpottings>;
     }>;
 }

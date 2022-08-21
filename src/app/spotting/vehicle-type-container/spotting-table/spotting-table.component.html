@@ -175,6 +175,7 @@
 >
     <thead dTableHead>
         <tr dTableRow>
+            <th dHeadCell></th>
             <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
                 {{ colOption.header }}
             </th>
@@ -183,6 +184,25 @@
     <tbody dTableBody>
         <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
             <tr dTableRow *ngIf="allowedStatuses.has(rowItem.status)">
+                <td
+                    dTableCell
+                    class="cursor-pointer"
+                    (click)="toggleExpand(rowItem)"
+                >
+                    <span
+                        *ngIf="rowItem.$expandConfig.expandable"
+                        class="expand-icon"
+                    >
+                        <span
+                            class="icon-chevron-right"
+                            *ngIf="!rowItem.$expandConfig?.expand"
+                        ></span>
+                        <span
+                            class="icon-chevron-down"
+                            *ngIf="rowItem.$expandConfig?.expand"
+                        ></span>
+                    </span>
+                </td>
                 <td
                     dTableCell
                     *ngFor="let colOption of dataTableOptions.columns"
@@ -240,6 +260,19 @@
                             rowItem[colOption.field]
                         }}</span>
                     </span>
+                </td>
+            </tr>
+
+            <tr
+                dTableRow
+                class="expand-row"
+                *ngIf="rowItem.$expandConfig?.expand"
+            >
+                <td dTableCell [attr.colspan]="tableWidthConfig.length">
+                    <app-inline-history
+                        class="inline-history"
+                        [vehicleId]="rowItem.id"
+                    ></app-inline-history>
                 </td>
             </tr>
         </ng-template>
