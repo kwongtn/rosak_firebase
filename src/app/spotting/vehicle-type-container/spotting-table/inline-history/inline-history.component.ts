@@ -30,7 +30,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
     @Input() vehicleId!: string | number;
 
     showLoading: boolean = true;
-    private querySubscription!: Subscription;
+    querySubscription!: Subscription;
 
     dataSource: LastSpottings[] = [];
 
