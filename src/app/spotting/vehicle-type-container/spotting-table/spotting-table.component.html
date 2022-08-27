@@ -271,7 +271,10 @@
             <tr
                 dTableRow
                 class="expand-row"
-                *ngIf="rowItem.$expandConfig?.expand"
+                *ngIf="
+                    (totalChecked || allowedStatuses.has(rowItem.status)) &&
+                    rowItem.$expandConfig?.expand
+                "
             >
                 <td dTableCell [attr.colspan]="tableWidthConfig.length">
                     <app-inline-history
