@@ -261,6 +261,13 @@
                                 </d-tag>
                             </span>
                         </span>
+                        <span *ngSwitchCase="'id'">
+                            {{ rowItem[colOption.field] }}
+                            <span *ngIf="rowItem.nickname" class="nickname">
+                                <br />
+                                {{ rowItem.nickname }}
+                            </span>
+                        </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]
                         }}</span>

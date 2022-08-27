@@ -29,6 +29,7 @@ const GET_VEHICLES = gql`
                 id
                 identificationNo
                 status
+                nickname
                 lastSpottingDate
                 inServiceSince
                 spottingCount
@@ -90,6 +91,7 @@ implements OnInit, OnChanges, OnDestroy
                             lastSpotted: value.lastSpottingDate,
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
+                            nickname: value.nickname,
                             $expandConfig:
                                 value.spottingCount > 0
                                     ? { expandable: true, expand: false }

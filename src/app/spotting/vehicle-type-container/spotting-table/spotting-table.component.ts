@@ -39,7 +39,7 @@ export class SpottingTableComponent implements OnInit {
             {
                 field: "identificationNo",
                 header: "Vehicle ID",
-                fieldType: "text",
+                fieldType: "id",
                 order: 1,
             },
             {

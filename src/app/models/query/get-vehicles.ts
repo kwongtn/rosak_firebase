@@ -30,6 +30,7 @@ export interface VehicleType extends VehicleStatusCountType {
         inServiceSince: string;
         spottingCount: number;
         notes: string;
+        nickname: string | null;
     }>;
 }
 
