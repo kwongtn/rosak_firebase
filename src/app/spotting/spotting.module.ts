@@ -9,6 +9,7 @@ import { ModalModule } from "ng-devui/modal";
 import { SelectModule } from "ng-devui/select";
 import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
+import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
 
 import { CommonModule } from "@angular/common";
@@ -27,6 +28,9 @@ import {
     InlineHistoryComponent,
 } from "./vehicle-type-container/spotting-table/inline-history/inline-history.component";
 import {
+    InlineTimelineComponent,
+} from "./vehicle-type-container/spotting-table/inline-timeline/inline-timeline.component";
+import {
     SpottingTableComponent,
 } from "./vehicle-type-container/spotting-table/spotting-table.component";
 import {
@@ -42,6 +46,7 @@ import {
         SpottingTypePipe,
         VehicleTypeContainerComponent,
         InlineHistoryComponent,
+        InlineTimelineComponent,
     ],
     imports: [
         CommonModule,
@@ -63,6 +68,7 @@ import {
         TooltipModule,
         PanelModule,
         CheckBoxModule,
+        TimeAxisModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [],
