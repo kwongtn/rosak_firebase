@@ -67,3 +67,15 @@ export interface GetVehiclesLastSpottingResponse {
         lastSpottings: Array<LastSpottings>;
     }>;
 }
+
+export type IncidentSeverityType = "TRIVIA" | "STATUS" | "CRITICAL";
+
+export interface GetVehicleIncidentsResponse {
+    vehicleIncidents: Array<{
+        order: number;
+        date: string;
+        severity: IncidentSeverityType;
+        description: string | null;
+        title: string;
+    }>;
+}

@@ -1,34 +1,34 @@
+import { Apollo, gql } from "apollo-angular";
 import { TimeAxisData } from "ng-devui/time-axis";
+import { Subscription } from "rxjs";
+import { GetVehicleIncidentsResponse } from "src/app/models/query/get-vehicles";
 
-import { Component, OnInit } from "@angular/core";
+import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
 import { severityToDotColor } from "./utils";
+
+const GET_TIMELINE_DATA = gql`
+    query ($vehicleIncidentFilter: VehicleIncidentFilter) {
+        vehicleIncidents(filters: $vehicleIncidentFilter) {
+            order
+            date
+            severity
+            title
+            description
+        }
+    }
+`;
 
 @Component({
     selector: "app-inline-timeline",
     templateUrl: "./inline-timeline.component.html",
     styleUrls: ["./inline-timeline.component.scss"],
 })
-export class InlineTimelineComponent implements OnInit {
-    data = {
-        vehicleIncidents: [
-            {
-                id: "1",
-                date: "2022-08-31",
-                severity: "TRIVIA",
-                title: "Test1",
-                description:
-                    "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. ",
-            },
-            {
-                id: "2",
-                date: "2022-08-31",
-                severity: "CRITICAL",
-                title: "Test1",
-                description: "",
-            },
-        ],
-    };
+export class InlineTimelineComponent implements OnInit, OnDestroy {
+    @Input() vehicleId!: string | number;
+
+    showLoading: boolean = true;
+    querySubscription!: Subscription;
 
     timelineData: TimeAxisData = {
         direction: "horizontal",
@@ -38,28 +38,50 @@ export class InlineTimelineComponent implements OnInit {
         list: [],
     };
 
-    constructor() {
+    constructor(private apollo: Apollo) {
         return;
     }
 
     ngOnInit(): void {
-        this.timelineData.list = this.data.vehicleIncidents.map(
-            (value, index, arr) => {
-                return {
-                    lineStyle: {
-                        style: index == arr.length - 1 ? "dashed" : "solid",
-                        color: "#babbc0",
+        this.querySubscription = this.apollo
+            .query<GetVehicleIncidentsResponse>({
+                query: GET_TIMELINE_DATA,
+                variables: {
+                    vehicleIncidentFilter: {
+                        vehicleId: this.vehicleId,
                     },
-                    data: {
-                        title: value.title,
-                        date: value.date,
-                        status: value.severity,
-                        color: severityToDotColor(value.severity as any),
-                        position: index % 2 ? "top" : "bottom",
-                        detail: value.description,
-                    },
-                };
-            }
-        );
+                },
+            })
+            .subscribe(({ data, loading }) => {
+                this.showLoading = false;
+                console.log(data);
+                this.timelineData.list = data.vehicleIncidents.map(
+                    (value, index, arr) => {
+                        return {
+                            lineStyle: {
+                                style:
+                                    index == arr.length - 1
+                                        ? "dashed"
+                                        : "solid",
+                                color: "#babbc0",
+                            },
+                            data: {
+                                title: value.title,
+                                date: value.date,
+                                status: value.severity,
+                                color: severityToDotColor(
+                                    value.severity as any
+                                ),
+                                position: index % 2 ? "top" : "bottom",
+                                detail: value.description,
+                            },
+                        };
+                    }
+                );
+            });
+    }
+
+    ngOnDestroy() {
+        this.querySubscription.unsubscribe();
     }
 }
