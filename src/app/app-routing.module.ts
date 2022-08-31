@@ -2,49 +2,67 @@ import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about/about.component";
+import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import {
     SpottingMainComponent,
 } from "./spotting/spotting-main/spotting-main.component";
 
+interface MaintenanceElement {
+    curentlyInMaintenance: boolean;
+    notes?: string | undefined;
+}
+
+interface MaintananceDocument {
+    spotting: MaintenanceElement;
+}
+
+const maintenance: MaintananceDocument = {
+    spotting: {
+        curentlyInMaintenance: false,
+    },
+};
+
 const routes: Routes = [
     {
         path: "spotting",
-        data: {
-            title: "'MLPTF | Spotting'",
-        },
+        title: "MLPTF | Spotting",
         loadChildren: async () => {
-            const module = await import("./spotting/spotting.module");
-            return module.SpottingModule;
+            if (maintenance.spotting.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./spotting/spotting.module");
+                return module.SpottingModule;
+            }
         },
-        component: SpottingMainComponent,
-        // loadChildren: async () => {
-        //     const module = await import("./construction/construction.module");
-        //     return module.ConstructionModule;
-        // },
-        // component: ConstructionComponent,
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : SpottingMainComponent,
     },
     {
         path: "spotting/:id",
-        data: {
-            title: "'MLPTF | Spotting'",
-        },
+        title: "MLPTF | Spotting",
         loadChildren: async () => {
-            const module = await import("./spotting/spotting.module");
-            return module.SpottingModule;
+            if (maintenance.spotting.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./spotting/spotting.module");
+                return module.SpottingModule;
+            }
         },
-        component: SpottingMainComponent,
-        // loadChildren: async () => {
-        //     const module = await import("./construction/construction.module");
-        //     return module.ConstructionModule;
-        // },
-        // component: ConstructionComponent,
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : SpottingMainComponent,
     },
     {
         path: "about",
-        data: {
-            title: "'MLPTF | About'",
-        },
+        title: "MLPTF | About",
         loadChildren: () =>
             import("./about/about.module").then((m) => m.AboutModule),
         component: AboutComponent,
@@ -56,9 +74,7 @@ const routes: Routes = [
     },
     {
         path: "**",
-        data: {
-            title: "'MLPTF | Page not Found'",
-        },
+        title: "MLPTF | Page not Found",
         loadChildren: () =>
             import("./fallback/fallback.module").then((m) => m.FallbackModule),
         component: FallbackComponent,
