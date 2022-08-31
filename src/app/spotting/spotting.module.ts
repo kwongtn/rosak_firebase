@@ -27,6 +27,9 @@ import {
     InlineHistoryComponent,
 } from "./vehicle-type-container/spotting-table/inline-history/inline-history.component";
 import {
+    InlineTimelineComponent,
+} from "./vehicle-type-container/spotting-table/inline-timeline/inline-timeline.component";
+import {
     SpottingTableComponent,
 } from "./vehicle-type-container/spotting-table/spotting-table.component";
 import {
@@ -42,6 +45,7 @@ import {
         SpottingTypePipe,
         VehicleTypeContainerComponent,
         InlineHistoryComponent,
+        InlineTimelineComponent,
     ],
     imports: [
         CommonModule,
