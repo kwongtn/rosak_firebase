@@ -1,4 +1,59 @@
-<h3>Last 5 Notable Incidents</h3>
+<h3>Notable Incidents</h3>
 <div style="position: relative; left: 22px">
-    <d-time-axis [data]="timelineData"></d-time-axis>
+    <d-time-axis
+        [data]="timelineData"
+        [contentTemplate]="customTemplate"
+        [mode]="'alternative'"
+    ></d-time-axis>
 </div>
+
+<ng-template #customTemplate let-data="data">
+    <div style="position: relative; max-width: 500px">
+        <div
+            *ngIf="data.position === 'bottom'"
+            style="
+                margin-bottom: 4px;
+                position: relative;
+                left: 4px;
+                width: 2px;
+                height: 40px;
+                background-color: #dfe1e6;
+            "
+        ></div>
+        <div
+            [style.border-color]="data.color"
+            style="
+                border-left: 4px solid;
+                box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+                padding: 12px 8px;
+            "
+            [style.background-color]="'#FFFFFF'"
+        >
+            <div
+                style="padding-bottom: 8px; font-size: 14px; font-weight: bold"
+            >
+                {{ data.title }}
+            </div>
+            <div style="padding-bottom: 8px">
+                {{ data.date }}
+                <d-tag
+                    style="padding-left: 8px"
+                    [tag]="data.status"
+                    [customColor]="data.color"
+                ></d-tag>
+            </div>
+            <div>{{ data.detail }}</div>
+        </div>
+        <div
+            *ngIf="data.position === 'top'"
+            style="
+                margin-top: 4px;
+                position: relative;
+                left: 4px;
+                width: 2px;
+                height: 40px;
+                background-color: #dfe1e6;
+            "
+        ></div>
+    </div>
+</ng-template>

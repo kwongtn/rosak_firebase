@@ -1,6 +1,8 @@
-import { TimeAxisData } from "ng-devui";
+import { TimeAxisData } from "ng-devui/time-axis";
 
 import { Component, OnInit } from "@angular/core";
+
+import { severityToDotColor } from "./utils";
 
 @Component({
     selector: "app-inline-timeline",
@@ -15,12 +17,13 @@ export class InlineTimelineComponent implements OnInit {
                 date: "2022-08-31",
                 severity: "TRIVIA",
                 title: "Test1",
-                description: "",
+                description:
+                    "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. ",
             },
             {
                 id: "2",
                 date: "2022-08-31",
-                severity: "TRIVIA",
+                severity: "CRITICAL",
                 title: "Test1",
                 description: "",
             },
@@ -29,40 +32,10 @@ export class InlineTimelineComponent implements OnInit {
 
     timelineData: TimeAxisData = {
         direction: "horizontal",
-        // model: "",
-        widthMode: "fitWidth",
-        model: "html",
-        list: [
-            {
-                text: "Download",
-                time: "2021-07-28",
-            },
-            {
-                text: "Check",
-                time: "2021-07-29",
-                position: "right",
-                dotColor: "var(--devui-success)",
-            },
-            {
-                text: "Build",
-                time: "2021-07-30",
-                position: "right",
-                dotColor: "var(--devui-danger)",
-            },
-            {
-                text: "Depoy",
-                time: "2021-07-31",
-                position: "right",
-                dotColor: "var(--devui-warning)",
-            },
-            {
-                text: "End",
-                time: "2021-08-01",
-                position: "right",
-                dotColor: "var(--devui-waiting)",
-                // lineStyle: { style: "none" },
-            },
-        ],
+        horizontalAlign: "left",
+        widthMode: "fitContent",
+        model: "template",
+        list: [],
     };
 
     constructor() {
@@ -70,6 +43,23 @@ export class InlineTimelineComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        return;
+        this.timelineData.list = this.data.vehicleIncidents.map(
+            (value, index, arr) => {
+                return {
+                    lineStyle: {
+                        style: index == arr.length - 1 ? "dashed" : "solid",
+                        color: "#babbc0",
+                    },
+                    data: {
+                        title: value.title,
+                        date: value.date,
+                        status: value.severity,
+                        color: severityToDotColor(value.severity as any),
+                        position: index % 2 ? "top" : "bottom",
+                        detail: value.description,
+                    },
+                };
+            }
+        );
     }
 }
