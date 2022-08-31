@@ -9,9 +9,9 @@ import { AuthService } from "src/app/services/auth/auth.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
-    FormBuilder,
-    FormControl,
-    FormGroup,
+    UntypedFormBuilder,
+    UntypedFormControl,
+    UntypedFormGroup,
     Validators,
 } from "@angular/forms";
 
@@ -137,43 +137,43 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     /**
      * Form stuff
      */
-    formGroup: FormGroup;
+    formGroup: UntypedFormGroup;
     selectedDate1 = new Date();
     queryResult = {};
 
     private querySubscription!: Subscription;
 
     constructor(
-        private fb: FormBuilder,
+        private fb: UntypedFormBuilder,
         private apollo: Apollo,
         public authService: AuthService,
         private recaptchaV3Service: ReCaptchaV3Service
     ) {
         this.formGroup = this.fb.group(
             {
-                line: new FormControl("", [Validators.required]),
-                vehicle: new FormControl("", [Validators.required]),
-                spottingDate: new FormControl(new Date(), [
+                line: new UntypedFormControl("", [Validators.required]),
+                vehicle: new UntypedFormControl("", [Validators.required]),
+                spottingDate: new UntypedFormControl(new Date(), [
                     Validators.required,
                 ]),
-                status: new FormControl(
+                status: new UntypedFormControl(
                     {
                         name: "In Service",
                         value: "IN_SERVICE",
                     },
                     [Validators.required]
                 ),
-                type: new FormControl(
+                type: new UntypedFormControl(
                     {
                         name: "Just Spotting",
                         value: "JUST_SPOTTING",
                     },
                     [Validators.required]
                 ),
-                originStation: new FormControl("", []),
-                destinationStation: new FormControl("", []),
-                notes: new FormControl("", []),
-                isAnonymous: new FormControl(false, []),
+                originStation: new UntypedFormControl("", []),
+                destinationStation: new UntypedFormControl("", []),
+                notes: new UntypedFormControl("", []),
+                isAnonymous: new UntypedFormControl(false, []),
             },
             {
                 validators: [
