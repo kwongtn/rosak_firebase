@@ -75,7 +75,7 @@ export interface GetVehicleIncidentsResponse {
         order: number;
         date: string;
         severity: IncidentSeverityType;
-        description: string | null;
+        brief: string | null;
         title: string;
     }>;
 }

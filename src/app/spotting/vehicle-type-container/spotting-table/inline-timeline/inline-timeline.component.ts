@@ -14,7 +14,7 @@ const GET_TIMELINE_DATA = gql`
             date
             severity
             title
-            description
+            brief
         }
     }
 `;
@@ -73,7 +73,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                                     value.severity as any
                                 ),
                                 position: index % 2 ? "top" : "bottom",
-                                detail: value.description,
+                                brief: value.brief,
                             },
                         };
                     }
