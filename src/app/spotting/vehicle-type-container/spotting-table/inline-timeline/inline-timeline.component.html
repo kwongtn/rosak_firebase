@@ -49,7 +49,7 @@
                     {{ data.date }}
                     <d-tag
                         style="padding-left: 8px"
-                        [tag]="data.status"
+                        [tag]="data.status | titlecase"
                         [customColor]="data.color"
                     ></d-tag>
                 </div>
