@@ -15,6 +15,7 @@ const GET_TIMELINE_DATA = gql`
             severity
             title
             brief
+            isLast
         }
     }
 `;
@@ -60,9 +61,9 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                         return {
                             dotColor: severityToDotColor(value.severity as any),
                             lineStyle: {
-                                style:
-                                    index == arr.length - 1
-                                        ? "dashed"
+                                style: value.isLast
+                                    ? "none"
+                                    : index == arr.length - 1 ? "dashed"
                                         : "solid",
                                 color: "#babbc0",
                             },

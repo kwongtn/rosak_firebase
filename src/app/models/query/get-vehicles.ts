@@ -77,5 +77,6 @@ export interface GetVehicleIncidentsResponse {
         severity: IncidentSeverityType;
         brief: string | null;
         title: string;
+        isLast: boolean;
     }>;
 }
