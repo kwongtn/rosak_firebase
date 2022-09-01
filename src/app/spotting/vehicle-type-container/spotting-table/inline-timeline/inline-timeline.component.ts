@@ -58,6 +58,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                 this.timelineData.list = data.vehicleIncidents.map(
                     (value, index, arr) => {
                         return {
+                            dotColor: severityToDotColor(value.severity as any),
                             lineStyle: {
                                 style:
                                     index == arr.length - 1
