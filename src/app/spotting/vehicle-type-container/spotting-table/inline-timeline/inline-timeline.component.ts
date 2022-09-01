@@ -55,15 +55,18 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
             })
             .subscribe(({ data, loading }) => {
                 this.showLoading = false;
-                console.log(data);
-                this.timelineData.list = data.vehicleIncidents.map(
-                    (value, index, arr) => {
+                this.timelineData.list = [...data.vehicleIncidents]
+                    .sort((a, b) => {
+                        return a.order - b.order;
+                    })
+                    .map((value, index, arr) => {
                         return {
                             dotColor: severityToDotColor(value.severity as any),
                             lineStyle: {
                                 style: value.isLast
                                     ? "none"
-                                    : index == arr.length - 1 ? "dashed"
+                                    : index == arr.length - 1
+                                        ? "dashed"
                                         : "solid",
                                 color: "#babbc0",
                             },
@@ -78,8 +81,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                                 brief: value.brief,
                             },
                         };
-                    }
-                );
+                    });
             });
     }
 
