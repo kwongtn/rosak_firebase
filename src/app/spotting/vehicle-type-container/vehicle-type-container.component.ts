@@ -34,6 +34,7 @@ const GET_VEHICLES = gql`
                 inServiceSince
                 spottingCount
                 notes
+                incidentCount
             }
         }
     }
@@ -92,8 +93,10 @@ implements OnInit, OnChanges, OnDestroy
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
                             nickname: value.nickname,
+                            incidentCount: value.incidentCount,
                             $expandConfig:
-                                value.spottingCount > 0
+                                value.spottingCount > 0 ||
+                                value.incidentCount > 0
                                     ? { expandable: true, expand: false }
                                     : { expandable: false, expand: false },
                         };

@@ -31,6 +31,7 @@ export interface VehicleType extends VehicleStatusCountType {
         spottingCount: number;
         notes: string;
         nickname: string | null;
+        incidentCount: number;
     }>;
 }
 

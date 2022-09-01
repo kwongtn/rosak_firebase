@@ -287,10 +287,12 @@
                     <app-inline-timeline
                         class="inline-timeline"
                         [vehicleId]="rowItem.id"
+                        *ngIf="rowItem.incidentCount > 0"
                     ></app-inline-timeline>
                     <app-inline-history
                         class="inline-history"
                         [vehicleId]="rowItem.id"
+                        *ngIf="rowItem.timesSpotted > 0"
                     ></app-inline-history>
                 </td>
             </tr>
