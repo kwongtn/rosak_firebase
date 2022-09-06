@@ -1,0 +1,8 @@
+<div class="header-theme-switch">
+    <ng-container *ngIf="contentTemplate">
+        <ng-template [ngTemplateOutlet]="contentTemplate"></ng-template>
+    </ng-container>
+    <ng-container *ngIf="!contentTemplate">
+        <app-theme-picker class="show-themable"></app-theme-picker>
+    </ng-container>
+</div>
