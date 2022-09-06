@@ -66,7 +66,9 @@ export function lineQueryResultToStationCascaderOptions(
             };
             for (const stationLine of line.stationLines) {
                 lineObj.children?.push({
-                    label: `${stationLine.internalRepresentation} - ${stationLine.displayName}`,
+                    label: stationLine.internalRepresentation
+                        ? `${stationLine.internalRepresentation} - ${stationLine.displayName}`
+                        : `${stationLine.displayName}`,
                     value: stationLine.id,
                     isLeaf: true,
                     disabled: false,
