@@ -11,6 +11,12 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
 import { LargeFontSize } from "./theme-data-more";
 import { themePickerImg } from "./theme-picker-img";
 
+interface ThemeProperties {
+    [key: string]: {
+        name: string;
+    };
+}
+
 @Component({
     selector: "app-theme-picker",
     templateUrl: "./theme-picker.component.html",
@@ -35,9 +41,25 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
         { value: "deep", url: themePickerImg.deep },
         { value: "galaxy", url: themePickerImg.galaxy },
     ];
+    themeProps: ThemeProperties = {
+        infinity: {
+            name: "Infinity | 无限",
+        },
+        sweet: {
+            name: "Sweet | 蜜糖",
+        },
+        deep: {
+            name: "Deep | 深邃夜空",
+        },
+        provence: {
+            name: "Provence | 普罗旺斯",
+        },
+        galaxy: {
+            name: "Galaxy | 追光",
+        },
+    };
     currentAdvancedTheme = "infinity";
     subs: Subscription = new Subscription();
-    themePicker: any = {};
     constructor(private cdr: ChangeDetectorRef) {}
 
     ngOnInit() {

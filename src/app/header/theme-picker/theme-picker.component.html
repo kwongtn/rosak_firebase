@@ -5,7 +5,7 @@
     [closeScope]="'blank'"
 >
     <div dDropDownToggle class="theme-toggle">
-        {{ themePicker.theme }}
+        Theme
         <div class="theme-block">
             <span class="brand-color"></span>
             <span class="background-color"></span>
@@ -17,9 +17,9 @@
             [(activeTab)]="activeThemeType"
             (activeTabChange)="activeTabChange($event)"
         >
-            <d-tab id="devuiTheme" title="{{ themePicker.default }}">
+            <d-tab id="devuiTheme" title="Default" [disabled]="true">
                 <section>
-                    <div class="title">{{ themePicker.color }}</div>
+                    <div class="title">Color</div>
                     <div class="content theme-color">
                         <div
                             class="theme-brand"
@@ -58,7 +58,7 @@
                     </div>
                 </section>
                 <section>
-                    <div class="title">{{ themePicker.mode }}</div>
+                    <div class="title">Theme Mode</div>
                     <div class="content">
                         <d-radio-group
                             class="theme-select-radio"
@@ -69,12 +69,12 @@
                             <d-radio
                                 [value]="'light'"
                                 [disabled]="themePrefersColorScheme"
-                                >{{ themePicker.light }}
+                                >Light Theme
                             </d-radio>
                             <d-radio
                                 [value]="'dark'"
                                 [disabled]="themePrefersColorScheme"
-                                >{{ themePicker.dark }}
+                                >Dark Theme
                             </d-radio>
                         </d-radio-group>
                         <div class="prefers-color-scheme">
@@ -85,7 +85,7 @@
                                     themePrefersColorSchemeChange($event)
                                 "
                             ></d-toggle>
-                            <span>{{ themePicker.follow }}</span>
+                            <span>Follow System</span>
                         </div>
                         <div>
                             <d-toggle
@@ -93,12 +93,12 @@
                                 [(ngModel)]="largeFontSizeMode"
                                 (ngModelChange)="themeFontSizeChange()"
                             ></d-toggle>
-                            <span>{{ themePicker.largeSize }}</span>
+                            <span>Large Font Size</span>
                         </div>
                     </div>
                 </section>
             </d-tab>
-            <d-tab id="advancedTheme" title="{{ themePicker.extend }}">
+            <d-tab id="advancedTheme" title="Extend">
                 <div style="width: 180px; margin: 0 auto">
                     <div
                         *ngFor="let item of advancedThemeList"
@@ -111,7 +111,7 @@
                             [style.color]="
                                 item.value === 'infinity' ? '#252b3a' : null
                             "
-                            >{{ themePicker[item.value] }}</span
+                            >{{ themeProps[item.value].name }}</span
                         >
                         <i
                             *ngIf="currentAdvancedTheme === item.value"
