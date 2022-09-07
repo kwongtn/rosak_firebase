@@ -20,7 +20,6 @@ import {
 import { LogoComponent } from "./logo/logo.component";
 import { MenuComponent } from "./menu/menu.component";
 import { ThemePickerComponent } from "./theme-picker/theme-picker.component";
-import { ThemeSwitchComponent } from "./theme-switch/theme-switch.component";
 
 @NgModule({
     declarations: [
@@ -29,7 +28,6 @@ import { ThemeSwitchComponent } from "./theme-switch/theme-switch.component";
         MenuComponent,
         LoginDropdownComponent,
         ThemePickerComponent,
-        ThemeSwitchComponent,
     ],
     imports: [
         CommonModule,
