@@ -133,7 +133,7 @@
                 dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
             "
             [mode]="'checkable'"
-            [customColor]="'#71737a'"
+            [customColor]="'$devui-text'"
             class="status-icon"
             [(checked)]="tagList.decommissioned"
             (checkedChange)="changeChecked($event, 'DECOMMISSIONED')"
@@ -158,7 +158,7 @@
                 dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
             "
             [mode]="'checkable'"
-            [customColor]="'#71737a'"
+            [customColor]="'$devui-text'"
             class="status-icon"
             [(checked)]="tagList.married"
             (checkedChange)="changeChecked($event, 'MARRIED')"
@@ -257,6 +257,7 @@
                                         rowItem[colOption.field]
                                             | vehicleStatusPipe
                                     "
+                                    [customColor]="'$devui-text'"
                                 >
                                 </d-tag>
                             </span>
