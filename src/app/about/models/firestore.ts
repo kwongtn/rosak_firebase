@@ -1,7 +1,7 @@
 interface PersonnelSocial {
     link: string;
     name: string;
-    type: "github" | "linkedin";
+    type: "github" | "linkedin" | "instagram";
 }
 
 export interface Personnel {
