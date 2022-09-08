@@ -1,14 +1,17 @@
 @import "~ng-devui/styles-var/devui-var.scss";
 
-d-card {
-    cursor: pointer;
+.social-svg {
+    // cursor: pointer;
     transition: box-shadow $devui-animation-duration-slow
             $devui-animation-ease-in-out-smooth,
         transform $devui-animation-duration-slow
             $devui-animation-ease-in-out-smooth;
 
+    width: 30px;
+    height: 30px;
+
     &:hover {
-        box-shadow: $devui-shadow-length-hover $devui-light-shadow;
+        box-shadow: $devui-shadow-length-hover $devui-shadow;
         transform: translateY(-5px);
     }
 }
@@ -34,4 +37,8 @@ d-card {
             margin-right: 16px;
         }
     }
+}
+
+.svg {
+    display: block;
 }

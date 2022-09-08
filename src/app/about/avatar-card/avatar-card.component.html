@@ -7,17 +7,30 @@
                 [width]="100"
                 [height]="100"
             ></d-avatar>
-            <d-card-title class="title"
-                ><h2>{{ data.name }}</h2></d-card-title
-            >
+            <d-card-title class="title">
+                <h2>{{ data.name }}</h2>
+            </d-card-title>
             <d-card-subtitle class="subtitle">{{ data.title }}</d-card-subtitle>
         </d-card-header>
         <d-card-content>
             {{ data.description }}
         </d-card-content>
         <d-card-actions [align]="'end'">
-            <div *ngFor="let social of data.socials" class="card-block">
-                {{ social.name }}
+            <div
+                dTooltip
+                [content]="social.name"
+                [position]="'bottom'"
+                *ngFor="let social of data.socials"
+                class="card-block"
+            >
+                <a [href]="social.link" target="_blank">
+                    <svg class="social-svg" viewBox="0 0 24 24">
+                        <path
+                            fill="var(--devui-form-control-line-hover)"
+                            [attr.d]="icon[social.type].d"
+                        />
+                    </svg>
+                </a>
             </div>
         </d-card-actions>
     </d-card>

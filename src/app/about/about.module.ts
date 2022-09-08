@@ -2,6 +2,7 @@ import { AvatarModule } from "ng-devui/avatar";
 import { CardModule } from "ng-devui/card";
 import { LoadingModule } from "ng-devui/loading";
 import { TagsModule } from "ng-devui/tags";
+import { TooltipModule } from "ng-devui/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -26,6 +27,7 @@ import {
         AvatarModule,
         TagsModule,
         LoadingModule,
+        TooltipModule,
     ],
 })
 export class AboutModule {}

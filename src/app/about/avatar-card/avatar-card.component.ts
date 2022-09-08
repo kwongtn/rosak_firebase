@@ -1,6 +1,7 @@
 import { Component, Input, OnInit } from "@angular/core";
 
 import { Personnel } from "../models/firestore";
+import { Icon } from "./avatar-card.icons";
 
 @Component({
     selector: "app-avatar-card",
@@ -9,6 +10,7 @@ import { Personnel } from "../models/firestore";
 })
 export class AvatarCardComponent implements OnInit {
     @Input() data!: Personnel;
+    icon = Icon;
 
     constructor() {
         return;
