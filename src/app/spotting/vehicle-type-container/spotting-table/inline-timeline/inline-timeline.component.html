@@ -1,12 +1,8 @@
-<div
-    dLoading
-    [loading]="querySubscription"
-    style="margin-top: 20px; margin-bottom: 20px"
-></div>
+<div dLoading [loading]="querySubscription" class="" loader></div>
 
 <div *ngIf="!showLoading && timelineData.list.length > 0" class="content">
     <h3>Notable Incidents</h3>
-    <div style="position: relative; left: 22px">
+    <div class="timeline">
         <d-time-axis
             [data]="timelineData"
             [contentTemplate]="customTemplate"
@@ -18,14 +14,7 @@
         <div style="position: relative; max-width: 500px">
             <div
                 *ngIf="data.position === 'bottom'"
-                style="
-                    margin-bottom: 4px;
-                    position: relative;
-                    left: 4px;
-                    width: 2px;
-                    height: 40px;
-                    background-color: #dfe1e6;
-                "
+                class="data-panel-bottom-line"
             ></div>
             <div
                 [style.border-color]="data.color"
@@ -34,7 +23,7 @@
                     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
                     padding: 12px 8px;
                 "
-                [style.background-color]="'#FFFFFF'"
+                [style.background-color]="'var(--devui-dividing-line)'"
             >
                 <div
                     style="
@@ -47,24 +36,12 @@
                 </div>
                 <div style="padding-bottom: 8px">
                     {{ data.date }}
-                    <!-- <d-tag
-                        style="padding-left: 8px"
-                        [tag]="data.status | titlecase"
-                        [customColor]="data.color"
-                    ></d-tag> -->
                 </div>
                 <div>{{ data.brief }}</div>
             </div>
             <div
                 *ngIf="data.position === 'top'"
-                style="
-                    margin-top: 4px;
-                    position: relative;
-                    left: 4px;
-                    width: 2px;
-                    height: 40px;
-                    background-color: #dfe1e6;
-                "
+                class="data-panel-top-line"
             ></div>
         </div>
     </ng-template>
