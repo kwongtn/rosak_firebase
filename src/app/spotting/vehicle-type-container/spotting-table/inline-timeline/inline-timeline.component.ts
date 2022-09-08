@@ -68,7 +68,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                                     : index == arr.length - 1
                                         ? "dashed"
                                         : "solid",
-                                color: "#babbc0",
+                                color: "var(--devui-form-control-line-hover)",
                             },
                             data: {
                                 title: value.title,
