@@ -1,11 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
 @import "~@devui-design/icons/icomoon/devui-icon.css";
+@import "~ng-devui/styles-var/devui-var.scss";
+@import "~ng-devui/theme-collection/extend-theme.css";
 
 /* global styling for sticky footer*/
 html,
 body,
 app-root {
     height: 100%;
+    background: $devui-global-bg;
 }
 
 body {
@@ -15,4 +18,122 @@ body {
 
 .grecaptcha-badge {
     visibility: hidden;
+}
+
+.highlight {
+    line-height: 1.5;
+    position: relative;
+}
+
+code[class*="language-"],
+pre[class*="language-"],
+pre code {
+    white-space: pre;
+    font-family: "Menlo", "DejaVu Sans Mono", "Liberation Mono", "Consolas",
+        "Ubuntu Mono", "Courier New", "andale mono", "lucida console", monospace;
+}
+
+pre {
+    display: block;
+    margin: 0 0 10px;
+    line-height: 1.42857143;
+    color: $devui-text;
+    word-break: break-all;
+    word-wrap: break-word;
+    border: 1px solid $devui-dividing-line;
+    border-radius: $devui-border-radius;
+}
+
+.hljs {
+    background: $devui-area;
+    color: $devui-text;
+    font-size: $devui-font-size;
+}
+
+pre code {
+    display: block;
+    color: $devui-text;
+    background: $devui-base-bg;
+    line-height: 1.5;
+    padding: 10px 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+code,
+kbd,
+pre,
+samp {
+    font-family: Consolas, Menlo, Courier, monospace;
+}
+
+section {
+    margin-bottom: 0 !important;
+}
+
+.markdown.api-container {
+    width: 100%;
+    display: block;
+
+    .devui-api-table-wrapper {
+        overflow-x: auto;
+    }
+
+    table {
+        font-size: $devui-font-size;
+    }
+
+    p {
+        margin: 1em 0;
+    }
+
+    a code {
+        text-decoration: underline;
+    }
+
+    pre code {
+        font-size: $devui-font-size;
+        padding: 0.5em;
+        background-color: $devui-area;
+    }
+}
+
+.markdown table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    empty-cells: show;
+    border: 1px solid $devui-line;
+    width: 100%;
+    margin: 8px 0 16px;
+
+    th,
+    td {
+        border: 1px solid $devui-dividing-line;
+        padding: 8px 16px;
+        text-align: left;
+    }
+
+    th {
+        background: $devui-area;
+        white-space: nowrap;
+        color: $devui-text;
+        font-weight: bold;
+    }
+}
+
+code {
+    padding: 2px 4px;
+    // font-size: 90%;
+    color: #c7254e;
+    background-color: $devui-area;
+    border-radius: $devui-border-radius;
+}
+
+[dTextInput]::-ms-clear,
+[dTextInput]::-ms-reveal {
+    display: none;
+}
+
+.devui-h3-title {
+    font-size: $devui-font-size-card-title;
 }
