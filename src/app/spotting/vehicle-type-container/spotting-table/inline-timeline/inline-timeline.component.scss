@@ -1,5 +1,34 @@
 @import "~ng-devui/styles-var/devui-var.scss";
+@import "~ng-devui/theme-collection/extend-theme.css";
+
+.loader {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.timeline {
+    position: relative;
+    left: 22px;
+}
 
 .content {
     margin-bottom: 40px;
+}
+
+.data-panel-bottom-line {
+    margin-bottom: 4px;
+    position: relative;
+    left: 4px;
+    width: 2px;
+    height: 40px;
+    background-color: $devui-text;
+}
+
+.data-panel-top-line {
+    margin-top: 4px;
+    position: relative;
+    left: 4px;
+    width: 2px;
+    height: 40px;
+    background-color: $devui-text;
 }
