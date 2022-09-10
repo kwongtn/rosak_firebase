@@ -1,302 +1,330 @@
-<h1 class="spotting-table-title">
-    <span class="table-title-display-text">
-        {{ dataSource.displayName }}
-    </span>
-
-    <span dTooltip [content]="'Total'" [position]="'bottom'">
-        <d-tag
-            [tag]="
-                'Total: ' +
-                dataSource.vehicleStatusCount.vehicleTotalCount.toString()
-            "
-            [mode]="!totalChecked ? 'checkable' : 'default'"
-            [customColor]="'#637bce'"
-            [(checked)]="totalChecked"
-            (checkedChange)="changeChecked($event, 'total')"
-        >
-        </d-tag>
-    </span>
-
-    |
-
-    <span
-        dTooltip
-        [content]="
-            (
-                (dataSource.vehicleStatusCount.vehicleStatusInServiceCount /
-                    dataSource.vehicleStatusCount.vehicleTotalCount) *
-                100
-            ).toPrecision(3) + '%'
-        "
-        [position]="'bottom'"
-    >
-        <d-tag
-            [tag]="
-                'In service: ' +
-                dataSource.vehicleStatusCount.vehicleStatusInServiceCount.toString()
-            "
-            [mode]="'checkable'"
-            [labelStyle]="'green-w98'"
-            class="status-icon"
-            [(checked)]="tagList.inService"
-            (checkedChange)="changeChecked($event, 'IN_SERVICE')"
-        >
-        </d-tag>
-    </span>
-    <span
-        dTooltip
-        [content]="
-            (
-                (dataSource.vehicleStatusCount.vehicleStatusNotSpottedCount /
-                    dataSource.vehicleStatusCount.vehicleTotalCount) *
-                100
-            ).toPrecision(3) + '%'
-        "
-        [position]="'bottom'"
-    >
-        <d-tag
-            [tag]="
-                'Not Spotted: ' +
-                dataSource.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
-            "
-            [mode]="'checkable'"
-            [labelStyle]="'yellow-w98'"
-            class="status-icon"
-            [(checked)]="tagList.notSpotted"
-            (checkedChange)="changeChecked($event, 'NOT_SPOTTED')"
-        >
-        </d-tag>
-    </span>
-    <span
-        dTooltip
-        [content]="
-            (
-                (dataSource.vehicleStatusCount.vehicleStatusTestingCount /
-                    dataSource.vehicleStatusCount.vehicleTotalCount) *
-                100
-            ).toPrecision(3) + '%'
-        "
-        [position]="'bottom'"
-    >
-        <d-tag
-            [tag]="
-                'Testing: ' +
-                dataSource.vehicleStatusCount.vehicleStatusTestingCount.toString()
-            "
-            [mode]="'checkable'"
-            [labelStyle]="'blue-w98'"
-            class="status-icon"
-            [(checked)]="tagList.testing"
-            (checkedChange)="changeChecked($event, 'TESTING')"
-        >
-        </d-tag>
-    </span>
-    <span
-        dTooltip
-        [content]="
-            (
-                (dataSource.vehicleStatusCount.vehicleStatusUnknownCount /
-                    dataSource.vehicleStatusCount.vehicleTotalCount) *
-                100
-            ).toPrecision(3) + '%'
-        "
-        [position]="'bottom'"
-    >
-        <d-tag
-            [tag]="
-                'Unknown: ' +
-                dataSource.vehicleStatusCount.vehicleStatusUnknownCount.toString()
-            "
-            [mode]="'checkable'"
-            [labelStyle]="'red-w98'"
-            class="status-icon"
-            [(checked)]="tagList.unknown"
-            (checkedChange)="changeChecked($event, 'UNKNOWN')"
-        >
-        </d-tag>
-    </span>
-    <span
-        dTooltip
-        [content]="
-            (
-                (dataSource.vehicleStatusCount
-                    .vehicleStatusDecommissionedCount /
-                    dataSource.vehicleStatusCount.vehicleTotalCount) *
-                100
-            ).toPrecision(3) + '%'
-        "
-        [position]="'bottom'"
-    >
-        <d-tag
-            [tag]="
-                'Decommissioned: ' +
-                dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
-            "
-            [mode]="'checkable'"
-            [customColor]="'$devui-text'"
-            class="status-icon"
-            [(checked)]="tagList.decommissioned"
-            (checkedChange)="changeChecked($event, 'DECOMMISSIONED')"
-        >
-        </d-tag>
-    </span>
-
-    <span
-        dTooltip
-        [content]="
-            (
-                (dataSource.vehicleStatusCount.vehicleStatusMarriedCount /
-                    dataSource.vehicleStatusCount.vehicleTotalCount) *
-                100
-            ).toPrecision(3) + '%'
-        "
-        [position]="'bottom'"
-    >
-        <d-tag
-            [tag]="
-                'Married: ' +
-                dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
-            "
-            [mode]="'checkable'"
-            [customColor]="'$devui-text'"
-            class="status-icon"
-            [(checked)]="tagList.married"
-            (checkedChange)="changeChecked($event, 'MARRIED')"
-        >
-        </d-tag>
-    </span>
-</h1>
-
-<d-data-table
-    [dataSource]="dataSource.tableData"
-    [scrollable]="true"
-    [tableOverflowType]="'overlay'"
-    [tableWidthConfig]="tableWidthConfig"
+<d-panel
+    #ghostPanel
+    [type]="'ghost'"
+    [isCollapsed]="true"
+    [hasLeftPadding]="false"
+    class="panel"
 >
-    <thead dTableHead>
-        <tr dTableRow>
-            <th dHeadCell></th>
-            <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
-                {{ colOption.header }}
-            </th>
-        </tr>
-    </thead>
-    <tbody dTableBody>
-        <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
-            <tr
-                dTableRow
-                *ngIf="totalChecked || allowedStatuses.has(rowItem.status)"
-            >
-                <td
-                    dTableCell
-                    [ngClass]="
-                        rowItem.$expandConfig.expandable ? 'cursor-pointer' : ''
-                    "
-                    (click)="toggleExpand(rowItem)"
-                >
-                    <span
-                        *ngIf="rowItem.$expandConfig.expandable"
-                        class="expand-icon"
-                    >
-                        <span
-                            class="icon-chevron-right"
-                            *ngIf="!rowItem.$expandConfig?.expand"
-                        ></span>
-                        <span
-                            class="icon-chevron-down"
-                            *ngIf="rowItem.$expandConfig?.expand"
-                        ></span>
-                    </span>
-                </td>
-                <td
-                    dTableCell
-                    *ngFor="let colOption of dataTableOptions.columns"
-                >
-                    <span [ngSwitch]="colOption.fieldType">
-                        <span *ngSwitchCase="'status'">
-                            <span [ngSwitch]="rowItem[colOption.field]">
-                                <d-tag
-                                    *ngSwitchCase="'IN_SERVICE'"
-                                    [tag]="
-                                        rowItem[colOption.field]
-                                            | vehicleStatusPipe
-                                    "
-                                    [labelStyle]="'green-w98'"
-                                >
-                                </d-tag>
-                                <d-tag
-                                    *ngSwitchCase="'NOT_SPOTTED'"
-                                    [tag]="
-                                        rowItem[colOption.field]
-                                            | vehicleStatusPipe
-                                    "
-                                    [labelStyle]="'yellow-w98'"
-                                >
-                                </d-tag>
-                                <d-tag
-                                    *ngSwitchCase="'TESTING'"
-                                    [tag]="
-                                        rowItem[colOption.field]
-                                            | vehicleStatusPipe
-                                    "
-                                    [labelStyle]="'blue-w98'"
-                                >
-                                </d-tag>
-                                <d-tag
-                                    *ngSwitchCase="'UNKNOWN'"
-                                    [tag]="
-                                        rowItem[colOption.field]
-                                            | vehicleStatusPipe
-                                    "
-                                    [labelStyle]="'red-w98'"
-                                >
-                                </d-tag>
-                                <d-tag
-                                    *ngSwitchDefault
-                                    [tag]="
-                                        rowItem[colOption.field]
-                                            | vehicleStatusPipe
-                                    "
-                                    [customColor]="'$devui-text'"
-                                >
-                                </d-tag>
-                            </span>
-                        </span>
-                        <span *ngSwitchCase="'id'">
-                            {{ rowItem[colOption.field] }}
-                            <span *ngIf="rowItem.nickname" class="nickname">
-                                <br />
-                                {{ rowItem.nickname }}
-                            </span>
-                        </span>
-                        <span *ngSwitchDefault>{{
-                            rowItem[colOption.field]
-                        }}</span>
-                    </span>
-                </td>
-            </tr>
+    <d-panel-header>
+        <h1 class="spotting-table-title">
+            <span class="table-title-display-text">
+                {{ dataSource.displayName }}
+            </span>
 
-            <tr
-                dTableRow
-                class="expand-row"
-                *ngIf="
-                    (totalChecked || allowedStatuses.has(rowItem.status)) &&
-                    rowItem.$expandConfig?.expand
+            <span dTooltip [content]="'Total'" [position]="'bottom'">
+                <d-tag
+                    [tag]="
+                        'Total: ' +
+                        dataSource.vehicleStatusCount.vehicleTotalCount.toString()
+                    "
+                    [mode]="!totalChecked ? 'checkable' : 'default'"
+                    [customColor]="'#637bce'"
+                    [(checked)]="totalChecked"
+                    (checkedChange)="changeChecked($event, 'total')"
+                >
+                </d-tag>
+            </span>
+
+            |
+
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusInServiceCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
                 "
+                [position]="'bottom'"
             >
-                <td dTableCell [attr.colspan]="tableWidthConfig.length">
-                    <app-inline-timeline
-                        class="inline-timeline"
-                        [vehicleId]="rowItem.id"
-                        *ngIf="rowItem.incidentCount > 0"
-                    ></app-inline-timeline>
-                    <app-inline-history
-                        class="inline-history"
-                        [vehicleId]="rowItem.id"
-                        *ngIf="rowItem.timesSpotted > 0"
-                    ></app-inline-history>
-                </td>
-            </tr>
-        </ng-template>
-    </tbody>
-</d-data-table>
+                <d-tag
+                    [tag]="
+                        'In service: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusInServiceCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [labelStyle]="'green-w98'"
+                    class="status-icon"
+                    [(checked)]="tagList.inService"
+                    (checkedChange)="changeChecked($event, 'IN_SERVICE')"
+                >
+                </d-tag>
+            </span>
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusNotSpottedCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
+                <d-tag
+                    [tag]="
+                        'Not Spotted: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [labelStyle]="'yellow-w98'"
+                    class="status-icon"
+                    [(checked)]="tagList.notSpotted"
+                    (checkedChange)="changeChecked($event, 'NOT_SPOTTED')"
+                >
+                </d-tag>
+            </span>
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusTestingCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
+                <d-tag
+                    [tag]="
+                        'Testing: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusTestingCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [labelStyle]="'blue-w98'"
+                    class="status-icon"
+                    [(checked)]="tagList.testing"
+                    (checkedChange)="changeChecked($event, 'TESTING')"
+                >
+                </d-tag>
+            </span>
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusUnknownCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
+                <d-tag
+                    [tag]="
+                        'Unknown: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusUnknownCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [labelStyle]="'red-w98'"
+                    class="status-icon"
+                    [(checked)]="tagList.unknown"
+                    (checkedChange)="changeChecked($event, 'UNKNOWN')"
+                >
+                </d-tag>
+            </span>
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusDecommissionedCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
+                <d-tag
+                    [tag]="
+                        'Decommissioned: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [customColor]="'$devui-text'"
+                    class="status-icon"
+                    [(checked)]="tagList.decommissioned"
+                    (checkedChange)="changeChecked($event, 'DECOMMISSIONED')"
+                >
+                </d-tag>
+            </span>
+
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusMarriedCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
+                <d-tag
+                    [tag]="
+                        'Married: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [customColor]="'$devui-text'"
+                    class="status-icon"
+                    [(checked)]="tagList.married"
+                    (checkedChange)="changeChecked($event, 'MARRIED')"
+                >
+                </d-tag>
+            </span>
+        </h1>
+    </d-panel-header>
+    <d-panel-body>
+        <d-data-table
+            [dataSource]="dataSource.tableData"
+            [scrollable]="true"
+            [tableOverflowType]="'overlay'"
+            [tableWidthConfig]="tableWidthConfig"
+        >
+            <thead dTableHead>
+                <tr dTableRow>
+                    <th dHeadCell></th>
+                    <th
+                        dHeadCell
+                        *ngFor="let colOption of dataTableOptions.columns"
+                    >
+                        {{ colOption.header }}
+                    </th>
+                </tr>
+            </thead>
+            <tbody dTableBody>
+                <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
+                    <tr
+                        dTableRow
+                        *ngIf="
+                            totalChecked || allowedStatuses.has(rowItem.status)
+                        "
+                    >
+                        <td
+                            dTableCell
+                            [ngClass]="
+                                rowItem.$expandConfig.expandable
+                                    ? 'cursor-pointer'
+                                    : ''
+                            "
+                            (click)="toggleExpand(rowItem)"
+                        >
+                            <span
+                                *ngIf="rowItem.$expandConfig.expandable"
+                                class="expand-icon"
+                            >
+                                <span
+                                    class="icon-chevron-right"
+                                    *ngIf="!rowItem.$expandConfig?.expand"
+                                ></span>
+                                <span
+                                    class="icon-chevron-down"
+                                    *ngIf="rowItem.$expandConfig?.expand"
+                                ></span>
+                            </span>
+                        </td>
+                        <td
+                            dTableCell
+                            *ngFor="let colOption of dataTableOptions.columns"
+                        >
+                            <span [ngSwitch]="colOption.fieldType">
+                                <span *ngSwitchCase="'status'">
+                                    <span [ngSwitch]="rowItem[colOption.field]">
+                                        <d-tag
+                                            *ngSwitchCase="'IN_SERVICE'"
+                                            [tag]="
+                                                rowItem[colOption.field]
+                                                    | vehicleStatusPipe
+                                            "
+                                            [labelStyle]="'green-w98'"
+                                        >
+                                        </d-tag>
+                                        <d-tag
+                                            *ngSwitchCase="'NOT_SPOTTED'"
+                                            [tag]="
+                                                rowItem[colOption.field]
+                                                    | vehicleStatusPipe
+                                            "
+                                            [labelStyle]="'yellow-w98'"
+                                        >
+                                        </d-tag>
+                                        <d-tag
+                                            *ngSwitchCase="'TESTING'"
+                                            [tag]="
+                                                rowItem[colOption.field]
+                                                    | vehicleStatusPipe
+                                            "
+                                            [labelStyle]="'blue-w98'"
+                                        >
+                                        </d-tag>
+                                        <d-tag
+                                            *ngSwitchCase="'UNKNOWN'"
+                                            [tag]="
+                                                rowItem[colOption.field]
+                                                    | vehicleStatusPipe
+                                            "
+                                            [labelStyle]="'red-w98'"
+                                        >
+                                        </d-tag>
+                                        <d-tag
+                                            *ngSwitchDefault
+                                            [tag]="
+                                                rowItem[colOption.field]
+                                                    | vehicleStatusPipe
+                                            "
+                                            [customColor]="'$devui-text'"
+                                        >
+                                        </d-tag>
+                                    </span>
+                                </span>
+                                <span *ngSwitchCase="'id'">
+                                    {{ rowItem[colOption.field] }}
+                                    <span
+                                        *ngIf="rowItem.nickname"
+                                        class="nickname"
+                                    >
+                                        <br />
+                                        {{ rowItem.nickname }}
+                                    </span>
+                                </span>
+                                <span *ngSwitchDefault>{{
+                                    rowItem[colOption.field]
+                                }}</span>
+                            </span>
+                        </td>
+                    </tr>
+
+                    <tr
+                        dTableRow
+                        class="expand-row"
+                        *ngIf="
+                            (totalChecked ||
+                                allowedStatuses.has(rowItem.status)) &&
+                            rowItem.$expandConfig?.expand
+                        "
+                    >
+                        <td dTableCell [attr.colspan]="tableWidthConfig.length">
+                            <app-inline-timeline
+                                class="inline-timeline"
+                                [vehicleId]="rowItem.id"
+                                *ngIf="rowItem.incidentCount > 0"
+                            ></app-inline-timeline>
+                            <app-inline-history
+                                class="inline-history"
+                                [vehicleId]="rowItem.id"
+                                *ngIf="rowItem.timesSpotted > 0"
+                            ></app-inline-history>
+                        </td>
+                    </tr>
+                </ng-template>
+            </tbody>
+        </d-data-table>
+    </d-panel-body>
+    <d-panel-footer></d-panel-footer>
+</d-panel>
