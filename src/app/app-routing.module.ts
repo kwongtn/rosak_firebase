@@ -2,6 +2,9 @@ import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about/about.component";
+import {
+    MainComponent as ComplianceMainComponent,
+} from "./compliance/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import {
@@ -66,6 +69,15 @@ const routes: Routes = [
         loadChildren: () =>
             import("./about/about.module").then((m) => m.AboutModule),
         component: AboutComponent,
+    },
+    {
+        path: "compliance",
+        title: "MLPTF | Compliance",
+        loadChildren: () =>
+            import("./compliance/compliance.module").then(
+                (m) => m.ComplianceModule
+            ),
+        component: ComplianceMainComponent,
     },
     {
         path: "",

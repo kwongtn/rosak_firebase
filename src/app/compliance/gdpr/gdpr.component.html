@@ -1,0 +1,31 @@
+<h1>GDPR</h1>
+<p [innerHTML]="definition"></p>
+<p [innerHTML]="intro"></p>
+
+<div *ngFor="let elem of details">
+    <h2>{{ elem.title }}</h2>
+    <d-panel
+        *ngFor="let child of elem.children"
+        [type]="'primary'"
+        [isCollapsed]="child.isCollapsed"
+        [showAnimation]="true"
+        (toggle)="toggle($event, child)"
+        #panel
+    >
+        <d-panel-header>
+            <em
+                class="icon icon-select-arrow"
+                [ngClass]="child.isCollapsed ? 'open' : ''"
+            ></em>
+            {{ child.title }} {{ child.adhered ? "✅" : "❌" }}
+        </d-panel-header>
+        <d-panel-body>
+            <div [innerHTML]="child.details"></div>
+            <div *ngIf="!(child.notes === '' || child.notes === undefined)">
+                <hr />
+                <div [innerHTML]="child.notes"></div>
+            </div>
+        </d-panel-body>
+        <d-panel-footer></d-panel-footer>
+    </d-panel>
+</div>
