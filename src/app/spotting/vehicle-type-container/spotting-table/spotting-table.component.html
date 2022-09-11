@@ -140,7 +140,7 @@
                             'Decommissioned: ' +
                             dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
                         "
-                        [customColor]="'$devui-text'"
+                        [customColor]="'var(--devui-text-weak)'"
                         class="status-icon"
                     >
                     </d-tag>
@@ -308,7 +308,7 @@
                         dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
                     "
                     [mode]="'checkable'"
-                    [customColor]="'$devui-text'"
+                    [customColor]="'var(--devui-text-weak)'"
                     class="status-icon"
                     [(checked)]="tagList.decommissioned"
                     (checkedChange)="changeChecked($event, 'DECOMMISSIONED')"
@@ -334,7 +334,7 @@
                         dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
                     "
                     [mode]="'checkable'"
-                    [customColor]="'$devui-text'"
+                    [customColor]="'var(--devui-text-weak)'"
                     class="status-icon"
                     [(checked)]="tagList.married"
                     (checkedChange)="changeChecked($event, 'MARRIED')"
@@ -439,7 +439,9 @@
                                                 rowItem[colOption.field]
                                                     | vehicleStatusPipe
                                             "
-                                            [customColor]="'$devui-text'"
+                                            [customColor]="
+                                                'var(--devui-text-weak)'
+                                            "
                                         >
                                         </d-tag>
                                     </span>
