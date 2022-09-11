@@ -23,7 +23,7 @@
                             'Total: ' +
                             dataSource.vehicleStatusCount.vehicleTotalCount.toString()
                         "
-                        [customColor]="'#637bce'"
+                        [customColor]="'var(--devui-primary)'"
                     >
                     </d-tag>
                 </span>
@@ -181,7 +181,7 @@
                         dataSource.vehicleStatusCount.vehicleTotalCount.toString()
                     "
                     [mode]="!totalChecked ? 'checkable' : 'default'"
-                    [customColor]="'#637bce'"
+                    [customColor]="'var(--devui-primary)'"
                     [(checked)]="totalChecked"
                     (checkedChange)="changeChecked($event, 'total')"
                 >
