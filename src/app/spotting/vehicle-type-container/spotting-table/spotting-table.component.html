@@ -6,7 +6,10 @@
     (toggle)="toggle($event)"
     class="panel"
 >
-    <d-panel-header>
+    <d-panel-header
+        dTooltip
+        [content]="!isCollapsed ? 'Click this panel to expand' : ''"
+    >
         <h1 class="spotting-table-title">
             <span class="table-title-display-text">
                 {{ dataSource.displayName }}
