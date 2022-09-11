@@ -13,6 +13,7 @@ export class SpottingTableComponent implements OnInit {
     @Input() dataSource!: TableDataType;
 
     displayData: TableDataType[] = [];
+    isCollapsed: boolean = !false;
 
     tagList = {
         inService: false,
@@ -164,5 +165,9 @@ export class SpottingTableComponent implements OnInit {
         if (rowItem.$expandConfig && rowItem.$expandConfig.expandable) {
             rowItem.$expandConfig.expand = !rowItem.$expandConfig.expand;
         }
+    }
+
+    toggle($event: any) {
+        this.isCollapsed = $event;
     }
 }

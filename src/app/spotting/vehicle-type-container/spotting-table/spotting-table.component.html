@@ -1,8 +1,9 @@
 <d-panel
     #ghostPanel
     [type]="'ghost'"
-    [isCollapsed]="true"
+    [isCollapsed]="isCollapsed"
     [hasLeftPadding]="false"
+    (toggle)="toggle($event)"
     class="panel"
 >
     <d-panel-header>
@@ -11,6 +12,164 @@
                 {{ dataSource.displayName }}
             </span>
 
+            <span *ngIf="!isCollapsed">
+                <span dTooltip [content]="'Total'" [position]="'bottom'">
+                    <d-tag
+                        [tag]="
+                            'Total: ' +
+                            dataSource.vehicleStatusCount.vehicleTotalCount.toString()
+                        "
+                        [customColor]="'#637bce'"
+                    >
+                    </d-tag>
+                </span>
+
+                |
+
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
+                                .vehicleStatusInServiceCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'In service: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusInServiceCount.toString()
+                        "
+                        [labelStyle]="'green-w98'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
+                                .vehicleStatusNotSpottedCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'Not Spotted: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
+                        "
+                        [labelStyle]="'yellow-w98'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
+                                .vehicleStatusTestingCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'Testing: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusTestingCount.toString()
+                        "
+                        [labelStyle]="'blue-w98'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
+                                .vehicleStatusUnknownCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'Unknown: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusUnknownCount.toString()
+                        "
+                        [labelStyle]="'red-w98'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
+                                .vehicleStatusDecommissionedCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'Decommissioned: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
+                        "
+                        [customColor]="'$devui-text'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
+                                .vehicleStatusMarriedCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'Married: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
+                        "
+                        [customColor]="'$devui-text'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+            </span>
+        </h1>
+    </d-panel-header>
+    <d-panel-body>
+        <div>
             <span dTooltip [content]="'Total'" [position]="'bottom'">
                 <d-tag
                     [tag]="
@@ -178,9 +337,7 @@
                 >
                 </d-tag>
             </span>
-        </h1>
-    </d-panel-header>
-    <d-panel-body>
+        </div>
         <d-data-table
             [dataSource]="dataSource.tableData"
             [scrollable]="true"
