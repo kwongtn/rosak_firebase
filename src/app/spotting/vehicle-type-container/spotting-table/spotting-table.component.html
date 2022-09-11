@@ -9,6 +9,7 @@
     <d-panel-header
         dTooltip
         [content]="!isCollapsed ? 'Click this panel to expand' : ''"
+        [mouseEnterDelay]="1000"
     >
         <h1 class="spotting-table-title">
             <span class="table-title-display-text">
@@ -172,7 +173,7 @@
         </h1>
     </d-panel-header>
     <d-panel-body>
-        <div>
+        <div class="chips">
             <span dTooltip [content]="'Total'" [position]="'bottom'">
                 <d-tag
                     [tag]="
