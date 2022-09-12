@@ -11,6 +11,9 @@ import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import {
+    SpottingStorageService,
+} from "src/app/services/spotting/storage.service";
 
 import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -71,6 +74,6 @@ import {
         TimeAxisModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
-    providers: [],
+    providers: [SpottingStorageService],
 })
 export class SpottingModule {}

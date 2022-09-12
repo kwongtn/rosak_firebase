@@ -6,6 +6,9 @@ import { AppendToBodyDirection } from "ng-devui/utils";
 import { ReCaptchaV3Service } from "ng-recaptcha";
 import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import { AuthService } from "src/app/services/auth/auth.service";
+import {
+    SpottingStorageService,
+} from "src/app/services/spotting/storage.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
@@ -147,11 +150,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private fb: UntypedFormBuilder,
         private apollo: Apollo,
         public authService: AuthService,
-        private recaptchaV3Service: ReCaptchaV3Service
+        private recaptchaV3Service: ReCaptchaV3Service,
+        private spottingStorageService: SpottingStorageService
     ) {
+        const line = spottingStorageService.getLine();
+
         this.formGroup = this.fb.group(
             {
-                line: new UntypedFormControl("", [Validators.required]),
+                line: new UntypedFormControl(line, [Validators.required]),
                 vehicle: new UntypedFormControl("", [Validators.required]),
                 spottingDate: new UntypedFormControl(new Date(), [
                     Validators.required,
@@ -181,9 +187,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 ],
             }
         );
-    }
 
-    ngOnInit(): void {
         this.querySubscription = this.apollo
             .watchQuery<any>({
                 query: GET_LINES,
@@ -205,7 +209,15 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 this.loading["vehicle"] = loading;
                 this.vehicleOptions =
                     lineQueryResultToVehicleCascaderOptions(data);
+
+                if (line) {
+                    this.onLineChanges(line);
+                }
             });
+    }
+
+    ngOnInit(): void {
+        return;
     }
 
     ngOnDestroy() {
@@ -267,6 +279,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["vehicle"] = formValues["vehicle"].slice(-1)[0];
         formValues["status"] = formValues["status"]["value"];
         formValues["type"] = formValues["type"]["value"];
+
+        this.spottingStorageService.setLine(formValues["line"]);
 
         // Removing line option here as it is not required by GQL
         formValues["line"] = undefined;
