@@ -39,6 +39,16 @@
                     [optionDisabledKey]="'disabled'"
                 >
                 </d-select>
+                <d-alert
+                    *ngIf="
+                        isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                    "
+                    [type]="'danger'"
+                    [closeable]="false"
+                >
+                    Please select a line before selecting 'Between Stations'
+                    mode. Then, select the type again.
+                </d-alert>
             </d-form-control>
         </d-form-item>
 

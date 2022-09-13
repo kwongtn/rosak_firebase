@@ -131,6 +131,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     queryResult = {};
     stationResult = {};
 
+    isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
+
     private mainQuerySubscription!: Subscription;
     private stationQuerySubscription!: Subscription;
 
@@ -222,6 +224,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         value: "JUST_SPOTTING",
                     },
                 });
+
+                this.isShowBetweenStationsModeSelectedBeforeLineSelectionError =
+                    true;
+
                 return;
             }
 
@@ -252,6 +258,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     onLineChanges(event: Event): void {
         console.log(event);
+
+        this.isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
 
         this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
             this.queryResult,
