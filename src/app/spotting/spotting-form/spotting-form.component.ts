@@ -88,7 +88,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         },
     ];
 
-    // TODO: Check that origin and destination options are not the same
     stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
     vehicleOptions: CascaderItem[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
@@ -210,7 +209,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.stationQuerySubscription?.unsubscribe();
     }
 
-    onChanges(event: any): void {
+    onChanges(event: FormInputType): void {
         console.log("On changes: ", event);
         return;
     }
@@ -249,14 +248,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     this.loading["originStation"] = loading;
                     this.loading["destinationStation"] = loading;
 
-                    // TODO: Change to searchable type
                     this.stationOptions =
                         lineQueryResultToStationCascaderOptions(data);
                 });
         }
     }
 
-    onLineChanges(event: Event): void {
+    onLineChanges(event: FormInputType): void {
         console.log(event);
 
         this.isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
