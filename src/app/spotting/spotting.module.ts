@@ -28,6 +28,9 @@ import {
 import {
     GetLinesAndVehiclesGqlService,
 } from "./services/get-lines-vehicles-gql.service";
+import {
+    GetStationLinesGqlService,
+} from "./services/get-station-lines-gql.service";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import {
@@ -77,6 +80,10 @@ import {
         TimeAxisModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
-    providers: [SpottingStorageService, GetLinesAndVehiclesGqlService],
+    providers: [
+        SpottingStorageService,
+        GetLinesAndVehiclesGqlService,
+        GetStationLinesGqlService,
+    ],
 })
 export class SpottingModule {}

@@ -22,6 +22,9 @@ import {
     GetLinesAndVehiclesGqlService,
 } from "../services/get-lines-vehicles-gql.service";
 import {
+    GetStationLinesGqlService,
+} from "../services/get-station-lines-gql.service";
+import {
     lineQueryResultToOptions,
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
@@ -29,16 +32,6 @@ import {
 import {
     betweenStationTypeOriginDestinationStationValidator,
 } from "./spotting-form.utils";
-
-const GET_LINE_STATIONS = gql`
-    query GetStationLines($stationLineFilter: StationLineFilter) {
-        stationLines(filters: $stationLineFilter) {
-            id
-            displayName
-            internalRepresentation
-        }
-    }
-`;
 
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
@@ -144,6 +137,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private fb: UntypedFormBuilder,
         private apollo: Apollo,
         private getLinesVehiclesGql: GetLinesAndVehiclesGqlService,
+        private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
         private recaptchaV3Service: ReCaptchaV3Service,
         private spottingStorageService: SpottingStorageService
@@ -230,16 +224,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            this.stationQuerySubscription = this.apollo
-                .query<any>({
-                    query: GET_LINE_STATIONS,
-                    variables: {
-                        stationLineFilter: {
-                            lineId: this.formGroup.value.line.value,
-                        },
+            this.stationQuerySubscription = this.getStationLinesGql
+                .watch({
+                    stationLineFilter: {
+                        lineId: this.formGroup.value.line.value,
                     },
                 })
-                .subscribe(({ data, loading }) => {
+                .valueChanges.subscribe(({ data, loading }) => {
                     console.log("Query loading: ", loading);
                     console.log("Query data: ", data);
 
