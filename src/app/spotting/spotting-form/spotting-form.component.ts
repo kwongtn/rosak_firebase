@@ -225,6 +225,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 return;
             }
 
+            this.loading["originStation"] = true;
+            this.loading["destinationStation"] = true;
+
             this.stationQuerySubscription = this.getStationLinesGql
                 .watch({
                     stationLineFilter: {
@@ -256,9 +259,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         );
 
         this.stationOptions = [];
-
-        this.loading["originStation"] = true;
-        this.loading["destinationStation"] = true;
 
         this.onInputTypeChanges();
 
