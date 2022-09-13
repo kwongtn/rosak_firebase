@@ -1,5 +1,6 @@
 export const environment = {
     production: true,
+    backendUrl: "https://lift-rosak.ddns.net:8000/",
     backendGraphqlUrl: "https://lift-rosak.ddns.net:8000/graphql/",
     firebase: {
         apiKey: "AIzaSyC6Z81AaCJ-PLofq0N0Ize43oWMqKKW-zA",

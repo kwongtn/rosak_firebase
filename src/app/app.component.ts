@@ -1,9 +1,16 @@
+// import { DevConfigService } from "ng-devui/utils";
 import { environment } from "src/environments/environment";
 
+import { HttpClient } from "@angular/common/http";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import build from "../build";
 import { AuthService } from "./services/auth/auth.service";
+
+interface BackendBuildInfo {
+    hash: string;
+    datetime: string;
+}
 
 @Component({
     selector: "app-root",
@@ -30,8 +37,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
     userAvatar: string = "";
     buildInfo = build;
+    backendBuildInfo: BackendBuildInfo = {
+        hash: "...",
+        datetime: "...",
+    };
 
-    constructor(public authService: AuthService) {
+    constructor(
+        public authService: AuthService,
+        private httpClient: HttpClient // private devConfigService: DevConfigService,
+    ) {
         console.log(
             "\n%cBuild Info:\n\n" +
                 `%c > Environment: %c${
@@ -61,6 +75,13 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.userAvatar = "";
             }
         });
+
+        this.httpClient
+            .get<BackendBuildInfo>(environment.backendUrl + "version/")
+            .subscribe((data) => {
+                this.backendBuildInfo = data;
+                console.log(this.backendBuildInfo);
+            });
     }
 
     ngOnDestroy(): void {

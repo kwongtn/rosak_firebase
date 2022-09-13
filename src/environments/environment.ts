@@ -4,6 +4,7 @@
 
 export const environment = {
     production: false,
+    backendUrl: "http://localhost:8000/",
     backendGraphqlUrl: "http://localhost:8000/graphql/",
     firebase: {
         apiKey: "AIzaSyC6Z81AaCJ-PLofq0N0Ize43oWMqKKW-zA",
