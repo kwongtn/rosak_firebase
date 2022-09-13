@@ -129,6 +129,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     formGroup: UntypedFormGroup;
     selectedDate1 = new Date();
     queryResult = {};
+    stationResult = {};
 
     private mainQuerySubscription!: Subscription;
     private stationQuerySubscription!: Subscription;
@@ -234,7 +235,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     console.log("Query loading: ", loading);
                     console.log("Query data: ", data);
 
-                    this.queryResult = data;
+                    this.stationResult = data;
 
                     this.loading["originStation"] = loading;
                     this.loading["destinationStation"] = loading;
