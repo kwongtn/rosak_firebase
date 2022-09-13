@@ -19,6 +19,9 @@ import {
 } from "@angular/forms";
 
 import {
+    GetLinesAndVehiclesGqlService,
+} from "../services/get-lines-vehicles-gql.service";
+import {
     lineQueryResultToOptions,
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
@@ -26,26 +29,6 @@ import {
 import {
     betweenStationTypeOriginDestinationStationValidator,
 } from "./spotting-form.utils";
-
-const GET_LINES = gql`
-    query GetLinesAndVehicles {
-        lines {
-            id
-            code
-            displayName
-            vehicleTypes {
-                id
-                internalName
-                displayName
-                vehicles {
-                    id
-                    identificationNo
-                    status
-                }
-            }
-        }
-    }
-`;
 
 const GET_LINE_STATIONS = gql`
     query GetStationLines($stationLineFilter: StationLineFilter) {
@@ -160,6 +143,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     constructor(
         private fb: UntypedFormBuilder,
         private apollo: Apollo,
+        private getLinesVehiclesGql: GetLinesAndVehiclesGqlService,
         public authService: AuthService,
         private recaptchaV3Service: ReCaptchaV3Service,
         private spottingStorageService: SpottingStorageService
@@ -199,11 +183,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             }
         );
 
-        this.mainQuerySubscription = this.apollo
-            .query<any>({
-                query: GET_LINES,
-            })
-            .subscribe(({ data, loading }) => {
+        this.mainQuerySubscription = this.getLinesVehiclesGql
+            .watch()
+            .valueChanges.subscribe(({ data, loading }) => {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
 
