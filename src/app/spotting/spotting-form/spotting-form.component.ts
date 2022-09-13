@@ -33,11 +33,6 @@ const GET_LINES = gql`
             id
             code
             displayName
-            stationLines {
-                id
-                displayName
-                internalRepresentation
-            }
             vehicleTypes {
                 id
                 internalName
@@ -52,6 +47,16 @@ const GET_LINES = gql`
     }
 `;
 
+const GET_LINE_STATIONS = gql`
+    query GetStationLines($stationLineFilter: StationLineFilter) {
+        stationLines(filters: $stationLineFilter) {
+            id
+            displayName
+            internalRepresentation
+        }
+    }
+`;
+
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
         addEvent(input: $data) {
@@ -59,6 +64,11 @@ const ADD_ENTRY = gql`
         }
     }
 `;
+
+interface FormInputType {
+    name: string;
+    value: string;
+}
 
 @Component({
     selector: "app-spotting-form",
@@ -144,7 +154,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     selectedDate1 = new Date();
     queryResult = {};
 
-    private querySubscription!: Subscription;
+    private mainQuerySubscription!: Subscription;
+    private stationQuerySubscription!: Subscription;
 
     constructor(
         private fb: UntypedFormBuilder,
@@ -188,11 +199,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             }
         );
 
-        this.querySubscription = this.apollo
-            .watchQuery<any>({
+        this.mainQuerySubscription = this.apollo
+            .query<any>({
                 query: GET_LINES,
             })
-            .valueChanges.subscribe(({ data, loading }) => {
+            .subscribe(({ data, loading }) => {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
 
@@ -200,11 +211,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
                 this.loading["line"] = loading;
                 this.lineOptions = lineQueryResultToOptions(data);
-
-                this.loading["originStation"] = loading;
-                this.loading["destinationStation"] = loading;
-                this.stationOptions =
-                    lineQueryResultToStationCascaderOptions(data);
 
                 this.loading["vehicle"] = loading;
                 this.vehicleOptions =
@@ -221,12 +227,50 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.querySubscription.unsubscribe();
+        this.mainQuerySubscription.unsubscribe();
+        this.stationQuerySubscription?.unsubscribe();
     }
 
-    onChanges(event: Event): void {
+    onChanges(event: any): void {
         console.log("On changes: ", event);
         return;
+    }
+
+    onInputTypeChanges() {
+        if (this.formGroup.value.type.value === "BETWEEN_STATIONS") {
+            if (!this.formGroup.value.line) {
+                this.formGroup.patchValue({
+                    type: {
+                        name: "Just Spotting",
+                        value: "JUST_SPOTTING",
+                    },
+                });
+                return;
+            }
+
+            this.stationQuerySubscription = this.apollo
+                .query<any>({
+                    query: GET_LINE_STATIONS,
+                    variables: {
+                        stationLineFilter: {
+                            lineId: this.formGroup.value.line.value,
+                        },
+                    },
+                })
+                .subscribe(({ data, loading }) => {
+                    console.log("Query loading: ", loading);
+                    console.log("Query data: ", data);
+
+                    this.queryResult = data;
+
+                    this.loading["originStation"] = loading;
+                    this.loading["destinationStation"] = loading;
+
+                    // TODO: Change to searchable type
+                    this.stationOptions =
+                        lineQueryResultToStationCascaderOptions(data);
+                });
+        }
     }
 
     onLineChanges(event: Event): void {
@@ -236,10 +280,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             this.queryResult,
             (event as any).value
         );
-        this.stationOptions = lineQueryResultToStationCascaderOptions(
-            this.queryResult,
-            (event as any).value
-        );
+
+        this.stationOptions = [];
+
+        this.loading["originStation"] = true;
+        this.loading["destinationStation"] = true;
+
+        this.onInputTypeChanges();
 
         this.formGroup.patchValue({
             vehicle: "",

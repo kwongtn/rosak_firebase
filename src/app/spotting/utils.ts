@@ -50,39 +50,35 @@ export function lineQueryResultToOptions(data: any): {
     });
 }
 
-export function lineQueryResultToStationCascaderOptions(
-    data: any,
-    lineId: string | undefined = undefined
-): CascaderItem[] {
-    let stationOptions: CascaderItem[] = [];
-    for (const line of data.lines) {
-        if (!lineId || line.id === lineId) {
-            const lineObj: CascaderItem = {
-                label: `${line.code} - ${line.displayName}`,
-                value: line.id,
-                isLeaf: false,
-                disabled: false,
-                children: [],
-            };
-            for (const stationLine of line.stationLines) {
-                lineObj.children?.push({
-                    label: stationLine.internalRepresentation
-                        ? `${stationLine.internalRepresentation} - ${stationLine.displayName}`
-                        : `${stationLine.displayName}`,
-                    value: stationLine.id,
-                    isLeaf: true,
-                    disabled: false,
-                });
-            }
-            stationOptions.push(lineObj);
-        }
-    }
-    if (lineId) {
-        // Cause if there is a line id it will always be single element array
-        stationOptions = stationOptions[0].children as CascaderItem[];
-    }
+interface StationLineResponse {
+    stationLines: Array<{
+        id: string;
+        displayName: string;
+        internalRepresentation: string;
+    }>;
+}
 
-    return stationOptions;
+export function lineQueryResultToStationCascaderOptions(
+    data: StationLineResponse
+): CascaderItem[] {
+    const returnArr: CascaderItem[] = [];
+
+    for (const line of data.stationLines) {
+        returnArr.push({
+            label: line.internalRepresentation
+                ? `${line.internalRepresentation} - ${line.displayName}`
+                : `${line.displayName}`,
+            value: line.id,
+            isLeaf: true,
+            disabled: false,
+        });
+    }
+    // if (lineId) {
+    //     // Cause if there is a line id it will always be single element array
+    //     stationOptions = stationOptions[0].children as CascaderItem[];
+    // }
+
+    return returnArr;
 }
 
 export function lineQueryResultToVehicleCascaderOptions(
