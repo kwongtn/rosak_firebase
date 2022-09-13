@@ -19,6 +19,12 @@ import {
 } from "@angular/forms";
 
 import {
+    GetLinesAndVehiclesGqlService,
+} from "../services/get-lines-vehicles-gql.service";
+import {
+    GetStationLinesGqlService,
+} from "../services/get-station-lines-gql.service";
+import {
     lineQueryResultToOptions,
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
@@ -27,31 +33,6 @@ import {
     betweenStationTypeOriginDestinationStationValidator,
 } from "./spotting-form.utils";
 
-const GET_LINES = gql`
-    query GetLinesAndVehicles {
-        lines {
-            id
-            code
-            displayName
-            stationLines {
-                id
-                displayName
-                internalRepresentation
-            }
-            vehicleTypes {
-                id
-                internalName
-                displayName
-                vehicles {
-                    id
-                    identificationNo
-                    status
-                }
-            }
-        }
-    }
-`;
-
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
         addEvent(input: $data) {
@@ -59,6 +40,11 @@ const ADD_ENTRY = gql`
         }
     }
 `;
+
+interface FormInputType {
+    name: string;
+    value: string;
+}
 
 @Component({
     selector: "app-spotting-form",
@@ -102,8 +88,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         },
     ];
 
-    // TODO: Check that origin and destination options are not the same
-    stationOptions: CascaderItem[] = [];
+    stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
     vehicleOptions: CascaderItem[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
@@ -143,12 +128,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     formGroup: UntypedFormGroup;
     selectedDate1 = new Date();
     queryResult = {};
+    stationResult = {};
 
-    private querySubscription!: Subscription;
+    isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
+
+    private mainQuerySubscription!: Subscription;
+    private stationQuerySubscription!: Subscription;
 
     constructor(
         private fb: UntypedFormBuilder,
         private apollo: Apollo,
+        private getLinesVehiclesGql: GetLinesAndVehiclesGqlService,
+        private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
         private recaptchaV3Service: ReCaptchaV3Service,
         private spottingStorageService: SpottingStorageService
@@ -188,10 +179,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             }
         );
 
-        this.querySubscription = this.apollo
-            .watchQuery<any>({
-                query: GET_LINES,
-            })
+        this.mainQuerySubscription = this.getLinesVehiclesGql
+            .watch()
             .valueChanges.subscribe(({ data, loading }) => {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
@@ -200,11 +189,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
                 this.loading["line"] = loading;
                 this.lineOptions = lineQueryResultToOptions(data);
-
-                this.loading["originStation"] = loading;
-                this.loading["destinationStation"] = loading;
-                this.stationOptions =
-                    lineQueryResultToStationCascaderOptions(data);
 
                 this.loading["vehicle"] = loading;
                 this.vehicleOptions =
@@ -221,25 +205,68 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.querySubscription.unsubscribe();
+        this.mainQuerySubscription.unsubscribe();
+        this.stationQuerySubscription?.unsubscribe();
     }
 
-    onChanges(event: Event): void {
+    onChanges(event: FormInputType): void {
         console.log("On changes: ", event);
         return;
     }
 
-    onLineChanges(event: Event): void {
+    onInputTypeChanges() {
+        if (this.formGroup.value.type.value === "BETWEEN_STATIONS") {
+            if (!this.formGroup.value.line) {
+                this.formGroup.patchValue({
+                    type: {
+                        name: "Just Spotting",
+                        value: "JUST_SPOTTING",
+                    },
+                });
+
+                this.isShowBetweenStationsModeSelectedBeforeLineSelectionError =
+                    true;
+
+                return;
+            }
+
+            this.loading["originStation"] = true;
+            this.loading["destinationStation"] = true;
+
+            this.stationQuerySubscription = this.getStationLinesGql
+                .watch({
+                    stationLineFilter: {
+                        lineId: this.formGroup.value.line.value,
+                    },
+                })
+                .valueChanges.subscribe(({ data, loading }) => {
+                    console.log("Query loading: ", loading);
+                    console.log("Query data: ", data);
+
+                    this.stationResult = data;
+
+                    this.loading["originStation"] = loading;
+                    this.loading["destinationStation"] = loading;
+
+                    this.stationOptions =
+                        lineQueryResultToStationCascaderOptions(data);
+                });
+        }
+    }
+
+    onLineChanges(event: FormInputType): void {
         console.log(event);
+
+        this.isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
 
         this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
             this.queryResult,
             (event as any).value
         );
-        this.stationOptions = lineQueryResultToStationCascaderOptions(
-            this.queryResult,
-            (event as any).value
-        );
+
+        this.stationOptions = [];
+
+        this.onInputTypeChanges();
 
         this.formGroup.patchValue({
             vehicle: "",
@@ -265,9 +292,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         } else {
-            formValues["originStation"] = formValues["originStation"][0];
+            formValues["originStation"] = formValues["originStation"]["value"];
             formValues["destinationStation"] =
-                formValues["destinationStation"][0];
+                formValues["destinationStation"]["value"];
         }
 
         const date: Date = formValues["spottingDate"];
