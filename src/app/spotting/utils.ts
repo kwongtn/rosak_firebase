@@ -60,23 +60,18 @@ interface StationLineResponse {
 
 export function lineQueryResultToStationCascaderOptions(
     data: StationLineResponse
-): CascaderItem[] {
-    const returnArr: CascaderItem[] = [];
+): { name: any; value: any; disabled?: boolean }[] {
+    const returnArr: { name: any; value: any; disabled?: boolean }[] = [];
 
     for (const line of data.stationLines) {
         returnArr.push({
-            label: line.internalRepresentation
+            name: line.internalRepresentation
                 ? `${line.internalRepresentation} - ${line.displayName}`
                 : `${line.displayName}`,
             value: line.id,
-            isLeaf: true,
             disabled: false,
         });
     }
-    // if (lineId) {
-    //     // Cause if there is a line id it will always be single element array
-    //     stationOptions = stationOptions[0].children as CascaderItem[];
-    // }
 
     return returnArr;
 }

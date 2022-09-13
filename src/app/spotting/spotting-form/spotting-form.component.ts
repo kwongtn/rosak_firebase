@@ -89,7 +89,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
 
     // TODO: Check that origin and destination options are not the same
-    stationOptions: CascaderItem[] = [];
+    stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
     vehicleOptions: CascaderItem[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
@@ -294,9 +294,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         } else {
-            formValues["originStation"] = formValues["originStation"][0];
+            formValues["originStation"] = formValues["originStation"]["value"];
             formValues["destinationStation"] =
-                formValues["destinationStation"][0];
+                formValues["destinationStation"]["value"];
         }
 
         const date: Date = formValues["spottingDate"];

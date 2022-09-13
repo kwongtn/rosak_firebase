@@ -141,18 +141,16 @@
                 <d-form-label>Origin Station</d-form-label>
 
                 <d-form-control [feedbackStatus]="getStatus('originStation')">
-                    <d-cascader
+                    <d-select
                         [options]="stationOptions"
-                        [placeholder]="'Please select, or type to search'"
+                        [filterKey]="'name'"
+                        [placeholder]="'Source Station'"
                         formControlName="originStation"
-                        (ngModelChange)="onChanges($event)"
-                        [trigger]="'click'"
                         [width]="300"
-                        [dropdownWidth]="300"
                         [allowClear]="true"
-                        [allowSearch]="true"
+                        [isSearch]="true"
                     >
-                    </d-cascader>
+                    </d-select>
                 </d-form-control>
             </d-form-item>
 
@@ -161,18 +159,17 @@
                 <d-form-control
                     [feedbackStatus]="getStatus('destinationStation')"
                 >
-                    <d-cascader
+                    <d-select
                         [options]="stationOptions"
-                        [placeholder]="'Please select, or type to search'"
+                        [filterKey]="'name'"
+                        [placeholder]="'Destination Station'"
                         formControlName="destinationStation"
                         (ngModelChange)="onChanges($event)"
-                        [trigger]="'click'"
                         [width]="300"
-                        [dropdownWidth]="300"
                         [allowClear]="true"
-                        [allowSearch]="true"
+                        [isSearch]="true"
                     >
-                    </d-cascader>
+                    </d-select>
                 </d-form-control>
             </d-form-item>
         </div>
