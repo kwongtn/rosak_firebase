@@ -109,7 +109,7 @@
             <d-form-control [feedbackStatus]="getStatus('status')">
                 <d-select
                     [options]="statusOptions"
-                    [isSearch]="true"
+                    [isSearch]="false"
                     [filterKey]="'name'"
                     formControlName="status"
                     [placeholder]="'Status'"
@@ -125,7 +125,7 @@
             <d-form-control [feedbackStatus]="getStatus('type')">
                 <d-select
                     [options]="typeOptions"
-                    [isSearch]="true"
+                    [isSearch]="false"
                     [filterKey]="'name'"
                     formControlName="type"
                     [placeholder]="'Type'"
