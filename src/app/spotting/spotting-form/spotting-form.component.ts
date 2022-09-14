@@ -3,7 +3,13 @@ import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 import { ReCaptchaV3Service } from "ng-recaptcha";
-import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
+import {
+    firstValueFrom,
+    lastValueFrom,
+    Observable,
+    of,
+    Subscription,
+} from "rxjs";
 import { AuthService } from "src/app/services/auth/auth.service";
 import {
     SpottingStorageService,
@@ -30,6 +36,7 @@ import {
 } from "../utils";
 import {
     betweenStationTypeOriginDestinationStationValidator,
+    numberSeenToSetNumber,
 } from "./spotting-form.utils";
 
 const ADD_ENTRY = gql`
@@ -96,6 +103,45 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         destinationStation: true,
         vehicle: true,
         line: true,
+    };
+
+    vehicleSearchFn = (
+        term: string
+    ): Observable<{ id: string | number; option: any }[]> => {
+        return of(
+            (this.vehicleOptions ?? [])
+                .map((option, index) => ({ id: index, option: option }))
+                .filter((item) => {
+                    if (!this.formGroup.value.line) {
+                        return true;
+                    }
+
+                    const setNumber = numberSeenToSetNumber(
+                        term,
+                        (this.formGroup.value.line.name as string)
+                            .split(" - ")[0]
+                            .trim()
+                    );
+
+                    if (!isNaN(Number(term))) {
+                        return (
+                            item.option.name
+                                .toLowerCase()
+                                .split(" (")[0]
+                                .indexOf(term.toLowerCase()) !== -1 ||
+                            item.option.name
+                                .toLowerCase()
+                                .indexOf(setNumber as string) !== -1
+                        );
+                    } else {
+                        return (
+                            item.option.name
+                                .toLowerCase()
+                                .indexOf(term.toLowerCase()) !== -1
+                        );
+                    }
+                })
+        );
     };
 
     getStatus(fieldName: string): DFormControlStatus | null {

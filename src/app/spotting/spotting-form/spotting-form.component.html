@@ -56,13 +56,12 @@
             <d-form-label>Vehicle</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('vehicle')">
                 <d-select
-                    [options]="vehicleOptions"
-                    [placeholder]="'Please select, or type to search'"
                     formControlName="vehicle"
                     (ngModelChange)="onChanges($event)"
                     [width]="300"
                     [isSearch]="true"
                     [filterKey]="'name'"
+                    [searchFn]="vehicleSearchFn"
                 >
                 </d-select>
             </d-form-control>

@@ -21,3 +21,62 @@ export function betweenStationTypeOriginDestinationStationValidator(
         return errors;
     }
 }
+
+export function numberSeenToSetNumber(input: string, line: string) {
+    const props: {
+        [key: string]: {
+            triggerLength: number;
+            startConcat: number;
+            endConcat: number;
+            prefix?: string;
+        };
+    } = {
+        KJL: {
+            triggerLength: 3,
+            startConcat: 1,
+            endConcat: 3,
+        },
+        AGL: {
+            triggerLength: 4,
+            startConcat: 0,
+            endConcat: 3,
+        },
+        SPL: {
+            triggerLength: 4,
+            startConcat: 0,
+            endConcat: 3,
+        },
+        MRL: {
+            triggerLength: 4,
+            startConcat: 0,
+            endConcat: 2,
+            prefix: "RSV",
+        },
+        KGL: {
+            triggerLength: 4,
+            startConcat: 0,
+            endConcat: 3,
+        },
+        PYL: {
+            triggerLength: 4,
+            startConcat: 0,
+            endConcat: 3,
+        },
+    };
+
+    if (Object.keys(props).includes(line)) {
+        const prop = props[line];
+
+        if (input.length !== prop.triggerLength) {
+            return undefined;
+        }
+
+        if (prop.prefix) {
+            input += prop.prefix + input;
+        }
+
+        return input.substring(prop.startConcat, prop.endConcat);
+    } else {
+        return undefined;
+    }
+}
