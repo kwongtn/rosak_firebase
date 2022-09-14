@@ -94,5 +94,7 @@ export function lineQueryResultToVehicleCascaderOptions(
         }
     }
 
-    return vehicles;
+    return vehicles.sort((a, b) => {
+        return a.name.localeCompare(b.name);
+    });
 }
