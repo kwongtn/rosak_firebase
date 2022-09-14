@@ -277,12 +277,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    async onSubmit(): Promise<MutationResult<any> | undefined> {
+    onSubmit(): Promise<MutationResult<any> | undefined> {
         console.log(this.formGroup);
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
-            return;
+            return Promise.resolve(undefined);
         }
 
         const formValues = { ...this.formGroup.value };
@@ -312,25 +312,28 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         // Removing line option here as it is not required by GQL
         formValues["line"] = undefined;
 
-        const mutationObservable = this.apollo.mutate({
-            mutation: ADD_ENTRY,
-            variables: {
-                data: formValues,
-            },
-            context: {
-                headers: {
-                    "g-recaptcha-response": await firstValueFrom(
-                        this.recaptchaV3Service.execute("spottingEntry")
-                    ),
-                    "firebase-auth-key": await this.authService.userData
-                        .getValue()
-                        ?.getIdToken(),
+
+        // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
+        return Promise.all([
+            firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
+            this.authService.userData.getValue()?.getIdToken(),
+        ]).then(([captchaResponse, firebaseAuthKey]) => {
+            const mutationObservable = this.apollo.mutate({
+                mutation: ADD_ENTRY,
+                variables: {
+                    data: formValues,
                 },
-            },
+                context: {
+                    headers: {
+                        "g-recaptcha-response": captchaResponse,
+                        "firebase-auth-key": firebaseAuthKey,
+                    },
+                },
+            });
+
+            this.submitting = lastValueFrom(mutationObservable);
+
+            return this.submitting;
         });
-
-        this.submitting = lastValueFrom(mutationObservable);
-
-        return this.submitting;
     }
 }
