@@ -1,5 +1,4 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
-import { CascaderItem } from "ng-devui";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
@@ -89,7 +88,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
 
     stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
-    vehicleOptions: CascaderItem[] = [];
+    vehicleOptions: { name: any; value: any; disabled?: boolean }[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
     loading: { [key: string]: boolean } = {
@@ -292,9 +291,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         } else {
-            formValues["originStation"] = formValues["originStation"]["value"];
+            formValues["originStation"] = formValues["originStation"].value;
             formValues["destinationStation"] =
-                formValues["destinationStation"]["value"];
+                formValues["destinationStation"].value;
         }
 
         const date: Date = formValues["spottingDate"];
@@ -303,15 +302,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             .toISOString()
             .slice(0, 10);
 
-        formValues["vehicle"] = formValues["vehicle"].slice(-1)[0];
-        formValues["status"] = formValues["status"]["value"];
-        formValues["type"] = formValues["type"]["value"];
+        formValues["vehicle"] = formValues["vehicle"].value;
+        formValues["status"] = formValues["status"].value;
+        formValues["type"] = formValues["type"].value;
 
         this.spottingStorageService.setLine(formValues["line"]);
 
         // Removing line option here as it is not required by GQL
         formValues["line"] = undefined;
-
 
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
         return Promise.all([

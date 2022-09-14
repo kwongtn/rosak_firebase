@@ -55,17 +55,16 @@
         <d-form-item>
             <d-form-label>Vehicle</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('vehicle')">
-                <d-cascader
+                <d-select
                     [options]="vehicleOptions"
                     [placeholder]="'Please select, or type to search'"
                     formControlName="vehicle"
                     (ngModelChange)="onChanges($event)"
-                    [trigger]="'click'"
                     [width]="300"
-                    [dropdownWidth]="200"
-                    [allowSearch]="true"
+                    [isSearch]="true"
+                    [filterKey]="'name'"
                 >
-                </d-cascader>
+                </d-select>
             </d-form-control>
         </d-form-item>
 
