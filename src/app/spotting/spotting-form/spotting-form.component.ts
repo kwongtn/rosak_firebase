@@ -108,6 +108,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     vehicleSearchFn = (
         term: string
     ): Observable<{ id: string | number; option: any }[]> => {
+        const setNumber = numberSeenToSetNumber(
+            term,
+            (this.formGroup.value.line?.name as string).split(" - ")[0].trim()
+        );
+
         return of(
             (this.vehicleOptions ?? [])
                 .map((option, index) => ({ id: index, option: option }))
@@ -116,14 +121,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         return true;
                     }
 
-                    const setNumber = numberSeenToSetNumber(
-                        term,
-                        (this.formGroup.value.line.name as string)
-                            .split(" - ")[0]
-                            .trim()
-                    );
-
-                    if (!isNaN(Number(term))) {
+                    if (
+                        !isNaN(Number(term)) ||
+                        ["C", "T", "M"].includes(term[0].toUpperCase())
+                    ) {
                         return (
                             item.option.name
                                 .toLowerCase()
@@ -131,7 +132,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                                 .indexOf(term.toLowerCase()) !== -1 ||
                             item.option.name
                                 .toLowerCase()
-                                .indexOf(setNumber as string) !== -1
+                                .indexOf(setNumber?.toLowerCase()) !== -1
                         );
                     } else {
                         return (

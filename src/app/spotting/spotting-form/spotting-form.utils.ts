@@ -63,7 +63,25 @@ export function numberSeenToSetNumber(input: string, line: string) {
         },
     };
 
-    if (Object.keys(props).includes(line)) {
+    if (["KTMK-PKL", "KTMK-SRL"].includes(line)) {
+        // We can confirm that set number here starts with C, T or M
+        if (
+            !(
+                input.length === 5 &&
+                ["C", "T", "M"].includes(input[0].toUpperCase())
+            )
+        ) {
+            return undefined;
+        }
+
+        let num = Number(input.substring(2, 4));
+        if (num % 2 !== 0) {
+            // Odd number
+            num += 1;
+        }
+
+        return "SCS" + num.toString();
+    } else if (Object.keys(props).includes(line)) {
         const prop = props[line];
 
         if (input.length !== prop.triggerLength) {
