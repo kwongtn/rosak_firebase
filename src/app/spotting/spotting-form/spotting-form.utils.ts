@@ -48,8 +48,8 @@ export function numberSeenToSetNumber(input: string, line: string) {
         },
         MRL: {
             triggerLength: 4,
-            startConcat: 0,
-            endConcat: 2,
+            startConcat: 4,
+            endConcat: 6,
             prefix: "RSV",
         },
         KGL: {
@@ -72,7 +72,7 @@ export function numberSeenToSetNumber(input: string, line: string) {
         }
 
         if (prop.prefix) {
-            input += prop.prefix + input;
+            input = prop.prefix + input;
         }
 
         return input.substring(prop.startConcat, prop.endConcat);
