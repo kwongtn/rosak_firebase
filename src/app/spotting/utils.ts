@@ -1,4 +1,5 @@
 import { GetLinesResponse } from "../models/query/get-vehicles";
+import { VehicleFormOption } from "./spotting-form/spotting-form.types";
 
 export interface LineTabType {
     id: string | number;
@@ -77,8 +78,8 @@ export function lineQueryResultToStationCascaderOptions(
 export function lineQueryResultToVehicleCascaderOptions(
     data: any,
     lineId: string | undefined = undefined
-): { name: any; value: any; disabled?: boolean }[] {
-    const vehicles: { name: any; value: any; disabled?: boolean }[] = [];
+): VehicleFormOption[] {
+    const vehicles: VehicleFormOption[] = [];
     
     for (const line of data.lines) {
         if (!lineId || line.id === lineId) {
@@ -88,6 +89,7 @@ export function lineQueryResultToVehicleCascaderOptions(
                         name: `${vehicle.identificationNo} (${vehicleType.internalName})`,
                         value: vehicle.id,
                         disabled: false,
+                        status: vehicle.status,
                     });
                 }
             }

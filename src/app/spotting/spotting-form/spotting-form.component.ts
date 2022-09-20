@@ -34,6 +34,7 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
+import { VehicleFormOption } from "./spotting-form.types";
 import {
     betweenStationTypeOriginDestinationStationValidator,
     numberSeenToSetNumber,
@@ -95,7 +96,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
 
     stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
-    vehicleOptions: { name: any; value: any; disabled?: boolean }[] = [];
+    vehicleOptions: VehicleFormOption[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
     loading: { [key: string]: boolean } = {
