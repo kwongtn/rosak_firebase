@@ -22,6 +22,27 @@ export function betweenStationTypeOriginDestinationStationValidator(
     }
 }
 
+export function abnormalStatusSanityTestValidator(
+    abstractControl: AbstractControl
+): ValidationErrors | null {
+    const errors: any = {};
+
+    if (
+        ["DECOMMISSIONED", "MARRIED"].includes(
+            abstractControl.get("vehicle")?.value.status ?? ""
+        ) &&
+        !abstractControl.get("sanityTest")?.value
+    ) {
+        errors["sanityTest"] = "sanityTest not passed";
+    }
+
+    if (JSON.stringify(errors) === "{}") {
+        return null;
+    } else {
+        return errors;
+    }
+}
+
 export function numberSeenToSetNumber(input: string, line: string) {
     const props: {
         [key: string]: {

@@ -37,6 +37,7 @@ import {
 } from "../utils";
 import { VehicleFormOption } from "./spotting-form.types";
 import {
+    abnormalStatusSanityTestValidator,
     betweenStationTypeOriginDestinationStationValidator,
     numberSeenToSetNumber,
 } from "./spotting-form.utils";
@@ -231,6 +232,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             {
                 validators: [
                     betweenStationTypeOriginDestinationStationValidator,
+                    abnormalStatusSanityTestValidator,
                 ],
             }
         );
@@ -270,6 +272,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     onVehicleChanges(event: VehicleFormInputType): void {
+        // When adding vehicle status here, remember to edit validators too
         if (["DECOMMISSIONED", "MARRIED"].includes(event.status)) {
             this.showVehicleWarning = true;
         } else {
@@ -372,8 +375,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         this.spottingStorageService.setLine(formValues["line"]);
 
-        // Removing line option here as it is not required by GQL
+        // Removing fields not required by GQL
         formValues["line"] = undefined;
+        formValues["sanityTest"] = undefined;
 
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
         return Promise.all([
