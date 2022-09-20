@@ -10,6 +10,7 @@ import {
     of,
     Subscription,
 } from "rxjs";
+import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth/auth.service";
 import {
     SpottingStorageService,
@@ -51,6 +52,12 @@ const ADD_ENTRY = gql`
 interface FormInputType {
     name: string;
     value: string;
+}
+
+interface VehicleFormInputType extends FormInputType {
+    name: string;
+    value: string;
+    status: VehicleStatus;
 }
 
 @Component({
@@ -176,6 +183,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     selectedDate1 = new Date();
     queryResult = {};
     stationResult = {};
+    showVehicleWarning = false;
 
     isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
 
@@ -258,7 +266,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     onChanges(event: FormInputType): void {
         console.log("On changes: ", event);
-        return;
+    }
+
+    onVehicleChanges(event: VehicleFormInputType): void {
+        if (["DECOMMISSIONED", "MARRIED"].includes(event.status)) {
+            this.showVehicleWarning = true;
+        } else {
+            this.showVehicleWarning = false;
+        }
     }
 
     onInputTypeChanges() {

@@ -57,7 +57,7 @@
             <d-form-control [feedbackStatus]="getStatus('vehicle')">
                 <d-select
                     formControlName="vehicle"
-                    (ngModelChange)="onChanges($event)"
+                    (ngModelChange)="onVehicleChanges($event)"
                     [width]="300"
                     [isSearch]="true"
                     [filterKey]="'name'"
@@ -66,6 +66,13 @@
                 </d-select>
             </d-form-control>
         </d-form-item>
+        <div class="vehicle-alert" *ngIf="showVehicleWarning">
+            <d-alert [type]="'warning'" [closeable]="false">
+                It seems that you are trying to record a vehicle that is either
+                decommissioned or married. Please complete the sanity test
+                below.
+            </d-alert>
+        </div>
 
         <d-form-item>
             <d-form-label>Spotting Date</d-form-label>
