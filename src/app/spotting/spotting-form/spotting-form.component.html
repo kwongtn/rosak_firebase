@@ -71,6 +71,22 @@
                 It seems that you are trying to record a vehicle that is either
                 decommissioned or married. Please complete the sanity test
                 below.
+
+                <hr />
+                <b>Sanity test</b>
+                <br />
+                <br />
+
+                <d-form-item>
+                    <d-form-control>
+                        <d-checkbox
+                            [label]="'Yes, I know what I\'m doing'"
+                            [isShowTitle]="false"
+                            formControlName="sanityTest"
+                        >
+                        </d-checkbox>
+                    </d-form-control>
+                </d-form-item>
             </d-alert>
         </div>
 

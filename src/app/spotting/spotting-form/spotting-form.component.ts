@@ -226,6 +226,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
                 isAnonymous: new UntypedFormControl(false, []),
+                sanityTest: new UntypedFormControl(false, []),
             },
             {
                 validators: [
