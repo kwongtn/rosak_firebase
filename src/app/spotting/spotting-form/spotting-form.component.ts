@@ -158,9 +158,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         if (this.loading[fieldName]) {
             return "pending";
         } else if (this.formGroup.controls[fieldName].valid) {
+            const formGroupErrors = this.formGroup.errors;
+
             if (
-                this.formGroup.errors &&
-                Object.keys(this.formGroup.errors).includes(fieldName)
+                formGroupErrors &&
+                Object.keys(formGroupErrors).includes(fieldName)
             ) {
                 if (this.submitButtonClicked) {
                     return "error";
