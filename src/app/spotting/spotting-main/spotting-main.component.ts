@@ -79,12 +79,22 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     text: "Submit",
                     handler: () => {
                         const submitAction =
-                            results.modalContentInstance.onSubmit() as
-                                | Promise<MutationResult<any>>
-                                | undefined;
+                            results.modalContentInstance.onSubmit() as Promise<
+                                MutationResult<any> | undefined
+                            >;
 
                         submitAction
                             ?.then((mutationResult) => {
+                                if (!mutationResult) {
+                                    this.toastService.addToast({
+                                        severity: "error",
+                                        summary: "Error",
+                                        content: "Form is invalid.",
+                                    });
+
+                                    return;
+                                }
+
                                 if (mutationResult.data?.addEvent.ok) {
                                     console.log("Mutation successful");
                                     results.modalInstance.hide();
@@ -98,6 +108,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                 });
                             })
                             .catch((reason) => {
+                                console.log(reason);
                                 this.toastService.addToast({
                                     severity: "error",
                                     summary: "Error",
