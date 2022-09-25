@@ -5,6 +5,7 @@ import { AboutComponent } from "./about/about/about.component";
 import {
     MainComponent as ComplianceMainComponent,
 } from "./compliance/main/main.component";
+import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import {
@@ -78,6 +79,13 @@ const routes: Routes = [
                 (m) => m.ComplianceModule
             ),
         component: ComplianceMainComponent,
+    },
+    {
+        path: "console",
+        title: "MLPTF | Console",
+        loadChildren: () =>
+            import("./console/console.module").then((m) => m.ConsoleModule),
+        component: ConsoleMainComponent,
     },
     {
         path: "",
