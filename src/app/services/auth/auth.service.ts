@@ -1,12 +1,14 @@
 import firebase from "firebase/compat/app";
-import { BehaviorSubject, Observable } from "rxjs";
+import { BehaviorSubject, Observable, Subscription } from "rxjs";
 
 import { Injectable } from "@angular/core";
 import { AngularFireAuth } from "@angular/fire/compat/auth";
 import { AngularFirestore } from "@angular/fire/compat/firestore";
+import { Router } from "@angular/router";
 import * as Sentry from "@sentry/browser";
 
 import { ToastService } from "../toast/toast.service";
+import { isUserAllowed } from "./permissions";
 
 export interface UserAuthData {
     permissions?: {
@@ -27,11 +29,13 @@ export class AuthService {
         this.userAuth.asObservable();
 
     loginViaLoginFunction: boolean = false;
+    userAuthDataSubscription!: Subscription;
 
     constructor(
         private angularFireAuth: AngularFireAuth,
         private toastService: ToastService,
-        private firestore: AngularFirestore
+        private firestore: AngularFirestore,
+        private router: Router
     ) {
         this.angularFireAuth.onAuthStateChanged(
             (user) => {
@@ -51,18 +55,30 @@ export class AuthService {
 
             if (user) {
                 const uid = user.uid;
-                const itemDoc = firestore.collection("users").doc(uid);
+                const itemDoc = this.firestore
+                    .collection("users")
+                    .doc<UserAuthData | undefined>(uid);
 
-                itemDoc.valueChanges().subscribe((value) => {
-                    console.log("Permissions: ", value);
+                this.userAuthDataSubscription = itemDoc
+                    .valueChanges()
+                    .subscribe((value) => {
+                        this.userAuth.next(value);
 
-                    this.userAuth.next(value as UserAuthData);
-                });
+                        if (!isUserAllowed(value, this.router.url)) {
+                            this.router.navigate([""]);
+                        }
+                    });
             } else if (user === null) {
                 this.userAuth.next(undefined);
-            }
 
-            console.log("User: ", user);
+                if (this.userAuthDataSubscription) {
+                    this.userAuthDataSubscription.unsubscribe();
+                }
+
+                if (!isUserAllowed(undefined, this.router.url)) {
+                    this.router.navigate([""]);
+                }
+            }
         });
     }
 
