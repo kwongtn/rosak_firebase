@@ -12,6 +12,22 @@ interface BackendBuildInfo {
     datetime: string;
 }
 
+const initialMenuList: { [key: string]: string }[] = [
+    {
+        name: "Spotting",
+        href: "/spotting",
+        target: "_self",
+        tag: "Alpha",
+        style: "danger",
+    },
+    {
+        name: "About",
+        href: "/about",
+        tag: "Prelim",
+        style: "default",
+    },
+];
+
 @Component({
     selector: "app-root",
     templateUrl: "./app.component.html",
@@ -19,21 +35,7 @@ interface BackendBuildInfo {
 })
 export class AppComponent implements OnInit, OnDestroy {
     title = "public";
-    innerMenuList = [
-        {
-            name: "Spotting",
-            href: "/spotting",
-            target: "_self",
-            tag: "Alpha",
-            style: "danger",
-        },
-        {
-            name: "About",
-            href: "/about",
-            tag: "Prelim",
-            style: "default",
-        },
-    ];
+    innerMenuList = initialMenuList;
 
     userAvatar: string = "";
     buildInfo = build;
@@ -64,7 +66,6 @@ export class AppComponent implements OnInit, OnDestroy {
             "font-size: 12px; color: #7c7c7b",
             "font-size: 12px; color: #bdc6cf"
         );
-        return;
     }
 
     ngOnInit() {
@@ -73,6 +74,24 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.userAvatar = (user.multiFactor as any).user.photoURL;
             } else {
                 this.userAvatar = "";
+            }
+        });
+
+        this.authService.userAuth.subscribe((authData) => {
+            console.log("this.authService.userData : ", authData);
+
+            if (authData?.permissions?.admin) {
+                this.innerMenuList = [
+                    {
+                        name: "Console",
+                        href: "/console",
+                        target: "_self",
+                        style: "danger",
+                    },
+                    ...initialMenuList,
+                ];
+            } else {
+                this.innerMenuList = initialMenuList;
             }
         });
 
