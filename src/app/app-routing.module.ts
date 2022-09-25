@@ -8,6 +8,7 @@ import {
 import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
+import { AdminGuard } from "./guards/admin/admin.guard";
 import {
     SpottingMainComponent,
 } from "./spotting/spotting-main/spotting-main.component";
@@ -86,6 +87,8 @@ const routes: Routes = [
         loadChildren: () =>
             import("./console/console.module").then((m) => m.ConsoleModule),
         component: ConsoleMainComponent,
+        canLoad: [AdminGuard],
+        canActivate: [AdminGuard],
     },
     {
         path: "",
