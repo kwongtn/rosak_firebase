@@ -21,6 +21,6 @@ export class VehicleStatusPipePipe implements PipeTransform {
             UNKNOWN: "Unknown",
         };
 
-        return dict[value];
+        return dict[value] ?? "Unknown";
     }
 }

@@ -23,8 +23,8 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { GraphQLModule } from "../graphql.module";
 import { SpottingTypePipe } from "../pipes/spotting-type/spotting-type.pipe";
 import {
-    VehicleStatusPipePipe,
-} from "../pipes/vehicle-status/vehicle-status-pipe.pipe";
+    VehicleStatusPipeModule,
+} from "../pipes/vehicle-status/vehicle-status.module";
 import {
     GetLinesAndVehiclesGqlService,
 } from "./services/get-lines-vehicles-gql.service";
@@ -51,7 +51,6 @@ import {
         SpottingFormComponent,
         SpottingMainComponent,
         SpottingTableComponent,
-        VehicleStatusPipePipe,
         SpottingTypePipe,
         VehicleTypeContainerComponent,
         InlineHistoryComponent,
@@ -78,6 +77,7 @@ import {
         PanelModule,
         CheckBoxModule,
         TimeAxisModule,
+        VehicleStatusPipeModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [
