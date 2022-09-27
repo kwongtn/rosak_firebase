@@ -20,6 +20,9 @@ import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
+import {
+    VehicleStatusTagModule,
+} from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
 import {
     SpottingTypePipeModule,
@@ -80,6 +83,7 @@ import {
         TimeAxisModule,
         VehicleStatusPipeModule,
         SpottingTypePipeModule,
+        VehicleStatusTagModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [
