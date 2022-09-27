@@ -1,39 +1,45 @@
 import firebase from "firebase/compat/app";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, Observable, Subscription } from "rxjs";
 
 import { Injectable } from "@angular/core";
 import { AngularFireAuth } from "@angular/fire/compat/auth";
+import { AngularFirestore } from "@angular/fire/compat/firestore";
+import { Router } from "@angular/router";
 import * as Sentry from "@sentry/browser";
 
 import { ToastService } from "../toast/toast.service";
+import { isUserAllowed } from "./permissions";
+
+export interface UserAuthData {
+    permissions?: {
+        admin?: boolean;
+    };
+}
 
 @Injectable({
     providedIn: "root",
 })
 export class AuthService {
-    userData: BehaviorSubject<firebase.User | null> =
-        new BehaviorSubject<firebase.User | null>(null);
+    userData: BehaviorSubject<firebase.User | null | undefined> =
+        new BehaviorSubject<firebase.User | null | undefined>(undefined);
+
+    userAuth: BehaviorSubject<UserAuthData | null | undefined> =
+        new BehaviorSubject<UserAuthData | null | undefined>(null);
+    public readonly userAuth$: Observable<UserAuthData | undefined | null> =
+        this.userAuth.asObservable();
 
     loginViaLoginFunction: boolean = false;
+    userAuthDataSubscription!: Subscription;
 
     constructor(
         private angularFireAuth: AngularFireAuth,
-        private toastService: ToastService
+        private toastService: ToastService,
+        private firestore: AngularFirestore,
+        private router: Router
     ) {
         this.angularFireAuth.onAuthStateChanged(
             (user) => {
                 this.userData.next(user);
-                if (user) {
-                    Sentry.setUser({
-                        email: user?.email?.toString(),
-                        id: user?.uid,
-                        ip_address: "{{auto}}",
-                    });
-                } else {
-                    Sentry.setUser(null);
-                }
-
-                console.log(user);
             },
             (error) => {
                 this.toastService.addToast({
@@ -43,6 +49,37 @@ export class AuthService {
                 });
             }
         );
+
+        this.userData.subscribe(async (user) => {
+            this.sentrySetUser(user);
+
+            if (user) {
+                const uid = user.uid;
+                const itemDoc = this.firestore
+                    .collection("users")
+                    .doc<UserAuthData | undefined>(uid);
+
+                this.userAuthDataSubscription = itemDoc
+                    .valueChanges()
+                    .subscribe((value) => {
+                        this.userAuth.next(value);
+
+                        if (!isUserAllowed(value, this.router.url)) {
+                            this.router.navigate([""]);
+                        }
+                    });
+            } else if (user === null) {
+                this.userAuth.next(undefined);
+
+                if (this.userAuthDataSubscription) {
+                    this.userAuthDataSubscription.unsubscribe();
+                }
+
+                if (!isUserAllowed(undefined, this.router.url)) {
+                    this.router.navigate([""]);
+                }
+            }
+        });
     }
 
     login() {
@@ -98,5 +135,17 @@ export class AuthService {
                     content: reason.message,
                 });
             });
+    }
+
+    sentrySetUser(user: firebase.User | null | undefined) {
+        if (user) {
+            Sentry.setUser({
+                email: user?.email?.toString(),
+                id: user?.uid,
+                ip_address: "{{auto}}",
+            });
+        } else {
+            Sentry.setUser(null);
+        }
     }
 }
