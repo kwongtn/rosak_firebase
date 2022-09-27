@@ -1,4 +1,5 @@
 import { TableWidthConfig } from "ng-devui";
+import { environment } from "src/environments/environment";
 
 import { Component, Input, OnInit } from "@angular/core";
 
@@ -13,6 +14,8 @@ import {
 })
 export class ConsoleEventsTableComponent implements OnInit {
     @Input() dataSource!: ConsoleEventsGqlResponseElement[];
+
+    backendUrl: string = environment.backendUrl;
 
     dataTableOptions = {
         columns: [
