@@ -1,1 +1,53 @@
-<p>events-table works!</p>
+<d-data-table
+    [dataSource]="dataSource"
+    [scrollable]="true"
+    [tableOverflowType]="'overlay'"
+    [tableWidthConfig]="tableWidthConfig"
+>
+    <thead dTableHead>
+        <tr dTableRow>
+            <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
+                {{ colOption.header }}
+            </th>
+        </tr>
+    </thead>
+    <tbody dTableBody>
+        <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
+            <tr dTableRow>
+                <td
+                    dTableCell
+                    *ngFor="let colOption of dataTableOptions.columns"
+                >
+                    <span [ngSwitch]="colOption.fieldType">
+                        <span *ngSwitchCase="'status'">
+                            <vehicle-status-tag
+                                [vehicleStatus]="rowItem[colOption.field]"
+                            ></vehicle-status-tag>
+                        </span>
+                        <span *ngSwitchCase="'id'">
+                            {{ rowItem[colOption.field] }}
+                            <span *ngIf="rowItem.nickname" class="nickname">
+                                <br />
+                                {{ rowItem.nickname }}
+                            </span>
+                        </span>
+                        <span *ngSwitchCase="'datetime'">
+                            {{ rowItem[colOption.field] | date: "MMM dd, y" }}
+                            <br />
+                            {{ rowItem[colOption.field] | date: "HH:mm:ss" }}
+                        </span>
+                        <span *ngSwitchCase="'vehicle'">
+                            <vehicle-table-cell-display
+                                [vehicleData]="rowItem[colOption.field]"
+                            >
+                            </vehicle-table-cell-display>
+                        </span>
+                        <span *ngSwitchDefault>{{
+                            rowItem[colOption.field]
+                        }}</span>
+                    </span>
+                </td>
+            </tr>
+        </ng-template>
+    </tbody>
+</d-data-table>
