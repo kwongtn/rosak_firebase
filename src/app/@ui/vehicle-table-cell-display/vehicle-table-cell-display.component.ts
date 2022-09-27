@@ -7,6 +7,7 @@ interface VehicleData {
     id: string;
     status: VehicleStatus;
     identificationNo: string;
+    notes: string;
     vehicleType: {
         internalName: string;
     };

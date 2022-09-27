@@ -15,6 +15,7 @@ export interface ConsoleEventsGqlResponseElement {
         id: string;
         status: VehicleStatus;
         identificationNo: string;
+        notes: string;
         vehicleType: {
             internalName: string;
         };
@@ -53,6 +54,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                     id
                     status
                     identificationNo
+                    notes
                     vehicleType {
                         internalName
                     }
@@ -74,6 +76,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                     id
                     status
                     identificationNo
+                    notes
                     vehicleType {
                         internalName
                     }
@@ -95,6 +98,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                     id
                     status
                     identificationNo
+                    notes
                     vehicleType {
                         internalName
                     }
