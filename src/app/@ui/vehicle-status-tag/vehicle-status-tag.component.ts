@@ -1,4 +1,11 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
+
+type VehicleStatus =
+    | "IN_SERVICE"
+    | "NOT_SPOTTED"
+    | "DECOMMISSIONED"
+    | "TESTING"
+    | "UNKNOWN";
 
 @Component({
     selector: "vehicle-status-tag",
@@ -6,6 +13,8 @@ import { Component, OnInit } from "@angular/core";
     styleUrls: ["./vehicle-status-tag.component.scss"],
 })
 export class VehicleStatusTagComponent implements OnInit {
+    @Input() vehicleStatus!: VehicleStatus;
+
     constructor() {
         return;
     }
