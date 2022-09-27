@@ -1,5 +1,11 @@
 <span dTooltip [content]="cellData.lines.join(', ')">
-    {{ cellData.identificationNo }}
-    ({{ cellData.vehicleType.internalName }}) <br />
+    <a
+        href="{{ backendUrl }}admin/operation/vehicle/{{ cellData.id }}"
+        class="devui-link"
+        target="_blank"
+    >
+        {{ cellData.identificationNo }}
+        ({{ cellData.vehicleType.internalName }}) <br />
+    </a>
     <vehicle-status-tag [vehicleStatus]="cellData.status"></vehicle-status-tag>
 </span>

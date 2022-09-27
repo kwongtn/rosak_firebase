@@ -1,8 +1,10 @@
 import { VehicleStatus } from "src/app/models/query/get-vehicles";
+import { environment } from "src/environments/environment";
 
 import { Component, Input, OnInit } from "@angular/core";
 
 interface VehicleData {
+    id: string;
     status: VehicleStatus;
     identificationNo: string;
     vehicleType: {
@@ -23,6 +25,7 @@ interface VehicleData {
 export class VehicleTableCellDisplayComponent implements OnInit {
     @Input() vehicleData!: VehicleData;
 
+    backendUrl: string = environment.backendUrl;
     cellData: any = undefined;
 
     constructor() {
