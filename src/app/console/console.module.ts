@@ -4,6 +4,9 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
 import {
+    SpottingTypeTagModule,
+} from "../@ui/spotting-type-tag/spotting-type-tag.module";
+import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import {
@@ -26,6 +29,7 @@ import { ConsoleMainComponent } from "./main/main.component";
         VehicleStatusPipeModule,
         VehicleTableCellDisplayModule,
         VehicleStatusTagModule,
+        SpottingTypeTagModule,
     ],
 })
 export class ConsoleModule {}

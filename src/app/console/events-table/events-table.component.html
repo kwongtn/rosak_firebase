@@ -46,6 +46,11 @@
                             >
                             </vehicle-table-cell-display>
                         </span>
+                        <span *ngSwitchCase="'spottingType'">
+                            <spotting-type-tag
+                                [spottingType]="rowItem[colOption.field]"
+                            ></spotting-type-tag>
+                        </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]
                         }}</span>

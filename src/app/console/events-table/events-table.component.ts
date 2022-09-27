@@ -46,7 +46,7 @@ export class ConsoleEventsTableComponent implements OnInit {
             {
                 field: "type",
                 header: "Spotting Type",
-                fieldType: "text",
+                fieldType: "spottingType",
                 order: 5,
             },
             {
