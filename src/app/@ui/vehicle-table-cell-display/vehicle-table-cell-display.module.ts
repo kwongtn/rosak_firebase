@@ -10,5 +10,6 @@ import {
 @NgModule({
     declarations: [VehicleTableCellDisplayComponent],
     imports: [CommonModule, TooltipModule],
+    exports: [VehicleTableCellDisplayComponent],
 })
 export class VehicleTableCellDisplayModule {}

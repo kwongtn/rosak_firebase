@@ -4,6 +4,9 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
 import {
+    VehicleTableCellDisplayModule,
+} from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.module";
+import {
     VehicleStatusPipeModule,
 } from "../pipes/vehicle-status/vehicle-status.module";
 import {
@@ -18,6 +21,7 @@ import { ConsoleMainComponent } from "./main/main.component";
         DataTableModule,
         TagsModule,
         VehicleStatusPipeModule,
+        VehicleTableCellDisplayModule,
     ],
 })
 export class ConsoleModule {}

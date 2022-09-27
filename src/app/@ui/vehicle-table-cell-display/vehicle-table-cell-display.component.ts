@@ -1,4 +1,19 @@
-import { Component, OnInit } from "@angular/core";
+import { VehicleStatus } from "src/app/models/query/get-vehicles";
+
+import { Component, Input, OnInit } from "@angular/core";
+
+interface VehicleData {
+    status: VehicleStatus;
+    identificationNo: string;
+    vehicleType: {
+        internalName: string;
+    };
+    lines: [
+        {
+            code: string;
+        }
+    ];
+}
 
 @Component({
     selector: "vehicle-table-cell-display",
@@ -6,11 +21,22 @@ import { Component, OnInit } from "@angular/core";
     styleUrls: ["./vehicle-table-cell-display.component.scss"],
 })
 export class VehicleTableCellDisplayComponent implements OnInit {
+    @Input() vehicleData!: VehicleData;
+
+    cellData: any = undefined;
+
     constructor() {
         return;
     }
 
     ngOnInit(): void {
-        return;
+        const lines = this.vehicleData.lines.map((line) => {
+            return line.code;
+        });
+
+        this.cellData = {
+            ...this.vehicleData,
+            lines: lines,
+        };
     }
 }
