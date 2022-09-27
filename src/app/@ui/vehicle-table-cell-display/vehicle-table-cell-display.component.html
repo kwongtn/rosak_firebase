@@ -1,0 +1,9 @@
+<span
+    dTooltip
+    [content]="
+                            rowItem[colOption.field].lines.map((val) => val.code).join(', ')
+                            "
+>
+    {{ rowItem[colOption.field].identificationNo }}
+    ({{ rowItem[colOption.field].vehicleType.internalName }}) <br />
+</span>
