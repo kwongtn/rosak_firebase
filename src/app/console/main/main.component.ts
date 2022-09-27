@@ -14,6 +14,7 @@ import {
 })
 export class ConsoleMainComponent implements OnInit, OnDestroy {
     eventGqlSubscription!: Subscription;
+    showLoading = true;
 
     tableData: ConsoleEventsGqlResponse = {
         eventsLastThreeDays: [],
@@ -41,6 +42,7 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
                 },
             })
             .valueChanges.subscribe(({ data, loading }) => {
+                this.showLoading = loading;
                 this.tableData = data;
             });
     }

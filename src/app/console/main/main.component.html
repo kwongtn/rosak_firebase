@@ -1,20 +1,29 @@
-<h1 class="table-title">Spotting Events Last 3 Days</h1>
-<console-events-table
-    [dataSource]="tableData.eventsLastThreeDays"
-></console-events-table>
+<div
+    *ngIf="showLoading"
+    class="loading-component"
+    dLoading
+    [showLoading]="showLoading"
+></div>
 
-<br />
+<div *ngIf="!showLoading">
+    <h1 class="table-title">Spotting Events Last 3 Days</h1>
+    <console-events-table
+        [dataSource]="tableData.eventsLastThreeDays"
+    ></console-events-table>
 
-<h1 class="table-title">Spotting Events Last 5 Days with Notes</h1>
-<console-events-table
-    [dataSource]="tableData.eventsLastFiveDaysHasNotes"
-></console-events-table>
+    <br />
 
-<br />
+    <h1 class="table-title">Spotting Events Last 5 Days with Notes</h1>
+    <console-events-table
+        [dataSource]="tableData.eventsLastFiveDaysHasNotes"
+    ></console-events-table>
 
-<h1 class="table-title">
-    Spotting Events Last 7 Days with Different Vehicle Status
-</h1>
-<console-events-table
-    [dataSource]="tableData.eventsLastSevenDaysDifferentStatusThanVehicle"
-></console-events-table>
+    <br />
+
+    <h1 class="table-title">
+        Spotting Events Last 7 Days with Different Vehicle Status
+    </h1>
+    <console-events-table
+        [dataSource]="tableData.eventsLastSevenDaysDifferentStatusThanVehicle"
+    ></console-events-table>
+</div>

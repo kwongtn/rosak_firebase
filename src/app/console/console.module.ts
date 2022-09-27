@@ -1,4 +1,4 @@
-import { DataTableModule, TagsModule } from "ng-devui";
+import { DataTableModule, LoadingModule, TagsModule } from "ng-devui";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -30,6 +30,7 @@ import { ConsoleMainComponent } from "./main/main.component";
         VehicleTableCellDisplayModule,
         VehicleStatusTagModule,
         SpottingTypeTagModule,
+        LoadingModule,
     ],
 })
 export class ConsoleModule {}
