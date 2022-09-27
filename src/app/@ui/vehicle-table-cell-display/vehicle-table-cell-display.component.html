@@ -1,4 +1,5 @@
 <span dTooltip [content]="cellData.lines.join(', ')">
     {{ cellData.identificationNo }}
     ({{ cellData.vehicleType.internalName }}) <br />
+    <vehicle-status-tag [vehicleStatus]="cellData.status"></vehicle-status-tag>
 </span>
