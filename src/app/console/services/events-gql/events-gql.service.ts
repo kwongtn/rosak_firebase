@@ -8,6 +8,7 @@ export interface ConsoleEventsGqlResponseElement {
     id: string;
     spottingDate: string;
     notes: string;
+    created: string;
     status: VehicleStatus;
     type: SpottingType;
     vehicle: {
@@ -46,6 +47,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 notes
                 status
                 type
+                created
                 vehicle {
                     status
                     identificationNo
@@ -65,6 +67,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 notes
                 status
                 type
+                created
                 vehicle {
                     status
                     identificationNo
@@ -84,6 +87,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 notes
                 status
                 type
+                created
                 vehicle {
                     status
                     identificationNo
