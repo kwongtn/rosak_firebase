@@ -6,24 +6,77 @@
 ></div>
 
 <div *ngIf="!showLoading">
-    <h1 class="table-title">Spotting Events Last 3 Days</h1>
-    <console-events-table
-        [dataSource]="tableData.eventsLastThreeDays"
-    ></console-events-table>
+    <d-panel
+        #ghostPanel
+        [type]="'ghost'"
+        [hasLeftPadding]="false"
+        (toggle)="toggle('eventsLastThreeDays')"
+        [isCollapsed]="!panelCollapseStatus['eventsLastThreeDays']"
+    >
+        <d-panel-header>
+            <h1 class="table-title">
+                Spotting Events Last 3 Days (Count:
+                {{ tableData.eventsLastThreeDays.length }})
+            </h1>
+        </d-panel-header>
+        <d-panel-body>
+            <console-events-table
+                [dataSource]="tableData.eventsLastThreeDays"
+            ></console-events-table>
+        </d-panel-body>
+        <d-panel-footer> </d-panel-footer>
+    </d-panel>
 
-    <br />
+    <d-panel
+        #ghostPanel
+        [type]="'ghost'"
+        [hasLeftPadding]="false"
+        (toggle)="toggle('eventsLastFiveDaysHasNotes')"
+        [isCollapsed]="!panelCollapseStatus['eventsLastFiveDaysHasNotes']"
+    >
+        <d-panel-header>
+            <h1 class="table-title">
+                Spotting Events Last 5 Days with Notes (Count:
+                {{ tableData.eventsLastFiveDaysHasNotes.length }})
+            </h1>
+        </d-panel-header>
+        <d-panel-body>
+            <console-events-table
+                [dataSource]="tableData.eventsLastFiveDaysHasNotes"
+            ></console-events-table>
+        </d-panel-body>
+        <d-panel-footer> </d-panel-footer>
+    </d-panel>
 
-    <h1 class="table-title">Spotting Events Last 5 Days with Notes</h1>
-    <console-events-table
-        [dataSource]="tableData.eventsLastFiveDaysHasNotes"
-    ></console-events-table>
-
-    <br />
-
-    <h1 class="table-title">
-        Spotting Events Last 7 Days with Different Vehicle Status
-    </h1>
-    <console-events-table
-        [dataSource]="tableData.eventsLastSevenDaysDifferentStatusThanVehicle"
-    ></console-events-table>
+    <d-panel
+        #ghostPanel
+        [type]="'ghost'"
+        [hasLeftPadding]="false"
+        (toggle)="toggle('eventsLastSevenDaysDifferentStatusThanVehicle')"
+        [isCollapsed]="
+            !panelCollapseStatus[
+                'eventsLastSevenDaysDifferentStatusThanVehicle'
+            ]
+        "
+    >
+        <d-panel-header>
+            <h1 class="table-title">
+                Spotting Events Last 7 Days with Different Vehicle Status
+                (Count:
+                {{
+                    tableData.eventsLastSevenDaysDifferentStatusThanVehicle
+                        .length
+                }})
+            </h1>
+        </d-panel-header>
+        <d-panel-body>
+            <console-events-table
+                [dataSource]="
+                    tableData.eventsLastSevenDaysDifferentStatusThanVehicle
+                "
+            >
+            </console-events-table>
+        </d-panel-body>
+        <d-panel-footer> </d-panel-footer>
+    </d-panel>
 </div>

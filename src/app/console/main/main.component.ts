@@ -22,8 +22,18 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
         eventsLastSevenDaysDifferentStatusThanVehicle: [],
     };
 
+    panelCollapseStatus: { [key: string]: boolean } = {
+        eventsLastThreeDays: false,
+        eventsLastFiveDaysHasNotes: false,
+        eventsLastSevenDaysDifferentStatusThanVehicle: false,
+    };
+
     constructor(private consoleEventsGqlService: ConsoleEventsGqlService) {
         return;
+    }
+
+    toggle(key: string) {
+        this.panelCollapseStatus[key] = !this.panelCollapseStatus[key];
     }
 
     ngOnInit(): void {
