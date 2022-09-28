@@ -17,6 +17,8 @@ export class ConsoleEventsTableComponent implements OnInit {
 
     backendUrl: string = environment.backendUrl;
 
+    displayData: ConsoleEventsGqlResponseElement[] = [];
+
     dataTableOptions = {
         columns: [
             {
@@ -79,6 +81,10 @@ export class ConsoleEventsTableComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        return;
+        this.displayData = [...this.dataSource].sort((a, b) => {
+            const aDate = new Date(a.created) as any;
+            const bDate = new Date(b.created) as any;
+            return bDate - aDate;
+        });
     }
 }
