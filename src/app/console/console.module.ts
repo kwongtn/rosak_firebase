@@ -1,12 +1,17 @@
 import {
+    CheckBoxModule,
     DataTableModule,
     LoadingModule,
     PanelModule,
     TagsModule,
+    ToggleModule,
+    TooltipModule,
 } from "ng-devui";
+import { ButtonModule } from "ng-devui/button";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
+import { FormsModule } from "@angular/forms";
 
 import {
     SpottingTypeTagModule,
@@ -37,6 +42,11 @@ import { ConsoleMainComponent } from "./main/main.component";
         SpottingTypeTagModule,
         LoadingModule,
         PanelModule,
+        ToggleModule,
+        TooltipModule,
+        CheckBoxModule,
+        ButtonModule,
+        FormsModule,
     ],
 })
 export class ConsoleModule {}

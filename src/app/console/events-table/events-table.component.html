@@ -1,10 +1,15 @@
+<div class="mark-as-read-button" *ngIf="showCheckbox">
+    <div style="width: 100%"></div>
+    <d-button (btnClick)="markAsRead()" [bsSize]="'md'">Mark as Read</d-button>
+</div>
+
 <d-data-table
     [dataSource]="displayData"
     [scrollable]="true"
     [tableOverflowType]="'overlay'"
     [tableWidthConfig]="tableWidthConfig"
 >
-    <thead dTableHead>
+    <thead dTableHead [checkable]="showCheckbox">
         <tr dTableRow>
             <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
                 {{ colOption.header }}
@@ -12,8 +17,35 @@
         </tr>
     </thead>
     <tbody dTableBody>
-        <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
-            <tr dTableRow>
+        <ng-template
+            let-rowItem="rowItem"
+            let-rowIndex="rowIndex"
+            let-nestedIndex="nestedIndex"
+        >
+            <tr
+                dTableRow
+                [ngClass]="{ 'table-row-selected': rowItem.$checked }"
+            >
+                <td
+                    dTableCell
+                    class="devui-checkable-cell"
+                    *ngIf="showCheckbox"
+                >
+                    <d-checkbox
+                        [ngModelOptions]="{ standalone: true }"
+                        (ngModelChange)="
+                            onRowCheckChange(
+                                $event,
+                                rowIndex,
+                                nestedIndex,
+                                rowItem
+                            )
+                        "
+                        [ngModel]="rowItem.$checked"
+                        [disabled]="rowItem.$checkDisabled"
+                    >
+                    </d-checkbox>
+                </td>
                 <td
                     dTableCell
                     *ngFor="let colOption of dataTableOptions.columns"

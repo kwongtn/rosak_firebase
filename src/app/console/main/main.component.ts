@@ -16,6 +16,8 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
     eventGqlSubscription!: Subscription;
     showLoading = true;
 
+    toggleMarkAsRead = false;
+
     tableData: ConsoleEventsGqlResponse = {
         eventsLastThreeDays: [],
         eventsLastFiveDaysHasNotes: [],
@@ -59,5 +61,9 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.eventGqlSubscription?.unsubscribe();
+    }
+
+    onToggleChange(event: boolean) {
+        this.toggleMarkAsRead = event;
     }
 }

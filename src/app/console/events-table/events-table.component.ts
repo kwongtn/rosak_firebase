@@ -1,11 +1,16 @@
-import { TableWidthConfig } from "ng-devui";
+import { DataTableComponent, TableWidthConfig } from "ng-devui";
 import { environment } from "src/environments/environment";
 
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, Input, OnInit, ViewChild } from "@angular/core";
 
 import {
     ConsoleEventsGqlResponseElement,
 } from "../services/events-gql/events-gql.service";
+
+interface TableSourceType extends ConsoleEventsGqlResponseElement {
+    $checked?: boolean;
+    $checkDisabled?: boolean;
+}
 
 @Component({
     selector: "console-events-table",
@@ -13,11 +18,18 @@ import {
     styleUrls: ["./events-table.component.scss"],
 })
 export class ConsoleEventsTableComponent implements OnInit {
+    @ViewChild(DataTableComponent, { static: true })
+        datatable!: DataTableComponent;
     @Input() dataSource!: ConsoleEventsGqlResponseElement[];
+    @Input() showCheckbox: boolean = false;
+
+    checkboxList: any[] = [];
+    allChecked: boolean = false;
+    halfChecked: boolean = false;
 
     backendUrl: string = environment.backendUrl;
 
-    displayData: ConsoleEventsGqlResponseElement[] = [];
+    displayData: TableSourceType[] = [];
 
     dataTableOptions = {
         columns: [
@@ -81,10 +93,40 @@ export class ConsoleEventsTableComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        this.displayData = [...this.dataSource].sort((a, b) => {
-            const aDate = new Date(a.created) as any;
-            const bDate = new Date(b.created) as any;
-            return bDate - aDate;
+        this.displayData = [...this.dataSource]
+            .sort((a, b) => {
+                const aDate = new Date(a.created) as any;
+                const bDate = new Date(b.created) as any;
+                return bDate - aDate;
+            })
+            .map((val) => {
+                return {
+                    ...val,
+                    $checked: false,
+                    $checkDisabled: false,
+                };
+            });
+    }
+
+    markAsRead() {
+        const rows = this.datatable.getCheckedRows();
+        console.log(rows);
+    }
+
+    onRowCheckChange(
+        checked: boolean,
+        rowIndex: any,
+        nestedIndex: any,
+        rowItem: any
+    ) {
+        rowItem.$checked = checked;
+        rowItem.$halfChecked = false;
+        this.datatable.setRowCheckStatus({
+            rowIndex: rowIndex,
+            nestedIndex: nestedIndex,
+            rowItem: rowItem,
+            checked: checked,
         });
     }
+
 }

@@ -6,6 +6,15 @@
 ></div>
 
 <div *ngIf="!showLoading">
+    <div class="mark-as-read-toggle">
+        <div style="width: 100%"></div>
+        <d-toggle
+            dTooltip
+            [content]="'Toggle mark as read'"
+            [position]="'bottom'"
+            (change)="onToggleChange($event)"
+        ></d-toggle>
+    </div>
     <d-panel
         #ghostPanel
         [type]="'ghost'"
@@ -22,6 +31,7 @@
         <d-panel-body>
             <console-events-table
                 [dataSource]="tableData.eventsLastThreeDays"
+                [showCheckbox]="toggleMarkAsRead"
             ></console-events-table>
         </d-panel-body>
         <d-panel-footer> </d-panel-footer>
@@ -43,6 +53,7 @@
         <d-panel-body>
             <console-events-table
                 [dataSource]="tableData.eventsLastFiveDaysHasNotes"
+                [showCheckbox]="toggleMarkAsRead"
             ></console-events-table>
         </d-panel-body>
         <d-panel-footer> </d-panel-footer>
@@ -74,6 +85,7 @@
                 [dataSource]="
                     tableData.eventsLastSevenDaysDifferentStatusThanVehicle
                 "
+                [showCheckbox]="toggleMarkAsRead"
             >
             </console-events-table>
         </d-panel-body>
