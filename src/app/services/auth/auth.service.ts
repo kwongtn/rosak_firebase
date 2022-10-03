@@ -148,4 +148,8 @@ export class AuthService {
             Sentry.setUser(null);
         }
     }
+
+    getIdToken(){
+        return this.userData.getValue()?.getIdToken();
+    }
 }

@@ -384,7 +384,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
         return Promise.all([
             firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
-            this.authService.userData.getValue()?.getIdToken(),
+            this.authService.getIdToken(),
         ]).then(([captchaResponse, firebaseAuthKey]) => {
             const mutationObservable = this.apollo.mutate({
                 mutation: ADD_ENTRY,
