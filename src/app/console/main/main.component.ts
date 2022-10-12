@@ -1,4 +1,5 @@
 import { Subscription } from "rxjs";
+import { AuthService } from "src/app/services/auth/auth.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
@@ -30,7 +31,10 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
         eventsLastSevenDaysDifferentStatusThanVehicle: false,
     };
 
-    constructor(private consoleEventsGqlService: ConsoleEventsGqlService) {
+    constructor(
+        private consoleEventsGqlService: ConsoleEventsGqlService,
+        private authService: AuthService
+    ) {
         return;
     }
 
@@ -38,21 +42,34 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
         this.panelCollapseStatus[key] = !this.panelCollapseStatus[key];
     }
 
-    ngOnInit(): void {
+    async ngOnInit(): Promise<void> {
         this.eventGqlSubscription = this.consoleEventsGqlService
-            .watch({
-                eventsLastThreeDaysFilters: {
-                    daysBefore: 3,
+            .watch(
+                {
+                    eventsLastThreeDaysFilters: {
+                        isRead: false,
+                        daysBefore: 3,
+                    },
+                    eventsLastFiveDaysHasNotesFilters: {
+                        isRead: false,
+                        daysBefore: 5,
+                        hasNotes: true,
+                    },
+                    eventsLastSevenDaysDifferentStatusThanVehicleFilters: {
+                        isRead: false,
+                        daysBefore: 7,
+                        differentStatusThanVehicle: true,
+                    },
                 },
-                eventsLastFiveDaysHasNotesFilters: {
-                    daysBefore: 5,
-                    hasNotes: true,
-                },
-                eventsLastSevenDaysDifferentStatusThanVehicleFilters: {
-                    daysBefore: 7,
-                    differentStatusThanVehicle: true,
-                },
-            })
+                {
+                    context: {
+                        headers: {
+                            "firebase-auth-key":
+                                await this.authService.getIdToken(),
+                        },
+                    },
+                }
+            )
             .valueChanges.subscribe(({ data, loading }) => {
                 this.showLoading = loading;
                 this.tableData = data;
