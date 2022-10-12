@@ -24,10 +24,7 @@
         [isCollapsed]="!panelCollapseStatus['eventsLastThreeDays']"
     >
         <d-panel-header>
-            <h1 class="table-title">
-                Spotting Events Last 3 Days (Count:
-                {{ tableData.eventsLastThreeDays.length }})
-            </h1>
+            <h1 class="table-title">Spotting Events Last 3 Days</h1>
         </d-panel-header>
         <d-panel-body>
             <console-events-table
@@ -46,10 +43,7 @@
         [isCollapsed]="!panelCollapseStatus['eventsLastFiveDaysHasNotes']"
     >
         <d-panel-header>
-            <h1 class="table-title">
-                Spotting Events Last 5 Days with Notes (Count:
-                {{ tableData.eventsLastFiveDaysHasNotes.length }})
-            </h1>
+            <h1 class="table-title">Spotting Events Last 5 Days with Notes</h1>
         </d-panel-header>
         <d-panel-body>
             <console-events-table
@@ -74,11 +68,6 @@
         <d-panel-header>
             <h1 class="table-title">
                 Spotting Events Last 7 Days with Different Vehicle Status
-                (Count:
-                {{
-                    tableData.eventsLastSevenDaysDifferentStatusThanVehicle
-                        .length
-                }})
             </h1>
         </d-panel-header>
         <d-panel-body>
