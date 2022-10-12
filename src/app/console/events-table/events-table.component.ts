@@ -6,6 +6,7 @@ import { Component, Input, OnInit, ViewChild } from "@angular/core";
 import {
     ConsoleEventsGqlResponseElement,
 } from "../services/events-gql/events-gql.service";
+import { MarkReadService } from "../services/mark-read/mark-read.service";
 
 interface TableSourceType extends ConsoleEventsGqlResponseElement {
     $checked?: boolean;
@@ -26,6 +27,7 @@ export class ConsoleEventsTableComponent implements OnInit {
     checkboxList: any[] = [];
     allChecked: boolean = false;
     halfChecked: boolean = false;
+    showLoading: boolean = false;
 
     backendUrl: string = environment.backendUrl;
 
@@ -88,7 +90,7 @@ export class ConsoleEventsTableComponent implements OnInit {
         { field: "notes", width: "500px" },
     ];
 
-    constructor() {
+    constructor(private markReadService: MarkReadService) {
         return;
     }
 
@@ -109,8 +111,19 @@ export class ConsoleEventsTableComponent implements OnInit {
     }
 
     markAsRead() {
-        const rows = this.datatable.getCheckedRows();
-        console.log(rows);
+        this.showLoading = true;
+        const rows = this.datatable.getCheckedRows().map((value) => {
+            return value.id;
+        });
+
+        this.markReadService.markAsRead(rows).then(({ data, loading }) => {
+            if (data?.markAsRead.ok) {
+                this.displayData = this.displayData.filter((elem) => {
+                    return !rows.includes(elem.id);
+                });
+            }
+            this.showLoading = loading;
+        });
     }
 
     onRowCheckChange(
@@ -128,5 +141,4 @@ export class ConsoleEventsTableComponent implements OnInit {
             checked: checked,
         });
     }
-
 }
