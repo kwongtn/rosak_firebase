@@ -157,6 +157,61 @@
             </d-form-control>
         </d-form-item>
 
+        <div *ngIf="this.formGroup.value.type.value === 'LOCATION'">
+            <d-form-item *ngIf="formGroup.value.location.altitude">
+                <d-form-label>Altitude</d-form-label>
+                <d-form-control [feedbackStatus]="'success'">
+                    <input
+                        dTextInput
+                        [value]="
+                            '' +
+                            formGroup.value.location.altitude +
+                            'm±' +
+                            formGroup.value.location.altitudeAccuracy
+                        "
+                        [readonly]="true"
+                    />
+                </d-form-control>
+            </d-form-item>
+
+            <d-form-item *ngIf="formGroup.value.location.heading">
+                <d-form-label>Heading</d-form-label>
+                <d-form-control [feedbackStatus]="'success'">
+                    <input
+                        dTextInput
+                        [value]="formGroup.value.location.heading"
+                        [readonly]="true"
+                    />
+                </d-form-control>
+            </d-form-item>
+
+            <d-form-item *ngIf="formGroup.value.location.speed">
+                <d-form-label>Speed</d-form-label>
+                <d-form-control [feedbackStatus]="'success'">
+                    <input
+                        dTextInput
+                        [value]="
+                            '' + formGroup.value.location.speed * 3.6 + 'km/h'
+                        "
+                        [readonly]="true"
+                    />
+                </d-form-control>
+            </d-form-item>
+
+            <d-form-item *ngIf="formGroup.value.location.latitude">
+                <d-form-label>Coordinates</d-form-label>
+                <d-form-control [feedbackStatus]="'success'">
+                    <input
+                        dTextInput
+                        [value]="
+                            formGroup.value.location | coordinatesHumanizer
+                        "
+                        [readonly]="true"
+                    />
+                </d-form-control>
+            </d-form-item>
+        </div>
+
         <div *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'">
             <d-form-item>
                 <d-form-label>Origin Station</d-form-label>
