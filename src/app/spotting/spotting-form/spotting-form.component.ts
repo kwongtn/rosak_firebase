@@ -397,6 +397,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["destinationStation"] =
                 formValues["destinationStation"].value;
         }
+        if (formValues.type.value !== "LOCATION") {
+            formValues["location"] = undefined;
+        }
 
         const date: Date = formValues["spottingDate"];
         date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
