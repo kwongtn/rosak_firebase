@@ -337,7 +337,15 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     console.log(position);
 
                     this.formGroup.patchValue({
-                        location: position.coords,
+                        location: {
+                            accuracy: position.coords.accuracy,
+                            altitude: position.coords.altitude,
+                            altitudeAccuracy: position.coords.altitudeAccuracy,
+                            heading: position.coords.heading,
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            speed: position.coords.speed,
+                        },
                     });
                     console.log(this.formGroup.value);
                 },
