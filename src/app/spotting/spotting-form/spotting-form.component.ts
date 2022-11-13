@@ -75,7 +75,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
     submitButtonClicked: boolean = false;
     showedLocationPopout: boolean = false;
-    submitting: LoadingType = undefined;
+    submitting: LoadingType = Promise.resolve("false");
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
