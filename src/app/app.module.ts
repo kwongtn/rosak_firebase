@@ -30,6 +30,7 @@ import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { GraphQLModule } from "./graphql.module";
 import { HeaderModule } from "./header/header.module";
+import { UpdateService } from "./services/pwa/update.service";
 
 const imports: any[] = [
     // TODO: AnalyticsModule
@@ -78,6 +79,7 @@ const providers: any[] = [
         useValue: EN_US,
     },
     I18nService,
+    UpdateService,
 ];
 
 if (environment.production) {
