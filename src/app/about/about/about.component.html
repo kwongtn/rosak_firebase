@@ -3,12 +3,7 @@
         <h1>
             About the project
             <a
-                [href]="
-                    'https://kwongtn.semaphoreci.com/badges/lift-rosak-backend/branches/' +
-                    branchName +
-                    '.svg?key=' +
-                    semaphoreBadgeKey
-                "
+                href="https://kwongtn.semaphoreci.com/projects/lift-rosak-backend"
             >
                 <img
                     class="build-status"
@@ -18,7 +13,19 @@
                         '.svg?key=' +
                         semaphoreBadgeKey
                     "
-                    alt="Build Status"
+                    alt="Backend Build Status"
+                />
+            </a>
+            <a
+                href="https://github.com/kwongtn/rosak_firebase/actions/workflows/firebase-hosting-merge.yml"
+            >
+                <img
+                    class="build-status"
+                    [src]="
+                        'https://github.com/kwongtn/rosak_firebase/actions/workflows/firebase-hosting-merge.yml/badge.svg?branch=' +
+                        branchName
+                    "
+                    alt="Frontend Build Status"
                 />
             </a>
         </h1>
