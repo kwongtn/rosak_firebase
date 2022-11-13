@@ -1,6 +1,27 @@
 <div dLoading class="main-wrapper" [showLoading]="showLoading">
     <div class="section">
-        <h1>About the project</h1>
+        <h1>
+            About the project
+            <a
+                [href]="
+                    'https://kwongtn.semaphoreci.com/badges/lift-rosak-backend/branches/' +
+                    branchName +
+                    '.svg?key=' +
+                    semaphoreBadgeKey
+                "
+            >
+                <img
+                    class="build-status"
+                    [src]="
+                        'https://kwongtn.semaphoreci.com/badges/lift-rosak-backend/branches/' +
+                        branchName +
+                        '.svg?key=' +
+                        semaphoreBadgeKey
+                    "
+                    alt="Build Status"
+                />
+            </a>
+        </h1>
         {{ ($items | async)?.aboutProject }}
         <div class="wrapper">
             <div *ngFor="let item of ($items | async)?.projects">

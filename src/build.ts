@@ -5,7 +5,7 @@ const build = {
     message: null,
     git: {
         user: "Kwong Tung Nan",
-        branch: "dev",
+        branch: "main",
         hash: "<<This is a test build>>",
         fullHash: "<<This is a test build>>"
     }

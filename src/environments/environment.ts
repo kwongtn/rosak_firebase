@@ -26,6 +26,9 @@ export const environment = {
     captcha: {
         key: "6LdKj0QhAAAAAOEKyuxa6X2kIhVhgfinAorgxc4r",
     },
+    semaphore: {
+        badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
+    },
 };
 
 /*
@@ -36,4 +39,3 @@ export const environment = {
  * on performance if an error is thrown.
  */
 import "zone.js/plugins/zone-error"; // Included with Angular CLI.
-
