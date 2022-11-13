@@ -73,7 +73,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         "centerDown",
     ];
     submitButtonClicked: boolean = false;
-    submitting: LoadingType = undefined;
+    submitting: LoadingType = Promise.resolve("false");
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
@@ -119,7 +119,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ): Observable<{ id: string | number; option: any }[]> => {
         const setNumber = numberSeenToSetNumber(
             term,
-            (this.formGroup.value.line?.name as string).split(" - ")[0].trim()
+            this.formGroup.value.line?.value
         );
 
         return of(

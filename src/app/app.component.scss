@@ -33,7 +33,7 @@
 }
 
 // DevUi
-@import "~ng-devui/styles-var/devui-var.scss";
+@import "ng-devui/styles-var/devui-var.scss";
 
 @mixin font-title($font-size: $devui-font-size-page-title) {
     font-size: $font-size;
