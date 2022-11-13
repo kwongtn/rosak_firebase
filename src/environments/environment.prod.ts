@@ -22,4 +22,7 @@ export const environment = {
     captcha: {
         key: "6Le4ekQhAAAAAKu_C7LTyylJfe8Q8Gv5fiNFx_kj",
     },
+    semaphore: {
+        badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
+    },
 };

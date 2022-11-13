@@ -1,4 +1,6 @@
 import { Observable, Subscription } from "rxjs";
+import build from "src/build";
+import { environment } from "src/environments/environment";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { AngularFirestore } from "@angular/fire/compat/firestore";
@@ -15,6 +17,9 @@ export class AboutComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
     $items!: Observable<PublicAboutDocument | undefined>;
     itemSubscription!: Subscription;
+    
+    semaphoreBadgeKey: string = environment.semaphore.badgeKey;
+    branchName: string = build.git.branch;
 
     personnel: Personnel[] = [];
 
