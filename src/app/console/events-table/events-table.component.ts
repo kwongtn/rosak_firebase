@@ -1,7 +1,13 @@
 import { DataTableComponent, TableWidthConfig } from "ng-devui";
 import { environment } from "src/environments/environment";
 
-import { Component, Input, OnInit, ViewChild } from "@angular/core";
+import {
+    Component,
+    HostListener,
+    Input,
+    OnInit,
+    ViewChild,
+} from "@angular/core";
 
 import {
     ConsoleEventsGqlResponseElement,
@@ -24,7 +30,6 @@ export class ConsoleEventsTableComponent implements OnInit {
     @Input() dataSource!: ConsoleEventsGqlResponseElement[];
     @Input() showCheckbox: boolean = false;
 
-    checkboxList: any[] = [];
     allChecked: boolean = false;
     halfChecked: boolean = false;
     showLoading: boolean = false;
@@ -32,6 +37,9 @@ export class ConsoleEventsTableComponent implements OnInit {
     backendUrl: string = environment.backendUrl;
 
     displayData: TableSourceType[] = [];
+
+    lastSelectedRow: any = undefined;
+    isShiftKeyDown: boolean = false;
 
     dataTableOptions = {
         columns: [
@@ -126,6 +134,16 @@ export class ConsoleEventsTableComponent implements OnInit {
         });
     }
 
+    @HostListener("document:keydown.shift", ["$event"])
+    handleKeyboardShiftUp(event: KeyboardEvent) {
+        this.isShiftKeyDown = true;
+    }
+
+    @HostListener("document:keyup.shift", ["$event"])
+    handleKeyboardShiftDown(event: KeyboardEvent) {
+        this.isShiftKeyDown = false;
+    }
+
     onRowCheckChange(
         checked: boolean,
         rowIndex: any,
@@ -134,6 +152,19 @@ export class ConsoleEventsTableComponent implements OnInit {
     ) {
         rowItem.$checked = checked;
         rowItem.$halfChecked = false;
+
+        if (this.isShiftKeyDown) {
+            const firstOfList = Math.min(this.lastSelectedRow, rowIndex);
+            const lastOfList = Math.max(this.lastSelectedRow, rowIndex);
+            this.displayData.forEach((value, index) => {
+                if (index >= firstOfList && index <= lastOfList) {
+                    value.$checked = checked;
+                }
+            });
+        }
+
+        this.lastSelectedRow = rowIndex;
+
         this.datatable.setRowCheckStatus({
             rowIndex: rowIndex,
             nestedIndex: nestedIndex,

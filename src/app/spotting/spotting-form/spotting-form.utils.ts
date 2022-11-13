@@ -52,32 +52,38 @@ export function numberSeenToSetNumber(input: string, line: string) {
             prefix?: string;
         };
     } = {
-        KJL: {
+        "4": {
+            // LRT Kelana Jaya Line
             triggerLength: 3,
             startConcat: 1,
             endConcat: 3,
         },
-        AGL: {
+        "5": {
+            // LRT Ampang Line
             triggerLength: 4,
             startConcat: 0,
             endConcat: 3,
         },
-        SPL: {
+        "9": {
+            // LRT Sri Petaling Line
             triggerLength: 4,
             startConcat: 0,
             endConcat: 3,
         },
-        MRL: {
+        "1": {
+            // Monorail
             triggerLength: 4,
             startConcat: 0,
             endConcat: 2,
         },
-        KGL: {
+        "2": {
+            // MRT Kajang Line
             triggerLength: 4,
             startConcat: 0,
             endConcat: 3,
         },
-        PYL: {
+        "3": {
+            // MRT Putrajaya Line
             triggerLength: 4,
             startConcat: 0,
             endConcat: 3,
