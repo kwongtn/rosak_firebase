@@ -25,6 +25,9 @@ import {
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
 import {
+    CoordinatesHumanizerModule,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
+import {
     SpottingTypePipeModule,
 } from "../pipes/spotting-type/spotting-type.module";
 import {
@@ -84,6 +87,7 @@ import {
         VehicleStatusPipeModule,
         SpottingTypePipeModule,
         VehicleStatusTagModule,
+        CoordinatesHumanizerModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [

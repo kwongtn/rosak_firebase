@@ -15,6 +15,7 @@ import { AuthService } from "src/app/services/auth/auth.service";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
+import { ToastService } from "src/app/services/toast/toast.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
@@ -73,6 +74,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         "centerDown",
     ];
     submitButtonClicked: boolean = false;
+    showedLocationPopout: boolean = false;
     submitting: LoadingType = Promise.resolve("false");
 
     statusOptions = [
@@ -91,7 +93,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         {
             name: "Location",
             value: "LOCATION",
-            disabled: true,
         },
         {
             name: "Between Stations",
@@ -200,7 +201,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
         private recaptchaV3Service: ReCaptchaV3Service,
-        private spottingStorageService: SpottingStorageService
+        private spottingStorageService: SpottingStorageService,
+        private toastService: ToastService
     ) {
         const line = spottingStorageService.getLine();
 
@@ -230,6 +232,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 notes: new UntypedFormControl("", []),
                 isAnonymous: new UntypedFormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
+                location: new UntypedFormControl(false, []),
             },
             {
                 validators: [
@@ -319,7 +322,45 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     this.stationOptions =
                         lineQueryResultToStationCascaderOptions(data);
                 });
+        } else if (this.formGroup.value.type.value === "LOCATION") {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    if (!this.showedLocationPopout) {
+                        this.toastService.addToast({
+                            severity: "info",
+                            summary: "Location accessed",
+                            content:
+                                "Take note that we will not know your location until you submit the form.",
+                        });
+                        this.showedLocationPopout = true;
+                    }
+                    console.log(position);
+
+                    this.formGroup.patchValue({
+                        location: {
+                            accuracy: position.coords.accuracy,
+                            altitude: position.coords.altitude,
+                            altitudeAccuracy: position.coords.altitudeAccuracy,
+                            heading: position.coords.heading,
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            speed: position.coords.speed,
+                        },
+                    });
+                    console.log(this.formGroup.value);
+                },
+                (positionError) => {
+                    this.toastService.addToast({
+                        severity: "error",
+                        summary: "Location access failed",
+                        content: positionError.message,
+                    });
+                },
+                { maximumAge: 0, timeout: Infinity, enableHighAccuracy: true }
+            );
+            return;
         }
+        this.showedLocationPopout = false;
     }
 
     onLineChanges(event: FormInputType): void {
@@ -363,6 +404,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["originStation"] = formValues["originStation"].value;
             formValues["destinationStation"] =
                 formValues["destinationStation"].value;
+        }
+        if (formValues.type.value !== "LOCATION") {
+            formValues["location"] = undefined;
         }
 
         const date: Date = formValues["spottingDate"];

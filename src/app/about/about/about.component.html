@@ -3,7 +3,12 @@
         <h1>
             About the project
             <a
-                href="https://kwongtn.semaphoreci.com/projects/lift-rosak-backend"
+                [href]="
+                    'https://kwongtn.semaphoreci.com/badges/lift-rosak-backend/branches/' +
+                    branchName +
+                    '.svg?key=' +
+                    semaphoreBadgeKey
+                "
             >
                 <img
                     class="build-status"
