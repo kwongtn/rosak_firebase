@@ -14,6 +14,9 @@ import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import {
+    SpottingTypeCellDisplayModule,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+import {
     SpottingTypeTagModule,
 } from "../@ui/spotting-type-tag/spotting-type-tag.module";
 import {
@@ -51,6 +54,7 @@ import { ConsoleMainComponent } from "./main/main.component";
         ButtonModule,
         FormsModule,
         CoordinatesHumanizerModule,
+        SpottingTypeCellDisplayModule,
     ],
 })
 export class ConsoleModule {}

@@ -1,1 +1,12 @@
-<p>spotting-type-cell-display works!</p>
+<spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
+<br />
+<a
+    *ngIf="rowItem.location"
+    href="https://www.google.com/maps?q={{ rowItem.location.latitude }},{{
+        rowItem.location.longitude
+    }}"
+    class="devui-link"
+    target="_blank"
+>
+    {{ rowItem.location | coordinatesHumanizer }}
+</a>

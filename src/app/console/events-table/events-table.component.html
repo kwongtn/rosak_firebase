@@ -82,20 +82,11 @@
                             </vehicle-table-cell-display>
                         </span>
                         <span *ngSwitchCase="'spottingType'">
-                            <spotting-type-tag
+                            <spotting-type-cell-display
+                                [rowItem]="rowItem"
                                 [spottingType]="rowItem[colOption.field]"
-                            ></spotting-type-tag
-                            ><br />
-                            <a
-                                *ngIf="rowItem.location"
-                                href="https://www.google.com/maps?q={{
-                                    rowItem.location.latitude
-                                }},{{ rowItem.location.longitude }}"
-                                class="devui-link"
-                                target="_blank"
                             >
-                                {{ rowItem.location | coordinatesHumanizer }}
-                            </a>
+                            </spotting-type-cell-display>
                         </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]
