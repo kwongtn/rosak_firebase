@@ -1,0 +1,49 @@
+<div
+    dPopover
+    bsStyle="common"
+    [content]="locationPopoverTemplate"
+    [position]="'right'"
+    [trigger]="'hover'"
+    [controlled]="true"
+    [popoverStyle]="{ backgroundColor: 'white', color: 'black' }"
+>
+    <spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
+    <br />
+    <a
+        *ngIf="rowItem.location"
+        href="https://www.google.com/maps?q={{ rowItem.location.latitude }},{{
+            rowItem.location.longitude
+        }}"
+        class="devui-link"
+        target="_blank"
+    >
+        {{ rowItem.location | coordinatesHumanizer: 3 }}
+    </a>
+</div>
+
+<ng-template #locationPopoverTemplate>
+    <table *ngIf="rowItem.location">
+        <tr *ngIf="rowItem.location.altitude">
+            <td>Altitude</td>
+            <td>:</td>
+            <td>
+                {{ rowItem.location.altitude }}m<span
+                    *ngIf="rowItem.location.altitudeAccuracy"
+                >
+                    ± {{ rowItem.location.altitudeAccuracy }}m</span
+                >
+            </td>
+        </tr>
+        <tr *ngIf="rowItem.location.heading">
+            <td>Heading</td>
+            <td>:</td>
+            <td>{{ rowItem.location.heading }}°</td>
+        </tr>
+
+        <tr *ngIf="rowItem.location.speed">
+            <td>Speed</td>
+            <td>:</td>
+            <td>{{ rowItem.location.speed * 3.6 }} km/h</td>
+        </tr>
+    </table>
+</ng-template>

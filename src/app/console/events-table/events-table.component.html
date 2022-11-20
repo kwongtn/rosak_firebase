@@ -82,9 +82,11 @@
                             </vehicle-table-cell-display>
                         </span>
                         <span *ngSwitchCase="'spottingType'">
-                            <spotting-type-tag
+                            <spotting-type-cell-display
+                                [rowItem]="rowItem"
                                 [spottingType]="rowItem[colOption.field]"
-                            ></spotting-type-tag>
+                            >
+                            </spotting-type-cell-display>
                         </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]

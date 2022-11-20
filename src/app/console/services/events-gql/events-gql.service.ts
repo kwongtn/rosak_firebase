@@ -25,12 +25,39 @@ export interface ConsoleEventsGqlResponseElement {
             }
         ];
     };
+    location: {
+        accuracy: number;
+        altitudeAccuracy: number | null;
+        heading: number | null;
+        speed: number | null;
+        location: [number, number];
+        altitude: number | null;
+    } | null;
+}
+
+export interface ConsoleEventsGqlResponseTableDataElement
+    extends Omit<ConsoleEventsGqlResponseElement, "location"> {
+    location: {
+        accuracy: number;
+        altitudeAccuracy: number | null;
+        heading: number | null;
+        speed: number | null;
+        latitude: number;
+        longitude: number;
+        altitude: number | null;
+    } | null;
 }
 
 export interface ConsoleEventsGqlResponse {
     eventsLastThreeDays: ConsoleEventsGqlResponseElement[];
     eventsLastFiveDaysHasNotes: ConsoleEventsGqlResponseElement[];
     eventsLastSevenDaysDifferentStatusThanVehicle: ConsoleEventsGqlResponseElement[];
+}
+
+export interface ConsoleEventsGqlResponseTableData {
+    eventsLastThreeDays: ConsoleEventsGqlResponseTableDataElement[];
+    eventsLastFiveDaysHasNotes: ConsoleEventsGqlResponseTableDataElement[];
+    eventsLastSevenDaysDifferentStatusThanVehicle: ConsoleEventsGqlResponseTableDataElement[];
 }
 
 @Injectable({
@@ -62,6 +89,14 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                         code
                     }
                 }
+                location {
+                    accuracy
+                    altitudeAccuracy
+                    heading
+                    speed
+                    location
+                    altitude
+                }
             }
             eventsLastFiveDaysHasNotes: events(
                 filters: $eventsLastFiveDaysHasNotesFilters
@@ -84,6 +119,14 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                         code
                     }
                 }
+                location {
+                    accuracy
+                    altitudeAccuracy
+                    heading
+                    speed
+                    location
+                    altitude
+                }
             }
             eventsLastSevenDaysDifferentStatusThanVehicle: events(
                 filters: $eventsLastSevenDaysDifferentStatusThanVehicleFilters
@@ -105,6 +148,14 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                     lines {
                         code
                     }
+                }
+                location {
+                    accuracy
+                    altitudeAccuracy
+                    heading
+                    speed
+                    location
+                    altitude
                 }
             }
         }

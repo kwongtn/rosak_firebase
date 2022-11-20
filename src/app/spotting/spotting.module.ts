@@ -21,6 +21,9 @@ import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
 import {
+    SpottingTypeCellDisplayModule,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
@@ -88,6 +91,7 @@ import {
         SpottingTypePipeModule,
         VehicleStatusTagModule,
         CoordinatesHumanizerModule,
+        SpottingTypeCellDisplayModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [

@@ -14,6 +14,9 @@ import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import {
+    SpottingTypeCellDisplayModule,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+import {
     SpottingTypeTagModule,
 } from "../@ui/spotting-type-tag/spotting-type-tag.module";
 import {
@@ -22,6 +25,9 @@ import {
 import {
     VehicleTableCellDisplayModule,
 } from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.module";
+import {
+    CoordinatesHumanizerModule,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
 import {
     VehicleStatusPipeModule,
 } from "../pipes/vehicle-status/vehicle-status.module";
@@ -47,6 +53,8 @@ import { ConsoleMainComponent } from "./main/main.component";
         CheckBoxModule,
         ButtonModule,
         FormsModule,
+        CoordinatesHumanizerModule,
+        SpottingTypeCellDisplayModule,
     ],
 })
 export class ConsoleModule {}
