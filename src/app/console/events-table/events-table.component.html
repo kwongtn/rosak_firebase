@@ -84,7 +84,18 @@
                         <span *ngSwitchCase="'spottingType'">
                             <spotting-type-tag
                                 [spottingType]="rowItem[colOption.field]"
-                            ></spotting-type-tag>
+                            ></spotting-type-tag
+                            ><br />
+                            <a
+                                *ngIf="rowItem.location"
+                                href="https://www.google.com/maps?q={{
+                                    rowItem.location.latitude
+                                }},{{ rowItem.location.longitude }}"
+                                class="devui-link"
+                                target="_blank"
+                            >
+                                {{ rowItem.location | coordinatesHumanizer }}
+                            </a>
                         </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]

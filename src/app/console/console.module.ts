@@ -23,6 +23,9 @@ import {
     VehicleTableCellDisplayModule,
 } from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.module";
 import {
+    CoordinatesHumanizerModule,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
+import {
     VehicleStatusPipeModule,
 } from "../pipes/vehicle-status/vehicle-status.module";
 import {
@@ -47,6 +50,7 @@ import { ConsoleMainComponent } from "./main/main.component";
         CheckBoxModule,
         ButtonModule,
         FormsModule,
+        CoordinatesHumanizerModule,
     ],
 })
 export class ConsoleModule {}
