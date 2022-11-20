@@ -205,6 +205,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private toastService: ToastService
     ) {
         const line = spottingStorageService.getLine();
+        const type = spottingStorageService.getType();
 
         this.formGroup = this.fb.group(
             {
@@ -220,13 +221,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     },
                     [Validators.required]
                 ),
-                type: new UntypedFormControl(
-                    {
-                        name: "Just Spotting",
-                        value: "JUST_SPOTTING",
-                    },
-                    [Validators.required]
-                ),
+                type: new UntypedFormControl(type, [Validators.required]),
                 originStation: new UntypedFormControl("", []),
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
@@ -417,6 +412,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         formValues["vehicle"] = formValues["vehicle"].value;
         formValues["status"] = formValues["status"].value;
+        
+        this.spottingStorageService.setType(formValues["type"]);
         formValues["type"] = formValues["type"].value;
 
         this.spottingStorageService.setLine(formValues["line"]);

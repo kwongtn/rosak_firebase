@@ -5,6 +5,10 @@ import { Injectable } from "@angular/core";
 })
 export class SpottingStorageService {
     lineObj: any | undefined;
+    typeObj: any = {
+        name: "Just Spotting",
+        value: "JUST_SPOTTING",
+    };
 
     constructor() {
         return;
@@ -16,5 +20,13 @@ export class SpottingStorageService {
 
     getLine(): any | undefined {
         return this.lineObj;
+    }
+
+    setType(typeObj: any) {
+        this.typeObj = typeObj;
+    }
+
+    getType(): any {
+        return this.typeObj;
     }
 }
