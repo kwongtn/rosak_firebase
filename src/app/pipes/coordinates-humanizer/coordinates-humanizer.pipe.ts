@@ -4,13 +4,15 @@ import { Pipe, PipeTransform } from "@angular/core";
     name: "coordinatesHumanizer",
 })
 export class CoordinatesHumanizerPipe implements PipeTransform {
-    transform(value: GeolocationCoordinates): string {
+    transform(value: GeolocationCoordinates, toFixedCount: number = 5): string {
         console.log(value);
         const latSign = value.latitude > 0 ? "N" : "S";
         const lonSign = value.longitude > 0 ? "E" : "W";
 
-        return `${Math.abs(value.latitude).toFixed(5)}${latSign}, ${Math.abs(
-            value.longitude
-        ).toFixed(5)}${lonSign} ± ${value.accuracy.toFixed(5)}m`;
+        return `${Math.abs(value.latitude).toFixed(
+            toFixedCount
+        )}${latSign}, ${Math.abs(value.longitude).toFixed(
+            toFixedCount
+        )}${lonSign} ± ${value.accuracy.toFixed(toFixedCount)}m`;
     }
 }
