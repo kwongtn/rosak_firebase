@@ -14,11 +14,20 @@ export class SpottingTypeCellDisplayComponent implements OnInit {
     @Input() rowItem!: ConsoleEventsGqlResponseTableDataElement;
     @Input() spottingType!: SpottingType;
 
+    showPopover: boolean = false;
+
     constructor() {
         return;
     }
 
     ngOnInit(): void {
+        if (
+            this.rowItem.location?.altitude ||
+            this.rowItem.location?.heading ||
+            this.rowItem.location?.speed
+        ) {
+            this.showPopover = true;
+        }
         return;
     }
 }
