@@ -11,10 +11,11 @@ import {
 
 import {
     ConsoleEventsGqlResponseElement,
+    ConsoleEventsGqlResponseTableDataElement,
 } from "../services/events-gql/events-gql.service";
 import { MarkReadService } from "../services/mark-read/mark-read.service";
 
-interface TableSourceType extends ConsoleEventsGqlResponseElement {
+interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
     $checked?: boolean;
     $checkDisabled?: boolean;
 }
@@ -110,11 +111,21 @@ export class ConsoleEventsTableComponent implements OnInit {
                 return bDate - aDate;
             })
             .map((val) => {
-                return {
+                const returnObj: any = {
                     ...val,
                     $checked: false,
                     $checkDisabled: false,
                 };
+
+                if (val.location) {
+                    returnObj.location = {
+                        ...val.location,
+                        latitude: val.location.location[1],
+                        longitude: val.location.location[0],
+                    };
+                }
+
+                return returnObj;
             });
     }
 
