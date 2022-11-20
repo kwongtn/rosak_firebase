@@ -61,11 +61,37 @@ export interface LastSpottings {
     status: VehicleStatus;
     type: SpottingType;
     notes: string;
+    location: {
+        accuracy: number;
+        altitudeAccuracy: number | null;
+        heading: number | null;
+        speed: number | null;
+        location: [number, number];
+        altitude: number | null;
+    } | null;
 }
 
 export interface GetVehiclesLastSpottingResponse {
     vehicles: Array<{
         lastSpottings: Array<LastSpottings>;
+    }>;
+}
+
+export interface LastSpottingsTableElement
+    extends Omit<LastSpottings, "location"> {
+    location: {
+        accuracy: number;
+        altitudeAccuracy: number | null;
+        heading: number | null;
+        speed: number | null;
+        location: [number, number];
+        altitude: number | null;
+    } | null;
+}
+
+export interface GetVehiclesLastSpottingData {
+    vehicles: Array<{
+        lastSpottings: Array<LastSpottingsTableElement>;
     }>;
 }
 

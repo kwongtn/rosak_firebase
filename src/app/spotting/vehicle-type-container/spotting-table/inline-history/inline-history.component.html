@@ -35,7 +35,11 @@
                                 ></vehicle-status-tag>
                             </span>
                             <span *ngSwitchCase="'type'">
-                                {{ rowItem[colOption.field] | spottingType }}
+                                <spotting-type-cell-display
+                                    [rowItem]="rowItem"
+                                    [spottingType]="rowItem[colOption.field]"
+                                >
+                                </spotting-type-cell-display>
                             </span>
                             <span *ngSwitchDefault>{{
                                 rowItem[colOption.field]

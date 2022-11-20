@@ -3,7 +3,7 @@ import { TableWidthConfig } from "ng-devui";
 import { Subscription } from "rxjs";
 import {
     GetVehiclesLastSpottingResponse,
-    LastSpottings,
+    LastSpottingsTableElement,
 } from "src/app/models/query/get-vehicles";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
@@ -16,6 +16,14 @@ const GET_VEHICLE_LAST_SPOTTINGS = gql`
                 status
                 type
                 notes
+                location {
+                    accuracy
+                    altitudeAccuracy
+                    heading
+                    speed
+                    location
+                    altitude
+                }
             }
         }
     }
@@ -32,7 +40,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
     querySubscription!: Subscription;
 
-    dataSource: LastSpottings[] = [];
+    dataSource: LastSpottingsTableElement[] = [];
 
     dataTableOptions = {
         columns: [
@@ -87,7 +95,21 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
             })
             .subscribe(({ data, loading }) => {
                 this.showLoading = false;
-                this.dataSource = data.vehicles[0].lastSpottings;
+                this.dataSource = data.vehicles[0].lastSpottings.map((val) => {
+                    const returnObj: any = {
+                        ...val,
+                    };
+
+                    if (val.location) {
+                        returnObj.location = {
+                            ...val.location,
+                            latitude: val.location.location[1],
+                            longitude: val.location.location[0],
+                        };
+                    }
+
+                    return returnObj;
+                });
             });
     }
 
