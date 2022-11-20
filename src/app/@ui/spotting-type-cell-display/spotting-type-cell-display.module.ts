@@ -1,4 +1,4 @@
-import { TooltipModule } from "ng-devui";
+import { PopoverModule } from "ng-devui/popover";
 import {
     CoordinatesHumanizerModule,
 } from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.module";
@@ -18,7 +18,7 @@ import {
     imports: [
         CommonModule,
         SpottingTypeTagModule,
-        TooltipModule,
+        PopoverModule,
         CoordinatesHumanizerModule,
     ],
     exports: [SpottingTypeCellDisplayComponent],
