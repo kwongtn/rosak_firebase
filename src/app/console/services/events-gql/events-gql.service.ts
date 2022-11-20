@@ -26,25 +26,25 @@ export interface ConsoleEventsGqlResponseElement {
         ];
     };
     location: {
-        accuracy: string;
-        altitudeAccuracy: string | null;
-        heading: string | null;
-        speed: string | null;
+        accuracy: number;
+        altitudeAccuracy: number | null;
+        heading: number | null;
+        speed: number | null;
         location: [number, number];
-        altitude: string | null;
+        altitude: number | null;
     } | null;
 }
 
 export interface ConsoleEventsGqlResponseTableDataElement
     extends Omit<ConsoleEventsGqlResponseElement, "location"> {
     location: {
-        accuracy: string;
-        altitudeAccuracy: string | null;
-        heading: string | null;
-        speed: string | null;
+        accuracy: number;
+        altitudeAccuracy: number | null;
+        heading: number | null;
+        speed: number | null;
         latitude: number;
         longitude: number;
-        altitude: string | null;
+        altitude: number | null;
     } | null;
 }
 
