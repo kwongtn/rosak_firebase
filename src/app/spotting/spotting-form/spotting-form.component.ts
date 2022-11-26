@@ -39,6 +39,7 @@ import {
 import { VehicleFormOption } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
+    atStationTypeStationValidator,
     betweenStationTypeOriginDestinationStationValidator,
     numberSeenToSetNumber,
 } from "./spotting-form.utils";
@@ -115,6 +116,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     loading: { [key: string]: boolean } = {
         originStation: true,
         destinationStation: true,
+        atStation: true,
         vehicle: true,
         line: true,
     };
@@ -226,6 +228,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     [Validators.required]
                 ),
                 type: new UntypedFormControl(type, [Validators.required]),
+                atStation: new UntypedFormControl("", []),
                 originStation: new UntypedFormControl("", []),
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
@@ -237,6 +240,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 validators: [
                     betweenStationTypeOriginDestinationStationValidator,
                     abnormalStatusSanityTestValidator,
+                    atStationTypeStationValidator,
                 ],
             }
         );
@@ -306,6 +310,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
             this.loading["originStation"] = true;
             this.loading["destinationStation"] = true;
+            this.loading["atStation"] = true;
 
             this.stationQuerySubscription = this.getStationLinesGql
                 .watch({
@@ -321,6 +326,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
                     this.loading["originStation"] = loading;
                     this.loading["destinationStation"] = loading;
+                    this.loading["atStation"] = loading;
 
                     this.stationOptions =
                         lineQueryResultToStationCascaderOptions(data);
@@ -384,6 +390,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             vehicle: "",
             originStation: "",
             destinationStation: "",
+            atStation: "",
         });
 
         return;
@@ -405,9 +412,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["destinationStation"] =
                 formValues["destinationStation"].value;
         } else if (formValues.type.value === "AT_STATION") {
-            formValues["originStation"] = formValues["originStation"].value;
+            formValues["originStation"] = formValues["atStation"].value;
             formValues["destinationStation"] = undefined;
+            formValues["atStation"] = undefined;
         } else {
+            formValues["atStation"] = undefined;
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         }

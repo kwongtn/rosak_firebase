@@ -43,6 +43,24 @@ export function abnormalStatusSanityTestValidator(
     }
 }
 
+export function atStationTypeStationValidator(
+    abstractControl: AbstractControl
+): ValidationErrors | null {
+    const errors: any = {};
+
+    if (abstractControl.get("type")?.value.value === "AT_STATION") {
+        if (!abstractControl.get("atStation")?.value) {
+            errors["atStation"] = "Station not selected";
+        }
+    }
+
+    if (JSON.stringify(errors) === "{}") {
+        return null;
+    } else {
+        return errors;
+    }
+}
+
 export function numberSeenToSetNumber(input: string, line: string) {
     const props: {
         [key: string]: {
