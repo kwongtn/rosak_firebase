@@ -212,7 +212,13 @@
             </d-form-item>
         </div>
 
-        <div *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'">
+        <div
+            *ngIf="
+                ['BETWEEN_STATIONS', 'AT_STATION'].includes(
+                    this.formGroup.value.type.value
+                )
+            "
+        >
             <d-form-item>
                 <d-form-label>Origin Station</d-form-label>
 
@@ -229,7 +235,13 @@
                     </d-select>
                 </d-form-control>
             </d-form-item>
+        </div>
 
+        <div
+            *ngIf="
+                ['BETWEEN_STATIONS'].includes(this.formGroup.value.type.value)
+            "
+        >
             <d-form-item>
                 <d-form-label>Destination Station</d-form-label>
                 <d-form-control

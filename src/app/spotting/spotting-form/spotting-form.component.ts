@@ -102,6 +102,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             name: "Just Spotting",
             value: "JUST_SPOTTING",
         },
+        {
+            name: "At Station",
+            value: "AT_STATION",
+        },
     ];
 
     stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
@@ -281,7 +285,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     onInputTypeChanges() {
-        if (this.formGroup.value.type.value === "BETWEEN_STATIONS") {
+        if (
+            ["BETWEEN_STATIONS", "AT_STATION"].includes(
+                this.formGroup.value.type.value
+            )
+        ) {
             if (!this.formGroup.value.line) {
                 this.formGroup.patchValue({
                     type: {
@@ -392,14 +400,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         const formValues = { ...this.formGroup.value };
 
         // Form Distillation
-        if (formValues.type.value !== "BETWEEN_STATIONS") {
-            formValues["originStation"] = undefined;
-            formValues["destinationStation"] = undefined;
-        } else {
+        if (formValues.type.value === "BETWEEN_STATIONS") {
             formValues["originStation"] = formValues["originStation"].value;
             formValues["destinationStation"] =
                 formValues["destinationStation"].value;
+        } else if (formValues.type.value === "AT_STATION") {
+            formValues["originStation"] = formValues["originStation"].value;
+            formValues["destinationStation"] = undefined;
+        } else {
+            formValues["originStation"] = undefined;
+            formValues["destinationStation"] = undefined;
         }
+
         if (formValues.type.value !== "LOCATION") {
             formValues["location"] = undefined;
         }
@@ -412,7 +424,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         formValues["vehicle"] = formValues["vehicle"].value;
         formValues["status"] = formValues["status"].value;
-        
+
         this.spottingStorageService.setType(formValues["type"]);
         formValues["type"] = formValues["type"].value;
 
