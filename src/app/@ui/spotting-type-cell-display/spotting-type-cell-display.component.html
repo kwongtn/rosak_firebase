@@ -1,27 +1,11 @@
 <div
-    *ngIf="showPopover"
     dPopover
     bsStyle="common"
-    [content]="locationPopoverTemplate"
+    [content]="rowItem.location ? locationPopoverTemplate : null"
     [position]="'right'"
     [trigger]="'hover'"
     [controlled]="true"
 >
-    <spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
-    <br />
-    <a
-        *ngIf="rowItem.location"
-        href="https://www.google.com/maps?q={{ rowItem.location.latitude }},{{
-            rowItem.location.longitude
-        }}"
-        class="devui-link"
-        target="_blank"
-    >
-        {{ rowItem.location | coordinatesHumanizer: 3 }}
-    </a>
-</div>
-
-<div *ngIf="!showPopover">
     <spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
     <br />
     <a
