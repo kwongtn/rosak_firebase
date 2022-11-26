@@ -1,6 +1,11 @@
 import { Component, Input, OnInit } from "@angular/core";
 
-type SpottingType = "DEPOT" | "LOCATION" | "BETWEEN_STATIONS" | "JUST_SPOTTING";
+type SpottingType =
+    | "DEPOT"
+    | "LOCATION"
+    | "BETWEEN_STATIONS"
+    | "JUST_SPOTTING"
+    | "AT_STATION";
 
 @Component({
     selector: "spotting-type-tag",
