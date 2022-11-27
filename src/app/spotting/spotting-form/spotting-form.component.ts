@@ -433,10 +433,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["destinationStation"] = undefined;
             formValues["atStation"] = undefined;
         } else {
-            formValues["atStation"] = undefined;
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         }
+        
+        formValues["atStation"] = undefined;
 
         if (formValues.type.value !== "LOCATION") {
             formValues["location"] = undefined;
