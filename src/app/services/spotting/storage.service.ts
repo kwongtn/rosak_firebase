@@ -9,6 +9,7 @@ export class SpottingStorageService {
         name: "Just Spotting",
         value: "JUST_SPOTTING",
     };
+    atStationStationObj: any | undefined;
 
     constructor() {
         return;
@@ -28,5 +29,13 @@ export class SpottingStorageService {
 
     getType(): any {
         return this.typeObj;
+    }
+
+    setAtStationStation(atStationStationObj: any) {
+        this.atStationStationObj = atStationStationObj;
+    }
+
+    getAtStationStation(): any {
+        return this.atStationStationObj;
     }
 }

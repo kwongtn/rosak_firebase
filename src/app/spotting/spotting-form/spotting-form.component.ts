@@ -212,6 +212,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ) {
         const line = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
+        const atStationStation = spottingStorageService.getAtStationStation();
 
         this.formGroup = this.fb.group(
             {
@@ -228,7 +229,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     [Validators.required]
                 ),
                 type: new UntypedFormControl(type, [Validators.required]),
-                atStation: new UntypedFormControl("", []),
+                atStation: new UntypedFormControl(atStationStation, []),
                 originStation: new UntypedFormControl("", []),
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
@@ -330,6 +331,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
                     this.stationOptions =
                         lineQueryResultToStationCascaderOptions(data);
+
+                    const atStationStation =
+                        this.spottingStorageService.getAtStationStation();
+                    if (
+                        atStationStation &&
+                        this.spottingStorageService.getLine().value ==
+                            this.formGroup.value.line.value
+                    ) {
+                        this.formGroup.patchValue({
+                            atStation: atStationStation,
+                        });
+                    }
                 });
         } else if (this.formGroup.value.type.value === "LOCATION") {
             navigator.geolocation.getCurrentPosition(
@@ -412,6 +425,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["destinationStation"] =
                 formValues["destinationStation"].value;
         } else if (formValues.type.value === "AT_STATION") {
+            this.spottingStorageService.setAtStationStation({
+                ...formValues["atStation"],
+            });
+
             formValues["originStation"] = formValues["atStation"].value;
             formValues["destinationStation"] = undefined;
             formValues["atStation"] = undefined;
