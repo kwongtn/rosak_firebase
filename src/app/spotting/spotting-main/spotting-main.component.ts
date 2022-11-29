@@ -38,14 +38,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     tabActiveId: string | number | undefined = undefined;
     tabItems: LineTabType[] = [];
 
-    /**
-     * TODO: Make such that the tables will load only after clicking on tab
-     *
-     * Steps:
-     * 1. Only load lines
-     * 2. Load vehicles of a line
-     * 3. On change tab, load more vehicles of those lines
-     */
     currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
 
@@ -63,8 +55,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     openStandardDialog(dialogtype?: string) {
         const results = this.dialogService.open({
             id: "dialog-service",
-            width: "600px",
-            maxHeight: "600px",
             title: "Add spotting entry",
             content: SpottingFormComponent,
             backdropCloseable: true,
