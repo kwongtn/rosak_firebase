@@ -414,10 +414,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
-            return Promise.resolve(undefined);
+            throw Error("Form is invalid");
         }
 
         const formValues = { ...this.formGroup.value };
+
+        if (formValues.type.value !== "LOCATION") {
+            formValues["location"] = undefined;
+        } else {
+            if (!formValues["location"]) {
+                throw Error("Location has not been loaded");
+            }
+        }
 
         // Form Distillation
         if (formValues.type.value === "BETWEEN_STATIONS") {
@@ -436,12 +444,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         }
-        
-        formValues["atStation"] = undefined;
 
-        if (formValues.type.value !== "LOCATION") {
-            formValues["location"] = undefined;
-        }
+        formValues["atStation"] = undefined;
 
         const date: Date = formValues["spottingDate"];
         date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
