@@ -414,7 +414,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
-            throw Error("Form is invalid");
+            console.log(this.formGroup.value);
+            throw new Error("Form is invalid");
         }
 
         const formValues = { ...this.formGroup.value };
@@ -423,7 +424,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
-                throw Error("Location has not been loaded");
+                throw new Error("Location has not been loaded");
             }
         }
 
