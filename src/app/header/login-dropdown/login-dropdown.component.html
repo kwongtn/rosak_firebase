@@ -6,9 +6,11 @@
             [width]="60"
             [height]="60"
         ></d-avatar>
-        <d-card-title>{{
-            (authService.userData | async)?.displayName
-        }}</d-card-title>
+        <d-card-title
+            ><a [href]="profileHref" [routerLink]="profileHref" class="text">{{
+                (authService.userData | async)?.displayName
+            }}</a></d-card-title
+        >
         <d-card-subtitle>{{
             (authService.userData | async)?.email
         }}</d-card-subtitle>
