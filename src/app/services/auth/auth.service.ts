@@ -149,7 +149,7 @@ export class AuthService {
         }
     }
 
-    getIdToken(){
+    getIdToken(): Promise<string> | undefined {
         return this.userData.getValue()?.getIdToken();
     }
 }
