@@ -2,7 +2,6 @@ import { Observable, takeWhile } from "rxjs";
 import { AuthService, UserAuthData } from "src/app/services/auth/auth.service";
 
 import { Injectable } from "@angular/core";
-import { AngularFireAuth } from "@angular/fire/compat/auth";
 import {
     ActivatedRouteSnapshot,
     CanActivate,
@@ -24,11 +23,7 @@ implements CanActivate, CanActivateChild, CanDeactivate<unknown>, CanLoad
 {
     permissions$: Observable<UserAuthData | null | undefined>;
 
-    constructor(
-        private authService: AuthService,
-        private router: Router,
-        private angularFireAuth: AngularFireAuth
-    ) {
+    constructor(private authService: AuthService, private router: Router) {
         this.permissions$ = this.authService.userAuth$;
     }
 
