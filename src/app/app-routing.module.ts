@@ -9,6 +9,8 @@ import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import { AdminGuard } from "./guards/admin/admin.guard";
+import { LoginGuard } from "./guards/login/login.guard";
+import { ProfileMainComponent } from "./profile/main/main.component";
 import {
     SpottingMainComponent,
 } from "./spotting/spotting-main/spotting-main.component";
@@ -31,7 +33,7 @@ const maintenance: MaintananceDocument = {
 const routes: Routes = [
     {
         path: "spotting",
-        title: "MLPTF | Spotting",
+        title: "MLPTF | TranSpot",
         loadChildren: async () => {
             if (maintenance.spotting.curentlyInMaintenance) {
                 const module = await import(
@@ -49,7 +51,7 @@ const routes: Routes = [
     },
     {
         path: "spotting/:id",
-        title: "MLPTF | Spotting",
+        title: "MLPTF | TranSpot",
         loadChildren: async () => {
             if (maintenance.spotting.curentlyInMaintenance) {
                 const module = await import(
@@ -89,6 +91,15 @@ const routes: Routes = [
         component: ConsoleMainComponent,
         canLoad: [AdminGuard],
         canActivate: [AdminGuard],
+    },
+    {
+        path: "profile",
+        title: "MLPTF | Profile",
+        loadChildren: () =>
+            import("./profile/profile.module").then((m) => m.ProfileModule),
+        component: ProfileMainComponent,
+        canLoad: [LoginGuard],
+        canActivate: [LoginGuard],
     },
     {
         path: "",
