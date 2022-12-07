@@ -1,4 +1,5 @@
-import { TableWidthConfig } from "ng-devui";
+import { QueryRef } from "apollo-angular";
+import { DataTableComponent, TableWidthConfig } from "ng-devui";
 import { Subscription } from "rxjs";
 import {
     ConsoleEventsGqlResponseTableDataElement,
@@ -17,7 +18,6 @@ import { GetEventsService } from "../services/get-events.service";
 })
 export class ProfileSpottingsComponent implements OnInit, OnDestroy {
     private mainQuerySubscription!: Subscription;
-    queryResult = {};
     loading = true;
 
     // Pagination
@@ -85,6 +85,8 @@ export class ProfileSpottingsComponent implements OnInit, OnDestroy {
         { field: "notes", width: "500px" },
     ];
 
+    watchQueryOption!: QueryRef<any>;
+
     constructor(
         private getEventsGql: GetEventsService,
         public authService: AuthService
@@ -93,52 +95,80 @@ export class ProfileSpottingsComponent implements OnInit, OnDestroy {
     async ngOnInit() {
         const authKey = await this.authService.getIdToken();
 
-        this.mainQuerySubscription = this.getEventsGql
-            .watch(
-                {
-                    eventFilters: {
-                        onlyMine: true,
+        this.watchQueryOption = this.getEventsGql.watch(
+            {
+                eventFilters: {
+                    onlyMine: true,
+                },
+                eventOrder: {
+                    created: "DESC",
+                },
+                eventPagination: {
+                    limit: this.limit,
+                    offset: this.offset,
+                },
+            },
+            {
+                context: {
+                    headers: {
+                        "firebase-auth-key": authKey,
                     },
-                    eventOrder: {
-                        created: "DESC",
-                    },
+                },
+                fetchPolicy: "network-only",
+            }
+        );
+
+        this.mainQuerySubscription =
+            this.watchQueryOption.valueChanges.subscribe(
+                ({ data, loading }) => {
+                    this.displayData = this.displayData.concat(
+                        this.mapGqlResultsToDisplayData(data)
+                    );
+
+                    this.loading = loading;
+                    this.offset = this.displayData.length;
+                }
+            );
+    }
+
+    loadMore($event: DataTableComponent) {
+        this.loading = true;
+
+        this.watchQueryOption
+            .fetchMore({
+                variables: {
                     eventPagination: {
                         limit: this.limit,
                         offset: this.offset,
                     },
                 },
-                {
-                    context: {
-                        headers: {
-                            "firebase-auth-key": authKey,
-                        },
-                    },
-                }
-            )
-            .valueChanges.subscribe(({ data, loading }) => {
-                console.log("Query loading: ", loading);
-                console.log("Query data: ", data);
-
-                this.queryResult = data;
+            })
+            .then(({ data, loading }) => {
+                this.displayData = this.displayData.concat(
+                    this.mapGqlResultsToDisplayData(data)
+                );
 
                 this.loading = loading;
-
-                this.displayData = data.events.map((val) => {
-                    const returnObj: any = {
-                        ...val,
-                    };
-
-                    if (val.location) {
-                        returnObj.location = {
-                            ...val.location,
-                            latitude: val.location.location[1],
-                            longitude: val.location.location[0],
-                        };
-                    }
-
-                    return returnObj;
-                });
+                this.offset = this.displayData.length;
             });
+    }
+
+    mapGqlResultsToDisplayData(data: any) {
+        return data.events.map((val: any) => {
+            const returnObj: any = {
+                ...val,
+            };
+
+            if (val.location) {
+                returnObj.location = {
+                    ...val.location,
+                    latitude: val.location.location[1],
+                    longitude: val.location.location[0],
+                };
+            }
+
+            return returnObj;
+        });
     }
 
     ngOnDestroy(): void {

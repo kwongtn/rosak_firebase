@@ -3,6 +3,8 @@
     [scrollable]="true"
     [tableOverflowType]="'overlay'"
     [tableWidthConfig]="tableWidthConfig"
+    [lazy]="true"
+    (loadMore)="loadMore($event)"
     dLoading
     [showLoading]="loading"
     [backdrop]="true"
