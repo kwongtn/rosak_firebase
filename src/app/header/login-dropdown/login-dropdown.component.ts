@@ -10,6 +10,8 @@ import { Component, Input, OnInit } from "@angular/core";
 export class LoginDropdownComponent implements OnInit {
     @Input() userAvatar: any;
 
+    profileHref: string = "/profile";
+
     constructor(public authService: AuthService) {
         return;
     }

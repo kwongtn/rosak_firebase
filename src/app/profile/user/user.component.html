@@ -1,0 +1,26 @@
+<d-card>
+    <d-card-header>
+        <d-avatar
+            *ngIf="user.photoURL"
+            dCardAvatar
+            [imgSrc]="user.photoURL"
+            [width]="150"
+            [height]="150"
+        ></d-avatar>
+        <d-card-title>
+            <h1>
+                {{ user.displayName }}
+            </h1>
+        </d-card-title>
+        <d-card-subtitle>
+            <span *ngIf="user.emailVerified">
+                {{ user.email }}
+            </span>
+            <span *ngIf="user.phoneNumber"> ({{ user.phoneNumber }}) </span>
+        </d-card-subtitle>
+    </d-card-header>
+    <d-card-content dLoading [loading]="loading">
+        Total spottings to date: {{ displayData.spottingsCount }}
+    </d-card-content>
+    <d-card-actions></d-card-actions>
+</d-card>

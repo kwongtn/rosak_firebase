@@ -1,12 +1,10 @@
 import { Observable, takeWhile } from "rxjs";
-import { AuthService, UserAuthData } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth/auth.service";
 
 import { Injectable } from "@angular/core";
 import {
     ActivatedRouteSnapshot,
     CanActivate,
-    CanActivateChild,
-    CanDeactivate,
     CanLoad,
     Route,
     Router,
@@ -18,15 +16,8 @@ import {
 @Injectable({
     providedIn: "root",
 })
-export class AdminGuard
-implements CanActivate, CanActivateChild, CanDeactivate<unknown>, CanLoad
-{
-    permissions$: Observable<UserAuthData | null | undefined>;
-
-    constructor(private authService: AuthService, private router: Router) {
-        this.permissions$ = this.authService.userAuth$;
-    }
-
+export class LoginGuard implements CanActivate, CanLoad {
+    constructor(private authService: AuthService, private router: Router) {}
     canActivate(
         route: ActivatedRouteSnapshot,
         state: RouterStateSnapshot
@@ -51,39 +42,15 @@ implements CanActivate, CanActivateChild, CanDeactivate<unknown>, CanLoad
                             return;
                         } else if (userAuthData === null) {
                             reject("userAuthData is null.");
+                            this.router.parseUrl("/");
                             return;
                         } else {
-                            if (userAuthData.permissions) {
-                                resolve(
-                                    userAuthData.permissions.admin ?? false
-                                );
-                            }
+                            resolve(true);
+                            return;
                         }
                     },
                 });
         });
-    }
-    canActivateChild(
-        childRoute: ActivatedRouteSnapshot,
-        state: RouterStateSnapshot
-    ):
-        | Observable<boolean | UrlTree>
-        | Promise<boolean | UrlTree>
-        | boolean
-        | UrlTree {
-        return true;
-    }
-    canDeactivate(
-        component: unknown,
-        currentRoute: ActivatedRouteSnapshot,
-        currentState: RouterStateSnapshot,
-        nextState?: RouterStateSnapshot
-    ):
-        | Observable<boolean | UrlTree>
-        | Promise<boolean | UrlTree>
-        | boolean
-        | UrlTree {
-        return true;
     }
     canLoad(
         route: Route,
