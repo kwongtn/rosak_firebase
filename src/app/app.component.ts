@@ -14,16 +14,16 @@ interface BackendBuildInfo {
 
 const initialMenuList: { [key: string]: string }[] = [
     {
-        name: "Spotting",
+        name: "TranSpot",
         href: "/spotting",
         target: "_self",
-        tag: "Alpha",
-        style: "danger",
+        tag: "Beta",
+        style: "waiting",
     },
     {
         name: "About",
         href: "/about",
-        tag: "Prelim",
+        // tag: "Prelim",
         style: "default",
     },
 ];
@@ -43,6 +43,12 @@ export class AppComponent implements OnInit, OnDestroy {
         hash: "...",
         datetime: "...",
     };
+
+    public counter = 21;
+
+    public handleOnClick(stateCounter: number) {
+        this.counter++;
+    }
 
     constructor(
         public authService: AuthService,
