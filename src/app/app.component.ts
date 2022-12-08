@@ -24,7 +24,7 @@ const initialMenuList: { [key: string]: string }[] = [
         name: "About",
         href: "/about",
         // tag: "Prelim",
-        style: "default",
+        // style: "default",
     },
 ];
 

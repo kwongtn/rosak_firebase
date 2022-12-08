@@ -20,9 +20,9 @@ interface UserData {
 export class ProfileUserComponent implements OnInit, OnDestroy {
     user!: firebase.User;
     watchQueryOption!: QueryRef<any>;
-    displayData!: UserData;
+    displayData: UserData | undefined = undefined;
     loading = true;
-    
+
     private mainQuerySubscription!: Subscription;
 
     constructor(
@@ -36,14 +36,17 @@ export class ProfileUserComponent implements OnInit, OnDestroy {
         const authKey = await this.authService.getIdToken();
 
         this.mainQuerySubscription = this.getUserDataGql
-            .watch({},{
-                context: {
-                    headers: {
-                        "firebase-auth-key": authKey,
+            .watch(
+                {},
+                {
+                    context: {
+                        headers: {
+                            "firebase-auth-key": authKey,
+                        },
                     },
-                },
-                fetchPolicy: "network-only",
-            })
+                    fetchPolicy: "network-only",
+                }
+            )
             .valueChanges.subscribe(({ data, loading }) => {
                 this.loading = loading;
 
@@ -51,7 +54,6 @@ export class ProfileUserComponent implements OnInit, OnDestroy {
             });
     }
 
-    
     ngOnDestroy(): void {
         this.mainQuerySubscription?.unsubscribe();
     }
