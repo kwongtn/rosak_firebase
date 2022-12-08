@@ -1,4 +1,6 @@
 import { DataTableModule, LoadingModule } from "ng-devui";
+import { AvatarModule } from "ng-devui/avatar";
+import { CardModule } from "ng-devui/card";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -29,10 +31,12 @@ import { ProfileUserComponent } from "./user/user.component";
         CommonModule,
         DataTableModule,
         LoadingModule,
+        CardModule,
         CoordinatesHumanizerModule,
         SpottingTypeCellDisplayModule,
         VehicleStatusTagModule,
         VehicleTableCellDisplayModule,
+        AvatarModule,
     ],
 })
 export class ProfileModule {}
