@@ -7,13 +7,7 @@ import {
 import { AuthService } from "src/app/services/auth/auth.service";
 import { environment } from "src/environments/environment";
 
-import {
-    AfterViewInit,
-    Component,
-    OnDestroy,
-    OnInit,
-    ViewChild,
-} from "@angular/core";
+import { Component, OnDestroy, OnInit, ViewChild } from "@angular/core";
 
 import { GetEventsService } from "../services/get-events.service";
 
@@ -22,9 +16,7 @@ import { GetEventsService } from "../services/get-events.service";
     templateUrl: "./spottings.component.html",
     styleUrls: ["./spottings.component.scss"],
 })
-export class ProfileSpottingsComponent
-implements OnInit, OnDestroy, AfterViewInit
-{
+export class ProfileSpottingsComponent implements OnInit, OnDestroy {
     @ViewChild("tableInstance") tableInstance!: DataTableComponent;
     private mainQuerySubscription!: Subscription;
     loading = true;
@@ -138,6 +130,9 @@ implements OnInit, OnDestroy, AfterViewInit
                     this.offset = this.displayData.length;
                 }
             );
+
+        // Maintain scroll position on new data load
+        this.tableInstance.normalScrollElement.nativeElement.scrollTop = 0;
     }
 
     loadMore($event: DataTableComponent) {
@@ -182,10 +177,5 @@ implements OnInit, OnDestroy, AfterViewInit
 
     ngOnDestroy(): void {
         this.mainQuerySubscription?.unsubscribe();
-    }
-
-    ngAfterViewInit(): void {
-        // Maintain scroll position on new data load
-        this.tableInstance.normalScrollElement.nativeElement.scrollTop = 0;
     }
 }
