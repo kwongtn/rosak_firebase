@@ -132,7 +132,6 @@ implements OnInit, OnDestroy, AfterViewInit
                     this.offset = this.displayData.length;
                 }
             );
-
     }
 
     loadMore($event: DataTableComponent) {
@@ -169,6 +168,16 @@ implements OnInit, OnDestroy, AfterViewInit
                     latitude: val.location.location[1],
                     longitude: val.location.location[0],
                 };
+            }
+
+            const created = new Date(val.created);
+            const now = new Date();
+
+            // If entry created more than 3 days you cannot delete it
+            if (now.valueOf() - created.valueOf() <= 864e5) {
+                returnObj.canDelete = true;
+            } else {
+                returnObj.canDelete = false;
             }
 
             return returnObj;
