@@ -1,14 +1,17 @@
 import { QueryRef } from "apollo-angular";
 import { DataTableComponent, TableWidthConfig } from "ng-devui";
-import { Subscription } from "rxjs";
+import { ReCaptchaV3Service } from "ng-recaptcha";
+import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
 import { AuthService } from "src/app/services/auth/auth.service";
+import { ToastService } from "src/app/services/toast/toast.service";
 import { environment } from "src/environments/environment";
 
 import { AfterViewInit, Component, OnDestroy, OnInit } from "@angular/core";
 
+import { DeleteEventService } from "../services/delete-event.service";
 import { GetEventsService } from "../services/get-events.service";
 
 @Component({
@@ -92,6 +95,9 @@ implements OnInit, OnDestroy, AfterViewInit
 
     constructor(
         private getEventsGql: GetEventsService,
+        private deleteEventGql: DeleteEventService,
+        private recaptchaV3Service: ReCaptchaV3Service,
+        private toastService: ToastService,
         public authService: AuthService
     ) {}
 
@@ -182,6 +188,58 @@ implements OnInit, OnDestroy, AfterViewInit
 
             return returnObj;
         });
+    }
+
+    deleteEvent(eventId: string) {
+        this.loading = true;
+
+        Promise.all([
+            firstValueFrom(
+                this.recaptchaV3Service.execute("deleteSpottingEntry")
+            ),
+            this.authService.getIdToken(),
+        ])
+            .then(async ([captchaResponse, firebaseAuthKey]) => {
+                const mutationObservable = this.deleteEventGql.mutate(
+                    {
+                        deleteEventInput: {
+                            id: eventId,
+                        },
+                    },
+                    {
+                        context: {
+                            headers: {
+                                "g-recaptcha-response": captchaResponse,
+                                "firebase-auth-key": firebaseAuthKey,
+                            },
+                        },
+                    }
+                );
+
+                return await lastValueFrom(mutationObservable);
+            })
+            .then(({ data }) => {
+                if (data?.["deleteEvent"].ok) {
+                    this.displayData = this.displayData.filter((elem) => {
+                        return elem.id !== eventId;
+                    });
+
+                    this.toastService.addToast({
+                        severity: "success",
+                        summary: "Success",
+                        content: `Deletion of spotting event #${eventId} successful.`,
+                    });
+                } else {
+                    this.toastService.addToast({
+                        severity: "error",
+                        summary: "Error",
+                        content:
+                            "Unknown error on deletion. Please refresh the page and try again.",
+                    });
+                }
+
+                this.loading = false;
+            });
     }
 
     ngOnDestroy(): void {

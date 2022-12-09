@@ -55,6 +55,7 @@
                             <i
                                 class="icon icon-delete"
                                 *ngIf="rowItem.canDelete"
+                                (click)="deleteEvent(rowItem.id)"
                             ></i>
                         </span>
                         <span *ngSwitchCase="'datetime'">
