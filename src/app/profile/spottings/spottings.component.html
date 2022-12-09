@@ -51,6 +51,11 @@
                             >
                                 {{ rowItem[colOption.field] }}
                             </a>
+
+                            <i
+                                class="icon icon-delete"
+                                *ngIf="rowItem.canDelete"
+                            ></i>
                         </span>
                         <span *ngSwitchCase="'datetime'">
                             {{ rowItem[colOption.field] | date : "MMM dd, y" }}
