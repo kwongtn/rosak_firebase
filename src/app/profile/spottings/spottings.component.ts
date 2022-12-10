@@ -180,7 +180,7 @@ implements OnInit, OnDestroy, AfterViewInit
             const now = new Date();
 
             // If entry created more than 3 days you cannot delete it
-            if (now.valueOf() - created.valueOf() <= 864e5) {
+            if (now.valueOf() - created.valueOf() <= 864e6) {
                 returnObj.canDelete = true;
             } else {
                 returnObj.canDelete = false;
