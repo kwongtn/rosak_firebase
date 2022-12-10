@@ -7,8 +7,11 @@ import {
     RecaptchaV3Module,
     ReCaptchaV3Service,
 } from "ng-recaptcha";
+import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 
+import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
+import en from "@angular/common/locales/en";
 import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
 import { AngularFireModule } from "@angular/fire/compat";
 import { AngularFireAuthModule } from "@angular/fire/compat/auth";
@@ -29,6 +32,8 @@ import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { GraphQLModule } from "./graphql.module";
 import { HeaderModule } from "./header/header.module";
+
+registerLocaleData(en);
 
 const imports: any[] = [
     // TODO: AnalyticsModule
@@ -74,6 +79,7 @@ const providers: any[] = [
         useValue: EN_US,
     },
     I18nService,
+    { provide: NZ_I18N, useValue: en_US },
 ];
 
 if (environment.production) {

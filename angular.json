@@ -26,8 +26,17 @@
                         "polyfills": "src/polyfills.ts",
                         "tsConfig": "tsconfig.app.json",
                         "inlineStyleLanguage": "scss",
-                        "assets": ["src/favicon.ico", "src/assets"],
+                        "assets": [
+                            "src/favicon.ico",
+                            "src/assets",
+                            {
+                                "glob": "**/*",
+                                "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
+                                "output": "/assets/"
+                            }
+                        ],
                         "styles": [
+                            "./node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
                             "src/styles.scss",
                             "node_modules/ng-devui/devui.min.css"
                         ],
@@ -94,6 +103,7 @@
                         "inlineStyleLanguage": "scss",
                         "assets": ["src/favicon.ico", "src/assets"],
                         "styles": [
+                            "./node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
                             "src/styles.scss",
                             "node_modules/ng-devui/devui.min.css"
                         ],
