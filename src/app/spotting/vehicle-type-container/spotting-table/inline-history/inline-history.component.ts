@@ -24,7 +24,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
     offset = 0;
     watchQueryOption!: QueryRef<GetVehiclesLastSpottingResponse>;
 
-    showLoading: boolean = true;
+    loading: boolean = true;
     querySubscription!: Subscription;
 
     dataSource: LastSpottingsTableElement[] = [];
@@ -90,7 +90,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
 
         this.querySubscription = this.watchQueryOption.valueChanges.subscribe(
             ({ data, loading }) => {
-                this.showLoading = false;
+                this.loading = loading;
                 this.dataSource = this.mapGqlResultsToDisplayData(data);
 
                 this.offset = this.dataSource.length;
@@ -99,7 +99,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
     }
 
     loadMore($event: DataTableComponent) {
-        this.showLoading = true;
+        this.loading = true;
 
         this.watchQueryOption
             .fetchMore({
@@ -115,7 +115,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
                     this.mapGqlResultsToDisplayData(data)
                 );
 
-                this.showLoading = false;
+                this.loading = loading;
                 this.offset = this.dataSource.length;
             });
     }
