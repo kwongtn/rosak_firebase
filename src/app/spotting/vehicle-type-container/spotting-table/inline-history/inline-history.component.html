@@ -1,53 +1,52 @@
-<div
+<h3>Historical Spotting Entries</h3>
+<d-data-table
+    [dataSource]="dataSource"
+    [scrollable]="true"
+    [tableOverflowType]="'overlay'"
+    [tableWidthConfig]="tableWidthConfig"
+    [lazy]="true"
+    (loadMore)="loadMore($event)"
+    [virtualScroll]="true"
+    [containFixHeaderHeight]="true"
+    [fixHeader]="true"
+    tableHeight="30vh"
     dLoading
-    [loading]="querySubscription"
-    style="margin-top: 20px; margin-bottom: 20px"
-></div>
-<div *ngIf="!showLoading">
-    <h3>Last 5 Spotting Entries</h3>
-    <d-data-table
-        [dataSource]="dataSource"
-        [scrollable]="true"
-        [tableOverflowType]="'overlay'"
-        [tableWidthConfig]="tableWidthConfig"
-    >
-        <thead dTableHead>
+    [loading]="showLoading"
+    [backdrop]="true"
+>
+    <thead dTableHead>
+        <tr dTableRow>
+            <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
+                {{ colOption.header }}
+            </th>
+        </tr>
+    </thead>
+    <tbody dTableBody>
+        <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
             <tr dTableRow>
-                <th
-                    dHeadCell
+                <td
+                    dTableCell
                     *ngFor="let colOption of dataTableOptions.columns"
                 >
-                    {{ colOption.header }}
-                </th>
-            </tr>
-        </thead>
-        <tbody dTableBody>
-            <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
-                <tr dTableRow>
-                    <td
-                        dTableCell
-                        *ngFor="let colOption of dataTableOptions.columns"
-                    >
-                        <span [ngSwitch]="colOption.fieldType">
-                            <span *ngSwitchCase="'status'">
-                                <vehicle-status-tag
-                                    [vehicleStatus]="rowItem[colOption.field]"
-                                ></vehicle-status-tag>
-                            </span>
-                            <span *ngSwitchCase="'type'">
-                                <spotting-type-cell-display
-                                    [rowItem]="rowItem"
-                                    [spottingType]="rowItem[colOption.field]"
-                                >
-                                </spotting-type-cell-display>
-                            </span>
-                            <span *ngSwitchDefault>{{
-                                rowItem[colOption.field]
-                            }}</span>
+                    <span [ngSwitch]="colOption.fieldType">
+                        <span *ngSwitchCase="'status'">
+                            <vehicle-status-tag
+                                [vehicleStatus]="rowItem[colOption.field]"
+                            ></vehicle-status-tag>
                         </span>
-                    </td>
-                </tr>
-            </ng-template>
-        </tbody>
-    </d-data-table>
-</div>
+                        <span *ngSwitchCase="'type'">
+                            <spotting-type-cell-display
+                                [rowItem]="rowItem"
+                                [spottingType]="rowItem[colOption.field]"
+                            >
+                            </spotting-type-cell-display>
+                        </span>
+                        <span *ngSwitchDefault>{{
+                            rowItem[colOption.field]
+                        }}</span>
+                    </span>
+                </td>
+            </tr>
+        </ng-template>
+    </tbody>
+</d-data-table>
