@@ -72,9 +72,7 @@ export interface LastSpottings {
 }
 
 export interface GetVehiclesLastSpottingResponse {
-    vehicles: Array<{
-        lastSpottings: Array<LastSpottings>;
-    }>;
+    events: Array<LastSpottings>;
 }
 
 export interface LastSpottingsTableElement

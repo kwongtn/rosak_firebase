@@ -9,21 +9,27 @@ import {
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
 const GET_VEHICLE_LAST_SPOTTINGS = gql`
-    query ($filters: VehicleFilter, $lastSpottingCount: Int) {
-        vehicles(filters: $filters) {
-            lastSpottings(count: $lastSpottingCount) {
-                spottingDate
-                status
-                type
-                notes
-                location {
-                    accuracy
-                    altitudeAccuracy
-                    heading
-                    speed
-                    location
-                    altitude
-                }
+    query (
+        $eventFilters: EventFilter
+        $eventPagination: OffsetPaginationInput
+        $eventOrder: EventOrder
+    ) {
+        events(
+            filters: $eventFilters
+            pagination: $eventPagination
+            order: $eventOrder
+        ) {
+            spottingDate
+            status
+            type
+            notes
+            location {
+                accuracy
+                altitudeAccuracy
+                heading
+                speed
+                location
+                altitude
             }
         }
     }
@@ -36,6 +42,10 @@ const GET_VEHICLE_LAST_SPOTTINGS = gql`
 })
 export class InlineHistoryComponent implements OnInit, OnDestroy {
     @Input() vehicleId!: string | number;
+
+    // Pagination
+    limit = 30;
+    offset = 0;
 
     showLoading: boolean = true;
     querySubscription!: Subscription;
@@ -87,15 +97,21 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
             .query<GetVehiclesLastSpottingResponse>({
                 query: GET_VEHICLE_LAST_SPOTTINGS,
                 variables: {
-                    filters: {
-                        id: this.vehicleId,
+                    eventFilters: {
+                        vehicleId: this.vehicleId,
                     },
-                    lastSpottingCount: 5,
+                    eventPagination: {
+                        limit: this.limit,
+                        offset: this.offset,
+                    },
+                    eventOrder: {
+                        spottingDate: "DESC",
+                    },
                 },
             })
             .subscribe(({ data, loading }) => {
                 this.showLoading = false;
-                this.dataSource = data.vehicles[0].lastSpottings.map((val) => {
+                this.dataSource = data.events.map((val) => {
                     const returnObj: any = {
                         ...val,
                     };
