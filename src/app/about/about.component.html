@@ -41,10 +41,10 @@
                         [nzXl]="8"
                     >
                         <nz-list-item>
-                            <app-projects-card
+                            <about-projects
                                 [data]="item"
                                 *ngIf="item.display"
-                            ></app-projects-card>
+                            ></about-projects>
                         </nz-list-item>
                     </div>
                 </div>
@@ -65,10 +65,10 @@
                         [nzXl]="6"
                     >
                         <nz-list-item>
-                            <app-avatar-card
+                            <about-avatar
                                 [data]="item"
                                 *ngIf="item.display"
-                            ></app-avatar-card>
+                            ></about-avatar>
                         </nz-list-item>
                     </div>
                 </div>
@@ -93,9 +93,7 @@
                         [nzXl]="6"
                     >
                         <nz-list-item>
-                            <app-techstack-card
-                                [data]="item"
-                            ></app-techstack-card>
+                            <about-techstack [data]="item"></about-techstack>
                         </nz-list-item>
                     </div>
                 </div>

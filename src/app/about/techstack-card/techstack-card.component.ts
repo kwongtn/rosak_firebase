@@ -3,7 +3,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { TechStack } from "../models/firestore";
 
 @Component({
-    selector: "app-techstack-card",
+    selector: "about-techstack",
     templateUrl: "./techstack-card.component.html",
     styleUrls: ["./techstack-card.component.scss"],
 })
