@@ -13,6 +13,7 @@
         }}"
         target="_blank"
     >
+        <span *ngIf="showPopover" nz-icon [nzType]="'info-circle'"></span>
         {{ rowItem.location | coordinatesHumanizer : 3 }}
     </a>
 </div>

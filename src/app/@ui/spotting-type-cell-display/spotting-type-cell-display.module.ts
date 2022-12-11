@@ -1,3 +1,4 @@
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     CoordinatesHumanizerModule,
@@ -19,6 +20,7 @@ import {
         CommonModule,
         
         // ng-zorro-antd
+        NzIconModule,
         NzToolTipModule,
 
         // Internal modules
