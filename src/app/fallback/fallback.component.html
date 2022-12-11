@@ -1,13 +1,11 @@
-<div class="main-container">
-    <div class="title">Oops! Page not found</div>
+<nz-result nzStatus="404" [nzTitle]="title" [nzSubTitle]="subTitle">
+    <div nz-result-extra>
+        <button nz-button nzType="primary" (click)="onClick()">
+            Back to TranSpot
+        </button>
 
-    <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank">
-        <img class="image" src="../../assets/page-not-found.jpg" />
-    </a>
-
-    <div class="return-button-container">
-        <d-button (click)="onClick()">
-            Click here to return to the spotting page.
-        </d-button>
+        <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank">
+            <button nz-button nzType="primary">Surprise Me</button>
+        </a>
     </div>
-</div>
+</nz-result>

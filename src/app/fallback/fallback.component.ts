@@ -7,6 +7,9 @@ import { Router } from "@angular/router";
     styleUrls: ["./fallback.component.scss"],
 })
 export class FallbackComponent {
+    title = "Whoops! Page does not exist.";
+    subTitle = "It seems that you have wandered into uncharted waters. Shall we send you back? 😉";
+
     constructor(private router: Router) {
         return;
     }
