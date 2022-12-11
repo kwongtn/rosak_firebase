@@ -16,7 +16,7 @@ import { NzTypographyModule } from "ng-zorro-antd/typography";
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
-import { AboutComponent } from "./about/about.component";
+import { AboutComponent } from "./about.component";
 import { AvatarCardComponent } from "./avatar-card/avatar-card.component";
 import { ProjectsCardComponent } from "./projects-card/projects-card.component";
 import {
