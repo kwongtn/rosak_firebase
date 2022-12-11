@@ -30,13 +30,25 @@
             </a>
         </h1>
         {{ ($items | async)?.aboutProject }}
-        <div class="wrapper">
-            <div *ngFor="let item of ($items | async)?.projects">
-                <app-projects-card
-                    [data]="item"
-                    *ngIf="item.display"
-                ></app-projects-card>
-            </div>
+        <div>
+            <nz-list nzGrid>
+                <div nz-row [nzGutter]="8" nzJustify="space-evenly">
+                    <div
+                        nz-col
+                        *ngFor="let item of ($items | async)?.projects"
+                        [nzXs]="24"
+                        [nzMd]="12"
+                        [nzXl]="8"
+                    >
+                        <nz-list-item>
+                            <app-projects-card
+                                [data]="item"
+                                *ngIf="item.display"
+                            ></app-projects-card>
+                        </nz-list-item>
+                    </div>
+                </div>
+            </nz-list>
         </div>
     </div>
 

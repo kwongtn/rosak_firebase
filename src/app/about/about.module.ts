@@ -9,6 +9,7 @@ import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import { CommonModule } from "@angular/common";
@@ -42,6 +43,7 @@ import {
         NzGridModule,
         NzSpinModule,
         NzIconModule,
+        NzTagModule,
     ],
 })
 export class AboutModule {}
