@@ -1,10 +1,8 @@
 <div
-    dPopover
-    bsStyle="common"
-    [content]="rowItem.location ? locationPopoverTemplate : null"
-    [position]="'right'"
-    [trigger]="'hover'"
-    [controlled]="true"
+    nz-tooltip
+    [nzTooltipTitle]="locationPopoverTemplate"
+    [nzTooltipTrigger]="showPopover ? 'hover' : null"
+    [nzTooltipPlacement]="'right'"
 >
     <spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
     <br />
@@ -13,10 +11,9 @@
         href="https://www.google.com/maps?q={{ rowItem.location.latitude }},{{
             rowItem.location.longitude
         }}"
-        class="devui-link"
         target="_blank"
     >
-        {{ rowItem.location | coordinatesHumanizer: 3 }}
+        {{ rowItem.location | coordinatesHumanizer : 3 }}
     </a>
 </div>
 
