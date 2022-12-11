@@ -11,6 +11,7 @@ import { NzListModule } from "ng-zorro-antd/list";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzTypographyModule } from "ng-zorro-antd/typography";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -44,6 +45,7 @@ import {
         NzSpinModule,
         NzIconModule,
         NzTagModule,
+        NzTypographyModule,
     ],
 })
 export class AboutModule {}
