@@ -1,6 +1,6 @@
 <div class="components">
     <nz-card class="list" [nzCover]="coverTemplate" [nzSize]="'default'">
-        <nz-card-meta nzTitle="{{ data.name }}"></nz-card-meta>
+        <nz-card-meta [nzTitle]="titleTemplate"></nz-card-meta>
         <p>{{ data.title }}</p>
         <p>{{ data.description }}</p>
 
@@ -23,6 +23,10 @@
         </div>
     </nz-card>
 </div>
+
+<ng-template #titleTemplate>
+    <p class="name">{{ data.name }}</p>
+</ng-template>
 
 <ng-template #coverTemplate>
     <nz-avatar
