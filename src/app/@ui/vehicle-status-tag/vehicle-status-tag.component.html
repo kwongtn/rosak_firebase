@@ -1,32 +1,17 @@
 <span [ngSwitch]="vehicleStatus">
-    <d-tag
-        *ngSwitchCase="'IN_SERVICE'"
-        [tag]="vehicleStatus | vehicleStatusPipe"
-        [labelStyle]="'green-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'NOT_SPOTTED'"
-        [tag]="vehicleStatus | vehicleStatusPipe"
-        [labelStyle]="'yellow-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'TESTING'"
-        [tag]="vehicleStatus | vehicleStatusPipe"
-        [labelStyle]="'blue-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'UNKNOWN'"
-        [tag]="vehicleStatus | vehicleStatusPipe"
-        [labelStyle]="'red-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchDefault
-        [tag]="vehicleStatus | vehicleStatusPipe"
-        [customColor]="'var(--devui-text-weak)'"
-    >
-    </d-tag>
+    <nz-tag *ngSwitchCase="'IN_SERVICE'" [nzColor]="'green'">
+        {{ vehicleStatus | vehicleStatusPipe }}
+    </nz-tag>
+    <nz-tag *ngSwitchCase="'NOT_SPOTTED'" [nzColor]="'orange'">
+        {{ vehicleStatus | vehicleStatusPipe }}
+    </nz-tag>
+    <nz-tag *ngSwitchCase="'TESTING'" [nzColor]="'blue'">
+        {{ vehicleStatus | vehicleStatusPipe }}
+    </nz-tag>
+    <nz-tag *ngSwitchCase="'UNKNOWN'" [nzColor]="'red'">
+        {{ vehicleStatus | vehicleStatusPipe }}
+    </nz-tag>
+    <nz-tag *ngSwitchDefault>
+        {{ vehicleStatus | vehicleStatusPipe }}
+    </nz-tag>
 </span>
