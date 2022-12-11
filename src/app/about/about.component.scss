@@ -1,20 +1,6 @@
-@import "ng-devui/styles-var/devui-var.scss";
-
 h1 {
-    font-size: $devui-font-size-price;
-
     .build-status {
         margin-bottom: -3px;
         margin-left: 10px;
-    }
-}
-
-.main-wrapper {
-    .wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: left;
-        position: relative;
-        left: -20px;
     }
 }

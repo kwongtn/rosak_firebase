@@ -1,8 +1,3 @@
-import { AvatarModule } from "ng-devui/avatar";
-import { CardModule } from "ng-devui/card";
-import { LoadingModule } from "ng-devui/loading";
-import { TagsModule } from "ng-devui/tags";
-import { TooltipModule } from "ng-devui/tooltip";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzGridModule } from "ng-zorro-antd/grid";
@@ -27,24 +22,21 @@ import {
     declarations: [
         AboutComponent,
         AvatarCardComponent,
-        TechstackCardComponent,
         ProjectsCardComponent,
+        TechstackCardComponent,
     ],
     imports: [
         CommonModule,
-        CardModule,
-        AvatarModule,
-        TagsModule,
-        LoadingModule,
-        TooltipModule,
-        NzCardModule,
+
+        // ng-zorro-antd
         NzAvatarModule,
-        NzToolTipModule,
-        NzListModule,
+        NzCardModule,
         NzGridModule,
-        NzSpinModule,
         NzIconModule,
+        NzListModule,
+        NzSpinModule,
         NzTagModule,
+        NzToolTipModule,
         NzTypographyModule,
     ],
 })
