@@ -1,4 +1,5 @@
-import { TooltipModule } from "ng-devui";
+import { NzTagModule } from "ng-zorro-antd/tag";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -14,7 +15,12 @@ import {
     declarations: [VehicleTableCellDisplayComponent],
     imports: [
         CommonModule,
-        TooltipModule,
+
+        // ng-zorro-antd
+        NzTagModule,
+        NzToolTipModule,
+
+        // Internal modules
         VehicleStatusTagModule,
     ],
     exports: [VehicleTableCellDisplayComponent],

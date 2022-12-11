@@ -1,18 +1,17 @@
 <span>
     <a
-        dTooltip
-        [content]="cellData.lines.join(', ')"
+        nz-tooltip
+        [nzTooltipTitle]="cellData.lines.join(', ')"
         href="{{ backendUrl }}admin/operation/vehicle/{{ cellData.id }}"
-        class="devui-link"
         target="_blank"
     >
         {{ cellData.identificationNo }}
         ({{ cellData.vehicleType.internalName }}) <br />
     </a>
     <span
-        dTooltip
-        [content]="cellData.notes"
-        [position]="'right'"
+        nz-tooltip
+        [nzTooltipTitle]="cellData.notes"
+        [nzTooltipPlacement]="'right'"
         *ngIf="cellData.notes"
     >
         📝
