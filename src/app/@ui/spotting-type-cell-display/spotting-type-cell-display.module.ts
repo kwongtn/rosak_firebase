@@ -1,4 +1,4 @@
-import { PopoverModule } from "ng-devui/popover";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     CoordinatesHumanizerModule,
 } from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.module";
@@ -17,9 +17,15 @@ import {
     declarations: [SpottingTypeCellDisplayComponent],
     imports: [
         CommonModule,
+        
+        // ng-zorro-antd
+        NzToolTipModule,
+
+        // Internal modules
         SpottingTypeTagModule,
-        PopoverModule,
         CoordinatesHumanizerModule,
+
+
     ],
     exports: [SpottingTypeCellDisplayComponent],
 })
