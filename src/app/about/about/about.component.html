@@ -1,4 +1,4 @@
-<div dLoading class="main-wrapper" [showLoading]="showLoading">
+<nz-spin [nzSpinning]="showLoading" class="main-wrapper">
     <div class="section">
         <h1>
             About the project
@@ -42,13 +42,25 @@
 
     <div class="section">
         <h1>About the team</h1>
-        <div class="wrapper">
-            <div *ngFor="let item of personnel">
-                <app-avatar-card
-                    [data]="item"
-                    *ngIf="item.display"
-                ></app-avatar-card>
-            </div>
+        <div>
+            <nz-list nzGrid>
+                <div nz-row [nzGutter]="8" nzJustify="space-evenly">
+                    <div
+                        nz-col
+                        *ngFor="let item of personnel"
+                        [nzXs]="12"
+                        [nzMd]="8"
+                        [nzXl]="6"
+                    >
+                        <nz-list-item>
+                            <app-avatar-card
+                                [data]="item"
+                                *ngIf="item.display"
+                            ></app-avatar-card>
+                        </nz-list-item>
+                    </div>
+                </div>
+            </nz-list>
         </div>
     </div>
 
@@ -64,4 +76,4 @@
             </div>
         </div>
     </div>
-</div>
+</nz-spin>
