@@ -1,4 +1,4 @@
-<nz-spin [nzSpinning]="showLoading" class="main-wrapper">
+<nz-spin [nzSpinning]="showLoading">
     <div>
         <h1 nz-typography>
             About the project
@@ -32,7 +32,7 @@
         {{ ($items | async)?.aboutProject }}
         <div>
             <nz-list nzGrid>
-                <div nz-row [nzGutter]="8" nzJustify="space-evenly">
+                <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
                         *ngFor="let item of ($items | async)?.projects"
@@ -56,7 +56,7 @@
         <h1 nz-typography>About the team</h1>
         <div>
             <nz-list nzGrid>
-                <div nz-row [nzGutter]="8" nzJustify="space-evenly">
+                <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
                         *ngFor="let item of personnel"
@@ -82,10 +82,24 @@
 
     <div>
         <h1 nz-typography>Tech Stacks & Open Souce</h1>
-        <div class="wrapper">
-            <div *ngFor="let item of ($items | async)?.techStacks">
-                <app-techstack-card [data]="item"></app-techstack-card>
-            </div>
+        <div>
+            <nz-list nzGrid>
+                <div nz-row [nzGutter]="8" nzJustify="start">
+                    <div
+                        nz-col
+                        *ngFor="let item of ($items | async)?.techStacks"
+                        [nzXs]="12"
+                        [nzMd]="8"
+                        [nzXl]="6"
+                    >
+                        <nz-list-item>
+                            <app-techstack-card
+                                [data]="item"
+                            ></app-techstack-card>
+                        </nz-list-item>
+                    </div>
+                </div>
+            </nz-list>
         </div>
     </div>
 </nz-spin>
