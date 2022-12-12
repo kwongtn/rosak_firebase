@@ -39,4 +39,8 @@ export class MenuComponent implements OnInit {
     changeLanguage(lang: string): void {
         this.curLanguage = lang;
     }
+
+    reportBug(): void {
+        throw new Error(`User reported bug at time ${(new Date()).valueOf()}`);
+    }
 }

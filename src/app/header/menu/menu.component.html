@@ -44,4 +44,13 @@
     <div class="menu-item">
         <app-theme-picker class="menu-link">Theme</app-theme-picker>
     </div>
+
+    <div
+        dTooltip
+        class="menu-item"
+        [content]="'Report a bug'"
+        [position]="'left'"
+    >
+        <i class="icon icon-bug menu-link" (click)="reportBug()"></i>
+    </div>
 </div>
