@@ -1,6 +1,8 @@
 <div class="mark-as-read-button" *ngIf="showCheckbox">
     <div style="width: 100%"></div>
-    <d-button (btnClick)="markAsRead()" [bsSize]="'md'">Mark as Read</d-button>
+    <button nz-button nzType="primary" (click)="markAsRead()">
+        Mark as Read
+    </button>
 </div>
 
 <d-data-table
@@ -71,9 +73,9 @@
                             </a>
                         </span>
                         <span *ngSwitchCase="'datetime'">
-                            {{ rowItem[colOption.field] | date: "MMM dd, y" }}
+                            {{ rowItem[colOption.field] | date : "MMM dd, y" }}
                             <br />
-                            {{ rowItem[colOption.field] | date: "HH:mm:ss" }}
+                            {{ rowItem[colOption.field] | date : "HH:mm:ss" }}
                         </span>
                         <span *ngSwitchCase="'vehicle'">
                             <vehicle-table-cell-display

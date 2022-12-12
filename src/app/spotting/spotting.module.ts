@@ -11,6 +11,10 @@ import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -19,6 +23,7 @@ import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { RouterModule } from "@angular/router";
 
 import {
     SpottingTypeCellDisplayModule,
@@ -92,6 +97,11 @@ import {
         VehicleStatusTagModule,
         CoordinatesHumanizerModule,
         SpottingTypeCellDisplayModule,
+        NzButtonModule,
+        NzSpinModule,
+        NzTabsModule,
+        NzToolTipModule,
+        RouterModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [

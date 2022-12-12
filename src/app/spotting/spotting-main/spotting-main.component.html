@@ -1,37 +1,44 @@
 <div class="button-container">
-    <d-button
+    <button
+        nz-button
         class="spotting-form-button"
         (click)="openStandardDialog('standard')"
-        >Add spotting entry</d-button
     >
+        Add spotting entry
+    </button>
 </div>
-<div dLoading class="spotting-main-container" [showLoading]="showLoading">
+<nz-spin class="spotting-main-container" [nzSpinning]="showLoading">
     <div class="spotting-table-container" *ngIf="tabActiveId">
         <section>
-            <d-tabs
-                type="pills"
-                size="lg"
-                [(activeTab)]="tabActiveId"
-                (activeTabChange)="activeTabChange($event)"
-                [scrollMode]="tabItems.length > 10"
+            <nz-tabset
+                [nzTabPosition]="'top'"
+                [(nzSelectedIndex)]="selectedTabIndex"
+                (nzSelectChange)="activeTabChange($event)"
             >
-                <d-tab *ngFor="let item of tabItems" [id]="item.id">
-                    <ng-template dTabTitle>
+                <nz-tab *ngFor="let item of tabItems" [nzTitle]="tabTitle">
+                    <ng-template #tabTitle>
                         <div
-                            dTooltip
-                            [content]="item.detail"
-                            [position]="'bottom'"
+                            nz-tooltip
+                            [nzTooltipPlacement]="'bottom'"
+                            [nzTooltipTitle]="item.detail"
                         >
                             {{ item.title }}
                         </div>
                     </ng-template>
-                </d-tab>
-            </d-tabs>
-        </section>
+                    <app-vehicle-type-container
+                        [tableData]="tableData"
+                        [lineId]="tabActiveId"
+                    >
+                    </app-vehicle-type-container>
+                </nz-tab>
+            </nz-tabset>
 
-        <app-vehicle-type-container
-            [tableData]="tableData"
-            [lineId]="tabActiveId"
-        ></app-vehicle-type-container>
+            <!-- <nz-tabset nzLinkRouter>
+                <nz-tab>
+                  <a *nzTabLink nz-tab-link [routerLink]="['.']">Link</a>
+                  Default.
+                </nz-tab>
+              </nz-tabset> -->
+        </section>
     </div>
-</div>
+</nz-spin>

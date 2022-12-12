@@ -1,5 +1,6 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
+import { NzTabChangeEvent } from "ng-zorro-antd/tabs/interfaces";
 import { firstValueFrom, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
@@ -36,6 +37,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
 
     tabActiveId: string | number | undefined = undefined;
+    selectedTabIndex: number  | undefined =  undefined;
     tabItems: LineTabType[] = [];
 
     currentDataId: string | undefined;
@@ -154,12 +156,17 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         this.routeSubscription.unsubscribe();
     }
 
-    activeTabChange(event: any) {
+    activeTabChange(event: NzTabChangeEvent) {
         console.log("Active tab change: ", event);
+        console.log(this.tabItems);
 
-        this.router.navigate(["spotting", event]);
+        if(event.index){
+            this.router.navigate(["spotting", this.tabItems[event.index].id]);
+    
+            this.selectedTabIndex = event.index;
+            // this.filterTabItems();
 
-        this.tabActiveId = event;
-        // this.filterTabItems();
+        }
+
     }
 }

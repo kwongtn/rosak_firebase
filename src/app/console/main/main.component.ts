@@ -48,7 +48,7 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
                 {
                     eventsLastThreeDaysFilters: {
                         isRead: false,
-                        daysBefore: 3,
+                        daysBefore: 20,
                     },
                     eventsLastFiveDaysHasNotesFilters: {
                         isRead: false,

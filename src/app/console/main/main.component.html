@@ -17,6 +17,7 @@
         [hasLeftPadding]="false"
         (toggle)="toggle('eventsLastThreeDays')"
         [isCollapsed]="!panelCollapseStatus['eventsLastThreeDays']"
+        *ngIf="!showLoading"
     >
         <d-panel-header>
             <h1 class="table-title">Spotting Events Last 3 Days</h1>
