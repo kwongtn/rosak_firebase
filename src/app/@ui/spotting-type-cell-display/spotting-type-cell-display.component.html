@@ -1,7 +1,7 @@
 <div
     dPopover
     bsStyle="common"
-    [content]="rowItem.location ? locationPopoverTemplate : null"
+    [content]="showPopover ? locationPopoverTemplate : null"
     [position]="'right'"
     [trigger]="'hover'"
     [controlled]="true"
@@ -16,7 +16,7 @@
         class="devui-link"
         target="_blank"
     >
-        {{ rowItem.location | coordinatesHumanizer: 3 }}
+        {{ rowItem.location | coordinatesHumanizer : 3 }}
     </a>
 </div>
 
