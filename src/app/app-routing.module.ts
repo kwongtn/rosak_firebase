@@ -1,6 +1,8 @@
 import { NgModule } from "@angular/core";
 import {
-    AngularFireAuthGuard,
+    AuthPipe,
+    canActivate,
+    hasCustomClaim,
     redirectUnauthorizedTo,
 } from "@angular/fire/compat/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
@@ -12,7 +14,6 @@ import {
 import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
-import { AdminGuard } from "./guards/admin/admin.guard";
 import { ProfileMainComponent } from "./profile/main/main.component";
 import {
     SpottingMainComponent,
@@ -33,9 +34,12 @@ const maintenance: MaintananceDocument = {
     },
 };
 
-function redirectUnauthorizedToSpotting(){
+function redirectUnauthorizedToSpotting(): AuthPipe {
     return redirectUnauthorizedTo(["spotting"]);
+}
 
+function adminOnly(): AuthPipe {
+    return hasCustomClaim("admin");
 }
 
 const routes: Routes = [
@@ -97,8 +101,7 @@ const routes: Routes = [
         loadChildren: () =>
             import("./console/console.module").then((m) => m.ConsoleModule),
         component: ConsoleMainComponent,
-        canLoad: [AdminGuard],
-        canActivate: [AdminGuard],
+        ...canActivate(adminOnly),
     },
     {
         path: "profile",
@@ -106,8 +109,7 @@ const routes: Routes = [
         loadChildren: () =>
             import("./profile/profile.module").then((m) => m.ProfileModule),
         component: ProfileMainComponent,
-        canActivate: [AngularFireAuthGuard],
-        data: { authGuardPipe: redirectUnauthorizedToSpotting },
+        ...canActivate(redirectUnauthorizedToSpotting),
     },
     {
         path: "",
