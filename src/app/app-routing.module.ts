@@ -1,4 +1,8 @@
 import { NgModule } from "@angular/core";
+import {
+    AngularFireAuthGuard,
+    redirectUnauthorizedTo,
+} from "@angular/fire/compat/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about/about.component";
@@ -9,7 +13,6 @@ import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import { AdminGuard } from "./guards/admin/admin.guard";
-import { LoginGuard } from "./guards/login/login.guard";
 import { ProfileMainComponent } from "./profile/main/main.component";
 import {
     SpottingMainComponent,
@@ -29,6 +32,11 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
 };
+
+function redirectUnauthorizedToSpotting(){
+    return redirectUnauthorizedTo(["spotting"]);
+
+}
 
 const routes: Routes = [
     {
@@ -98,8 +106,8 @@ const routes: Routes = [
         loadChildren: () =>
             import("./profile/profile.module").then((m) => m.ProfileModule),
         component: ProfileMainComponent,
-        canLoad: [LoginGuard],
-        canActivate: [LoginGuard],
+        canActivate: [AngularFireAuthGuard],
+        data: { authGuardPipe: redirectUnauthorizedToSpotting },
     },
     {
         path: "",
