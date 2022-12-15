@@ -14,7 +14,7 @@ interface BackendBuildInfo {
 
 const initialMenuList: { [key: string]: string }[] = [
     {
-        name: "TranSpot",
+        name: "TranSPOT",
         href: "/spotting",
         target: "_self",
         tag: "Beta",
