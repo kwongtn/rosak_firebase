@@ -25,6 +25,10 @@ jobs:
                   node-version: 16
                   cache: "npm"
             - run: npm i -g angular-build-info && npm ci && npm run build
+              env:
+                  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+                  SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+                  SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
             - uses: FirebaseExtended/action-hosting-deploy@v0
               with:
                   repoToken: "${{ secrets.GITHUB_TOKEN }}"
