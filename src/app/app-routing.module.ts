@@ -45,7 +45,7 @@ function adminOnly(): AuthPipe {
 const routes: Routes = [
     {
         path: "spotting",
-        title: "MLPTF | TranSpot",
+        title: "MLPTF | TranSPOT",
         loadChildren: async () => {
             if (maintenance.spotting.curentlyInMaintenance) {
                 const module = await import(
@@ -63,7 +63,7 @@ const routes: Routes = [
     },
     {
         path: "spotting/:id",
-        title: "MLPTF | TranSpot",
+        title: "MLPTF | TranSPOT",
         loadChildren: async () => {
             if (maintenance.spotting.curentlyInMaintenance) {
                 const module = await import(
@@ -113,6 +113,11 @@ const routes: Routes = [
     },
     {
         path: "",
+        redirectTo: "/spotting",
+        pathMatch: "full",
+    },
+    {
+        path: "transpot",
         redirectTo: "/spotting",
         pathMatch: "full",
     },
