@@ -13,7 +13,9 @@ import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
 import { AngularFireModule } from "@angular/fire/compat";
 import {
     AngularFireAnalyticsModule,
+    CONFIG,
     ScreenTrackingService,
+    UserTrackingService,
 } from "@angular/fire/compat/analytics";
 import { AngularFireAuthModule } from "@angular/fire/compat/auth";
 import { AngularFireDatabaseModule } from "@angular/fire/compat/database";
@@ -28,6 +30,7 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
 import * as Sentry from "@sentry/angular";
 
+import build from "../build";
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
@@ -91,7 +94,17 @@ const providers: any[] = [
 
 if (environment.production) {
     imports.push(AngularFireAnalyticsModule, AngularFirePerformanceModule);
-    providers.push(PerformanceMonitoringService, ScreenTrackingService);
+    providers.push(
+        PerformanceMonitoringService,
+        ScreenTrackingService,
+        UserTrackingService,
+        {
+            provide: CONFIG,
+            useValue: {
+                APP_VERSION: build.git.hash
+            },
+        }
+    );
 }
 
 @NgModule({
