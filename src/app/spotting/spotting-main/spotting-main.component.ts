@@ -69,9 +69,9 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     text: "Submit",
                     handler: () => {
                         const submitAction =
-                            results.modalContentInstance.onSubmit() as Promise<
-                                MutationResult<any> | undefined
-                            >;
+                            results.modalContentInstance.onSubmit() as
+                                | Promise<MutationResult<any> | undefined>
+                                | undefined;
 
                         submitAction
                             ?.then((mutationResult) => {
