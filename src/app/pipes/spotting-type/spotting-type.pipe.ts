@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from "@angular/core";
 
-type SpottingType =
+export type SpottingType =
     | "DEPOT"
     | "LOCATION"
     | "BETWEEN_STATIONS"

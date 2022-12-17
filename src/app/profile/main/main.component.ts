@@ -35,7 +35,9 @@ export class ProfileMainComponent implements OnInit, OnDestroy {
 
         this.mainQuerySubscription = this.getUserDataGql
             .watch(
-                {},
+                {
+                    typeGroup: true,
+                },
                 {
                     context: {
                         headers: {

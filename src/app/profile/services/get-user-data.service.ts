@@ -3,11 +3,12 @@ import { gql, Query } from "apollo-angular";
 import { Injectable } from "@angular/core";
 
 export interface UserSpottingTrends {
-    spottingDate: string | null;
-    year: number | null;
+    dateKey: string;
+    year: number;
     month: number | null;
     day: number | null;
     count: number;
+    eventType: string;
 }
 
 export interface UserDataResponseUser {
@@ -30,7 +31,7 @@ export class GetUserDataService extends Query<UserDataResponse> {
                 firebaseId
                 spottingsCount
                 spottingTrends(dateGroup: $dateGroup, typeGroup: $typeGroup) {
-                    spottingDate
+                    dateKey
                     year
                     month
                     day
