@@ -16,12 +16,19 @@ export interface UserAuthData {
     };
 }
 
+export interface CustomClaims {
+    admin?: boolean;
+}
+
 @Injectable({
     providedIn: "root",
 })
 export class AuthService {
     userData: BehaviorSubject<firebase.User | null | undefined> =
         new BehaviorSubject<firebase.User | null | undefined>(undefined);
+
+    customClaims: BehaviorSubject<CustomClaims | undefined> =
+        new BehaviorSubject<CustomClaims | undefined>(undefined);
 
     userAuth: BehaviorSubject<UserAuthData | null | undefined> =
         new BehaviorSubject<UserAuthData | null | undefined>(null);
@@ -49,6 +56,14 @@ export class AuthService {
                 });
             }
         );
+
+        this.angularFireAuth.idTokenResult.subscribe((idTokenResult) => {
+            if (idTokenResult) {
+                this.customClaims.next({
+                    admin: idTokenResult.claims["admin"],
+                });
+            }
+        });
 
         this.userData.subscribe(async (user) => {
             this.sentrySetUser(user);
@@ -151,5 +166,9 @@ export class AuthService {
 
     getIdToken(): Promise<string> | undefined {
         return this.userData.getValue()?.getIdToken();
+    }
+
+    isAdmin(): boolean {
+        return Boolean(this.customClaims.value?.admin);
     }
 }
