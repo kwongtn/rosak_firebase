@@ -59,6 +59,58 @@ export class SpottingTrendsComponent implements OnInit {
             yField: "count",
             seriesField: "eventType",
             renderer: "svg",
+            theme: {
+                components: {
+                    axis: {
+                        common: {
+                            label: {
+                                style: {
+                                    fill: "var(--devui-text, #252b3a)",
+                                },
+                            },
+                        },
+                    },
+                    legend: {
+                        common: {
+                            itemName: {
+                                style: {
+                                    fill: "var(--devui-text, #252b3a)",
+                                },
+                            },
+                        },
+                    },
+                    slider: {
+                        common: {
+                            textStyle: {
+                                fill: "var(--devui-text, #252b3a)",
+                            },
+                        },
+                    },
+                    tooltip: {
+                        domStyles: {
+                            "g2-tooltip": {
+                                backgroundColor: "var(--devui-form-control-bg, #ffffff)",
+                                color: "var(--devui-float-block-shadow, rgba(94, 124, 224, 0.3))",
+                            },
+                            "g2-tooltip-title": {
+                                color: "var(--devui-text, #252b3a)",
+                            },
+                            "g2-tooltip-list": {
+                                color: "var(--devui-text, #252b3a)",
+                            },
+                            "g2-tooltip-list-item": {
+                                color: "var(--devui-text, #252b3a)",
+                            },
+                            "g2-tooltip-marker": {
+                                color: "var(--devui-text, #252b3a)",
+                            },
+                            "g2-tooltip-value": {
+                                color: "var(--devui-text, #252b3a)",
+                            },
+                        },
+                    },
+                },
+            },
             syncViewPadding: true,
             legend: {
                 position: this.getLegendPosition(),
