@@ -26,11 +26,19 @@ export interface UserDataResponse {
 })
 export class GetUserDataService extends Query<UserDataResponse> {
     override document = gql`
-        query ($dateGroup: DateGroupings, $typeGroup: Boolean) {
+        query (
+            $dateGroup: DateGroupings
+            $typeGroup: Boolean
+            $freeRange: Boolean
+        ) {
             user {
                 firebaseId
                 spottingsCount
-                spottingTrends(dateGroup: $dateGroup, typeGroup: $typeGroup) {
+                spottingTrends(
+                    dateGroup: $dateGroup
+                    typeGroup: $typeGroup
+                    freeRange: $freeRange
+                ) {
                     dateKey
                     year
                     month

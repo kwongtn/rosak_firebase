@@ -37,6 +37,7 @@ export class ProfileMainComponent implements OnInit, OnDestroy {
             .watch(
                 {
                     typeGroup: true,
+                    freeRange: true,
                 },
                 {
                     context: {
