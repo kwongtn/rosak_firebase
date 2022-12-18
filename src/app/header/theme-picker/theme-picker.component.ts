@@ -3,8 +3,6 @@ import { Subscription } from "rxjs";
 
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
 
-import { themePickerImg } from "./theme-picker-img";
-
 interface ThemeProperties {
     [key: string]: {
         name: string;
@@ -21,10 +19,7 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
     themes: { [key: string]: Theme } = {};
     themeFollowSystemColorScheme!: boolean;
     sub: Subscription | undefined;
-    advancedThemeList = [
-        { value: "infinity", url: themePickerImg.infinity },
-        { value: "galaxy", url: themePickerImg.galaxy },
-    ];
+    advancedThemeList = ["infinity", "galaxy"];
     currentTheme = "infinity";
     subs: Subscription = new Subscription();
     constructor(private cdr: ChangeDetectorRef) {}
@@ -49,14 +44,14 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
     }
 
     initTheme() {
-        const themeName = localStorage
-            .getItem("user-custom-theme")
-            ?.split("-")[0];
-        this.currentTheme = this.advancedThemeList.find(
-            (theme) => theme.value === themeName
-        )
+        const themeName =
+            localStorage.getItem("user-custom-theme")?.split("-")[0] ??
+            "infinity";
+
+        this.currentTheme = this.advancedThemeList.includes(themeName)
             ? (themeName as string)
             : "infinity";
+
         this.themeChange(this.currentTheme);
     }
 
@@ -90,7 +85,7 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
             }
         );
     }
-    
+
     ThemeServiceFollowSystemOff(sub?: Subscription) {
         if (sub) {
             sub.unsubscribe();
