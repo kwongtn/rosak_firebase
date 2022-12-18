@@ -6,32 +6,19 @@
     [trigger]="'hover'"
 >
     <div class="menu-item">
-        <i dDropDownToggle class="icon icon-code-editor-light menu-link"> </i>
+        <i
+            dDropDownToggle
+            class="icon icon-code-editor-light menu-link"
+            (click)="onIconClick()"
+        >
+        </i>
     </div>
     <div dDropDownMenu class="theme-menu">
-        <div style="width: 180px; margin: 0 auto">
-            <div
-                *ngFor="let item of advancedThemeList"
-                class="extend-theme-image"
-                [style.background-image]="'url(' + item.url + ')'"
-                (click)="themeChange(item.value)"
-            >
-                <span
-                    class="extend-theme-title"
-                    [style.color]="item.value === 'infinity' ? '#252b3a' : null"
-                    >{{ themeProps[item.value].name }}</span
-                >
-                <i
-                    *ngIf="currentTheme === item.value"
-                    class="icon-right active-theme"
-                ></i>
-            </div>
-        </div>
         <div class="prefers-color-scheme">
             <d-toggle
                 class="theme-follow-toggle"
-                [(ngModel)]="themePrefersColorScheme"
-                (ngModelChange)="themePrefersColorSchemeChange($event)"
+                [(ngModel)]="themeFollowSystemColorScheme"
+                (ngModelChange)="followSystemColorScheme($event)"
             ></d-toggle>
             <span>Follow System</span>
         </div>
