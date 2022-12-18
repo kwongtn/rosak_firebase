@@ -1,9 +1,4 @@
-import {
-    Theme,
-    ThemeService,
-    ThemeServiceFollowSystemOff,
-    ThemeServiceFollowSystemOn,
-} from "ng-devui/theme";
+import { Theme, ThemeService } from "ng-devui/theme";
 import { Subscription } from "rxjs";
 
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
@@ -24,20 +19,12 @@ interface ThemeProperties {
 export class ThemePickerComponent implements OnInit, OnDestroy {
     themeService!: ThemeService;
     themes: { [key: string]: Theme } = {};
-    themePrefersColorScheme!: boolean;
+    themeFollowSystemColorScheme!: boolean;
     sub: Subscription | undefined;
     advancedThemeList = [
         { value: "infinity", url: themePickerImg.infinity },
         { value: "galaxy", url: themePickerImg.galaxy },
     ];
-    themeProps: ThemeProperties = {
-        infinity: {
-            name: "Infinity | 无限",
-        },
-        galaxy: {
-            name: "Galaxy | 追光",
-        },
-    };
     currentTheme = "infinity";
     subs: Subscription = new Subscription();
     constructor(private cdr: ChangeDetectorRef) {}
@@ -50,10 +37,11 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
             this.themes = (window as { [key: string]: any })["devuiThemes"];
         }
 
-        this.themePrefersColorScheme =
-            localStorage.getItem("devuiThemePrefersColorScheme") === "on";
-        if (this.themePrefersColorScheme) {
-            this.themePrefersColorSchemeChange(true);
+        this.themeFollowSystemColorScheme =
+            localStorage.getItem("devuiThemeFollowSystemColorScheme") === "on";
+
+        if (this.themeFollowSystemColorScheme) {
+            this.followSystemColorScheme(true);
         } else {
             this.initTheme();
         }
@@ -72,36 +60,68 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
         this.themeChange(this.currentTheme);
     }
 
+    onIconClick() {
+        this.followSystemColorScheme(false);
+        this.themeFollowSystemColorScheme = false;
+
+        if (this.currentTheme === "infinity") {
+            this.currentTheme = "galaxy";
+            this.themeChange(this.currentTheme);
+        } else {
+            this.currentTheme = "infinity";
+            this.themeChange(this.currentTheme);
+        }
+    }
+
     themeChange(theme: string) {
         this.currentTheme = theme;
         this.themeService.applyTheme(this.themes[theme]);
     }
 
-    themePrefersColorSchemeChange(event: boolean) {
-        if (event) {
-            if (this.sub) {
-                ThemeServiceFollowSystemOff(this.sub);
+    ThemeServiceFollowSystemOn(): Subscription {
+        this.themeService.registerMediaQuery();
+        return this.themeService.mediaQuery.prefersColorSchemeChange.subscribe(
+            (value) => {
+                if (value === "dark") {
+                    this.themeChange("galaxy");
+                } else {
+                    this.themeChange("infinity");
+                }
             }
-            this.sub = ThemeServiceFollowSystemOn({
-                lightThemeName: "infinity-theme",
-                darkThemeName: "galaxy-theme",
-            });
-            this.setThemePrefersColorScheme("on");
+        );
+    }
+    
+    ThemeServiceFollowSystemOff(sub?: Subscription) {
+        if (sub) {
+            sub.unsubscribe();
+        }
+        this.themeService.unregisterMediaQuery();
+    }
+
+    followSystemColorScheme(toggleValue: boolean) {
+        if (toggleValue) {
+            if (this.sub) {
+                this.ThemeServiceFollowSystemOff(this.sub);
+            }
+            this.sub = this.ThemeServiceFollowSystemOn();
+
+            this.setThemeFollowSystemColorScheme("on");
         } else {
-            ThemeServiceFollowSystemOff(this.sub);
-            this.setThemePrefersColorScheme("off");
+            this.ThemeServiceFollowSystemOff(this.sub);
             this.sub = undefined;
+
+            this.setThemeFollowSystemColorScheme("off");
         }
     }
 
     ngOnDestroy(): void {
-        if (this.themePrefersColorScheme) {
-            ThemeServiceFollowSystemOff(this.sub);
+        if (this.themeFollowSystemColorScheme) {
+            this.ThemeServiceFollowSystemOff(this.sub);
         }
-        this.subs.unsubscribe();
+        this.subs?.unsubscribe();
     }
 
-    setThemePrefersColorScheme(value: "on" | "off") {
-        localStorage.setItem("devuiThemePrefersColorScheme", value);
+    setThemeFollowSystemColorScheme(value: "on" | "off") {
+        localStorage.setItem("devuiThemeFollowSystemColorScheme", value);
     }
 }
