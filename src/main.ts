@@ -1,17 +1,7 @@
 import "./polyfills";
 
-import {
-    devuiDarkTheme,
-    devuiLightTheme,
-    ThemeServiceInit,
-} from "ng-devui/theme";
-import {
-    deepTheme,
-    galaxyTheme,
-    infinityTheme,
-    provenceTheme,
-    sweetTheme,
-} from "ng-devui/theme-collection";
+import { ThemeServiceInit } from "ng-devui/theme";
+import { galaxyTheme, infinityTheme } from "ng-devui/theme-collection";
 
 import { enableProdMode } from "@angular/core";
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
@@ -20,10 +10,6 @@ import { Replay } from "@sentry/replay";
 import { BrowserTracing } from "@sentry/tracing";
 
 import { AppModule } from "./app/app.module";
-import {
-    greenDarkTheme,
-    greenLightTheme,
-} from "./app/header/theme-picker/theme-data-more";
 import { environment } from "./environments/environment";
 
 Sentry.init({
@@ -56,17 +42,10 @@ if (environment.production) {
 
 ThemeServiceInit(
     {
-        "devui-light-theme": devuiLightTheme,
-        "devui-dark-theme": devuiDarkTheme,
-        "green-light-theme": greenLightTheme,
-        "green-dark-theme": greenDarkTheme,
-        "infinity-theme": infinityTheme,
-        "provence-theme": provenceTheme,
-        "sweet-theme": sweetTheme,
-        "deep-theme": deepTheme,
-        "galaxy-theme": galaxyTheme,
+        infinity: infinityTheme,
+        galaxy: galaxyTheme,
     },
-    "infinity-theme",
+    "infinity",
     undefined,
     undefined,
     true
