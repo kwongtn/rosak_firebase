@@ -2,11 +2,23 @@ import { gql, Query } from "apollo-angular";
 
 import { Injectable } from "@angular/core";
 
+export interface UserSpottingTrends {
+    dateKey: string;
+    year: number;
+    month: number | null;
+    day: number | null;
+    count: number;
+    eventType: string;
+}
+
+export interface UserDataResponseUser {
+    firebaseId: string;
+    spottingsCount: number;
+    spottingTrends: UserSpottingTrends[];
+}
+
 export interface UserDataResponse {
-    user: {
-        firebaseId: string;
-        spottingsCount: number;
-    };
+    user: UserDataResponseUser;
 }
 
 @Injectable({
@@ -14,10 +26,26 @@ export interface UserDataResponse {
 })
 export class GetUserDataService extends Query<UserDataResponse> {
     override document = gql`
-        query {
+        query (
+            $dateGroup: DateGroupings
+            $typeGroup: Boolean
+            $freeRange: Boolean
+        ) {
             user {
                 firebaseId
                 spottingsCount
+                spottingTrends(
+                    dateGroup: $dateGroup
+                    typeGroup: $typeGroup
+                    freeRange: $freeRange
+                ) {
+                    dateKey
+                    year
+                    month
+                    day
+                    eventType
+                    count
+                }
             }
         }
     `;

@@ -14,6 +14,12 @@ import { HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
 import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
 import { AngularFireModule } from "@angular/fire/compat";
+import {
+    AngularFireAnalyticsModule,
+    CONFIG,
+    ScreenTrackingService,
+    UserTrackingService,
+} from "@angular/fire/compat/analytics";
 import { AngularFireAuthModule } from "@angular/fire/compat/auth";
 import { AngularFireDatabaseModule } from "@angular/fire/compat/database";
 import { AngularFirestoreModule } from "@angular/fire/compat/firestore";
@@ -27,6 +33,7 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
 import * as Sentry from "@sentry/angular";
 
+import build from "../build";
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
@@ -36,22 +43,31 @@ import { HeaderModule } from "./header/header.module";
 registerLocaleData(en);
 
 const imports: any[] = [
-    // TODO: AnalyticsModule
+    // AngularFire
     AngularFireModule.initializeApp(environment.firebase),
+    AngularFireAnalyticsModule,
     AngularFireAuthModule,
-    AngularFirestoreModule,
-    AngularFireStorageModule,
     AngularFireDatabaseModule,
-    BrowserModule,
-    AppRoutingModule,
+    AngularFireStorageModule,
+    AngularFirestoreModule,
+
+    // Angular
     BrowserAnimationsModule,
-    DevUIModule,
-    GraphQLModule,
+    BrowserModule,
     HttpClientModule,
+
+    // DevUI
+    DevUIModule,
     ToastModule,
+
+    // Internal Imports
+    AppRoutingModule,
+    GraphQLModule,
     HeaderModule,
-    RecaptchaV3Module,
+
+    // Other Services
     RecaptchaFormsModule,
+    RecaptchaV3Module,
 ];
 
 const providers: any[] = [
@@ -83,8 +99,18 @@ const providers: any[] = [
 ];
 
 if (environment.production) {
-    imports.push(AngularFirePerformanceModule);
-    providers.push(PerformanceMonitoringService);
+    imports.push(AngularFireAnalyticsModule, AngularFirePerformanceModule);
+    providers.push(
+        PerformanceMonitoringService,
+        ScreenTrackingService,
+        UserTrackingService,
+        {
+            provide: CONFIG,
+            useValue: {
+                APP_VERSION: build.git.hash
+            },
+        }
+    );
 }
 
 @NgModule({

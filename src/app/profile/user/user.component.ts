@@ -1,60 +1,24 @@
-import { QueryRef } from "apollo-angular";
 import firebase from "firebase/compat/app";
-import { Subscription } from "rxjs";
-import { AuthService } from "src/app/services/auth/auth.service";
 
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 
-import { GetUserDataService } from "../services/get-user-data.service";
-
-interface UserData {
-    firebaseId: string;
-    spottingsCount: number;
-}
+import { UserDataResponseUser } from "../services/get-user-data.service";
 
 @Component({
     selector: "profile-user",
     templateUrl: "./user.component.html",
     styleUrls: ["./user.component.scss"],
 })
-export class ProfileUserComponent implements OnInit, OnDestroy {
-    user!: firebase.User;
-    watchQueryOption!: QueryRef<any>;
-    displayData: UserData | undefined = undefined;
-    loading = true;
+export class ProfileUserComponent implements OnInit {
+    @Input() displayData: UserDataResponseUser | undefined = undefined;
+    @Input() user!: firebase.User;
+    @Input() loading = true;
 
-    private mainQuerySubscription!: Subscription;
-
-    constructor(
-        private authService: AuthService,
-        private getUserDataGql: GetUserDataService
-    ) {
-        this.user = this.authService.userData.value as firebase.User;
+    constructor() {
+        return;
     }
 
-    async ngOnInit() {
-        const authKey = await this.authService.getIdToken();
-
-        this.mainQuerySubscription = this.getUserDataGql
-            .watch(
-                {},
-                {
-                    context: {
-                        headers: {
-                            "firebase-auth-key": authKey,
-                        },
-                    },
-                    fetchPolicy: "network-only",
-                }
-            )
-            .valueChanges.subscribe(({ data, loading }) => {
-                this.loading = loading;
-
-                this.displayData = data.user;
-            });
-    }
-
-    ngOnDestroy(): void {
-        this.mainQuerySubscription?.unsubscribe();
+    ngOnInit() {
+        return;
     }
 }

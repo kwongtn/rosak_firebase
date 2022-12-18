@@ -14,7 +14,7 @@ interface BackendBuildInfo {
 
 const initialMenuList: { [key: string]: string }[] = [
     {
-        name: "TranSpot",
+        name: "TranSPOT",
         href: "/spotting",
         target: "_self",
         tag: "Beta",
@@ -44,12 +44,6 @@ export class AppComponent implements OnInit, OnDestroy {
         datetime: "...",
     };
 
-    public counter = 21;
-
-    public handleOnClick(stateCounter: number) {
-        this.counter++;
-    }
-
     constructor(
         public authService: AuthService,
         private httpClient: HttpClient // private devConfigService: DevConfigService,
@@ -74,30 +68,55 @@ export class AppComponent implements OnInit, OnDestroy {
         );
     }
 
+    menuContainsHref(href: string) {
+        return this.innerMenuList.some((item) => {
+            return item["href"] === href;
+        });
+    }
+
+    removeFromMenu(...hrefs: string[]) {
+        this.innerMenuList = this.innerMenuList.filter((item) => {
+            return !hrefs.includes(item["href"]);
+        });
+    }
+
+    addToMenu(menuObj: any) {
+        if (!this.menuContainsHref(menuObj["href"])) {
+            this.innerMenuList.unshift(menuObj);
+        }
+    }
+
     ngOnInit() {
         this.authService.userData.subscribe((user) => {
+            console.log(user);
+
             if (user) {
                 this.userAvatar = (user.multiFactor as any).user.photoURL;
+
+                this.addToMenu({
+                    name: "@Me",
+                    href: "/profile",
+                    target: "_self",
+                });
             } else {
+                this.removeFromMenu("/profile", "/console");
                 this.userAvatar = "";
             }
         });
 
-        this.authService.userAuth.subscribe((authData) => {
-            console.log("this.authService.userData : ", authData);
+        this.authService.customClaims.subscribe((claim) => {
+            console.log("Custom claims : ", claim);
 
-            if (authData?.permissions?.admin) {
-                this.innerMenuList = [
-                    {
-                        name: "Console",
-                        href: "/console",
-                        target: "_self",
-                        style: "danger",
-                    },
-                    ...initialMenuList,
-                ];
+            if (claim?.admin) {
+                this.addToMenu({
+                    name: "Console",
+                    href: "/console",
+                    target: "_self",
+                    tag: "Admin",
+                    style: "danger",
+                });
             } else {
-                this.innerMenuList = initialMenuList;
+                this.removeFromMenu("/console");
             }
         });
 

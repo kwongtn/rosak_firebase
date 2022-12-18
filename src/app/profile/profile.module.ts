@@ -18,6 +18,9 @@ import {
     CoordinatesHumanizerModule,
 } from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
 import { ProfileMainComponent } from "./main/main.component";
+import {
+    SpottingTrendsComponent,
+} from "./spotting-trends/spotting-trends.component";
 import { ProfileSpottingsComponent } from "./spottings/spottings.component";
 import { ProfileUserComponent } from "./user/user.component";
 
@@ -26,6 +29,7 @@ import { ProfileUserComponent } from "./user/user.component";
         ProfileMainComponent,
         ProfileUserComponent,
         ProfileSpottingsComponent,
+        SpottingTrendsComponent,
     ],
     imports: [
         CommonModule,

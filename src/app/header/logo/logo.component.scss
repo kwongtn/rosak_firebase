@@ -8,7 +8,7 @@
         font-size: 20px;
         svg {
             vertical-align: middle;
-            width: 36px;
+            width: 70px;
             height: 36px;
         }
     }
@@ -36,4 +36,12 @@
             display: none;
         }
     }
+}
+
+.cls-1 {
+    fill: #ee7104;
+}
+
+.cls-2 {
+    fill: $devui-text;
 }

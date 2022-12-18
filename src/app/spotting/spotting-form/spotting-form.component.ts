@@ -409,13 +409,17 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    onSubmit(): Promise<MutationResult<any> | undefined> {
-        console.log(this.formGroup);
+    onSubmit(): Promise<MutationResult<any> | undefined> | undefined {
+        console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
-            console.log(this.formGroup.value);
-            throw new Error("Form is invalid");
+            this.toastService.addToast({
+                severity: "error",
+                summary: "Error",
+                content: "Form is invalid.",
+            });
+            return undefined;
         }
 
         const formValues = { ...this.formGroup.value };
@@ -424,7 +428,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
-                throw new Error("Location has not been loaded");
+                this.toastService.addToast({
+                    severity: "error",
+                    summary: "Error",
+                    content: "Location has not been loaded",
+                });
+                return undefined;
             }
         }
 
