@@ -12,6 +12,10 @@ export class MenuComponent implements OnInit {
     @Output() menuEvent = new EventEmitter<string>();
     curLanguage!: string;
 
+    // Theme stuff
+    
+    themeMode: "light" | "dark" = "light";
+
     constructor(public router: Router) {
         return;
     }
