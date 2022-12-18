@@ -21,7 +21,6 @@ import { BrowserTracing } from "@sentry/tracing";
 
 import { AppModule } from "./app/app.module";
 import {
-    devuiLargeFontTheme,
     greenDarkTheme,
     greenLightTheme,
 } from "./app/header/theme-picker/theme-data-more";
@@ -61,7 +60,6 @@ ThemeServiceInit(
         "devui-dark-theme": devuiDarkTheme,
         "green-light-theme": greenLightTheme,
         "green-dark-theme": greenDarkTheme,
-        "devui-large-font-theme": devuiLargeFontTheme,
         "infinity-theme": infinityTheme,
         "provence-theme": provenceTheme,
         "sweet-theme": sweetTheme,

@@ -91,24 +91,3 @@ export const greenDarkTheme: Theme = new Theme({
     isDark: true,
     extends: "devui-dark-theme",
 });
-
-export const devuiLargeFontTheme: Theme = new Theme({
-    id: "devui-large-font-theme",
-    name: "Large Font Mode",
-    cnName: "大字号主题",
-    data: {},
-});
-
-export const LargeFontSize = {
-    "devui-font-size": "14px",
-    "devui-font-size-card-title": "16px",
-    "devui-font-size-page-title": "18px",
-    "devui-font-size-modal-title": "20px",
-    "devui-font-size-price": "22px",
-    "devui-font-size-data-overview": "26px",
-
-    "devui-font-size-icon": "18px",
-    "devui-font-size-sm": "14px",
-    "devui-font-size-md": "14px",
-    "devui-font-size-lg": "16px",
-};
