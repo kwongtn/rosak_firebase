@@ -1,46 +1,37 @@
-import { Theme, ThemeService } from "ng-devui/theme";
-import { Subscription } from "rxjs";
+import { Theme, ThemeService as NgThemeService } from "ng-devui/theme";
+import { BehaviorSubject, Subscription } from "rxjs";
 
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
+import { Injectable } from "@angular/core";
 
-interface ThemeProperties {
-    [key: string]: {
-        name: string;
-    };
-}
-
-@Component({
-    selector: "app-theme-picker",
-    templateUrl: "./theme-picker.component.html",
-    styleUrls: ["./theme-picker.component.scss"],
+@Injectable({
+    providedIn: "root",
 })
-export class ThemePickerComponent implements OnInit, OnDestroy {
-    themeService!: ThemeService;
+export class ThemeService {
+    themeService!: NgThemeService;
     themes: { [key: string]: Theme } = {};
-    themeFollowSystemColorScheme!: boolean;
+    themeFollowSystemColorScheme!: BehaviorSubject<boolean>;
+
     sub: Subscription | undefined;
     advancedThemeList = ["infinity", "galaxy"];
     currentTheme = "infinity";
-    subs: Subscription = new Subscription();
-    constructor(private cdr: ChangeDetectorRef) {}
 
-    ngOnInit() {
+    constructor() {
         if (window) {
             this.themeService = (window as { [key: string]: any })[
                 "devuiThemeService"
-            ] as ThemeService;
+            ] as NgThemeService;
             this.themes = (window as { [key: string]: any })["devuiThemes"];
         }
 
-        this.themeFollowSystemColorScheme =
-            localStorage.getItem("devuiThemeFollowSystemColorScheme") === "on";
+        this.themeFollowSystemColorScheme = new BehaviorSubject<boolean>(
+            localStorage.getItem("devuiThemeFollowSystemColorScheme") === "on"
+        );
 
-        if (this.themeFollowSystemColorScheme) {
+        if (this.themeFollowSystemColorScheme.value) {
             this.followSystemColorScheme(true);
         } else {
             this.initTheme();
         }
-        this.cdr.detectChanges();
     }
 
     initTheme() {
@@ -55,9 +46,9 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
         this.themeChange(this.currentTheme);
     }
 
-    onIconClick() {
+    toggleTheme() {
         this.followSystemColorScheme(false);
-        this.themeFollowSystemColorScheme = false;
+        this.themeFollowSystemColorScheme.next(false);
 
         if (this.currentTheme === "infinity") {
             this.currentTheme = "galaxy";
@@ -107,13 +98,14 @@ export class ThemePickerComponent implements OnInit, OnDestroy {
 
             this.setThemeFollowSystemColorScheme("off");
         }
+
+        this.themeFollowSystemColorScheme.next(toggleValue);
     }
 
     ngOnDestroy(): void {
         if (this.themeFollowSystemColorScheme) {
             this.ThemeServiceFollowSystemOff(this.sub);
         }
-        this.subs?.unsubscribe();
     }
 
     setThemeFollowSystemColorScheme(value: "on" | "off") {

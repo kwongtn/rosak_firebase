@@ -1,3 +1,5 @@
+import { ThemeService } from "src/app/services/theme/theme.service";
+
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { Router } from "@angular/router";
 
@@ -12,11 +14,7 @@ export class MenuComponent implements OnInit {
     @Output() menuEvent = new EventEmitter<string>();
     curLanguage!: string;
 
-    // Theme stuff
-    
-    themeMode: "light" | "dark" = "light";
-
-    constructor(public router: Router) {
+    constructor(public router: Router, private themeService: ThemeService) {
         return;
     }
 
@@ -46,5 +44,9 @@ export class MenuComponent implements OnInit {
 
     reportBug(): void {
         throw new Error(`User reported bug at time ${(new Date()).valueOf()}`);
+    }
+
+    toggleTheme(): void{
+        this.themeService.toggleTheme();
     }
 }

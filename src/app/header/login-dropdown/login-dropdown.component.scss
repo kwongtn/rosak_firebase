@@ -2,3 +2,13 @@
 .text {
     color: $devui-text;
 }
+
+.theme-menu {
+    padding: 8px 12px;
+    font-size: $devui-font-size;
+    line-height: 1.5;
+}
+
+.theme-follow-toggle {
+    transform: scale(0.8);
+}
