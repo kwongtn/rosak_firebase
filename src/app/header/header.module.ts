@@ -19,7 +19,6 @@ import {
 } from "./login-dropdown/login-dropdown.component";
 import { LogoComponent } from "./logo/logo.component";
 import { MenuComponent } from "./menu/menu.component";
-import { ThemePickerComponent } from "./theme-picker/theme-picker.component";
 
 @NgModule({
     declarations: [
@@ -27,7 +26,6 @@ import { ThemePickerComponent } from "./theme-picker/theme-picker.component";
         LogoComponent,
         MenuComponent,
         LoginDropdownComponent,
-        ThemePickerComponent,
     ],
     imports: [
         CommonModule,

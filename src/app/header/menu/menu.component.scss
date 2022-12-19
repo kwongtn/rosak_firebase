@@ -7,38 +7,18 @@
     .menu-item {
         margin: 12px;
         font-size: $devui-font-size-page-title;
+
+        .menu-item-theme {
+            font-size: 30px;
+            margin-bottom: -10px;
+            cursor: pointer;
+        }
+
         .menu-link {
             color: $devui-text;
             cursor: pointer;
             &:hover {
                 color: $devui-list-item-hover-text;
-            }
-
-            .devui-header-open-icon {
-                display: inline-block;
-                text-indent: 0;
-                pointer-events: none; /* 让鼠标穿透 */
-                width: 16px;
-                height: 16px;
-                line-height: 16px;
-                transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
-                transform-origin: center;
-                vertical-align: text-top;
-
-                & > svg {
-                    width: 16px;
-                    height: 16px;
-
-                    polygon {
-                        fill: $devui-text-weak;
-                    }
-                }
-            }
-
-            &:not(.devui-dropdown-open) {
-                .devui-header-open-icon {
-                    transform: rotate(-180deg);
-                }
             }
         }
     }

@@ -6,16 +6,25 @@
             [width]="60"
             [height]="60"
         ></d-avatar>
-        <d-card-title
-            ><a [href]="profileHref" [routerLink]="profileHref" class="text">{{
+        <d-card-title>
+            <a [href]="profileHref" [routerLink]="profileHref" class="text">{{
                 (authService.userData | async)?.displayName
-            }}</a></d-card-title
-        >
-        <d-card-subtitle>{{
-            (authService.userData | async)?.email
-        }}</d-card-subtitle>
+            }}</a>
+        </d-card-title>
+        <d-card-subtitle>
+            {{ (authService.userData | async)?.email }}
+        </d-card-subtitle>
     </d-card-header>
-    <d-card-content> </d-card-content>
+    <d-card-content>
+        <div class="theme-menu">
+            <d-toggle
+                class="theme-follow-toggle"
+                [(ngModel)]="themeFollowSystemColorScheme"
+                (ngModelChange)="followSystemColorScheme($event)"
+            ></d-toggle>
+            <span>Follow System Theme</span>
+        </div>
+    </d-card-content>
     <d-card-actions>
         <d-button
             *ngIf="(authService.userData | async) == null"
