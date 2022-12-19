@@ -2,16 +2,33 @@
 # https://github.com/firebase/firebase-tools
 
 name: Deploy to Firebase Hosting on PR
-'on': pull_request
+"on": pull_request
+
 jobs:
-  build_and_preview:
-    if: '${{ github.event.pull_request.head.repo.full_name == github.repository }}'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: npm ci && npm run build
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROSAK_7223B }}'
-          projectId: rosak-7223b
+    build_and_preview:
+        if: "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+
+            - run: npm ci && npm run build
+              env:
+                  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+                  SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+                  SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
+            - uses: FirebaseExtended/action-hosting-deploy@v0
+              with:
+                  repoToken: "${{ secrets.GITHUB_TOKEN }}"
+                  firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROSAK_7223B }}"
+                  projectId: rosak-7223b
+
+            - name: Create Sentry release
+              uses: getsentry/action-release@v1
+              env:
+                  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+                  SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+                  SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+                  # SENTRY_URL: https://sentry.io/
+              with:
+                  environment: "${{GITHUB_REF_NAME}}"
