@@ -1,9 +1,24 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const SentryWebpackPlugin = require("@sentry/webpack-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 
 module.exports = {
     devtool: "source-map", // Source map generation must be turned on
+    module: {
+        rules: [
+            {
+                test: /.s?css$/,
+                use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"],
+            },
+        ],
+    },
+    optimization: {
+        minimizer: [
+            new CssMinimizerPlugin(),
+        ],
+    },
     plugins: [
         new SentryWebpackPlugin({
             org: process.env.SENTRY_ORG,
@@ -20,5 +35,6 @@ module.exports = {
             // release: process.env.RELEASE,
         }),
         new CompressionPlugin(),
+        new MiniCssExtractPlugin(),
     ],
 };
