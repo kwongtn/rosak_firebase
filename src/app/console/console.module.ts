@@ -1,12 +1,20 @@
 import {
     CheckBoxModule,
+    DataTableModule,
     LoadingModule,
     PanelModule,
+    TagsModule,
     ToggleModule,
     TooltipModule,
 } from "ng-devui";
 import { ButtonModule } from "ng-devui/button";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzSwitchModule } from "ng-zorro-antd/switch";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
+import { CommonModule } from "@angular/common";
+import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import {
@@ -35,6 +43,9 @@ import { ConsoleMainComponent } from "./main/main.component";
 @NgModule({
     declarations: [ConsoleMainComponent, ConsoleEventsTableComponent],
     imports: [
+        CommonModule,
+        DataTableModule,
+        TagsModule,
         VehicleStatusPipeModule,
         VehicleTableCellDisplayModule,
         VehicleStatusTagModule,
@@ -48,7 +59,7 @@ import { ConsoleMainComponent } from "./main/main.component";
         FormsModule,
         CoordinatesHumanizerModule,
         SpottingTypeCellDisplayModule,
-
+        
         NzButtonModule,
         NzSpinModule,
         NzSwitchModule,
