@@ -107,7 +107,7 @@ if (environment.production) {
         {
             provide: CONFIG,
             useValue: {
-                APP_VERSION: build.git.hash
+                APP_VERSION: build.git.hash,
             },
         }
     );
