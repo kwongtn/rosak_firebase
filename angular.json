@@ -36,8 +36,8 @@
                             }
                         ],
                         "styles": [
-                            "./node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
                             "src/styles.scss",
+                            "src/nz-zorro.scss",
                             "node_modules/ng-devui/devui.min.css"
                         ],
                         "scripts": [],
@@ -107,7 +107,7 @@
                         "inlineStyleLanguage": "scss",
                         "assets": ["src/favicon.ico", "src/assets"],
                         "styles": [
-                            "./node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
+                            "src/nz-zorro.scss",
                             "src/styles.scss",
                             "node_modules/ng-devui/devui.min.css"
                         ],
