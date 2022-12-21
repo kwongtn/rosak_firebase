@@ -5,8 +5,8 @@ import { environment } from "src/environments/environment";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { AngularFirestore } from "@angular/fire/compat/firestore";
 
-import { Personnel, PublicAboutDocument } from "../models/firestore";
-import { sortOrder } from "../utils";
+import { Personnel, PublicAboutDocument } from "./models/firestore";
+import { sortOrder } from "./utils";
 
 @Component({
     selector: "app-about",
@@ -17,7 +17,7 @@ export class AboutComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
     $items!: Observable<PublicAboutDocument | undefined>;
     itemSubscription!: Subscription;
-    
+
     semaphoreBadgeKey: string = environment.semaphore.badgeKey;
     branchName: string = build.git.branch;
 

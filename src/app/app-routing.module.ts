@@ -7,7 +7,7 @@ import {
 } from "@angular/fire/compat/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
-import { AboutComponent } from "./about/about/about.component";
+import { AboutComponent } from "./about/about.component";
 import {
     MainComponent as ComplianceMainComponent,
 } from "./compliance/main/main.component";

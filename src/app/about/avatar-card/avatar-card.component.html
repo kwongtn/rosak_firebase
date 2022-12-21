@@ -1,37 +1,38 @@
 <div class="components">
-    <d-card class="list">
-        <d-card-header>
-            <d-avatar
-                dCardAvatar
-                [imgSrc]="data.avatar"
-                [width]="100"
-                [height]="100"
-            ></d-avatar>
-            <d-card-title class="title">
-                <h2>{{ data.name }}</h2>
-            </d-card-title>
-            <d-card-subtitle class="subtitle">{{ data.title }}</d-card-subtitle>
-        </d-card-header>
-        <d-card-content>
-            {{ data.description }}
-        </d-card-content>
-        <d-card-actions [align]="'end'">
-            <div
-                dTooltip
-                [content]="social.name"
-                [position]="'bottom'"
+    <nz-card class="list" [nzCover]="coverTemplate" [nzSize]="'default'">
+        <nz-card-meta [nzTitle]="titleTemplate"></nz-card-meta>
+        <p>{{ data.title }}</p>
+        <p>{{ data.description }}</p>
+
+        <div class="social-svg-container">
+            <span
+                nz-tooltip
+                nzTooltipTitle="{{ social.name }}"
+                nzTooltipPlacement="bottom"
                 *ngFor="let social of data.socials"
                 class="card-block"
             >
                 <a [href]="social.link" target="_blank">
-                    <svg class="social-svg" viewBox="0 0 24 24">
-                        <path
-                            fill="var(--devui-form-control-line-hover)"
-                            [attr.d]="icon[social.type].d"
-                        />
-                    </svg>
+                    <span
+                        class="social-svg"
+                        nz-icon
+                        [nzType]="social.type"
+                    ></span>
                 </a>
-            </div>
-        </d-card-actions>
-    </d-card>
+            </span>
+        </div>
+    </nz-card>
 </div>
+
+<ng-template #titleTemplate>
+    <p class="name">{{ data.name }}</p>
+</ng-template>
+
+<ng-template #coverTemplate>
+    <nz-avatar
+        class="avatar"
+        [nzSrc]="data.avatar"
+        [nzSize]="100"
+        [nzIcon]="'user'"
+    ></nz-avatar>
+</ng-template>

@@ -1,37 +1,15 @@
-@import "ng-devui/styles-var/devui-var.scss";
+.social-svg-container {
+    display: flex;
+    flex-direction: row-reverse;
+}
 
 .social-svg {
-    // cursor: pointer;
-    transition: box-shadow $devui-animation-duration-slow
-            $devui-animation-ease-in-out-smooth,
-        transform $devui-animation-duration-slow
-            $devui-animation-ease-in-out-smooth;
-
-    width: 30px;
-    height: 30px;
-
-    &:hover {
-        box-shadow: $devui-shadow-length-hover $devui-shadow;
-        transform: translateY(-5px);
-    }
+    font-size: 24px;
 }
 
 .components {
-    padding: 20px;
-
     .list {
         padding: 20px;
-        width: 400px;
-
-        .title {
-            margin: 12px 0;
-
-            h2 {
-                display: inline-block;
-                margin: 0 8px 0 0;
-                font-size: $devui-font-size-page-title;
-            }
-        }
 
         .card-block {
             margin-right: 16px;
@@ -39,6 +17,11 @@
     }
 }
 
-.svg {
-    display: block;
+.name {
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+.avatar {
+    margin-left: 20px;
 }

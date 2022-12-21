@@ -4,7 +4,7 @@ import { Personnel } from "../models/firestore";
 import { Icon } from "./avatar-card.icons";
 
 @Component({
-    selector: "app-avatar-card",
+    selector: "about-avatar",
     templateUrl: "./avatar-card.component.html",
     styleUrls: ["./avatar-card.component.scss"],
 })

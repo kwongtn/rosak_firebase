@@ -3,7 +3,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { Project } from "../models/firestore";
 
 @Component({
-    selector: "app-projects-card",
+    selector: "about-projects",
     templateUrl: "./projects-card.component.html",
     styleUrls: ["./projects-card.component.scss"],
 })

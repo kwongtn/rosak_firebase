@@ -1,0 +1,103 @@
+<nz-spin [nzSpinning]="showLoading">
+    <div>
+        <h1 nz-typography>
+            About the project
+            <a
+                href="https://kwongtn.semaphoreci.com/projects/lift-rosak-backend"
+            >
+                <img
+                    class="build-status"
+                    [src]="
+                        'https://kwongtn.semaphoreci.com/badges/lift-rosak-backend/branches/' +
+                        branchName +
+                        '.svg?key=' +
+                        semaphoreBadgeKey
+                    "
+                    alt="Backend Build Status"
+                />
+            </a>
+            <a
+                href="https://github.com/kwongtn/rosak_firebase/actions/workflows/firebase-hosting-merge.yml"
+            >
+                <img
+                    class="build-status"
+                    [src]="
+                        'https://github.com/kwongtn/rosak_firebase/actions/workflows/firebase-hosting-merge.yml/badge.svg?branch=' +
+                        branchName
+                    "
+                    alt="Frontend Build Status"
+                />
+            </a>
+        </h1>
+        {{ ($items | async)?.aboutProject }}
+        <div>
+            <nz-list nzGrid>
+                <div nz-row [nzGutter]="8" nzJustify="start">
+                    <div
+                        nz-col
+                        *ngFor="let item of ($items | async)?.projects"
+                        [nzXs]="24"
+                        [nzMd]="12"
+                        [nzXl]="8"
+                    >
+                        <nz-list-item>
+                            <about-projects
+                                [data]="item"
+                                *ngIf="item.display"
+                            ></about-projects>
+                        </nz-list-item>
+                    </div>
+                </div>
+            </nz-list>
+        </div>
+    </div>
+
+    <div>
+        <h1 nz-typography>About the team</h1>
+        <div>
+            <nz-list nzGrid>
+                <div nz-row [nzGutter]="8" nzJustify="start">
+                    <div
+                        nz-col
+                        *ngFor="let item of personnel"
+                        [nzXs]="12"
+                        [nzMd]="8"
+                        [nzXl]="6"
+                    >
+                        <nz-list-item>
+                            <about-avatar
+                                [data]="item"
+                                *ngIf="item.display"
+                            ></about-avatar>
+                        </nz-list-item>
+                    </div>
+                </div>
+            </nz-list>
+        </div>
+    </div>
+
+    <!-- <div>
+        <h1>Special Mentions</h1>
+    </div> -->
+
+    <div>
+        <h1 nz-typography>Tech Stacks & Open Souce</h1>
+        <div>
+            <nz-list nzGrid>
+                <div nz-row [nzGutter]="8" nzJustify="start">
+                    <div
+                        nz-col
+                        *ngFor="let item of ($items | async)?.techStacks"
+                        [nzXs]="12"
+                        [nzMd]="8"
+                        [nzXl]="6"
+                    >
+                        <nz-list-item>
+                            <about-techstack [data]="item"></about-techstack>
+                        </nz-list-item>
+                    </div>
+                </div>
+            </nz-list>
+        </div>
+    </div>
+</nz-spin>
