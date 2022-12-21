@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const SentryWebpackPlugin = require("@sentry/webpack-plugin");
+const CompressionPlugin = require("compression-webpack-plugin");
 
 module.exports = {
     devtool: "source-map", // Source map generation must be turned on
@@ -18,5 +19,6 @@ module.exports = {
             // Optionally uncomment the line below to override automatic release name detection
             // release: process.env.RELEASE,
         }),
+        new CompressionPlugin(),
     ],
 };
