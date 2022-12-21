@@ -80,7 +80,7 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
         this.eventGqlSubscription?.unsubscribe();
     }
 
-    clickSwitch() {
-        this.toggleMarkAsRead = !this.toggleMarkAsRead;
+    onToggleChange(event: boolean) {
+        this.toggleMarkAsRead = event;
     }
 }
