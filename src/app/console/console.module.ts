@@ -59,7 +59,8 @@ import { ConsoleMainComponent } from "./main/main.component";
         FormsModule,
         CoordinatesHumanizerModule,
         SpottingTypeCellDisplayModule,
-        
+
+        // ng-zorro
         NzButtonModule,
         NzSpinModule,
         NzSwitchModule,
