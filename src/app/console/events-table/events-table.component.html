@@ -35,45 +35,7 @@
                     dHeadCell
                     *ngFor="let colOption of dataTableOptions.columns"
                 >
-                    <span [ngSwitch]="colOption.fieldType">
-                        <span *ngSwitchCase="'status'">
-                            <vehicle-status-tag
-                                [vehicleStatus]="rowItem[colOption.field]"
-                            ></vehicle-status-tag>
-                        </span>
-                        <span *ngSwitchCase="'id'">
-                            <a
-                                href="{{ backendUrl }}admin/spotting/event/{{
-                                    rowItem[colOption.field]
-                                }}"
-                                class="devui-link"
-                                target="_blank"
-                            >
-                                {{ rowItem[colOption.field] }}
-                            </a>
-                        </span>
-                        <span *ngSwitchCase="'datetime'">
-                            {{ rowItem[colOption.field] | date : "MMM dd, y" }}
-                            <br />
-                            {{ rowItem[colOption.field] | date : "HH:mm:ss" }}
-                        </span>
-                        <span *ngSwitchCase="'vehicle'">
-                            <vehicle-table-cell-display
-                                [vehicleData]="rowItem[colOption.field]"
-                            >
-                            </vehicle-table-cell-display>
-                        </span>
-                        <span *ngSwitchCase="'spottingType'">
-                            <spotting-type-cell-display
-                                [rowItem]="rowItem"
-                                [spottingType]="rowItem[colOption.field]"
-                            >
-                            </spotting-type-cell-display>
-                        </span>
-                        <span *ngSwitchDefault>{{
-                            rowItem[colOption.field]
-                        }}</span>
-                    </span>
+                    {{ colOption.header }}
                 </th>
             </tr>
         </thead>
