@@ -7,7 +7,6 @@ import { environment } from "src/environments/environment";
 import {
     Component,
     HostListener,
-    Input,
     OnDestroy,
     OnInit,
     ViewChild,
@@ -34,11 +33,12 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     @ViewChild(DataTableComponent, { static: true })
         datatable!: DataTableComponent;
     eventGqlSubscription!: Subscription;
-    @Input() showCheckbox: boolean = false;
 
     allChecked: boolean = false;
     halfChecked: boolean = false;
     showLoading: boolean = false;
+
+    showCheckbox: boolean = false;
 
     backendUrl: string = environment.backendUrl;
 
@@ -207,6 +207,11 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             rowItem: rowItem,
             checked: checked,
         });
+    }
+
+    
+    onToggleChange(event: boolean) {
+        this.showCheckbox = event;
     }
 
     loadMore($event: DataTableComponent) {
