@@ -209,8 +209,15 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
         });
     }
 
-    
     onToggleChange(event: boolean) {
+        if (event) {
+            this.tableWidthConfig.unshift({ field: "checkbox", width: "50px" });
+        } else {
+            this.tableWidthConfig = this.tableWidthConfig.filter((value) => {
+                return value.field !== "checkbox";
+            });
+        }
+
         this.showCheckbox = event;
     }
 
