@@ -1,10 +1,13 @@
+import { QueryRef } from "apollo-angular";
 import { DataTableComponent, TableWidthConfig } from "ng-devui";
+import { Subscription } from "rxjs";
+import { AuthService } from "src/app/services/auth/auth.service";
 import { environment } from "src/environments/environment";
 
 import {
     Component,
     HostListener,
-    Input,
+    OnDestroy,
     OnInit,
     ViewChild,
 } from "@angular/core";
@@ -12,6 +15,7 @@ import {
 import {
     ConsoleEventsGqlResponseElement,
     ConsoleEventsGqlResponseTableDataElement,
+    ConsoleEventsGqlService,
 } from "../services/events-gql/events-gql.service";
 import { MarkReadService } from "../services/mark-read/mark-read.service";
 
@@ -25,15 +29,16 @@ interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
     templateUrl: "./events-table.component.html",
     styleUrls: ["./events-table.component.scss"],
 })
-export class ConsoleEventsTableComponent implements OnInit {
+export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     @ViewChild(DataTableComponent, { static: true })
         datatable!: DataTableComponent;
-    @Input() dataSource!: ConsoleEventsGqlResponseElement[];
-    @Input() showCheckbox: boolean = false;
+    eventGqlSubscription!: Subscription;
 
     allChecked: boolean = false;
     halfChecked: boolean = false;
     showLoading: boolean = false;
+
+    showCheckbox: boolean = false;
 
     backendUrl: string = environment.backendUrl;
 
@@ -41,6 +46,10 @@ export class ConsoleEventsTableComponent implements OnInit {
 
     lastSelectedRow: any = undefined;
     isShiftKeyDown: boolean = false;
+
+    // Pagination
+    limit = 100;
+    offset = 0;
 
     dataTableOptions = {
         columns: [
@@ -99,34 +108,50 @@ export class ConsoleEventsTableComponent implements OnInit {
         { field: "notes", width: "500px" },
     ];
 
-    constructor(private markReadService: MarkReadService) {
+    watchQueryOption!: QueryRef<any>;
+
+    constructor(
+        private markReadService: MarkReadService,
+        private consoleEventsGqlService: ConsoleEventsGqlService,
+        private authService: AuthService
+    ) {
         return;
     }
 
-    ngOnInit(): void {
-        this.displayData = [...this.dataSource]
-            .sort((a, b) => {
-                const aDate = new Date(a.created) as any;
-                const bDate = new Date(b.created) as any;
-                return bDate - aDate;
-            })
-            .map((val) => {
-                const returnObj: any = {
-                    ...val,
-                    $checked: false,
-                    $checkDisabled: false,
-                };
+    async ngOnInit(): Promise<void> {
+        this.watchQueryOption = this.consoleEventsGqlService.watch(
+            {
+                eventFilters: {
+                    isRead: false,
+                },
+                eventOrder: {
+                    created: "DESC",
+                },
+                eventPagination: {
+                    limit: this.limit,
+                    offset: this.offset,
+                },
+            },
+            {
+                context: {
+                    headers: {
+                        "firebase-auth-key":
+                            await this.authService.getIdToken(),
+                    },
+                },
+            }
+        );
 
-                if (val.location) {
-                    returnObj.location = {
-                        ...val.location,
-                        latitude: val.location.location[1],
-                        longitude: val.location.location[0],
-                    };
+        this.eventGqlSubscription =
+            this.watchQueryOption.valueChanges.subscribe(
+                ({ data, loading }) => {
+                    this.showLoading = loading;
+
+                    this.displayData = this.mapGqlResultsToDisplayData(
+                        data.events
+                    );
                 }
-
-                return returnObj;
-            });
+            );
     }
 
     markAsRead() {
@@ -181,6 +206,67 @@ export class ConsoleEventsTableComponent implements OnInit {
             nestedIndex: nestedIndex,
             rowItem: rowItem,
             checked: checked,
+        });
+    }
+
+    onToggleChange(event: boolean) {
+        if (event) {
+            this.tableWidthConfig.unshift({ field: "checkbox", width: "50px" });
+        } else {
+            this.tableWidthConfig = this.tableWidthConfig.filter((value) => {
+                return value.field !== "checkbox";
+            });
+        }
+
+        this.showCheckbox = event;
+    }
+
+    loadMore($event: DataTableComponent) {
+        this.showLoading = true;
+
+        this.watchQueryOption
+            .fetchMore({
+                variables: {
+                    eventPagination: {
+                        limit: this.limit,
+                        offset: this.offset,
+                    },
+                },
+            })
+            .then(({ data, loading }) => {
+                this.displayData = this.displayData.concat(
+                    this.mapGqlResultsToDisplayData(data.events)
+                );
+
+                this.showLoading = loading;
+                this.offset = this.displayData.length;
+            });
+    }
+
+    ngOnDestroy(): void {
+        this.eventGqlSubscription?.unsubscribe();
+    }
+
+    mapGqlResultsToDisplayData(
+        data: ConsoleEventsGqlResponseElement[]
+    ): TableSourceType[] {
+        console.log(data);
+        return data.map((val) => {
+            const returnObj: any = {
+                ...val,
+                $checked: false,
+                $checkDisabled: false,
+            };
+
+            if (val.location) {
+                returnObj.location = {
+                    ...val.location,
+                    latitude: val.location.location[1],
+                    longitude: val.location.location[0],
+                };
+            }
+
+            return returnObj;
         });
     }
 }

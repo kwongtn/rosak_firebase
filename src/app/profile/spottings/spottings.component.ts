@@ -102,8 +102,6 @@ implements OnInit, OnDestroy, AfterViewInit
     ) {}
 
     async ngOnInit() {
-        const authKey = await this.authService.getIdToken();
-
         this.watchQueryOption = this.getEventsGql.watch(
             {
                 eventFilters: {
@@ -120,7 +118,7 @@ implements OnInit, OnDestroy, AfterViewInit
             {
                 context: {
                     headers: {
-                        "firebase-auth-key": authKey,
+                        "firebase-auth-key": await this.authService.getIdToken(),
                     },
                 },
                 fetchPolicy: "network-only",
