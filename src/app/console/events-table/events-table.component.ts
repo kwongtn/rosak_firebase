@@ -48,7 +48,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     isShiftKeyDown: boolean = false;
 
     // Pagination
-    limit = 30;
+    limit = 100;
     offset = 0;
 
     dataTableOptions = {
