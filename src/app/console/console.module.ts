@@ -8,6 +8,7 @@ import {
     TooltipModule,
 } from "ng-devui";
 import { ButtonModule } from "ng-devui/button";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -54,7 +55,10 @@ import { ConsoleMainComponent } from "./main/main.component";
         ButtonModule,
         FormsModule,
         CoordinatesHumanizerModule,
-        SpottingTypeCellDisplayModule
+        SpottingTypeCellDisplayModule,
+
+        // ng-zorro
+        NzSpinModule,
     ],
 })
 export class ConsoleModule {}
