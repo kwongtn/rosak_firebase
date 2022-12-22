@@ -1,15 +1,7 @@
-@import "ng-devui/styles-var/devui-var.scss";
-
 .mark-as-read-button {
     display: flex;
     margin-left: auto;
     margin-right: 2%;
     margin-top: 10px;
     z-index: 10;
-}
-
-.count-text {
-    font-size: $devui-font-size-sm;
-    margin: $devui-font-size-sm;
-    text-align: right;
 }
