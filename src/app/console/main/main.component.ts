@@ -19,16 +19,16 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
 
     toggleMarkAsRead = false;
 
+    // Pagination
+    limit = 30;
+    offset = 0;
+
     tableData: ConsoleEventsGqlResponse = {
-        eventsLastThreeDays: [],
-        eventsLastFiveDaysHasNotes: [],
-        eventsLastSevenDaysDifferentStatusThanVehicle: [],
+        events: [],
     };
 
     panelCollapseStatus: { [key: string]: boolean } = {
-        eventsLastThreeDays: false,
-        eventsLastFiveDaysHasNotes: false,
-        eventsLastSevenDaysDifferentStatusThanVehicle: false,
+        events: false,
     };
 
     constructor(
@@ -46,19 +46,15 @@ export class ConsoleMainComponent implements OnInit, OnDestroy {
         this.eventGqlSubscription = this.consoleEventsGqlService
             .watch(
                 {
-                    eventsLastThreeDaysFilters: {
+                    eventFilters: {
                         isRead: false,
-                        daysBefore: 3,
                     },
-                    eventsLastFiveDaysHasNotesFilters: {
-                        isRead: false,
-                        daysBefore: 5,
-                        hasNotes: true,
+                    eventOrder: {
+                        created: "DESC",
                     },
-                    eventsLastSevenDaysDifferentStatusThanVehicleFilters: {
-                        isRead: false,
-                        daysBefore: 7,
-                        differentStatusThanVehicle: true,
+                    eventPagination: {
+                        limit: this.limit,
+                        offset: this.offset,
                     },
                 },
                 {

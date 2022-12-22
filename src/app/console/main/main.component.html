@@ -16,69 +16,9 @@
         ></d-toggle>
     </div>
 
-    <d-panel
-        #ghostPanel
-        [type]="'ghost'"
-        [hasLeftPadding]="false"
-        (toggle)="toggle('eventsLastThreeDays')"
-        [isCollapsed]="!panelCollapseStatus['eventsLastThreeDays']"
-    >
-        <d-panel-header>
-            <h1 class="table-title">Spotting Events Last 3 Days</h1>
-        </d-panel-header>
-        <d-panel-body>
-            <console-events-table
-                [dataSource]="tableData.eventsLastThreeDays"
-                [showCheckbox]="toggleMarkAsRead"
-            ></console-events-table>
-        </d-panel-body>
-        <d-panel-footer> </d-panel-footer>
-    </d-panel>
-
-    <d-panel
-        #ghostPanel
-        [type]="'ghost'"
-        [hasLeftPadding]="false"
-        (toggle)="toggle('eventsLastFiveDaysHasNotes')"
-        [isCollapsed]="!panelCollapseStatus['eventsLastFiveDaysHasNotes']"
-    >
-        <d-panel-header>
-            <h1 class="table-title">Spotting Events Last 5 Days with Notes</h1>
-        </d-panel-header>
-        <d-panel-body>
-            <console-events-table
-                [dataSource]="tableData.eventsLastFiveDaysHasNotes"
-                [showCheckbox]="toggleMarkAsRead"
-            ></console-events-table>
-        </d-panel-body>
-        <d-panel-footer> </d-panel-footer>
-    </d-panel>
-
-    <d-panel
-        #ghostPanel
-        [type]="'ghost'"
-        [hasLeftPadding]="false"
-        (toggle)="toggle('eventsLastSevenDaysDifferentStatusThanVehicle')"
-        [isCollapsed]="
-            !panelCollapseStatus[
-                'eventsLastSevenDaysDifferentStatusThanVehicle'
-            ]
-        "
-    >
-        <d-panel-header>
-            <h1 class="table-title">
-                Spotting Events Last 7 Days with Different Vehicle Status
-            </h1>
-        </d-panel-header>
-        <d-panel-body>
-            <console-events-table
-                [dataSource]="
-                    tableData.eventsLastSevenDaysDifferentStatusThanVehicle
-                "
-                [showCheckbox]="toggleMarkAsRead"
-            >
-            </console-events-table>
-        </d-panel-body>
-        <d-panel-footer> </d-panel-footer>
-    </d-panel>
+    <h1 class="table-title">Spotting Event</h1>
+    <console-events-table
+        [dataSource]="tableData.events"
+        [showCheckbox]="toggleMarkAsRead"
+    ></console-events-table>
 </div>

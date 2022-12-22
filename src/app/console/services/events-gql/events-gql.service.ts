@@ -49,15 +49,11 @@ export interface ConsoleEventsGqlResponseTableDataElement
 }
 
 export interface ConsoleEventsGqlResponse {
-    eventsLastThreeDays: ConsoleEventsGqlResponseElement[];
-    eventsLastFiveDaysHasNotes: ConsoleEventsGqlResponseElement[];
-    eventsLastSevenDaysDifferentStatusThanVehicle: ConsoleEventsGqlResponseElement[];
+    events: ConsoleEventsGqlResponseElement[];
 }
 
 export interface ConsoleEventsGqlResponseTableData {
-    eventsLastThreeDays: ConsoleEventsGqlResponseTableDataElement[];
-    eventsLastFiveDaysHasNotes: ConsoleEventsGqlResponseTableDataElement[];
-    eventsLastSevenDaysDifferentStatusThanVehicle: ConsoleEventsGqlResponseTableDataElement[];
+    events: ConsoleEventsGqlResponseTableDataElement[];
 }
 
 @Injectable({
@@ -66,59 +62,21 @@ export interface ConsoleEventsGqlResponseTableData {
 export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
     override document = gql`
         query (
-            $eventsLastThreeDaysFilters: EventFilter
-            $eventsLastFiveDaysHasNotesFilters: EventFilter
-            $eventsLastSevenDaysDifferentStatusThanVehicleFilters: EventFilter
+            $eventFilters: EventFilter
+            $eventPagination: OffsetPaginationInput
+            $eventOrder: EventOrder
         ) {
-            eventsLastThreeDays: events(filters: $eventsLastThreeDaysFilters) {
-                id
-                spottingDate
-                notes
-                status
-                type
-                created
-                vehicle {
-                    id
-                    status
-                    identificationNo
-                    notes
-                    vehicleType {
-                        internalName
-                    }
-                    lines {
-                        code
-                    }
-                }
-                location {
-                    accuracy
-                    altitudeAccuracy
-                    heading
-                    speed
-                    location
-                    altitude
-                }
-            }
-            eventsLastFiveDaysHasNotes: events(
-                filters: $eventsLastFiveDaysHasNotesFilters
+            events(
+                filters: $eventFilters
+                pagination: $eventPagination
+                order: $eventOrder
             ) {
                 id
                 spottingDate
                 notes
+                created
                 status
                 type
-                created
-                vehicle {
-                    id
-                    status
-                    identificationNo
-                    notes
-                    vehicleType {
-                        internalName
-                    }
-                    lines {
-                        code
-                    }
-                }
                 location {
                     accuracy
                     altitudeAccuracy
@@ -127,35 +85,24 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                     location
                     altitude
                 }
-            }
-            eventsLastSevenDaysDifferentStatusThanVehicle: events(
-                filters: $eventsLastSevenDaysDifferentStatusThanVehicleFilters
-            ) {
-                id
-                spottingDate
-                notes
-                status
-                type
-                created
+                originStation {
+                    id
+                    displayName
+                }
+                destinationStation {
+                    id
+                    displayName
+                }
                 vehicle {
                     id
                     status
                     identificationNo
-                    notes
                     vehicleType {
                         internalName
                     }
                     lines {
                         code
                     }
-                }
-                location {
-                    accuracy
-                    altitudeAccuracy
-                    heading
-                    speed
-                    location
-                    altitude
                 }
             }
         }
