@@ -5,10 +5,17 @@
 
 <nz-spin [nzSpinning]="showLoading">
     <d-data-table
+        #tableInstance
         [dataSource]="displayData"
         [scrollable]="true"
         [tableOverflowType]="'overlay'"
         [tableWidthConfig]="tableWidthConfig"
+        [lazy]="true"
+        (loadMore)="loadMore($event)"
+        [virtualScroll]="true"
+        [containFixHeaderHeight]="true"
+        [fixHeader]="true"
+        tableHeight="80vh"
     >
         <thead dTableHead [checkable]="showCheckbox">
             <tr dTableRow>

@@ -1,24 +1,12 @@
-<div
-    *ngIf="showLoading"
-    class="loading-component"
-    dLoading
-    [showLoading]="showLoading"
-></div>
-
-<div *ngIf="!showLoading">
-    <div class="mark-as-read-toggle">
-        <div style="width: 100%"></div>
-        <d-toggle
-            dTooltip
-            [content]="'Toggle mark as read'"
-            [position]="'bottom'"
-            (change)="onToggleChange($event)"
-        ></d-toggle>
-    </div>
-
-    <h1 class="table-title">Spotting Event</h1>
-    <console-events-table
-        [dataSource]="tableData.events"
-        [showCheckbox]="toggleMarkAsRead"
-    ></console-events-table>
+<div class="mark-as-read-toggle">
+    <div style="width: 100%"></div>
+    <d-toggle
+        dTooltip
+        [content]="'Toggle mark as read'"
+        [position]="'bottom'"
+        (change)="onToggleChange($event)"
+    ></d-toggle>
 </div>
+
+<h1 class="table-title">Spotting Event</h1>
+<console-events-table [showCheckbox]="toggleMarkAsRead"></console-events-table>
