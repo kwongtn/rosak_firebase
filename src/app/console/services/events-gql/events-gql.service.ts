@@ -4,6 +4,11 @@ import { SpottingType } from "src/app/models/spotting-table/source-type";
 
 import { Injectable } from "@angular/core";
 
+export interface ConsoleEventsGqlResponseElementStation {
+    id: string;
+    displayName: string;
+}
+
 export interface ConsoleEventsGqlResponseElement {
     id: string;
     spottingDate: string;
@@ -11,6 +16,8 @@ export interface ConsoleEventsGqlResponseElement {
     created: string;
     status: VehicleStatus;
     type: SpottingType;
+    originStation: ConsoleEventsGqlResponseElementStation | null;
+    destinationStation: ConsoleEventsGqlResponseElementStation | null;
     vehicle: {
         id: string;
         status: VehicleStatus;
