@@ -1,9 +1,4 @@
-<div
-    nz-tooltip
-    [nzTooltipTitle]="locationPopoverTemplate"
-    [nzTooltipTrigger]="showPopover ? 'hover' : null"
-    [nzTooltipPlacement]="'right'"
->
+<div>
     <spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
     <br />
     <a
@@ -13,7 +8,15 @@
         }}"
         target="_blank"
     >
-        <span *ngIf="showPopover" nz-icon [nzType]="'info-circle'"></span>
+        <span
+            *ngIf="showLocationPopover"
+            nz-tooltip
+            [nzTooltipTitle]="locationPopoverTemplate"
+            [nzTooltipTrigger]="'hover'"
+            [nzTooltipPlacement]="'right'"
+            nz-icon
+            [nzType]="'info-circle'"
+        ></span>
         {{ rowItem.location | coordinatesHumanizer : 3 }}
     </a>
 </div>
@@ -21,28 +24,46 @@
 <ng-template #content> </ng-template>
 
 <ng-template #locationPopoverTemplate>
-    <table *ngIf="rowItem.location">
+    <table *ngIf="rowItem.location" class="location-popover">
+        <tr>
+            <td>Location</td>
+            <td>:</td>
+            <td>
+                {{
+                    rowItem.location
+                        | coordinatesHumanizer : 3 : ["location-only"]
+                }}
+            </td>
+        </tr>
+        <tr>
+            <td>Accuracy</td>
+            <td>:</td>
+            <td>{{ rowItem.location.accuracy | beautifulDecimal }}m</td>
+        </tr>
         <tr *ngIf="rowItem.location.altitude">
             <td>Altitude</td>
             <td>:</td>
             <td>
-                {{ rowItem.location.altitude }}m<span
+                {{ rowItem.location.altitude | beautifulDecimal }}m<span
                     *ngIf="rowItem.location.altitudeAccuracy"
                 >
-                    ± {{ rowItem.location.altitudeAccuracy }}m</span
+                    ±
+                    {{
+                        rowItem.location.altitudeAccuracy | beautifulDecimal
+                    }}m</span
                 >
             </td>
         </tr>
         <tr *ngIf="rowItem.location.heading">
             <td>Heading</td>
             <td>:</td>
-            <td>{{ rowItem.location.heading }}°</td>
+            <td>{{ rowItem.location.heading | beautifulDecimal }}°</td>
         </tr>
 
         <tr *ngIf="rowItem.location.speed">
             <td>Speed</td>
             <td>:</td>
-            <td>{{ rowItem.location.speed * 3.6 }} km/h</td>
+            <td>{{ rowItem.location.speed * 3.6 | beautifulDecimal }} km/h</td>
         </tr>
     </table>
 </ng-template>
