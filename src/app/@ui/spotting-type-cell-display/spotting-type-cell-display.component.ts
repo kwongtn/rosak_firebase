@@ -14,7 +14,7 @@ export class SpottingTypeCellDisplayComponent implements OnInit {
     @Input() rowItem!: ConsoleEventsGqlResponseTableDataElement;
     @Input() spottingType!: SpottingType;
 
-    showPopover: boolean = false;
+    showLocationPopover: boolean = false;
 
     constructor() {
         return;
@@ -26,7 +26,7 @@ export class SpottingTypeCellDisplayComponent implements OnInit {
             this.rowItem.location?.heading ||
             this.rowItem.location?.speed
         ) {
-            this.showPopover = true;
+            this.showLocationPopover = true;
         }
         return;
     }

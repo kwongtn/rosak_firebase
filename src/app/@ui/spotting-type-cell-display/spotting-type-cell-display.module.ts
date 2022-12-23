@@ -1,6 +1,9 @@
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
+    BeautifulDecimalModule,
+} from "src/app/pipes/beautiful-decimal/beautiful-decimal.module";
+import {
     CoordinatesHumanizerModule,
 } from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.module";
 
@@ -24,8 +27,9 @@ import {
         NzToolTipModule,
 
         // Internal modules
-        SpottingTypeTagModule,
+        BeautifulDecimalModule,
         CoordinatesHumanizerModule,
+        SpottingTypeTagModule,
 
 
     ],
