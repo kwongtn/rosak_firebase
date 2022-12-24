@@ -1,7 +1,15 @@
 import { Message } from "ng-devui";
-import { ToastService as _ToastService } from "ng-devui/toast";
+import { NzNotificationService } from "ng-zorro-antd/notification";
+import {
+    NzNotificationDataOptions,
+    NzNotificationPlacement,
+} from "ng-zorro-antd/notification/typings";
 
 import { Injectable } from "@angular/core";
+
+type NotificationType = "blank" | "success" | "error" | "info" | "warning";
+
+class NotificationTypeNotFoundError extends Error {}
 
 @Injectable({
     providedIn: "root",
@@ -9,27 +17,56 @@ import { Injectable } from "@angular/core";
 export class ToastService {
     store: Message[] = [];
 
-    constructor(private toastService: _ToastService) {
+    constructor(private toastService: NzNotificationService) {
         return;
     }
 
-    addToast(message: Message): void {
-        console.log("Added toast: ", message);
-        message.id = new Date().valueOf();
-        this.store.unshift(message);
+    getPlacement(): NzNotificationPlacement {
+        return window.innerWidth < 1024 ? "bottom" : "top";
+    }
 
-        const toastInstance = this.toastService.open({
-            value: this.store,
-        }).toastInstance;
+    addToast(
+        title: string,
+        content: string,
+        type: NotificationType = "info",
+        options?: NzNotificationDataOptions
+    ): void {
+        options = {
+            nzPlacement: this.getPlacement(),
+            ...options,
+        };
 
-        toastInstance.closeEvent.subscribe((value: { message: Message }) => {
-            if (value.message.id) {
-                this.store = this.store.filter((filterValue: Message) => {
-                    return value.message.id !== filterValue.id;
-                });
-            }
-        });
+        console.log(
+            "Add toast: ",
+            JSON.stringify({
+                title,
+                content,
+                options,
+                type,
+            })
+        );
 
-        console.log("Store: ", this.store);
+        switch (type) {
+        case "blank":
+            this.toastService.blank(title, content, options);
+            break;
+        case "success":
+            this.toastService.success(title, content, options);
+            break;
+        case "error":
+            this.toastService.error(title, content, options);
+            break;
+        case "info":
+            this.toastService.info(title, content, options);
+            break;
+        case "warning":
+            this.toastService.warning(title, content, options);
+            break;
+
+        default:
+            throw new NotificationTypeNotFoundError(
+                `Notification type not found, got "${type}".`
+            );
+        }
     }
 }
