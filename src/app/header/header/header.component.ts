@@ -39,7 +39,7 @@ export class HeaderComponent implements OnInit {
 
     @HostListener("window:resize")
     resize(): void {
-        this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;
+        this.showSlideMenu = window.innerWidth < 1024 ? false : true;
         this.setSlideBarStyle();
     }
 
@@ -49,7 +49,7 @@ export class HeaderComponent implements OnInit {
     ) {}
 
     ngOnInit(): void {
-        this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;
+        this.showSlideMenu = window.innerWidth < 1024 ? false : true;
         this.setSlideBarStyle();
         this.repoLink = this.sanitizer.bypassSecurityTrustResourceUrl(
             `https://ghbtns.com/github-btn.html?user=DevCloudFE&repo=${this.repoName}&type=star&count=true`
