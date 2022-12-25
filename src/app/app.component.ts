@@ -2,7 +2,7 @@
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
 
 import build from "../build";
 import { AuthService } from "./services/auth/auth.service";
@@ -34,9 +34,9 @@ const initialMenuList: { [key: string]: string }[] = [
     styleUrls: ["./app.component.scss"],
 })
 export class AppComponent implements OnInit, OnDestroy {
-    title = "public";
     innerMenuList = initialMenuList;
 
+    header: string = this.getHeader();
     userAvatar: string = "";
     buildInfo = build;
     backendBuildInfo: BackendBuildInfo = {
@@ -84,6 +84,17 @@ export class AppComponent implements OnInit, OnDestroy {
         if (!this.menuContainsHref(menuObj["href"])) {
             this.innerMenuList.unshift(menuObj);
         }
+    }
+
+    @HostListener("window:resize")
+    resize(): void {
+        this.header = this.getHeader();
+    }
+
+    getHeader(): string {
+        return window.innerWidth < 1024
+            ? " Community "
+            : " Malaysia Land Public Transport Fans ";
     }
 
     ngOnInit() {
