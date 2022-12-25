@@ -8,7 +8,6 @@ import {
     OnInit,
     QueryList,
 } from "@angular/core";
-import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 
 import { LogoComponent } from "../logo/logo.component";
 
@@ -22,11 +21,6 @@ export class HeaderComponent implements OnInit {
     @Input() isFixed = false;
     @Input() hasMaxWidth = true;
     @Input() showSlideButton = false;
-    @Input() showSearch = false;
-    @Input() showAvatar = false;
-    @Input() repoName = "ng-devui";
-
-    repoLink!: SafeResourceUrl;
 
     @ContentChildren(LogoComponent) subLogo: QueryList<LogoComponent> =
         new QueryList<LogoComponent>();
@@ -43,17 +37,11 @@ export class HeaderComponent implements OnInit {
         this.setSlideBarStyle();
     }
 
-    constructor(
-        private sanitizer: DomSanitizer,
-        public authService: AuthService
-    ) {}
+    constructor(public authService: AuthService) {}
 
     ngOnInit(): void {
         this.showSlideMenu = window.innerWidth < 1024 ? false : true;
         this.setSlideBarStyle();
-        this.repoLink = this.sanitizer.bypassSecurityTrustResourceUrl(
-            `https://ghbtns.com/github-btn.html?user=DevCloudFE&repo=${this.repoName}&type=star&count=true`
-        );
     }
 
     toggleMenu($event: any): void {
