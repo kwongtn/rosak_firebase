@@ -1,8 +1,10 @@
+import { filter } from "rxjs";
 // import { DevConfigService } from "ng-devui/utils";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
 import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import { NavigationEnd, Router } from "@angular/router";
 
 import build from "../build";
 import { AuthService } from "./services/auth/auth.service";
@@ -12,6 +14,8 @@ interface BackendBuildInfo {
     datetime: string;
 }
 
+const genericTitle = " Malaysia Land Public Transport Fans ";
+
 const initialMenuList: { [key: string]: string }[] = [
     {
         name: "TranSPOT",
@@ -19,10 +23,12 @@ const initialMenuList: { [key: string]: string }[] = [
         target: "_self",
         tag: "Beta",
         style: "waiting",
+        headerTitle: " - TranSPOT ",
     },
     {
         name: "About",
         href: "/about",
+        headerTitle: " - About the Project ",
         // tag: "Prelim",
         // style: "default",
     },
@@ -36,7 +42,7 @@ const initialMenuList: { [key: string]: string }[] = [
 export class AppComponent implements OnInit, OnDestroy {
     innerMenuList = initialMenuList;
 
-    header: string = this.getHeader();
+    header: string = "...";
     userAvatar: string = "";
     buildInfo = build;
     backendBuildInfo: BackendBuildInfo = {
@@ -46,7 +52,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
     constructor(
         public authService: AuthService,
-        private httpClient: HttpClient // private devConfigService: DevConfigService,
+        private httpClient: HttpClient,
+        public router: Router
     ) {
         console.log(
             "\n%cBuild Info:\n\n" +
@@ -92,9 +99,19 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     getHeader(): string {
-        return window.innerWidth < 1024
-            ? " Community "
-            : " Malaysia Land Public Transport Fans ";
+        if (window.innerWidth < 1024) {
+            const headerTitle = this.innerMenuList.filter((value) => {
+                return (
+                    value["href"].split("/")[1] ===
+                    this.router.url.split("/")[1]
+                );
+            })[0];
+
+            if (headerTitle) {
+                return headerTitle["headerTitle"];
+            }
+        }
+        return genericTitle;
     }
 
     ngOnInit() {
@@ -108,6 +125,7 @@ export class AppComponent implements OnInit, OnDestroy {
                     name: "@Me",
                     href: "/profile",
                     target: "_self",
+                    headerTitle: " - About User ",
                 });
             } else {
                 this.removeFromMenu("/profile", "/console");
@@ -125,6 +143,7 @@ export class AppComponent implements OnInit, OnDestroy {
                     target: "_self",
                     tag: "Admin",
                     style: "danger",
+                    headerTitle: " - Spotting Console ",
                 });
             } else {
                 this.removeFromMenu("/console");
@@ -137,6 +156,17 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.backendBuildInfo = data;
                 console.log(this.backendBuildInfo);
             });
+
+        this.router.events
+            .pipe(
+                filter((event) => {
+                    return event instanceof NavigationEnd;
+                })
+            )
+            .subscribe((event) => {
+                this.header = this.getHeader();
+            });
+
     }
 
     ngOnDestroy(): void {
