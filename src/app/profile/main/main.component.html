@@ -4,9 +4,11 @@
     [displayData]="data"
 ></profile-user>
 
-<h2>Historical Spottings</h2>
-<profile-spotting-trends
-    *ngIf="!loading"
-    [data]="data ? data.spottingTrends : []"
-></profile-spotting-trends>
-<profile-spottings></profile-spottings>
+<div class="historical-spottings">
+    <h2>Historical Spottings</h2>
+    <profile-spotting-trends
+        *ngIf="!loading"
+        [data]="data ? data.spottingTrends : []"
+    ></profile-spotting-trends>
+    <profile-spottings></profile-spottings>
+</div>
