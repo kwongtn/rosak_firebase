@@ -33,14 +33,14 @@ export class HeaderComponent implements OnInit {
 
     @HostListener("window:resize")
     resize(): void {
-        this.showSlideMenu = window.innerWidth < 1024 ? false : true;
+        this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;
         this.setSlideBarStyle();
     }
 
     constructor(public authService: AuthService) {}
 
     ngOnInit(): void {
-        this.showSlideMenu = window.innerWidth < 1024 ? false : true;
+        this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;
         this.setSlideBarStyle();
     }
 
