@@ -1,6 +1,5 @@
 import { DevUIModule } from "ng-devui";
 import { DEVUI_LANG, EN_US, I18nService } from "ng-devui/i18n";
-import { ToastModule } from "ng-devui/toast";
 import {
     RECAPTCHA_V3_SITE_KEY,
     RecaptchaFormsModule,
@@ -8,6 +7,7 @@ import {
     ReCaptchaV3Service,
 } from "ng-recaptcha";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { NzNotificationModule } from "ng-zorro-antd/notification";
 
 import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -58,7 +58,9 @@ const imports: any[] = [
 
     // DevUI
     DevUIModule,
-    ToastModule,
+
+    // ng-zorro
+    NzNotificationModule,
 
     // Internal Imports
     AppRoutingModule,

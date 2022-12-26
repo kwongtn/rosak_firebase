@@ -348,12 +348,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     if (!this.showedLocationPopout) {
-                        this.toastService.addToast({
-                            severity: "info",
-                            summary: "Location accessed",
-                            content:
-                                "Take note that we will not know your location until you submit the form.",
-                        });
+                        this.toastService.addToast(
+                            "Location accessed",
+                            "Take note that we will not know your location until you submit the form.",
+                            "info"
+                        );
                         this.showedLocationPopout = true;
                     }
                     console.log(position);
@@ -372,11 +371,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     console.log(this.formGroup.value);
                 },
                 (positionError) => {
-                    this.toastService.addToast({
-                        severity: "error",
-                        summary: "Location access failed",
-                        content: positionError.message,
-                    });
+                    this.toastService.addToast(
+                        "Location access failed",
+                        positionError.message,
+                        "error"
+                    );
                 },
                 { maximumAge: 0, timeout: Infinity, enableHighAccuracy: true }
             );
@@ -414,11 +413,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
-            this.toastService.addToast({
-                severity: "error",
-                summary: "Error",
-                content: "Form is invalid.",
-            });
+            this.toastService.addToast("Error", "Form is invalid.", "error");
+
             return undefined;
         }
 
@@ -428,11 +424,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
-                this.toastService.addToast({
-                    severity: "error",
-                    summary: "Error",
-                    content: "Location has not been loaded",
-                });
+                this.toastService.addToast(
+                    "Error",
+                    "Location has not been loaded",
+                    "error"
+                );
+
                 return undefined;
             }
         }

@@ -17854,7 +17854,7 @@ textarea.ant-mentions {
     overflow: hidden;
     line-height: 1.5715;
     word-wrap: break-word;
-    background: #fff;
+    background: $devui-glass-morphism-bg;
     border-radius: 2px;
     box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
         0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
@@ -17923,11 +17923,11 @@ textarea.ant-mentions {
     position: absolute;
     top: 16px;
     right: 22px;
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-text-weak;
     outline: none;
 }
 .ant-notification-notice-close:hover {
-    color: rgba(0, 0, 0, 0.67);
+    color: $devui-text;
 }
 .ant-notification-notice-btn {
     float: right;
@@ -21442,7 +21442,7 @@ nz-spin {
 }
 .ant-statistic-title {
     margin-bottom: 4px;
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-text;
     font-size: 14px;
 }
 .ant-statistic-content {

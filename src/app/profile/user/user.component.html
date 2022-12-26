@@ -1,26 +1,87 @@
-<d-card *ngIf="displayData">
-    <d-card-header>
-        <d-avatar
-            *ngIf="user.photoURL"
-            dCardAvatar
-            [imgSrc]="user.photoURL"
-            [width]="150"
-            [height]="150"
-        ></d-avatar>
-        <d-card-title>
-            <h1>
-                {{ user.displayName }}
-            </h1>
-        </d-card-title>
-        <d-card-subtitle>
-            <span *ngIf="user.emailVerified">
-                {{ user.email }}
-            </span>
-            <span *ngIf="user.phoneNumber"> ({{ user.phoneNumber }}) </span>
-        </d-card-subtitle>
-    </d-card-header>
-    <d-card-content dLoading [loading]="loading">
-        Total spottings to date: {{ displayData.spottingsCount }}
-    </d-card-content>
-    <d-card-actions></d-card-actions>
-</d-card>
+<nz-spin [nzSpinning]="displayData === undefined">
+    <nz-row [nzGutter]="16">
+        <nz-col [nzSpan]="24">
+            <d-card>
+                <d-card-header>
+                    <d-avatar
+                        *ngIf="user.photoURL"
+                        dCardAvatar
+                        [imgSrc]="user.photoURL"
+                        [width]="150"
+                        [height]="150"
+                    ></d-avatar>
+                    <d-card-title>
+                        <h1>
+                            {{ user.displayName }}
+                        </h1>
+                    </d-card-title>
+                    <d-card-subtitle>
+                        <span *ngIf="user.emailVerified">
+                            {{ user.email }}
+                        </span>
+                        <span *ngIf="user.phoneNumber">
+                            ({{ user.phoneNumber }})
+                        </span>
+                    </d-card-subtitle>
+                </d-card-header>
+                <d-card-content> </d-card-content>
+                <d-card-actions></d-card-actions>
+            </d-card>
+        </nz-col>
+    </nz-row>
+    <nz-row [nzGutter]="[16, 16]">
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6" *ngIf="displayData">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="(displayData.spottingsCount | number)!"
+                    [nzTitle]="'Total Spottings'"
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
+
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="
+                        (displayData?.withMostEntriesYear?.count | number)!
+                    "
+                    [nzTitle]="
+                        'Year with most entries (' +
+                        displayData?.withMostEntriesYear?.dateKey +
+                        ')'
+                    "
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
+
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="
+                        (displayData?.withMostEntriesMonth?.count | number)!
+                    "
+                    [nzTitle]="
+                        'Month with most entries (' +
+                        displayData?.withMostEntriesMonth?.dateKey +
+                        ')'
+                    "
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
+
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="
+                        (displayData?.withMostEntriesDay?.count | number)!
+                    "
+                    [nzTitle]="
+                        'Day with most entries (' +
+                        displayData?.withMostEntriesDay?.dateKey +
+                        ')'
+                    "
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
+    </nz-row>
+</nz-spin>

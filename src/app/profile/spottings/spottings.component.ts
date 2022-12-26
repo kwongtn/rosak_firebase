@@ -118,7 +118,8 @@ implements OnInit, OnDestroy, AfterViewInit
             {
                 context: {
                     headers: {
-                        "firebase-auth-key": await this.authService.getIdToken(),
+                        "firebase-auth-key":
+                            await this.authService.getIdToken(),
                     },
                 },
                 fetchPolicy: "network-only",
@@ -222,18 +223,17 @@ implements OnInit, OnDestroy, AfterViewInit
                         return elem.id !== eventId;
                     });
 
-                    this.toastService.addToast({
-                        severity: "success",
-                        summary: "Success",
-                        content: `Deletion of spotting event #${eventId} successful.`,
-                    });
+                    this.toastService.addToast(
+                        "Success",
+                        `Deletion of spotting event #${eventId} successful.`,
+                        "success"
+                    );
                 } else {
-                    this.toastService.addToast({
-                        severity: "error",
-                        summary: "Error",
-                        content:
-                            "Unknown error on deletion. Please refresh the page and try again.",
-                    });
+                    this.toastService.addToast(
+                        "Error",
+                        "Unknown error on deletion. Please refresh the page and try again.",
+                        "error"
+                    );
                 }
 
                 this.loading = false;

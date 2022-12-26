@@ -49,11 +49,11 @@ export class AuthService {
                 this.userData.next(user);
             },
             (error) => {
-                this.toastService.addToast({
-                    severity: "error",
-                    summary: "Authentication Error",
-                    content: error.message,
-                });
+                this.toastService.addToast(
+                    "Authentication Error",
+                    error.message,
+                    "error"
+                );
             }
         );
 
@@ -114,20 +114,22 @@ export class AuthService {
                     toastMessage = "";
                 }
 
-                this.toastService.addToast({
-                    severity: "success",
-                    summary: "Login Successful",
-                    content: toastMessage,
-                });
+                this.toastService.addToast(
+                    "Login Successful",
+                    toastMessage,
+                    "success"
+                );
+
                 console.log(res);
             })
             .catch((reason) => {
                 console.log("Login failed: ", reason);
-                this.toastService.addToast({
-                    severity: "error",
-                    summary: "Login Error",
-                    content: reason.message,
-                });
+
+                this.toastService.addToast(
+                    "Login Error",
+                    reason.message,
+                    "error"
+                );
             });
     }
 
@@ -136,19 +138,19 @@ export class AuthService {
             .signOut()
             .then(() => {
                 this.userData.next(null);
-                this.toastService.addToast({
-                    severity: "success",
-                    summary: "Logout Successful",
-                    content: "Hope to see you again soon!",
-                });
+                this.toastService.addToast(
+                    "Logout Successful",
+                    "Hope to see you again soon!",
+                    "success"
+                );
             })
             .catch((reason) => {
                 console.log("Logout failed: ", reason);
-                this.toastService.addToast({
-                    severity: "error",
-                    summary: "Logout Error",
-                    content: reason.message,
-                });
+                this.toastService.addToast(
+                    "Logout Error",
+                    reason.message,
+                    "error"
+                );
             });
     }
 

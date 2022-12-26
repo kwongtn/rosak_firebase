@@ -3,13 +3,10 @@
     [hasMaxWidth]="false"
     [isFixed]="true"
     [showShadow]="true"
-    [showSearch]="true"
     [userAvatar]="userAvatar"
     class="header"
 >
-    <d-header-logo
-        [name]="' Malaysia Land Public Transport Fans'"
-    ></d-header-logo>
+    <d-header-logo [name]="header"></d-header-logo>
     <d-header-menu
         [menuList]="innerMenuList"
         [selectedItem]="innerMenuList[0]"
@@ -29,9 +26,7 @@
         Backend build <i>{{ backendBuildInfo.hash }}</i> @
         {{ backendBuildInfo.datetime }}<br />
         GNU AGPLv3 by
-        <a href="http://github.com/kwongtn" class="devui-link" target="_blank">
-            KwongTN
-        </a>
+        <a href="http://github.com/kwongtn" target="_blank"> KwongTN </a>
         & contributors
     </div>
 </footer>

@@ -78,12 +78,11 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                         submitAction
                             ?.then((mutationResult) => {
                                 if (!mutationResult) {
-                                    this.toastService.addToast({
-                                        severity: "error",
-                                        summary: "Error",
-                                        content: "Form is invalid.",
-                                    });
-
+                                    this.toastService.addToast(
+                                        "Error",
+                                        "Form is invalid.",
+                                        "error"
+                                    );
                                     return;
                                 }
 
@@ -92,20 +91,20 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     results.modalInstance.hide();
                                 }
 
-                                this.toastService.addToast({
-                                    severity: "success",
-                                    summary: "Success",
-                                    content:
-                                        "Your spotting entry is successfully added! 🥳",
-                                });
+                                this.toastService.addToast(
+                                    "Success",
+                                    "Your spotting entry is successfully added! 🥳",
+                                    "success"
+                                );
                             })
                             .catch((reason) => {
                                 console.log(reason);
-                                this.toastService.addToast({
-                                    severity: "error",
-                                    summary: "Error",
-                                    content: reason.message,
-                                });
+
+                                this.toastService.addToast(
+                                    "Error",
+                                    reason.message,
+                                    "error"
+                                );
                             });
                     },
                 },
