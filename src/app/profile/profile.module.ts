@@ -38,14 +38,12 @@ import { ProfileUserComponent } from "./user/user.component";
     ],
     imports: [
         CommonModule,
+
+        // devui
+        AvatarModule,
+        CardModule,
         DataTableModule,
         LoadingModule,
-        CardModule,
-        CoordinatesHumanizerModule,
-        SpottingTypeCellDisplayModule,
-        VehicleStatusTagModule,
-        VehicleTableCellDisplayModule,
-        AvatarModule,
 
         // ng-zorro
         NzCardModule,
@@ -53,6 +51,12 @@ import { ProfileUserComponent } from "./user/user.component";
         NzPopconfirmModule,
         NzSpinModule,
         NzStatisticModule,
+
+        // Internal imports
+        CoordinatesHumanizerModule,
+        SpottingTypeCellDisplayModule,
+        VehicleStatusTagModule,
+        VehicleTableCellDisplayModule,
     ],
 })
 export class ProfileModule {}
