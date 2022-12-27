@@ -14,6 +14,16 @@ export interface UserSpottingTrends extends DateTrends {
     eventType: string;
 }
 
+export interface UserFavouriteVehicle {
+    vehicle: {
+        identificationNo: string;
+        lines: {
+            code: string;
+        }[];
+    };
+    count: number;
+}
+
 export interface UserDataResponseUser {
     firebaseId: string;
     spottingsCount: number;
@@ -21,6 +31,7 @@ export interface UserDataResponseUser {
     withMostEntriesYear: DateTrends;
     withMostEntriesMonth: DateTrends;
     withMostEntriesDay: DateTrends;
+    favouriteVehicles: UserFavouriteVehicle[];
 }
 
 export interface UserDataResponse {
@@ -71,6 +82,15 @@ export class GetUserDataService extends Query<UserDataResponse> {
                     year
                     month
                     day
+                    count
+                }
+                favouriteVehicles {
+                    vehicle {
+                        identificationNo
+                        lines {
+                            code
+                        }
+                    }
                     count
                 }
             }

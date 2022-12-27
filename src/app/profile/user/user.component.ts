@@ -2,7 +2,10 @@ import firebase from "firebase/compat/app";
 
 import { Component, Input, OnInit } from "@angular/core";
 
-import { UserDataResponseUser } from "../services/get-user-data.service";
+import {
+    UserDataResponseUser,
+    UserFavouriteVehicle,
+} from "../services/get-user-data.service";
 
 @Component({
     selector: "profile-user",
@@ -20,5 +23,11 @@ export class ProfileUserComponent implements OnInit {
 
     ngOnInit() {
         return;
+    }
+
+    getFavouriteTrainDisplayLineString(data: UserFavouriteVehicle): string {
+        return data.vehicle.lines.map((line) => {
+            return line.code;
+        }).join(", ");
     }
 }
