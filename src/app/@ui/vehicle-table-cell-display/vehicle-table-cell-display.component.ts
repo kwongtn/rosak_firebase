@@ -25,22 +25,19 @@ interface VehicleData {
 })
 export class VehicleTableCellDisplayComponent implements OnInit {
     @Input() vehicleData!: VehicleData;
+    lines: string = "";
 
     backendUrl: string = environment.backendUrl;
-    cellData: any = undefined;
 
     constructor() {
         return;
     }
 
     ngOnInit(): void {
-        const lines = this.vehicleData.lines.map((line) => {
-            return line.code;
-        });
-
-        this.cellData = {
-            ...this.vehicleData,
-            lines: lines,
-        };
+        this.lines = this.vehicleData.lines
+            .map((line) => {
+                return line.code;
+            })
+            .join(", ");
     }
 }

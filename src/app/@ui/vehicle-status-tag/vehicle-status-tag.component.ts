@@ -1,11 +1,6 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { VehicleStatus } from "src/app/models/query/get-vehicles";
 
-type VehicleStatus =
-    | "IN_SERVICE"
-    | "NOT_SPOTTED"
-    | "DECOMMISSIONED"
-    | "TESTING"
-    | "UNKNOWN";
+import { Component, Input, OnInit } from "@angular/core";
 
 @Component({
     selector: "vehicle-status-tag",
