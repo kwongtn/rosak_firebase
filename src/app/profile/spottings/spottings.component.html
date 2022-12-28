@@ -52,9 +52,12 @@
                             </a>
 
                             <i
+                                nz-popconfirm
+                                nzPopconfirmTitle="Are you sure?"
+                                nzPopconfirmPlacement="bottom"
+                                (nzOnConfirm)="deleteEvent(rowItem.id)"
                                 class="icon icon-delete delete-icon"
                                 *ngIf="rowItem.canDelete"
-                                (click)="deleteEvent(rowItem.id)"
                             ></i>
                         </span>
                         <span *ngSwitchCase="'datetime'">

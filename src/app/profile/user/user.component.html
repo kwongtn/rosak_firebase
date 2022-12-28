@@ -83,5 +83,26 @@
                 ></nz-statistic>
             </nz-card>
         </nz-col>
+
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6" *ngIf="displayData">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="
+                        displayData.favouriteVehicles[0].vehicle
+                            .identificationNo +
+                        ' (' +
+                        getFavouriteTrainDisplayLineString(
+                            displayData.favouriteVehicles[0]
+                        ) +
+                        ')'
+                    "
+                    [nzTitle]="
+                        'Favourite Train (' +
+                        displayData.favouriteVehicles[0].count +
+                        ' spottings)'
+                    "
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
     </nz-row>
 </nz-spin>

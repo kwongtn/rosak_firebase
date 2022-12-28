@@ -3,6 +3,7 @@ import { AvatarModule } from "ng-devui/avatar";
 import { CardModule } from "ng-devui/card";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
 
@@ -37,20 +38,25 @@ import { ProfileUserComponent } from "./user/user.component";
     ],
     imports: [
         CommonModule,
+
+        // devui
+        AvatarModule,
+        CardModule,
         DataTableModule,
         LoadingModule,
-        CardModule,
-        CoordinatesHumanizerModule,
-        SpottingTypeCellDisplayModule,
-        VehicleStatusTagModule,
-        VehicleTableCellDisplayModule,
-        AvatarModule,
 
         // ng-zorro
         NzCardModule,
         NzGridModule,
+        NzPopconfirmModule,
         NzSpinModule,
         NzStatisticModule,
+
+        // Internal imports
+        CoordinatesHumanizerModule,
+        SpottingTypeCellDisplayModule,
+        VehicleStatusTagModule,
+        VehicleTableCellDisplayModule,
     ],
 })
 export class ProfileModule {}
