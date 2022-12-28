@@ -1,20 +1,22 @@
 <span>
     <a
         nz-tooltip
-        [nzTooltipTitle]="cellData.lines.join(', ')"
-        href="{{ backendUrl }}admin/operation/vehicle/{{ cellData.id }}"
+        [nzTooltipTitle]="lines"
+        href="{{ backendUrl }}admin/operation/vehicle/{{ vehicleData.id }}"
         target="_blank"
     >
-        {{ cellData.identificationNo }}
-        ({{ cellData.vehicleType.internalName }}) <br />
+        {{ vehicleData.identificationNo }}
+        ({{ vehicleData.vehicleType.internalName }}) <br />
     </a>
     <span
         nz-tooltip
-        [nzTooltipTitle]="cellData.notes"
+        [nzTooltipTitle]="vehicleData.notes"
         [nzTooltipPlacement]="'right'"
-        *ngIf="cellData.notes"
+        *ngIf="vehicleData.notes"
     >
         📝
     </span>
-    <vehicle-status-tag [vehicleStatus]="cellData.status"></vehicle-status-tag>
+    <vehicle-status-tag
+        [vehicleStatus]="vehicleData.status"
+    ></vehicle-status-tag>
 </span>

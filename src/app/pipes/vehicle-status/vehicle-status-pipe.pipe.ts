@@ -1,11 +1,6 @@
-import { Pipe, PipeTransform } from "@angular/core";
+import { VehicleStatus } from "src/app/models/query/get-vehicles";
 
-type VehicleStatus =
-    | "IN_SERVICE"
-    | "NOT_SPOTTED"
-    | "DECOMMISSIONED"
-    | "TESTING"
-    | "UNKNOWN";
+import { Pipe, PipeTransform } from "@angular/core";
 
 @Pipe({
     name: "vehicleStatusPipe",
