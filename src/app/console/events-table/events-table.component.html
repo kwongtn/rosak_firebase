@@ -89,6 +89,18 @@
                                     {{ rowItem[colOption.field] }}
                                 </a>
                             </span>
+                            <span *ngSwitchCase="'reporter'">
+                                <a
+                                    href="{{
+                                        backendUrl
+                                    }}admin/common/user/?q={{
+                                        rowItem[colOption.field]['shortId']
+                                    }}"
+                                    target="_blank"
+                                >
+                                    {{ rowItem[colOption.field]["shortId"] }}
+                                </a>
+                            </span>
                             <span *ngSwitchCase="'datetime'">
                                 {{
                                     rowItem[colOption.field]

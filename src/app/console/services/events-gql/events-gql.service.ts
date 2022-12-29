@@ -9,6 +9,10 @@ export interface ConsoleEventsGqlResponseElementStation {
     displayName: string;
 }
 
+export interface ConsoleEventsGqlResponseElementReporter {
+    shortId: string;
+}
+
 export interface ConsoleEventsGqlResponseElement {
     id: string;
     spottingDate: string;
@@ -18,6 +22,7 @@ export interface ConsoleEventsGqlResponseElement {
     type: SpottingType;
     originStation: ConsoleEventsGqlResponseElementStation | null;
     destinationStation: ConsoleEventsGqlResponseElementStation | null;
+    reporter: ConsoleEventsGqlResponseElementReporter | null;
     vehicle: {
         id: string;
         status: VehicleStatus;
@@ -110,6 +115,9 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                     lines {
                         code
                     }
+                }
+                reporter {
+                    shortId
                 }
             }
         }
