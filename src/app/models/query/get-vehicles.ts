@@ -56,10 +56,17 @@ export interface GetLinesResponse {
     }>;
 }
 
+export interface LastSpottingsElementStation {
+    id: string;
+    displayName: string;
+}
+
 export interface LastSpottings {
     spottingDate: string;
     status: VehicleStatus;
     type: SpottingType;
+    originStation: LastSpottingsElementStation | null;
+    destinationStation: LastSpottingsElementStation | null;
     notes: string;
     location: {
         accuracy: number;

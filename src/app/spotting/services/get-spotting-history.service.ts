@@ -32,6 +32,14 @@ export class GetSpottingHistoryService extends Query<GetVehiclesLastSpottingResp
                     location
                     altitude
                 }
+                originStation {
+                    id
+                    displayName
+                }
+                destinationStation {
+                    id
+                    displayName
+                }
             }
         }
     `;
