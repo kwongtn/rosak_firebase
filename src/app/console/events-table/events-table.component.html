@@ -91,6 +91,7 @@
                             </span>
                             <span *ngSwitchCase="'reporter'">
                                 <a
+                                    *ngIf="rowItem[colOption.field]"
                                     href="{{
                                         backendUrl
                                     }}admin/common/user/?q={{
@@ -100,6 +101,9 @@
                                 >
                                     {{ rowItem[colOption.field]["shortId"] }}
                                 </a>
+                                <span *ngIf="!rowItem[colOption.field]">
+                                    --
+                                </span>
                             </span>
                             <span *ngSwitchCase="'datetime'">
                                 {{
