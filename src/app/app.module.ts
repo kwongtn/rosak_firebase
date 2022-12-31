@@ -76,7 +76,7 @@ const providers: any[] = [
     {
         provide: ErrorHandler,
         useValue: Sentry.createErrorHandler({
-            showDialog: true,
+            showDialog: false,
         }),
     },
     {
