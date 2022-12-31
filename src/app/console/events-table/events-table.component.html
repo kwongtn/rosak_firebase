@@ -1,3 +1,13 @@
+<d-category-search
+    [category]="category"
+    [selectedTags]="selectedTags"
+    [allowShowMore]="true"
+    [toggleScrollToTail]="true"
+    [showSearchCategory]="false"
+    [allowSave]="false"
+    (searchEvent)="searchEvent($event)"
+></d-category-search>
+
 <div class="mark-as-read-toggle">
     <div style="width: 100%"></div>
     <d-toggle

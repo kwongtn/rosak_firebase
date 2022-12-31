@@ -8,6 +8,7 @@ import {
     TooltipModule,
 } from "ng-devui";
 import { ButtonModule } from "ng-devui/button";
+import { CategorySearchModule } from "ng-devui/category-search";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 
 import { CommonModule } from "@angular/common";
@@ -41,24 +42,29 @@ import { ConsoleMainComponent } from "./main/main.component";
     declarations: [ConsoleMainComponent, ConsoleEventsTableComponent],
     imports: [
         CommonModule,
+        FormsModule,
+        
+        // devui
+        ButtonModule,
+        CategorySearchModule,
+        CheckBoxModule,
         DataTableModule,
-        TagsModule,
-        VehicleStatusPipeModule,
-        VehicleTableCellDisplayModule,
-        VehicleStatusTagModule,
-        SpottingTypeTagModule,
         LoadingModule,
         PanelModule,
+        TagsModule,
         ToggleModule,
         TooltipModule,
-        CheckBoxModule,
-        ButtonModule,
-        FormsModule,
-        CoordinatesHumanizerModule,
-        SpottingTypeCellDisplayModule,
-
+        
         // ng-zorro
         NzSpinModule,
+        
+        // Own Imports
+        CoordinatesHumanizerModule,
+        SpottingTypeCellDisplayModule,
+        SpottingTypeTagModule,
+        VehicleStatusPipeModule,
+        VehicleStatusTagModule,
+        VehicleTableCellDisplayModule,
     ],
 })
 export class ConsoleModule {}
