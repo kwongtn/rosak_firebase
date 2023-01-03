@@ -62,7 +62,9 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             field: "isRead",
             value: {
                 label: "No",
-                value: "false",
+                value: {
+                    value: false,
+                },
             },
         },
     ];
