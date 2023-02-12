@@ -39,6 +39,7 @@ import {
 import { VehicleFormOption } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
+    allowRunNumber,
     atStationTypeStationValidator,
     betweenStationTypeOriginDestinationStationValidator,
     numberSeenToSetNumber,
@@ -76,6 +77,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
     submitButtonClicked: boolean = false;
     showedLocationPopout: boolean = false;
+    showRunNumberInput: boolean = false;
     submitting: LoadingType = Promise.resolve("false");
 
     statusOptions = [
@@ -233,6 +235,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 originStation: new UntypedFormControl("", []),
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
+                runNumber: new UntypedFormControl(undefined, []),
                 isAnonymous: new UntypedFormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
                 location: new UntypedFormControl(false, []),
@@ -397,11 +400,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.stationOptions = [];
 
         this.onInputTypeChanges();
+        this.showRunNumberInput = allowRunNumber(event.value);
 
         this.formGroup.patchValue({
             vehicle: "",
             originStation: "",
             destinationStation: "",
+            runNumber: undefined,
             atStation: "",
         });
 
@@ -453,6 +458,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         }
 
         formValues["atStation"] = undefined;
+
+        if (!allowRunNumber(formValues["line"].value)) {
+            formValues["runNumber"] = undefined;
+        }
 
         const date: Date = formValues["spottingDate"];
         date.setMinutes(date.getMinutes() - date.getTimezoneOffset());

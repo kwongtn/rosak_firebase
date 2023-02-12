@@ -61,6 +61,10 @@ export function atStationTypeStationValidator(
     }
 }
 
+export function allowRunNumber(value: string): boolean {
+    return ["2", "3"].includes(value);
+}
+
 export function numberSeenToSetNumber(input: string, line: string) {
     const props: {
         [key: string]: {

@@ -164,6 +164,21 @@
             </d-form-control>
         </d-form-item>
 
+        <div *ngIf="showRunNumberInput">
+            <d-form-item>
+                <d-form-label>Run Number</d-form-label>
+                <d-form-control [feedbackStatus]="getStatus('runNumber')">
+                    <input
+                        dTextInput
+                        placeholder=""
+                        formControlName="runNumber"
+                        resize="none"
+                        (ngModelChange)="onChanges($event)"
+                    />
+                </d-form-control>
+            </d-form-item>
+        </div>
+
         <div *ngIf="this.formGroup.value.type.value === 'LOCATION'">
             <d-form-item *ngIf="formGroup.value.location.altitude">
                 <d-form-label>Altitude</d-form-label>
