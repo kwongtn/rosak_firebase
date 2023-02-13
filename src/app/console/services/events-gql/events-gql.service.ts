@@ -23,6 +23,7 @@ export interface ConsoleEventsGqlResponseElement {
     originStation: ConsoleEventsGqlResponseElementStation | null;
     destinationStation: ConsoleEventsGqlResponseElementStation | null;
     reporter: ConsoleEventsGqlResponseElementReporter | null;
+    runNumber: string | null;
     vehicle: {
         id: string;
         status: VehicleStatus;
@@ -89,6 +90,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 created
                 status
                 type
+                runNumber
                 location {
                     accuracy
                     altitudeAccuracy

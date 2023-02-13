@@ -86,6 +86,9 @@
                                 <vehicle-status-tag
                                     [vehicleStatus]="rowItem[colOption.field]"
                                 ></vehicle-status-tag>
+                                <div *ngIf="rowItem['runNumber']">
+                                    Run No. : {{ rowItem["runNumber"] }}
+                                </div>
                             </span>
                             <span *ngSwitchCase="'id'">
                                 <a
