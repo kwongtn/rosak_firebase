@@ -6,6 +6,7 @@ import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -51,6 +52,7 @@ import { ProfileUserComponent } from "./user/user.component";
         NzPopconfirmModule,
         NzSpinModule,
         NzStatisticModule,
+        NzToolTipModule,
 
         // Internal imports
         CoordinatesHumanizerModule,

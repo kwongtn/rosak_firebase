@@ -40,6 +40,15 @@
                             <vehicle-status-tag
                                 [vehicleStatus]="rowItem[colOption.field]"
                             ></vehicle-status-tag>
+                            <span
+                                *ngIf="rowItem['runNumber']"
+                                nz-tooltip
+                                [nzTooltipTitle]="'Run Number'"
+                                [nzTooltipTrigger]="'hover'"
+                                [nzTooltipPlacement]="'right'"
+                            >
+                                🏃‍♂️ {{ rowItem["runNumber"] }}
+                            </span>
                         </span>
                         <span *ngSwitchCase="'id'">
                             <a
