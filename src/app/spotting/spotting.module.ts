@@ -11,6 +11,7 @@ import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -92,6 +93,7 @@ import {
         VehicleStatusTagModule,
         CoordinatesHumanizerModule,
         SpottingTypeCellDisplayModule,
+        NzToolTipModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [

@@ -68,6 +68,7 @@ export interface LastSpottings {
     originStation: LastSpottingsElementStation | null;
     destinationStation: LastSpottingsElementStation | null;
     notes: string;
+    runNumber: string | null;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;
