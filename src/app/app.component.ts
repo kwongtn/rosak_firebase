@@ -128,7 +128,7 @@ export class AppComponent implements OnInit, OnDestroy {
                     headerTitle: " - About User ",
                 });
             } else {
-                this.removeFromMenu("/profile", "/console");
+                this.removeFromMenu("/profile", "/console", "/jejak");
                 this.userAvatar = "";
             }
         });
@@ -148,6 +148,19 @@ export class AppComponent implements OnInit, OnDestroy {
             } else {
                 this.removeFromMenu("/console");
             }
+
+            if (claim?.jejak) {
+                this.addToMenu({
+                    name: "Jejak",
+                    href: "/jejak",
+                    target: "_self",
+                    tag: "Alpha",
+                    style: "danger",
+                    headerTitle: " - Jejak ",
+                });
+            } else {
+                this.removeFromMenu("/jejak");
+            }
         });
 
         this.httpClient
@@ -166,7 +179,6 @@ export class AppComponent implements OnInit, OnDestroy {
             .subscribe((event) => {
                 this.header = this.getHeader();
             });
-
     }
 
     ngOnDestroy(): void {

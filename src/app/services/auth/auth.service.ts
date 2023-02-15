@@ -18,6 +18,7 @@ export interface UserAuthData {
 
 export interface CustomClaims {
     admin?: boolean;
+    jejak?: boolean;
 }
 
 @Injectable({
@@ -61,6 +62,7 @@ export class AuthService {
             if (idTokenResult) {
                 this.customClaims.next({
                     admin: idTokenResult.claims["admin"],
+                    jejak: idTokenResult.claims["jejak"],
                 });
             }
         });

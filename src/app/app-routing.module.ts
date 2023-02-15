@@ -14,6 +14,7 @@ import {
 import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
+import { JejakMainComponent } from "./jejak/main/main.component";
 import { ProfileMainComponent } from "./profile/main/main.component";
 import {
     SpottingMainComponent,
@@ -85,6 +86,13 @@ const routes: Routes = [
         loadChildren: () =>
             import("./about/about.module").then((m) => m.AboutModule),
         component: AboutComponent,
+    },
+    {
+        path: "jejak",
+        title: "MLPTF | Jejak",
+        loadChildren: () =>
+            import("./jejak/jejak.module").then((m) => m.JejakModule),
+        component: JejakMainComponent,
     },
     {
         path: "compliance",
