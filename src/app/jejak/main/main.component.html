@@ -1,1 +1,13 @@
-<p>jejak main works!</p>
+<nz-slider
+    [nzIncluded]="false"
+    [nzMarks]="marks"
+    [(ngModel)]="sliderValue"
+    (ngModelChange)="onSliderChange($event)"
+    [nzTipFormatter]="sliderDataformatter"
+    [nzMax]="sliderLength - 1"
+></nz-slider>
+
+<div
+    style="min-height: 90vh; justify-content: center; position: relative"
+    id="map"
+></div>

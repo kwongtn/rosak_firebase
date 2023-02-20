@@ -29,6 +29,9 @@ export const environment = {
     semaphore: {
         badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
     },
+    mapbox: {
+        token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGU1cnJvd3UwZnp3M3Ftc2FvdWZlNGg4In0.rGGyBGsaSvW4Q6C8B0oh8Q",
+    }
 };
 
 /*
