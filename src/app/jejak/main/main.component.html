@@ -1,11 +1,14 @@
-<nz-slider
-    [nzIncluded]="false"
-    [nzMarks]="marks"
-    [(ngModel)]="sliderValue"
-    (ngModelChange)="onSliderChange($event)"
-    [nzTipFormatter]="sliderDataformatter"
-    [nzMax]="sliderLength - 1"
-></nz-slider>
+<nz-spin [nzSpinning]="showLoading">
+    <nz-slider
+        *ngIf="!showLoading"
+        [nzIncluded]="false"
+        [nzMarks]="marks"
+        [(ngModel)]="sliderValue"
+        (ngModelChange)="onSliderChange($event)"
+        [nzTipFormatter]="sliderDataformatter"
+        [nzMax]="sliderLength - 1"
+    ></nz-slider>
+</nz-spin>
 
 <div
     style="min-height: 90vh; justify-content: center; position: relative"

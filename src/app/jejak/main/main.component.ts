@@ -2,20 +2,14 @@ import { NzMarks } from "ng-zorro-antd/slider";
 import { Subscription } from "rxjs";
 import { environment } from "src/environments/environment";
 
-import { Component, OnInit } from "@angular/core";
-import {
-    ILayer,
-    LineLayer,
-    MapTheme,
-    PointLayer,
-    Scale,
-    Scene,
-    Zoom,
-} from "@antv/l7";
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
+import { ILayer, MapTheme, PointLayer, Scale, Scene, Zoom } from "@antv/l7";
 import { Mapbox } from "@antv/l7-maps";
 
-import { GetLocationService } from "../services/get-location.service";
-import { FAKE_DATA, FAKE_DATA2 as DATA2 } from "./data";
+import {
+    GetLocationService,
+    LocationData,
+} from "../services/get-location.service";
 import { convertLocalTime, getLocaleDatetimeFormat } from "./utils";
 
 @Component({
@@ -23,21 +17,27 @@ import { convertLocalTime, getLocaleDatetimeFormat } from "./utils";
     templateUrl: "./main.component.html",
     styleUrls: ["./main.component.scss"],
 })
-export class JejakMainComponent implements OnInit {
+export class JejakMainComponent implements OnInit, OnDestroy {
     scene: Scene | undefined = undefined;
     locationGqlSubscription!: Subscription;
     sliderLength: number = 0;
 
-    sliderValue = 0;
+    sliderValue = 1;
+    showLoading = true;
 
     marks: NzMarks = {};
+    currLocations: LocationData["locations"] = [];
+
+    sliderDataformatter: ((value: number) => string) | null | undefined =
+        undefined;
 
     lineLayer: ILayer | undefined = undefined;
     pointLayer: ILayer | undefined = undefined;
 
-    counter: number = 0;
-
-    constructor(private getLocationService: GetLocationService) {
+    constructor(
+        private getLocationService: GetLocationService,
+        public cd: ChangeDetectorRef
+    ) {
         return;
     }
 
@@ -92,81 +92,93 @@ export class JejakMainComponent implements OnInit {
         const mapTheme = new MapTheme();
         this.scene.addControl(mapTheme);
 
-        // this.getLocationService
-        //     .watch({
-        //         filters: {
-        //             busId: 33,
-        //             dateReceived: "2022-05-01",
-        //         },
-        //         pagination: {
-        //             limit: 50000,
-        //         },
-        //     })
-        //     .valueChanges.subscribe(({ data, loading }) => {
-        this.pointLayer = new PointLayer({}).size(10).color("#080298");
-        this.scene.addLayer(this.pointLayer);
-        this.pointLayer?.setData([FAKE_DATA.locations[0].location], {
-            parser: {
-                x: "0",
-                y: "1",
-                type: "json",
-            },
-        });
-
-        this.setSliderList(FAKE_DATA.locations);
-
-        this.sliderLength = FAKE_DATA.locations.length;
-
-        this.lineLayer = new LineLayer({})
-            .size(3)
-            .shape("line")
-            .texture("arrow")
-            .color("rgb(22,119,255)")
-            .animate({
-                interval: 1, // 间隔
-                duration: 30, // 持续时间，延时
-                trailLength: 2, // 流线长度
-                enable: true,
+        this.locationGqlSubscription = this.getLocationService
+            .watch({
+                filters: {
+                    busId: 33,
+                    dateReceived: "2022-05-01",
+                },
+                order: {
+                    dtGps: "ASC",
+                },
+                pagination: {
+                    limit: 50000,
+                },
             })
-            .style({
-                opacity: 0.6,
-                lineTexture: true, // 开启线的贴图功能
-                iconStep: 10, // 设置贴图纹理的间距
-                borderWidth: 0.4, // 默认文 0，最大有效值为 0.5
-                borderColor: "#fff", // 默认为 #ccc
-            });
+            .valueChanges.subscribe(({ data, loading }) => {
+                this.currLocations = [...data.locations];
+                if (loading) {
+                    this.sliderDataformatter = undefined;
+                    this.showLoading = loading;
+                    return;
+                }
 
-        this.scene.addLayer(this.lineLayer);
-        this.lineLayer?.setData({
-            type: "FeatureCollection",
-            name: "dl2",
-            crs: {
-                type: "name",
-                properties: {
-                    name: "urn:ogc:def:crs:OGC:1.3:CRS84",
-                },
-            },
-            features: [
-                {
-                    type: "Feature",
-                    properties: {},
-                    geometry: {
-                        type: "MultiLineString",
-                        coordinates: [
-                            DATA2.locations.map((val) => {
-                                return val.location;
-                            }),
-                        ],
+                this.pointLayer = new PointLayer({}).size(10).color("#080298");
+                this.scene?.addLayer(this.pointLayer);
+                this.pointLayer?.setData([this.currLocations[0].location], {
+                    parser: {
+                        x: "0",
+                        y: "1",
+                        type: "json",
                     },
-                },
-            ],
-        });
-        // lineLayer.source();
-        // });
+                });
+
+                this.setSliderList(this.currLocations);
+                this.sliderLength = this.currLocations.length;
+
+                // this.sliderDataformatter = this.sliderDataformatterWithData;
+
+                // this.lineLayer = new LineLayer({})
+                //     .size(3)
+                //     .shape("line")
+                //     .texture("arrow")
+                //     .color("rgb(22,119,255)")
+                //     .animate({
+                //         interval: 1, // 间隔
+                //         duration: 30, // 持续时间，延时
+                //         trailLength: 2, // 流线长度
+                //         enable: true,
+                //     })
+                //     .style({
+                //         opacity: 0.6,
+                //         lineTexture: true, // 开启线的贴图功能
+                //         iconStep: 10, // 设置贴图纹理的间距
+                //         borderWidth: 0.4, // 默认文 0，最大有效值为 0.5
+                //         borderColor: "#fff", // 默认为 #ccc
+                //     });
+
+                // this.lineLayer?.setData({
+                //     type: "FeatureCollection",
+                //     name: "dl2",
+                //     crs: {
+                //         type: "name",
+                //         properties: {
+                //             name: "urn:ogc:def:crs:OGC:1.3:CRS84",
+                //         },
+                //     },
+                //     features: [
+                //         {
+                //             type: "Feature",
+                //             properties: {},
+                //             geometry: {
+                //                 type: "MultiLineString",
+                //                 coordinates: [
+                //                     this.currLocations.map((val) => {
+                //                         return val.location;
+                //                     }),
+                //                 ],
+                //             },
+                //         },
+                //     ],
+                // });
+                // this.scene?.addLayer(this.lineLayer);
+
+                this.showLoading = loading;
+            });
     }
 
     onSliderChange($event: any) {
-        this.pointLayer?.setData([FAKE_DATA.locations[$event].location], {
+        this.pointLayer?.setData([this.currLocations[$event].location], {
             parser: {
                 x: "0",
                 y: "1",
@@ -175,9 +187,21 @@ export class JejakMainComponent implements OnInit {
         });
     }
 
-    sliderDataformatter(value: number): string {
-        return getLocaleDatetimeFormat(
-            convertLocalTime(`${FAKE_DATA.locations[value].dtGps}`)
-        );
+    sliderDataformatterWithData(value: number): string {
+        console.log("sliderDataformatter");
+
+        console.log(this.currLocations[value]);
+        console.log(this.currLocations);
+        try {
+            return getLocaleDatetimeFormat(
+                convertLocalTime(`${this.currLocations[value].dtGps}`)
+            );
+        } catch {
+            return "";
+        }
+    }
+
+    ngOnDestroy(): void {
+        this.locationGqlSubscription?.unsubscribe();
     }
 }
