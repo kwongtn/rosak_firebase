@@ -126,7 +126,11 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 this.setSliderList(this.currLocations);
                 this.sliderLength = this.currLocations.length;
 
-                // this.sliderDataformatter = this.sliderDataformatterWithData;
+                this.sliderDataformatter = (value: number): string => {
+                    return getLocaleDatetimeFormat(
+                        convertLocalTime(`${data.locations[value].dtGps}`)
+                    );
+                };
 
                 // this.lineLayer = new LineLayer({})
                 //     .size(3)
@@ -185,20 +189,6 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 type: "json",
             },
         });
-    }
-
-    sliderDataformatterWithData(value: number): string {
-        console.log("sliderDataformatter");
-
-        console.log(this.currLocations[value]);
-        console.log(this.currLocations);
-        try {
-            return getLocaleDatetimeFormat(
-                convertLocalTime(`${this.currLocations[value].dtGps}`)
-            );
-        } catch {
-            return "";
-        }
     }
 
     ngOnDestroy(): void {
