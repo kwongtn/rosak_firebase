@@ -463,9 +463,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["runNumber"] = undefined;
         }
 
-        const date: Date = formValues["spottingDate"];
-        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-        formValues["spottingDate"] = formValues["spottingDate"]
+        const spottingDate: Date = formValues["spottingDate"];
+        formValues["spottingDate"] = new Date(
+            spottingDate.getTime() -
+                spottingDate.getTimezoneOffset() * 60 * 1000
+        )
             .toISOString()
             .slice(0, 10);
 
@@ -480,6 +482,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         // Removing fields not required by GQL
         formValues["line"] = undefined;
         formValues["sanityTest"] = undefined;
+
+        console.log(formValues);
 
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
         return Promise.all([
