@@ -61,6 +61,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         this.formGroup = this.fb.group(
             {
                 busId: new UntypedFormControl("", [Validators.required]),
+                dateRange: new UntypedFormControl([], [Validators.required]),
             },
             {}
         );
@@ -133,7 +134,10 @@ export class JejakMainComponent implements OnInit, OnDestroy {
             .watch({
                 filters: {
                     busId: 33,
-                    dateReceived: "2022-05-01",
+                    dtReceivedRange: [
+                        "2022-05-01 00:00:00",
+                        "2022-05-02 00:00:00",
+                    ],
                 },
                 order: {
                     dtGps: "ASC",
@@ -169,51 +173,6 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                     );
                 };
 
-                // this.lineLayer = new LineLayer({})
-                //     .size(3)
-                //     .shape("line")
-                //     .texture("arrow")
-                //     .color("rgb(22,119,255)")
-                //     .animate({
-                //         interval: 1, // 间隔
-                //         duration: 30, // 持续时间，延时
-                //         trailLength: 2, // 流线长度
-                //         enable: true,
-                //     })
-                //     .style({
-                //         opacity: 0.6,
-                //         lineTexture: true, // 开启线的贴图功能
-                //         iconStep: 10, // 设置贴图纹理的间距
-                //         borderWidth: 0.4, // 默认文 0，最大有效值为 0.5
-                //         borderColor: "#fff", // 默认为 #ccc
-                //     });
-
-                // this.lineLayer?.setData({
-                //     type: "FeatureCollection",
-                //     name: "dl2",
-                //     crs: {
-                //         type: "name",
-                //         properties: {
-                //             name: "urn:ogc:def:crs:OGC:1.3:CRS84",
-                //         },
-                //     },
-                //     features: [
-                //         {
-                //             type: "Feature",
-                //             properties: {},
-                //             geometry: {
-                //                 type: "MultiLineString",
-                //                 coordinates: [
-                //                     this.currLocations.map((val) => {
-                //                         return val.location;
-                //                     }),
-                //                 ],
-                //             },
-                //         },
-                //     ],
-                // });
-                // this.scene?.addLayer(this.lineLayer);
-
                 this.showLoading = loading;
             });
     }
@@ -226,6 +185,10 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 type: "json",
             },
         });
+    }
+
+    onClickSearch() {
+        console.log(this.formGroup.value);
     }
 
     ngOnDestroy(): void {
