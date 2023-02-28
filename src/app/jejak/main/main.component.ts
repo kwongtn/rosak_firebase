@@ -3,9 +3,16 @@ import { Subscription } from "rxjs";
 import { environment } from "src/environments/environment";
 
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
+import {
+    UntypedFormBuilder,
+    UntypedFormControl,
+    UntypedFormGroup,
+    Validators,
+} from "@angular/forms";
 import { ILayer, MapTheme, PointLayer, Scale, Scene, Zoom } from "@antv/l7";
 import { Mapbox } from "@antv/l7-maps";
 
+import { GetBusesService } from "../services/get-buses.service";
 import {
     GetLocationService,
     LocationData,
@@ -18,12 +25,23 @@ import { convertLocalTime, getLocaleDatetimeFormat } from "./utils";
     styleUrls: ["./main.component.scss"],
 })
 export class JejakMainComponent implements OnInit, OnDestroy {
+    /**
+     * Form stuff
+     */
+    formGroup: UntypedFormGroup;
+
     scene: Scene | undefined = undefined;
     locationGqlSubscription!: Subscription;
     sliderLength: number = 0;
 
     sliderValue = 1;
     showLoading = true;
+
+    loading: { [key: string]: boolean } = {
+        busNo: true,
+    };
+
+    busList: { [key: string]: string | number }[] = [];
 
     marks: NzMarks = {};
     currLocations: LocationData["locations"] = [];
@@ -36,9 +54,28 @@ export class JejakMainComponent implements OnInit, OnDestroy {
 
     constructor(
         private getLocationService: GetLocationService,
+        private getBusesService: GetBusesService,
+        private fb: UntypedFormBuilder,
         public cd: ChangeDetectorRef
     ) {
-        return;
+        this.formGroup = this.fb.group(
+            {
+                busId: new UntypedFormControl("", [Validators.required]),
+            },
+            {}
+        );
+        this.getBusesService
+            .watch()
+            .valueChanges.subscribe(({ data, loading }) => {
+                this.loading["busNo"] = loading;
+
+                this.busList = data.buses.map((bus) => {
+                    return {
+                        value: bus.id,
+                        label: bus.identifier,
+                    };
+                });
+            });
     }
 
     setSliderList(data: Array<any>): void {
