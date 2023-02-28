@@ -29,28 +29,29 @@ export class JejakMainComponent implements OnInit, OnDestroy {
      * Form stuff
      */
     formGroup: UntypedFormGroup;
-
-    scene: Scene | undefined = undefined;
-    locationGqlSubscription!: Subscription;
-    sliderLength: number = 0;
-
-    sliderValue = 1;
-    showLoading = true;
-
-    loading: { [key: string]: boolean } = {
-        busNo: true,
-    };
-
     busList: { [key: string]: string | number }[] = [];
 
-    marks: NzMarks = {};
-    currLocations: LocationData["locations"] = [];
-
+    /**
+     * Slider stuff
+     */
+    sliderLength: number = 0;
     sliderDataformatter: ((value: number) => string) | null | undefined =
         undefined;
 
-    lineLayer: ILayer | undefined = undefined;
+    /**
+     * Map stuff
+     */
+    scene: Scene | undefined = undefined;
     pointLayer: ILayer | undefined = undefined;
+    currLocations: LocationData["locations"] = [];
+    marks: NzMarks = {};
+
+    locationGqlSubscription!: Subscription;
+
+    loading: { [key: string]: boolean } = {
+        busNo: true,
+        results: true,
+    };
 
     constructor(
         private getLocationService: GetLocationService,
@@ -150,7 +151,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 this.currLocations = [...data.locations];
                 if (loading) {
                     this.sliderDataformatter = undefined;
-                    this.showLoading = loading;
+                    this.loading["results"] = loading;
                     return;
                 }
 
@@ -173,7 +174,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                     );
                 };
 
-                this.showLoading = loading;
+                this.loading["results"] = loading;
             });
     }
 

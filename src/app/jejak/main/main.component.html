@@ -35,12 +35,11 @@
     </nz-form-item>
 </form>
 
-<nz-spin [nzSpinning]="showLoading">
+<nz-spin [nzSpinning]="loading['results']">
     <nz-slider
-        *ngIf="!showLoading"
+        *ngIf="!loading['results']"
         [nzIncluded]="false"
         [nzMarks]="marks"
-        [(ngModel)]="sliderValue"
         (ngModelChange)="onSliderChange($event)"
         [nzTipFormatter]="sliderDataformatter"
         [nzMax]="sliderLength - 1"
