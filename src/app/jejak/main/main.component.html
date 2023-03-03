@@ -40,6 +40,7 @@
         *ngIf="!loading['results']"
         [nzIncluded]="false"
         [nzMarks]="marks"
+        [(ngModel)]="sliderValue"
         (ngModelChange)="onSliderChange($event)"
         [nzTipFormatter]="sliderDataformatter"
         [nzMax]="sliderLength - 1"

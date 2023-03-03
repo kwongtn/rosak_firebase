@@ -35,6 +35,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
      * Slider stuff
      */
     sliderLength: number = 0;
+    sliderValue: number = 0;
     sliderDataformatter: ((value: number) => string) | null | undefined =
         undefined;
 
