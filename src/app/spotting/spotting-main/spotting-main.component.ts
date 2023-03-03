@@ -7,7 +7,7 @@ import {
 } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 
-import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
 import { ToastService } from "../../services/toast/toast.service";
@@ -37,8 +37,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
 
     tabActiveId: string | number | undefined = undefined;
     tabItems: LineTabType[] = [];
-
-    scrollMode: boolean = this.getScrollMode();
 
     currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
@@ -162,15 +160,5 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
 
         this.tabActiveId = event;
         // this.filterTabItems();
-    }
-
-    
-    @HostListener("window:resize")
-    resize(): void {
-        this.scrollMode = this.getScrollMode();
-    }
-
-    getScrollMode(): boolean {
-        return window.innerWidth < 1024;
     }
 }
