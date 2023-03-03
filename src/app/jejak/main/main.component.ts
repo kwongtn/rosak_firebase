@@ -1,5 +1,7 @@
+import { NzStatus } from "ng-zorro-antd/core/types";
 import { NzMarks } from "ng-zorro-antd/slider";
 import { Subscription } from "rxjs";
+import { ToastService } from "src/app/services/toast/toast.service";
 import { environment } from "src/environments/environment";
 
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from "@angular/core";
@@ -36,6 +38,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
     busList: { [key: string]: string | number }[] = [];
     formSubmitted: boolean = false;
     estimatedCount: number = -1;
+    actionButtonClicked: boolean = false;
 
     /**
      * Slider stuff
@@ -66,6 +69,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         private getLocationService: GetLocationService,
         private getBusesService: GetBusesService,
         private getLocationTotalRowsService: GetLocationTotalRowsService,
+        private toastService: ToastService,
         private fb: UntypedFormBuilder,
         public cd: ChangeDetectorRef
     ) {
@@ -186,8 +190,35 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         });
     }
 
+    getStatus(fieldName: string): NzStatus {
+        if (this.loading[fieldName]) {
+            return "";
+        } else if (this.formGroup.controls[fieldName].valid) {
+            const formGroupErrors = this.formGroup.errors;
+
+            if (
+                formGroupErrors &&
+                Object.keys(formGroupErrors).includes(fieldName)
+            ) {
+                if (this.actionButtonClicked) {
+                    return "error";
+                } else {
+                    return "";
+                }
+            } else {
+                return "";
+            }
+        } else if (!this.actionButtonClicked) {
+            return "";
+        } else {
+            return "error";
+        }
+    }
+
     onClickCount() {
-        if (!this.formGroup.valid) {
+        this.actionButtonClicked = true;
+        if (this.formGroup.invalid) {
+            this.toastService.addToast("Error", "Form is invalid.", "error");
             return;
         }
 
@@ -215,7 +246,9 @@ export class JejakMainComponent implements OnInit, OnDestroy {
     }
 
     onClickSearch() {
-        if (!this.formGroup.valid) {
+        this.actionButtonClicked = true;
+        if (this.formGroup.invalid) {
+            this.toastService.addToast("Error", "Form is invalid.", "error");
             return;
         }
 
