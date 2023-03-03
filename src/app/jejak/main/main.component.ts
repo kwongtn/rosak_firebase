@@ -270,9 +270,6 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 order: {
                     dtGps: "ASC",
                 },
-                pagination: {
-                    limit: 500,
-                },
             })
             .valueChanges.subscribe((result) => {
                 this.processGqlLocationResult(result);
