@@ -29,9 +29,24 @@
 
         <nz-form-item>
             <nz-form-control [nzSpan]="8" [nzOffset]="2" class="search-area">
+                <button
+                    nz-button
+                    nzType="primary"
+                    (click)="onClickCount()"
+                    [nzLoading]="loading['count']"
+                >
+                    {{
+                        estimatedCount < 0
+                            ? "Estimate count"
+                            : "Estimated total: " + estimatedCount + " rows"
+                    }}
+                </button>
+
                 <button nz-button (click)="onClickSearch()" nzType="primary">
                     Search
                 </button>
+            </nz-form-control>
+            <nz-form-control [nzSpan]="8" [nzOffset]="2" class="search-area">
             </nz-form-control>
         </nz-form-item>
     </form>

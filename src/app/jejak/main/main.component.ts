@@ -15,6 +15,9 @@ import { ApolloQueryResult } from "@apollo/client";
 
 import { GetBusesService } from "../services/get-buses.service";
 import {
+    GetLocationTotalRowsService,
+} from "../services/get-location-total-rows.service";
+import {
     GetLocationService,
     LocationData,
 } from "../services/get-location.service";
@@ -32,6 +35,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
     formGroup: UntypedFormGroup;
     busList: { [key: string]: string | number }[] = [];
     formSubmitted: boolean = false;
+    estimatedCount: number = -1;
 
     /**
      * Slider stuff
@@ -50,15 +54,18 @@ export class JejakMainComponent implements OnInit, OnDestroy {
     marks: NzMarks = {};
 
     locationGqlSubscription!: Subscription;
+    locationTotalRowsGqlSubscription!: Subscription;
 
     loading: { [key: string]: boolean } = {
         busNo: true,
+        count: false,
         results: false,
     };
 
     constructor(
         private getLocationService: GetLocationService,
         private getBusesService: GetBusesService,
+        private getLocationTotalRowsService: GetLocationTotalRowsService,
         private fb: UntypedFormBuilder,
         public cd: ChangeDetectorRef
     ) {
@@ -179,7 +186,39 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         });
     }
 
+    onClickCount() {
+        if (!this.formGroup.valid) {
+            return;
+        }
+
+        this.loading["count"] = true;
+        this.formSubmitted = true;
+        const formValues = { ...this.formGroup.value };
+
+        this.locationTotalRowsGqlSubscription = this.getLocationTotalRowsService
+            .watch({
+                filters: {
+                    busId: formValues["busId"],
+                    dtGpsRange: [
+                        convertLocalTime(formValues["dateRange"][0]),
+                        convertLocalTime(formValues["dateRange"][1]),
+                    ],
+                },
+            })
+            .valueChanges.subscribe(({ data, loading }) => {
+                this.loading["count"] = loading;
+
+                if (!loading) {
+                    this.estimatedCount = data.locationsCount;
+                }
+            });
+    }
+
     onClickSearch() {
+        if (!this.formGroup.valid) {
+            return;
+        }
+
         this.loading["results"] = true;
         this.formSubmitted = true;
         const formValues = { ...this.formGroup.value };
@@ -197,6 +236,9 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 },
                 order: {
                     dtGps: "ASC",
+                },
+                pagination: {
+                    limit: 500,
                 },
             })
             .valueChanges.subscribe((result) => {
