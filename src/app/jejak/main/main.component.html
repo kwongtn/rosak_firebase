@@ -1,43 +1,43 @@
-<form nz-form [formGroup]="formGroup" class="ant-advanced-search-form">
-    <nz-form-item>
-        <nz-form-label [nzSpan]="2">Bus No. </nz-form-label>
-        <nz-form-control [nzSpan]="8">
-            <nz-select
-                nzShowSearch
-                formControlName="busId"
-                [nzLoading]="loading['busNo']"
-            >
-                <nz-option
-                    *ngFor="let bus of busList"
-                    [nzValue]="bus['value']"
-                    [nzLabel]="bus['label']"
-                ></nz-option>
-            </nz-select>
-        </nz-form-control>
-    </nz-form-item>
-
-    <nz-form-item>
-        <nz-form-label [nzSpan]="2">Date range </nz-form-label>
-        <nz-form-control [nzSpan]="8">
-            <nz-range-picker
-                [nzShowTime]="true"
-                formControlName="dateRange"
-            ></nz-range-picker>
-        </nz-form-control>
-    </nz-form-item>
-
-    <nz-form-item>
-        <nz-form-control [nzSpan]="8" [nzOffset]="2" class="search-area">
-            <button nz-button (click)="onClickSearch()" nzType="primary">
-                Search
-            </button>
-        </nz-form-control>
-    </nz-form-item>
-</form>
-
 <nz-spin [nzSpinning]="loading['results']">
+    <form nz-form [formGroup]="formGroup" class="ant-advanced-search-form">
+        <nz-form-item>
+            <nz-form-label [nzSpan]="2">Bus No. </nz-form-label>
+            <nz-form-control [nzSpan]="8">
+                <nz-select
+                    nzShowSearch
+                    formControlName="busId"
+                    [nzLoading]="loading['busNo']"
+                >
+                    <nz-option
+                        *ngFor="let bus of busList"
+                        [nzValue]="bus['value']"
+                        [nzLabel]="bus['label']"
+                    ></nz-option>
+                </nz-select>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label [nzSpan]="2">Date range </nz-form-label>
+            <nz-form-control [nzSpan]="8">
+                <nz-range-picker
+                    [nzShowTime]="true"
+                    formControlName="dateRange"
+                ></nz-range-picker>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-control [nzSpan]="8" [nzOffset]="2" class="search-area">
+                <button nz-button (click)="onClickSearch()" nzType="primary">
+                    Search
+                </button>
+            </nz-form-control>
+        </nz-form-item>
+    </form>
+
     <nz-slider
-        *ngIf="!loading['results']"
+        *ngIf="!loading['results'] && formSubmitted"
         [nzIncluded]="false"
         [nzMarks]="marks"
         [(ngModel)]="sliderValue"

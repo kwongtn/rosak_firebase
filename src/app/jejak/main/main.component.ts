@@ -11,6 +11,7 @@ import {
 } from "@angular/forms";
 import { ILayer, MapTheme, PointLayer, Scale, Scene, Zoom } from "@antv/l7";
 import { Mapbox } from "@antv/l7-maps";
+import { ApolloQueryResult } from "@apollo/client";
 
 import { GetBusesService } from "../services/get-buses.service";
 import {
@@ -30,6 +31,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
      */
     formGroup: UntypedFormGroup;
     busList: { [key: string]: string | number }[] = [];
+    formSubmitted: boolean = false;
 
     /**
      * Slider stuff
@@ -51,7 +53,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
 
     loading: { [key: string]: boolean } = {
         busNo: true,
-        results: true,
+        results: false,
     };
 
     constructor(
@@ -132,51 +134,39 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         const mapTheme = new MapTheme();
         this.scene.addControl(mapTheme);
 
-        this.locationGqlSubscription = this.getLocationService
-            .watch({
-                filters: {
-                    busId: 33,
-                    dtReceivedRange: [
-                        "2022-05-01 00:00:00",
-                        "2022-05-02 00:00:00",
-                    ],
-                },
-                order: {
-                    dtGps: "ASC",
-                },
-                pagination: {
-                    limit: 50000,
-                },
-            })
-            .valueChanges.subscribe(({ data, loading }) => {
-                this.currLocations = [...data.locations];
-                if (loading) {
-                    this.sliderDataformatter = undefined;
-                    this.loading["results"] = loading;
-                    return;
-                }
+        this.pointLayer = new PointLayer({}).size(10).color("#080298");
+        this.scene?.addLayer(this.pointLayer as ILayer);
+    }
 
-                this.pointLayer = new PointLayer({}).size(10).color("#080298");
-                this.scene?.addLayer(this.pointLayer);
-                this.pointLayer?.setData([this.currLocations[0].location], {
-                    parser: {
-                        x: "0",
-                        y: "1",
-                        type: "json",
-                    },
-                });
+    processGqlLocationResult(value: ApolloQueryResult<LocationData>) {
+        const data = value.data;
+        const loading = value.loading;
 
-                this.setSliderList(this.currLocations);
-                this.sliderLength = this.currLocations.length;
+        this.currLocations = data.locations;
+        if (loading || this.currLocations.length === 0) {
+            this.sliderDataformatter = undefined;
+            this.loading["results"] = loading;
+            return;
+        }
 
-                this.sliderDataformatter = (value: number): string => {
-                    return getLocaleDatetimeFormat(
-                        convertLocalTime(`${data.locations[value].dtGps}`)
-                    );
-                };
+        this.pointLayer?.setData([this.currLocations[0].location], {
+            parser: {
+                x: "0",
+                y: "1",
+                type: "json",
+            },
+        });
 
-                this.loading["results"] = loading;
-            });
+        this.setSliderList(this.currLocations);
+        this.sliderLength = this.currLocations.length;
+
+        this.sliderDataformatter = (value: number): string => {
+            return getLocaleDatetimeFormat(
+                convertLocalTime(`${data.locations[value].dtGps}`)
+            );
+        };
+
+        this.loading["results"] = loading;
     }
 
     onSliderChange($event: any) {
@@ -190,7 +180,28 @@ export class JejakMainComponent implements OnInit, OnDestroy {
     }
 
     onClickSearch() {
-        console.log(this.formGroup.value);
+        this.loading["results"] = true;
+        this.formSubmitted = true;
+        const formValues = { ...this.formGroup.value };
+
+        console.log(formValues);
+
+        this.locationGqlSubscription = this.getLocationService
+            .watch({
+                filters: {
+                    busId: formValues["busId"],
+                    dtGpsRange: [
+                        convertLocalTime(formValues["dateRange"][0]),
+                        convertLocalTime(formValues["dateRange"][1]),
+                    ],
+                },
+                order: {
+                    dtGps: "ASC",
+                },
+            })
+            .valueChanges.subscribe((result) => {
+                this.processGqlLocationResult(result);
+            });
     }
 
     ngOnDestroy(): void {
