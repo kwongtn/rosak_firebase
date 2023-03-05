@@ -165,6 +165,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         const loading = value.loading;
 
         this.currLocations = data.locations;
+        this.sliderValue = 0;
         if (loading || this.currLocations.length === 0) {
             this.sliderDataformatter = undefined;
             this.loading["results"] = loading;
