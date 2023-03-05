@@ -2,6 +2,7 @@ import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpinModule } from "ng-zorro-antd/spin";
@@ -25,6 +26,7 @@ import { JejakMainComponent } from "./main/main.component";
         NzGridModule,
         NzButtonModule,
         NzDatePickerModule,
+        NzPopconfirmModule,
     ],
 })
 export class JejakModule {}

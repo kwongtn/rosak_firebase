@@ -38,6 +38,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
     busList: { [key: string]: string | number }[] = [];
     formSubmitted: boolean = false;
     estimatedCount: number = -1;
+    haveEstimated: boolean = false;
     actionButtonClicked: boolean = false;
 
     /**
@@ -124,6 +125,10 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         };
 
         this.marks = returnObj;
+    }
+
+    onFormValueChange() {
+        this.haveEstimated = false;
     }
 
     ngOnInit(): void {
@@ -242,6 +247,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
                 if (!loading) {
                     this.estimatedCount = data.locationsCount;
                 }
+                this.haveEstimated = true;
             });
     }
 
