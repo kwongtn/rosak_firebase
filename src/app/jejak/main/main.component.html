@@ -67,15 +67,19 @@
             </nz-form-item>
         </form>
 
-        <nz-slider
+        <div
             *ngIf="!loading['results'] && sliderLength && formSubmitted"
-            [nzIncluded]="false"
-            [nzMarks]="marks"
-            [(ngModel)]="sliderValue"
-            (ngModelChange)="onSliderChange($event)"
-            [nzTipFormatter]="sliderDataformatter"
-            [nzMax]="sliderLength - 1"
-        ></nz-slider>
+            class="slider"
+        >
+            <nz-slider
+                [nzIncluded]="false"
+                [nzMarks]="marks"
+                [(ngModel)]="sliderValue"
+                (ngModelChange)="onSliderChange($event)"
+                [nzTipFormatter]="sliderDataformatter"
+                [nzMax]="sliderLength - 1"
+            ></nz-slider>
+        </div>
     </div>
 </nz-spin>
 

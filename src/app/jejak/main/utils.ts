@@ -7,7 +7,13 @@ export function convertLocalTime(dtString: string): Date {
     );
 }
 
-export function getLocaleDatetimeFormat(dtValue: Date): string {
+export function getLocaleDatetimeFormat(
+    dtValue: Date,
+    linebreak: string = " "
+): string {
     const datepipe: DatePipe = new DatePipe("en-US");
-    return datepipe.transform(dtValue, "dd-MMMM-YYYY HH:mm:ss") as string;
+
+    return (
+        datepipe.transform(dtValue, "dd-MMMM-YYYY HH:mm:ss") as string
+    ).replace(" ", linebreak);
 }

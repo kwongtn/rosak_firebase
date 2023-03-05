@@ -103,8 +103,12 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         returnObj[0] = {
             style: {
                 "text-align": "left",
+                "padding-left": "65px",
             },
-            label: getLocaleDatetimeFormat(convertLocalTime(data[0].dtGps)),
+            label: getLocaleDatetimeFormat(
+                convertLocalTime(data[0].dtGps),
+                "<br>"
+            ),
         };
         returnObj[Math.ceil(data.length / 2)] = {
             style: {
@@ -118,9 +122,11 @@ export class JejakMainComponent implements OnInit, OnDestroy {
             style: {
                 "text-align": "right",
                 "white-space": "nowrap",
+                "padding-right": "65px",
             },
             label: getLocaleDatetimeFormat(
-                convertLocalTime(data[data.length - 1].dtGps)
+                convertLocalTime(data[data.length - 1].dtGps),
+                "<br>"
             ),
         };
 
