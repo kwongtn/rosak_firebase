@@ -9,7 +9,7 @@ import {
     UntypedFormBuilder,
     UntypedFormControl,
     UntypedFormGroup,
-    Validators,
+    Validators
 } from "@angular/forms";
 import { ILayer, MapTheme, PointLayer, Scale, Scene, Zoom } from "@antv/l7";
 import { Mapbox } from "@antv/l7-maps";
@@ -17,11 +17,11 @@ import { ApolloQueryResult } from "@apollo/client";
 
 import { GetBusesService } from "../services/get-buses.service";
 import {
-    GetLocationTotalRowsService,
+    GetLocationTotalRowsService
 } from "../services/get-location-total-rows.service";
 import {
     GetLocationService,
-    LocationData,
+    LocationData
 } from "../services/get-location.service";
 import { convertLocalTime, getLocaleDatetimeFormat } from "./utils";
 
@@ -275,10 +275,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
             .watch({
                 filters: {
                     busId: formValues["busId"],
-                    dtGpsRange: [
-                        convertLocalTime(formValues["dateRange"][0]),
-                        convertLocalTime(formValues["dateRange"][1]),
-                    ],
+                    dtReceivedRange: formValues["dateRange"],
                 },
                 order: {
                     dtGps: "ASC",
