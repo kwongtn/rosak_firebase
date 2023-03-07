@@ -1,3 +1,5 @@
+@import "ng-devui/styles-var/devui-var.scss";
+
 .form-area {
     padding: 20px 0px;
 }
@@ -7,9 +9,8 @@
     padding-top: 30px;
     padding-left: 24px;
     padding-right: 24px;
-
-    background: #fbfbfb;
-    border: 1px solid #d9d9d9;
+    background: $devui-form-control-bg;
+    border: 1px solid $devui-form-control-line;
     border-radius: 6px;
 }
 
