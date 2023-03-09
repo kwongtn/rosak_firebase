@@ -1,6 +1,7 @@
 import { NzStatus } from "ng-zorro-antd/core/types";
 import { NzMarks } from "ng-zorro-antd/slider";
 import { Subscription } from "rxjs";
+import { AuthService } from "src/app/services/auth/auth.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 import { environment } from "src/environments/environment";
 
@@ -9,7 +10,7 @@ import {
     UntypedFormBuilder,
     UntypedFormControl,
     UntypedFormGroup,
-    Validators
+    Validators,
 } from "@angular/forms";
 import { ILayer, MapTheme, PointLayer, Scale, Scene, Zoom } from "@antv/l7";
 import { Mapbox } from "@antv/l7-maps";
@@ -17,11 +18,11 @@ import { ApolloQueryResult } from "@apollo/client";
 
 import { GetBusesService } from "../services/get-buses.service";
 import {
-    GetLocationTotalRowsService
+    GetLocationTotalRowsService,
 } from "../services/get-location-total-rows.service";
 import {
     GetLocationService,
-    LocationData
+    LocationData,
 } from "../services/get-location.service";
 import { convertLocalTime, getLocaleDatetimeFormat } from "./utils";
 
@@ -71,6 +72,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         private getBusesService: GetBusesService,
         private getLocationTotalRowsService: GetLocationTotalRowsService,
         private toastService: ToastService,
+        private authService: AuthService,
         private fb: UntypedFormBuilder,
         public cd: ChangeDetectorRef
     ) {
@@ -227,7 +229,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         }
     }
 
-    onClickCount() {
+    async onClickCount() {
         this.actionButtonClicked = true;
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
@@ -239,15 +241,25 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         const formValues = { ...this.formGroup.value };
 
         this.locationTotalRowsGqlSubscription = this.getLocationTotalRowsService
-            .watch({
-                filters: {
-                    busId: formValues["busId"],
-                    dtGpsRange: [
-                        convertLocalTime(formValues["dateRange"][0]),
-                        convertLocalTime(formValues["dateRange"][1]),
-                    ],
+            .watch(
+                {
+                    filters: {
+                        busId: formValues["busId"],
+                        dtGpsRange: [
+                            convertLocalTime(formValues["dateRange"][0]),
+                            convertLocalTime(formValues["dateRange"][1]),
+                        ],
+                    },
                 },
-            })
+                {
+                    context: {
+                        headers: {
+                            "firebase-auth-key":
+                                await this.authService.getIdToken(),
+                        },
+                    },
+                }
+            )
             .valueChanges.subscribe(({ data, loading }) => {
                 this.loading["count"] = loading;
 
@@ -258,7 +270,7 @@ export class JejakMainComponent implements OnInit, OnDestroy {
             });
     }
 
-    onClickSearch() {
+    async onClickSearch() {
         this.actionButtonClicked = true;
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
@@ -272,15 +284,25 @@ export class JejakMainComponent implements OnInit, OnDestroy {
         console.log(formValues);
 
         this.locationGqlSubscription = this.getLocationService
-            .watch({
-                filters: {
-                    busId: formValues["busId"],
-                    dtReceivedRange: formValues["dateRange"],
+            .watch(
+                {
+                    filters: {
+                        busId: formValues["busId"],
+                        dtReceivedRange: formValues["dateRange"],
+                    },
+                    order: {
+                        dtGps: "ASC",
+                    },
                 },
-                order: {
-                    dtGps: "ASC",
-                },
-            })
+                {
+                    context: {
+                        headers: {
+                            "firebase-auth-key":
+                                await this.authService.getIdToken(),
+                        },
+                    },
+                }
+            )
             .valueChanges.subscribe((result) => {
                 this.processGqlLocationResult(result);
             });
