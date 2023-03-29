@@ -12,8 +12,8 @@
     >
         <div class="login-alert" *ngIf="!(authService.userData | async)">
             <d-alert [type]="'info'" [closeable]="false">
-                It seems that you're not logged in. Users that are not logged in
-                will have their IP Addresses recorded instead.
+                It seems that you're not logged in. Please login to proceed. If
+                you are already logged in, please wait for a few seconds.
 
                 <p>
                     <d-button class="login-button" (click)="authService.login()"
