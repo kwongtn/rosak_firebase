@@ -24,7 +24,7 @@
         </div>
 
         <d-form-item>
-            <d-form-label>Line</d-form-label>
+            <d-form-label class="required">Line*</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('line')">
                 <d-select
                     [options]="lineOptions"
@@ -60,7 +60,7 @@
         </d-alert> -->
 
         <d-form-item>
-            <d-form-label>Vehicle</d-form-label>
+            <d-form-label class="required">Vehicle*</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('vehicle')">
                 <d-select
                     formControlName="vehicle"
@@ -98,7 +98,7 @@
         </div>
 
         <d-form-item>
-            <d-form-label>Spotting Date</d-form-label>
+            <d-form-label class="required">Spotting Date*</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('spottingDate')">
                 <div class="devui-input-group devui-dropdown-origin">
                     <input
@@ -133,7 +133,7 @@
         </d-form-item>
 
         <d-form-item>
-            <d-form-label>Status</d-form-label>
+            <d-form-label class="required">Status*</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('status')">
                 <d-select
                     [options]="statusOptions"
@@ -149,7 +149,7 @@
         </d-form-item>
 
         <d-form-item>
-            <d-form-label>Type</d-form-label>
+            <d-form-label class="required">Type*</d-form-label>
             <d-form-control [feedbackStatus]="getStatus('type')">
                 <d-select
                     [options]="typeOptions"
@@ -236,7 +236,7 @@
 
         <div *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'">
             <d-form-item>
-                <d-form-label>Origin Station</d-form-label>
+                <d-form-label class="required">Origin Station*</d-form-label>
 
                 <d-form-control [feedbackStatus]="getStatus('originStation')">
                     <d-select
@@ -253,7 +253,9 @@
             </d-form-item>
 
             <d-form-item>
-                <d-form-label>Destination Station</d-form-label>
+                <d-form-label class="required"
+                    >Destination Station*</d-form-label
+                >
                 <d-form-control
                     [feedbackStatus]="getStatus('destinationStation')"
                 >
@@ -274,8 +276,7 @@
 
         <div *ngIf="formGroup.value.type.value == 'AT_STATION'">
             <d-form-item>
-                <d-form-label>At Station</d-form-label>
-
+                <d-form-label class="required">At Station*</d-form-label>
                 <d-form-control [feedbackStatus]="getStatus('atStation')">
                     <d-select
                         [options]="stationOptions"
