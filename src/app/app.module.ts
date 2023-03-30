@@ -7,6 +7,7 @@ import {
     ReCaptchaV3Service,
 } from "ng-recaptcha";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
 
 import { registerLocaleData } from "@angular/common";
@@ -60,6 +61,7 @@ const imports: any[] = [
     DevUIModule,
 
     // ng-zorro
+    NzMessageModule,
     NzNotificationModule,
 
     // Internal Imports

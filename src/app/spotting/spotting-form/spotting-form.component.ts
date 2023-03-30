@@ -351,9 +351,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     if (!this.showedLocationPopout) {
-                        this.toastService.addToast(
-                            "Location accessed",
-                            "Take note that we will not know your location until you submit the form.",
+                        this.toastService.addMessage(
+                            "Location accessed. Take note that we will not know your location until you submit the form.",
                             "info"
                         );
                         this.showedLocationPopout = true;
@@ -429,9 +428,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
-                this.toastService.addToast(
-                    "Error",
-                    "Location has not been loaded",
+                this.toastService.addMessage(
+                    "Error: Location has not been loaded.",
                     "error"
                 );
 

@@ -1,4 +1,5 @@
 import { Message } from "ng-devui";
+import { NzMessageDataOptions, NzMessageService } from "ng-zorro-antd/message";
 import { NzNotificationService } from "ng-zorro-antd/notification";
 import {
     NzNotificationDataOptions,
@@ -8,8 +9,10 @@ import {
 import { Injectable } from "@angular/core";
 
 type NotificationType = "blank" | "success" | "error" | "info" | "warning";
+type MessageType = "info" | "success" | "error" | "warning" | "loading";
 
 class NotificationTypeNotFoundError extends Error {}
+class MessageTypeNotFoundError extends Error {}
 
 @Injectable({
     providedIn: "root",
@@ -17,12 +20,53 @@ class NotificationTypeNotFoundError extends Error {}
 export class ToastService {
     store: Message[] = [];
 
-    constructor(private toastService: NzNotificationService) {
+    constructor(
+        private toastService: NzNotificationService,
+        private messageService: NzMessageService
+    ) {
         return;
     }
 
     getPlacement(): NzNotificationPlacement {
         return window.innerWidth < 1024 ? "bottom" : "top";
+    }
+
+    addMessage(
+        message: string,
+        type: MessageType = "info",
+        options?: NzMessageDataOptions
+    ): void {
+        console.log(
+            "Add message: ",
+            JSON.stringify({
+                message,
+                options,
+                type,
+            })
+        );
+
+        switch (type) {
+        case "loading":
+            this.messageService.loading(message, options);
+            break;
+        case "success":
+            this.messageService.success(message, options);
+            break;
+        case "error":
+            this.messageService.error(message, options);
+            break;
+        case "info":
+            this.messageService.info(message, options);
+            break;
+        case "warning":
+            this.messageService.warning(message, options);
+            break;
+
+        default:
+            throw new MessageTypeNotFoundError(
+                `Message type not found, got "${type}".`
+            );
+        }
     }
 
     addToast(

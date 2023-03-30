@@ -89,9 +89,8 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     results.modalInstance.hide();
                                 }
 
-                                this.toastService.addToast(
-                                    "Success",
-                                    "Your spotting entry is successfully added! 🥳",
+                                this.toastService.addMessage(
+                                    "Success! Your spotting entry is successfully added! 🥳",
                                     "success"
                                 );
                             })

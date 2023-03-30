@@ -17509,7 +17509,7 @@ textarea.ant-mentions {
 .ant-message-notice-content {
     display: inline-block;
     padding: 10px 16px;
-    background: #fff;
+    background: $devui-base-bg;
     border-radius: 2px;
     box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
         0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
