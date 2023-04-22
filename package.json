@@ -4,7 +4,8 @@
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
-        "build": "angular-build-info && ng build",
+        "buildProd": "angular-build-info && ng build --configuration production",
+        "buildStaging": "angular-build-info && ng build --configuration staging",
         "watch": "ng build --watch --configuration development",
         "test": "ng test",
         "prepare": "husky install"
