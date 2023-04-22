@@ -18,7 +18,7 @@ jobs:
           node-version: 18
           cache: "npm"
 
-      - run: npm i -g angular-build-info && npm ci && npm run buildProd
+      - run: npm i -g angular-build-info && npm ci && npm run buildStaging
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -32,7 +32,7 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           # SENTRY_URL: https://sentry.io/
         with:
-          environment: production
+          environment: staging
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
