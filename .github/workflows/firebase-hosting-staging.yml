@@ -40,3 +40,4 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROSAK_7223B }}"
           channelId: staging
           projectId: rosak-7223b
+          expires: 30d
