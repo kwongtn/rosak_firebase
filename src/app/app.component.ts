@@ -63,15 +63,21 @@ export class AppComponent implements OnInit, OnDestroy {
         public router: Router
     ) {
         console.log(
-            "\n%cBuild Info:\n\n" +
+            [
+                "\n%cBuild Info:\n",
                 `%c > Environment: %c${
-                    environment.production ? "production 🏭" : "development 🚧"
-                }\n` +
-                `%c > Build Version: ${build.version}\n` +
-                ` > Build Timestamp: ${build.timestamp}\n` +
-                ` > Built by: ${build.git.user}\n` +
-                ` > Commit: ${build.git.hash} @ ${build.git.branch}\n` +
-                ` > Build Message: %c${build.message || "<no message>"}\n`,
+                    environment.production
+                        ? "production 🏭"
+                        : environment.sentry.environment === "staging"
+                            ? "staging 🚈"
+                            : "development 🚧"
+                }`,
+                `%c > Build Version: ${build.version}`,
+                ` > Build Timestamp: ${build.timestamp}`,
+                ` > Built by: ${build.git.user}`,
+                ` > Commit: ${build.git.hash} @ ${build.git.branch}`,
+                ` > Build Message: %c${build.message || "<no message>"}`,
+            ].join("\n"),
             "font-size: 14px; color: #7c7c7b;",
             "font-size: 12px; color: #7c7c7b",
             environment.production
@@ -179,7 +185,6 @@ export class AppComponent implements OnInit, OnDestroy {
             .subscribe((event) => {
                 this.header = this.getHeader();
             });
-
     }
 
     ngOnDestroy(): void {
