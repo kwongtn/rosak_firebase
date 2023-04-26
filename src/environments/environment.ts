@@ -22,6 +22,7 @@ export const environment = {
             "http://localhost:4200",
             "https://lift-rosak.ddns.net:8000",
         ],
+        environment: "local",
     },
     captcha: {
         key: "6LdKj0QhAAAAAOEKyuxa6X2kIhVhgfinAorgxc4r",

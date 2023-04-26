@@ -91,4 +91,9 @@
             <span></span>
         </div>
     </div>
+    <nz-alert
+        nzBanner
+        nzMessage="You are in staging environment. Take note that all progress will be reset to public build everyday at 03:00 GMT+08."
+        *ngIf="environment.sentry.environment == 'staging'"
+    ></nz-alert>
 </div>

@@ -18,6 +18,7 @@ export const environment = {
             "https://rosak-7223b.web.app",
             "https://rosak-7223b.firebaseapp.com",
         ],
+        environment: "staging",
     },
     captcha: {
         key: "6Le4ekQhAAAAAKu_C7LTyylJfe8Q8Gv5fiNFx_kj",

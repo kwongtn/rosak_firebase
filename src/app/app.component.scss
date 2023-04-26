@@ -28,7 +28,7 @@
 }
 
 .content-inner-container {
-    padding-top: 70px;
+    padding-top: var(--padding-top);
     padding-bottom: 150px;
     padding-right: calc(10px + (100vw - 700px) * (15 - 30) / (700 - 1000));
     padding-left: calc(10px + (100vw - 700px) * (15 - 30) / (700 - 1000));

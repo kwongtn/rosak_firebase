@@ -3,7 +3,13 @@ import { filter } from "rxjs";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
-import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import {
+    Component,
+    ElementRef,
+    HostListener,
+    OnDestroy,
+    OnInit
+} from "@angular/core";
 import { NavigationEnd, Router } from "@angular/router";
 
 import build from "../build";
@@ -53,6 +59,7 @@ export class AppComponent implements OnInit, OnDestroy {
     constructor(
         public authService: AuthService,
         private httpClient: HttpClient,
+        private elem: ElementRef,
         public router: Router
     ) {
         console.log(
@@ -73,6 +80,12 @@ export class AppComponent implements OnInit, OnDestroy {
             "font-size: 12px; color: #7c7c7b",
             "font-size: 12px; color: #bdc6cf"
         );
+
+        if (environment.sentry.environment === "staging") {
+            this.elem.nativeElement.style.setProperty("--padding-top", "100px");
+        } else {
+            this.elem.nativeElement.style.setProperty("--padding-top", "70px");
+        }
     }
 
     menuContainsHref(href: string) {

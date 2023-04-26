@@ -15,6 +15,7 @@ import { environment } from "./environments/environment";
 Sentry.init({
     dsn: environment.sentry.dsn,
     tunnel: environment.sentry.tunnel,
+    environment: environment.sentry.environment,
     integrations: [
         new BrowserTracing({
             tracingOrigins: environment.sentry.tracingOrigins,

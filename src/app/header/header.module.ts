@@ -7,6 +7,7 @@ import { DropDownModule } from "ng-devui/dropdown";
 import { TabsModule } from "ng-devui/tabs";
 import { ToggleModule } from "ng-devui/toggle";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -42,6 +43,9 @@ import { MenuComponent } from "./menu/menu.component";
         TabsModule,
         ToggleModule,
         TooltipModule,
+
+        // Ng-Zorro
+        NzAlertModule,
     ],
     exports: [HeaderComponent, LogoComponent, MenuComponent],
 })

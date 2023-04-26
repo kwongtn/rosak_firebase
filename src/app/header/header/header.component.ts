@@ -1,4 +1,5 @@
 import { AuthService } from "src/app/services/auth/auth.service";
+import { environment as env } from "src/environments/environment";
 
 import {
     Component,
@@ -6,7 +7,7 @@ import {
     HostListener,
     Input,
     OnInit,
-    QueryList,
+    QueryList
 } from "@angular/core";
 
 import { LogoComponent } from "../logo/logo.component";
@@ -21,6 +22,8 @@ export class HeaderComponent implements OnInit {
     @Input() isFixed = false;
     @Input() hasMaxWidth = true;
     @Input() showSlideButton = false;
+
+    environment = env;
 
     @ContentChildren(LogoComponent) subLogo: QueryList<LogoComponent> =
         new QueryList<LogoComponent>();
