@@ -6,6 +6,7 @@ import {
     RecaptchaV3Module,
     ReCaptchaV3Service,
 } from "ng-recaptcha";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
@@ -61,6 +62,7 @@ const imports: any[] = [
     DevUIModule,
 
     // ng-zorro
+    NzAlertModule,
     NzMessageModule,
     NzNotificationModule,
 
