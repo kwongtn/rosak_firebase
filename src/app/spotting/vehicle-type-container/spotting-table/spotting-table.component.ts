@@ -1,8 +1,15 @@
 import { TableWidthConfig } from "ng-devui/data-table";
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 
 import { Component, Input, OnInit } from "@angular/core";
+
+export type VehicleStatus =
+    | "IN_SERVICE"
+    | "NOT_SPOTTED"
+    | "DECOMMISSIONED"
+    | "TESTING"
+    | "UNKNOWN"
+    | "MARRIED";
 
 @Component({
     selector: "app-spotting-table",
