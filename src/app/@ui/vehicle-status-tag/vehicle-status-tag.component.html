@@ -24,6 +24,12 @@
     >
     </d-tag>
     <d-tag
+        *ngSwitchCase="'OUT_OF_SERVICE'"
+        [tag]="vehicleStatus | vehicleStatusPipe"
+        [labelStyle]="'red-w98'"
+    >
+    </d-tag>
+    <d-tag
         *ngSwitchDefault
         [tag]="vehicleStatus | vehicleStatusPipe"
         [customColor]="'var(--devui-text-weak)'"

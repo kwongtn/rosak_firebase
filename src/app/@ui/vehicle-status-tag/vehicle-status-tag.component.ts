@@ -1,4 +1,7 @@
 import { VehicleStatus } from "src/app/models/query/get-vehicles";
+import {
+    VehicleStatus as SpottingVehicleStatus
+} from "src/app/spotting/spotting-form/spotting-form.types";
 
 import { Component, Input, OnInit } from "@angular/core";
 
@@ -8,7 +11,7 @@ import { Component, Input, OnInit } from "@angular/core";
     styleUrls: ["./vehicle-status-tag.component.scss"],
 })
 export class VehicleStatusTagComponent implements OnInit {
-    @Input() vehicleStatus!: VehicleStatus;
+    @Input() vehicleStatus!: VehicleStatus | SpottingVehicleStatus;
 
     constructor() {
         return;

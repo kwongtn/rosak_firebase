@@ -6,6 +6,7 @@ import { Component, Input, OnInit } from "@angular/core";
 export type VehicleStatus =
     | "IN_SERVICE"
     | "NOT_SPOTTED"
+    | "OUT_OF_SERVICE"
     | "DECOMMISSIONED"
     | "TESTING"
     | "UNKNOWN"
@@ -25,6 +26,7 @@ export class SpottingTableComponent implements OnInit {
     tagList = {
         inService: false,
         notSpotted: false,
+        outOfService: false,
         testing: false,
         unknown: false,
         decommissioned: false,
@@ -34,6 +36,7 @@ export class SpottingTableComponent implements OnInit {
     allowedStatuses: Set<VehicleStatus> = new Set<VehicleStatus>([
         "IN_SERVICE",
         "NOT_SPOTTED",
+        "OUT_OF_SERVICE",
         "DECOMMISSIONED",
         "TESTING",
         "UNKNOWN",
@@ -112,6 +115,7 @@ export class SpottingTableComponent implements OnInit {
         this.totalChecked = true;
         this.tagList.inService = false;
         this.tagList.notSpotted = false;
+        this.tagList.outOfService = false;
         this.tagList.testing = false;
         this.tagList.unknown = false;
         this.tagList.decommissioned = false;
@@ -119,6 +123,7 @@ export class SpottingTableComponent implements OnInit {
         [
             "IN_SERVICE",
             "NOT_SPOTTED",
+            "OUT_OF_SERVICE",
             "DECOMMISSIONED",
             "TESTING",
             "UNKNOWN",
@@ -136,6 +141,8 @@ export class SpottingTableComponent implements OnInit {
             this.tagList.inService = $event;
         } else if (status === "NOT_SPOTTED") {
             this.tagList.notSpotted = $event;
+        } else if (status === "OUT_OF_SERVICE") {
+            this.tagList.outOfService = $event;
         } else if (status === "TESTING") {
             this.tagList.testing = $event;
         } else if (status === "UNKNOWN") {

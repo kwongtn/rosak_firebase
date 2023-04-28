@@ -21,6 +21,7 @@ const GET_VEHICLES = gql`
             vehicleStatusDecommissionedCount
             vehicleStatusInServiceCount
             vehicleStatusNotSpottedCount
+            vehicleStatusOutOfServiceCount
             vehicleStatusTestingCount
             vehicleStatusUnknownCount
             vehicleStatusMarriedCount
@@ -74,6 +75,8 @@ implements OnInit, OnChanges, OnDestroy
                         vehicleType.vehicleStatusInServiceCount,
                     vehicleStatusNotSpottedCount:
                         vehicleType.vehicleStatusNotSpottedCount,
+                    vehicleStatusOutOfServiceCount:
+                        vehicleType.vehicleStatusOutOfServiceCount,
                     vehicleStatusTestingCount:
                         vehicleType.vehicleStatusTestingCount,
                     vehicleStatusUnknownCount:
