@@ -2,11 +2,9 @@ import { SpottingType } from "../spotting-table/source-type";
 
 export type VehicleStatus =
     | "IN_SERVICE"
-    | "NOT_SPOTTED"
+    | "NOT_IN_SERVICE"
     | "DECOMMISSIONED"
-    | "TESTING"
-    | "UNKNOWN"
-    | "MARRIED";
+    | "TESTING";
 
 export interface VehicleStatusCountType {
     vehicleStatusDecommissionedCount: number;
