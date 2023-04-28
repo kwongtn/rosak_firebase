@@ -81,6 +81,29 @@
                     [content]="
                         (
                             (dataSource.vehicleStatusCount
+                                .vehicleStatusOutOfServiceCount /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            'Out of Service: ' +
+                            dataSource.vehicleStatusCount.vehicleStatusOutOfServiceCount.toString()
+                        "
+                        [labelStyle]="'red-w98'"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount
                                 .vehicleStatusTestingCount /
                                 dataSource.vehicleStatusCount
                                     .vehicleTotalCount) *
@@ -237,6 +260,31 @@
                     class="status-icon"
                     [(checked)]="tagList.notSpotted"
                     (checkedChange)="changeChecked($event, 'NOT_SPOTTED')"
+                >
+                </d-tag>
+            </span>
+            <span
+                dTooltip
+                [content]="
+                    (
+                        (dataSource.vehicleStatusCount
+                            .vehicleStatusOutOfServiceCount /
+                            dataSource.vehicleStatusCount.vehicleTotalCount) *
+                        100
+                    ).toPrecision(3) + '%'
+                "
+                [position]="'bottom'"
+            >
+                <d-tag
+                    [tag]="
+                        'Out of Service: ' +
+                        dataSource.vehicleStatusCount.vehicleStatusOutOfServiceCount.toString()
+                    "
+                    [mode]="'checkable'"
+                    [labelStyle]="'red-w98'"
+                    class="status-icon"
+                    [(checked)]="tagList.outOfService"
+                    (checkedChange)="changeChecked($event, 'OUT_OF_SERVICE')"
                 >
                 </d-tag>
             </span>

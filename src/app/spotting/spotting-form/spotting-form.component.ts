@@ -82,10 +82,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
-        { name: "Not Spotted", value: "NOT_SPOTTED" },
+        { name: "Not in Service", value: "NOT_IN_SERVICE" },
         { name: "Decommissioned", value: "DECOMMISSIONED" },
         { name: "Testing", value: "TESTING" },
-        { name: "Unknown", value: "UNKNOWN", disabled: true },
     ];
 
     typeOptions = [
