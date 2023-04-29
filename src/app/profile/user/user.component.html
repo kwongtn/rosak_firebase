@@ -30,6 +30,16 @@
         </nz-col>
     </nz-row>
     <nz-row [nzGutter]="[16, 16]">
+        <nz-col *ngIf="displayData" [nzXs]="12" [nzMd]="8" [nzXl]="6">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="
+                        displayData.nickname ? displayData.nickname : 'N/A'
+                    "
+                    [nzTitle]="'Nickname'"
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
         <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6" *ngIf="displayData">
             <nz-card>
                 <nz-statistic

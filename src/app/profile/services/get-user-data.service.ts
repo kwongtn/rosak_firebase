@@ -26,6 +26,7 @@ export interface UserFavouriteVehicle {
 
 export interface UserDataResponseUser {
     firebaseId: string;
+    nickname: string;
     spottingsCount: number;
     spottingTrends: UserSpottingTrends[];
     // withMostEntriesYear: DateTrends;
@@ -50,6 +51,7 @@ export class GetUserDataService extends Query<UserDataResponse> {
         ) {
             user {
                 firebaseId
+                nickname
                 spottingsCount
                 spottingTrends(
                     dateGroup: $dateGroup
