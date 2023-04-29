@@ -1,4 +1,5 @@
 import { TableWidthConfig } from "ng-devui/data-table";
+import { VehicleStatusCountType } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 
 import { Component, Input, OnInit } from "@angular/core";
@@ -102,6 +103,49 @@ export class SpottingTableComponent implements OnInit {
         { field: "timesSpotted", width: "150px" },
         { field: "notes", width: "500px" },
     ];
+
+    tagListDisplayConfig: {
+        key: keyof VehicleStatusCountType;
+        displayPrefix: string;
+        labelStyle?: string;
+        customColor?: string;
+    }[] = [
+            {
+                key: "vehicleStatusInServiceCount",
+                displayPrefix: "In Service",
+                labelStyle: "green-w98",
+            },
+            {
+                key: "vehicleStatusNotSpottedCount",
+                displayPrefix: "Not Spotted",
+                labelStyle: "yellow-w98",
+            },
+            {
+                key: "vehicleStatusOutOfServiceCount",
+                displayPrefix: "Out of Service",
+                labelStyle: "red-w98",
+            },
+            {
+                key: "vehicleStatusTestingCount",
+                displayPrefix: "Testing",
+                labelStyle: "blue-w98",
+            },
+            {
+                key: "vehicleStatusUnknownCount",
+                displayPrefix: "Unknown",
+                labelStyle: "red-w98",
+            },
+            {
+                key: "vehicleStatusDecommissionedCount",
+                displayPrefix: "Decommissioned",
+                customColor: "$devui-text",
+            },
+            {
+                key: "vehicleStatusMarriedCount",
+                displayPrefix: "Married",
+                customColor: "$devui-text",
+            },
+        ];
 
     constructor() {
         return;
