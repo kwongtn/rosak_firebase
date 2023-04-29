@@ -2,6 +2,10 @@ import { Apollo, gql } from "apollo-angular";
 import { Subscription } from "rxjs";
 import { VehicleType } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
+import {
+    tagListDisplayConfig,
+    TagListDisplayConfig
+} from "src/app/spotting/utils";
 
 import {
     Component,
@@ -9,7 +13,7 @@ import {
     OnChanges,
     OnDestroy,
     OnInit,
-    SimpleChanges,
+    SimpleChanges
 } from "@angular/core";
 
 const GET_VEHICLES = gql`
@@ -56,11 +60,23 @@ implements OnInit, OnChanges, OnDestroy
     showLoading: boolean = true;
     private querySubscription!: Subscription;
 
+    totalCount: number = 0;
+
+    tagListDisplayConfig: TagListDisplayConfig[] = JSON.parse(
+        JSON.stringify(tagListDisplayConfig)
+    );
+
     constructor(private apollo: Apollo) {
         return;
     }
 
     filterTabItems(data: VehicleType[]): void {
+        // Reset counts
+        this.tagListDisplayConfig.forEach((val) => {
+            val.count = 0;
+        });
+        this.totalCount = 0;
+
         if (!data) {
             return;
         }
@@ -111,6 +127,17 @@ implements OnInit, OnChanges, OnDestroy
                         );
                     }),
             });
+
+            this.tagListDisplayConfig.forEach((val) => {
+                this.totalCount += vehicleType[val.key];
+                if (val.count) {
+                    val.count += vehicleType[val.key];
+                } else {
+                    val.count = vehicleType[val.key];
+                }
+
+            });
+
         }
 
         console.log("sectionData: ", sectionData);

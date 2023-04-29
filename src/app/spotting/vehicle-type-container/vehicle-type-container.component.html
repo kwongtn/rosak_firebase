@@ -1,6 +1,32 @@
 <div dLoading [showLoading]="showLoading">
     <div *ngIf="!showLoading">
         <h1>{{ title }}</h1>
+        <span dTooltip [content]="'Total'" [position]="'bottom'">
+            <d-tag
+                [tag]="'Total: ' + totalCount.toString()"
+                [customColor]="'var(--devui-primary)'"
+            >
+            </d-tag>
+        </span>
+
+        |
+
+        <span
+            *ngFor="let elem of tagListDisplayConfig"
+            dTooltip
+            [content]="
+                (((elem.count ?? 0) / totalCount) * 100).toPrecision(3) + '%'
+            "
+            [position]="'bottom'"
+        >
+            <d-tag
+                [tag]="elem.displayPrefix + ': ' + (elem.count ?? 0).toString()"
+                [labelStyle]="elem.labelStyle ?? ''"
+                [customColor]="elem.customColor ?? ''"
+                class="status-icon"
+            >
+            </d-tag>
+        </span>
     </div>
 
     <div class="spotting-table-elem" *ngFor="let elem of tableData">
