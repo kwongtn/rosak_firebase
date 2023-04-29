@@ -51,6 +51,7 @@ implements OnInit, OnChanges, OnDestroy
 {
     @Input() tableData!: TableDataType[];
     @Input() lineId!: string | number;
+    @Input() title!: string;
 
     showLoading: boolean = true;
     private querySubscription!: Subscription;

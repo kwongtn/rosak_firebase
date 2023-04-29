@@ -1,4 +1,8 @@
 <div dLoading [showLoading]="showLoading">
+    <div *ngIf="!showLoading">
+        <h1>{{ title }}</h1>
+    </div>
+
     <div class="spotting-table-elem" *ngFor="let elem of tableData">
         <app-spotting-table
             class="app-spotting-table"
