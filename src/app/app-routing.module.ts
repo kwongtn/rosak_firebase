@@ -3,20 +3,21 @@ import {
     AuthPipe,
     canActivate,
     hasCustomClaim,
-    redirectUnauthorizedTo,
+    redirectUnauthorizedTo
 } from "@angular/fire/compat/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about.component";
 import {
-    MainComponent as ComplianceMainComponent,
+    MainComponent as ComplianceMainComponent
 } from "./compliance/main/main.component";
 import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
+import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/main/main.component";
 import {
-    SpottingMainComponent,
+    SpottingMainComponent
 } from "./spotting/spotting-main/spotting-main.component";
 
 interface MaintenanceElement {
@@ -26,10 +27,14 @@ interface MaintenanceElement {
 
 interface MaintananceDocument {
     spotting: MaintenanceElement;
+    insiden: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
     spotting: {
+        curentlyInMaintenance: false,
+    },
+    insiden: {
         curentlyInMaintenance: false,
     },
 };
@@ -43,6 +48,24 @@ function adminOnly(): AuthPipe {
 }
 
 const routes: Routes = [
+    {
+        path: "insiden",
+        title: "MLPTF | Insiden",
+        loadChildren: async () => {
+            if (maintenance.insiden.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./insiden/insiden.module");
+                return module.InsidenModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : InsidenMainComponent,
+    },
     {
         path: "spotting",
         title: "MLPTF | TranSPOT",
