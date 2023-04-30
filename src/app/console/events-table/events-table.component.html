@@ -112,8 +112,26 @@
                                     }}"
                                     target="_blank"
                                 >
-                                    {{ rowItem[colOption.field]["shortId"] }}
+                                    {{
+                                        rowItem[colOption.field]["nickname"] ===
+                                        ""
+                                            ? rowItem[colOption.field][
+                                                  "shortId"
+                                              ]
+                                            : rowItem[colOption.field][
+                                                  "nickname"
+                                              ]
+                                    }}
                                 </a>
+                                <span
+                                    *ngIf="
+                                        rowItem[colOption.field]['nickname'] !==
+                                        ''
+                                    "
+                                    class="firebase-id-below-nickname"
+                                >
+                                    {{ rowItem[colOption.field]["shortId"] }}
+                                </span>
                                 <span *ngIf="!rowItem[colOption.field]">
                                     --
                                 </span>

@@ -11,6 +11,7 @@ export interface ConsoleEventsGqlResponseElementStation {
 
 export interface ConsoleEventsGqlResponseElementReporter {
     shortId: string;
+    nickname: string;
 }
 
 export interface ConsoleEventsGqlResponseElement {
@@ -120,6 +121,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 }
                 reporter {
                     shortId
+                    nickname
                 }
             }
         }
