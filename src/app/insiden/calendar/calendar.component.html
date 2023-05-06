@@ -1,19 +1,30 @@
 <nz-calendar
     [(ngModel)]="selectedValue"
     (nzSelectChange)="selectChange($event)"
+    (nzPanelChange)="panelChange($event)"
+    *ngIf="!showLoading"
 >
     <ul *nzDateCell="let date" class="events">
-        <ng-container [ngSwitch]="date.getDate()">
-            <ng-container *ngSwitchCase="8">
-                <li *ngFor="let item of listDataMap.eight">
+        <ng-container [ngSwitch]="date | date : 'yyyy-MM-dd'">
+            <ng-container *ngSwitchCase="date | date : 'yyyy-MM-dd'">
+                <li
+                    *ngFor="
+                        let item of monthEvents[
+                            (date | date : 'yyyy-MM-dd') ?? ''
+                        ] | keyvalue
+                    "
+                >
                     <nz-badge
-                        [nzStatus]="item.type"
-                        [nzText]="item.content"
+                        [nzStatus]="'warning'"
+                        [nzText]="
+                            item.value.toString() + ' ' + item.key | titlecase
+                        "
                     ></nz-badge>
                 </li>
             </ng-container>
         </ng-container>
     </ul>
+
     <ng-container *nzMonthCell="let month">
         <div *ngIf="getMonthData(month) as monthData" class="notes-month">
             <section>{{ monthData }}</section>
