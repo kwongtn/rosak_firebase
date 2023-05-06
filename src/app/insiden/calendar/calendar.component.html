@@ -15,7 +15,9 @@
                     "
                 >
                     <nz-badge
-                        [nzStatus]="'warning'"
+                        [nzStatus]="
+                            item.key | uppercase | calendarIncidentSeverity
+                        "
                         [nzText]="
                             item.value.toString() + ' ' + item.key | titlecase
                         "

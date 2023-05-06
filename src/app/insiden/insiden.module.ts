@@ -6,6 +6,9 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
+import {
+    CalendarIncidentSeverityModule,
+} from "../pipes/calendar-incident-severity/calendar-incident-severity.module";
 import { CalendarComponent } from "./calendar/calendar.component";
 import { InsidenMainComponent } from "./insiden.component";
 
@@ -19,6 +22,9 @@ import { InsidenMainComponent } from "./insiden.component";
         NzBadgeModule,
         NzCalendarModule,
         NzGridModule,
+
+        // Self-imports
+        CalendarIncidentSeverityModule,
     ],
 })
 export class InsidenModule {}
