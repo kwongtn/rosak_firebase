@@ -10,24 +10,22 @@ export interface GetCalendarIncidentListMinResponseElem {
     title: string;
     brief: string;
     lines: {
-      id: string;
-      code: string;
-      displayName: string;
-      displayColor: string;
+        id: string;
+        code: string;
+        displayName: string;
+        displayColor: string;
     }[];
     vehicles: {
-      id: string;
-      identificationNo: string;
-
+        id: string;
+        identificationNo: string;
     }[];
     stations: {
-      id: string;
-      displayName: string;
-
+        id: string;
+        displayName: string;
     }[];
     categories: {
-      name: string;
-    }
+        name: string;
+    };
 }
 
 export interface GetCalendarIncidentListMinResponse {
