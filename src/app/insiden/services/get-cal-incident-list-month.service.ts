@@ -3,14 +3,13 @@ import { gql, Query } from "apollo-angular";
 import { Injectable } from "@angular/core";
 
 export interface GetCalendarIncidentListMonthResponseElem {
-    id: string;
-    startDatetime: string;
-    endDatetime: string | null;
+    count: number;
+    date: string;
     severity: "CRITICAL" | "MINOR" | "MILESTONE";
 }
 
 export interface GetCalendarIncidentListMonthResponse {
-    calendarIncidents: GetCalendarIncidentListMonthResponseElem[];
+    calendarIncidentsBySeverityCount: GetCalendarIncidentListMonthResponseElem[];
 }
 
 @Injectable({
@@ -18,11 +17,14 @@ export interface GetCalendarIncidentListMonthResponse {
 })
 export class GetCalIncidentListMonthService extends Query<GetCalendarIncidentListMonthResponse> {
     override document = gql`
-        query ($filters: CalendarIncidentFilter) {
-            calendarIncidents(filters: $filters) {
-                id
-                startDatetime
-                endDatetime
+        query ($startDate: Date!, $endDate: Date!, $groupBy: GroupByEnum!) {
+            calendarIncidentsBySeverityCount(
+                startDate: $startDate
+                endDate: $endDate
+                groupBy: $groupBy
+            ) {
+                count
+                date
                 severity
             }
         }

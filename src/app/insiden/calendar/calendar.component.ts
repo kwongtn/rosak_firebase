@@ -49,7 +49,9 @@ export class CalendarComponent implements OnInit {
 
     // Date -> Severity -> Count
     monthEvents: {
-        [date: string]: Map<string, number>;
+        [date: string]: {
+            [severity: string]: number;
+        };
     } = {};
 
     constructor(
@@ -64,7 +66,7 @@ export class CalendarComponent implements OnInit {
             startDate: formatDate(
                 new Date(
                     this.selectedDate.getFullYear(),
-                    this.selectedDate.getMonth() + 1,
+                    this.selectedDate.getMonth(),
                     -14
                 ),
                 DATE_FORMAT,
@@ -73,60 +75,32 @@ export class CalendarComponent implements OnInit {
             endDate: formatDate(
                 new Date(
                     this.selectedDate.getFullYear(),
-                    this.selectedDate.getMonth() + 1,
+                    this.selectedDate.getMonth(),
                     +14
                 ),
                 DATE_FORMAT,
                 this.locale
             ),
+            groupBy: "DAY",
         };
 
         this.watchQueryOption = this.gqlService.watch({
-            filters: this.filters,
+            ...this.filters,
         });
 
         this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
             ({ data, loading }) => {
                 this.showLoading = loading;
 
-                data.calendarIncidents.forEach(
+                data.calendarIncidentsBySeverityCount.forEach(
                     (elem: GetCalendarIncidentListMonthResponseElem) => {
-                        const startDatetime = new Date(elem.startDatetime);
-                        const endDatetime = elem.endDatetime
-                            ? new Date(elem.endDatetime)
-                            : new Date();
-
-                        while (startDatetime <= endDatetime) {
-                            const currDateString = formatDate(
-                                startDatetime,
-                                DATE_FORMAT,
-                                this.locale
-                            );
-
-                            if (
-                                this.monthEvents[currDateString] &&
-                                this.monthEvents[currDateString].has(
-                                    elem.severity
-                                )
-                            ) {
-                                this.monthEvents[currDateString].set(
-                                    elem.severity,
-                                    (this.monthEvents[currDateString].get(
-                                        elem.severity
-                                    ) as number) + 1
-                                );
-                            } else {
-                                if (!this.monthEvents[currDateString]) {
-                                    this.monthEvents[currDateString] =
-                                        new Map();
-                                }
-                                this.monthEvents[currDateString].set(
-                                    elem.severity,
-                                    1
-                                );
-                            }
-
-                            startDatetime.setDate(startDatetime.getDate() + 1);
+                        if (this.monthEvents[elem.date]) {
+                            this.monthEvents[elem.date][elem.severity] =
+                                elem.count;
+                        } else {
+                            this.monthEvents[elem.date] = {
+                                [elem.severity]: elem.count,
+                            };
                         }
                     }
                 );
