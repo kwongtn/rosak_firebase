@@ -28,6 +28,8 @@ interface MaintenanceElement {
 interface MaintananceDocument {
     spotting: MaintenanceElement;
     insiden: MaintenanceElement;
+    profile: MaintenanceElement;
+    console: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
@@ -35,6 +37,12 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
     insiden: {
+        curentlyInMaintenance: false,
+    },
+    profile: {
+        curentlyInMaintenance: false,
+    },
+    console: {
         curentlyInMaintenance: false,
     },
 };
@@ -121,17 +129,39 @@ const routes: Routes = [
     {
         path: "console",
         title: "MLPTF | Console",
-        loadChildren: () =>
-            import("./console/console.module").then((m) => m.ConsoleModule),
-        component: ConsoleMainComponent,
+        loadChildren: async () => {
+            if (maintenance.console.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./console/console.module");
+                return module.ConsoleModule;
+            }
+        },
+        component: maintenance.console.curentlyInMaintenance
+            ? ConstructionComponent
+            : ConsoleMainComponent,
         ...canActivate(adminOnly),
     },
     {
         path: "profile",
         title: "MLPTF | Profile",
-        loadChildren: () =>
-            import("./profile/profile.module").then((m) => m.ProfileModule),
-        component: ProfileMainComponent,
+        loadChildren: async () => {
+            if (maintenance.console.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./profile/profile.module");
+                return module.ProfileModule;
+            }
+        },
+        component: maintenance.profile.curentlyInMaintenance
+            ? ConstructionComponent
+            : ProfileMainComponent,
         ...canActivate(redirectUnauthorizedToSpotting),
     },
     {
