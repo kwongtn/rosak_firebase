@@ -9,7 +9,46 @@
                 [nzColor]="item.severity | calendarIncidentSeverity : 'color'"
             >
                 <nz-card class="incident-card" [nzTitle]="cardTitleTemplate">
-                    <div nz-row>
+                    <div
+                        *ngIf="
+                            item.lines.length > 0 ||
+                            item.vehicles.length > 0 ||
+                            item.stations.length > 0
+                        "
+                    >
+                        <span *ngIf="item.lines.length > 0">
+                            <nz-tag
+                                *ngFor="let line of item.lines"
+                                [nzColor]="line.displayColor"
+                                class="incident-tags"
+                            >
+                                {{ line.displayName }}
+                            </nz-tag>
+                        </span>
+                        <span *ngIf="item.vehicles.length > 0">
+                            <span class="incident-tags-separator"> | </span>
+                            <nz-tag *ngFor="let vehicle of item.vehicles">
+                                {{ vehicle.identificationNo }}
+                            </nz-tag>
+                        </span>
+                        <span *ngIf="item.stations.length > 0">
+                            <span class="incident-tags-separator"> | </span>
+                            <nz-tag *ngFor="let station of item.stations">
+                                {{ station.displayName }}
+                            </nz-tag>
+                        </span>
+                    </div>
+
+                    <div
+                        nz-row
+                        [class]="
+                            item.lines.length > 0 ||
+                            item.vehicles.length > 0 ||
+                            item.stations.length > 0
+                                ? 'card-brief'
+                                : ''
+                        "
+                    >
                         <div nz-col [nzXs]="24" [nzXl]="16">
                             {{ item.brief }}
                         </div>
@@ -26,22 +65,6 @@
                     <!-- <a href="{{ item.href }}">{{ item.title }}</a> -->
                     {{ item.title }}
                 </ng-template>
-
-                <!-- TODO: Line / vehicle tags 
-                    <ul nz-list-item-actions>
-                    <nz-list-item-action>
-                        <span nz-icon nzType="star-o" style="margin-right: 8px;"></span>
-                        156
-                    </nz-list-item-action>
-                    <nz-list-item-action>
-                        <span nz-icon nzType="star-o" style="margin-right: 8px;"></span>
-                        156
-                    </nz-list-item-action>
-                    <nz-list-item-action>
-                        <span nz-icon nzType="star-o" style="margin-right: 8px;"></span>
-                        2
-                    </nz-list-item-action>
-                </ul> -->
             </nz-ribbon>
         </nz-list-item>
     </nz-list>
