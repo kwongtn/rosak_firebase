@@ -3,7 +3,15 @@ import { NzCalendarMode } from "ng-zorro-antd/calendar";
 import { Subscription } from "rxjs";
 
 import { formatDate } from "@angular/common";
-import { Component, Inject, LOCALE_ID, OnInit } from "@angular/core";
+import {
+    Component,
+    EventEmitter,
+    Inject,
+    Input,
+    LOCALE_ID,
+    OnInit,
+    Output,
+} from "@angular/core";
 
 import {
     GetCalendarIncidentListMonthResponseElem,
@@ -22,34 +30,15 @@ const DATE_FORMAT = "yyyy-MM-dd";
     styleUrls: ["./calendar.component.scss"],
 })
 export class CalendarComponent implements OnInit {
-    selectedValue = new Date(
-        new Date().getTime() - new Date().getTimezoneOffset() * 60 * 1000
-    );
+    @Input() selectedDate!: Date;
+    @Output() selectedDateChange = new EventEmitter<Date>();
+
     showLoading: boolean = true;
 
     gqlSubscription!: Subscription;
     watchQueryOption!: QueryRef<any>;
 
-    filters = {
-        startDate: formatDate(
-            new Date(
-                this.selectedValue.getFullYear(),
-                this.selectedValue.getMonth() + 1,
-                -14
-            ),
-            DATE_FORMAT,
-            this.locale
-        ),
-        endDate: formatDate(
-            new Date(
-                this.selectedValue.getFullYear(),
-                this.selectedValue.getMonth() + 1,
-                +14
-            ),
-            DATE_FORMAT,
-            this.locale
-        ),
-    };
+    filters = {};
 
     listDataMap = {
         eight: [
@@ -71,7 +60,27 @@ export class CalendarComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        this.selectedValue.toDateString();
+        this.filters = {
+            startDate: formatDate(
+                new Date(
+                    this.selectedDate.getFullYear(),
+                    this.selectedDate.getMonth() + 1,
+                    -14
+                ),
+                DATE_FORMAT,
+                this.locale
+            ),
+            endDate: formatDate(
+                new Date(
+                    this.selectedDate.getFullYear(),
+                    this.selectedDate.getMonth() + 1,
+                    +14
+                ),
+                DATE_FORMAT,
+                this.locale
+            ),
+        };
+
         this.watchQueryOption = this.gqlService.watch({
             filters: this.filters,
         });
@@ -127,6 +136,7 @@ export class CalendarComponent implements OnInit {
 
     selectChange(select: Date): void {
         console.log(`Select value: ${select}`);
+        this.selectedDateChange.emit(select);
     }
 
     panelChange($event: { date: Date; mode: NzCalendarMode }): void {
