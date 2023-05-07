@@ -6,8 +6,5 @@ import { Component } from "@angular/core";
     styleUrls: ["./insiden.component.scss"],
 })
 export class InsidenMainComponent {
-    selectedDate: Date = new Date(
-        new Date().getTime() - new Date().getTimezoneOffset() * 60 * 1000
-    );
-    
+    selectedDate: Date = new Date();
 }
