@@ -9,6 +9,7 @@ import {
     LOCALE_ID,
     OnChanges,
     OnInit,
+    SimpleChanges,
 } from "@angular/core";
 
 import {
@@ -39,22 +40,39 @@ export class EventListComponent implements OnInit, OnChanges {
     }
 
     ngOnInit(): void {
+        this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
+            ({ data, loading }) => {
+                this.showLoading = loading;
+                this.data = data.calendarIncidents;
+            }
+        );
+    }
+
+    ngOnChanges(changes: SimpleChanges): void {
+        this.showLoading = true;
+
         this.watchQueryOption = this.gqlService.watch({
             filters: {
                 date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
             },
         });
 
-        this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
-            ({ data, loading }) => {
+        this.watchQueryOption
+            .fetchMore({
+                variables: {
+                    filters: {
+                        date: formatDate(
+                            this.selectedDate,
+                            DATE_FORMAT,
+                            this.locale
+                        ),
+                    },
+                },
+            })
+            .then(({ data, loading }) => {
                 this.showLoading = loading;
                 console.log(data.calendarIncidents);
                 this.data = data.calendarIncidents;
-            }
-        );
-    }
-
-    ngOnChanges(): void {
-        return;
+            });
     }
 }
