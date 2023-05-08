@@ -38,7 +38,7 @@ export class CalendarComponent implements OnInit {
     gqlSubscription!: Subscription;
     watchQueryOption!: QueryRef<any>;
 
-    filters = {};
+    filters: { [key: string]: string } = {};
 
     listDataMap = {
         eight: [
@@ -61,29 +61,24 @@ export class CalendarComponent implements OnInit {
         return;
     }
 
-    ngOnInit(): void {
-        this.filters = {
+    getFilters(date: Date): { [key: string]: string } {
+        return {
             startDate: formatDate(
-                new Date(
-                    this.selectedDate.getFullYear(),
-                    this.selectedDate.getMonth(),
-                    -14
-                ),
+                new Date(date.getFullYear(), date.getMonth(), -14),
                 DATE_FORMAT,
                 this.locale
             ),
             endDate: formatDate(
-                new Date(
-                    this.selectedDate.getFullYear(),
-                    this.selectedDate.getMonth(),
-                    +14
-                ),
+                new Date(date.getFullYear(), date.getMonth() + 1, 14),
                 DATE_FORMAT,
                 this.locale
             ),
             groupBy: "DAY",
         };
+    }
 
+    ngOnInit(): void {
+        this.filters = this.getFilters(this.selectedDate);
         this.watchQueryOption = this.gqlService.watch({
             ...this.filters,
         });
@@ -109,8 +104,39 @@ export class CalendarComponent implements OnInit {
     }
 
     selectChange(select: Date): void {
-        console.log(`Select value: ${select}`);
+        const newFilter = this.getFilters(select);
+
         this.selectedDateChange.emit(select);
+        if (
+            this.filters["startDate"] !== newFilter["startDate"] ||
+            this.filters["endDate"] !== newFilter["endDate"]
+        ) {
+            this.filters = newFilter;
+            this.showLoading = true;
+
+            this.watchQueryOption
+                .fetchMore({
+                    variables: {
+                        ...this.filters,
+                    },
+                })
+                .then(({ data, loading }) => {
+                    this.showLoading = loading;
+
+                    data.calendarIncidentsBySeverityCount.forEach(
+                        (elem: GetCalendarIncidentListMonthResponseElem) => {
+                            if (this.monthEvents[elem.date]) {
+                                this.monthEvents[elem.date][elem.severity] =
+                                    elem.count;
+                            } else {
+                                this.monthEvents[elem.date] = {
+                                    [elem.severity]: elem.count,
+                                };
+                            }
+                        }
+                    );
+                });
+        }
     }
 
     panelChange($event: { date: Date; mode: NzCalendarMode }): void {
