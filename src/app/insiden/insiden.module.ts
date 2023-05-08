@@ -4,7 +4,9 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzListModule } from "ng-zorro-antd/list";
+import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTagModule } from "ng-zorro-antd/tag";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -30,7 +32,9 @@ import { InsidenMainComponent } from "./insiden.component";
         NzEmptyModule,
         NzGridModule,
         NzListModule,
+        NzSpaceModule,
         NzSpinModule,
+        NzTagModule,
 
         // Self-imports
         CalendarIncidentSeverityModule,

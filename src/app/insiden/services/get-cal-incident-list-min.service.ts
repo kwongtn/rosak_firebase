@@ -9,18 +9,19 @@ export interface GetCalendarIncidentListMinResponseElem {
     severity: "CRITICAL" | "MINOR" | "MILESTONE";
     title: string;
     brief: string;
+    impactFactor: number;
     lines: {
-        id: string;
-        code: string;
+        // id: string;
+        // code: string;
         displayName: string;
         displayColor: string;
     }[];
     vehicles: {
-        id: string;
+        // id: string;
         identificationNo: string;
     }[];
     stations: {
-        id: string;
+        // id: string;
         displayName: string;
     }[];
     categories: {
@@ -44,18 +45,19 @@ export class GetCalIncidentListMinService extends Query<GetCalendarIncidentListM
                 severity
                 title
                 brief
+                impactFactor
                 lines {
-                    id
-                    code
+                    # id
+                    # code
                     displayName
                     displayColor
                 }
                 vehicles {
-                    id
+                    # id
                     identificationNo
                 }
                 stations {
-                    id
+                    # id
                     displayName
                 }
                 categories {
