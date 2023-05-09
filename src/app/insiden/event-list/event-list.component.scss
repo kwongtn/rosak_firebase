@@ -1,0 +1,29 @@
+@media (min-width: 1200px) {
+    .incident-card {
+        width: 44vw;
+
+        .image {
+            width: 100%;
+        }
+    }
+}
+
+@media (max-width: 1200px) {
+    .incident-card {
+        width: 93vw;
+
+        .image {
+            width: 100%;
+            max-width: fit-content;
+            max-width: 50vw;
+        }
+    }
+}
+
+.card-brief {
+    margin-top: 20px;
+}
+
+.incident-tags-separator {
+    margin-right: 7px;
+}

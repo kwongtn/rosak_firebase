@@ -26,9 +26,10 @@ export interface UserFavouriteVehicle {
 
 export interface UserDataResponseUser {
     firebaseId: string;
+    nickname: string;
     spottingsCount: number;
     spottingTrends: UserSpottingTrends[];
-    withMostEntriesYear: DateTrends;
+    // withMostEntriesYear: DateTrends;
     withMostEntriesMonth: DateTrends;
     withMostEntriesDay: DateTrends;
     favouriteVehicles: UserFavouriteVehicle[];
@@ -50,6 +51,7 @@ export class GetUserDataService extends Query<UserDataResponse> {
         ) {
             user {
                 firebaseId
+                nickname
                 spottingsCount
                 spottingTrends(
                     dateGroup: $dateGroup
@@ -63,13 +65,13 @@ export class GetUserDataService extends Query<UserDataResponse> {
                     eventType
                     count
                 }
-                withMostEntriesYear: withMostEntries(type: YEAR) {
-                    dateKey
-                    year
-                    month
-                    day
-                    count
-                }
+                # withMostEntriesYear: withMostEntries(type: YEAR) {
+                #     dateKey
+                #     year
+                #     month
+                #     day
+                #     count
+                # }
                 withMostEntriesMonth: withMostEntries(type: MONTH) {
                     dateKey
                     year

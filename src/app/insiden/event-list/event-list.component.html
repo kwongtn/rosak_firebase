@@ -1,0 +1,75 @@
+<h1>
+    {{ selectedDate | date : "MMM dd, yyyy (EEE)" }}
+</h1>
+<nz-spin [nzSpinning]="showLoading">
+    <nz-list *ngIf="data.length >= 0" nzItemLayout="vertical">
+        <nz-list-item *ngFor="let item of data">
+            <nz-ribbon
+                [nzText]="
+                    (item.severity | titlecase) +
+                    (item.impactFactor > 0 ? ': ' + item.impactFactor : '')
+                "
+                [nzColor]="item.severity | calendarIncidentSeverity : 'color'"
+            >
+                <nz-card class="incident-card" [nzTitle]="cardTitleTemplate">
+                    <div
+                        *ngIf="
+                            item.lines.length > 0 ||
+                            item.vehicles.length > 0 ||
+                            item.stations.length > 0
+                        "
+                    >
+                        <span *ngIf="item.lines.length > 0">
+                            <nz-tag
+                                *ngFor="let line of item.lines"
+                                [nzColor]="line.displayColor"
+                                class="incident-tags"
+                            >
+                                {{ line.displayName }}
+                            </nz-tag>
+                        </span>
+                        <span *ngIf="item.vehicles.length > 0">
+                            <span class="incident-tags-separator"> | </span>
+                            <nz-tag *ngFor="let vehicle of item.vehicles">
+                                {{ vehicle.identificationNo }}
+                            </nz-tag>
+                        </span>
+                        <span *ngIf="item.stations.length > 0">
+                            <span class="incident-tags-separator"> | </span>
+                            <nz-tag *ngFor="let station of item.stations">
+                                {{ station.displayName }}
+                            </nz-tag>
+                        </span>
+                    </div>
+
+                    <div
+                        nz-row
+                        [class]="
+                            item.lines.length > 0 ||
+                            item.vehicles.length > 0 ||
+                            item.stations.length > 0
+                                ? 'card-brief'
+                                : ''
+                        "
+                    >
+                        <div nz-col [nzXs]="24" [nzXl]="16">
+                            {{ item.brief }}
+                        </div>
+                        <!-- <div nz-col [nzXs]="24" [nzXl]="8">
+                            <img
+                                class="image"
+                                alt="logo"
+                                src="https://gw.alipayobjects.com/zos/rmsportal/mqaQswcyDLcXyDKnZfES.png"
+                            />
+                        </div> -->
+                    </div>
+                </nz-card>
+                <ng-template #cardTitleTemplate>
+                    <!-- <a href="{{ item.href }}">{{ item.title }}</a> -->
+                    {{ item.title }}
+                </ng-template>
+            </nz-ribbon>
+        </nz-list-item>
+    </nz-list>
+    <nz-empty *ngIf="data.length === 0 && !showLoading"></nz-empty>
+</nz-spin>

@@ -1,0 +1,38 @@
+<nz-spin [nzSpinning]="showLoading">
+    <nz-calendar
+        [(ngModel)]="selectedDate"
+        (nzSelectChange)="selectChange($event)"
+        (nzPanelChange)="panelChange($event)"
+    >
+        <ul *nzDateCell="let date" class="events">
+            <ng-container [ngSwitch]="date | date : 'yyyy-MM-dd'">
+                <ng-container *ngSwitchCase="date | date : 'yyyy-MM-dd'">
+                    <li
+                        *ngFor="
+                            let item of monthEvents[
+                                (date | date : 'yyyy-MM-dd') ?? ''
+                            ] | keyvalue
+                        "
+                    >
+                        <nz-badge
+                            [nzStatus]="
+                                item.key | uppercase | calendarIncidentSeverity
+                            "
+                            [nzText]="
+                                item.value.toString() + ' ' + item.key
+                                    | titlecase
+                            "
+                        ></nz-badge>
+                    </li>
+                </ng-container>
+            </ng-container>
+        </ul>
+
+        <!-- <ng-container *nzMonthCell="let month">
+            <div *ngIf="getMonthData(month) as monthData" class="notes-month">
+                <section>{{ monthData }}</section>
+                <span>Backlog number</span>
+            </div>
+        </ng-container> -->
+    </nz-calendar>
+</nz-spin>
