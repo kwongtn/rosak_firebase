@@ -34,16 +34,16 @@ interface MaintananceDocument {
 
 const maintenance: MaintananceDocument = {
     spotting: {
-        curentlyInMaintenance: true,
+        curentlyInMaintenance: false,
     },
     insiden: {
-        curentlyInMaintenance: true,
+        curentlyInMaintenance: false,
     },
     profile: {
-        curentlyInMaintenance: true,
+        curentlyInMaintenance: false,
     },
     console: {
-        curentlyInMaintenance: true,
+        curentlyInMaintenance: false,
     },
 };
 
