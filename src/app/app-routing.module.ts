@@ -3,13 +3,13 @@ import {
     AuthPipe,
     canActivate,
     hasCustomClaim,
-    redirectUnauthorizedTo
+    redirectUnauthorizedTo,
 } from "@angular/fire/compat/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about.component";
 import {
-    MainComponent as ComplianceMainComponent
+    MainComponent as ComplianceMainComponent,
 } from "./compliance/main/main.component";
 import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
@@ -17,7 +17,7 @@ import { FallbackComponent } from "./fallback/fallback.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/main/main.component";
 import {
-    SpottingMainComponent
+    SpottingMainComponent,
 } from "./spotting/spotting-main/spotting-main.component";
 
 interface MaintenanceElement {
@@ -34,16 +34,16 @@ interface MaintananceDocument {
 
 const maintenance: MaintananceDocument = {
     spotting: {
-        curentlyInMaintenance: false,
+        curentlyInMaintenance: true,
     },
     insiden: {
-        curentlyInMaintenance: false,
+        curentlyInMaintenance: true,
     },
     profile: {
-        curentlyInMaintenance: false,
+        curentlyInMaintenance: true,
     },
     console: {
-        curentlyInMaintenance: false,
+        curentlyInMaintenance: true,
     },
 };
 
