@@ -68,6 +68,7 @@ export interface ConsoleEventsGqlResponse {
 
 export interface ConsoleEventsGqlResponseTableData {
     events: ConsoleEventsGqlResponseTableDataElement[];
+    eventsCount: number;
 }
 
 @Injectable({
@@ -80,6 +81,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
             $eventPagination: OffsetPaginationInput
             $eventOrder: EventOrder
         ) {
+            eventsCount
             events(
                 filters: $eventFilters
                 pagination: $eventPagination

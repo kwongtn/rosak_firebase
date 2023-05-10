@@ -52,6 +52,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     backendUrl: string = environment.backendUrl;
 
     displayData: TableSourceType[] = [];
+    totalCount: number | undefined = undefined;
 
     lastSelectedRow: any = undefined;
     isShiftKeyDown: boolean = false;
@@ -178,6 +179,8 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                     this.displayData = this.mapGqlResultsToDisplayData(
                         data.events
                     );
+
+                    this.totalCount = data.eventsCount;
                 }
             );
     }
@@ -266,6 +269,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                 this.displayData = this.displayData.concat(
                     this.mapGqlResultsToDisplayData(data.events)
                 );
+                this.totalCount = data.eventsCount;
 
                 this.showLoading = loading;
                 this.offset = this.displayData.length;
@@ -324,6 +328,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             })
             .then(({ data, loading }) => {
                 this.displayData = this.mapGqlResultsToDisplayData(data.events);
+                this.totalCount = data.eventsCount;
 
                 this.showLoading = loading;
                 this.offset = this.displayData.length;

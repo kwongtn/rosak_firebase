@@ -16,3 +16,9 @@
     font-style: italic;
     font-size: smaller;
 }
+
+.total-data {
+    display: flex;
+    flex-direction: row-reverse;
+    margin: 10px;
+}
