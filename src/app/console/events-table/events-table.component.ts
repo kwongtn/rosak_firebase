@@ -45,7 +45,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
 
     allChecked: boolean = false;
     halfChecked: boolean = false;
-    showLoading: boolean = false;
+    showLoading: boolean = true;
 
     showCheckbox: boolean = false;
 

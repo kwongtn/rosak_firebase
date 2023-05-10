@@ -1,29 +1,34 @@
-<d-category-search
-    [category]="category"
-    [selectedTags]="selectedTags"
-    [allowShowMore]="true"
-    [toggleScrollToTail]="true"
-    [showSearchCategory]="false"
-    [allowSave]="false"
-    (searchEvent)="searchEvent($event)"
-></d-category-search>
+<nz-spin
+    [nzSpinning]="showLoading"
+    nzTip="Please wait while data is loading..."
+>
+    <d-category-search
+        [category]="category"
+        [selectedTags]="selectedTags"
+        [allowShowMore]="true"
+        [toggleScrollToTail]="true"
+        [showSearchCategory]="false"
+        [allowSave]="false"
+        (searchEvent)="searchEvent($event)"
+    ></d-category-search>
 
-<div class="mark-as-read-toggle">
-    <div style="width: 100%"></div>
-    <d-toggle
-        dTooltip
-        [content]="'Toggle mark as read'"
-        [position]="'bottom'"
-        (change)="onToggleChange($event)"
-    ></d-toggle>
-</div>
+    <div class="mark-as-read-toggle">
+        <div style="width: 100%"></div>
+        <d-toggle
+            dTooltip
+            [content]="'Toggle mark as read'"
+            [position]="'bottom'"
+            (change)="onToggleChange($event)"
+        ></d-toggle>
+    </div>
 
-<div class="mark-as-read-button" *ngIf="showCheckbox">
-    <div style="width: 100%"></div>
-    <d-button (btnClick)="markAsRead()" [bsSize]="'md'">Mark as Read</d-button>
-</div>
+    <div class="mark-as-read-button" *ngIf="showCheckbox">
+        <div style="width: 100%"></div>
+        <d-button (btnClick)="markAsRead()" [bsSize]="'md'"
+            >Mark as Read</d-button
+        >
+    </div>
 
-<nz-spin [nzSpinning]="showLoading">
     <d-data-table
         #tableInstance
         [dataSource]="displayData"
