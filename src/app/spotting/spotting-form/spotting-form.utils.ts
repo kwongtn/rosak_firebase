@@ -28,9 +28,13 @@ export function abnormalStatusSanityTestValidator(
     const errors: any = {};
 
     if (
-        ["DECOMMISSIONED", "MARRIED", "UNKNOWN"].includes(
-            abstractControl.get("vehicle")?.value.status ?? ""
-        ) &&
+        [
+            "DECOMMISSIONED",
+            "MARRIED",
+            "UNKNOWN",
+            "NOT_IN_SERVICE",
+            "NOT_SPOTTED",
+        ].includes(abstractControl.get("vehicle")?.value.status ?? "") &&
         !abstractControl.get("sanityTest")?.value
     ) {
         errors["sanityTest"] = "sanityTest not passed";
