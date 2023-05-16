@@ -7,7 +7,23 @@
         <ul *nzDateCell="let date" class="events">
             <ng-container [ngSwitch]="date | date : 'yyyy-MM-dd'">
                 <ng-container *ngSwitchCase="date | date : 'yyyy-MM-dd'">
-                    <li
+                    <nz-badge
+                        nzStandalone
+                        *ngFor="
+                            let item of monthEvents[
+                                (date | date : 'yyyy-MM-dd') ?? ''
+                            ] | keyvalue
+                        "
+                        [nzCount]="item.value"
+                        [nzStyle]="{
+                            backgroundColor:
+                                (item.key
+                                | uppercase
+                                | calendarIncidentSeverity : 'color')
+                        }"
+                    ></nz-badge>
+
+                    <!-- <li
                         *ngFor="
                             let item of monthEvents[
                                 (date | date : 'yyyy-MM-dd') ?? ''
@@ -23,7 +39,7 @@
                                     | titlecase
                             "
                         ></nz-badge>
-                    </li>
+                    </li> -->
                 </ng-container>
             </ng-container>
         </ul>

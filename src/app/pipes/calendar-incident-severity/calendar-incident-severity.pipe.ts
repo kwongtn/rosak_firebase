@@ -6,14 +6,14 @@ import { Pipe, PipeTransform } from "@angular/core";
 export class CalendarIncidentSeverityPipe implements PipeTransform {
     transform(severity: string, returnType: "type" | "color" = "type"): string {
         const typeMap: { [key: string]: string } = {
-            CRITICAL: "error",
+            MAJOR: "error",
             MINOR: "warning",
-            MILESTONE: "processing",
+            OTHERS: "processing",
         };
         const colorMap: { [key: string]: string } = {
-            CRITICAL: "red",
+            MAJOR: "red",
             MINOR: "yellow",
-            MILESTONE: "blue",
+            OTHERS: "blue",
         };
 
         if (returnType === "type") {
