@@ -1,4 +1,5 @@
 import { gql, Query } from "apollo-angular";
+import { NzTimelineItemColor } from "ng-zorro-antd/timeline";
 
 import { Injectable } from "@angular/core";
 
@@ -27,6 +28,12 @@ export interface GetCalendarIncidentListMinResponseElem {
     categories: {
         name: string;
     };
+    chronologies: {
+        order: string;
+        indicator: NzTimelineItemColor;
+        datetime: string;
+        content: string;
+    }[];
 }
 
 export interface GetCalendarIncidentListMinResponse {
@@ -62,6 +69,12 @@ export class GetCalIncidentListMinService extends Query<GetCalendarIncidentListM
                 }
                 categories {
                     name
+                }
+                chronologies {
+                    order
+                    indicator
+                    datetime
+                    content
                 }
             }
         }

@@ -52,16 +52,34 @@
                                 : ''
                         "
                     >
-                        <div nz-col [nzXs]="24" [nzXl]="16">
-                            {{ item.brief }}
+                        <div
+                            *ngIf="item.chronologies.length > 0"
+                            nz-col
+                            [nzXs]="24"
+                            [nzXl]="12"
+                        >
+                            <nz-timeline>
+                                <nz-timeline-item
+                                    *ngFor="let event of item.chronologies"
+                                    [nzColor]="event.indicator"
+                                >
+                                    {{ event.datetime }}<br />
+                                    {{ event.content }}
+                                </nz-timeline-item>
+                            </nz-timeline>
                         </div>
-                        <!-- <div nz-col [nzXs]="24" [nzXl]="8">
-                            <img
+                        <div
+                            nz-col
+                            [nzXs]="24"
+                            [nzXl]="item.chronologies.length > 0 ? 12 : 24"
+                        >
+                            <!-- <img
                                 class="image"
                                 alt="logo"
                                 src="https://gw.alipayobjects.com/zos/rmsportal/mqaQswcyDLcXyDKnZfES.png"
-                            />
-                        </div> -->
+                            /><br> -->
+                            {{ item.brief }}
+                        </div>
                     </div>
                 </nz-card>
                 <ng-template #cardTitleTemplate>

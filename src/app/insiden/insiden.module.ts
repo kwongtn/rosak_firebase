@@ -7,6 +7,7 @@ import { NzListModule } from "ng-zorro-antd/list";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzTagModule } from "ng-zorro-antd/tag";
+import { NzTimelineModule } from "ng-zorro-antd/timeline";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -35,6 +36,7 @@ import { InsidenMainComponent } from "./insiden.component";
         NzSpaceModule,
         NzSpinModule,
         NzTagModule,
+        NzTimelineModule,
 
         // Self-imports
         CalendarIncidentSeverityModule,
