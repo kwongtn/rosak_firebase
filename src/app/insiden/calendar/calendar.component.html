@@ -8,6 +8,7 @@
             <ng-container [ngSwitch]="date | date : 'yyyy-MM-dd'">
                 <ng-container *ngSwitchCase="date | date : 'yyyy-MM-dd'">
                     <nz-badge
+                        class="count-badge"
                         nzStandalone
                         *ngFor="
                             let item of monthEvents[
