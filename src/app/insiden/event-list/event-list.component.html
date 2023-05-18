@@ -59,7 +59,11 @@
                             [nzXs]="24"
                             [nzXl]="12"
                         >
-                            <nz-timeline>
+                            <nz-timeline
+                                [nzPending]="
+                                    item.endDatetime ? false : 'Ongoing...'
+                                "
+                            >
                                 <nz-timeline-item
                                     *ngFor="let event of item.chronologies"
                                     [nzColor]="event.indicator"
