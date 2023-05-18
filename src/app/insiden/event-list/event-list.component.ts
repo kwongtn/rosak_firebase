@@ -79,6 +79,7 @@ export class EventListComponent implements OnInit, OnChanges {
                             content: c.content.split("\r\n").join("<br />"),
                         };
                     });
+                    calIncident.brief = calIncident.brief.split("\r\n").join("<br />");
                 });
                 this.data = data.calendarIncidents;
             });
