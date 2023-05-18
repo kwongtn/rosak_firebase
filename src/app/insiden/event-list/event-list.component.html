@@ -30,13 +30,19 @@
                         </span>
                         <span *ngIf="item.vehicles.length > 0">
                             <span class="incident-tags-separator"> | </span>
-                            <nz-tag *ngFor="let vehicle of item.vehicles">
+                            <nz-tag
+                                *ngFor="let vehicle of item.vehicles"
+                                class="incident-tags"
+                            >
                                 {{ vehicle.identificationNo }}
                             </nz-tag>
                         </span>
                         <span *ngIf="item.stations.length > 0">
                             <span class="incident-tags-separator"> | </span>
-                            <nz-tag *ngFor="let station of item.stations">
+                            <nz-tag
+                                *ngFor="let station of item.stations"
+                                class="incident-tags"
+                            >
                                 {{ station.displayName }}
                             </nz-tag>
                         </span>
