@@ -13,6 +13,7 @@ import {
 } from "@angular/core";
 
 import {
+    GetCalendarIncidentListMinResponse,
     GetCalendarIncidentListMinResponseElem,
     GetCalIncidentListMinService,
 } from "../services/get-cal-incident-list-min.service";
@@ -30,7 +31,7 @@ export class EventListComponent implements OnInit, OnChanges {
     data: GetCalendarIncidentListMinResponseElem[] = [];
 
     gqlSubscription!: Subscription;
-    watchQueryOption!: QueryRef<any>;
+    watchQueryOption!: QueryRef<GetCalendarIncidentListMinResponse>;
 
     constructor(
         private gqlService: GetCalIncidentListMinService,
@@ -71,7 +72,14 @@ export class EventListComponent implements OnInit, OnChanges {
             })
             .then(({ data, loading }) => {
                 this.showLoading = loading;
-                console.log(data.calendarIncidents);
+                data.calendarIncidents.forEach((calIncident) => {
+                    calIncident.chronologies = calIncident.chronologies.map((c) => {
+                        return {
+                            ...c,
+                            content: c.content.split("\r\n").join("<br />"),
+                        };
+                    });
+                });
                 this.data = data.calendarIncidents;
             });
     }

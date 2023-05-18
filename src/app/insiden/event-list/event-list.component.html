@@ -51,6 +51,7 @@
                                 ? 'card-brief'
                                 : ''
                         "
+                        [nzGutter]="16"
                     >
                         <div
                             *ngIf="item.chronologies.length > 0"
@@ -63,8 +64,14 @@
                                     *ngFor="let event of item.chronologies"
                                     [nzColor]="event.indicator"
                                 >
-                                    {{ event.datetime }}<br />
-                                    {{ event.content }}
+                                    <b>
+                                        {{
+                                            event.datetime
+                                                | date : "YYYY-MM-dd HH:mm:ss"
+                                        }}
+                                    </b>
+                                    <br />
+                                    <div [innerHTML]="event.content"></div>
                                 </nz-timeline-item>
                             </nz-timeline>
                         </div>
