@@ -82,7 +82,12 @@
                                     </b>
                                     <span *ngIf="event.sourceUrl">
                                         -
-                                        <a [href]="event.sourceUrl"> Source </a>
+                                        <a
+                                            [href]="event.sourceUrl"
+                                            target="_blank"
+                                        >
+                                            Source
+                                        </a>
                                     </span>
                                     <br />
                                     <div [innerHTML]="event.content"></div>
