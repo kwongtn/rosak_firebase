@@ -84,6 +84,9 @@
                                     <div [innerHTML]="event.content"></div>
                                 </nz-timeline-item>
                             </nz-timeline>
+                            <div *ngIf="item.duration">
+                                Duration: {{ item.duration }}
+                            </div>
                         </div>
                         <div
                             nz-col

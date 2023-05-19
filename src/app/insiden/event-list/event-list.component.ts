@@ -17,8 +17,14 @@ import {
     GetCalendarIncidentListMinResponseElem,
     GetCalIncidentListMinService,
 } from "../services/get-cal-incident-list-min.service";
+import { getReadableTimeDifference } from "./event-list.component.util";
 
 const DATE_FORMAT = "yyyy-MM-dd";
+
+export interface CalendarIncidentListItem
+    extends GetCalendarIncidentListMinResponseElem {
+    duration?: string;
+}
 
 @Component({
     selector: "insiden-event-list",
@@ -28,7 +34,7 @@ const DATE_FORMAT = "yyyy-MM-dd";
 export class EventListComponent implements OnInit, OnChanges {
     @Input() selectedDate!: Date;
     showLoading: boolean = true;
-    data: GetCalendarIncidentListMinResponseElem[] = [];
+    data: CalendarIncidentListItem[] = [];
 
     gqlSubscription!: Subscription;
     watchQueryOption!: QueryRef<GetCalendarIncidentListMinResponse>;
@@ -40,11 +46,56 @@ export class EventListComponent implements OnInit, OnChanges {
         return;
     }
 
+    mutateResponse(
+        input: GetCalendarIncidentListMinResponse
+    ): CalendarIncidentListItem[] {
+        const data: CalendarIncidentListItem[] = JSON.parse(
+            JSON.stringify(input.calendarIncidents)
+        );
+
+        data.forEach((calIncident) => {
+            if (calIncident.chronologies.length === 0) {
+                calIncident.chronologies.push({
+                    order: "0",
+                    indicator: "blue",
+                    datetime: calIncident.startDatetime,
+                    content: "Start of incident",
+                });
+
+                if (calIncident.endDatetime) {
+                    calIncident.chronologies.push({
+                        order: "1",
+                        indicator: "green",
+                        datetime: calIncident.endDatetime,
+                        content: "Issue resolved",
+                    });
+                }
+            }
+
+            calIncident.chronologies = calIncident.chronologies.map((c) => {
+                return {
+                    ...c,
+                    content: c.content.split("\r\n").join("<br />"),
+                };
+            });
+            calIncident.brief = calIncident.brief.split("\r\n").join("<br />");
+
+            if (calIncident.endDatetime) {
+                calIncident.duration = getReadableTimeDifference(
+                    new Date(calIncident.startDatetime),
+                    new Date(calIncident.endDatetime)
+                );
+            }
+        });
+
+        return data;
+    }
+
     ngOnInit(): void {
         this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
             ({ data, loading }) => {
                 this.showLoading = loading;
-                this.data = data.calendarIncidents;
+                this.data = this.mutateResponse(data);
             }
         );
     }
@@ -73,38 +124,7 @@ export class EventListComponent implements OnInit, OnChanges {
             .then(({ data, loading }) => {
                 this.showLoading = loading;
 
-                data.calendarIncidents.forEach((calIncident) => {
-                    if (calIncident.chronologies.length === 0) {
-                        calIncident.chronologies.push({
-                            order: "0",
-                            indicator: "blue",
-                            datetime: calIncident.startDatetime,
-                            content: "Start of incident",
-                        });
-
-                        if (calIncident.endDatetime) {
-                            calIncident.chronologies.push({
-                                order: "1",
-                                indicator: "green",
-                                datetime: calIncident.endDatetime,
-                                content: "Issue resolved",
-                            });
-                        }
-                    }
-
-                    calIncident.chronologies = calIncident.chronologies.map(
-                        (c) => {
-                            return {
-                                ...c,
-                                content: c.content.split("\r\n").join("<br />"),
-                            };
-                        }
-                    );
-                    calIncident.brief = calIncident.brief
-                        .split("\r\n")
-                        .join("<br />");
-                });
-                this.data = data.calendarIncidents;
+                this.data = this.mutateResponse(data);
             });
     }
 }
