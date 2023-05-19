@@ -30,6 +30,7 @@ export interface GetCalendarIncidentListMinResponseElem {
     };
     chronologies: {
         order: string;
+        sourceUrl: string;
         indicator: NzTimelineItemColor;
         datetime: string;
         content: string;
@@ -72,6 +73,7 @@ export class GetCalIncidentListMinService extends Query<GetCalendarIncidentListM
                 }
                 chronologies {
                     order
+                    sourceUrl
                     indicator
                     datetime
                     content

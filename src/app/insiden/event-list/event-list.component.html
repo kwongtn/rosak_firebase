@@ -80,6 +80,10 @@
                                                 | date : "YYYY-MM-dd HH:mm:ss"
                                         }}
                                     </b>
+                                    <span *ngIf="event.sourceUrl">
+                                        -
+                                        <a [href]="event.sourceUrl"> Source </a>
+                                    </span>
                                     <br />
                                     <div [innerHTML]="event.content"></div>
                                 </nz-timeline-item>

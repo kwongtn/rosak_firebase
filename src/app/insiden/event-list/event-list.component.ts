@@ -57,6 +57,7 @@ export class EventListComponent implements OnInit, OnChanges {
             if (calIncident.chronologies.length === 0) {
                 calIncident.chronologies.push({
                     order: "0",
+                    sourceUrl: "",
                     indicator: "blue",
                     datetime: calIncident.startDatetime,
                     content: "Start of incident",
@@ -65,6 +66,7 @@ export class EventListComponent implements OnInit, OnChanges {
                 if (calIncident.endDatetime) {
                     calIncident.chronologies.push({
                         order: "1",
+                        sourceUrl: "",
                         indicator: "green",
                         datetime: calIncident.endDatetime,
                         content: "Issue resolved",
