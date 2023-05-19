@@ -12,7 +12,7 @@ export class CalendarIncidentSeverityPipe implements PipeTransform {
         };
         const colorMap: { [key: string]: string } = {
             MAJOR: "red",
-            MINOR: "yellow",
+            MINOR: "orange",
             OTHERS: "blue",
         };
 
