@@ -5772,7 +5772,7 @@ textarea.ant-picker-input > input {
 .ant-picker-panel-container {
     overflow: hidden;
     vertical-align: top;
-    background: #fff;
+    background: $devui-base-bg;
     border-radius: 2px;
     box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
         0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
@@ -5800,7 +5800,7 @@ textarea.ant-picker-input > input {
     display: inline-flex;
     flex-direction: column;
     text-align: center;
-    background: #fff;
+    background: $devui-glass-morphism-bg;
     border: 1px solid #f0f0f0;
     border-radius: 2px;
     outline: none;
@@ -5920,7 +5920,7 @@ textarea.ant-picker-input > input {
 }
 .ant-picker-cell {
     padding: 3px 0;
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-aide-text;
     cursor: pointer;
 }
 .ant-picker-cell-in-view {
@@ -5954,7 +5954,7 @@ textarea.ant-picker-input > input {
         .ant-picker-cell-range-hover-start
     ):not(.ant-picker-cell-range-hover-end)
     .ant-picker-cell-inner {
-    background: #f5f5f5;
+    background: $devui-glass-morphism-bg;
 }
 .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
     position: absolute;
@@ -7548,19 +7548,19 @@ nz-descriptions {
     fill-opacity: 0.8;
 }
 .ant-empty-img-default-path-1 {
-    fill: #aeb8c2;
+    fill: $devui-icon-fill-weak;
 }
 .ant-empty-img-default-path-2 {
     fill: url("#linearGradient-1");
 }
 .ant-empty-img-default-path-3 {
-    fill: #f5f5f7;
+    fill: $devui-shape-icon-fill-disabled;
 }
 .ant-empty-img-default-path-4 {
-    fill: #dce0e6;
+    fill: $devui-icon-fill;
 }
 .ant-empty-img-default-path-5 {
-    fill: #dce0e6;
+    fill: $devui-icon-fill;
 }
 .ant-empty-img-default-g {
     fill: #fff;
@@ -19487,7 +19487,7 @@ span.ant-radio + * {
     color: $devui-text;
     font-size: 14px;
     line-height: 30px;
-    background: #fff;
+    background: $devui-base-bg;
     border: 1px solid #d9d9d9;
     border-top-width: 1.02px;
     border-left-width: 0;
@@ -19556,7 +19556,7 @@ span.ant-radio + * {
 .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
     z-index: 1;
     color: #1890ff;
-    background: #fff;
+    background: $devui-base-bg;
     border-color: #1890ff;
 }
 .ant-radio-button-wrapper-checked:not(
@@ -19594,12 +19594,12 @@ span.ant-radio + * {
 .ant-radio-button-wrapper-checked:not(
         .ant-radio-button-wrapper-disabled
     ):focus-within {
-    box-shadow: 0 0 0 3px #e6f7ff;
+    box-shadow: $devui-shadow;
 }
 .ant-radio-group-solid
     .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
     color: #fff;
-    background: #1890ff;
+    background: $devui-base-bg;
     border-color: #1890ff;
 }
 .ant-radio-group-solid
@@ -19607,7 +19607,7 @@ span.ant-radio + * {
         .ant-radio-button-wrapper-disabled
     ):hover {
     color: #fff;
-    background: #40a9ff;
+    background: $devui-base-bg;
     border-color: #40a9ff;
 }
 .ant-radio-group-solid
@@ -19615,7 +19615,7 @@ span.ant-radio + * {
         .ant-radio-button-wrapper-disabled
     ):active {
     color: #fff;
-    background: #096dd9;
+    background: $devui-base-bg;
     border-color: #096dd9;
 }
 .ant-radio-group-solid
@@ -20204,7 +20204,7 @@ span.ant-radio + * {
 }
 .ant-select:not(.ant-select-customize-input) .ant-select-selector {
     position: relative;
-    background-color: #fff;
+    background-color: $devui-form-control-bg;
     border: 1px solid #d9d9d9;
     border-radius: 2px;
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
@@ -20326,7 +20326,7 @@ span.ant-radio + * {
     align-items: center;
     height: 12px;
     margin-top: -6px;
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-text-weak;
     font-size: 12px;
     line-height: 1;
     text-align: center;
@@ -20407,7 +20407,7 @@ span.ant-radio + * {
     overflow: hidden;
     font-size: 14px;
     font-variant: initial;
-    background-color: #fff;
+    background-color: $devui-base-bg;
     border-radius: 2px;
     outline: none;
     box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
@@ -20474,12 +20474,12 @@ span.ant-radio + * {
     flex: none;
 }
 .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-    background-color: #f5f5f5;
+    background-color: $devui-glass-morphism-bg;
 }
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
     color: $devui-text;
     font-weight: 600;
-    background-color: #e6f7ff;
+    background-color: $devui-glass-morphism-bg;
 }
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled)
     .ant-select-item-option-state {
@@ -24773,7 +24773,7 @@ nz-tabs-nav {
     font-size: 12px;
     line-height: 20px;
     white-space: nowrap;
-    background: #fafafa;
+    background: $devui-base-bg;
     border: 1px solid #d9d9d9;
     border-radius: 2px;
     opacity: 1;
@@ -28355,7 +28355,7 @@ nz-tree {
     line-height: 1.5715;
     list-style: none;
     font-feature-settings: "tnum";
-    background: #fff;
+    background: $devui-base-bg;
 }
 .ant-picker-calendar-header {
     display: flex;
@@ -28373,7 +28373,7 @@ nz-tree {
     margin-left: 8px;
 }
 .ant-picker-calendar .ant-picker-panel {
-    background: #fff;
+    background: $devui-base-bg;
     border: 0;
     border-top: 1px solid #f0f0f0;
     border-radius: 0;
@@ -28413,7 +28413,7 @@ nz-tree {
     display: block;
     width: 100%;
     text-align: right;
-    background: #fff;
+    background: $devui-base-bg;
     border: 0;
 }
 .ant-picker-calendar-full .ant-picker-panel .ant-picker-body th,
@@ -28432,7 +28432,7 @@ nz-tree {
     .ant-picker-panel
     .ant-picker-cell:hover
     .ant-picker-calendar-date {
-    background: #f5f5f5;
+    background: $devui-base-bg;
 }
 .ant-picker-calendar-full
     .ant-picker-panel
@@ -28456,7 +28456,8 @@ nz-tree {
     .ant-picker-panel
     .ant-picker-cell-selected:hover
     .ant-picker-calendar-date-today {
-    background: #e6f7ff;
+    background: $devui-glass-morphism-bg;
+    border-color: #1890ff;
 }
 .ant-picker-calendar-full
     .ant-picker-panel
@@ -28478,7 +28479,7 @@ nz-tree {
     .ant-picker-cell-selected:hover
     .ant-picker-calendar-date-today
     .ant-picker-calendar-date-value {
-    color: #1890ff;
+    color: $devui-text;
 }
 .ant-picker-calendar-full .ant-picker-panel .ant-picker-calendar-date {
     display: block;
@@ -28505,13 +28506,13 @@ nz-tree {
     text-align: left;
 }
 .ant-picker-calendar-full .ant-picker-panel .ant-picker-calendar-date-today {
-    border-color: #1890ff;
+    color: $devui-text;
 }
 .ant-picker-calendar-full
     .ant-picker-panel
     .ant-picker-calendar-date-today
     .ant-picker-calendar-date-value {
-    color: $devui-text;
+    color: #1890ff;
 }
 @media only screen and (max-width: 480px) {
     .ant-picker-calendar-header {
