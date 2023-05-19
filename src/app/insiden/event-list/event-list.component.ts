@@ -72,14 +72,37 @@ export class EventListComponent implements OnInit, OnChanges {
             })
             .then(({ data, loading }) => {
                 this.showLoading = loading;
+
                 data.calendarIncidents.forEach((calIncident) => {
-                    calIncident.chronologies = calIncident.chronologies.map((c) => {
-                        return {
-                            ...c,
-                            content: c.content.split("\r\n").join("<br />"),
-                        };
-                    });
-                    calIncident.brief = calIncident.brief.split("\r\n").join("<br />");
+                    if (calIncident.chronologies.length === 0) {
+                        calIncident.chronologies.push({
+                            order: "0",
+                            indicator: "blue",
+                            datetime: calIncident.startDatetime,
+                            content: "Start of incident",
+                        });
+
+                        if (calIncident.endDatetime) {
+                            calIncident.chronologies.push({
+                                order: "1",
+                                indicator: "green",
+                                datetime: calIncident.endDatetime,
+                                content: "Issue resolved",
+                            });
+                        }
+                    }
+
+                    calIncident.chronologies = calIncident.chronologies.map(
+                        (c) => {
+                            return {
+                                ...c,
+                                content: c.content.split("\r\n").join("<br />"),
+                            };
+                        }
+                    );
+                    calIncident.brief = calIncident.brief
+                        .split("\r\n")
+                        .join("<br />");
                 });
                 this.data = data.calendarIncidents;
             });
