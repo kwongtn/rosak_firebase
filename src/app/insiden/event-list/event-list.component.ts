@@ -80,6 +80,10 @@ export class EventListComponent implements OnInit, OnChanges {
                     content: c.content.split("\r\n").join("<br />"),
                 };
             });
+            calIncident.chronologies.sort((a, b) => {
+                return Number(a.order) - Number(b.order);
+            });
+
             calIncident.brief = calIncident.brief.split("\r\n").join("<br />");
 
             if (calIncident.endDatetime) {
