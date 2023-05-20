@@ -33,14 +33,15 @@ export class CalendarComponent implements OnInit {
     @Input() selectedDate!: Date;
     @Output() selectedDateChange = new EventEmitter<Date>();
 
+    @Input() calendarMode!: NzCalendarMode;
+    @Output() calendarModeChange = new EventEmitter<NzCalendarMode>();
+
     showLoading: boolean = true;
 
     gqlSubscription!: Subscription;
     watchQueryOption!: QueryRef<any>;
 
     filters: { [key: string]: string } = {};
-
-    mode: NzCalendarMode = "month";
 
     // Date -> Severity -> Count
     monthEvents: {
@@ -148,8 +149,10 @@ export class CalendarComponent implements OnInit {
 
     panelChange($event: { date: Date; mode: NzCalendarMode }): void {
         console.log("Panel value", $event);
-        if ($event.mode !== this.mode) {
-            this.mode = $event.mode;
+        this.calendarModeChange.emit($event.mode);
+
+        if ($event.mode !== this.calendarMode) {
+            this.calendarMode = $event.mode;
             this.filters = this.getFilters(
                 $event.date,
                 $event.mode === "year" ? "MONTH" : "DAY"
