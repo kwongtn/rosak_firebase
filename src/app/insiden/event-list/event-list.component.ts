@@ -1,4 +1,5 @@
 import { QueryRef } from "apollo-angular";
+import { NzCalendarMode } from "ng-zorro-antd/calendar";
 import { Subscription } from "rxjs";
 
 import { formatDate } from "@angular/common";
@@ -26,6 +27,14 @@ export interface CalendarIncidentListItem
     duration?: string;
 }
 
+interface CalendarFilterMonth {
+    date: string;
+}
+interface CalendarFilterYear {
+    startDate: string;
+    endDate: string;
+}
+
 @Component({
     selector: "insiden-event-list",
     templateUrl: "./event-list.component.html",
@@ -33,6 +42,8 @@ export interface CalendarIncidentListItem
 })
 export class EventListComponent implements OnInit, OnChanges {
     @Input() selectedDate!: Date;
+    @Input() calendarMode!: NzCalendarMode;
+
     showLoading: boolean = true;
     data: CalendarIncidentListItem[] = [];
 
@@ -97,13 +108,36 @@ export class EventListComponent implements OnInit, OnChanges {
         return data;
     }
 
+    getFilter(): CalendarFilterMonth | CalendarFilterYear {
+        if (this.calendarMode === "month") {
+            return {
+                date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
+            };
+        } else if (this.calendarMode === "year") {
+            const firstDay = new Date(
+                this.selectedDate.getFullYear(),
+                this.selectedDate.getMonth(),
+                1
+            );
+            const lastDay = new Date(
+                this.selectedDate.getFullYear(),
+                this.selectedDate.getMonth() + 1,
+                0
+            );
+            return {
+                startDate: formatDate(firstDay, DATE_FORMAT, this.locale),
+                endDate: formatDate(lastDay, DATE_FORMAT, this.locale),
+            };
+        } else {
+            throw new Error("Invalid calendar mode");
+        }
+    }
+
     ngOnInit(): void {
         this.showLoading = true;
 
         this.watchQueryOption = this.gqlService.watch({
-            filters: {
-                date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
-            },
+            filters: this.getFilter(),
         });
 
         this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
@@ -120,13 +154,7 @@ export class EventListComponent implements OnInit, OnChanges {
         this.watchQueryOption
             .fetchMore({
                 variables: {
-                    filters: {
-                        date: formatDate(
-                            this.selectedDate,
-                            DATE_FORMAT,
-                            this.locale
-                        ),
-                    },
+                    filters: this.getFilter(),
                 },
             })
             .then(({ data, loading }) => {

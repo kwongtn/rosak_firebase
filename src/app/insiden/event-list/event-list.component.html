@@ -1,5 +1,8 @@
-<h1>
+<h1 *ngIf="calendarMode === 'month'">
     {{ selectedDate | date : "MMM dd, yyyy (EEE)" }}
+</h1>
+<h1 *ngIf="calendarMode === 'year'">
+    {{ selectedDate | date : "MMM yyyy" }}
 </h1>
 <nz-spin [nzSpinning]="showLoading">
     <nz-list *ngIf="data.length >= 0" nzItemLayout="vertical">
