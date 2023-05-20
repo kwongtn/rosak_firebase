@@ -40,16 +40,16 @@ export class CalendarComponent implements OnInit {
 
     filters: { [key: string]: string } = {};
 
-    listDataMap = {
-        eight: [
-            { type: "warning", content: "This is warning event." },
-            { type: "success", content: "This is usual event." },
-        ],
-    };
+    mode: NzCalendarMode = "month";
 
     // Date -> Severity -> Count
     monthEvents: {
         [date: string]: {
+            [severity: string]: number;
+        };
+    } = {};
+    yearEvents: {
+        [monthYear: string]: {
             [severity: string]: number;
         };
     } = {};
@@ -61,19 +61,26 @@ export class CalendarComponent implements OnInit {
         return;
     }
 
-    getFilters(date: Date): { [key: string]: string } {
+    getFilters(date: Date, groupBy: string = "DAY"): { [key: string]: string } {
+        let startDate = new Date();
+        let endDate = new Date();
+
+        if (groupBy === "DAY") {
+            startDate = new Date(date.getFullYear(), date.getMonth(), -14);
+            endDate = new Date(date.getFullYear(), date.getMonth() + 1, 14);
+        } else if (groupBy === "MONTH") {
+            startDate = new Date(date.getFullYear(), 0, 1);
+            endDate = new Date(date.getFullYear(), date.getMonth() + 1, 14);
+        } else {
+            console.error(
+                `Invalid groupBy ${groupBy}, expected 'DAY' or 'MONTH'`
+            );
+        }
+
         return {
-            startDate: formatDate(
-                new Date(date.getFullYear(), date.getMonth(), -14),
-                DATE_FORMAT,
-                this.locale
-            ),
-            endDate: formatDate(
-                new Date(date.getFullYear(), date.getMonth() + 1, 14),
-                DATE_FORMAT,
-                this.locale
-            ),
-            groupBy: "DAY",
+            groupBy,
+            startDate: formatDate(startDate, DATE_FORMAT, this.locale),
+            endDate: formatDate(endDate, DATE_FORMAT, this.locale),
         };
     }
 
@@ -141,6 +148,39 @@ export class CalendarComponent implements OnInit {
 
     panelChange($event: { date: Date; mode: NzCalendarMode }): void {
         console.log("Panel value", $event);
+        if ($event.mode !== this.mode) {
+            this.mode = $event.mode;
+            this.filters = this.getFilters(
+                $event.date,
+                $event.mode === "year" ? "MONTH" : "DAY"
+            );
+            this.showLoading = true;
+
+            this.watchQueryOption
+                .fetchMore({
+                    variables: {
+                        ...this.filters,
+                    },
+                })
+                .then(({ data, loading }) => {
+                    this.showLoading = loading;
+
+                    data.calendarIncidentsBySeverityCount.forEach(
+                        (elem: GetCalendarIncidentListMonthResponseElem) => {
+                            const [year, month, day] = elem.date.split("-");
+                            const key = `${year}-${month}`;
+                            if (this.yearEvents[key]) {
+                                this.yearEvents[key][elem.severity] =
+                                    elem.count;
+                            } else {
+                                this.yearEvents[key] = {
+                                    [elem.severity]: elem.count,
+                                };
+                            }
+                        }
+                    );
+                });
+        }
     }
 
     getMonthData(date: Date): number | null {
