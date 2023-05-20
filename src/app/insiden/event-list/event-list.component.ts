@@ -98,6 +98,14 @@ export class EventListComponent implements OnInit, OnChanges {
     }
 
     ngOnInit(): void {
+        this.showLoading = true;
+
+        this.watchQueryOption = this.gqlService.watch({
+            filters: {
+                date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
+            },
+        });
+
         this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
             ({ data, loading }) => {
                 this.showLoading = loading;
@@ -108,12 +116,6 @@ export class EventListComponent implements OnInit, OnChanges {
 
     ngOnChanges(changes: SimpleChanges): void {
         this.showLoading = true;
-
-        this.watchQueryOption = this.gqlService.watch({
-            filters: {
-                date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
-            },
-        });
 
         this.watchQueryOption
             .fetchMore({
