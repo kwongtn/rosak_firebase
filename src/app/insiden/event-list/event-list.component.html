@@ -10,5 +10,8 @@
             <insiden-event-card [data]="item"></insiden-event-card>
         </nz-list-item>
     </nz-list>
-    <nz-empty *ngIf="data.length === 0 && !showLoading"></nz-empty>
+    <nz-empty
+        *ngIf="data.length === 0 && !showLoading"
+        nzNotFoundImage="https://gw.alipayobjects.com/zos/antfincdn/ZHrcdLPrvN/empty.svg"
+    ></nz-empty>
 </nz-spin>
