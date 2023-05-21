@@ -7,40 +7,61 @@
         <ul *nzDateCell="let date" class="events">
             <ng-container [ngSwitch]="date | date : 'yyyy-MM-dd'">
                 <ng-container *ngSwitchCase="date | date : 'yyyy-MM-dd'">
-                    <nz-badge
-                        class="count-badge"
-                        nzStandalone
-                        *ngFor="
-                            let item of monthEvents[
-                                (date | date : 'yyyy-MM-dd') ?? ''
-                            ] | keyvalue
-                        "
-                        [nzCount]="item.value"
-                        [nzStyle]="{
-                            backgroundColor:
-                                (item.key
-                                | uppercase
-                                | calendarIncidentSeverity : 'color')
-                        }"
-                    ></nz-badge>
-
-                    <!-- <li
-                        *ngFor="
-                            let item of monthEvents[
-                                (date | date : 'yyyy-MM-dd') ?? ''
-                            ] | keyvalue
-                        "
-                    >
-                        <nz-badge
-                            [nzStatus]="
-                                item.key | uppercase | calendarIncidentSeverity
+                    <li>
+                        <span
+                            *ngFor="
+                                let item of monthEvents[
+                                    (date | date : 'yyyy-MM-dd') ?? ''
+                                ] | keyvalue
                             "
-                            [nzText]="
-                                item.value.toString() + ' ' + item.key
-                                    | titlecase
+                        >
+                            <nz-badge
+                                class="count-badge"
+                                nzStandalone
+                                *ngIf="!item.value.isLongTerm"
+                                [nzCount]="item.value.count"
+                                [nzStyle]="{
+                                    backgroundColor:
+                                        (item.key
+                                        | uppercase
+                                        | calendarIncidentSeverity : 'color')
+                                }"
+                            ></nz-badge>
+                        </span>
+                    </li>
+                    <li>
+                        <span
+                            *ngFor="
+                                let item of monthEvents[
+                                    (date | date : 'yyyy-MM-dd') ?? ''
+                                ] | keyvalue
                             "
-                        ></nz-badge>
-                    </li> -->
+                        >
+                            <span *ngIf="item.value.isLongTerm">
+                                <span
+                                    class="long-term-indicator"
+                                    nz-icon
+                                    nzType="clock-circle"
+                                    nz-tooltip
+                                    nzTooltipTitle="Long-term incident"
+                                    nzTooltipPlacement="topLeft"
+                                    [nzTooltipArrowPointAtCenter]="true"
+                                ></span>
+                                <nz-badge
+                                    class="count-badge"
+                                    nzStandalone
+                                    [nzCount]="item.value.count"
+                                    [nzStyle]="{
+                                        backgroundColor:
+                                            (item.key
+                                            | uppercase
+                                            | calendarIncidentSeverity
+                                                : 'color')
+                                    }"
+                                ></nz-badge>
+                            </span>
+                        </span>
+                    </li>
                 </ng-container>
             </ng-container>
         </ul>

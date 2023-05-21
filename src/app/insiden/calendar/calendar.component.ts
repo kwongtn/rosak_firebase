@@ -46,7 +46,10 @@ export class CalendarComponent implements OnInit {
     // Date -> Severity -> Count
     monthEvents: {
         [date: string]: {
-            [severity: string]: number;
+            [severity: string]: {
+                isLongTerm: boolean;
+                count: number;
+            };
         };
     } = {};
     yearEvents: {
@@ -98,11 +101,16 @@ export class CalendarComponent implements OnInit {
                 data.calendarIncidentsBySeverityCount.forEach(
                     (elem: GetCalendarIncidentListMonthResponseElem) => {
                         if (this.monthEvents[elem.date]) {
-                            this.monthEvents[elem.date][elem.severity] =
-                                elem.count;
+                            this.monthEvents[elem.date][elem.severity] = {
+                                count: elem.count,
+                                isLongTerm: elem.isLongTerm,
+                            };
                         } else {
                             this.monthEvents[elem.date] = {
-                                [elem.severity]: elem.count,
+                                [elem.severity]: {
+                                    count: elem.count,
+                                    isLongTerm: elem.isLongTerm,
+                                },
                             };
                         }
                     }
@@ -134,11 +142,16 @@ export class CalendarComponent implements OnInit {
                     data.calendarIncidentsBySeverityCount.forEach(
                         (elem: GetCalendarIncidentListMonthResponseElem) => {
                             if (this.monthEvents[elem.date]) {
-                                this.monthEvents[elem.date][elem.severity] =
-                                    elem.count;
+                                this.monthEvents[elem.date][elem.severity] = {
+                                    count: elem.count,
+                                    isLongTerm: elem.isLongTerm,
+                                };
                             } else {
                                 this.monthEvents[elem.date] = {
-                                    [elem.severity]: elem.count,
+                                    [elem.severity]: {
+                                        count: elem.count,
+                                        isLongTerm: elem.isLongTerm,
+                                    },
                                 };
                             }
                         }

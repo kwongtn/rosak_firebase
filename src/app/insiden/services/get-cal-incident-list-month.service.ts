@@ -5,6 +5,7 @@ import { Injectable } from "@angular/core";
 export interface GetCalendarIncidentListMonthResponseElem {
     count: number;
     date: string;
+    isLongTerm: boolean;
     severity: "CRITICAL" | "MINOR" | "MILESTONE";
 }
 
@@ -25,6 +26,7 @@ export class GetCalIncidentListMonthService extends Query<GetCalendarIncidentLis
             ) {
                 count
                 date
+                isLongTerm
                 severity
             }
         }
