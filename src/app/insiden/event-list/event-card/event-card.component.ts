@@ -54,23 +54,33 @@ export class EventCardComponent implements OnInit, OnDestroy {
             .split("\r\n")
             .join("<br />");
 
+        const startDatetime: Date = new Date(this.displayData.startDatetime);
+
         if (this.displayData.endDatetime) {
             this.displayData.duration = getReadableTimeDifference(
-                new Date(this.displayData.startDatetime),
+                startDatetime,
                 new Date(this.displayData.endDatetime)
             );
         } else {
             this.elapsedTime = getReadableTimeDifference(
-                new Date(this.displayData.startDatetime),
+                startDatetime,
                 new Date()
             );
             // Repeating cause I want it to run immediately first
             this.timer = setInterval(() => {
                 this.elapsedTime = getReadableTimeDifference(
-                    new Date(this.displayData.startDatetime),
+                    startDatetime,
                     new Date()
                 );
             }, 200);
+        }
+
+        // All entries before May 2023 are considered inccurate
+        if (
+            startDatetime.getFullYear() <= 2023 &&
+            startDatetime.getMonth() <= 3
+        ) {
+            this.displayData.inaccurate = true;
         }
     }
 

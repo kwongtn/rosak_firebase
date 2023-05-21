@@ -105,6 +105,17 @@
     </ng-template>
     <ng-template #cardTitleTemplate>
         <!-- <a href="{{ displayData.href }}">{{ displayData.title }}</a> -->
+        <span
+            *ngIf="displayData.inaccurate"
+            class="exception-icon"
+            nz-tooltip
+            nzTooltipTitle="Data may be inaccurate"
+            nzTooltipPlacement="bottomLeft"
+            [nzTooltipArrowPointAtCenter]="true"
+            nz-icon
+            nzType="exception"
+            nzTheme="outline"
+        ></span>
         {{ displayData.title }}
     </ng-template>
 </nz-ribbon>
