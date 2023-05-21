@@ -5,13 +5,13 @@
     {{ selectedDate | date : "MMM yyyy" }}
 </h1>
 <nz-spin [nzSpinning]="showLoading">
-    <nz-list *ngIf="data.shortTerm" nzItemLayout="vertical">
+    <nz-list *ngIf="data.shortTerm.length > 0" nzItemLayout="vertical">
         <nz-list-item *ngFor="let cardData of data.shortTerm">
             <insiden-event-card [data]="cardData"></insiden-event-card>
         </nz-list-item>
     </nz-list>
 
-    <div *ngIf="data.longTerm">
+    <div *ngIf="data.longTerm.length > 0">
         <h2>Long term incidents</h2>
         <nz-list nzItemLayout="vertical">
             <nz-list-item *ngFor="let cardData of data.longTerm">
