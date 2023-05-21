@@ -106,16 +106,34 @@ export class EventListComponent implements OnInit, OnChanges {
 
     setResults(results: GetCalendarIncidentListMinResponse) {
         this.dataLength = results.calendarIncidents.length;
+        const selectedDateString = formatDate(
+            this.selectedDate,
+            DATE_FORMAT,
+            this.locale
+        );
+
         this.data = {
             shortTerm: results.calendarIncidents.filter((val) => {
-                return !val.longTerm;
+                return (
+                    !val.longTerm ||
+                    formatDate(
+                        new Date(val.startDatetime),
+                        DATE_FORMAT,
+                        this.locale
+                    ) === selectedDateString
+                );
             }),
             longTerm: results.calendarIncidents.filter((val) => {
-                return val.longTerm;
+                return (
+                    val.longTerm &&
+                    formatDate(
+                        new Date(val.startDatetime),
+                        DATE_FORMAT,
+                        this.locale
+                    ) !== selectedDateString
+                );
             }),
         };
-
-        console.log(this.data);
     }
 
     ngOnInit(): void {
