@@ -12,6 +12,7 @@ export interface GetCalendarIncidentListMinResponseElem {
     brief: string;
     impactFactor: number;
     inaccurate: boolean;
+    longTerm: boolean;
     lines: {
         // id: string;
         // code: string;
@@ -56,6 +57,7 @@ export class GetCalIncidentListMinService extends Query<GetCalendarIncidentListM
                 brief
                 impactFactor
                 inaccurate
+                longTerm
                 lines {
                     # id
                     # code

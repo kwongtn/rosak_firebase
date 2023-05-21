@@ -107,13 +107,24 @@
         <!-- <a href="{{ displayData.href }}">{{ displayData.title }}</a> -->
         <span
             *ngIf="displayData.inaccurate"
-            class="exception-icon"
+            class="indicator-icon"
             nz-tooltip
             nzTooltipTitle="Data may be inaccurate"
-            nzTooltipPlacement="bottomLeft"
+            nzTooltipPlacement="topLeft"
             [nzTooltipArrowPointAtCenter]="true"
             nz-icon
             nzType="exception"
+            nzTheme="outline"
+        ></span>
+        <span
+            *ngIf="displayData.longTerm"
+            class="indicator-icon"
+            nz-tooltip
+            nzTooltipTitle="Long term incident"
+            nzTooltipPlacement="topLeft"
+            [nzTooltipArrowPointAtCenter]="true"
+            nz-icon
+            nzType="clock-circle"
             nzTheme="outline"
         ></span>
         {{ displayData.title }}
