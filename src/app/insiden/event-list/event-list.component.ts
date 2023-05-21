@@ -35,6 +35,13 @@ interface CalendarFilterYear {
     endDate: string;
 }
 
+interface VariablesType {
+    filters: CalendarFilterMonth | CalendarFilterYear;
+    order: {
+        startDatetime: "ASC" | "DESC";
+    };
+}
+
 @Component({
     selector: "insiden-event-list",
     templateUrl: "./event-list.component.html",
@@ -108,9 +115,14 @@ export class EventListComponent implements OnInit, OnChanges {
         return data;
     }
 
-    getFilter(): CalendarFilterMonth | CalendarFilterYear {
+    getVariables(): VariablesType {
+        const variables: { [key: string]: any } = {
+            order: {
+                startDatetime: "ASC",
+            },
+        };
         if (this.calendarMode === "month") {
-            return {
+            variables["filters"] = {
                 date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
             };
         } else if (this.calendarMode === "year") {
@@ -124,21 +136,21 @@ export class EventListComponent implements OnInit, OnChanges {
                 this.selectedDate.getMonth() + 1,
                 0
             );
-            return {
+            variables["filters"] = {
                 startDate: formatDate(firstDay, DATE_FORMAT, this.locale),
                 endDate: formatDate(lastDay, DATE_FORMAT, this.locale),
             };
         } else {
             throw new Error("Invalid calendar mode");
         }
+
+        return variables as VariablesType;
     }
 
     ngOnInit(): void {
         this.showLoading = true;
 
-        this.watchQueryOption = this.gqlService.watch({
-            filters: this.getFilter(),
-        });
+        this.watchQueryOption = this.gqlService.watch(this.getVariables());
 
         this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
             ({ data, loading }) => {
@@ -153,9 +165,7 @@ export class EventListComponent implements OnInit, OnChanges {
 
         this.watchQueryOption
             .fetchMore({
-                variables: {
-                    filters: this.getFilter(),
-                },
+                variables: this.getVariables(),
             })
             .then(({ data, loading }) => {
                 this.showLoading = loading;
