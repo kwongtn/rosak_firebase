@@ -152,6 +152,10 @@ export class EventListComponent implements OnInit, OnChanges {
     ngOnChanges(changes: SimpleChanges): void {
         this.showLoading = true;
 
+        if (!this.watchQueryOption) {
+            this.watchQueryOption = this.gqlService.watch(this.getVariables());
+        }
+
         this.watchQueryOption
             .fetchMore({
                 variables: this.getVariables(),
