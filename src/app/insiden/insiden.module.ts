@@ -19,9 +19,10 @@ import {
 import { CalendarComponent } from "./calendar/calendar.component";
 import { EventListComponent } from "./event-list/event-list.component";
 import { InsidenMainComponent } from "./insiden.component";
+import { EventCardComponent } from "./event-list/event-card/event-card.component";
 
 @NgModule({
-    declarations: [InsidenMainComponent, CalendarComponent, EventListComponent],
+    declarations: [InsidenMainComponent, CalendarComponent, EventListComponent, EventCardComponent],
     imports: [
         CommonModule,
         FormsModule,
