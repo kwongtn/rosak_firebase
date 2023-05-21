@@ -41,6 +41,11 @@ interface VariablesType {
     };
 }
 
+interface EventListComponentData {
+    longTerm: CalendarIncidentListItem[];
+    shortTerm: CalendarIncidentListItem[];
+}
+
 @Component({
     selector: "insiden-event-list",
     templateUrl: "./event-list.component.html",
@@ -51,7 +56,11 @@ export class EventListComponent implements OnInit, OnChanges {
     @Input() calendarMode!: NzCalendarMode;
 
     showLoading: boolean = true;
-    data: CalendarIncidentListItem[] = [];
+    dataLength: number = 0;
+    data: EventListComponentData = {
+        shortTerm: [],
+        longTerm: [],
+    };
 
     gqlSubscription!: Subscription;
     watchQueryOption!: QueryRef<GetCalendarIncidentListMinResponse>;
@@ -95,6 +104,20 @@ export class EventListComponent implements OnInit, OnChanges {
         return variables as VariablesType;
     }
 
+    setResults(results: GetCalendarIncidentListMinResponse) {
+        this.dataLength = results.calendarIncidents.length;
+        this.data = {
+            shortTerm: results.calendarIncidents.filter((val) => {
+                return !val.longTerm;
+            }),
+            longTerm: results.calendarIncidents.filter((val) => {
+                return val.longTerm;
+            }),
+        };
+
+        console.log(this.data);
+    }
+
     ngOnInit(): void {
         this.showLoading = true;
 
@@ -103,7 +126,7 @@ export class EventListComponent implements OnInit, OnChanges {
         this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
             ({ data, loading }) => {
                 this.showLoading = loading;
-                this.data = data.calendarIncidents;
+                this.setResults(data);
             }
         );
     }
@@ -118,7 +141,7 @@ export class EventListComponent implements OnInit, OnChanges {
             .then(({ data, loading }) => {
                 this.showLoading = loading;
 
-                this.data = data.calendarIncidents;
+                this.setResults(data);
             });
     }
 }
