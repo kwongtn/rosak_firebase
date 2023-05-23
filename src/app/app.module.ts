@@ -9,6 +9,7 @@ import {
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NzMessageModule } from "ng-zorro-antd/message";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
 
 import { registerLocaleData } from "@angular/common";
@@ -102,6 +103,7 @@ const providers: any[] = [
     },
     I18nService,
     { provide: NZ_I18N, useValue: en_US },
+    NzModalService,
 ];
 
 if (environment.production) {

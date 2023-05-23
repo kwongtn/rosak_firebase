@@ -1,5 +1,10 @@
+import { NzModalService } from "ng-zorro-antd/modal";
+
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
+import {
+    EventDetailsModalComponent,
+} from "../event-details-modal/event-details-modal.component";
 import { CalendarIncidentListItem } from "../event-list.component";
 import { getReadableTimeDifference } from "../event-list.component.util";
 
@@ -14,6 +19,8 @@ export class EventCardComponent implements OnInit, OnDestroy {
 
     timer: NodeJS.Timer | undefined = undefined;
     elapsedTime: string = "";
+
+    constructor(private modalService: NzModalService) {}
 
     ngOnInit(): void {
         this.displayData = JSON.parse(JSON.stringify(this.data));
@@ -88,5 +95,12 @@ export class EventCardComponent implements OnInit, OnDestroy {
         if (this.timer) {
             clearInterval(this.timer);
         }
+    }
+
+    onDetailsClick($event: MouseEvent): void {
+        this.modalService.create({
+            nzTitle: this.displayData.title,
+            nzContent: EventDetailsModalComponent,
+        });
     }
 }

@@ -22,11 +22,20 @@ import { CalendarComponent } from "./calendar/calendar.component";
 import {
     EventCardComponent,
 } from "./event-list/event-card/event-card.component";
+import {
+    EventDetailsModalComponent,
+} from "./event-list/event-details-modal/event-details-modal.component";
 import { EventListComponent } from "./event-list/event-list.component";
 import { InsidenMainComponent } from "./insiden.component";
 
 @NgModule({
-    declarations: [InsidenMainComponent, CalendarComponent, EventListComponent, EventCardComponent],
+    declarations: [
+        InsidenMainComponent,
+        CalendarComponent,
+        EventListComponent,
+        EventCardComponent,
+        EventDetailsModalComponent,
+    ],
     imports: [
         CommonModule,
         FormsModule,
@@ -48,5 +57,6 @@ import { InsidenMainComponent } from "./insiden.component";
         // Self-imports
         CalendarIncidentSeverityModule,
     ],
+    providers: [],
 })
 export class InsidenModule {}
