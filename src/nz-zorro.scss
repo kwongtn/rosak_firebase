@@ -17621,12 +17621,12 @@ textarea.ant-mentions {
 }
 .ant-modal-content {
     position: relative;
-    background-color: #fff;
+    background-color: $devui-global-bg;
     background-clip: padding-box;
     border: 0;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 3px 6px -4px $devui-shadow, 0 6px 16px 0 $devui-shadow,
+        0 9px 28px 8px $devui-shadow;
     pointer-events: auto;
 }
 .ant-modal-close {
@@ -17635,7 +17635,7 @@ textarea.ant-mentions {
     right: 0;
     z-index: 10;
     padding: 0;
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-icon-fill;
     font-weight: 700;
     line-height: 1;
     text-decoration: none;
@@ -17658,13 +17658,13 @@ textarea.ant-mentions {
 }
 .ant-modal-close:focus,
 .ant-modal-close:hover {
-    color: rgba(0, 0, 0, 0.75);
+    color: $devui-icon-fill-hover;
     text-decoration: none;
 }
 .ant-modal-header {
     padding: 16px 24px;
     color: $devui-text;
-    background: #fff;
+    background: $devui-global-bg;
     border-bottom: 1px solid #f0f0f0;
     border-radius: 2px 2px 0 0;
 }

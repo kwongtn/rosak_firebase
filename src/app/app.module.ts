@@ -11,6 +11,7 @@ import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
+import { MarkdownModule } from "ngx-markdown";
 
 import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -75,6 +76,7 @@ const imports: any[] = [
     // Other Services
     RecaptchaFormsModule,
     RecaptchaV3Module,
+    MarkdownModule.forRoot(),
 ];
 
 const providers: any[] = [

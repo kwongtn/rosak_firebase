@@ -40,7 +40,11 @@
                             "src/nz-zorro.scss",
                             "node_modules/ng-devui/devui.min.css"
                         ],
-                        "scripts": [],
+                        "scripts": [
+                            "node_modules/marked/marked.min.js",
+                            "node_modules/mermaid/dist/mermaid.min.js",
+                            "node_modules/emoji-toolkit/lib/js/joypixels.min.js"
+                        ],
                         "customWebpackConfig": {
                             "path": "./webpack.config.js",
                             "replaceDuplicatePlugins": true
@@ -132,7 +136,11 @@
                             "src/styles.scss",
                             "node_modules/ng-devui/devui.min.css"
                         ],
-                        "scripts": []
+                        "scripts": [
+                            "node_modules/marked/marked.min.js",
+                            "node_modules/mermaid/dist/mermaid.min.js",
+                            "node_modules/emoji-toolkit/lib/js/joypixels.min.js"
+                        ]
                     }
                 },
                 "deploy": {

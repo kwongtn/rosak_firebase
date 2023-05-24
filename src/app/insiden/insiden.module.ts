@@ -10,6 +10,7 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzTimelineModule } from "ng-zorro-antd/timeline";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { MarkdownModule } from "ngx-markdown";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -39,6 +40,7 @@ import { InsidenMainComponent } from "./insiden.component";
     imports: [
         CommonModule,
         FormsModule,
+        MarkdownModule.forChild(),
 
         // ng-zorro
         NzBadgeModule,

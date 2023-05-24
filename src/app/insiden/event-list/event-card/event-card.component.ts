@@ -101,6 +101,11 @@ export class EventCardComponent implements OnInit, OnDestroy {
         this.modalService.create({
             nzTitle: this.displayData.title,
             nzContent: EventDetailsModalComponent,
+            nzCancelText: null,
+            nzClosable: true,
+            nzOkText: null,
+            nzWidth: "80vw",
+            nzData: this.displayData,
         });
     }
 }
