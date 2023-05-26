@@ -5089,16 +5089,17 @@ nz-carousel {
     list-style: none;
     font-feature-settings: "tnum";
     background-color: #fafafa;
-    border: 1px solid #d9d9d9;
+    border: 1px solid $devui-dividing-line;
     border-bottom: 0;
     border-radius: 2px;
 }
 .ant-collapse > .ant-collapse-item {
-    border-bottom: 1px solid #d9d9d9;
+    border-bottom: 1px solid $devui-dividing-line;
 }
 .ant-collapse > .ant-collapse-item:last-child,
 .ant-collapse > .ant-collapse-item:last-child > .ant-collapse-header {
     border-radius: 0 0 2px 2px;
+    background-color: $devui-base-bg;
 }
 .ant-collapse > .ant-collapse-item > .ant-collapse-header {
     position: relative;
@@ -5162,8 +5163,8 @@ nz-carousel {
 }
 .ant-collapse-content {
     color: $devui-text;
-    background-color: #fff;
-    border-top: 1px solid #d9d9d9;
+    background-color: $devui-nav-expand-bg;
+    border-top: 1px solid $devui-dividing-line;
 }
 .ant-collapse-content > .ant-collapse-content-box {
     padding: 16px;
@@ -5179,7 +5180,7 @@ nz-carousel {
     border: 0;
 }
 .ant-collapse-borderless > .ant-collapse-item {
-    border-bottom: 1px solid #d9d9d9;
+    border-bottom: 1px solid $devui-dividing-line;
 }
 .ant-collapse-borderless > .ant-collapse-item:last-child,
 .ant-collapse-borderless > .ant-collapse-item:last-child .ant-collapse-header {
@@ -7390,7 +7391,7 @@ nz-descriptions {
 .ant-dropdown-menu-dark .ant-dropdown-menu-submenu-title,
 .ant-dropdown-menu-dark .ant-dropdown-menu-item > a,
 .ant-dropdown-menu-dark .ant-dropdown-menu-item > .anticon + span > a {
-    color: rgba(255, 255, 255, 0.65);
+    color: $devui-icon-fill;
 }
 .ant-dropdown-menu-dark
     .ant-dropdown-menu-item
@@ -7408,7 +7409,7 @@ nz-descriptions {
     + span
     > a
     .ant-dropdown-menu-submenu-arrow::after {
-    color: rgba(255, 255, 255, 0.65);
+    color: $devui-icon-fill;
 }
 .ant-dropdown-menu-dark .ant-dropdown-menu-item:hover,
 .ant-dropdown-menu-dark .ant-dropdown-menu-submenu-title:hover,
