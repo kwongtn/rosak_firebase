@@ -102,6 +102,16 @@
                     (click)="onDetailsClick($event)"
                     >Details</a
                 >
+
+                <div class="last-updated">
+                    <span>
+                        Last updated:
+                        {{
+                            displayData.lastUpdated
+                                | date : "YYYY-MM-dd HH:mm:ss"
+                        }}
+                    </span>
+                </div>
             </div>
         </div>
     </nz-card>

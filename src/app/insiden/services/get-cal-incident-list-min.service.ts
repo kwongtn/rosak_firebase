@@ -14,6 +14,7 @@ export interface GetCalendarIncidentListMinResponseElem {
     inaccurate: boolean;
     longTerm: boolean;
     hasDetails: boolean;
+    lastUpdated: string;
     lines: {
         // id: string;
         // code: string;
@@ -60,6 +61,7 @@ export class GetCalIncidentListMinService extends Query<GetCalendarIncidentListM
                 inaccurate
                 longTerm
                 hasDetails
+                lastUpdated
                 lines {
                     # id
                     # code
