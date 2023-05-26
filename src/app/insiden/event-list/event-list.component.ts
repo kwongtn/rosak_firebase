@@ -55,6 +55,8 @@ export class EventListComponent implements OnInit, OnChanges {
     @Input() selectedDate!: Date;
     @Input() calendarMode!: NzCalendarMode;
 
+    panelActive: boolean = false;
+
     showLoading: boolean = true;
     dataLength: number = 0;
     data: EventListComponentData = {

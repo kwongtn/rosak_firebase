@@ -1,6 +1,7 @@
 import { NzBadgeModule } from "ng-zorro-antd/badge";
 import { NzCalendarModule } from "ng-zorro-antd/calendar";
 import { NzCardModule } from "ng-zorro-antd/card";
+import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
@@ -46,6 +47,7 @@ import { InsidenMainComponent } from "./insiden.component";
         NzBadgeModule,
         NzCalendarModule,
         NzCardModule,
+        NzCollapseModule,
         NzEmptyModule,
         NzGridModule,
         NzIconModule,

@@ -5,7 +5,12 @@
     "
     [nzColor]="displayData.severity | calendarIncidentSeverity : 'color'"
 >
-    <nz-card class="incident-card" [nzTitle]="cardTitleTemplate">
+    <nz-card
+        [class]="
+            displayData.longTerm ? 'incident-card-long-term' : 'incident-card'
+        "
+        [nzTitle]="cardTitleTemplate"
+    >
         <div
             *ngIf="
                 displayData.lines.length > 0 ||
