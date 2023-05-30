@@ -31,8 +31,8 @@ export function abnormalStatusSanityTestValidator(
         [
             "DECOMMISSIONED",
             "MARRIED",
+            "OUT_OF_SERVICE",
             "UNKNOWN",
-            "NOT_IN_SERVICE",
         ].includes(abstractControl.get("vehicle")?.value.status ?? "") &&
         !abstractControl.get("sanityTest")?.value
     ) {
