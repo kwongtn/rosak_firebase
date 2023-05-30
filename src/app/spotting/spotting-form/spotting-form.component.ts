@@ -290,7 +290,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 "MARRIED",
                 "UNKNOWN",
                 "NOT_IN_SERVICE",
-                "NOT_SPOTTED",
             ].includes(event.status)
         ) {
             this.showVehicleWarning = true;
