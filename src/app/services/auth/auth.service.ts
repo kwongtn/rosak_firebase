@@ -125,11 +125,21 @@ export class AuthService {
             .catch((reason) => {
                 console.log("Login failed: ", reason);
 
-                this.toastService.addToast(
-                    "Login Error",
-                    reason.message,
-                    "error"
-                );
+                if ("auth/user-disabled" === reason.code) {
+                    this.toastService.addToast(
+                        "Account Banned",
+                        "Your account has been banned by an administrator. If you think this is an error, please contact us at 'tungnan5636@gmail.com'.",
+                        "error", {
+                            nzDuration: 0,
+                        }
+                    );
+                } else {
+                    this.toastService.addToast(
+                        "Login Error",
+                        reason.message,
+                        "error"
+                    );
+                }
             });
     }
 
