@@ -4,7 +4,7 @@ import { VehicleType } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
     tagListDisplayConfig,
-    TagListDisplayConfig,
+    TagListDisplayConfig
 } from "src/app/spotting/utils";
 
 import {
@@ -13,7 +13,7 @@ import {
     OnChanges,
     OnDestroy,
     OnInit,
-    SimpleChanges,
+    SimpleChanges
 } from "@angular/core";
 
 const GET_VEHICLES = gql`
@@ -39,7 +39,7 @@ const GET_VEHICLES = gql`
                 inServiceSince
                 spottingCount
                 notes
-                canExpand
+                incidentCount
             }
         }
     }
@@ -113,10 +113,12 @@ implements OnInit, OnChanges, OnDestroy
                             timesSpotted: value.spottingCount,
                             notes: value.notes,
                             nickname: value.nickname,
-                            $expandConfig: {
-                                expandable: value.canExpand,
-                                expand: false,
-                            },
+                            incidentCount: value.incidentCount,
+                            $expandConfig:
+                                value.spottingCount > 0 ||
+                                value.incidentCount > 0
+                                    ? { expandable: true, expand: false }
+                                    : { expandable: false, expand: false },
                         };
                     })
                     .sort((a, b) => {
@@ -133,7 +135,9 @@ implements OnInit, OnChanges, OnDestroy
                 } else {
                     val.count = vehicleType[val.key];
                 }
+
             });
+
         }
 
         console.log("sectionData: ", sectionData);
