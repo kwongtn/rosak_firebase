@@ -65,6 +65,12 @@ export class FormUploadComponent {
             this.files[files[fileIndex].name] = imageFile;
         });
     }
+
+    onImageClick(fileName: string) {
+        console.log(fileName);
+        delete this.files[fileName];
+    }
+
     // alertMsg(event: any[]) {
     //     this.message = event;
     // }
