@@ -1,0 +1,21 @@
+<ng-container>
+    <div *ngFor="let file of files | keyvalue" class="devui-add-images">
+        <div class="devui-add-items">
+            <img class="image" [src]="file.value.buffer" />
+        </div>
+        <span class="filename"> {{ file.value.displayFilename }}</span>
+    </div>
+</ng-container>
+<d-multiple-upload
+    #multipleupload
+    [enableDrop]="true"
+    [fileOptions]="fileOptions"
+    [uploadOptions]="uploadOptions"
+    [filePath]="'name'"
+    [oneTimeUpload]="true"
+    [withoutBtn]="true"
+    (fileDrop)="onAddFile($event)"
+    (fileSelect)="onAddFile($event)"
+    (fileOver)="fileOver($event)"
+>
+</d-multiple-upload>

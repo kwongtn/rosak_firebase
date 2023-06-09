@@ -238,6 +238,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 isAnonymous: new UntypedFormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
                 location: new UntypedFormControl(false, []),
+                uploads: new UntypedFormControl([], []),
             },
             {
                 validators: [

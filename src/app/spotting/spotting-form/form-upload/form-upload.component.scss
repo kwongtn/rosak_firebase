@@ -1,0 +1,46 @@
+@import "ng-devui/styles-var/devui-var.scss";
+
+.devui-add-images {
+    width: 100px;
+    height: 100px;
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 8px;
+
+    .devui-add-items {
+        background-color: $devui-default-bg;
+        width: 100%;
+        height: 100%;
+        border-radius: 2px;
+        border: 1px solid $devui-line;
+        color: $devui-text;
+
+        & > * {
+            position: absolute;
+            width: 80%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+        }
+
+        span {
+            text-align: center;
+        }
+
+        .devui-cancel-upload {
+            display: block;
+            margin-top: 8px;
+
+            &:hover {
+                color: $devui-link;
+            }
+        }
+    }
+}
