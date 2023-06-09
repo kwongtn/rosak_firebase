@@ -1,3 +1,4 @@
+<div class="header">Image Uploads</div>
 <ng-container>
     <div *ngFor="let file of files | keyvalue" class="devui-add-images">
         <div class="devui-add-items">
@@ -8,10 +9,12 @@
 </ng-container>
 <d-multiple-upload
     #multipleupload
+    class="upload-box"
     [enableDrop]="true"
     [fileOptions]="fileOptions"
     [uploadOptions]="uploadOptions"
     [filePath]="'name'"
+    [placeholderText]="'Click or drag files here to upload'"
     [oneTimeUpload]="true"
     [withoutBtn]="true"
     (fileDrop)="onAddFile($event)"

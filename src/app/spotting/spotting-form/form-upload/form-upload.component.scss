@@ -1,5 +1,11 @@
 @import "ng-devui/styles-var/devui-var.scss";
 
+.header {
+    font-weight: bold;
+    text-decoration: underline;
+    padding-bottom: 10px;
+}
+
 .devui-add-images {
     width: 100px;
     height: 100px;
@@ -43,4 +49,8 @@
             }
         }
     }
+}
+
+.upload-box {
+    padding-top: 10px;
 }
