@@ -51,6 +51,10 @@ export class FormUploadComponent {
         return;
     }
 
+    beforeUpload(file: any) {
+        return false;
+    }
+
     fileOver(event: boolean) {
         this.isDropOver = event;
         console.log(event);

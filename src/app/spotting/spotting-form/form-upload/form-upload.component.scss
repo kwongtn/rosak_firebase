@@ -13,7 +13,35 @@
     position: relative;
     display: inline-block;
     margin-right: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 50px;
+    vertical-align: top;
+    padding-bottom: 0px;
+
+    &.devui-upload {
+        border: 1px dashed $devui-line;
+        border-radius: 2px;
+
+        &:hover {
+            border-color: $devui-brand;
+
+            .icon-op-add {
+                color: $devui-icon-fill-active;
+            }
+        }
+
+        &.devui-upload-dropover {
+            border-color: $devui-brand;
+        }
+
+        .icon-op-add {
+            font-size: 16px;
+            color: $devui-icon-fill;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+    }
 
     .devui-add-items {
         background-color: $devui-default-bg;
@@ -49,8 +77,4 @@
             }
         }
     }
-}
-
-.upload-box {
-    padding-top: 10px;
 }
