@@ -48,7 +48,7 @@ import {
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
         addEvent(input: $data) {
-            ok
+            id
         }
     }
 `;

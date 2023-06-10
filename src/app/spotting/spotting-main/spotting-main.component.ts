@@ -3,7 +3,7 @@ import { DialogService } from "ng-devui";
 import { firstValueFrom, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
-    GetLinesResponse
+    GetLinesResponse,
 } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 
@@ -12,7 +12,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 
 import { ToastService } from "../../services/toast/toast.service";
 import {
-    SpottingFormComponent
+    SpottingFormComponent,
 } from "../spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "../utils";
 
@@ -85,7 +85,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     return;
                                 }
 
-                                if (mutationResult.data?.addEvent.ok) {
+                                if (mutationResult.data?.addEvent.id) {
                                     console.log("Mutation successful");
                                     results.modalInstance.hide();
                                 }
