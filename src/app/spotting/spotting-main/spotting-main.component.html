@@ -1,9 +1,25 @@
 <div class="button-container">
-    <d-button
-        class="spotting-form-button"
-        (click)="openStandardDialog('standard')"
-        >Add spotting entry</d-button
+    <span class="flex-buffer"></span>
+    <span
+        *ngIf="hadUpload"
+        [class]="
+            'spotting-progress-bar ' +
+            ($any($uploadPercentage | async) < 100 ? 'uploading' : '')
+        "
     >
+        <nz-progress
+            *ngIf="$totalCountIcon"
+            [nzPercent]="$uploadPercentage | async | number : '1.1-2'"
+            [nzSteps]="$totalCountIcon | async"
+            nzStrokeColor="#1890ff"
+            nzSize="small"
+        ></nz-progress>
+    </span>
+    <span class="spotting-form-button">
+        <d-button (click)="openStandardDialog('standard')"
+            >Add spotting entry</d-button
+        >
+    </span>
 </div>
 <div dLoading class="spotting-main-container" [showLoading]="showLoading">
     <div class="spotting-table-container" *ngIf="tabActiveId">

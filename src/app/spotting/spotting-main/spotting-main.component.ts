@@ -1,6 +1,6 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
-import { firstValueFrom, Subscription } from "rxjs";
+import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
     GetLinesResponse,
@@ -41,6 +41,14 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     tabActiveId: string | number | undefined = undefined;
     tabActiveTitle: string = "";
     tabItems: LineTabType[] = [];
+
+    countIcon: number = 0;
+    $countIcon: Subscription | undefined = undefined;
+
+    $totalCountIcon: Observable<number> | undefined = undefined;
+    $uploadPercentage: Observable<number> | undefined = undefined;
+
+    hadUpload: boolean = false;
 
     currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
@@ -158,6 +166,21 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             this.currentDataId = params["id"];
         });
 
+        this.$totalCountIcon =
+            this.imageUploadService.$totalUploadCount.asObservable();
+        this.$uploadPercentage =
+            this.imageUploadService.$percentUploaded.asObservable();
+
+        this.$countIcon = this.imageUploadService.$pendingUploadCount.subscribe(
+            (count) => {
+                this.countIcon = count;
+
+                if (!this.hadUpload && count > 0) {
+                    this.hadUpload = true;
+                }
+            }
+        );
+
         this.apollo
             .query<GetLinesResponse>({
                 query: GET_LINES,
@@ -183,6 +206,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     ngOnDestroy() {
         // this.querySubscription.unsubscribe();
         this.routeSubscription.unsubscribe();
+        this.$countIcon?.unsubscribe();
     }
 
     activeTabChange(event: any) {

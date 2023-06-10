@@ -14,6 +14,7 @@ import { TooltipModule } from "ng-devui/tooltip";
 import { UploadModule } from "ng-devui/upload";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     SpottingStorageService,
@@ -109,6 +110,7 @@ import {
         // ng-zorro
         NzGridModule,
         NzPopconfirmModule,
+        NzProgressModule,
         NzToolTipModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
