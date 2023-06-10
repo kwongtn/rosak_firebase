@@ -28,6 +28,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     countIcon: number = 0;
     $countIcon: Subscription | undefined = undefined;
 
+    hadUpload: boolean = false;
+
     constructor(public router: Router, private themeService: ThemeService, 
         private imageUploadService: ImageUploadService) {
         return;
@@ -44,6 +46,10 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.$countIcon = this.imageUploadService.$pendingUploadCount.subscribe(
             (count) => {
                 this.countIcon = count;
+
+                if(!this.hadUpload && count > 0) {
+                    this.hadUpload = true;
+                }
             }
         );
     }

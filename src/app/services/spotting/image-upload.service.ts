@@ -1,4 +1,3 @@
-
 import { BehaviorSubject } from "rxjs";
 
 import { Injectable } from "@angular/core";
@@ -11,7 +10,9 @@ export class ImageUploadService {
         spottingId: number;
         file: File;
     }[] = [];
-    $pendingUploadCount: BehaviorSubject<number> = new BehaviorSubject<number>(0);
+    $pendingUploadCount: BehaviorSubject<number> = new BehaviorSubject<number>(
+        0
+    );
 
     constructor() {
         return;
