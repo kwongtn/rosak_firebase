@@ -36,6 +36,7 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
+import { ImageFile } from "./form-upload/form-upload.component";
 import { VehicleFormOption } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
@@ -238,7 +239,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 isAnonymous: new UntypedFormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
                 location: new UntypedFormControl(false, []),
-                uploads: new UntypedFormControl([], []),
+                uploads: new UntypedFormControl({}, []),
             },
             {
                 validators: [
@@ -391,6 +392,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             return;
         }
         this.showedLocationPopout = false;
+    }
+
+    onNewImage(images: { [key: string]: ImageFile }) {
+        this.formGroup.patchValue({
+            uploads: images,
+        });
     }
 
     onLineChanges(event: FormInputType): void {

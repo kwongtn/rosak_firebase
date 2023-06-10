@@ -1,8 +1,8 @@
 import { IFileOptions, IUploadOptions } from "ng-devui/upload";
 
-import { Component } from "@angular/core";
+import { Component, EventEmitter, Output } from "@angular/core";
 
-class ImageFile {
+export class ImageFile {
     name: string;
     file: File;
     buffer: string | ArrayBuffer | null = null;
@@ -40,6 +40,8 @@ class ImageFile {
     styleUrls: ["./form-upload.component.scss"],
 })
 export class FormUploadComponent {
+    @Output() newImageEvent = new EventEmitter<{ [key: string]: ImageFile }>();
+
     files: { [key: string]: ImageFile } = {};
     isDropOver = false;
     uploadOptions: IUploadOptions = {
@@ -61,7 +63,6 @@ export class FormUploadComponent {
 
     fileOver(event: boolean) {
         this.isDropOver = event;
-        console.log(event);
     }
 
     onAddFile(files: File[]) {
@@ -72,6 +73,8 @@ export class FormUploadComponent {
             );
             this.files[files[fileIndex].name] = imageFile;
         });
+
+        this.newImageEvent.emit(this.files);
     }
 
     onImageClick(fileName: string) {

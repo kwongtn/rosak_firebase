@@ -344,7 +344,9 @@
             </div>
 
             <div nz-col nzXs="24" nzLg="12">
-                <spotting-form-upload></spotting-form-upload>
+                <spotting-form-upload
+                    (newImageEvent)="onNewImage($event)"
+                ></spotting-form-upload>
             </div>
         </div>
     </form>
