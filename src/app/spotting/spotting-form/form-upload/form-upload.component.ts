@@ -23,7 +23,11 @@ class ImageFile {
 
         if (this.name.length > 16) {
             this.displayFilename =
-                this.name.substring(0, 16) + "..." + this.name.split(".").pop();
+                this.name.substring(0, 12) +
+                "\n" +
+                this.name.substring(12, 16) +
+                "..." +
+                this.name.split(".").pop();
         } else {
             this.displayFilename = this.name;
         }
