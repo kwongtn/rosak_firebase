@@ -118,20 +118,19 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     results.modalInstance.hide();
                                 }
 
+                                let toastMessage =
+                                    "Spotting entry recorded! ";
+                                if (uploads.length > 0) {
+                                    toastMessage +=
+                                        "Please wait for uploads to complete before closing this tab.";
+                                } else {
+                                    toastMessage += "🥳";
+                                }
+
                                 this.toastService.addMessage(
-                                    "Success! Your spotting entry is successfully added! 🥳",
+                                    toastMessage,
                                     "success"
                                 );
-
-                                if (uploads.length > 0) {
-                                    this.toastService.addMessage(
-                                        "Image uploading, please do not close tab until further notice.",
-                                        "info",
-                                        {
-                                            nzDuration: 10000,
-                                        }
-                                    );
-                                }
                             })
                             .catch((reason) => {
                                 console.log(reason);
