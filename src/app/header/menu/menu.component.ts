@@ -1,6 +1,17 @@
+import { Subscription } from "rxjs";
+import {
+    ImageUploadService,
+} from "src/app/services/spotting/image-upload.service";
 import { ThemeService } from "src/app/services/theme/theme.service";
 
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import {
+    Component,
+    EventEmitter,
+    Input,
+    OnDestroy,
+    OnInit,
+    Output,
+} from "@angular/core";
 import { Router } from "@angular/router";
 
 @Component({
@@ -8,13 +19,17 @@ import { Router } from "@angular/router";
     templateUrl: "./menu.component.html",
     styleUrls: ["./menu.component.scss"],
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent implements OnInit, OnDestroy {
     @Input() menuList: any[] = [];
     @Input() selectedItem = {};
     @Output() menuEvent = new EventEmitter<string>();
     curLanguage!: string;
 
-    constructor(public router: Router, private themeService: ThemeService) {
+    countIcon: number = 0;
+    $countIcon: Subscription | undefined = undefined;
+
+    constructor(public router: Router, private themeService: ThemeService, 
+        private imageUploadService: ImageUploadService) {
         return;
     }
 
@@ -25,6 +40,16 @@ export class MenuComponent implements OnInit {
                 this.selectedItem = this.menuList[i];
             }
         }
+
+        this.$countIcon = this.imageUploadService.$pendingUploadCount.subscribe(
+            (count) => {
+                this.countIcon = count;
+            }
+        );
+    }
+    
+    ngOnDestroy(): void {
+        this.$countIcon?.unsubscribe();
     }
 
     onSelect(item: any): void {

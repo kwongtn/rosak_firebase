@@ -57,4 +57,14 @@
     >
         <i class="icon icon-bug menu-link" (click)="reportBug()"></i>
     </div>
+
+    <div
+        *ngIf="countIcon > 0"
+        dTooltip
+        class="menu-item"
+        [content]="countIcon + ' uploads pending'"
+        [position]="'left'"
+    >
+        <nz-badge nzStandalone [nzCount]="countIcon"></nz-badge>
+    </div>
 </div>
