@@ -6,6 +6,9 @@ import {
     GetLinesResponse,
 } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
+import {
+    ImageUploadService,
+} from "src/app/services/spotting/image-upload.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -50,7 +53,8 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         private toastService: ToastService,
         private apollo: Apollo,
         private router: Router,
-        private route: ActivatedRoute
+        private route: ActivatedRoute,
+        private imageUploadService: ImageUploadService
     ) {}
 
     openStandardDialog(dialogtype?: string) {
@@ -71,11 +75,18 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     handler: () => {
                         const submitAction =
                             results.modalContentInstance.onSubmit() as
-                                | Promise<MutationResult<any> | undefined>
+                                | Promise<{
+                                      spottingSubmission: Promise<
+                                          MutationResult<any> | undefined
+                                      >;
+                                      uploads: File[];
+                                  }>
                                 | undefined;
 
                         submitAction
-                            ?.then((mutationResult) => {
+                            ?.then(async ({ spottingSubmission, uploads }) => {
+                                const mutationResult = await spottingSubmission;
+
                                 if (!mutationResult) {
                                     this.toastService.addToast(
                                         "Error",
@@ -86,7 +97,16 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                 }
 
                                 if (mutationResult.data?.addEvent.id) {
-                                    console.log("Mutation successful");
+                                    console.log(
+                                        `Mutation successful, adding ${uploads.length} file to upload queue.`
+                                    );
+                                    uploads.forEach((file) => {
+                                        this.imageUploadService.addToQueue(
+                                            mutationResult.data?.addEvent.id,
+                                            file
+                                        );
+                                    });
+
                                     results.modalInstance.hide();
                                 }
 
@@ -94,6 +114,16 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     "Success! Your spotting entry is successfully added! 🥳",
                                     "success"
                                 );
+
+                                if (uploads.length > 0) {
+                                    this.toastService.addMessage(
+                                        "Image uploading, please do not close tab until further notice.",
+                                        "info",
+                                        {
+                                            nzDuration: 10000,
+                                        }
+                                    );
+                                }
                             })
                             .catch((reason) => {
                                 console.log(reason);
