@@ -6,6 +6,14 @@
             'spotting-progress-bar ' +
             ($any($uploadPercentage | async) < 100 ? 'uploading' : '')
         "
+        nz-tooltip
+        [nzTooltipTitle]="
+            $any($totalCountIcon | async) -
+            countIcon +
+            ' of ' +
+            ($totalCountIcon | async) +
+            ' uploaded'
+        "
     >
         <nz-progress
             *ngIf="$totalCountIcon"
