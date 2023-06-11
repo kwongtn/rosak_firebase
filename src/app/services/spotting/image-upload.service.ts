@@ -1,28 +1,85 @@
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, firstValueFrom } from "rxjs";
+import { catchError } from "rxjs/operators";
+import { environment } from "src/environments/environment";
 
+import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
+import { PromisePool } from "@supercharge/promise-pool";
 
 import { ToastService } from "../toast/toast.service";
+
+interface IPendingUpload {
+    spottingId: number;
+    file: File;
+}
 
 @Injectable({
     providedIn: "root",
 })
 export class ImageUploadService {
-    pendingUploads: {
-        spottingId: number;
-        file: File;
-    }[] = [];
+    pendingUploads: IPendingUpload[] = [];
     $pendingUploadCount: BehaviorSubject<number> = new BehaviorSubject<number>(
         0
     );
     $totalUploadCount: BehaviorSubject<number> = new BehaviorSubject<number>(0);
     $percentUploaded: BehaviorSubject<number> = new BehaviorSubject<number>(0);
 
-    constructor() {
-        return;
+    uploadIntervalObj: NodeJS.Timer | undefined = undefined;
+    isUploading: boolean = false;
+
+    constructor(private toastService: ToastService, private http: HttpClient) {}
+
+    async triggerUpload(): Promise<void> {
+        const currentUploads: IPendingUpload[] = [];
+        for (const pending of this.pendingUploads) {
+            currentUploads.push(pending);
+        }
+        this.pendingUploads = [];
+
+        await PromisePool.withConcurrency(environment.upload.concurrency)
+            .for(currentUploads)
+            .process(({ spottingId, file }) => {
+                this.isUploading = true;
+                const input = new FormData();
+                input.append("spotting_event_id", spottingId.toString());
+                input.append("image", file);
+
+                const httpPost = this.http
+                    .post(`${environment.backendUrl}spotting_upload/`, input)
+                    .pipe(
+                        catchError((err) => {
+                            // Recover if there is any error
+                            this.pendingUploads.push({
+                                spottingId,
+                                file,
+                            });
+                            throw new Error(err);
+                        })
+                    );
+
+                return firstValueFrom(httpPost).then((res) => {
+                    this.onUploaded();
+                    return res;
+                });
+            })
+            .then(() => {
+                this.addCounts();
+                this.isUploading = false;
+            });
     }
 
-    refreshCounts(addCount: number = 0) {
+    onUploaded(): void {
+        // Workaround to display correct upload information
+        const totalUploadCount = this.$totalUploadCount.getValue();
+        const pendingUpload = this.$pendingUploadCount.getValue() - 1;
+
+        this.$pendingUploadCount.next(pendingUpload);
+        this.$percentUploaded.next(
+            ((totalUploadCount - pendingUpload) * 100) / totalUploadCount
+        );
+    }
+
+    addCounts(addCount: number = 0) {
         if (addCount > 0) {
             this.$totalUploadCount.next(
                 this.$totalUploadCount.getValue() + addCount
@@ -39,16 +96,33 @@ export class ImageUploadService {
         if (this.pendingUploads.length === 0) {
             this.toastService.addMessage(
                 "Uploads complete. You may now close this tab.",
-                "success"
+                "success",
+                {
+                    nzDuration: 10000,
+                }
             );
+
+            if (this.uploadIntervalObj) {
+                clearInterval(this.uploadIntervalObj);
+                this.uploadIntervalObj = undefined;
+            }
         }
     }
 
     addToQueue(spottingId: number, file: File) {
         this.pendingUploads.push({ spottingId, file });
-        this.refreshCounts(1);
+        this.addCounts(1);
 
         console.log("Pending uploads");
         console.log(this.pendingUploads);
+
+        if (!this.uploadIntervalObj) {
+            this.uploadIntervalObj = setInterval(() => {
+                console.log("Interval");
+                if (this.pendingUploads.length > 0 && !this.isUploading) {
+                    this.triggerUpload();
+                }
+            }, 1000);
+        }
     }
 }
