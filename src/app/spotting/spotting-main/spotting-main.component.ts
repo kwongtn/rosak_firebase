@@ -9,6 +9,7 @@ import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
     ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
+import { environment } from "src/environments/environment";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -35,6 +36,7 @@ const GET_LINES = gql`
     styleUrls: ["./spotting-main.component.scss"],
 })
 export class SpottingMainComponent implements OnInit, OnDestroy {
+    env = environment;
     tableData: TableDataType[] = [];
     showLoading: boolean = true;
 
@@ -118,8 +120,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     results.modalInstance.hide();
                                 }
 
-                                let toastMessage =
-                                    "Spotting entry recorded! ";
+                                let toastMessage = "Spotting entry recorded! ";
                                 if (uploads.length > 0) {
                                     toastMessage +=
                                         "Please wait for uploads to complete before closing this tab.";

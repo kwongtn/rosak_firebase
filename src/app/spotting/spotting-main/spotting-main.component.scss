@@ -3,6 +3,12 @@
 .button-container {
     display: flex;
 
+    &.staging {
+        @media (max-width: 1360px) {
+            padding-top: 40px;
+        }
+    }
+
     .flex-buffer {
         flex: 70%;
     }

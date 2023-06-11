@@ -1,4 +1,4 @@
-<div class="button-container">
+<div [class]="'button-container ' + env.sentry.environment">
     <span class="flex-buffer"></span>
     <span
         *ngIf="hadUpload"
