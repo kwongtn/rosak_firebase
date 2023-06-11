@@ -6,6 +6,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { PromisePool } from "@supercharge/promise-pool";
 
+import { AuthService } from "../auth/auth.service";
 import { ToastService } from "../toast/toast.service";
 
 interface IPendingUpload {
@@ -27,7 +28,11 @@ export class ImageUploadService {
     uploadIntervalObj: NodeJS.Timer | undefined = undefined;
     isUploading: boolean = false;
 
-    constructor(private toastService: ToastService, private http: HttpClient) {}
+    constructor(
+        private toastService: ToastService,
+        private http: HttpClient,
+        public authService: AuthService
+    ) {}
 
     async triggerUpload(): Promise<void> {
         const currentUploads: IPendingUpload[] = [];
@@ -44,23 +49,36 @@ export class ImageUploadService {
                 input.append("spotting_event_id", spottingId.toString());
                 input.append("image", file);
 
-                const httpPost = this.http
-                    .post(`${environment.backendUrl}spotting_upload/`, input)
-                    .pipe(
-                        catchError((err) => {
-                            // Recover if there is any error
-                            this.pendingUploads.push({
-                                spottingId,
-                                file,
-                            });
-                            throw new Error(err);
-                        })
-                    );
+                return Promise.all([this.authService.getIdToken()]).then(
+                    ([firebaseAuthKey]) => {
+                        const httpPost = this.http
+                            .post(
+                                `${environment.backendUrl}spotting_upload/`,
+                                input,
+                                {
+                                    headers: {
+                                        "Firebase-Auth-Key":
+                                            firebaseAuthKey as string,
+                                    },
+                                }
+                            )
+                            .pipe(
+                                catchError((err) => {
+                                    // Recover if there is any error
+                                    this.pendingUploads.push({
+                                        spottingId,
+                                        file,
+                                    });
+                                    throw new Error(err);
+                                })
+                            );
 
-                return firstValueFrom(httpPost).then((res) => {
-                    this.onUploaded();
-                    return res;
-                });
+                        return firstValueFrom(httpPost).then((res) => {
+                            this.onUploaded();
+                            return res;
+                        });
+                    }
+                );
             })
             .then(() => {
                 this.addCounts();
