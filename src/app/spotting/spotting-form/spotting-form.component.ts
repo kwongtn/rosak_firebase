@@ -36,6 +36,7 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
+import { ImageFile } from "./form-upload/form-upload.component";
 import { VehicleFormOption } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
@@ -48,7 +49,7 @@ import {
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
         addEvent(input: $data) {
-            ok
+            id
         }
     }
 `;
@@ -238,6 +239,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 isAnonymous: new UntypedFormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
                 location: new UntypedFormControl(false, []),
+                uploads: new UntypedFormControl({}, []),
             },
             {
                 validators: [
@@ -285,12 +287,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     onVehicleChanges(event: VehicleFormInputType): void {
         // When adding vehicle status here, remember to edit validators too
         if (
-            [
-                "DECOMMISSIONED",
-                "MARRIED",
-                "OUT_OF_SERVICE",
-                "UNKNOWN",
-            ].includes(event.status)
+            ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
+                event.status
+            )
         ) {
             this.showVehicleWarning = true;
         } else {
@@ -392,6 +391,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.showedLocationPopout = false;
     }
 
+    onNewImage(images: { [key: string]: ImageFile }) {
+        this.formGroup.patchValue({
+            uploads: images,
+        });
+    }
+
     onLineChanges(event: FormInputType): void {
         console.log(event);
 
@@ -418,7 +423,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
-    onSubmit(): Promise<MutationResult<any> | undefined> | undefined {
+    onSubmit():
+        | Promise<{
+              spottingSubmission: Promise<MutationResult<any> | undefined>;
+              uploads: File[];
+          }>
+        | undefined {
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
@@ -483,9 +493,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         this.spottingStorageService.setLine(formValues["line"]);
 
+        const uploads = Object.values(formValues["uploads"])
+            .filter((val) => {
+                return val != null;
+            })
+            .map((image: unknown) => {
+                return (image as ImageFile).file;
+            });
+
         // Removing fields not required by GQL
         formValues["line"] = undefined;
         formValues["sanityTest"] = undefined;
+        formValues["uploads"] = undefined;
 
         console.log(formValues);
 
@@ -509,7 +528,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
             this.submitting = lastValueFrom(mutationObservable);
 
-            return this.submitting;
+            return {
+                uploads,
+                spottingSubmission: this.submitting,
+            };
         });
     }
 }

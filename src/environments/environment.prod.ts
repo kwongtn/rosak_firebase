@@ -26,4 +26,7 @@ export const environment = {
     semaphore: {
         badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
     },
+    upload: {
+        concurrency: 5,
+    },
 };

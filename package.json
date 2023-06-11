@@ -36,6 +36,7 @@
         "@sentry/angular": "^7.24.2",
         "@sentry/replay": "^7.24.2",
         "@sentry/tracing": "^7.7.0",
+        "@supercharge/promise-pool": "^2.4.0",
         "angular-build-info": "^2.0.1",
         "apollo-angular": "^4.1.0",
         "emoji-toolkit": "^7.0.1",
