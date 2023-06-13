@@ -426,7 +426,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     onSubmit():
         | Promise<{
               spottingSubmission: Promise<MutationResult<any> | undefined>;
-              uploads: File[];
+              uploads: ImageFile[];
           }>
         | undefined {
         console.log(this.formGroup.value);
@@ -493,13 +493,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         this.spottingStorageService.setLine(formValues["line"]);
 
-        const uploads = Object.values(formValues["uploads"])
-            .filter((val) => {
-                return val != null;
-            })
-            .map((image: unknown) => {
-                return (image as ImageFile).file;
-            });
+        const uploads: ImageFile[] = Object.values<ImageFile>(
+            formValues["uploads"]
+        ).filter((val) => {
+            return val != null;
+        });
 
         // Removing fields not required by GQL
         formValues["line"] = undefined;

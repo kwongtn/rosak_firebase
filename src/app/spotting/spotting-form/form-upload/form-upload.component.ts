@@ -1,25 +1,52 @@
 import { IFileOptions, IUploadOptions } from "ng-devui/upload";
+import {
+    ImageCompressionService,
+} from "src/app/services/image-compression/image-compression.service";
+import { ToastService } from "src/app/services/toast/toast.service";
 
 import { Component, EventEmitter, Output } from "@angular/core";
+
+const MAX_MEGABYTE = 5e6;
 
 export class ImageFile {
     name: string;
     file: File;
-    buffer: string | ArrayBuffer | null = null;
     displayFilename: string = "";
 
-    constructor(name: string, file: File) {
-        this.name = name;
+    buffer: string | ArrayBuffer | null = null;
+
+    toCompress: boolean = false;
+    isCompressed: boolean = false;
+
+    compressServiceInstance: ImageCompressionService;
+
+    pushToPreview(file: File): void {
+        this.compressServiceInstance
+            .ResizeImage(file, 300, 300)
+            .then((resizedFile: File) => {
+                return this.compressServiceInstance.FileToDataUrl(resizedFile);
+            })
+            .then((dataUrl: string) => {
+                this.buffer = dataUrl;
+            });
+    }
+
+    constructor(file: File, compressServiceInstance: ImageCompressionService) {
         this.file = file;
+        this.name = file.name;
+        this.compressServiceInstance = compressServiceInstance;
 
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
+        this.pushToPreview(file);
 
-        reader.onload = (event) => {
-            if (event.target) {
-                this.buffer = event.target.result;
-            }
-        };
+        if (file.size > MAX_MEGABYTE) {
+            this.toCompress = true;
+            compressServiceInstance
+                .ResizeToSize(file, MAX_MEGABYTE)
+                .then((compressedFile: File) => {
+                    this.file = compressedFile;
+                    this.isCompressed = true;
+                });
+        }
 
         if (this.name.length > 16) {
             this.displayFilename =
@@ -53,7 +80,10 @@ export class FormUploadComponent {
         multiple: true,
     };
 
-    constructor() {
+    constructor(
+        private imageCompress: ImageCompressionService,
+        private toastService: ToastService
+    ) {
         return;
     }
 
@@ -67,11 +97,15 @@ export class FormUploadComponent {
 
     onAddFile(files: File[]) {
         [...Array(files.length).keys()].forEach((fileIndex: number) => {
-            const imageFile = new ImageFile(
-                files[fileIndex].name,
-                files[fileIndex]
-            );
-            this.files[files[fileIndex].name] = imageFile;
+            const file = files[fileIndex];
+            if (Object.keys(this.files).includes(file.name)) {
+                return;
+            }
+
+            console.log(file);
+
+            const imageFile = new ImageFile(file, this.imageCompress);
+            this.files[file.name] = imageFile;
         });
 
         this.newImageEvent.emit(this.files);

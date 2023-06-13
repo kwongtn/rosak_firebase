@@ -1,5 +1,8 @@
 import { BehaviorSubject, firstValueFrom } from "rxjs";
 import { catchError } from "rxjs/operators";
+import {
+    ImageFile,
+} from "src/app/spotting/spotting-form/form-upload/form-upload.component";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
@@ -11,7 +14,7 @@ import { ToastService } from "../toast/toast.service";
 
 interface IPendingUpload {
     spottingId: number;
-    file: File;
+    file: ImageFile;
 }
 
 @Injectable({
@@ -47,7 +50,16 @@ export class ImageUploadService {
                 this.isUploading = true;
                 const input = new FormData();
                 input.append("spotting_event_id", spottingId.toString());
-                input.append("image", file);
+
+                if (file.toCompress && !file.isCompressed) {
+                    this.pendingUploads.push({
+                        spottingId,
+                        file,
+                    });
+                    return;
+                } else {
+                    input.append("image", file.file);
+                }
 
                 return Promise.all([this.authService.getIdToken()]).then(
                     ([firebaseAuthKey]) => {
@@ -127,7 +139,7 @@ export class ImageUploadService {
         }
     }
 
-    addToQueue(spottingId: number, file: File) {
+    addToQueue(spottingId: number, file: ImageFile) {
         this.pendingUploads.push({ spottingId, file });
         this.addCounts(1);
 
