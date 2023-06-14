@@ -1,3 +1,4 @@
+import { Message } from "ng-devui";
 import { IFileOptions, IUploadOptions } from "ng-devui/upload";
 import {
     ImageCompressionService,
@@ -91,6 +92,7 @@ export class FormUploadComponent {
     };
     fileOptions: IFileOptions = {
         multiple: true,
+        accept: VALID_TYPES.join(","),
     };
 
     constructor(
@@ -104,27 +106,28 @@ export class FormUploadComponent {
         return false;
     }
 
+    alertMsgEvent(messages: Message[]) {
+        this.toastService.addMessage(
+            `You can only upload images of type ${VALID_TYPES.join(", ")}`,
+            "error"
+        );
+    }
+
     fileOver(event: boolean) {
         this.isDropOver = event;
     }
 
     onAddFile(files: File[]) {
+        // File array is array of all existing files
         [...Array(files.length).keys()].forEach((fileIndex: number) => {
             const file = files[fileIndex];
-            if (!VALID_TYPES.includes(file.type)) {
-                this.toastService.addMessage(
-                    `You can only upload images of type ${VALID_TYPES.join(
-                        ", "
-                    )}`,
-                    "error"
-                );
-                return;
+
+            if (!Object.keys(this.files).includes(file.name)) {
+                console.log(file);
+
+                const imageFile = new ImageFile(file, this.imageCompress);
+                this.files[file.name] = imageFile;
             }
-
-            console.log(file);
-
-            const imageFile = new ImageFile(file, this.imageCompress);
-            this.files[file.name] = imageFile;
         });
 
         this.newImageEvent.emit(this.files);
@@ -134,13 +137,4 @@ export class FormUploadComponent {
         console.log(fileName);
         delete this.files[fileName];
     }
-
-    // alertMsg(event: any[]) {
-    //     this.message = event;
-    // }
-    // deleteFile(currFile: any) {
-    //     this.fileUploaders = this.fileUploaders.filter((fileUploader) => {
-    //         return currFile !== fileUploader;
-    //     });
-    // }
 }

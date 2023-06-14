@@ -22,6 +22,7 @@
     [fileOptions]="fileOptions"
     [uploadOptions]="uploadOptions"
     [beforeUpload]="beforeUpload"
+    (alertMsgEvent)="alertMsgEvent($event)"
     (fileSelect)="onAddFile($event)"
     (fileOver)="fileOver($event)"
 >
