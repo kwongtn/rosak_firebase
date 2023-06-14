@@ -3,8 +3,6 @@ import { first, map } from "rxjs/operators";
 
 import { Injectable } from "@angular/core";
 
-// import { StoredImage } from "../../classes/stored-file";
-
 export interface IImageOptions {
     max: number;
 }
@@ -105,7 +103,33 @@ export class ImageCompressionService {
     ) {
         const img = await this._createImage(file);
 
-        for (let i = 100; i > 0; i--) {
+        const output = await this.ResizeImage(
+            file,
+            img.naturalHeight,
+            img.naturalWidth,
+            format,
+            quality
+        );
+
+        if (output.size <= max_size) {
+            console.log(
+                `Compressed image without resizing from ${file.size / 1e6} to ${
+                    output.size / 1e6
+                } MB`
+            );
+            return output;
+        }
+
+        let top = 100;
+        let bottom = 0;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const i = (top + bottom) / 2;
+            console.debug(
+                `Compressing image @ ${i}%, top = ${top}, bottom = ${bottom}`
+            );
+
             const output = await this.ResizeImage(
                 file,
                 Math.ceil(img.naturalHeight * (i / 100)),
@@ -114,9 +138,17 @@ export class ImageCompressionService {
                 quality
             );
 
-            if (output.size <= max_size) {
+            if (output.size > max_size) {
+                top = i;
+            } else {
+                bottom = i;
+            }
+
+            if (Math.ceil(top) === Math.ceil(bottom)) {
                 console.log(
-                    `Resized image @ ${i}% from ${file.size} to ${output.size} bytes`
+                    `Resized image @ ${i}% from ${file.size / 1e6} to ${
+                        output.size / 1e6
+                    } MB`
                 );
                 return output;
             }
