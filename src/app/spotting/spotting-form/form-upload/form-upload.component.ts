@@ -6,7 +6,20 @@ import { ToastService } from "src/app/services/toast/toast.service";
 
 import { Component, EventEmitter, Output } from "@angular/core";
 
-const MAX_MEGABYTE = 5e6;
+const MAX_MEGABYTE = 9e6;
+
+const VALID_TYPES: string[] = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/tiff",
+    // Future support
+    // "video/mp4",
+    // "video/x-msvideo",
+    // "video/webm",
+    // "video/x-msvideo",
+    // quicktime, x-ms-wmv, x-matroska, x-flv
+];
 
 export class ImageFile {
     name: string;
@@ -98,7 +111,13 @@ export class FormUploadComponent {
     onAddFile(files: File[]) {
         [...Array(files.length).keys()].forEach((fileIndex: number) => {
             const file = files[fileIndex];
-            if (Object.keys(this.files).includes(file.name)) {
+            if (!VALID_TYPES.includes(file.type)) {
+                this.toastService.addMessage(
+                    `You can only upload images of type ${VALID_TYPES.join(
+                        ", "
+                    )}`,
+                    "error"
+                );
                 return;
             }
 
