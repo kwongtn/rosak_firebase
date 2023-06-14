@@ -1,3 +1,4 @@
+import { Message } from "ng-devui";
 import { IFileOptions, IUploadOptions } from "ng-devui/upload";
 import {
     ImageCompressionService,
@@ -6,7 +7,20 @@ import { ToastService } from "src/app/services/toast/toast.service";
 
 import { Component, EventEmitter, Output } from "@angular/core";
 
-const MAX_MEGABYTE = 5e6;
+const MAX_MEGABYTE = 9e6;
+
+const VALID_TYPES: string[] = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/tiff",
+    // Future support
+    // "video/mp4",
+    // "video/x-msvideo",
+    // "video/webm",
+    // "video/x-msvideo",
+    // quicktime, x-ms-wmv, x-matroska, x-flv
+];
 
 export class ImageFile {
     name: string;
@@ -78,6 +92,7 @@ export class FormUploadComponent {
     };
     fileOptions: IFileOptions = {
         multiple: true,
+        accept: VALID_TYPES.join(","),
     };
 
     constructor(
@@ -91,21 +106,28 @@ export class FormUploadComponent {
         return false;
     }
 
+    alertMsgEvent(messages: Message[]) {
+        this.toastService.addMessage(
+            `You can only upload images of type ${VALID_TYPES.join(", ")}`,
+            "error"
+        );
+    }
+
     fileOver(event: boolean) {
         this.isDropOver = event;
     }
 
     onAddFile(files: File[]) {
+        // File array is array of all existing files
         [...Array(files.length).keys()].forEach((fileIndex: number) => {
             const file = files[fileIndex];
-            if (Object.keys(this.files).includes(file.name)) {
-                return;
+
+            if (!Object.keys(this.files).includes(file.name)) {
+                console.log(file);
+
+                const imageFile = new ImageFile(file, this.imageCompress);
+                this.files[file.name] = imageFile;
             }
-
-            console.log(file);
-
-            const imageFile = new ImageFile(file, this.imageCompress);
-            this.files[file.name] = imageFile;
         });
 
         this.newImageEvent.emit(this.files);
@@ -115,13 +137,4 @@ export class FormUploadComponent {
         console.log(fileName);
         delete this.files[fileName];
     }
-
-    // alertMsg(event: any[]) {
-    //     this.message = event;
-    // }
-    // deleteFile(currFile: any) {
-    //     this.fileUploaders = this.fileUploaders.filter((fileUploader) => {
-    //         return currFile !== fileUploader;
-    //     });
-    // }
 }
