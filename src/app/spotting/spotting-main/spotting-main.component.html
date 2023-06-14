@@ -17,11 +17,17 @@
     >
         <nz-progress
             *ngIf="$totalCountIcon"
+            class="loading-elem"
             [nzPercent]="$uploadPercentage | async | number : '1.1-2'"
             [nzSteps]="$totalCountIcon | async"
             nzStrokeColor="#1890ff"
             nzSize="small"
         ></nz-progress>
+        <nz-spin
+            nzSimple
+            *ngIf="($uploadPercentage | async) !== 100"
+            class="loading-elem"
+        ></nz-spin>
     </span>
     <span class="spotting-form-button">
         <d-button (click)="openStandardDialog('standard')"
