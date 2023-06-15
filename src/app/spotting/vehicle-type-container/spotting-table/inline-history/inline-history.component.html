@@ -50,6 +50,21 @@
                             >
                             </spotting-type-cell-display>
                         </span>
+                        <span *ngSwitchCase="'notes'">
+                            <span
+                                class="picture-icon"
+                                *ngIf="rowItem['mediaCount'] > 0"
+                            >
+                                <span
+                                    nz-icon
+                                    nzType="picture"
+                                    nzTheme="outline"
+                                ></span>
+                                {{ rowItem["mediaCount"] }}
+                                -
+                            </span>
+                            {{ rowItem[colOption.field] }}
+                        </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]
                         }}</span>

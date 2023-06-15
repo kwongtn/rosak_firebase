@@ -71,6 +71,7 @@ export interface LastSpottings {
     destinationStation: LastSpottingsElementStation | null;
     notes: string;
     runNumber: string | null;
+    mediaCount: number;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;

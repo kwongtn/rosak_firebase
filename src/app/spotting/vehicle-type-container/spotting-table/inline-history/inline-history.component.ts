@@ -52,7 +52,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
             {
                 field: "notes",
                 header: "Notes",
-                fieldType: "text",
+                fieldType: "notes",
                 order: 4,
             },
         ],

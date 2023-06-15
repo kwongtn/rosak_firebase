@@ -25,6 +25,7 @@ export class GetSpottingHistoryService extends Query<GetVehiclesLastSpottingResp
                 type
                 notes
                 runNumber
+                mediaCount
                 location {
                     accuracy
                     altitudeAccuracy
