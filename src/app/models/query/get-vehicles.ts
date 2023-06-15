@@ -64,6 +64,7 @@ export interface LastSpottingsElementStation {
 }
 
 export interface LastSpottings {
+    id: string;
     spottingDate: string;
     status: VehicleStatus;
     type: SpottingType;
