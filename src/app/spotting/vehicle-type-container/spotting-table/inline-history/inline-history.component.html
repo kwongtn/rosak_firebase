@@ -6,7 +6,7 @@
     [tableWidthConfig]="tableWidthConfig"
     [lazy]="true"
     (loadMore)="loadMore($event)"
-    [virtualScroll]="true"
+    [virtualScroll]="false"
     [containFixHeaderHeight]="true"
     [fixHeader]="true"
     tableHeight="30vh"
@@ -62,7 +62,7 @@
                                     nzTheme="outline"
                                 ></span>
                                 {{ rowItem["mediaCount"] }}
-                                -
+                                <span *ngIf="rowItem['notes']"> - </span>
                             </span>
                             {{ rowItem[colOption.field] }}
                         </span>
