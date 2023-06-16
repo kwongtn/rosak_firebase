@@ -54,6 +54,7 @@
                             <span
                                 class="picture-icon"
                                 *ngIf="rowItem['mediaCount'] > 0"
+                                (click)="onPictureIconClick(rowItem['id'])"
                             >
                                 <span
                                     nz-icon
@@ -69,6 +70,17 @@
                             rowItem[colOption.field]
                         }}</span>
                     </span>
+                </td>
+            </tr>
+
+            <tr
+                dTableRow
+                class="expand-row"
+                *ngIf="expandConfig[rowItem['id']]"
+            >
+                <td dTableCell [attr.colspan]="tableWidthConfig.length">
+                    <ui-spotting-image-list [eventId]="rowItem['id']">
+                    </ui-spotting-image-list>
                 </td>
             </tr>
         </ng-template>

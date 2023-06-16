@@ -28,6 +28,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
     querySubscription!: Subscription;
 
     dataSource: LastSpottingsTableElement[] = [];
+    expandConfig: { [key: string]: boolean } = {};
 
     dataTableOptions = {
         columns: [
@@ -92,6 +93,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
             ({ data, loading }) => {
                 this.loading = loading;
                 this.dataSource = this.mapGqlResultsToDisplayData(data);
+                this.expandConfig = this.mapGqlResultsToExpandConfig(data);
 
                 this.offset = this.dataSource.length;
             }
@@ -114,6 +116,10 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
                 this.dataSource = this.dataSource.concat(
                     this.mapGqlResultsToDisplayData(data)
                 );
+                this.expandConfig = {
+                    ...this.expandConfig,
+                    ...this.mapGqlResultsToExpandConfig(data),
+                };
 
                 this.loading = loading;
                 this.offset = this.dataSource.length;
@@ -136,6 +142,18 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
 
             return returnObj;
         });
+    }
+
+    mapGqlResultsToExpandConfig(data: any) {
+        const returnObj: { [key: string]: boolean } = {};
+        data.events.forEach((val: LastSpottingsTableElement) => {
+            returnObj[val.id] = false;
+        });
+        return returnObj;
+    }
+
+    onPictureIconClick(eventId: string) {
+        this.expandConfig[eventId] = !this.expandConfig[eventId];
     }
 
     ngOnDestroy() {

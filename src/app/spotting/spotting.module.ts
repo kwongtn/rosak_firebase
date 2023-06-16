@@ -19,6 +19,9 @@ import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
+    SpottingImageListModule,
+} from "src/app/@ui/spotting-image-list/spotting-image-list.module";
+import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
 
@@ -104,6 +107,7 @@ import {
         // Internal Imports
         CoordinatesHumanizerModule,
         GraphQLModule,
+        SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         SpottingTypePipeModule,
         VehicleStatusPipeModule,
