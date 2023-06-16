@@ -64,6 +64,7 @@ export interface LastSpottingsElementStation {
 }
 
 export interface LastSpottings {
+    id: string;
     spottingDate: string;
     status: VehicleStatus;
     type: SpottingType;
@@ -71,6 +72,7 @@ export interface LastSpottings {
     destinationStation: LastSpottingsElementStation | null;
     notes: string;
     runNumber: string | null;
+    mediaCount: number;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;
