@@ -2,6 +2,7 @@ import { QueryRef } from "apollo-angular";
 import { DataTableComponent, TableWidthConfig } from "ng-devui";
 import { ICategorySearchTagItem, SearchEvent } from "ng-devui/category-search";
 import { Subscription } from "rxjs";
+import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth/auth.service";
 import { environment } from "src/environments/environment";
 
@@ -10,13 +11,13 @@ import {
     HostListener,
     OnDestroy,
     OnInit,
-    ViewChild,
+    ViewChild
 } from "@angular/core";
 
 import {
     ConsoleEventsGqlResponseElement,
     ConsoleEventsGqlResponseTableDataElement,
-    ConsoleEventsGqlService,
+    ConsoleEventsGqlService
 } from "../services/events-gql/events-gql.service";
 import { MarkReadService } from "../services/mark-read/mark-read.service";
 import { categoryData } from "./category-search";
@@ -53,6 +54,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
 
     displayData: TableSourceType[] = [];
     totalCount: number | undefined = undefined;
+    expandConfig: { [key: string]: boolean } = {};
 
     lastSelectedRow: any = undefined;
     isShiftKeyDown: boolean = false;
@@ -122,7 +124,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             {
                 field: "notes",
                 header: "Notes",
-                fieldType: "text",
+                fieldType: "notes",
                 order: 8,
             },
         ],
@@ -179,6 +181,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                     this.displayData = this.mapGqlResultsToDisplayData(
                         data.events
                     );
+                    this.expandConfig = this.mapGqlResultsToExpandConfig(data);
 
                     this.totalCount = data.eventsCount;
                 }
@@ -269,11 +272,24 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                 this.displayData = this.displayData.concat(
                     this.mapGqlResultsToDisplayData(data.events)
                 );
+                this.expandConfig = {
+                    ...this.expandConfig,
+                    ...this.mapGqlResultsToExpandConfig(data),
+                };
                 this.totalCount = data.eventsCount;
 
                 this.showLoading = loading;
                 this.offset = this.displayData.length;
             });
+    }
+
+
+    mapGqlResultsToExpandConfig(data: any) {
+        const returnObj: { [key: string]: boolean } = {};
+        data.events.forEach((val: LastSpottingsTableElement) => {
+            returnObj[val.id] = false;
+        });
+        return returnObj;
     }
 
     ngOnDestroy(): void {
@@ -399,4 +415,9 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
 
         return returnObj;
     }
+
+    onPictureIconClick(eventId: string) {
+        this.expandConfig[eventId] = !this.expandConfig[eventId];
+    }
+    
 }

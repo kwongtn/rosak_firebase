@@ -95,6 +95,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 status
                 type
                 runNumber
+                mediaCount
                 location {
                     accuracy
                     altitudeAccuracy
