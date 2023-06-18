@@ -10,26 +10,29 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import {
+    SpottingImageListModule,
+} from "src/app/@ui/spotting-image-list/spotting-image-list.module";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import {
-    SpottingTypeCellDisplayModule
+    SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
 import {
-    VehicleStatusTagModule
+    VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import {
-    VehicleTableCellDisplayModule
+    VehicleTableCellDisplayModule,
 } from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.module";
 import {
-    CoordinatesHumanizerModule
+    CoordinatesHumanizerModule,
 } from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
 import { ProfileMainComponent } from "./main/main.component";
 import {
-    SpottingTrendsComponent
+    SpottingTrendsComponent,
 } from "./spotting-trends/spotting-trends.component";
 import { ProfileSpottingsComponent } from "./spottings/spottings.component";
 import { ProfileUserComponent } from "./user/user.component";
@@ -64,6 +67,7 @@ import { ProfileUserComponent } from "./user/user.component";
 
         // Internal imports
         CoordinatesHumanizerModule,
+        SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         VehicleStatusTagModule,
         VehicleTableCellDisplayModule,

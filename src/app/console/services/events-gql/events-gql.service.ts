@@ -25,6 +25,7 @@ export interface ConsoleEventsGqlResponseElement {
     destinationStation: ConsoleEventsGqlResponseElementStation | null;
     reporter: ConsoleEventsGqlResponseElementReporter | null;
     runNumber: string | null;
+    mediaCount: number;
     vehicle: {
         id: string;
         status: VehicleStatus;

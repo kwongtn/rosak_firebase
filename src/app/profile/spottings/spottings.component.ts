@@ -5,6 +5,7 @@ import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
+import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth/auth.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 import { environment } from "src/environments/environment";
@@ -12,7 +13,10 @@ import { environment } from "src/environments/environment";
 import { AfterViewInit, Component, OnDestroy, OnInit } from "@angular/core";
 
 import { DeleteEventService } from "../services/delete-event.service";
-import { GetEventsService } from "../services/get-events.service";
+import {
+    GetEventsGqlResponse,
+    GetEventsService,
+} from "../services/get-events.service";
 
 @Component({
     selector: "profile-spottings",
@@ -31,6 +35,7 @@ implements OnInit, OnDestroy, AfterViewInit
     offset = 0;
 
     displayData: ConsoleEventsGqlResponseTableDataElement[] = [];
+    expandConfig: { [key: string]: boolean } = {};
 
     dataTableOptions = {
         columns: [
@@ -73,7 +78,7 @@ implements OnInit, OnDestroy, AfterViewInit
             {
                 field: "notes",
                 header: "Notes",
-                fieldType: "text",
+                fieldType: "notes",
                 order: 7,
             },
         ],
@@ -128,10 +133,9 @@ implements OnInit, OnDestroy, AfterViewInit
 
         this.mainQuerySubscription =
             this.watchQueryOption.valueChanges.subscribe(
-                ({ data, loading }) => {
-                    this.displayData = this.displayData.concat(
-                        this.mapGqlResultsToDisplayData(data)
-                    );
+                ({ data, loading }: {data: GetEventsGqlResponse, loading: boolean}) => {
+                    this.displayData =this.mapGqlResultsToDisplayData(data);
+                    this.expandConfig = this.mapGqlResultsToExpandConfig(data);
 
                     this.loading = loading;
                     this.offset = this.displayData.length;
@@ -155,6 +159,10 @@ implements OnInit, OnDestroy, AfterViewInit
                 this.displayData = this.displayData.concat(
                     this.mapGqlResultsToDisplayData(data)
                 );
+                this.expandConfig = {
+                    ...this.expandConfig,
+                    ...this.mapGqlResultsToExpandConfig(data),
+                };
 
                 this.loading = loading;
                 this.offset = this.displayData.length;
@@ -187,6 +195,14 @@ implements OnInit, OnDestroy, AfterViewInit
 
             return returnObj;
         });
+    }
+
+    mapGqlResultsToExpandConfig(data: any) {
+        const returnObj: { [key: string]: boolean } = {};
+        data.events.forEach((val: LastSpottingsTableElement) => {
+            returnObj[val.id] = false;
+        });
+        return returnObj;
     }
 
     deleteEvent(eventId: string) {
@@ -240,6 +256,10 @@ implements OnInit, OnDestroy, AfterViewInit
             });
     }
 
+    onPictureIconClick(eventId: string) {
+        this.expandConfig[eventId] = !this.expandConfig[eventId];
+    }
+    
     ngOnDestroy(): void {
         this.mainQuerySubscription?.unsubscribe();
     }
