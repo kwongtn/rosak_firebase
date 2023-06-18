@@ -45,6 +45,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     imageUrls: ImageUrls[] = [];
 
     subscription: Subscription | undefined = undefined;
+    loading: boolean = true;
 
     constructor(public getMediaService: GetMediasService) {
         return;
@@ -66,6 +67,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                         };
                     }
                 );
+                this.loading = loading;
             });
     }
 

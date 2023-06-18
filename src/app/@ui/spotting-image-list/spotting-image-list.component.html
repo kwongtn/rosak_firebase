@@ -1,9 +1,11 @@
-<nz-image-group class="flex-container">
-    <img
-        nz-image
-        *ngFor="let url of imageUrls"
-        [nzSrc]="url.fullSize"
-        [nzPlaceholder]="url.preview"
-        alt=""
-    />
-</nz-image-group>
+<nz-spin [nzSpinning]="loading" [nzSize]="'large'">
+    <nz-image-group class="flex-container">
+        <img
+            nz-image
+            *ngFor="let url of imageUrls"
+            [nzSrc]="url.fullSize"
+            [nzPlaceholder]="url.preview"
+            alt=""
+        />
+    </nz-image-group>
+</nz-spin>
