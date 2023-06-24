@@ -34,7 +34,7 @@
         [tableWidthConfig]="tableWidthConfig"
         [lazy]="true"
         (loadMore)="loadMore($event)"
-        [virtualScroll]="true"
+        [virtualScroll]="false"
         [containFixHeaderHeight]="true"
         [fixHeader]="true"
         tableHeight="60vh"
@@ -167,10 +167,37 @@
                                 >
                                 </spotting-type-cell-display>
                             </span>
+                            <span *ngSwitchCase="'notes'">
+                                <span
+                                    class="picture-icon"
+                                    *ngIf="rowItem['mediaCount'] > 0"
+                                    (click)="onPictureIconClick(rowItem['id'])"
+                                >
+                                    <span
+                                        nz-icon
+                                        nzType="picture"
+                                        nzTheme="outline"
+                                    ></span>
+                                    {{ rowItem["mediaCount"] }}
+                                    <span *ngIf="rowItem['notes']"> - </span>
+                                </span>
+                                {{ rowItem[colOption.field] }}
+                            </span>
                             <span *ngSwitchDefault>{{
                                 rowItem[colOption.field]
                             }}</span>
                         </span>
+                    </td>
+                </tr>
+
+                <tr
+                    dTableRow
+                    class="expand-row"
+                    *ngIf="expandConfig[rowItem['id']]"
+                >
+                    <td dTableCell [attr.colspan]="tableWidthConfig.length">
+                        <ui-spotting-image-list [eventId]="rowItem['id']">
+                        </ui-spotting-image-list>
                     </td>
                 </tr>
             </ng-template>

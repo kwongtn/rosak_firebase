@@ -29,4 +29,7 @@ export const environment = {
     mapbox: {
         token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGVjdHhpaTAwMGk4M29wMmNkcGRmMXZ3In0.la_4bLAwkHVwAOrby9YA-A",
     },
+    upload: {
+        concurrency: 10,
+    },
 };

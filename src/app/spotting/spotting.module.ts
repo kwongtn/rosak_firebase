@@ -11,7 +11,16 @@ import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { UploadModule } from "ng-devui/upload";
+import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import {
+    SpottingImageListModule,
+} from "src/app/@ui/spotting-image-list/spotting-image-list.module";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -43,6 +52,9 @@ import {
 import {
     GetStationLinesGqlService,
 } from "./services/get-station-lines-gql.service";
+import {
+    FormUploadComponent,
+} from "./spotting-form/form-upload/form-upload.component";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import {
@@ -60,12 +72,13 @@ import {
 
 @NgModule({
     declarations: [
+        FormUploadComponent,
+        InlineHistoryComponent,
+        InlineTimelineComponent,
         SpottingFormComponent,
         SpottingMainComponent,
         SpottingTableComponent,
         VehicleTypeContainerComponent,
-        InlineHistoryComponent,
-        InlineTimelineComponent,
     ],
     imports: [
         CommonModule,
@@ -89,16 +102,23 @@ import {
         TagsModule,
         TimeAxisModule,
         TooltipModule,
+        UploadModule,
 
         // Internal Imports
         CoordinatesHumanizerModule,
         GraphQLModule,
+        SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         SpottingTypePipeModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,
 
         // ng-zorro
+        NzGridModule,
+        NzIconModule,
+        NzPopconfirmModule,
+        NzProgressModule,
+        NzSpinModule,
         NzToolTipModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],

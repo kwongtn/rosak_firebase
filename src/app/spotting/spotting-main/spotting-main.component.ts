@@ -1,18 +1,23 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DialogService } from "ng-devui";
-import { firstValueFrom, Subscription } from "rxjs";
+import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
-    GetLinesResponse
+    GetLinesResponse,
 } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
+import {
+    ImageUploadService,
+} from "src/app/services/spotting/image-upload.service";
+import { environment } from "src/environments/environment";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
 import { ToastService } from "../../services/toast/toast.service";
+import { ImageFile } from "../spotting-form/form-upload/form-upload.component";
 import {
-    SpottingFormComponent
+    SpottingFormComponent,
 } from "../spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "../utils";
 
@@ -32,12 +37,21 @@ const GET_LINES = gql`
     styleUrls: ["./spotting-main.component.scss"],
 })
 export class SpottingMainComponent implements OnInit, OnDestroy {
+    env = environment;
     tableData: TableDataType[] = [];
     showLoading: boolean = true;
 
     tabActiveId: string | number | undefined = undefined;
     tabActiveTitle: string = "";
     tabItems: LineTabType[] = [];
+
+    countIcon: number = 0;
+    $countIcon: Subscription | undefined = undefined;
+
+    $totalCountIcon: Observable<number> | undefined = undefined;
+    $uploadPercentage: Observable<number> | undefined = undefined;
+
+    hadUpload: boolean = false;
 
     currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
@@ -50,7 +64,8 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         private toastService: ToastService,
         private apollo: Apollo,
         private router: Router,
-        private route: ActivatedRoute
+        private route: ActivatedRoute,
+        private imageUploadService: ImageUploadService
     ) {}
 
     openStandardDialog(dialogtype?: string) {
@@ -71,11 +86,18 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     handler: () => {
                         const submitAction =
                             results.modalContentInstance.onSubmit() as
-                                | Promise<MutationResult<any> | undefined>
+                                | Promise<{
+                                      spottingSubmission: Promise<
+                                          MutationResult<any> | undefined
+                                      >;
+                                      uploads: ImageFile[];
+                                  }>
                                 | undefined;
 
                         submitAction
-                            ?.then((mutationResult) => {
+                            ?.then(async ({ spottingSubmission, uploads }) => {
+                                const mutationResult = await spottingSubmission;
+
                                 if (!mutationResult) {
                                     this.toastService.addToast(
                                         "Error",
@@ -85,13 +107,30 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     return;
                                 }
 
-                                if (mutationResult.data?.addEvent.ok) {
-                                    console.log("Mutation successful");
+                                if (mutationResult.data?.addEvent.id) {
+                                    console.log(
+                                        `Mutation successful, adding ${uploads.length} file to upload queue.`
+                                    );
+                                    uploads.forEach((file) => {
+                                        this.imageUploadService.addToQueue(
+                                            mutationResult.data?.addEvent.id,
+                                            file
+                                        );
+                                    });
+
                                     results.modalInstance.hide();
                                 }
 
+                                let toastMessage = "Spotting entry recorded! ";
+                                if (uploads.length > 0) {
+                                    toastMessage +=
+                                        "Please wait for uploads to complete before closing this tab.";
+                                } else {
+                                    toastMessage += "🥳";
+                                }
+
                                 this.toastService.addMessage(
-                                    "Success! Your spotting entry is successfully added! 🥳",
+                                    toastMessage,
                                     "success"
                                 );
                             })
@@ -128,6 +167,21 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             this.currentDataId = params["id"];
         });
 
+        this.$totalCountIcon =
+            this.imageUploadService.$totalUploadCount.asObservable();
+        this.$uploadPercentage =
+            this.imageUploadService.$percentUploaded.asObservable();
+
+        this.$countIcon = this.imageUploadService.$pendingUploadCount.subscribe(
+            (count) => {
+                this.countIcon = count;
+
+                if (!this.hadUpload && count > 0) {
+                    this.hadUpload = true;
+                }
+            }
+        );
+
         this.apollo
             .query<GetLinesResponse>({
                 query: GET_LINES,
@@ -153,6 +207,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     ngOnDestroy() {
         // this.querySubscription.unsubscribe();
         this.routeSubscription.unsubscribe();
+        this.$countIcon?.unsubscribe();
     }
 
     activeTabChange(event: any) {

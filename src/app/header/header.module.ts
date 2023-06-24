@@ -8,6 +8,8 @@ import { TabsModule } from "ng-devui/tabs";
 import { ToggleModule } from "ng-devui/toggle";
 import { TooltipModule } from "ng-devui/tooltip";
 import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzIconModule } from "ng-zorro-antd/icon";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -46,6 +48,8 @@ import { MenuComponent } from "./menu/menu.component";
 
         // Ng-Zorro
         NzAlertModule,
+        NzBadgeModule,
+        NzIconModule,
     ],
     exports: [HeaderComponent, LogoComponent, MenuComponent],
 })

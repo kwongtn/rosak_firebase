@@ -1,0 +1,30 @@
+<div class="header">Image Uploads</div>
+<div *ngFor="let file of files | keyvalue" class="devui-add-images">
+    <div class="devui-add-items">
+        <img
+            class="image"
+            [src]="file.value.buffer"
+            nz-popconfirm
+            nzPopconfirmTitle="Are you sure to remove this image?"
+            nzPopconfirmPlacement="bottom"
+            (nzOnConfirm)="onImageClick(file.key)"
+        />
+    </div>
+    <span class="filename"> {{ file.value.displayFilename }}</span>
+</div>
+<div
+    dUpload
+    #dUpload="dUpload"
+    class="devui-add-images devui-upload {{
+        isDropOver ? 'devui-upload-dropover' : ''
+    }}"
+    [enableDrop]="true"
+    [fileOptions]="fileOptions"
+    [uploadOptions]="uploadOptions"
+    [beforeUpload]="beforeUpload"
+    (alertMsgEvent)="alertMsgEvent($event)"
+    (fileSelect)="onAddFile($event)"
+    (fileOver)="fileOver($event)"
+>
+    <span class="icon-op-add"></span>
+</div>
