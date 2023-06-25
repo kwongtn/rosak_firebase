@@ -10,6 +10,12 @@ interface ImageUrls {
     preview: string;
 }
 
+function getFilename(url: string): string {
+    const urlParts = url.split("/");
+    const fileName = urlParts[urlParts.length - 1];
+    return fileName.split(".")[fileName.split(".").length - 2];
+}
+
 /**
  * Get the smaller version of an image on Imgur
  * https://thomas.vanhoutte.be/miniblog/imgur-thumbnail-trick/
@@ -29,9 +35,8 @@ interface ImageUrls {
 function getThumbnail(url: string, size: MediaSizes): string {
     const urlParts = url.split("/");
     const fileName = urlParts[urlParts.length - 1];
-    const identifier = fileName.split(".")[fileName.split(".").length - 2];
     const extension = fileName.split(".")[fileName.split(".").length - 1];
-    return `https://i.imgur.com/${identifier}${size}.${extension}`;
+    return `https://i.imgur.com/${getFilename(url)}${size}.${extension}`;
 }
 
 @Component({
