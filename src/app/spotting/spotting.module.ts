@@ -34,6 +34,9 @@ import {
     SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
 import {
+    ImagePreviewButtonModule,
+} from "../@ui/spotting/image-preview-button/image-preview-button.module";
+import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
@@ -107,6 +110,7 @@ import {
         // Internal Imports
         CoordinatesHumanizerModule,
         GraphQLModule,
+        ImagePreviewButtonModule,
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         SpottingTypePipeModule,
