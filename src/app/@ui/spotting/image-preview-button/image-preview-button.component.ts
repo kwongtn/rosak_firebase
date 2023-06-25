@@ -26,7 +26,7 @@ export class ImagePreviewButtonComponent {
           nzTitle: "Image Preview",
           // nzFooter: 'Footer',
           // nzExtra: 'Extra',
-          nzSize: "large",
+          nzWidth: "680px",
           nzContent: SpottingImageListComponent,
           nzContentParams: {
               eventId: this.eventId,
