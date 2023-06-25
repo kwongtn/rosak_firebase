@@ -14,7 +14,7 @@ export class ImagePreviewButtonComponent {
   @Input() count!: number;
   @Input() eventId!: string;
 
-  width: string = "680px";
+  width: string = "700px";
 
   constructor(
     private drawerService: NzDrawerService
@@ -25,7 +25,7 @@ export class ImagePreviewButtonComponent {
   
   @HostListener("window:resize")
   resize(): void {
-      this.width = document.body.clientWidth < 1024 ? "480px" : "680px";
+      this.width = document.body.clientWidth < 1024 ? "480px" : "700px";
   }
 
   onPictureIconClick() {
