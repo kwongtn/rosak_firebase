@@ -1,3 +1,4 @@
+import { NzImageService } from "ng-zorro-antd/image";
 import { Subscription } from "rxjs";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
@@ -52,7 +53,9 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
 
-    constructor(public getMediaService: GetMediasService) {
+    constructor(public getMediaService: GetMediasService,
+        private nzImageService: NzImageService,
+    ) {
         return;
     }
 
@@ -68,7 +71,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                     (media) => {
                         return {
                             fullSize: media.file.url,
-                            preview: getThumbnail(media.file.url, "s")
+                            preview: getThumbnail(media.file.url, "t"),
                         };
                     }
                 );
@@ -78,5 +81,13 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.subscription?.unsubscribe();
+    }
+
+    onViewImage(index: number): void {
+        this.nzImageService.preview(
+            this.imageUrls.map((val) => {
+                return { src: val.fullSize };
+            })
+        ).switchTo(index);
     }
 }

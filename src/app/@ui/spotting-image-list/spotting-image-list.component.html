@@ -1,11 +1,12 @@
 <nz-spin [nzSpinning]="loading" [nzSize]="'large'">
     <nz-image-group class="flex-container">
         <img
-            nz-image
-            *ngFor="let url of imageUrls"
-            [nzSrc]="url.fullSize"
-            [nzPlaceholder]="url.preview"
-            alt=""
+            height="200px"
+            width="200px"
+            *ngFor="let url of imageUrls; let i = index"
+            [attr.data-index]="i"
+            [src]="url.preview"
+            (click)="onViewImage(i)"
         />
     </nz-image-group>
 </nz-spin>
