@@ -11,13 +11,13 @@ import {
     HostListener,
     OnDestroy,
     OnInit,
-    ViewChild
+    ViewChild,
 } from "@angular/core";
 
 import {
     ConsoleEventsGqlResponseElement,
     ConsoleEventsGqlResponseTableDataElement,
-    ConsoleEventsGqlService
+    ConsoleEventsGqlService,
 } from "../services/events-gql/events-gql.service";
 import { MarkReadService } from "../services/mark-read/mark-read.service";
 import { categoryData } from "./category-search";
@@ -416,8 +416,4 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
         return returnObj;
     }
 
-    onPictureIconClick(eventId: string) {
-        this.expandConfig[eventId] = !this.expandConfig[eventId];
-    }
-    
 }

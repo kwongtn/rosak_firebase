@@ -7,6 +7,7 @@ import {
     ReCaptchaV3Service,
 } from "ng-recaptcha";
 import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzDrawerService } from "ng-zorro-antd/drawer";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NzImageService } from "ng-zorro-antd/image";
 import { NzMessageModule } from "ng-zorro-antd/message";
@@ -108,6 +109,7 @@ const providers: any[] = [
     { provide: NZ_I18N, useValue: en_US },
     NzModalService,
     NzImageService,
+    NzDrawerService,
 ];
 
 if (environment.production) {
