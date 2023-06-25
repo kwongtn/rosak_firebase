@@ -3,7 +3,7 @@ import {
     SpottingImageListComponent,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
 
-import { Component, Input } from "@angular/core";
+import { Component, HostListener, Input } from "@angular/core";
 
 @Component({
     selector: "ui-spotting-image-preview-button",
@@ -13,12 +13,19 @@ import { Component, Input } from "@angular/core";
 export class ImagePreviewButtonComponent {
   @Input() count!: number;
   @Input() eventId!: string;
-  
+
+  width: string = "680px";
 
   constructor(
     private drawerService: NzDrawerService
   ) {
-      return;
+      this.resize();
+  }
+
+  
+  @HostListener("window:resize")
+  resize(): void {
+      this.width = document.body.clientWidth < 1024 ? "480px" : "680px";
   }
 
   onPictureIconClick() {
@@ -26,7 +33,7 @@ export class ImagePreviewButtonComponent {
           nzTitle: "Image Preview",
           // nzFooter: 'Footer',
           // nzExtra: 'Extra',
-          nzWidth: "680px",
+          nzWidth: this.width,
           nzContent: SpottingImageListComponent,
           nzContentParams: {
               eventId: this.eventId,
