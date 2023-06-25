@@ -71,7 +71,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                     (media) => {
                         return {
                             fullSize: media.file.url,
-                            preview: getThumbnail(media.file.url, "t"),
+                            preview: getThumbnail(media.file.url, "m"),
                         };
                     }
                 );
