@@ -75,7 +75,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                         };
                     }
                 );
-                this.loading = loading;
+                // this.loading = loading;
             });
     }
 
@@ -89,5 +89,9 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                 return { src: val.fullSize };
             })
         ).switchTo(index);
+    }
+
+    markLoaded(): void{
+        this.loading = false;
     }
 }
