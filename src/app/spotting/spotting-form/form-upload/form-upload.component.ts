@@ -5,7 +5,7 @@ import {
 } from "src/app/services/image-compression/image-compression.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
-import { Component, EventEmitter, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 
 const MAX_MEGABYTE = 9e6;
 
@@ -81,6 +81,8 @@ export class ImageFile {
     styleUrls: ["./form-upload.component.scss"],
 })
 export class FormUploadComponent {
+    @Input() imageWidth: string = "100px";
+    @Input() imageHeight: string = "100px";
     @Output() newImageEvent = new EventEmitter<{ [key: string]: ImageFile }>();
 
     files: { [key: string]: ImageFile } = {};
