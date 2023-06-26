@@ -3,6 +3,7 @@ import { Subscription } from "rxjs";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
+import { ImageFile } from "../spotting/form-upload/form-upload.component";
 import { GetMediasService } from "./services/get-medias.service";
 
 type MediaSizes = "s" | "b" | "t" | "m" | "l" | "h";
@@ -54,6 +55,8 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
 
+    pendingUploads: ImageFile[] = [];
+
     constructor(public getMediaService: GetMediasService,
         private nzImageService: NzImageService,
     ) {
@@ -100,5 +103,13 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
 
     markLoaded(): void{
         this.loading = false;
+    }
+    
+    onImageChange(images: { [key: string]: ImageFile }) {
+        this.pendingUploads = Object.values<ImageFile>(
+            images
+        ).filter((val) => {
+            return val != null;
+        });
     }
 }

@@ -18,3 +18,12 @@
         </span>
     </button>
 </span>
+
+<ng-template #drawerFooter>
+    <div style="float: right">
+        <button nz-button style="margin-right: 8px" (click)="close()">
+            Cancel
+        </button>
+        <button nz-button nzType="primary" (click)="submit()">Upload</button>
+    </div>
+</ng-template>

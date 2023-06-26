@@ -1,9 +1,20 @@
-import { NzDrawerService } from "ng-zorro-antd/drawer";
+import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import {
     SpottingImageListComponent,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
+import {
+    ImageUploadService,
+} from "src/app/services/spotting/image-upload.service";
 
-import { Component, HostListener, Input } from "@angular/core";
+import {
+    Component,
+    HostListener,
+    Input,
+    TemplateRef,
+    ViewChild,
+} from "@angular/core";
+
+import { ImageFile } from "../form-upload/form-upload.component";
 
 @Component({
     selector: "ui-spotting-image-preview-button",
@@ -15,10 +26,13 @@ export class ImagePreviewButtonComponent {
   @Input() eventId!: string;
   @Input() isMine: boolean = false;
 
+  @ViewChild("drawerFooter") drawerFooter!: TemplateRef<any>;
   width: string = "700px";
+  drawerRef!: NzDrawerRef;
 
   constructor(
-    private drawerService: NzDrawerService
+    private drawerService: NzDrawerService,
+    private imageUploadService: ImageUploadService
   ) {
       this.resize();
   }
@@ -32,9 +46,9 @@ export class ImagePreviewButtonComponent {
   }
 
   onPictureIconClick() {
-      this.drawerService.create<SpottingImageListComponent, { value: string }, string>({
+      this.drawerRef= this.drawerService.create<SpottingImageListComponent, { value: string }, string>({
           nzTitle: "Image Preview",
-          // nzFooter: 'Footer',
+          nzFooter: this.drawerFooter,
           // nzExtra: 'Extra',
           nzWidth: this.width,
           nzContent: SpottingImageListComponent,
@@ -42,5 +56,19 @@ export class ImagePreviewButtonComponent {
               eventId: this.eventId,
           }
       });
+  }
+
+  close(){
+      this.drawerRef?.close();
+  }
+
+  submit(){
+      this.drawerRef?.getContentComponent().pendingUploads.forEach((file: ImageFile) => {
+          this.imageUploadService.addToQueue(
+              this.eventId,
+              file
+          );
+      });
+      this.drawerRef?.close();
   }
 }
