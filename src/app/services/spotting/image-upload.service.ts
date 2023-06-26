@@ -13,7 +13,7 @@ import { AuthService } from "../auth/auth.service";
 import { ToastService } from "../toast/toast.service";
 
 interface IPendingUpload {
-    spottingId: number;
+    spottingId: number | string;
     file: ImageFile;
 }
 
@@ -139,7 +139,7 @@ export class ImageUploadService {
         }
     }
 
-    addToQueue(spottingId: number, file: ImageFile) {
+    addToQueue(spottingId: number | string, file: ImageFile) {
         this.pendingUploads.push({ spottingId, file });
         this.addCounts(1);
 
