@@ -2,7 +2,7 @@ import { BehaviorSubject, firstValueFrom } from "rxjs";
 import { catchError } from "rxjs/operators";
 import {
     ImageFile,
-} from "src/app/spotting/spotting-form/form-upload/form-upload.component";
+} from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";

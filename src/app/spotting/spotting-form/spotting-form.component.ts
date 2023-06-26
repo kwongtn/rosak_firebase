@@ -26,6 +26,9 @@ import {
 } from "@angular/forms";
 
 import {
+    ImageFile,
+} from "../../@ui/spotting/form-upload/form-upload.component";
+import {
     GetLinesAndVehiclesGqlService,
 } from "../services/get-lines-vehicles-gql.service";
 import {
@@ -36,7 +39,6 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
-import { ImageFile } from "./form-upload/form-upload.component";
 import { VehicleFormOption } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
