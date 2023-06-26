@@ -136,7 +136,9 @@ export class FormUploadComponent {
     }
 
     onImageClick(fileName: string) {
-        console.log(fileName);
+        console.log(`Removing ${fileName} from upload list`);
         delete this.files[fileName];
+        
+        this.newImageEvent.emit(this.files);
     }
 }
