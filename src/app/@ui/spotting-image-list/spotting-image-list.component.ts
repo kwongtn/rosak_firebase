@@ -1,3 +1,4 @@
+import { NzImageService } from "ng-zorro-antd/image";
 import { Subscription } from "rxjs";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
@@ -8,6 +9,12 @@ type MediaSizes = "s" | "b" | "t" | "m" | "l" | "h";
 interface ImageUrls {
     fullSize: string;
     preview: string;
+}
+
+function getFilename(url: string): string {
+    const urlParts = url.split("/");
+    const fileName = urlParts[urlParts.length - 1];
+    return fileName.split(".")[fileName.split(".").length - 2];
 }
 
 /**
@@ -29,9 +36,8 @@ interface ImageUrls {
 function getThumbnail(url: string, size: MediaSizes): string {
     const urlParts = url.split("/");
     const fileName = urlParts[urlParts.length - 1];
-    const identifier = fileName.split(".")[fileName.split(".").length - 2];
     const extension = fileName.split(".")[fileName.split(".").length - 1];
-    return `https://i.imgur.com/${identifier}${size}.${extension}`;
+    return `https://i.imgur.com/${getFilename(url)}${size}.${extension}`;
 }
 
 @Component({
@@ -47,7 +53,9 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
 
-    constructor(public getMediaService: GetMediasService) {
+    constructor(public getMediaService: GetMediasService,
+        private nzImageService: NzImageService,
+    ) {
         return;
     }
 
@@ -63,15 +71,27 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                     (media) => {
                         return {
                             fullSize: media.file.url,
-                            preview: getThumbnail(media.file.url, "s")
+                            preview: getThumbnail(media.file.url, "m"),
                         };
                     }
                 );
-                this.loading = loading;
+                // this.loading = loading;
             });
     }
 
     ngOnDestroy(): void {
         this.subscription?.unsubscribe();
+    }
+
+    onViewImage(index: number): void {
+        this.nzImageService.preview(
+            this.imageUrls.map((val) => {
+                return { src: val.fullSize };
+            })
+        ).switchTo(index);
+    }
+
+    markLoaded(): void{
+        this.loading = false;
     }
 }
