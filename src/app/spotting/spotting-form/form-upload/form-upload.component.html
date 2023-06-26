@@ -1,11 +1,12 @@
-<div class="header">Image Uploads</div>
-<div *ngFor="let file of files | keyvalue" class="devui-add-images">
+<div
+    *ngFor="let file of files | keyvalue"
+    class="devui-add-images"
+    [ngStyle]="{ width: imageWidth, height: imageHeight }"
+>
     <div class="devui-add-items">
         <img
             class="image"
             [src]="file.value.buffer"
-            [width]="imageWidth"
-            [height]="imageHeight"
             nz-popconfirm
             nzPopconfirmTitle="Are you sure to remove this image?"
             nzPopconfirmPlacement="bottom"
@@ -20,6 +21,7 @@
     class="devui-add-images devui-upload {{
         isDropOver ? 'devui-upload-dropover' : ''
     }}"
+    [ngStyle]="{ width: imageWidth, height: imageHeight }"
     [enableDrop]="true"
     [fileOptions]="fileOptions"
     [uploadOptions]="uploadOptions"
