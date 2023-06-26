@@ -1,5 +1,6 @@
 <nz-spin [nzSpinning]="loading" [nzSize]="'large'">
-    <nz-image-group class="flex-container">
+    <nz-empty *ngIf="imageUrls.length === 0"></nz-empty>
+    <nz-image-group *ngIf="imageUrls.length > 0" class="flex-container">
         <img
             height="200px"
             width="200px"

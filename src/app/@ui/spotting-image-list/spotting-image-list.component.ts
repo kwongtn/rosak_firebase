@@ -75,7 +75,11 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                         };
                     }
                 );
-                // this.loading = loading;
+
+                if(this.imageUrls.length === 0){
+                    this.loading = loading;
+                }
+                
             });
     }
 
