@@ -90,11 +90,15 @@
                         <span *ngSwitchCase="'notes'">
                             <span
                                 class="picture-icon"
-                                *ngIf="rowItem['mediaCount'] > 0"
+                                *ngIf="
+                                    rowItem['mediaCount'] > 0 ||
+                                    rowItem['isMine']
+                                "
                             >
                                 <ui-spotting-image-preview-button
                                     [count]="rowItem['mediaCount']"
                                     [eventId]="rowItem['id']"
+                                    [isMine]="rowItem['isMine']"
                                 >
                                 </ui-spotting-image-preview-button>
                             </span>

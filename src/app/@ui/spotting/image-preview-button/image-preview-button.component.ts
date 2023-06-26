@@ -13,6 +13,7 @@ import { Component, HostListener, Input } from "@angular/core";
 export class ImagePreviewButtonComponent {
   @Input() count!: number;
   @Input() eventId!: string;
+  @Input() isMine: boolean = false;
 
   width: string = "700px";
 

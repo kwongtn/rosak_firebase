@@ -1,9 +1,20 @@
-<button
-    nz-button
-    nzType="primary"
-    nzShape="round"
-    (click)="onPictureIconClick()"
->
-    <span nz-icon nzType="picture" nzTheme="outline"></span>
-    {{ count }}
-</button>
+<span (click)="onPictureIconClick()">
+    <button
+        nz-button
+        [nzType]="count === 0 && isMine ? 'text' : 'primary'"
+        nzShape="round"
+    >
+        <span *ngIf="count > 0">
+            <span
+                class="picture-icon"
+                nz-icon
+                nzType="picture"
+                nzTheme="outline"
+            ></span>
+            {{ count }}
+        </span>
+        <span *ngIf="count === 0 && isMine">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+        </span>
+    </button>
+</span>

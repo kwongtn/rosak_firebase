@@ -73,6 +73,7 @@ export interface LastSpottings {
     notes: string;
     runNumber: string | null;
     mediaCount: number;
+    isMine: boolean;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;
