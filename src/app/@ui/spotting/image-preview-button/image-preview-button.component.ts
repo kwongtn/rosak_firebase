@@ -5,6 +5,7 @@ import {
 import {
     ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
+import { ToastService } from "src/app/services/toast/toast.service";
 
 import {
     Component,
@@ -32,7 +33,8 @@ export class ImagePreviewButtonComponent {
 
   constructor(
     private drawerService: NzDrawerService,
-    private imageUploadService: ImageUploadService
+    private imageUploadService: ImageUploadService, 
+    private toastService: ToastService,
   ) {
       this.resize();
   }
@@ -69,6 +71,10 @@ export class ImagePreviewButtonComponent {
               file
           );
       });
+      this.toastService.addMessage(
+          "Image upload queued. Please wait for uploads to complete before closing this tab.", 
+          "info"
+      );
       this.drawerRef?.close();
   }
 }
