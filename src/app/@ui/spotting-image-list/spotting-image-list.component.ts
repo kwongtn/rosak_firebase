@@ -47,6 +47,7 @@ function getThumbnail(url: string, size: MediaSizes): string {
 })
 export class SpottingImageListComponent implements OnInit, OnDestroy {
     @Input() eventId!: string;
+    isMine: boolean = false;
 
     imageUrls: ImageUrls[] = [];
 
@@ -75,6 +76,8 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                         };
                     }
                 );
+
+                this.isMine = data.events[0].isMine;
 
                 if(this.imageUrls.length === 0){
                     this.loading = loading;
