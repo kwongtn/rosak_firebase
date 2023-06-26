@@ -25,7 +25,9 @@ export class ImagePreviewButtonComponent {
   
   @HostListener("window:resize")
   resize(): void {
-      this.width = document.body.clientWidth < 1024 ? "480px" : "700px";
+      const width = document.body.clientWidth;
+      this.width = width < 1024 ? "480px" : 
+          width < 1280 ? "700px" : "905px" ;
   }
 
   onPictureIconClick() {
