@@ -11,7 +11,7 @@
                 nzType="picture"
                 nzTheme="outline"
             ></span>
-            {{ count }}
+            {{ count }}<span *ngIf="isMine">+</span>
         </span>
         <span *ngIf="count === 0 && isMine">
             <span nz-icon nzType="plus" nzTheme="outline"></span>
