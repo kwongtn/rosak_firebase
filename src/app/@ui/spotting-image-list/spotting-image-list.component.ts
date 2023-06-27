@@ -3,6 +3,7 @@ import { Subscription } from "rxjs";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
+import { ImageFile } from "../spotting/form-upload/form-upload.component";
 import { GetMediasService } from "./services/get-medias.service";
 
 type MediaSizes = "s" | "b" | "t" | "m" | "l" | "h";
@@ -47,11 +48,14 @@ function getThumbnail(url: string, size: MediaSizes): string {
 })
 export class SpottingImageListComponent implements OnInit, OnDestroy {
     @Input() eventId!: string;
+    @Input() isMine: boolean = false;
 
     imageUrls: ImageUrls[] = [];
 
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
+
+    pendingUploads: ImageFile[] = [];
 
     constructor(public getMediaService: GetMediasService,
         private nzImageService: NzImageService,
@@ -67,6 +71,8 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                 },
             })
             .subscribe(({ data, loading }) => {
+                console.log("Received data");
+                console.log(data);
                 this.imageUrls = data.events[0].medias.map(
                     (media) => {
                         return {
@@ -75,7 +81,11 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                         };
                     }
                 );
-                // this.loading = loading;
+    
+                if(this.imageUrls.length === 0){
+                    this.loading = loading;
+                }
+                
             });
     }
 
@@ -93,5 +103,13 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
 
     markLoaded(): void{
         this.loading = false;
+    }
+    
+    onImageChange(images: { [key: string]: ImageFile }) {
+        this.pendingUploads = Object.values<ImageFile>(
+            images
+        ).filter((val) => {
+            return val != null;
+        });
     }
 }

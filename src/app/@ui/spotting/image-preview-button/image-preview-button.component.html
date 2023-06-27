@@ -1,9 +1,29 @@
-<button
-    nz-button
-    nzType="primary"
-    nzShape="round"
-    (click)="onPictureIconClick()"
->
-    <span nz-icon nzType="picture" nzTheme="outline"></span>
-    {{ count }}
-</button>
+<span (click)="onPictureIconClick()">
+    <button
+        nz-button
+        [nzType]="count === 0 && isMine ? 'text' : 'primary'"
+        nzShape="round"
+    >
+        <span *ngIf="count > 0">
+            <span
+                class="picture-icon"
+                nz-icon
+                nzType="picture"
+                nzTheme="outline"
+            ></span>
+            {{ count }}<span *ngIf="isMine">+</span>
+        </span>
+        <span *ngIf="count === 0 && isMine">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+        </span>
+    </button>
+</span>
+
+<ng-template #drawerFooter>
+    <div style="float: right">
+        <button nz-button style="margin-right: 8px" (click)="close()">
+            Cancel
+        </button>
+        <button nz-button nzType="primary" (click)="submit()">Upload</button>
+    </div>
+</ng-template>

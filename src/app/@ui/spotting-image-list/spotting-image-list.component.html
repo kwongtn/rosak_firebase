@@ -1,5 +1,9 @@
 <nz-spin [nzSpinning]="loading" [nzSize]="'large'">
-    <nz-image-group class="flex-container">
+    <nz-empty
+        *ngIf="imageUrls.length === 0 && !loading"
+        nzNotFoundContent="No images. Add some?"
+    ></nz-empty>
+    <nz-image-group *ngIf="imageUrls.length > 0" class="flex-container">
         <img
             height="200px"
             width="200px"
@@ -10,4 +14,10 @@
             (load)="markLoaded()"
         />
     </nz-image-group>
+    <span *ngIf="isMine">
+        <h1>Add Images</h1>
+        <spotting-form-upload
+            (newImageEvent)="onImageChange($event)"
+        ></spotting-form-upload>
+    </span>
 </nz-spin>
