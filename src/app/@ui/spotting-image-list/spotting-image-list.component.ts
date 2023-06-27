@@ -48,7 +48,7 @@ function getThumbnail(url: string, size: MediaSizes): string {
 })
 export class SpottingImageListComponent implements OnInit, OnDestroy {
     @Input() eventId!: string;
-    isMine: boolean = false;
+    @Input() isMine: boolean = false;
 
     imageUrls: ImageUrls[] = [];
 
@@ -71,6 +71,8 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                 },
             })
             .subscribe(({ data, loading }) => {
+                console.log("Received data");
+                console.log(data);
                 this.imageUrls = data.events[0].medias.map(
                     (media) => {
                         return {
@@ -79,9 +81,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                         };
                     }
                 );
-
-                this.isMine = data.events[0].isMine;
-
+    
                 if(this.imageUrls.length === 0){
                     this.loading = loading;
                 }

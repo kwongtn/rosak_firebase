@@ -14,8 +14,10 @@
             (load)="markLoaded()"
         />
     </nz-image-group>
-    <h1>Add Images</h1>
-    <spotting-form-upload
-        (newImageEvent)="onImageChange($event)"
-    ></spotting-form-upload>
+    <span *ngIf="isMine">
+        <h1>Add Images</h1>
+        <spotting-form-upload
+            (newImageEvent)="onImageChange($event)"
+        ></spotting-form-upload>
+    </span>
 </nz-spin>
