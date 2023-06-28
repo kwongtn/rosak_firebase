@@ -28,6 +28,7 @@ export interface UserDataResponseUser {
     firebaseId: string;
     nickname: string;
     spottingsCount: number;
+    mediaCount: number;
     spottingTrends: UserSpottingTrends[];
     // withMostEntriesYear: DateTrends;
     withMostEntriesMonth: DateTrends;
@@ -53,6 +54,7 @@ export class GetUserDataService extends Query<UserDataResponse> {
                 firebaseId
                 nickname
                 spottingsCount
+                mediaCount
                 spottingTrends(
                     dateGroup: $dateGroup
                     typeGroup: $typeGroup
