@@ -14,8 +14,10 @@ import { environment } from "src/environments/environment";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
+import {
+    ImageFile,
+} from "../../@ui/spotting/form-upload/form-upload.component";
 import { ToastService } from "../../services/toast/toast.service";
-import { ImageFile } from "../spotting-form/form-upload/form-upload.component";
 import {
     SpottingFormComponent,
 } from "../spotting-form/spotting-form.component";

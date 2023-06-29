@@ -123,6 +123,15 @@
             </nz-card>
         </nz-col>
 
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6" *ngIf="displayData">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="(displayData.mediaCount | number)!"
+                    [nzTitle]="'Media Uploaded'"
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
+
         <!-- <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
             <nz-card>
                 <nz-statistic

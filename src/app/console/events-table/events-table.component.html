@@ -170,16 +170,17 @@
                             <span *ngSwitchCase="'notes'">
                                 <span
                                     class="picture-icon"
-                                    *ngIf="rowItem['mediaCount'] > 0"
-                                    (click)="onPictureIconClick(rowItem['id'])"
+                                    *ngIf="
+                                        rowItem['mediaCount'] > 0 ||
+                                        rowItem['isMine']
+                                    "
                                 >
-                                    <span
-                                        nz-icon
-                                        nzType="picture"
-                                        nzTheme="outline"
-                                    ></span>
-                                    {{ rowItem["mediaCount"] }}
-                                    <span *ngIf="rowItem['notes']"> - </span>
+                                    <ui-spotting-image-preview-button
+                                        [count]="rowItem['mediaCount']"
+                                        [eventId]="rowItem['id']"
+                                        [isMine]="rowItem['isMine']"
+                                    >
+                                    </ui-spotting-image-preview-button>
                                 </span>
                                 {{ rowItem[colOption.field] }}
                             </span>
@@ -187,17 +188,6 @@
                                 rowItem[colOption.field]
                             }}</span>
                         </span>
-                    </td>
-                </tr>
-
-                <tr
-                    dTableRow
-                    class="expand-row"
-                    *ngIf="expandConfig[rowItem['id']]"
-                >
-                    <td dTableCell [attr.colspan]="tableWidthConfig.length">
-                        <ui-spotting-image-list [eventId]="rowItem['id']">
-                        </ui-spotting-image-list>
                     </td>
                 </tr>
             </ng-template>

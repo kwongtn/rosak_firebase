@@ -1,13 +1,21 @@
+import { NzImageService } from "ng-zorro-antd/image";
 import { Subscription } from "rxjs";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
+import { ImageFile } from "../spotting/form-upload/form-upload.component";
 import { GetMediasService } from "./services/get-medias.service";
 
 type MediaSizes = "s" | "b" | "t" | "m" | "l" | "h";
 interface ImageUrls {
     fullSize: string;
     preview: string;
+}
+
+function getFilename(url: string): string {
+    const urlParts = url.split("/");
+    const fileName = urlParts[urlParts.length - 1];
+    return fileName.split(".")[fileName.split(".").length - 2];
 }
 
 /**
@@ -29,9 +37,8 @@ interface ImageUrls {
 function getThumbnail(url: string, size: MediaSizes): string {
     const urlParts = url.split("/");
     const fileName = urlParts[urlParts.length - 1];
-    const identifier = fileName.split(".")[fileName.split(".").length - 2];
     const extension = fileName.split(".")[fileName.split(".").length - 1];
-    return `https://i.imgur.com/${identifier}${size}.${extension}`;
+    return `https://i.imgur.com/${getFilename(url)}${size}.${extension}`;
 }
 
 @Component({
@@ -41,13 +48,18 @@ function getThumbnail(url: string, size: MediaSizes): string {
 })
 export class SpottingImageListComponent implements OnInit, OnDestroy {
     @Input() eventId!: string;
+    @Input() isMine: boolean = false;
 
     imageUrls: ImageUrls[] = [];
 
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
 
-    constructor(public getMediaService: GetMediasService) {
+    pendingUploads: ImageFile[] = [];
+
+    constructor(public getMediaService: GetMediasService,
+        private nzImageService: NzImageService,
+    ) {
         return;
     }
 
@@ -59,19 +71,45 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
                 },
             })
             .subscribe(({ data, loading }) => {
+                console.log("Received data");
+                console.log(data);
                 this.imageUrls = data.events[0].medias.map(
                     (media) => {
                         return {
                             fullSize: media.file.url,
-                            preview: getThumbnail(media.file.url, "s")
+                            preview: getThumbnail(media.file.url, "m"),
                         };
                     }
                 );
-                this.loading = loading;
+    
+                if(this.imageUrls.length === 0){
+                    this.loading = loading;
+                }
+                
             });
     }
 
     ngOnDestroy(): void {
         this.subscription?.unsubscribe();
+    }
+
+    onViewImage(index: number): void {
+        this.nzImageService.preview(
+            this.imageUrls.map((val) => {
+                return { src: val.fullSize };
+            })
+        ).switchTo(index);
+    }
+
+    markLoaded(): void{
+        this.loading = false;
+    }
+    
+    onImageChange(images: { [key: string]: ImageFile }) {
+        this.pendingUploads = Object.values<ImageFile>(
+            images
+        ).filter((val) => {
+            return val != null;
+        });
     }
 }

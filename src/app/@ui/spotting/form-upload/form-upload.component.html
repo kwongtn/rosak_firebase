@@ -1,5 +1,8 @@
-<div class="header">Image Uploads</div>
-<div *ngFor="let file of files | keyvalue" class="devui-add-images">
+<div
+    *ngFor="let file of files | keyvalue"
+    class="devui-add-images"
+    [ngStyle]="{ width: imageWidth, height: imageHeight }"
+>
     <div class="devui-add-items">
         <img
             class="image"
@@ -18,6 +21,7 @@
     class="devui-add-images devui-upload {{
         isDropOver ? 'devui-upload-dropover' : ''
     }}"
+    [ngStyle]="{ width: imageWidth, height: imageHeight }"
     [enableDrop]="true"
     [fileOptions]="fileOptions"
     [uploadOptions]="uploadOptions"

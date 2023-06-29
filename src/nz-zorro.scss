@@ -2404,7 +2404,7 @@ nz-breadcrumb-item:last-child .ant-breadcrumb-separator {
 .ant-btn:focus {
     color: #40a9ff;
     border-color: #40a9ff;
-    background: #fff;
+    background: $devui-icon-bg;
 }
 .ant-btn:hover > a:only-child,
 .ant-btn:focus > a:only-child {
@@ -2423,7 +2423,7 @@ nz-breadcrumb-item:last-child .ant-breadcrumb-separator {
 .ant-btn:active {
     color: #096dd9;
     border-color: #096dd9;
-    background: #fff;
+    background: $devui-icon-bg;
 }
 .ant-btn:active > a:only-child {
     color: currentcolor;
@@ -6965,14 +6965,14 @@ nz-descriptions {
     position: relative;
     z-index: 1;
     overflow: auto;
-    background-color: #fff;
+    background-color: $devui-base-bg;
     background-clip: padding-box;
     border: 0;
 }
 .ant-drawer-close {
     display: inline-block;
     margin-right: 12px;
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-icon-fill;
     font-weight: 700;
     font-size: 16px;
     font-style: normal;
@@ -6989,7 +6989,7 @@ nz-descriptions {
 }
 .ant-drawer-close:focus,
 .ant-drawer-close:hover {
-    color: rgba(0, 0, 0, 0.75);
+    color: $devui-icon-fill-hover;
     text-decoration: none;
 }
 .ant-drawer-header {
@@ -6999,8 +6999,8 @@ nz-descriptions {
     justify-content: space-between;
     padding: 16px 24px;
     color: $devui-text;
-    background: #fff;
-    border-bottom: 1px solid #f0f0f0;
+    background: $devui-global-bg;
+    border-bottom: 1px solid $devui-form-control-line;
     border-radius: 2px 2px 0 0;
 }
 .ant-drawer-header-title {
@@ -7030,7 +7030,7 @@ nz-descriptions {
 .ant-drawer-footer {
     flex-shrink: 0;
     padding: 10px 16px;
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid $devui-form-control-line;
 }
 .ant-drawer-mask {
     position: absolute;
@@ -7044,7 +7044,7 @@ nz-descriptions {
     pointer-events: none;
 }
 .ant-drawer .ant-picker-clear {
-    background: #fff;
+    background: $devui-base-bg;
 }
 @keyframes antdDrawerFadeIn {
     0% {

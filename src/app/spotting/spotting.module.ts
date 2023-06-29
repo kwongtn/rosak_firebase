@@ -11,7 +11,6 @@ import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
-import { UploadModule } from "ng-devui/upload";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
@@ -21,6 +20,9 @@ import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     SpottingImageListModule,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.module";
+import {
+    FormUploadModule,
+} from "src/app/@ui/spotting/form-upload/form-upload.module";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -33,6 +35,9 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import {
     SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+import {
+    ImagePreviewButtonModule,
+} from "../@ui/spotting/image-preview-button/image-preview-button.module";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
@@ -52,9 +57,6 @@ import {
 import {
     GetStationLinesGqlService,
 } from "./services/get-station-lines-gql.service";
-import {
-    FormUploadComponent,
-} from "./spotting-form/form-upload/form-upload.component";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
 import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
 import {
@@ -72,7 +74,6 @@ import {
 
 @NgModule({
     declarations: [
-        FormUploadComponent,
         InlineHistoryComponent,
         InlineTimelineComponent,
         SpottingFormComponent,
@@ -102,11 +103,12 @@ import {
         TagsModule,
         TimeAxisModule,
         TooltipModule,
-        UploadModule,
 
         // Internal Imports
         CoordinatesHumanizerModule,
+        FormUploadModule,
         GraphQLModule,
+        ImagePreviewButtonModule,
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         SpottingTypePipeModule,

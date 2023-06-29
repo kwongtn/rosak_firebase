@@ -4,6 +4,7 @@ import { Injectable } from "@angular/core";
 
 export interface MediaResponse {
     events: {
+        isMine: boolean;
         medias: {
             file: {
                 url: string;
@@ -19,6 +20,7 @@ export class GetMediasService extends Query<MediaResponse> {
     override document = gql`
         query ($filters: EventFilter) {
             events(filters: $filters) {
+                isMine
                 medias {
                     file {
                         url

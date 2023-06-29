@@ -2,7 +2,7 @@ import { BehaviorSubject, firstValueFrom } from "rxjs";
 import { catchError } from "rxjs/operators";
 import {
     ImageFile,
-} from "src/app/spotting/spotting-form/form-upload/form-upload.component";
+} from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
@@ -13,7 +13,7 @@ import { AuthService } from "../auth/auth.service";
 import { ToastService } from "../toast/toast.service";
 
 interface IPendingUpload {
-    spottingId: number;
+    spottingId: number | string;
     file: ImageFile;
 }
 
@@ -139,7 +139,7 @@ export class ImageUploadService {
         }
     }
 
-    addToQueue(spottingId: number, file: ImageFile) {
+    addToQueue(spottingId: number | string, file: ImageFile) {
         this.pendingUploads.push({ spottingId, file });
         this.addCounts(1);
 
