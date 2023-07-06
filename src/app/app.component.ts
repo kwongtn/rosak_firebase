@@ -8,7 +8,7 @@ import {
     ElementRef,
     HostListener,
     OnDestroy,
-    OnInit
+    OnInit,
 } from "@angular/core";
 import { NavigationEnd, Router } from "@angular/router";
 
@@ -27,8 +27,8 @@ const initialMenuList: { [key: string]: string }[] = [
         name: "Insiden",
         href: "/insiden",
         target: "_self",
-        tag: "Alpha",
-        style: "warning",
+        tag: "Beta",
+        style: "waiting",
         headerTitle: " - Insiden ",
     },
     {
