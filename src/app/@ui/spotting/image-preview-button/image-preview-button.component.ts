@@ -49,9 +49,6 @@ export class ImagePreviewButtonComponent {
     @HostListener("window:resize")
     resize(): void {
         const clientWidth = document.body.clientWidth;
-        console.log(clientWidth);
-        console.log(document.body.clientHeight);
-
         this.width = clientWidth < 500 ? "280px" : clientWidth < 1024 ? "480px" : clientWidth < 1300 ? "700px" : "905px";
     }
 
