@@ -3,13 +3,7 @@ import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 import { ReCaptchaV3Service } from "ng-recaptcha";
-import {
-    firstValueFrom,
-    lastValueFrom,
-    Observable,
-    of,
-    Subscription,
-} from "rxjs";
+import { lastValueFrom, Observable, of, Subscription } from "rxjs";
 import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth/auth.service";
 import {
@@ -351,7 +345,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     if (
                         atStationStation &&
                         this.spottingStorageService.getLine().value ==
-                            this.formGroup.value.line.value
+                        this.formGroup.value.line.value
                     ) {
                         this.formGroup.patchValue({
                             atStation: atStationStation,
@@ -431,9 +425,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     onSubmit():
         | Promise<{
-              spottingSubmission: Promise<MutationResult<any> | undefined>;
-              uploads: ImageFile[];
-          }>
+            spottingSubmission: Promise<MutationResult<any> | undefined>;
+            uploads: ImageFile[];
+        }>
         | undefined {
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
@@ -486,7 +480,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         const spottingDate: Date = formValues["spottingDate"];
         formValues["spottingDate"] = new Date(
             spottingDate.getTime() -
-                spottingDate.getTimezoneOffset() * 60 * 1000
+            spottingDate.getTimezoneOffset() * 60 * 1000
         )
             .toISOString()
             .slice(0, 10);
@@ -514,9 +508,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
         return Promise.all([
-            firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
+            // firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
             this.authService.getIdToken(),
-        ]).then(([captchaResponse, firebaseAuthKey]) => {
+        ]).then(([
+            // captchaResponse, 
+            firebaseAuthKey,
+        ]) => {
             const mutationObservable = this.apollo.mutate({
                 mutation: ADD_ENTRY,
                 variables: {
@@ -524,7 +521,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 },
                 context: {
                     headers: {
-                        "g-recaptcha-response": captchaResponse,
+                        // "g-recaptcha-response": captchaResponse,
                         "firebase-auth-key": firebaseAuthKey,
                     },
                 },
