@@ -28,6 +28,13 @@ export class ImagePreviewButtonComponent {
     @Input() isMine: boolean = false;
 
     @ViewChild("drawerFooter") drawerFooter!: TemplateRef<any>;
+
+    /**
+     * 280px - 1 img
+     * 480px - 2 imgs
+     * 700px - 3 imgs
+     * 905px - 4 imgs
+     */
     width: string = "700px";
     drawerRef!: NzDrawerRef<SpottingImageListComponent, string>;
 
@@ -41,8 +48,11 @@ export class ImagePreviewButtonComponent {
 
     @HostListener("window:resize")
     resize(): void {
-        const width = document.body.clientWidth;
-        this.width = width < 1024 ? "480px" : width < 1280 ? "700px" : "905px";
+        const clientWidth = document.body.clientWidth;
+        console.log(clientWidth);
+        console.log(document.body.clientHeight);
+
+        this.width = clientWidth < 500 ? "280px" : clientWidth < 1024 ? "480px" : clientWidth < 1300 ? "700px" : "905px";
     }
 
     onPictureIconClick() {
