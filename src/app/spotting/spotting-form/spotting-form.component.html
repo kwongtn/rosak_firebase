@@ -71,6 +71,7 @@
                             formControlName="vehicle"
                             (ngModelChange)="onVehicleChanges($event)"
                             [width]="300"
+                            [disabled]="!formGroup['value']?.line?.value"
                             [isSearch]="true"
                             [filterKey]="'name'"
                             [searchFn]="vehicleSearchFn"
