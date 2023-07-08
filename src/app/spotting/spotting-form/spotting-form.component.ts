@@ -128,6 +128,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     vehicleSearchFn = (
         term: string
     ): Observable<{ id: string | number; option: any }[]> => {
+        if (!this.formGroup["value"]?.line?.value) {
+            return of([]);
+        }
+
         const setNumber = numberSeenToSetNumber(
             term,
             this.formGroup.value.line?.value
