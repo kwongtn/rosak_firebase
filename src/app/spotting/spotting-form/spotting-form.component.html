@@ -66,11 +66,15 @@
 
                 <d-form-item>
                     <d-form-label class="required">Vehicle*</d-form-label>
-                    <d-form-control [feedbackStatus]="getStatus('vehicle')">
+                    <d-form-control
+                        [feedbackStatus]="getStatus('vehicle')"
+                        *ngIf="formGroup['value']?.line?.value"
+                    >
                         <d-select
                             formControlName="vehicle"
                             (ngModelChange)="onVehicleChanges($event)"
                             [width]="300"
+                            [disabled]="!formGroup['value']?.line?.value"
                             [isSearch]="true"
                             [filterKey]="'name'"
                             [searchFn]="vehicleSearchFn"
