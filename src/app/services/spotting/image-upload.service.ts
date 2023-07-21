@@ -1,7 +1,7 @@
 import { BehaviorSubject, firstValueFrom } from "rxjs";
 import { catchError } from "rxjs/operators";
 import {
-    ImageFile,
+    ImageFile
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { environment } from "src/environments/environment";
 
@@ -50,6 +50,7 @@ export class ImageUploadService {
                 this.isUploading = true;
                 const input = new FormData();
                 input.append("spotting_event_id", spottingId.toString());
+                input.append("upload_type", "SPOTTING_EVENT");
 
                 if (file.toCompress && !file.isCompressed) {
                     this.pendingUploads.push({
@@ -65,7 +66,7 @@ export class ImageUploadService {
                     ([firebaseAuthKey]) => {
                         const httpPost = this.http
                             .post(
-                                `${environment.backendUrl}spotting_upload/`,
+                                `${environment.backendUrl}upload/`,
                                 input,
                                 {
                                     headers: {
