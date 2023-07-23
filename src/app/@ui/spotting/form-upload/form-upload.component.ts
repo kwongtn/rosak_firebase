@@ -1,7 +1,7 @@
 import { Message } from "ng-devui";
 import { IFileOptions, IUploadOptions } from "ng-devui/upload";
 import {
-    ImageCompressionService,
+    ImageCompressionService
 } from "src/app/services/image-compression/image-compression.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
@@ -24,7 +24,7 @@ const VALID_TYPES: string[] = [
 
 export class ImageFile {
     name: string;
-    file: File;
+    file: Blob;
     displayFilename: string = "";
 
     buffer: string | ArrayBuffer | null = null;
@@ -38,7 +38,7 @@ export class ImageFile {
         this.compressServiceInstance
             .ResizeImage(file, 300, 300)
             .then((resizedFile: File) => {
-                return this.compressServiceInstance.FileToDataUrl(resizedFile);
+                return this.compressServiceInstance.FileBlobToDataUrl(resizedFile);
             })
             .then((dataUrl: string) => {
                 this.buffer = dataUrl;
@@ -56,7 +56,7 @@ export class ImageFile {
             this.toCompress = true;
             compressServiceInstance
                 .ResizeToSize(file, MAX_MEGABYTE)
-                .then((compressedFile: File) => {
+                .then((compressedFile: Blob) => {
                     this.file = compressedFile;
                     this.isCompressed = true;
                 });
