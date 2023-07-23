@@ -9,6 +9,14 @@ export type VehicleStatus =
     | "TESTING"
     | "UNKNOWN";
 
+export type LineStatus =
+    | "TESTING"
+    | "DEFUNCT"
+    | "ACTIVE"
+    | "PARTIAL_ACTIVE"
+    | "PARTIAL_DISRUPTION"
+    | "TOTAL_DISRUPTION";
+
 export interface VehicleStatusCountType {
     vehicleStatusDecommissionedCount: number;
     vehicleStatusInServiceCount: number;
@@ -55,6 +63,7 @@ export interface GetLinesResponse {
         id: string;
         code: string;
         displayName: string;
+        status: LineStatus;
     }>;
 }
 

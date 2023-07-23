@@ -1,6 +1,6 @@
 import { Apollo, gql } from "apollo-angular";
 import { Subscription } from "rxjs";
-import { VehicleType } from "src/app/models/query/get-vehicles";
+import { LineStatus, VehicleType } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
     tagListDisplayConfig,
@@ -56,6 +56,7 @@ implements OnInit, OnChanges, OnDestroy
     @Input() tableData!: TableDataType[];
     @Input() lineId!: string | number;
     @Input() title!: string;
+    @Input() lineStatus!: LineStatus;
 
     showLoading: boolean = true;
     private querySubscription!: Subscription;
