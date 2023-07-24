@@ -1,0 +1,32 @@
+<span [ngSwitch]="lineStatus">
+    <d-tag
+        *ngSwitchCase="'TESTING'"
+        [tag]="'Testing'"
+        [labelStyle]="'blue-w98'"
+    >
+    </d-tag>
+    <d-tag *ngSwitchCase="'DEFUNCT'" [tag]="'Defunct'"> </d-tag>
+    <d-tag *ngSwitchCase="'ACTIVE'" [tag]="'Active'" [labelStyle]="'green-w98'">
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'PARTIAL_ACTIVE'"
+        [tag]="'Partially Active'"
+        [labelStyle]="'aqua-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'PARTIAL_DISRUPTION'"
+        [tag]="'Partial Disruption'"
+        [labelStyle]="'yellow-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'TOTAL_DISRUPTION'"
+        [tag]="'Total Disruption'"
+        [labelStyle]="'red-w98'"
+    >
+    </d-tag>
+    <d-tag *ngSwitchDefault>
+        {{ lineStatus | titlecase }}
+    </d-tag>
+</span>

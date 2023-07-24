@@ -4,10 +4,11 @@ import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
     GetLinesResponse,
+    LineStatus
 } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
-    ImageUploadService,
+    ImageUploadService
 } from "src/app/services/spotting/image-upload.service";
 import { environment } from "src/environments/environment";
 
@@ -15,11 +16,11 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
 import {
-    ImageFile,
+    ImageFile
 } from "../../@ui/spotting/form-upload/form-upload.component";
 import { ToastService } from "../../services/toast/toast.service";
 import {
-    SpottingFormComponent,
+    SpottingFormComponent
 } from "../spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "../utils";
 
@@ -29,6 +30,7 @@ const GET_LINES = gql`
             id
             code
             displayName
+            status
         }
     }
 `;
@@ -46,6 +48,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     tabActiveId: string | number | undefined = undefined;
     tabActiveTitle: string = "";
     tabItems: LineTabType[] = [];
+    tabLineStatus: LineStatus = "ACTIVE";
 
     countIcon: number = 0;
     $countIcon: Subscription | undefined = undefined;
@@ -223,9 +226,10 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     }
 
     setActiveTitle() {
-        this.tabActiveTitle =
-            this.tabItems.find((val) => {
-                return val.id === this.tabActiveId;
-            })?.detail ?? "";
+        const currObj = this.tabItems.find((val) => {
+            return val.id === this.tabActiveId;
+        });
+        this.tabActiveTitle = currObj?.detail ?? "";
+        this.tabLineStatus = currObj?.lineStatus ?? "ACTIVE";
     }
 }

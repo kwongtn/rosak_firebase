@@ -1,4 +1,7 @@
-import { VehicleStatusCountType } from "src/app/models/query/get-vehicles";
+import {
+    LineStatus,
+    VehicleStatusCountType
+} from "src/app/models/query/get-vehicles";
 
 import { GetLinesResponse } from "../models/query/get-vehicles";
 import { VehicleFormOption } from "./spotting-form/spotting-form.types";
@@ -8,6 +11,7 @@ export interface LineTabType {
     title: string;
     disabled?: boolean;
     detail: string;
+    lineStatus: LineStatus;
 }
 
 export function lineQueryResultToTabEntries(
@@ -20,6 +24,7 @@ export function lineQueryResultToTabEntries(
             id: line.id,
             disabled: false,
             detail: `${line.displayName}`,
+            lineStatus: line.status,
         };
         lineOptions.push(lineObj);
     }
