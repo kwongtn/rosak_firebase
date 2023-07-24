@@ -25,7 +25,6 @@ export interface UserFavouriteVehicle {
 }
 
 export interface UserDataResponseUser {
-    firebaseId: string;
     nickname: string;
     spottingsCount: number;
     mediaCount: number;
@@ -51,7 +50,6 @@ export class GetUserDataService extends Query<UserDataResponse> {
             $freeRange: Boolean
         ) {
             user {
-                firebaseId
                 nickname
                 spottingsCount
                 mediaCount
