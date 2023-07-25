@@ -1,9 +1,9 @@
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import {
-    SpottingImageListComponent,
+    SpottingImageListComponent
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
 import {
-    ImageUploadService,
+    ImageUploadService
 } from "src/app/services/spotting/image-upload.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
@@ -12,7 +12,7 @@ import {
     HostListener,
     Input,
     TemplateRef,
-    ViewChild,
+    ViewChild
 } from "@angular/core";
 
 import { ImageFile } from "../form-upload/form-upload.component";
@@ -49,7 +49,14 @@ export class ImagePreviewButtonComponent {
     @HostListener("window:resize")
     resize(): void {
         const clientWidth = document.body.clientWidth;
-        this.width = clientWidth < 500 ? "280px" : clientWidth < 1024 ? "480px" : clientWidth < 1300 ? "700px" : "905px";
+        this.width =
+            clientWidth < 500
+                ? "280px"
+                : clientWidth < 1024
+                    ? "480px"
+                    : clientWidth < 1300
+                        ? "700px"
+                        : "905px";
     }
 
     onPictureIconClick() {
@@ -80,7 +87,11 @@ export class ImagePreviewButtonComponent {
 
         if (pendingUploads.length > 0) {
             pendingUploads.forEach((file: ImageFile) => {
-                this.imageUploadService.addToQueue(this.eventId, file);
+                this.imageUploadService.addToQueue(
+                    this.eventId,
+                    file,
+                    "SPOTTING_EVENT"
+                );
             });
             this.toastService.addMessage(
                 "Image upload queued. Please wait for uploads to complete before closing this tab.",
