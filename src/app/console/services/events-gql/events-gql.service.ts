@@ -1,6 +1,8 @@
 import { gql, Query } from "apollo-angular";
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
+import {
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 
 import { Injectable } from "@angular/core";
 

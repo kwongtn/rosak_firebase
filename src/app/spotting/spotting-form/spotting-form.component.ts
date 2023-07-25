@@ -4,7 +4,9 @@ import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 import { ReCaptchaV3Service } from "ng-recaptcha";
 import { lastValueFrom, Observable, of, Subscription } from "rxjs";
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
+import {
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { AuthService } from "src/app/services/auth/auth.service";
 import {
     SpottingStorageService,

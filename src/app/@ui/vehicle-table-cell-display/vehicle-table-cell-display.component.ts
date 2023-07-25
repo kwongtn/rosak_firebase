@@ -1,4 +1,7 @@
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
+
+import {
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { environment } from "src/environments/environment";
 
 import { Component, Input, OnInit } from "@angular/core";
