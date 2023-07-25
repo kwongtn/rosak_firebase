@@ -1,4 +1,4 @@
-import { SpottingType } from "../spotting-table/source-type";
+import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
 
 export type VehicleStatus =
     | "IN_SERVICE"
