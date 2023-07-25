@@ -1,7 +1,7 @@
 import { BehaviorSubject, firstValueFrom } from "rxjs";
 import { catchError } from "rxjs/operators";
 import {
-    ImageFile
+    ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { environment } from "src/environments/environment";
 
@@ -55,7 +55,7 @@ export class ImageUploadService {
                 this.isUploading = true;
                 const input = new FormData();
                 input.append("related_id", relatedId.toString());
-                input.append("upload_type", "SPOTTING_EVENT");
+                input.append("upload_type", _type);
 
                 if (file.toCompress && !file.isCompressed) {
                     this.pendingUploads.push({
