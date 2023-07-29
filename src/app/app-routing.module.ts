@@ -14,6 +14,7 @@ import {
 import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
+import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/profile.component";
 import {
@@ -30,6 +31,7 @@ interface MaintananceDocument {
     insiden: MaintenanceElement;
     profile: MaintenanceElement;
     console: MaintenanceElement;
+    gallery: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
@@ -43,6 +45,9 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
     console: {
+        curentlyInMaintenance: false,
+    },
+    gallery: {
         curentlyInMaintenance: false,
     },
 };
@@ -73,6 +78,24 @@ const routes: Routes = [
         component: maintenance.spotting.curentlyInMaintenance
             ? ConstructionComponent
             : InsidenMainComponent,
+    },
+    {
+        path: "gallery",
+        title: "MLPTF | Gallery",
+        loadChildren: async () => {
+            if (maintenance.gallery.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./gallery/gallery.module");
+                return module.GalleryModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : GalleryComponent,
     },
     {
         path: "spotting",
