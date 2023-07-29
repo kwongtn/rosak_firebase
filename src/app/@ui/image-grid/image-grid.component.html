@@ -1,0 +1,22 @@
+<!--
+    This component is wholy inspired & referenced from
+    https://github.com/xieranmaya/blog/issues/6
+-->
+<div class="main-container">
+    <div
+        *ngFor="let img of images"
+        [ngStyle]="{
+        width: (img.width*ratioBaseline/img.height) + 'px',
+        'flex-grow': img.width*ratioBaseline/img.height,
+    }"
+        class="child-container"
+    >
+        <div
+            [ngStyle]="{
+                'padding-bottom':
+                    (img.height / img.width) * (ratioBaseline / 2) + '%'
+            }"
+        ></div>
+        <img [src]="img.url" alt="" />
+    </div>
+</div>

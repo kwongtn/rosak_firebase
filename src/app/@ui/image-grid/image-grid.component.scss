@@ -1,0 +1,22 @@
+.main-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.main-container::after {
+    content: "";
+    flex-grow: 999999999;
+}
+
+.child-container {
+    margin: 2px;
+    position: relative;
+    flex-grow: 1;
+}
+
+img {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    vertical-align: bottom;
+}
