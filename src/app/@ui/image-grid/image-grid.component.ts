@@ -2,7 +2,7 @@ import { NzImageService } from "ng-zorro-antd/image";
 
 import { Component, Input } from "@angular/core";
 
-interface InputImage {
+export interface InputImage {
     url: string;
     thumbnailUrl: string;
     width: number;
