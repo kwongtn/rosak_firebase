@@ -27,6 +27,8 @@ export class ImageGridComponent {
     displayImage: any[] = [];
     loading: boolean = true;
 
+    loadImages: boolean = false;
+
     constructor(
         private nzImageService: NzImageService
     ) {
@@ -47,4 +49,9 @@ export class ImageGridComponent {
         this.loading = false;
     }
 
+    onIntersection({ target, visible }: { target: Element; visible: boolean }): void {
+        // this.renderer.addClass(target, visible ? 'active' : 'inactive');
+        // this.renderer.removeClass(target, visible ? 'inactive' : 'active');
+        this.loadImages = visible;
+    }
 }

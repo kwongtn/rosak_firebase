@@ -4,6 +4,9 @@
 -->
 <div class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}">
     <nz-image-group
+        inViewport
+        [inViewportOptions]="{ rootMargin: '750px 0px' }"
+        (inViewportAction)="onIntersection($event)"
         *ngFor="let img of images; let i = index"
         [ngStyle]="{
             width: (img.width*ratioBaseline/img.height) + 'px',
@@ -18,6 +21,7 @@
             }"
         ></div>
         <img
+            *ngIf="loadImages"
             [src]="img.thumbnailUrl"
             alt=""
             [attr.data-index]="i"
