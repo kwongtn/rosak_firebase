@@ -1,10 +1,9 @@
-import { RadioModule } from "ng-devui";
+
 import { AvatarModule } from "ng-devui/avatar";
 import { BadgeModule } from "ng-devui/badge";
 import { ButtonModule } from "ng-devui/button";
 import { CardModule } from "ng-devui/card";
 import { DropDownModule } from "ng-devui/dropdown";
-import { TabsModule } from "ng-devui/tabs";
 import { ToggleModule } from "ng-devui/toggle";
 import { TooltipModule } from "ng-devui/tooltip";
 import { NzAlertModule } from "ng-zorro-antd/alert";
@@ -41,8 +40,6 @@ import { MenuComponent } from "./menu/menu.component";
         ButtonModule,
         CardModule,
         DropDownModule,
-        RadioModule,
-        TabsModule,
         ToggleModule,
         TooltipModule,
 
