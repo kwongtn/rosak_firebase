@@ -1,11 +1,10 @@
-import { getThumbnail } from "src/app/@util/imgur";
+import { NzImageService } from "ng-zorro-antd/image";
 
 import { Component, Input } from "@angular/core";
 
-import { data } from "./data";
-
 interface InputImage {
     url: string;
+    thumbnailUrl: string;
     width: number;
     height: number;
 }
@@ -24,5 +23,28 @@ export class ImageGridComponent {
     @Input() images: InputImage[] = [];
     @Input() ratioBaseline: number = 200;
     @Input() fillLastRow: boolean = false;
+
+    displayImage: any[] = [];
+    loading: boolean = true;
+
+    constructor(
+        private nzImageService: NzImageService
+    ) {
+        return;
+    }
+
+    onViewImage(index: number): void {
+        this.nzImageService
+            .preview(
+                this.images.map((val) => {
+                    return { src: val.url };
+                })
+            )
+            .switchTo(index);
+    }
+
+    markLoaded(): void {
+        this.loading = false;
+    }
 
 }

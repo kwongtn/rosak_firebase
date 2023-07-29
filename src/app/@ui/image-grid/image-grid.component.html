@@ -3,8 +3,8 @@
     https://github.com/xieranmaya/blog/issues/6
 -->
 <div class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}">
-    <div
-        *ngFor="let img of images"
+    <nz-image-group
+        *ngFor="let img of images; let i = index"
         [ngStyle]="{
         width: (img.width*ratioBaseline/img.height) + 'px',
         'flex-grow': img.width*ratioBaseline/img.height,
@@ -17,6 +17,12 @@
                     (img.height / img.width) * (ratioBaseline / 2) + '%'
             }"
         ></div>
-        <img [src]="img.url" alt="" />
-    </div>
+        <img
+            [src]="img.thumbnailUrl"
+            alt=""
+            [attr.data-index]="i"
+            (click)="onViewImage(i)"
+            (load)="markLoaded()"
+        />
+    </nz-image-group>
 </div>
