@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
-import { ConsoleMainComponent } from "./main.component";
+import { ConsoleMainComponent } from "./console.component";
 
 describe("ConsoleMainComponent", () => {
     let component: ConsoleMainComponent;

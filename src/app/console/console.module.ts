@@ -41,10 +41,10 @@ import {
 import {
     VehicleStatusPipeModule,
 } from "../pipes/vehicle-status/vehicle-status.module";
+import { ConsoleMainComponent } from "./console.component";
 import {
     ConsoleEventsTableComponent,
 } from "./events-table/events-table.component";
-import { ConsoleMainComponent } from "./main/main.component";
 
 @NgModule({
     declarations: [ConsoleMainComponent, ConsoleEventsTableComponent],

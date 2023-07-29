@@ -11,7 +11,7 @@ import { AboutComponent } from "./about/about.component";
 import {
     MainComponent as ComplianceMainComponent,
 } from "./compliance/main/main.component";
-import { ConsoleMainComponent } from "./console/main/main.component";
+import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
