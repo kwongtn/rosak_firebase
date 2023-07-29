@@ -17,11 +17,11 @@
     </d-card-header>
     <d-card-content>
         <div class="theme-menu">
-            <d-toggle
+            <nz-switch
                 class="theme-follow-toggle"
                 [(ngModel)]="themeFollowSystemColorScheme"
                 (ngModelChange)="followSystemColorScheme($event)"
-            ></d-toggle>
+            ></nz-switch>
             <span>Follow System Theme</span>
         </div>
     </d-card-content>
