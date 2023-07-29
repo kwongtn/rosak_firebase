@@ -7,10 +7,10 @@ import {
     HostListener,
     Input,
     OnInit,
-    QueryList
+    QueryList,
 } from "@angular/core";
 
-import { LogoComponent } from "../logo/logo.component";
+import { LogoComponent } from "./logo/logo.component";
 
 @Component({
     selector: "d-common-header",
