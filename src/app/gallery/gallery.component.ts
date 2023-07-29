@@ -32,9 +32,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
     async ngOnInit() {
         this.watchQueryOption = this.gqlService.watch(
             {
-                order: {
-                    created: "DESC",
-                },
+                type: "DAY",
             },
             {
                 fetchPolicy: "network-only",
@@ -50,23 +48,20 @@ export class GalleryComponent implements OnInit, OnDestroy {
                     data: MediaRelayResponse;
                     loading: boolean;
                 }) => {
-                    data.medias.edges.forEach((media) => {
-                        const key = media.node.created.split("T")[0];
-                        const data = {
-                            height: media.node.height,
-                            width: media.node.width,
-                            url: media.node.file.url,
-                            thumbnailUrl: getThumbnail(
-                                media.node.file.url,
-                                "l"
-                            ),
-                        };
-
-                        if (!this.imageDateMaps[key]) {
-                            this.imageDateMaps[key] = [data];
-                        } else {
-                            this.imageDateMaps[key].push(data);
-                        }
+                    data.mediasGroupByPeriod.forEach((elem) => {
+                        this.imageDateMaps[elem.dateKey] = elem.medias.map(
+                            (media) => {
+                                return {
+                                    height: media.height,
+                                    width: media.width,
+                                    url: media.file.url,
+                                    thumbnailUrl: getThumbnail(
+                                        media.file.url,
+                                        "l"
+                                    ),
+                                };
+                            }
+                        );
                     });
 
                     this.loading = loading;
@@ -81,7 +76,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
             return -1;
         }
     }
-    
+
     ngOnDestroy(): void {
         this.mainQuerySubscription?.unsubscribe();
     }
