@@ -15,7 +15,7 @@ import { ConsoleMainComponent } from "./console/main/main.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
-import { ProfileMainComponent } from "./profile/main/main.component";
+import { ProfileMainComponent } from "./profile/profile.component";
 import {
     SpottingMainComponent,
 } from "./spotting/spotting-main/spotting-main.component";
