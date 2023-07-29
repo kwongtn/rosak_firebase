@@ -1,3 +1,5 @@
+@import "ng-devui/styles-var/devui-var.scss";
+
 .main-container {
     display: flex;
     flex-wrap: wrap;
@@ -23,4 +25,13 @@ img {
     top: 0;
     width: 100%;
     vertical-align: bottom;
+    cursor: pointer;
+    transition-duration: 200ms;
+    transition-timing-function: ease-in-out;
+}
+
+img:hover {
+    box-shadow: $devui-shadow-length-connected-overlay $devui-shadow;
+    transform: scale(1.05);
+    z-index: 1;
 }

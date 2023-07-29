@@ -6,9 +6,9 @@
     <nz-image-group
         *ngFor="let img of images; let i = index"
         [ngStyle]="{
-        width: (img.width*ratioBaseline/img.height) + 'px',
-        'flex-grow': img.width*ratioBaseline/img.height,
-    }"
+            width: (img.width*ratioBaseline/img.height) + 'px',
+            'flex-grow': img.width*ratioBaseline/img.height,
+        }"
         class="child-container"
     >
         <div
