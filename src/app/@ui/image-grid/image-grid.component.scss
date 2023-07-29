@@ -5,7 +5,11 @@
 
 .main-container::after {
     content: "";
-    flex-grow: 999999999;
+    flex-grow: 1e4;
+}
+
+.fill-last-row::after {
+    min-width: 20%;
 }
 
 .child-container {

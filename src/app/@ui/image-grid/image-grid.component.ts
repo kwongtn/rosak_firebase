@@ -23,5 +23,6 @@ interface SectionData {
 export class ImageGridComponent {
     @Input() images: InputImage[] = [];
     @Input() ratioBaseline: number = 200;
+    @Input() fillLastRow: boolean = false;
 
 }

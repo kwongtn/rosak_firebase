@@ -2,7 +2,7 @@
     This component is wholy inspired & referenced from
     https://github.com/xieranmaya/blog/issues/6
 -->
-<div class="main-container">
+<div class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}">
     <div
         *ngFor="let img of images"
         [ngStyle]="{
