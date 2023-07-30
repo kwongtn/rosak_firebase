@@ -2,10 +2,13 @@
     This component is wholy inspired & referenced from
     https://github.com/xieranmaya/blog/issues/6
 -->
-<div class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}">
+<div
+    #gridContainer
+    class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}"
+>
     <nz-image-group
         inViewport
-        [inViewportOptions]="{ rootMargin: '750px 0px' }"
+        [inViewportOptions]="{ threshold: 1, rootMargin: '200px 0px' }"
         (inViewportAction)="onIntersection($event)"
         *ngFor="let img of images; let i = index"
         [ngStyle]="{

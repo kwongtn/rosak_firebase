@@ -17,7 +17,13 @@ import {
     styleUrls: ["./gallery.component.scss"],
 })
 export class GalleryComponent implements OnInit, OnDestroy {
-    imageDateMaps: { [created: string]: InputImage[] } = {};
+    imageDateMaps: {
+        [created: string]: {
+            images: InputImage[];
+            displayImages: boolean;
+            height?: string;
+        };
+    } = {};
 
     watchQueryOption!: QueryRef<any>;
     mainQuerySubscription!: Subscription;
@@ -49,8 +55,15 @@ export class GalleryComponent implements OnInit, OnDestroy {
                     loading: boolean;
                 }) => {
                     data.mediasGroupByPeriod.forEach((elem) => {
-                        this.imageDateMaps[elem.dateKey] = elem.medias.map(
-                            (media) => {
+                        if (!this.imageDateMaps[elem.dateKey]) {
+                            this.imageDateMaps[elem.dateKey] = {
+                                images: [],
+                                displayImages: true,
+                            };
+                        }
+
+                        this.imageDateMaps[elem.dateKey].images =
+                            elem.medias.map((media) => {
                                 return {
                                     height: media.height,
                                     width: media.width,
@@ -60,13 +73,24 @@ export class GalleryComponent implements OnInit, OnDestroy {
                                         "l"
                                     ),
                                 };
-                            }
-                        );
+                            });
                     });
 
                     this.loading = loading;
                 }
             );
+    }
+
+    onIntersection({
+        target,
+        visible,
+    }: {
+        target: Element;
+        visible: boolean;
+    }): void {
+        // this.renderer.addClass(target, visible ? 'active' : 'inactive');
+        // this.renderer.removeClass(target, visible ? 'inactive' : 'active');
+        this.imageDateMaps[target.id].displayImages = visible;
     }
 
     compareFn<K, V>(a: KeyValue<K, V>, b: KeyValue<K, V>) {

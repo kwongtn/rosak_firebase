@@ -1,8 +1,22 @@
 <h1>Gallery</h1>
 <div
+    inViewport
+    [inViewportOptions]="{ threshold: 1, rootMargin: '200px 0px' }"
+    (inViewportAction)="onIntersection($event)"
     *ngFor="let imgDate of imageDateMaps | keyvalue : compareFn"
+    [id]="imgDate.key"
     class="date-image-container"
+    #dateImageContainer
 >
     <h2>{{ imgDate.key | date }}</h2>
-    <image-grid [images]="imgDate.value"></image-grid>
+    <div
+        *ngIf="!imgDate.value.displayImages"
+        [ngStyle]="{
+            height: (imgDate.value.images.length / 3) * 200 + 'px'
+        }"
+    ></div>
+    <image-grid
+        *ngIf="imgDate.value.displayImages"
+        [images]="imgDate.value.images"
+    ></image-grid>
 </div>
