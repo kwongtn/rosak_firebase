@@ -48,38 +48,21 @@
             <ng-content select="d-header-menu"></ng-content>
             <ng-content select="d-ecosystem"></ng-content>
 
-            <div
-                dDropDown
-                appendToBody
-                class="header-avatar"
-                [appendToBodyDirections]="[
-                    'rightDown',
-                    'leftDown',
-                    'rightUp',
-                    'leftUp'
-                ]"
-            >
+            <div (click)="onLoginIconClick()" class="header-avatar">
                 <d-avatar
                     dTooltip
-                    dDropDownToggle
                     *ngIf="!userAvatar"
                     [name]="''"
                     [content]="'Click here to login'"
                     [position]="'left'"
                 ></d-avatar>
                 <d-avatar
-                    dDropDownToggle
                     *ngIf="userAvatar"
                     [width]="40"
                     [height]="40"
                     [imgSrc]="userAvatar"
                 >
                 </d-avatar>
-                <app-login-dropdown
-                    dDropDownMenu
-                    role="menu"
-                    [userAvatar]="userAvatar"
-                ></app-login-dropdown>
             </div>
         </div>
         <div
