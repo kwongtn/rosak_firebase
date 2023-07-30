@@ -16,6 +16,7 @@
             'flex-grow': img.width*ratioBaseline/img.height,
         }"
         class="child-container"
+        [id]="i"
     >
         <div
             [ngStyle]="{
@@ -24,7 +25,7 @@
             }"
         ></div>
         <img
-            *ngIf="loadImages"
+            *ngIf="displayImage[i]"
             [src]="img.thumbnailUrl"
             alt=""
             [attr.data-index]="i"

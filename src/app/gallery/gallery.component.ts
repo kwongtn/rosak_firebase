@@ -72,6 +72,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
                                         media.file.url,
                                         "l"
                                     ),
+                                    display: false,
                                 };
                             });
                     });

@@ -16,6 +16,7 @@ export interface InputImage {
     thumbnailUrl: string;
     width: number;
     height: number;
+    display: boolean;
 }
 
 interface SectionData {
@@ -38,10 +39,8 @@ export class ImageGridComponent implements OnInit, AfterViewInit {
     @Output() onComponentDimensionChange: EventEmitter<[number, number]> =
         new EventEmitter<[number, number]>();
 
-    displayImage: any[] = [];
+    displayImage: { [key: string]: boolean } = {};
     loading: boolean = true;
-
-    loadImages: boolean = true;
 
     constructor(private nzImageService: NzImageService) {
         return;
@@ -75,9 +74,7 @@ export class ImageGridComponent implements OnInit, AfterViewInit {
         target: Element;
         visible: boolean;
     }): void {
-        // this.renderer.addClass(target, visible ? 'active' : 'inactive');
-        // this.renderer.removeClass(target, visible ? 'inactive' : 'active');
-        this.loadImages = visible;
+        this.displayImage[target.id] = visible;
     }
 
     ngOnInit(): void {
