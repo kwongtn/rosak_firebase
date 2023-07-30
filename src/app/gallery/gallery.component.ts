@@ -58,7 +58,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
                         if (!this.imageDateMaps[elem.dateKey]) {
                             this.imageDateMaps[elem.dateKey] = {
                                 images: [],
-                                displayImages: true,
+                                displayImages: false,
                             };
                         }
 
@@ -90,6 +90,11 @@ export class GalleryComponent implements OnInit, OnDestroy {
     }): void {
         // this.renderer.addClass(target, visible ? 'active' : 'inactive');
         // this.renderer.removeClass(target, visible ? 'inactive' : 'active');
+        if(visible){
+            console.log(target.id, "✅");
+        }else{
+            console.log(target.id, "❌");
+        }
         this.imageDateMaps[target.id].displayImages = visible;
     }
 
