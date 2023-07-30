@@ -8,7 +8,7 @@
 >
     <nz-image-group
         inViewport
-        [inViewportOptions]="{ threshold: 1, rootMargin: '200px 0px' }"
+        [inViewportOptions]="{ rootMargin: '200px 0px' }"
         (inViewportAction)="onIntersection($event)"
         *ngFor="let img of images; let i = index"
         [ngStyle]="{
