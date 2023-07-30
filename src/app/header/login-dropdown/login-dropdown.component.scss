@@ -1,10 +1,16 @@
 @import "ng-devui/styles-var/devui-var.scss";
+
+.card-content {
+    padding-top: 10px;
+}
+
 .text {
     color: $devui-text;
+    font-weight: $devui-font-title-weight;
 }
 
 .theme-menu {
-    padding: 8px 12px;
+    margin-top: 15px;
     font-size: $devui-font-size;
     line-height: 1.5;
 }

@@ -85,7 +85,7 @@ export class HeaderComponent implements OnInit {
             nzTitle: "Login",
             // nzFooter: this.isMine ? this.drawerFooter : undefined,
             // nzExtra: 'Extra',
-            // nzWidth: this.width,
+            nzPlacement: document.body.clientWidth < 500 ? "bottom" : "right",
             nzContent: LoginDropdownComponent,
             nzContentParams: {
                 userAvatar: this.userAvatar,

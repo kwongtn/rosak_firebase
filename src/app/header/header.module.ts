@@ -1,10 +1,11 @@
 import { AvatarModule } from "ng-devui/avatar";
 import { BadgeModule } from "ng-devui/badge";
-import { ButtonModule } from "ng-devui/button";
-import { CardModule } from "ng-devui/card";
 import { TooltipModule } from "ng-devui/tooltip";
 import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzCardModule } from "ng-zorro-antd/card";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
@@ -36,13 +37,14 @@ import { MenuComponent } from "./menu/menu.component";
         // DevUI
         AvatarModule,
         BadgeModule,
-        ButtonModule,
-        CardModule,
         TooltipModule,
 
         // Ng-Zorro
         NzAlertModule,
+        NzAvatarModule,
         NzBadgeModule,
+        NzButtonModule,
+        NzCardModule,
         NzDrawerModule,
         NzIconModule,
         NzSwitchModule,
