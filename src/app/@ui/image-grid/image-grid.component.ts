@@ -41,7 +41,7 @@ export class ImageGridComponent implements OnInit, AfterViewInit {
     displayImage: any[] = [];
     loading: boolean = true;
 
-    loadImages: boolean = false;
+    loadImages: boolean = true;
 
     constructor(private nzImageService: NzImageService) {
         return;
