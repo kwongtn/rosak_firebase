@@ -1,0 +1,36 @@
+<!--
+    This component is wholy inspired & referenced from
+    https://github.com/xieranmaya/blog/issues/6
+-->
+<div
+    #gridContainer
+    class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}"
+>
+    <nz-image-group
+        inViewport
+        [inViewportOptions]="{ rootMargin: '200px 0px' }"
+        (inViewportAction)="onIntersection($event)"
+        *ngFor="let img of images; let i = index"
+        [ngStyle]="{
+            width: (img.width*ratioBaseline/img.height) + 'px',
+            'flex-grow': img.width*ratioBaseline/img.height,
+        }"
+        class="child-container"
+        [id]="i"
+    >
+        <div
+            [ngStyle]="{
+                'padding-bottom':
+                    (img.height / img.width) * (ratioBaseline / 2) + '%'
+            }"
+        ></div>
+        <img
+            *ngIf="displayImage[i]"
+            [src]="img.thumbnailUrl"
+            alt=""
+            [attr.data-index]="i"
+            (click)="onViewImage(i)"
+            (load)="markLoaded()"
+        />
+    </nz-image-group>
+</div>

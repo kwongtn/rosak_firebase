@@ -119,7 +119,8 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                     uploads.forEach((file) => {
                                         this.imageUploadService.addToQueue(
                                             mutationResult.data?.addEvent.id,
-                                            file
+                                            file,
+                                            "SPOTTING_EVENT"
                                         );
                                     });
 

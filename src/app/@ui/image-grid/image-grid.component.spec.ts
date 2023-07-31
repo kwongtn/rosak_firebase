@@ -1,17 +1,17 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
-import { ConsoleMainComponent } from "./main.component";
+import { ImageGridComponent } from "./image-grid.component";
 
-describe("ConsoleMainComponent", () => {
-    let component: ConsoleMainComponent;
-    let fixture: ComponentFixture<ConsoleMainComponent>;
+describe("ImageGridComponent", () => {
+    let component: ImageGridComponent;
+    let fixture: ComponentFixture<ImageGridComponent>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [ConsoleMainComponent],
+            declarations: [ImageGridComponent],
         }).compileComponents();
 
-        fixture = TestBed.createComponent(ConsoleMainComponent);
+        fixture = TestBed.createComponent(ImageGridComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
     });

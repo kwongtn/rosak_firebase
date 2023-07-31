@@ -8,12 +8,12 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
     GetUserDataService,
     UserDataResponseUser,
-} from "../services/get-user-data.service";
+} from "./services/get-user-data.service";
 
 @Component({
     selector: "profile-main",
-    templateUrl: "./main.component.html",
-    styleUrls: ["./main.component.scss"],
+    templateUrl: "./profile.component.html",
+    styleUrls: ["./profile.component.scss"],
 })
 export class ProfileMainComponent implements OnInit, OnDestroy {
     user!: firebase.User;

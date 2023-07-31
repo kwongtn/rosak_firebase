@@ -24,6 +24,14 @@ const genericTitle = " Malaysia Land Public Transport Fans ";
 
 const initialMenuList: { [key: string]: string }[] = [
     {
+        name: "Gallery",
+        href: "/gallery",
+        target: "_self",
+        tag: "Alpha",
+        style: "danger",
+        headerTitle: " - Gallery ",
+    },
+    {
         name: "Insiden",
         href: "/insiden",
         target: "_self",

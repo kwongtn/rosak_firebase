@@ -1,13 +1,7 @@
-import { SpottingType } from "../spotting-table/source-type";
-
-export type VehicleStatus =
-    | "IN_SERVICE"
-    | "NOT_SPOTTED"
-    | "OUT_OF_SERVICE"
-    | "DECOMMISSIONED"
-    | "MARRIED"
-    | "TESTING"
-    | "UNKNOWN";
+import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
+import {
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 
 export type LineStatus =
     | "TESTING"

@@ -117,7 +117,9 @@ export class AuthService {
                 this.toastService.addToast(
                     "Login Successful",
                     toastMessage,
-                    "success"
+                    "success", {
+                        nzPlacement: "top",
+                    }
                 );
 
                 console.log(res);

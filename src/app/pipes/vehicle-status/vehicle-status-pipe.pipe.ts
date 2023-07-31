@@ -1,9 +1,18 @@
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import {
     VehicleStatus as SpottingVehicleStatus,
 } from "src/app/spotting/spotting-form/spotting-form.types";
 
 import { Pipe, PipeTransform } from "@angular/core";
+
+export type VehicleStatus =
+    | "IN_SERVICE"
+    | "NOT_SPOTTED"
+    | "OUT_OF_SERVICE"
+    | "DECOMMISSIONED"
+    | "MARRIED"
+    | "TESTING"
+    | "UNKNOWN";
+
 
 @Pipe({
     name: "vehicleStatusPipe",

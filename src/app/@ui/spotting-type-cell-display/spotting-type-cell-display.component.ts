@@ -1,7 +1,7 @@
 import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
-import { SpottingType } from "src/app/models/spotting-table/source-type";
+import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
 
 import { Component, Input, OnInit } from "@angular/core";
 

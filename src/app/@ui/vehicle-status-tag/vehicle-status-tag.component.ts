@@ -1,6 +1,9 @@
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
+
 import {
-    VehicleStatus as SpottingVehicleStatus
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
+import {
+    VehicleStatus as SpottingVehicleStatus,
 } from "src/app/spotting/spotting-form/spotting-form.types";
 
 import { Component, Input, OnInit } from "@angular/core";

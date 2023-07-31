@@ -1,3 +1,4 @@
+import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import { AuthService } from "src/app/services/auth/auth.service";
 import { environment as env } from "src/environments/environment";
 
@@ -7,10 +8,13 @@ import {
     HostListener,
     Input,
     OnInit,
-    QueryList
+    QueryList,
 } from "@angular/core";
 
-import { LogoComponent } from "../logo/logo.component";
+import {
+    LoginDropdownComponent,
+} from "./login-dropdown/login-dropdown.component";
+import { LogoComponent } from "./logo/logo.component";
 
 @Component({
     selector: "d-common-header",
@@ -32,6 +36,7 @@ export class HeaderComponent implements OnInit {
     showSlideMenu = true;
     curLanguage!: string;
 
+    drawerRef!: NzDrawerRef<LoginDropdownComponent, string>;
     @Input() userAvatar: any;
 
     @HostListener("window:resize")
@@ -40,7 +45,10 @@ export class HeaderComponent implements OnInit {
         this.setSlideBarStyle();
     }
 
-    constructor(public authService: AuthService) {}
+    constructor(
+        public authService: AuthService,
+        private drawerService: NzDrawerService
+    ) {}
 
     ngOnInit(): void {
         this.showSlideMenu = document.body.clientWidth < 1024 ? false : true;
@@ -66,5 +74,22 @@ export class HeaderComponent implements OnInit {
                 `max-width: ${this.showSlideMenu ? "260px" : "0"}`
             );
         }
+    }
+
+    onLoginIconClick() {
+        this.drawerRef = this.drawerService.create<
+            LoginDropdownComponent,
+            { value: string },
+            string
+        >({
+            nzTitle: "Login",
+            // nzFooter: this.isMine ? this.drawerFooter : undefined,
+            // nzExtra: 'Extra',
+            nzPlacement: document.body.clientWidth < 500 ? "bottom" : "right",
+            nzContent: LoginDropdownComponent,
+            nzContentParams: {
+                userAvatar: this.userAvatar,
+            },
+        });
     }
 }

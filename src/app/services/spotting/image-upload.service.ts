@@ -1,7 +1,7 @@
 import { BehaviorSubject, firstValueFrom } from "rxjs";
 import { catchError } from "rxjs/operators";
 import {
-    ImageFile
+    ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { environment } from "src/environments/environment";
 
@@ -12,8 +12,13 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { AuthService } from "../auth/auth.service";
 import { ToastService } from "../toast/toast.service";
 
+export type PendingUploadType =
+    | "SPOTTING_EVENT"
+    | "INCIDENT_CALENDAR_INCIDENT";
+
 interface IPendingUpload {
-    spottingId: number | string;
+    _type: PendingUploadType;
+    relatedId: number | string;
     file: ImageFile;
 }
 
@@ -46,16 +51,17 @@ export class ImageUploadService {
 
         await PromisePool.withConcurrency(environment.upload.concurrency)
             .for(currentUploads)
-            .process(({ spottingId, file }) => {
+            .process(({ _type, relatedId, file }) => {
                 this.isUploading = true;
                 const input = new FormData();
-                input.append("spotting_event_id", spottingId.toString());
-                input.append("upload_type", "SPOTTING_EVENT");
+                input.append("related_id", relatedId.toString());
+                input.append("upload_type", _type);
 
                 if (file.toCompress && !file.isCompressed) {
                     this.pendingUploads.push({
-                        spottingId,
+                        relatedId,
                         file,
+                        _type,
                     });
                     return;
                 } else {
@@ -65,22 +71,19 @@ export class ImageUploadService {
                 return Promise.all([this.authService.getIdToken()]).then(
                     ([firebaseAuthKey]) => {
                         const httpPost = this.http
-                            .post(
-                                `${environment.backendUrl}upload/`,
-                                input,
-                                {
-                                    headers: {
-                                        "Firebase-Auth-Key":
-                                            firebaseAuthKey as string,
-                                    },
-                                }
-                            )
+                            .post(`${environment.backendUrl}upload/`, input, {
+                                headers: {
+                                    "Firebase-Auth-Key":
+                                        firebaseAuthKey as string,
+                                },
+                            })
                             .pipe(
                                 catchError((err) => {
                                     // Recover if there is any error
                                     this.pendingUploads.push({
-                                        spottingId,
+                                        relatedId,
                                         file,
+                                        _type,
                                     });
                                     throw new Error(err);
                                 })
@@ -140,8 +143,17 @@ export class ImageUploadService {
         }
     }
 
-    addToQueue(spottingId: number | string, file: ImageFile) {
-        this.pendingUploads.push({ spottingId, file });
+    addToQueue(
+        relatedId: number | string,
+        file: ImageFile,
+        uploadType: PendingUploadType
+    ) {
+        this.pendingUploads.push({
+            relatedId,
+            file,
+            _type: uploadType,
+        });
+
         this.addCounts(1);
 
         console.log("Pending uploads");
