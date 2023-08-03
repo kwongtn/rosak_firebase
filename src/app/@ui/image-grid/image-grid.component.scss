@@ -20,7 +20,7 @@
     flex-grow: 1;
 }
 
-img {
+.content {
     position: absolute;
     top: 0;
     width: 100%;
@@ -30,7 +30,15 @@ img {
     transition-timing-function: ease-in-out;
 }
 
-img:hover {
+.spinner {
+    text-align: center;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    padding: 30px 50px;
+    margin: 20px 0;
+}
+
+nz-image-group:hover {
     box-shadow: $devui-shadow-length-connected-overlay $devui-shadow;
     transform: scale(1.05);
     z-index: 1;

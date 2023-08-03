@@ -18,6 +18,7 @@
         class="child-container"
         [id]="i"
     >
+        <nz-spin class="content spinner" nzSimple *ngIf="loading"></nz-spin>
         <div
             [ngStyle]="{
                 'padding-bottom':
@@ -25,6 +26,7 @@
             }"
         ></div>
         <img
+            class="content"
             *ngIf="displayImage[i]"
             [src]="img.thumbnailUrl"
             alt=""

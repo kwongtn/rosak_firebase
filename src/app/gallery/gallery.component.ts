@@ -70,7 +70,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
                                     url: media.file.url,
                                     thumbnailUrl: getThumbnail(
                                         media.file.url,
-                                        "l"
+                                        "m"
                                     ),
                                     display: false,
                                 };
