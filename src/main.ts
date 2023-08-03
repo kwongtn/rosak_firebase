@@ -5,7 +5,7 @@ import { galaxyTheme, infinityTheme } from "ng-devui/theme-collection";
 
 import { enableProdMode } from "@angular/core";
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
-import * as Sentry from "@sentry/angular";
+import * as Sentry from "@sentry/angular-ivy";
 import { Replay } from "@sentry/replay";
 import { BrowserTracing } from "@sentry/tracing";
 

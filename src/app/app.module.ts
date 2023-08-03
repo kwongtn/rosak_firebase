@@ -37,7 +37,7 @@ import { AngularFireStorageModule } from "@angular/fire/compat/storage";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
-import * as Sentry from "@sentry/angular";
+import * as Sentry from "@sentry/angular-ivy";
 
 import build from "../build";
 import { environment } from "../environments/environment";
