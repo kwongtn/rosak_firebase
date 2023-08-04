@@ -17,6 +17,7 @@ import { FallbackComponent } from "./fallback/fallback.component";
 import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/profile.component";
+import { SituasiComponent } from "./situasi/situasi.component";
 import {
     SpottingMainComponent,
 } from "./spotting/spotting-main/spotting-main.component";
@@ -32,6 +33,7 @@ interface MaintananceDocument {
     profile: MaintenanceElement;
     console: MaintenanceElement;
     gallery: MaintenanceElement;
+    situasi: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
@@ -48,6 +50,9 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
     gallery: {
+        curentlyInMaintenance: false,
+    },
+    situasi: {
         curentlyInMaintenance: false,
     },
 };
@@ -132,6 +137,24 @@ const routes: Routes = [
         component: maintenance.spotting.curentlyInMaintenance
             ? ConstructionComponent
             : SpottingMainComponent,
+    },
+    {
+        path: "situasi",
+        title: "MLPTF | Situasi",
+        loadChildren: async () => {
+            if (maintenance.situasi.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./situasi/situasi.module");
+                return module.SituasiModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : SituasiComponent,
     },
     {
         path: "about",

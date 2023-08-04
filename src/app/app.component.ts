@@ -32,6 +32,14 @@ const initialMenuList: { [key: string]: string }[] = [
         headerTitle: " - Gallery ",
     },
     {
+        name: "Situasi",
+        href: "/situasi",
+        target: "_self",
+        tag: "Alpha",
+        style: "danger",
+        headerTitle: " - Situasi ",
+    },
+    {
         name: "Insiden",
         href: "/insiden",
         target: "_self",
