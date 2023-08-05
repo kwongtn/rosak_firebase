@@ -64,6 +64,8 @@ const initialMenuList: { [key: string]: string }[] = [
     },
 ];
 
+const noApplyPaddingRoutes: string[] = ["situasi"];
+
 @Component({
     selector: "app-root",
     templateUrl: "./app.component.html",
@@ -79,6 +81,8 @@ export class AppComponent implements OnInit, OnDestroy {
         hash: "...",
         datetime: "...",
     };
+    routeKey = "";
+    applyPadding = true;
 
     constructor(
         public authService: AuthService,
@@ -141,13 +145,14 @@ export class AppComponent implements OnInit, OnDestroy {
         this.header = this.getHeader();
     }
 
+    getRouteKey(): string {
+        return this.router.url.split("/")[1];
+    }
+
     getHeader(): string {
         if (window.innerWidth < 1024) {
             const headerTitle = this.innerMenuList.filter((value) => {
-                return (
-                    value["href"].split("/")[1] ===
-                    this.router.url.split("/")[1]
-                );
+                return value["href"].split("/")[1] === this.getRouteKey();
             })[0];
 
             if (headerTitle) {
@@ -208,6 +213,11 @@ export class AppComponent implements OnInit, OnDestroy {
             )
             .subscribe((event) => {
                 this.header = this.getHeader();
+                this.routeKey = this.getRouteKey();
+
+                this.applyPadding = !noApplyPaddingRoutes.includes(
+                    this.routeKey
+                );
             });
     }
 
