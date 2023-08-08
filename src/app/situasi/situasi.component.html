@@ -5,30 +5,33 @@
         [nzTheme]="($theme | async) ?? 'light'"
     >
         <ul nz-menu nzMode="inline" [nzTheme]="($theme | async) ?? 'light'">
-            <li nz-menu-item>
-                <span nz-icon nzType="pie-chart"></span>
-                <span>Option 1</span>
+            <li nz-menu-item nz-tooltip nzTooltipPlacement="right" nzSelected>
+                <span nz-icon nzType="line-chart" nzTheme="outline"></span>
+                <span>Overall</span>
             </li>
-            <li nz-menu-item>
-                <span nz-icon nzType="desktop"></span>
-                <span>Option 2</span>
-            </li>
-            <li nz-submenu nzTitle="User" nzIcon="user">
+            <li *ngFor="let line of menuData" nz-submenu [nzTitle]="line.code">
                 <ul>
-                    <li nz-menu-item>Tom</li>
-                    <li nz-menu-item>Bill</li>
-                    <li nz-menu-item>Alex</li>
+                    <li nz-submenu nzTitle="Vehicles">
+                        <ul>
+                            <li
+                                *ngFor="let vehicle of line.vehicles"
+                                nz-menu-item
+                            >
+                                {{ vehicle.identificationNo }}
+                            </li>
+                        </ul>
+                    </li>
+                    <li nz-submenu nzTitle="Stations">
+                        <ul>
+                            <li
+                                *ngFor="let station of line.stations"
+                                nz-menu-item
+                            >
+                                {{ station.displayName }}
+                            </li>
+                        </ul>
+                    </li>
                 </ul>
-            </li>
-            <li nz-submenu nzTitle="Team" nzIcon="team">
-                <ul>
-                    <li nz-menu-item>Team 1</li>
-                    <li nz-menu-item>Team 2</li>
-                </ul>
-            </li>
-            <li nz-menu-item>
-                <span nz-icon nzType="file"></span>
-                <span>File</span>
             </li>
         </ul>
     </nz-sider>
