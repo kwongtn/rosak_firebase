@@ -41,6 +41,7 @@ import * as Sentry from "@sentry/angular-ivy";
 
 import build from "../build";
 import { environment } from "../environments/environment";
+import { FooterModule } from "./@ui/footer/footer.module";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { GraphQLModule } from "./graphql.module";
@@ -74,6 +75,7 @@ const imports: any[] = [
     AppRoutingModule,
     GraphQLModule,
     HeaderModule,
+    FooterModule,
 
     // Other Services
     RecaptchaFormsModule,

@@ -2,7 +2,6 @@ import { filter } from "rxjs";
 // import { DevConfigService } from "ng-devui/utils";
 import { environment } from "src/environments/environment";
 
-import { HttpClient } from "@angular/common/http";
 import {
     Component,
     ElementRef,
@@ -12,13 +11,7 @@ import {
 } from "@angular/core";
 import { NavigationEnd, Router } from "@angular/router";
 
-import build from "../build";
 import { AuthService } from "./services/auth/auth.service";
-
-interface BackendBuildInfo {
-    hash: string;
-    datetime: string;
-}
 
 const genericTitle = " Malaysia Land Public Transport Fans ";
 
@@ -76,45 +69,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
     header: string = "...";
     userAvatar: string = "";
-    buildInfo = build;
-    backendBuildInfo: BackendBuildInfo = {
-        hash: "...",
-        datetime: "...",
-    };
     routeKey = "";
     applyPadding = true;
 
     constructor(
         public authService: AuthService,
-        private httpClient: HttpClient,
         private elem: ElementRef,
         public router: Router
     ) {
-        console.log(
-            [
-                "\n%cBuild Info:\n",
-                `%c > Environment: %c${
-                    environment.production
-                        ? "production 🏭"
-                        : environment.sentry.environment === "staging"
-                            ? "staging 🚈"
-                            : "development 🚧"
-                }`,
-                `%c > Build Version: ${build.version}`,
-                ` > Build Timestamp: ${build.timestamp}`,
-                ` > Built by: ${build.git.user}`,
-                ` > Commit: ${build.git.hash} @ ${build.git.branch}`,
-                ` > Build Message: %c${build.message || "<no message>"}`,
-            ].join("\n"),
-            "font-size: 14px; color: #7c7c7b;",
-            "font-size: 12px; color: #7c7c7b",
-            environment.production
-                ? "font-size: 12px; color: #95c230;"
-                : "font-size: 12px; color: #e26565;",
-            "font-size: 12px; color: #7c7c7b",
-            "font-size: 12px; color: #bdc6cf"
-        );
-
         if (environment.sentry.environment === "staging") {
             this.elem.nativeElement.style.setProperty("--padding-top", "100px");
         } else {
@@ -197,13 +159,6 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.removeFromMenu("/console");
             }
         });
-
-        this.httpClient
-            .get<BackendBuildInfo>(environment.backendUrl + "version/")
-            .subscribe((data) => {
-                this.backendBuildInfo = data;
-                console.log(this.backendBuildInfo);
-            });
 
         this.router.events
             .pipe(
