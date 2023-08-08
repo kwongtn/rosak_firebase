@@ -4,8 +4,7 @@
         nzWidth="200px"
         [nzTheme]="($theme | async) ?? 'light'"
     >
-        <!-- <div class="logo"></div> -->
-        <ul nz-menu nzMode="inline">
+        <ul nz-menu nzMode="inline" [nzTheme]="($theme | async) ?? 'light'">
             <li nz-menu-item>
                 <span nz-icon nzType="pie-chart"></span>
                 <span>Option 1</span>
@@ -39,6 +38,7 @@
             <div class="inner-content">Bill is a cat.</div>
         </nz-content>
         <nz-footer>
+            <hr />
             <app-footer></app-footer>
         </nz-footer>
     </nz-layout>
