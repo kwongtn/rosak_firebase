@@ -23,7 +23,7 @@ export class ContentComponent implements OnDestroy {
     assetType!: string;
     assetId!: string;
 
-    displayAssetString!: string;
+    titleString!: string;
 
     menuData = data;
 
@@ -65,13 +65,21 @@ export class ContentComponent implements OnDestroy {
                     );
 
                     if (displayAsset) {
-                        this.displayAssetString = displayAsset.displayName;
+                        this.titleString = displayAsset.displayName;
 
                         this.breadcrumbsData.push({
-                            displayText: this.displayAssetString,
+                            displayText: this.titleString,
                             href: [this.lineId, this.assetType, this.assetId],
                         });
+                    } else {
+                        this.titleString =
+                            currentLine.displayName +
+                            " - " +
+                            assetVerb.charAt(0).toUpperCase() +
+                            assetVerb.slice(1);
                     }
+                } else {
+                    this.titleString = currentLine.displayName;
                 }
             }
         });
