@@ -7,6 +7,8 @@ import { ContentComponent } from "./content/content.component";
 
 const routes: Routes = [
     { path: "", component: ContentComponent },
+    { path: ":lineId", component: ContentComponent },
+    { path: ":lineId/:assetType", component: ContentComponent },
     { path: ":lineId/:assetType/:assetId", component: ContentComponent },
 ];
 @NgModule({

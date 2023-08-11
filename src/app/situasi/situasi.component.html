@@ -30,13 +30,27 @@
             <li
                 *ngFor="let line of menuData; let i = index"
                 nz-submenu
+                [class.ant-menu-item-selected]="
+                    router.isActive('/situasi/' + line.id, false)
+                "
                 [nzOpen]="router.isActive('/situasi/' + line.id, false)"
-                [nzTitle]="line.code"
+                [nzTitle]="lineTitle"
             >
+                <ng-template #lineTitle>
+                    <a [routerLink]="['/', 'situasi', line.id]">
+                        {{ line.code }}
+                    </a>
+                </ng-template>
                 <ul>
                     <li
                         nz-submenu
-                        nzTitle="Vehicle"
+                        [nzTitle]="vehicleTitle"
+                        [class.ant-menu-item-selected]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/vehicle',
+                                false
+                            )
+                        "
                         [nzOpen]="
                             router.isActive(
                                 '/situasi/' + line.id + '/vehicle',
@@ -44,6 +58,18 @@
                             )
                         "
                     >
+                        <ng-template #vehicleTitle>
+                            <a
+                                [routerLink]="[
+                                    '/',
+                                    'situasi',
+                                    line.id,
+                                    'vehicle'
+                                ]"
+                            >
+                                Vehicle
+                            </a>
+                        </ng-template>
                         <ul>
                             <li
                                 *ngFor="
@@ -69,7 +95,13 @@
                     </li>
                     <li
                         nz-submenu
-                        nzTitle="Stations"
+                        [nzTitle]="stationTitle"
+                        [class.ant-menu-item-selected]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/station',
+                                false
+                            )
+                        "
                         [nzOpen]="
                             router.isActive(
                                 '/situasi/' + line.id + '/station',
@@ -77,6 +109,18 @@
                             )
                         "
                     >
+                        <ng-template #stationTitle>
+                            <a
+                                [routerLink]="[
+                                    '/',
+                                    'situasi',
+                                    line.id,
+                                    'station'
+                                ]"
+                            >
+                                Stations
+                            </a>
+                        </ng-template>
                         <ul>
                             <li
                                 *ngFor="
