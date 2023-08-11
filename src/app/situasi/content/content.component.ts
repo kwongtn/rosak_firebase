@@ -3,7 +3,7 @@ import { Subscription } from "rxjs";
 import { Component, Input, OnDestroy } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 
-import { data, LinesVehiclesStationData, VehiclesStationsData } from "../data";
+import { data } from "../data";
 
 export interface BreadcrumbsData {
     displayText: string;
@@ -23,7 +23,6 @@ export class ContentComponent implements OnDestroy {
     assetType!: string;
     assetId!: string;
 
-    displayLineString!: string;
     displayAssetString!: string;
 
     menuData = data;
@@ -43,34 +42,38 @@ export class ContentComponent implements OnDestroy {
                 return elem.id === this.lineId;
             });
 
-            this.displayLineString = currentLine?.displayName || "Unknown Line";
-
-            const assetVerb: "vehicles" | "stations" =
-                this.assetType === "vehicle" ? "vehicles" : "stations";
-
-            this.displayAssetString =
-                (
-                    (currentLine as LinesVehiclesStationData)[
-                        assetVerb
-                    ] as VehiclesStationsData[]
-                ).find((asset) => {
-                    return this.assetId === asset.id;
-                })?.displayName || `Unknown ${this.assetType}`;
-
-            this.breadcrumbsData = [
-                {
-                    displayText: this.displayLineString,
+            if (currentLine) {
+                this.breadcrumbsData.push({
+                    displayText: currentLine.displayName,
                     href: [this.lineId],
-                },
-                {
-                    displayText: assetVerb.charAt(0).toUpperCase() + assetVerb.slice(1),
-                    href: [this.lineId, this.assetType],
-                },
-                {
-                    displayText: this.displayAssetString,
-                    href: [this.lineId, this.assetType, this.assetId],
-                },
-            ];
+                });
+
+                if (this.assetType) {
+                    const assetVerb: "vehicles" | "stations" = (this.assetType +
+                        "s") as any; // Assume is 'vehicles' or'stations'
+                    this.breadcrumbsData.push({
+                        displayText:
+                            assetVerb.charAt(0).toUpperCase() +
+                            assetVerb.slice(1),
+                        href: [this.lineId, this.assetType],
+                    });
+
+                    const displayAsset = currentLine[assetVerb].find(
+                        (asset) => {
+                            return this.assetId === asset.id;
+                        }
+                    );
+
+                    if (displayAsset) {
+                        this.displayAssetString = displayAsset.displayName;
+
+                        this.breadcrumbsData.push({
+                            displayText: this.displayAssetString,
+                            href: [this.lineId, this.assetType, this.assetId],
+                        });
+                    }
+                }
+            }
         });
     }
 
