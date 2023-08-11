@@ -9,6 +9,7 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
 import { ContentComponent } from "./content/content.component";
+import { SituasiRoutingModule } from "./situasi-routing.module";
 import { SituasiComponent } from "./situasi.component";
 
 @NgModule({
@@ -25,6 +26,7 @@ import { SituasiComponent } from "./situasi.component";
 
         // Self imports
         FooterModule,
+        SituasiRoutingModule,
     ],
 })
 export class SituasiModule {}

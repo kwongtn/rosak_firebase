@@ -1,33 +1,102 @@
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0"
+/>
+
 <nz-layout>
     <nz-sider
         nzCollapsible
         nzWidth="200px"
         [nzTheme]="($theme | async) ?? 'light'"
     >
-        <ul nz-menu nzMode="inline" [nzTheme]="($theme | async) ?? 'light'">
-            <li nz-menu-item nz-tooltip nzTooltipPlacement="right" nzSelected>
-                <span nz-icon nzType="line-chart" nzTheme="outline"></span>
-                <span>Overall</span>
+        <ul
+            nz-menu
+            nzMode="inline"
+            [nzTheme]="($theme | async) ?? 'light'"
+            (nzClick)="onMenuItemClick($event)"
+        >
+            <li
+                nz-menu-item
+                nz-tooltip
+                nzTooltipPlacement="right"
+                nzSelected
+                [nzSelected]="router.isActive('/situasi', true)"
+            >
+                <a [routerLink]="['/', 'situasi']">
+                    <span nz-icon nzType="line-chart" nzTheme="outline"></span>
+                    <span>Overall</span>
+                </a>
             </li>
-            <li *ngFor="let line of menuData" nz-submenu [nzTitle]="line.code">
+            <li
+                *ngFor="let line of menuData; let i = index"
+                nz-submenu
+                [nzOpen]="router.isActive('/situasi/' + line.id, false)"
+                [nzTitle]="line.code"
+            >
                 <ul>
-                    <li nz-submenu nzTitle="Vehicles">
+                    <li
+                        nz-submenu
+                        nzTitle="Vehicle"
+                        [nzOpen]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/vehicle',
+                                false
+                            )
+                        "
+                    >
                         <ul>
                             <li
-                                *ngFor="let vehicle of line.vehicles"
+                                *ngFor="
+                                    let vehicle of line.vehicles;
+                                    let j = index
+                                "
                                 nz-menu-item
+                                nzMatchRouter
                             >
-                                {{ vehicle.identificationNo }}
+                                <a
+                                    [routerLink]="[
+                                        '/',
+                                        'situasi',
+                                        line.id,
+                                        'vehicle',
+                                        vehicle.id
+                                    ]"
+                                >
+                                    {{ vehicle.displayName }}
+                                </a>
                             </li>
                         </ul>
                     </li>
-                    <li nz-submenu nzTitle="Stations">
+                    <li
+                        nz-submenu
+                        nzTitle="Stations"
+                        [nzOpen]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/station',
+                                false
+                            )
+                        "
+                    >
                         <ul>
                             <li
-                                *ngFor="let station of line.stations"
+                                *ngFor="
+                                    let station of line.stations;
+                                    let j = index
+                                "
                                 nz-menu-item
+                                nzMatchRouter
                             >
-                                {{ station.displayName }}
+                                <a
+                                    [routerLink]="[
+                                        '/',
+                                        'situasi',
+                                        line.id,
+                                        'station',
+                                        station.id
+                                    ]"
+                                >
+                                    {{ station.displayName }}
+                                </a>
                             </li>
                         </ul>
                     </li>
@@ -39,7 +108,7 @@
         <!-- <nz-header></nz-header> -->
         <nz-content>
             <div class="inner-content">
-                <situasi-content></situasi-content>
+                <router-outlet></router-outlet>
             </div>
         </nz-content>
         <nz-footer>

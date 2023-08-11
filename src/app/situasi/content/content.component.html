@@ -1,10 +1,10 @@
-<nz-page-header [nzTitle]="title" [nzSubtitle]="subtitle">
+<nz-page-header [nzTitle]="displayAssetString" [nzSubtitle]="displayLineString">
     <nz-breadcrumb nz-page-header-breadcrumb>
-        <nz-breadcrumb-item>First-level Menu</nz-breadcrumb-item>
-        <nz-breadcrumb-item>
-            <a>Second-level Menu</a>
+        <nz-breadcrumb-item *ngFor="let item of breadcrumbsData">
+            <a [href]="'situasi/' + item.href.join('/')">{{
+                item.displayText
+            }}</a>
         </nz-breadcrumb-item>
-        <nz-breadcrumb-item>Third-level Menu</nz-breadcrumb-item>
     </nz-breadcrumb>
     <nz-page-header-content>
         <div>This is content</div>

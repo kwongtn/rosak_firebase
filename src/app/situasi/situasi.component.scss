@@ -25,3 +25,14 @@ nz-breadcrumb {
 nz-footer {
     text-align: center;
 }
+
+nz-layout {
+    margin-left: 90px;
+}
+
+nz-sider {
+    overflow: auto;
+    height: calc(100% - 110px);
+    position: fixed;
+    left: 0;
+}
