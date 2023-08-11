@@ -38,6 +38,8 @@ export class ContentComponent implements OnDestroy {
             this.assetType = params["assetType"];
             this.assetId = params["assetId"];
 
+            this.breadcrumbsData = [];
+
             const currentLine = this.menuData.find((elem) => {
                 return elem.id === this.lineId;
             });
