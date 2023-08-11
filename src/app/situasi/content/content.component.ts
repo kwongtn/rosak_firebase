@@ -7,7 +7,7 @@ import { data } from "../data";
 
 export interface BreadcrumbsData {
     displayText: string;
-    href: string[] | number[];
+    href: string[];
 }
 
 @Component({

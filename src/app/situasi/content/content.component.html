@@ -1,7 +1,7 @@
 <nz-page-header [nzTitle]="titleString">
     <nz-breadcrumb nz-page-header-breadcrumb>
         <nz-breadcrumb-item *ngFor="let item of breadcrumbsData">
-            <a [href]="'situasi/' + item.href.join('/')">{{
+            <a [routerLink]="['/', 'situasi'].concat(item.href)">{{
                 item.displayText
             }}</a>
         </nz-breadcrumb-item>
