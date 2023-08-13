@@ -1,15 +1,14 @@
+export interface VehiclesStationsData {
+    id: string;
+    displayName: string;
+}
+
 export interface LinesVehiclesStationData {
     id: string;
     code: string;
     displayName: string;
-    vehicles: {
-        id: string;
-        identificationNo: string;
-    }[];
-    stations: {
-        id: string;
-        displayName: string;
-    }[];
+    vehicles: VehiclesStationsData[];
+    stations: VehiclesStationsData[];
 }
 
 export const data: LinesVehiclesStationData[] = [
@@ -20,59 +19,59 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "546",
-                identificationNo: "BNG4101",
+                displayName: "BNG4101",
             },
             {
                 id: "547",
-                identificationNo: "BNG4103",
+                displayName: "BNG4103",
             },
             {
                 id: "548",
-                identificationNo: "BNG4105",
+                displayName: "BNG4105",
             },
             {
                 id: "549",
-                identificationNo: "BNG4106",
+                displayName: "BNG4106",
             },
             {
                 id: "550",
-                identificationNo: "BNG4107",
+                displayName: "BNG4107",
             },
             {
                 id: "551",
-                identificationNo: "BNG4110",
+                displayName: "BNG4110",
             },
             {
                 id: "552",
-                identificationNo: "BNG4015",
+                displayName: "BNG4015",
             },
             {
                 id: "553",
-                identificationNo: "BNG4204",
+                displayName: "BNG4204",
             },
             {
                 id: "554",
-                identificationNo: "BNG4113",
+                displayName: "BNG4113",
             },
             {
                 id: "555",
-                identificationNo: "BNG4108",
+                displayName: "BNG4108",
             },
             {
                 id: "556",
-                identificationNo: "BNG4111",
+                displayName: "BNG4111",
             },
             {
                 id: "557",
-                identificationNo: "BNG4109",
+                displayName: "BNG4109",
             },
             {
                 id: "558",
-                identificationNo: "BNG4102",
+                displayName: "BNG4102",
             },
             {
                 id: "563",
-                identificationNo: "BNG4014",
+                displayName: "BNG4014",
             },
         ],
         stations: [
@@ -113,75 +112,75 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "288",
-                identificationNo: "X1-06",
+                displayName: "X1-06",
             },
             {
                 id: "289",
-                identificationNo: "X1-07",
+                displayName: "X1-07",
             },
             {
                 id: "290",
-                identificationNo: "X1-08",
+                displayName: "X1-08",
             },
             {
                 id: "291",
-                identificationNo: "T2-05",
+                displayName: "T2-05",
             },
             {
                 id: "292",
-                identificationNo: "T2-06",
+                displayName: "T2-06",
             },
             {
                 id: "293",
-                identificationNo: "T2-07",
+                displayName: "T2-07",
             },
             {
                 id: "294",
-                identificationNo: "T2-08",
+                displayName: "T2-08",
             },
             {
                 id: "295",
-                identificationNo: "X2-09",
+                displayName: "X2-09",
             },
             {
                 id: "296",
-                identificationNo: "X2-10",
+                displayName: "X2-10",
             },
             {
                 id: "279",
-                identificationNo: "T1-01",
+                displayName: "T1-01",
             },
             {
                 id: "280",
-                identificationNo: "T1-02",
+                displayName: "T1-02",
             },
             {
                 id: "281",
-                identificationNo: "T1-03",
+                displayName: "T1-03",
             },
             {
                 id: "282",
-                identificationNo: "T1-04",
+                displayName: "T1-04",
             },
             {
                 id: "283",
-                identificationNo: "X1-01",
+                displayName: "X1-01",
             },
             {
                 id: "284",
-                identificationNo: "X1-02",
+                displayName: "X1-02",
             },
             {
                 id: "285",
-                identificationNo: "X1-03",
+                displayName: "X1-03",
             },
             {
                 id: "286",
-                identificationNo: "X1-04",
+                displayName: "X1-04",
             },
             {
                 id: "287",
-                identificationNo: "X1-05",
+                displayName: "X1-05",
             },
         ],
         stations: [
@@ -218,151 +217,151 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "397",
-                identificationNo: "ETS 101",
+                displayName: "ETS 101",
             },
             {
                 id: "398",
-                identificationNo: "ETS 102",
+                displayName: "ETS 102",
             },
             {
                 id: "399",
-                identificationNo: "ETS 103",
+                displayName: "ETS 103",
             },
             {
                 id: "400",
-                identificationNo: "ETS 104",
+                displayName: "ETS 104",
             },
             {
                 id: "401",
-                identificationNo: "ETS 105",
+                displayName: "ETS 105",
             },
             {
                 id: "402",
-                identificationNo: "ETS 201",
+                displayName: "ETS 201",
             },
             {
                 id: "403",
-                identificationNo: "ETS 202",
+                displayName: "ETS 202",
             },
             {
                 id: "404",
-                identificationNo: "ETS 203",
+                displayName: "ETS 203",
             },
             {
                 id: "405",
-                identificationNo: "ETS 204",
+                displayName: "ETS 204",
             },
             {
                 id: "406",
-                identificationNo: "ETS 205",
+                displayName: "ETS 205",
             },
             {
                 id: "407",
-                identificationNo: "ETS 206",
+                displayName: "ETS 206",
             },
             {
                 id: "408",
-                identificationNo: "ETS 207",
+                displayName: "ETS 207",
             },
             {
                 id: "409",
-                identificationNo: "ETS 208",
+                displayName: "ETS 208",
             },
             {
                 id: "410",
-                identificationNo: "ETS 209",
+                displayName: "ETS 209",
             },
             {
                 id: "411",
-                identificationNo: "ETS 210",
+                displayName: "ETS 210",
             },
             {
                 id: "412",
-                identificationNo: "ETS 211",
+                displayName: "ETS 211",
             },
             {
                 id: "413",
-                identificationNo: "ETS 212",
+                displayName: "ETS 212",
             },
             {
                 id: "414",
-                identificationNo: "ETS 213",
+                displayName: "ETS 213",
             },
             {
                 id: "415",
-                identificationNo: "ETS 214",
+                displayName: "ETS 214",
             },
             {
                 id: "416",
-                identificationNo: "ETS 215",
+                displayName: "ETS 215",
             },
             {
                 id: "417",
-                identificationNo: "ETS 216",
+                displayName: "ETS 216",
             },
             {
                 id: "418",
-                identificationNo: "ETS 217",
+                displayName: "ETS 217",
             },
             {
                 id: "419",
-                identificationNo: "ETS 218",
+                displayName: "ETS 218",
             },
             {
                 id: "420",
-                identificationNo: "ETS 219",
+                displayName: "ETS 219",
             },
             {
                 id: "421",
-                identificationNo: "DMU 01",
+                displayName: "DMU 01",
             },
             {
                 id: "422",
-                identificationNo: "DMU 02",
+                displayName: "DMU 02",
             },
             {
                 id: "423",
-                identificationNo: "DMU 03",
+                displayName: "DMU 03",
             },
             {
                 id: "424",
-                identificationNo: "DMU 04",
+                displayName: "DMU 04",
             },
             {
                 id: "425",
-                identificationNo: "DMU 05",
+                displayName: "DMU 05",
             },
             {
                 id: "426",
-                identificationNo: "DMU 06",
+                displayName: "DMU 06",
             },
             {
                 id: "427",
-                identificationNo: "DMU 07",
+                displayName: "DMU 07",
             },
             {
                 id: "428",
-                identificationNo: "DMU 08",
+                displayName: "DMU 08",
             },
             {
                 id: "429",
-                identificationNo: "DMU 09",
+                displayName: "DMU 09",
             },
             {
                 id: "430",
-                identificationNo: "DMU 10",
+                displayName: "DMU 10",
             },
             {
                 id: "431",
-                identificationNo: "DMU 11",
+                displayName: "DMU 11",
             },
             {
                 id: "432",
-                identificationNo: "DMU 12",
+                displayName: "DMU 12",
             },
             {
                 id: "433",
-                identificationNo: "DMU 13",
+                displayName: "DMU 13",
             },
         ],
         stations: [
@@ -523,435 +522,435 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "512",
-                identificationNo: "29101",
+                displayName: "29101",
             },
             {
                 id: "513",
-                identificationNo: "29102",
+                displayName: "29102",
             },
             {
                 id: "514",
-                identificationNo: "29103",
+                displayName: "29103",
             },
             {
                 id: "515",
-                identificationNo: "29104",
+                displayName: "29104",
             },
             {
                 id: "516",
-                identificationNo: "29105",
+                displayName: "29105",
             },
             {
                 id: "517",
-                identificationNo: "29106",
+                displayName: "29106",
             },
             {
                 id: "518",
-                identificationNo: "29107",
+                displayName: "29107",
             },
             {
                 id: "519",
-                identificationNo: "29108",
+                displayName: "29108",
             },
             {
                 id: "520",
-                identificationNo: "29109",
+                displayName: "29109",
             },
             {
                 id: "521",
-                identificationNo: "29110",
+                displayName: "29110",
             },
             {
                 id: "522",
-                identificationNo: "29111",
+                displayName: "29111",
             },
             {
                 id: "523",
-                identificationNo: "29112",
+                displayName: "29112",
             },
             {
                 id: "524",
-                identificationNo: "29113",
+                displayName: "29113",
             },
             {
                 id: "525",
-                identificationNo: "29114",
+                displayName: "29114",
             },
             {
                 id: "526",
-                identificationNo: "29115",
+                displayName: "29115",
             },
             {
                 id: "527",
-                identificationNo: "29116",
+                displayName: "29116",
             },
             {
                 id: "528",
-                identificationNo: "29117",
+                displayName: "29117",
             },
             {
                 id: "529",
-                identificationNo: "29118",
+                displayName: "29118",
             },
             {
                 id: "530",
-                identificationNo: "29119",
+                displayName: "29119",
             },
             {
                 id: "531",
-                identificationNo: "29120",
+                displayName: "29120",
             },
             {
                 id: "532",
-                identificationNo: "19101",
+                displayName: "19101",
             },
             {
                 id: "533",
-                identificationNo: "19102",
+                displayName: "19102",
             },
             {
                 id: "534",
-                identificationNo: "19103",
+                displayName: "19103",
             },
             {
                 id: "535",
-                identificationNo: "19104",
+                displayName: "19104",
             },
             {
                 id: "536",
-                identificationNo: "19105",
+                displayName: "19105",
             },
             {
                 id: "537",
-                identificationNo: "19106",
+                displayName: "19106",
             },
             {
                 id: "538",
-                identificationNo: "19107",
+                displayName: "19107",
             },
             {
                 id: "539",
-                identificationNo: "19108",
+                displayName: "19108",
             },
             {
                 id: "540",
-                identificationNo: "19109",
+                displayName: "19109",
             },
             {
                 id: "541",
-                identificationNo: "19110",
+                displayName: "19110",
             },
             {
                 id: "434",
-                identificationNo: "23101",
+                displayName: "23101",
             },
             {
                 id: "435",
-                identificationNo: "23102",
+                displayName: "23102",
             },
             {
                 id: "436",
-                identificationNo: "23103",
+                displayName: "23103",
             },
             {
                 id: "437",
-                identificationNo: "23104",
+                displayName: "23104",
             },
             {
                 id: "438",
-                identificationNo: "23105",
+                displayName: "23105",
             },
             {
                 id: "439",
-                identificationNo: "23106",
+                displayName: "23106",
             },
             {
                 id: "440",
-                identificationNo: "23107",
+                displayName: "23107",
             },
             {
                 id: "441",
-                identificationNo: "23108",
+                displayName: "23108",
             },
             {
                 id: "442",
-                identificationNo: "23109",
+                displayName: "23109",
             },
             {
                 id: "443",
-                identificationNo: "23110",
+                displayName: "23110",
             },
             {
                 id: "444",
-                identificationNo: "23111",
+                displayName: "23111",
             },
             {
                 id: "445",
-                identificationNo: "23112",
+                displayName: "23112",
             },
             {
                 id: "446",
-                identificationNo: "23113",
+                displayName: "23113",
             },
             {
                 id: "447",
-                identificationNo: "23114",
+                displayName: "23114",
             },
             {
                 id: "448",
-                identificationNo: "23115",
+                displayName: "23115",
             },
             {
                 id: "449",
-                identificationNo: "24101",
+                displayName: "24101",
             },
             {
                 id: "450",
-                identificationNo: "24102",
+                displayName: "24102",
             },
             {
                 id: "451",
-                identificationNo: "24103",
+                displayName: "24103",
             },
             {
                 id: "452",
-                identificationNo: "24104",
+                displayName: "24104",
             },
             {
                 id: "453",
-                identificationNo: "24105",
+                displayName: "24105",
             },
             {
                 id: "454",
-                identificationNo: "24106",
+                displayName: "24106",
             },
             {
                 id: "455",
-                identificationNo: "24107",
+                displayName: "24107",
             },
             {
                 id: "456",
-                identificationNo: "24108",
+                displayName: "24108",
             },
             {
                 id: "457",
-                identificationNo: "24109",
+                displayName: "24109",
             },
             {
                 id: "458",
-                identificationNo: "24110",
+                displayName: "24110",
             },
             {
                 id: "459",
-                identificationNo: "24111",
+                displayName: "24111",
             },
             {
                 id: "460",
-                identificationNo: "24112",
+                displayName: "24112",
             },
             {
                 id: "461",
-                identificationNo: "24113",
+                displayName: "24113",
             },
             {
                 id: "462",
-                identificationNo: "24114",
+                displayName: "24114",
             },
             {
                 id: "463",
-                identificationNo: "24115",
+                displayName: "24115",
             },
             {
                 id: "464",
-                identificationNo: "24116",
+                displayName: "24116",
             },
             {
                 id: "465",
-                identificationNo: "24117",
+                displayName: "24117",
             },
             {
                 id: "466",
-                identificationNo: "24118",
+                displayName: "24118",
             },
             {
                 id: "467",
-                identificationNo: "24119",
+                displayName: "24119",
             },
             {
                 id: "468",
-                identificationNo: "24120",
+                displayName: "24120",
             },
             {
                 id: "469",
-                identificationNo: "24121",
+                displayName: "24121",
             },
             {
                 id: "470",
-                identificationNo: "24122",
+                displayName: "24122",
             },
             {
                 id: "471",
-                identificationNo: "24123",
+                displayName: "24123",
             },
             {
                 id: "472",
-                identificationNo: "24124",
+                displayName: "24124",
             },
             {
                 id: "473",
-                identificationNo: "24125",
+                displayName: "24125",
             },
             {
                 id: "474",
-                identificationNo: "24126",
+                displayName: "24126",
             },
             {
                 id: "475",
-                identificationNo: "25101",
+                displayName: "25101",
             },
             {
                 id: "476",
-                identificationNo: "25102",
+                displayName: "25102",
             },
             {
                 id: "477",
-                identificationNo: "25103",
+                displayName: "25103",
             },
             {
                 id: "478",
-                identificationNo: "25104",
+                displayName: "25104",
             },
             {
                 id: "479",
-                identificationNo: "25105",
+                displayName: "25105",
             },
             {
                 id: "480",
-                identificationNo: "25106",
+                displayName: "25106",
             },
             {
                 id: "481",
-                identificationNo: "25107",
+                displayName: "25107",
             },
             {
                 id: "482",
-                identificationNo: "25108",
+                displayName: "25108",
             },
             {
                 id: "483",
-                identificationNo: "25109",
+                displayName: "25109",
             },
             {
                 id: "484",
-                identificationNo: "25110",
+                displayName: "25110",
             },
             {
                 id: "485",
-                identificationNo: "25111",
+                displayName: "25111",
             },
             {
                 id: "486",
-                identificationNo: "25112",
+                displayName: "25112",
             },
             {
                 id: "487",
-                identificationNo: "25201",
+                displayName: "25201",
             },
             {
                 id: "488",
-                identificationNo: "25202",
+                displayName: "25202",
             },
             {
                 id: "489",
-                identificationNo: "25203",
+                displayName: "25203",
             },
             {
                 id: "490",
-                identificationNo: "25204",
+                displayName: "25204",
             },
             {
                 id: "491",
-                identificationNo: "25205",
+                displayName: "25205",
             },
             {
                 id: "492",
-                identificationNo: "26101",
+                displayName: "26101",
             },
             {
                 id: "493",
-                identificationNo: "26102",
+                displayName: "26102",
             },
             {
                 id: "494",
-                identificationNo: "26103",
+                displayName: "26103",
             },
             {
                 id: "495",
-                identificationNo: "26104",
+                displayName: "26104",
             },
             {
                 id: "496",
-                identificationNo: "26105",
+                displayName: "26105",
             },
             {
                 id: "497",
-                identificationNo: "26106",
+                displayName: "26106",
             },
             {
                 id: "498",
-                identificationNo: "26107",
+                displayName: "26107",
             },
             {
                 id: "499",
-                identificationNo: "26108",
+                displayName: "26108",
             },
             {
                 id: "500",
-                identificationNo: "26109",
+                displayName: "26109",
             },
             {
                 id: "501",
-                identificationNo: "26110",
+                displayName: "26110",
             },
             {
                 id: "502",
-                identificationNo: "26111",
+                displayName: "26111",
             },
             {
                 id: "503",
-                identificationNo: "26112",
+                displayName: "26112",
             },
             {
                 id: "504",
-                identificationNo: "26113",
+                displayName: "26113",
             },
             {
                 id: "505",
-                identificationNo: "26114",
+                displayName: "26114",
             },
             {
                 id: "506",
-                identificationNo: "26115",
+                displayName: "26115",
             },
             {
                 id: "507",
-                identificationNo: "26116",
+                displayName: "26116",
             },
             {
                 id: "508",
-                identificationNo: "26117",
+                displayName: "26117",
             },
             {
                 id: "509",
-                identificationNo: "26118",
+                displayName: "26118",
             },
             {
                 id: "510",
-                identificationNo: "26119",
+                displayName: "26119",
             },
             {
                 id: "511",
-                identificationNo: "26120",
+                displayName: "26120",
             },
         ],
         stations: [],
@@ -963,243 +962,243 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "315",
-                identificationNo: "EMU19",
+                displayName: "EMU19",
             },
             {
                 id: "316",
-                identificationNo: "EMU20",
+                displayName: "EMU20",
             },
             {
                 id: "317",
-                identificationNo: "EMU21",
+                displayName: "EMU21",
             },
             {
                 id: "318",
-                identificationNo: "EMU22",
+                displayName: "EMU22",
             },
             {
                 id: "319",
-                identificationNo: "EMU23",
+                displayName: "EMU23",
             },
             {
                 id: "320",
-                identificationNo: "EMU24",
+                displayName: "EMU24",
             },
             {
                 id: "321",
-                identificationNo: "EMU25",
+                displayName: "EMU25",
             },
             {
                 id: "322",
-                identificationNo: "EMU26",
+                displayName: "EMU26",
             },
             {
                 id: "323",
-                identificationNo: "EMU27",
+                displayName: "EMU27",
             },
             {
                 id: "324",
-                identificationNo: "EMU28",
+                displayName: "EMU28",
             },
             {
                 id: "325",
-                identificationNo: "EMU29",
+                displayName: "EMU29",
             },
             {
                 id: "326",
-                identificationNo: "EMU30",
+                displayName: "EMU30",
             },
             {
                 id: "327",
-                identificationNo: "EMU31",
+                displayName: "EMU31",
             },
             {
                 id: "328",
-                identificationNo: "EMU32",
+                displayName: "EMU32",
             },
             {
                 id: "329",
-                identificationNo: "EMU33",
+                displayName: "EMU33",
             },
             {
                 id: "330",
-                identificationNo: "EMU34",
+                displayName: "EMU34",
             },
             {
                 id: "331",
-                identificationNo: "EMU35",
+                displayName: "EMU35",
             },
             {
                 id: "332",
-                identificationNo: "EMU36",
+                displayName: "EMU36",
             },
             {
                 id: "333",
-                identificationNo: "EMU37",
+                displayName: "EMU37",
             },
             {
                 id: "334",
-                identificationNo: "EMU38",
+                displayName: "EMU38",
             },
             {
                 id: "335",
-                identificationNo: "EMU39",
+                displayName: "EMU39",
             },
             {
                 id: "336",
-                identificationNo: "EMU40",
+                displayName: "EMU40",
             },
             {
                 id: "337",
-                identificationNo: "SCS01",
+                displayName: "SCS01",
             },
             {
                 id: "338",
-                identificationNo: "SCS02",
+                displayName: "SCS02",
             },
             {
                 id: "339",
-                identificationNo: "SCS03",
+                displayName: "SCS03",
             },
             {
                 id: "340",
-                identificationNo: "SCS04",
+                displayName: "SCS04",
             },
             {
                 id: "341",
-                identificationNo: "SCS05",
+                displayName: "SCS05",
             },
             {
                 id: "342",
-                identificationNo: "SCS06",
+                displayName: "SCS06",
             },
             {
                 id: "343",
-                identificationNo: "SCS07",
+                displayName: "SCS07",
             },
             {
                 id: "344",
-                identificationNo: "SCS08",
+                displayName: "SCS08",
             },
             {
                 id: "345",
-                identificationNo: "SCS09",
+                displayName: "SCS09",
             },
             {
                 id: "346",
-                identificationNo: "SCS10",
+                displayName: "SCS10",
             },
             {
                 id: "347",
-                identificationNo: "SCS11",
+                displayName: "SCS11",
             },
             {
                 id: "348",
-                identificationNo: "SCS12",
+                displayName: "SCS12",
             },
             {
                 id: "349",
-                identificationNo: "SCS13",
+                displayName: "SCS13",
             },
             {
                 id: "350",
-                identificationNo: "SCS14",
+                displayName: "SCS14",
             },
             {
                 id: "351",
-                identificationNo: "SCS15",
+                displayName: "SCS15",
             },
             {
                 id: "352",
-                identificationNo: "SCS16",
+                displayName: "SCS16",
             },
             {
                 id: "353",
-                identificationNo: "SCS17",
+                displayName: "SCS17",
             },
             {
                 id: "354",
-                identificationNo: "SCS18",
+                displayName: "SCS18",
             },
             {
                 id: "355",
-                identificationNo: "SCS19",
+                displayName: "SCS19",
             },
             {
                 id: "356",
-                identificationNo: "SCS20",
+                displayName: "SCS20",
             },
             {
                 id: "357",
-                identificationNo: "SCS21",
+                displayName: "SCS21",
             },
             {
                 id: "358",
-                identificationNo: "SCS22",
+                displayName: "SCS22",
             },
             {
                 id: "359",
-                identificationNo: "SCS23",
+                displayName: "SCS23",
             },
             {
                 id: "360",
-                identificationNo: "SCS24",
+                displayName: "SCS24",
             },
             {
                 id: "361",
-                identificationNo: "SCS25",
+                displayName: "SCS25",
             },
             {
                 id: "362",
-                identificationNo: "SCS26",
+                displayName: "SCS26",
             },
             {
                 id: "363",
-                identificationNo: "SCS27",
+                displayName: "SCS27",
             },
             {
                 id: "364",
-                identificationNo: "SCS28",
+                displayName: "SCS28",
             },
             {
                 id: "365",
-                identificationNo: "SCS29",
+                displayName: "SCS29",
             },
             {
                 id: "366",
-                identificationNo: "SCS30",
+                displayName: "SCS30",
             },
             {
                 id: "367",
-                identificationNo: "SCS31",
+                displayName: "SCS31",
             },
             {
                 id: "368",
-                identificationNo: "SCS32",
+                displayName: "SCS32",
             },
             {
                 id: "369",
-                identificationNo: "SCS33",
+                displayName: "SCS33",
             },
             {
                 id: "370",
-                identificationNo: "SCS34",
+                displayName: "SCS34",
             },
             {
                 id: "371",
-                identificationNo: "SCS35",
+                displayName: "SCS35",
             },
             {
                 id: "372",
-                identificationNo: "SCS36",
+                displayName: "SCS36",
             },
             {
                 id: "373",
-                identificationNo: "SCS37",
+                displayName: "SCS37",
             },
             {
                 id: "374",
-                identificationNo: "SCS38",
+                displayName: "SCS38",
             },
         ],
         stations: [
@@ -1264,403 +1263,403 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "297",
-                identificationNo: "EMU01",
+                displayName: "EMU01",
             },
             {
                 id: "298",
-                identificationNo: "EMU02",
+                displayName: "EMU02",
             },
             {
                 id: "299",
-                identificationNo: "EMU03",
+                displayName: "EMU03",
             },
             {
                 id: "300",
-                identificationNo: "EMU04",
+                displayName: "EMU04",
             },
             {
                 id: "301",
-                identificationNo: "EMU05",
+                displayName: "EMU05",
             },
             {
                 id: "302",
-                identificationNo: "EMU06",
+                displayName: "EMU06",
             },
             {
                 id: "303",
-                identificationNo: "EMU07",
+                displayName: "EMU07",
             },
             {
                 id: "304",
-                identificationNo: "EMU08",
+                displayName: "EMU08",
             },
             {
                 id: "305",
-                identificationNo: "EMU09",
+                displayName: "EMU09",
             },
             {
                 id: "306",
-                identificationNo: "EMU10",
+                displayName: "EMU10",
             },
             {
                 id: "307",
-                identificationNo: "EMU11",
+                displayName: "EMU11",
             },
             {
                 id: "308",
-                identificationNo: "EMU12",
+                displayName: "EMU12",
             },
             {
                 id: "309",
-                identificationNo: "EMU13",
+                displayName: "EMU13",
             },
             {
                 id: "310",
-                identificationNo: "EMU14",
+                displayName: "EMU14",
             },
             {
                 id: "311",
-                identificationNo: "EMU15",
+                displayName: "EMU15",
             },
             {
                 id: "312",
-                identificationNo: "EMU16",
+                displayName: "EMU16",
             },
             {
                 id: "313",
-                identificationNo: "EMU17",
+                displayName: "EMU17",
             },
             {
                 id: "314",
-                identificationNo: "EMU18",
+                displayName: "EMU18",
             },
             {
                 id: "315",
-                identificationNo: "EMU19",
+                displayName: "EMU19",
             },
             {
                 id: "316",
-                identificationNo: "EMU20",
+                displayName: "EMU20",
             },
             {
                 id: "317",
-                identificationNo: "EMU21",
+                displayName: "EMU21",
             },
             {
                 id: "318",
-                identificationNo: "EMU22",
+                displayName: "EMU22",
             },
             {
                 id: "319",
-                identificationNo: "EMU23",
+                displayName: "EMU23",
             },
             {
                 id: "320",
-                identificationNo: "EMU24",
+                displayName: "EMU24",
             },
             {
                 id: "321",
-                identificationNo: "EMU25",
+                displayName: "EMU25",
             },
             {
                 id: "322",
-                identificationNo: "EMU26",
+                displayName: "EMU26",
             },
             {
                 id: "323",
-                identificationNo: "EMU27",
+                displayName: "EMU27",
             },
             {
                 id: "324",
-                identificationNo: "EMU28",
+                displayName: "EMU28",
             },
             {
                 id: "325",
-                identificationNo: "EMU29",
+                displayName: "EMU29",
             },
             {
                 id: "326",
-                identificationNo: "EMU30",
+                displayName: "EMU30",
             },
             {
                 id: "327",
-                identificationNo: "EMU31",
+                displayName: "EMU31",
             },
             {
                 id: "328",
-                identificationNo: "EMU32",
+                displayName: "EMU32",
             },
             {
                 id: "329",
-                identificationNo: "EMU33",
+                displayName: "EMU33",
             },
             {
                 id: "330",
-                identificationNo: "EMU34",
+                displayName: "EMU34",
             },
             {
                 id: "331",
-                identificationNo: "EMU35",
+                displayName: "EMU35",
             },
             {
                 id: "332",
-                identificationNo: "EMU36",
+                displayName: "EMU36",
             },
             {
                 id: "333",
-                identificationNo: "EMU37",
+                displayName: "EMU37",
             },
             {
                 id: "334",
-                identificationNo: "EMU38",
+                displayName: "EMU38",
             },
             {
                 id: "335",
-                identificationNo: "EMU39",
+                displayName: "EMU39",
             },
             {
                 id: "336",
-                identificationNo: "EMU40",
+                displayName: "EMU40",
             },
             {
                 id: "337",
-                identificationNo: "SCS01",
+                displayName: "SCS01",
             },
             {
                 id: "338",
-                identificationNo: "SCS02",
+                displayName: "SCS02",
             },
             {
                 id: "339",
-                identificationNo: "SCS03",
+                displayName: "SCS03",
             },
             {
                 id: "340",
-                identificationNo: "SCS04",
+                displayName: "SCS04",
             },
             {
                 id: "341",
-                identificationNo: "SCS05",
+                displayName: "SCS05",
             },
             {
                 id: "342",
-                identificationNo: "SCS06",
+                displayName: "SCS06",
             },
             {
                 id: "343",
-                identificationNo: "SCS07",
+                displayName: "SCS07",
             },
             {
                 id: "344",
-                identificationNo: "SCS08",
+                displayName: "SCS08",
             },
             {
                 id: "345",
-                identificationNo: "SCS09",
+                displayName: "SCS09",
             },
             {
                 id: "346",
-                identificationNo: "SCS10",
+                displayName: "SCS10",
             },
             {
                 id: "347",
-                identificationNo: "SCS11",
+                displayName: "SCS11",
             },
             {
                 id: "348",
-                identificationNo: "SCS12",
+                displayName: "SCS12",
             },
             {
                 id: "349",
-                identificationNo: "SCS13",
+                displayName: "SCS13",
             },
             {
                 id: "350",
-                identificationNo: "SCS14",
+                displayName: "SCS14",
             },
             {
                 id: "351",
-                identificationNo: "SCS15",
+                displayName: "SCS15",
             },
             {
                 id: "352",
-                identificationNo: "SCS16",
+                displayName: "SCS16",
             },
             {
                 id: "353",
-                identificationNo: "SCS17",
+                displayName: "SCS17",
             },
             {
                 id: "354",
-                identificationNo: "SCS18",
+                displayName: "SCS18",
             },
             {
                 id: "355",
-                identificationNo: "SCS19",
+                displayName: "SCS19",
             },
             {
                 id: "356",
-                identificationNo: "SCS20",
+                displayName: "SCS20",
             },
             {
                 id: "357",
-                identificationNo: "SCS21",
+                displayName: "SCS21",
             },
             {
                 id: "358",
-                identificationNo: "SCS22",
+                displayName: "SCS22",
             },
             {
                 id: "359",
-                identificationNo: "SCS23",
+                displayName: "SCS23",
             },
             {
                 id: "360",
-                identificationNo: "SCS24",
+                displayName: "SCS24",
             },
             {
                 id: "361",
-                identificationNo: "SCS25",
+                displayName: "SCS25",
             },
             {
                 id: "362",
-                identificationNo: "SCS26",
+                displayName: "SCS26",
             },
             {
                 id: "363",
-                identificationNo: "SCS27",
+                displayName: "SCS27",
             },
             {
                 id: "364",
-                identificationNo: "SCS28",
+                displayName: "SCS28",
             },
             {
                 id: "365",
-                identificationNo: "SCS29",
+                displayName: "SCS29",
             },
             {
                 id: "366",
-                identificationNo: "SCS30",
+                displayName: "SCS30",
             },
             {
                 id: "367",
-                identificationNo: "SCS31",
+                displayName: "SCS31",
             },
             {
                 id: "368",
-                identificationNo: "SCS32",
+                displayName: "SCS32",
             },
             {
                 id: "369",
-                identificationNo: "SCS33",
+                displayName: "SCS33",
             },
             {
                 id: "370",
-                identificationNo: "SCS34",
+                displayName: "SCS34",
             },
             {
                 id: "371",
-                identificationNo: "SCS35",
+                displayName: "SCS35",
             },
             {
                 id: "372",
-                identificationNo: "SCS36",
+                displayName: "SCS36",
             },
             {
                 id: "373",
-                identificationNo: "SCS37",
+                displayName: "SCS37",
             },
             {
                 id: "374",
-                identificationNo: "SCS38",
+                displayName: "SCS38",
             },
             {
                 id: "375",
-                identificationNo: "EMU41",
+                displayName: "EMU41",
             },
             {
                 id: "376",
-                identificationNo: "EMU42",
+                displayName: "EMU42",
             },
             {
                 id: "377",
-                identificationNo: "EMU43",
+                displayName: "EMU43",
             },
             {
                 id: "378",
-                identificationNo: "EMU44",
+                displayName: "EMU44",
             },
             {
                 id: "379",
-                identificationNo: "EMU45",
+                displayName: "EMU45",
             },
             {
                 id: "380",
-                identificationNo: "EMU46",
+                displayName: "EMU46",
             },
             {
                 id: "381",
-                identificationNo: "EMU47",
+                displayName: "EMU47",
             },
             {
                 id: "382",
-                identificationNo: "EMU48",
+                displayName: "EMU48",
             },
             {
                 id: "383",
-                identificationNo: "EMU49",
+                displayName: "EMU49",
             },
             {
                 id: "384",
-                identificationNo: "EMU50",
+                displayName: "EMU50",
             },
             {
                 id: "385",
-                identificationNo: "EMU51",
+                displayName: "EMU51",
             },
             {
                 id: "386",
-                identificationNo: "EMU52",
+                displayName: "EMU52",
             },
             {
                 id: "387",
-                identificationNo: "EMU53",
+                displayName: "EMU53",
             },
             {
                 id: "388",
-                identificationNo: "EMU54",
+                displayName: "EMU54",
             },
             {
                 id: "389",
-                identificationNo: "EMU55",
+                displayName: "EMU55",
             },
             {
                 id: "390",
-                identificationNo: "EMU56",
+                displayName: "EMU56",
             },
             {
                 id: "391",
-                identificationNo: "EMU57",
+                displayName: "EMU57",
             },
             {
                 id: "392",
-                identificationNo: "EMU58",
+                displayName: "EMU58",
             },
             {
                 id: "393",
-                identificationNo: "EMU59",
+                displayName: "EMU59",
             },
             {
                 id: "394",
-                identificationNo: "EMU60",
+                displayName: "EMU60",
             },
             {
                 id: "395",
-                identificationNo: "EMU61",
+                displayName: "EMU61",
             },
             {
                 id: "396",
-                identificationNo: "EMU62",
+                displayName: "EMU62",
             },
         ],
         stations: [
@@ -1809,243 +1808,243 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "315",
-                identificationNo: "EMU19",
+                displayName: "EMU19",
             },
             {
                 id: "316",
-                identificationNo: "EMU20",
+                displayName: "EMU20",
             },
             {
                 id: "317",
-                identificationNo: "EMU21",
+                displayName: "EMU21",
             },
             {
                 id: "318",
-                identificationNo: "EMU22",
+                displayName: "EMU22",
             },
             {
                 id: "319",
-                identificationNo: "EMU23",
+                displayName: "EMU23",
             },
             {
                 id: "320",
-                identificationNo: "EMU24",
+                displayName: "EMU24",
             },
             {
                 id: "321",
-                identificationNo: "EMU25",
+                displayName: "EMU25",
             },
             {
                 id: "322",
-                identificationNo: "EMU26",
+                displayName: "EMU26",
             },
             {
                 id: "323",
-                identificationNo: "EMU27",
+                displayName: "EMU27",
             },
             {
                 id: "324",
-                identificationNo: "EMU28",
+                displayName: "EMU28",
             },
             {
                 id: "325",
-                identificationNo: "EMU29",
+                displayName: "EMU29",
             },
             {
                 id: "326",
-                identificationNo: "EMU30",
+                displayName: "EMU30",
             },
             {
                 id: "327",
-                identificationNo: "EMU31",
+                displayName: "EMU31",
             },
             {
                 id: "328",
-                identificationNo: "EMU32",
+                displayName: "EMU32",
             },
             {
                 id: "329",
-                identificationNo: "EMU33",
+                displayName: "EMU33",
             },
             {
                 id: "330",
-                identificationNo: "EMU34",
+                displayName: "EMU34",
             },
             {
                 id: "331",
-                identificationNo: "EMU35",
+                displayName: "EMU35",
             },
             {
                 id: "332",
-                identificationNo: "EMU36",
+                displayName: "EMU36",
             },
             {
                 id: "333",
-                identificationNo: "EMU37",
+                displayName: "EMU37",
             },
             {
                 id: "334",
-                identificationNo: "EMU38",
+                displayName: "EMU38",
             },
             {
                 id: "335",
-                identificationNo: "EMU39",
+                displayName: "EMU39",
             },
             {
                 id: "336",
-                identificationNo: "EMU40",
+                displayName: "EMU40",
             },
             {
                 id: "337",
-                identificationNo: "SCS01",
+                displayName: "SCS01",
             },
             {
                 id: "338",
-                identificationNo: "SCS02",
+                displayName: "SCS02",
             },
             {
                 id: "339",
-                identificationNo: "SCS03",
+                displayName: "SCS03",
             },
             {
                 id: "340",
-                identificationNo: "SCS04",
+                displayName: "SCS04",
             },
             {
                 id: "341",
-                identificationNo: "SCS05",
+                displayName: "SCS05",
             },
             {
                 id: "342",
-                identificationNo: "SCS06",
+                displayName: "SCS06",
             },
             {
                 id: "343",
-                identificationNo: "SCS07",
+                displayName: "SCS07",
             },
             {
                 id: "344",
-                identificationNo: "SCS08",
+                displayName: "SCS08",
             },
             {
                 id: "345",
-                identificationNo: "SCS09",
+                displayName: "SCS09",
             },
             {
                 id: "346",
-                identificationNo: "SCS10",
+                displayName: "SCS10",
             },
             {
                 id: "347",
-                identificationNo: "SCS11",
+                displayName: "SCS11",
             },
             {
                 id: "348",
-                identificationNo: "SCS12",
+                displayName: "SCS12",
             },
             {
                 id: "349",
-                identificationNo: "SCS13",
+                displayName: "SCS13",
             },
             {
                 id: "350",
-                identificationNo: "SCS14",
+                displayName: "SCS14",
             },
             {
                 id: "351",
-                identificationNo: "SCS15",
+                displayName: "SCS15",
             },
             {
                 id: "352",
-                identificationNo: "SCS16",
+                displayName: "SCS16",
             },
             {
                 id: "353",
-                identificationNo: "SCS17",
+                displayName: "SCS17",
             },
             {
                 id: "354",
-                identificationNo: "SCS18",
+                displayName: "SCS18",
             },
             {
                 id: "355",
-                identificationNo: "SCS19",
+                displayName: "SCS19",
             },
             {
                 id: "356",
-                identificationNo: "SCS20",
+                displayName: "SCS20",
             },
             {
                 id: "357",
-                identificationNo: "SCS21",
+                displayName: "SCS21",
             },
             {
                 id: "358",
-                identificationNo: "SCS22",
+                displayName: "SCS22",
             },
             {
                 id: "359",
-                identificationNo: "SCS23",
+                displayName: "SCS23",
             },
             {
                 id: "360",
-                identificationNo: "SCS24",
+                displayName: "SCS24",
             },
             {
                 id: "361",
-                identificationNo: "SCS25",
+                displayName: "SCS25",
             },
             {
                 id: "362",
-                identificationNo: "SCS26",
+                displayName: "SCS26",
             },
             {
                 id: "363",
-                identificationNo: "SCS27",
+                displayName: "SCS27",
             },
             {
                 id: "364",
-                identificationNo: "SCS28",
+                displayName: "SCS28",
             },
             {
                 id: "365",
-                identificationNo: "SCS29",
+                displayName: "SCS29",
             },
             {
                 id: "366",
-                identificationNo: "SCS30",
+                displayName: "SCS30",
             },
             {
                 id: "367",
-                identificationNo: "SCS31",
+                displayName: "SCS31",
             },
             {
                 id: "368",
-                identificationNo: "SCS32",
+                displayName: "SCS32",
             },
             {
                 id: "369",
-                identificationNo: "SCS33",
+                displayName: "SCS33",
             },
             {
                 id: "370",
-                identificationNo: "SCS34",
+                displayName: "SCS34",
             },
             {
                 id: "371",
-                identificationNo: "SCS35",
+                displayName: "SCS35",
             },
             {
                 id: "372",
-                identificationNo: "SCS36",
+                displayName: "SCS36",
             },
             {
                 id: "373",
-                identificationNo: "SCS37",
+                displayName: "SCS37",
             },
             {
                 id: "374",
-                identificationNo: "SCS38",
+                displayName: "SCS38",
             },
         ],
         stations: [
@@ -2098,403 +2097,403 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "297",
-                identificationNo: "EMU01",
+                displayName: "EMU01",
             },
             {
                 id: "298",
-                identificationNo: "EMU02",
+                displayName: "EMU02",
             },
             {
                 id: "299",
-                identificationNo: "EMU03",
+                displayName: "EMU03",
             },
             {
                 id: "300",
-                identificationNo: "EMU04",
+                displayName: "EMU04",
             },
             {
                 id: "301",
-                identificationNo: "EMU05",
+                displayName: "EMU05",
             },
             {
                 id: "302",
-                identificationNo: "EMU06",
+                displayName: "EMU06",
             },
             {
                 id: "303",
-                identificationNo: "EMU07",
+                displayName: "EMU07",
             },
             {
                 id: "304",
-                identificationNo: "EMU08",
+                displayName: "EMU08",
             },
             {
                 id: "305",
-                identificationNo: "EMU09",
+                displayName: "EMU09",
             },
             {
                 id: "306",
-                identificationNo: "EMU10",
+                displayName: "EMU10",
             },
             {
                 id: "307",
-                identificationNo: "EMU11",
+                displayName: "EMU11",
             },
             {
                 id: "308",
-                identificationNo: "EMU12",
+                displayName: "EMU12",
             },
             {
                 id: "309",
-                identificationNo: "EMU13",
+                displayName: "EMU13",
             },
             {
                 id: "310",
-                identificationNo: "EMU14",
+                displayName: "EMU14",
             },
             {
                 id: "311",
-                identificationNo: "EMU15",
+                displayName: "EMU15",
             },
             {
                 id: "312",
-                identificationNo: "EMU16",
+                displayName: "EMU16",
             },
             {
                 id: "313",
-                identificationNo: "EMU17",
+                displayName: "EMU17",
             },
             {
                 id: "314",
-                identificationNo: "EMU18",
+                displayName: "EMU18",
             },
             {
                 id: "315",
-                identificationNo: "EMU19",
+                displayName: "EMU19",
             },
             {
                 id: "316",
-                identificationNo: "EMU20",
+                displayName: "EMU20",
             },
             {
                 id: "317",
-                identificationNo: "EMU21",
+                displayName: "EMU21",
             },
             {
                 id: "318",
-                identificationNo: "EMU22",
+                displayName: "EMU22",
             },
             {
                 id: "319",
-                identificationNo: "EMU23",
+                displayName: "EMU23",
             },
             {
                 id: "320",
-                identificationNo: "EMU24",
+                displayName: "EMU24",
             },
             {
                 id: "321",
-                identificationNo: "EMU25",
+                displayName: "EMU25",
             },
             {
                 id: "322",
-                identificationNo: "EMU26",
+                displayName: "EMU26",
             },
             {
                 id: "323",
-                identificationNo: "EMU27",
+                displayName: "EMU27",
             },
             {
                 id: "324",
-                identificationNo: "EMU28",
+                displayName: "EMU28",
             },
             {
                 id: "325",
-                identificationNo: "EMU29",
+                displayName: "EMU29",
             },
             {
                 id: "326",
-                identificationNo: "EMU30",
+                displayName: "EMU30",
             },
             {
                 id: "327",
-                identificationNo: "EMU31",
+                displayName: "EMU31",
             },
             {
                 id: "328",
-                identificationNo: "EMU32",
+                displayName: "EMU32",
             },
             {
                 id: "329",
-                identificationNo: "EMU33",
+                displayName: "EMU33",
             },
             {
                 id: "330",
-                identificationNo: "EMU34",
+                displayName: "EMU34",
             },
             {
                 id: "331",
-                identificationNo: "EMU35",
+                displayName: "EMU35",
             },
             {
                 id: "332",
-                identificationNo: "EMU36",
+                displayName: "EMU36",
             },
             {
                 id: "333",
-                identificationNo: "EMU37",
+                displayName: "EMU37",
             },
             {
                 id: "334",
-                identificationNo: "EMU38",
+                displayName: "EMU38",
             },
             {
                 id: "335",
-                identificationNo: "EMU39",
+                displayName: "EMU39",
             },
             {
                 id: "336",
-                identificationNo: "EMU40",
+                displayName: "EMU40",
             },
             {
                 id: "337",
-                identificationNo: "SCS01",
+                displayName: "SCS01",
             },
             {
                 id: "338",
-                identificationNo: "SCS02",
+                displayName: "SCS02",
             },
             {
                 id: "339",
-                identificationNo: "SCS03",
+                displayName: "SCS03",
             },
             {
                 id: "340",
-                identificationNo: "SCS04",
+                displayName: "SCS04",
             },
             {
                 id: "341",
-                identificationNo: "SCS05",
+                displayName: "SCS05",
             },
             {
                 id: "342",
-                identificationNo: "SCS06",
+                displayName: "SCS06",
             },
             {
                 id: "343",
-                identificationNo: "SCS07",
+                displayName: "SCS07",
             },
             {
                 id: "344",
-                identificationNo: "SCS08",
+                displayName: "SCS08",
             },
             {
                 id: "345",
-                identificationNo: "SCS09",
+                displayName: "SCS09",
             },
             {
                 id: "346",
-                identificationNo: "SCS10",
+                displayName: "SCS10",
             },
             {
                 id: "347",
-                identificationNo: "SCS11",
+                displayName: "SCS11",
             },
             {
                 id: "348",
-                identificationNo: "SCS12",
+                displayName: "SCS12",
             },
             {
                 id: "349",
-                identificationNo: "SCS13",
+                displayName: "SCS13",
             },
             {
                 id: "350",
-                identificationNo: "SCS14",
+                displayName: "SCS14",
             },
             {
                 id: "351",
-                identificationNo: "SCS15",
+                displayName: "SCS15",
             },
             {
                 id: "352",
-                identificationNo: "SCS16",
+                displayName: "SCS16",
             },
             {
                 id: "353",
-                identificationNo: "SCS17",
+                displayName: "SCS17",
             },
             {
                 id: "354",
-                identificationNo: "SCS18",
+                displayName: "SCS18",
             },
             {
                 id: "355",
-                identificationNo: "SCS19",
+                displayName: "SCS19",
             },
             {
                 id: "356",
-                identificationNo: "SCS20",
+                displayName: "SCS20",
             },
             {
                 id: "357",
-                identificationNo: "SCS21",
+                displayName: "SCS21",
             },
             {
                 id: "358",
-                identificationNo: "SCS22",
+                displayName: "SCS22",
             },
             {
                 id: "359",
-                identificationNo: "SCS23",
+                displayName: "SCS23",
             },
             {
                 id: "360",
-                identificationNo: "SCS24",
+                displayName: "SCS24",
             },
             {
                 id: "361",
-                identificationNo: "SCS25",
+                displayName: "SCS25",
             },
             {
                 id: "362",
-                identificationNo: "SCS26",
+                displayName: "SCS26",
             },
             {
                 id: "363",
-                identificationNo: "SCS27",
+                displayName: "SCS27",
             },
             {
                 id: "364",
-                identificationNo: "SCS28",
+                displayName: "SCS28",
             },
             {
                 id: "365",
-                identificationNo: "SCS29",
+                displayName: "SCS29",
             },
             {
                 id: "366",
-                identificationNo: "SCS30",
+                displayName: "SCS30",
             },
             {
                 id: "367",
-                identificationNo: "SCS31",
+                displayName: "SCS31",
             },
             {
                 id: "368",
-                identificationNo: "SCS32",
+                displayName: "SCS32",
             },
             {
                 id: "369",
-                identificationNo: "SCS33",
+                displayName: "SCS33",
             },
             {
                 id: "370",
-                identificationNo: "SCS34",
+                displayName: "SCS34",
             },
             {
                 id: "371",
-                identificationNo: "SCS35",
+                displayName: "SCS35",
             },
             {
                 id: "372",
-                identificationNo: "SCS36",
+                displayName: "SCS36",
             },
             {
                 id: "373",
-                identificationNo: "SCS37",
+                displayName: "SCS37",
             },
             {
                 id: "374",
-                identificationNo: "SCS38",
+                displayName: "SCS38",
             },
             {
                 id: "375",
-                identificationNo: "EMU41",
+                displayName: "EMU41",
             },
             {
                 id: "376",
-                identificationNo: "EMU42",
+                displayName: "EMU42",
             },
             {
                 id: "377",
-                identificationNo: "EMU43",
+                displayName: "EMU43",
             },
             {
                 id: "378",
-                identificationNo: "EMU44",
+                displayName: "EMU44",
             },
             {
                 id: "379",
-                identificationNo: "EMU45",
+                displayName: "EMU45",
             },
             {
                 id: "380",
-                identificationNo: "EMU46",
+                displayName: "EMU46",
             },
             {
                 id: "381",
-                identificationNo: "EMU47",
+                displayName: "EMU47",
             },
             {
                 id: "382",
-                identificationNo: "EMU48",
+                displayName: "EMU48",
             },
             {
                 id: "383",
-                identificationNo: "EMU49",
+                displayName: "EMU49",
             },
             {
                 id: "384",
-                identificationNo: "EMU50",
+                displayName: "EMU50",
             },
             {
                 id: "385",
-                identificationNo: "EMU51",
+                displayName: "EMU51",
             },
             {
                 id: "386",
-                identificationNo: "EMU52",
+                displayName: "EMU52",
             },
             {
                 id: "387",
-                identificationNo: "EMU53",
+                displayName: "EMU53",
             },
             {
                 id: "388",
-                identificationNo: "EMU54",
+                displayName: "EMU54",
             },
             {
                 id: "389",
-                identificationNo: "EMU55",
+                displayName: "EMU55",
             },
             {
                 id: "390",
-                identificationNo: "EMU56",
+                displayName: "EMU56",
             },
             {
                 id: "391",
-                identificationNo: "EMU57",
+                displayName: "EMU57",
             },
             {
                 id: "392",
-                identificationNo: "EMU58",
+                displayName: "EMU58",
             },
             {
                 id: "393",
-                identificationNo: "EMU59",
+                displayName: "EMU59",
             },
             {
                 id: "394",
-                identificationNo: "EMU60",
+                displayName: "EMU60",
             },
             {
                 id: "395",
-                identificationNo: "EMU61",
+                displayName: "EMU61",
             },
             {
                 id: "396",
-                identificationNo: "EMU62",
+                displayName: "EMU62",
             },
         ],
         stations: [
@@ -2615,203 +2614,203 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "256",
-                identificationNo: "428",
+                displayName: "428",
             },
             {
                 id: "257",
-                identificationNo: "429",
+                displayName: "429",
             },
             {
                 id: "258",
-                identificationNo: "430",
+                displayName: "430",
             },
             {
                 id: "259",
-                identificationNo: "431",
+                displayName: "431",
             },
             {
                 id: "260",
-                identificationNo: "432",
+                displayName: "432",
             },
             {
                 id: "261",
-                identificationNo: "433",
+                displayName: "433",
             },
             {
                 id: "262",
-                identificationNo: "434",
+                displayName: "434",
             },
             {
                 id: "263",
-                identificationNo: "435",
+                displayName: "435",
             },
             {
                 id: "264",
-                identificationNo: "436",
+                displayName: "436",
             },
             {
                 id: "265",
-                identificationNo: "437",
+                displayName: "437",
             },
             {
                 id: "266",
-                identificationNo: "438",
+                displayName: "438",
             },
             {
                 id: "267",
-                identificationNo: "439",
+                displayName: "439",
             },
             {
                 id: "268",
-                identificationNo: "440",
+                displayName: "440",
             },
             {
                 id: "269",
-                identificationNo: "441",
+                displayName: "441",
             },
             {
                 id: "270",
-                identificationNo: "442",
+                displayName: "442",
             },
             {
                 id: "271",
-                identificationNo: "443",
+                displayName: "443",
             },
             {
                 id: "272",
-                identificationNo: "444",
+                displayName: "444",
             },
             {
                 id: "273",
-                identificationNo: "445",
+                displayName: "445",
             },
             {
                 id: "274",
-                identificationNo: "446",
+                displayName: "446",
             },
             {
                 id: "275",
-                identificationNo: "447",
+                displayName: "447",
             },
             {
                 id: "276",
-                identificationNo: "448",
+                displayName: "448",
             },
             {
                 id: "277",
-                identificationNo: "449",
+                displayName: "449",
             },
             {
                 id: "278",
-                identificationNo: "450",
+                displayName: "450",
             },
             {
                 id: "229",
-                identificationNo: "301",
+                displayName: "301",
             },
             {
                 id: "230",
-                identificationNo: "302",
+                displayName: "302",
             },
             {
                 id: "231",
-                identificationNo: "303",
+                displayName: "303",
             },
             {
                 id: "232",
-                identificationNo: "304",
+                displayName: "304",
             },
             {
                 id: "233",
-                identificationNo: "305",
+                displayName: "305",
             },
             {
                 id: "234",
-                identificationNo: "306",
+                displayName: "306",
             },
             {
                 id: "235",
-                identificationNo: "307",
+                displayName: "307",
             },
             {
                 id: "236",
-                identificationNo: "308",
+                displayName: "308",
             },
             {
                 id: "237",
-                identificationNo: "309",
+                displayName: "309",
             },
             {
                 id: "238",
-                identificationNo: "310",
+                displayName: "310",
             },
             {
                 id: "239",
-                identificationNo: "311",
+                displayName: "311",
             },
             {
                 id: "240",
-                identificationNo: "312",
+                displayName: "312",
             },
             {
                 id: "241",
-                identificationNo: "313",
+                displayName: "313",
             },
             {
                 id: "242",
-                identificationNo: "314",
+                displayName: "314",
             },
             {
                 id: "243",
-                identificationNo: "315",
+                displayName: "315",
             },
             {
                 id: "244",
-                identificationNo: "316",
+                displayName: "316",
             },
             {
                 id: "245",
-                identificationNo: "317",
+                displayName: "317",
             },
             {
                 id: "246",
-                identificationNo: "318",
+                displayName: "318",
             },
             {
                 id: "247",
-                identificationNo: "319",
+                displayName: "319",
             },
             {
                 id: "248",
-                identificationNo: "320",
+                displayName: "320",
             },
             {
                 id: "249",
-                identificationNo: "421",
+                displayName: "421",
             },
             {
                 id: "250",
-                identificationNo: "422",
+                displayName: "422",
             },
             {
                 id: "251",
-                identificationNo: "423",
+                displayName: "423",
             },
             {
                 id: "252",
-                identificationNo: "424",
+                displayName: "424",
             },
             {
                 id: "253",
-                identificationNo: "425",
+                displayName: "425",
             },
             {
                 id: "254",
-                identificationNo: "426",
+                displayName: "426",
             },
             {
                 id: "255",
-                identificationNo: "427",
+                displayName: "427",
             },
         ],
         stations: [
@@ -2896,423 +2895,423 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "542",
-                identificationNo: "35",
+                displayName: "35",
             },
             {
                 id: "543",
-                identificationNo: "34",
+                displayName: "34",
             },
             {
                 id: "544",
-                identificationNo: "30",
+                displayName: "30",
             },
             {
                 id: "545",
-                identificationNo: "29",
+                displayName: "29",
             },
             {
                 id: "559",
-                identificationNo: "28",
+                displayName: "28",
             },
             {
                 id: "560",
-                identificationNo: "33",
+                displayName: "33",
             },
             {
                 id: "564",
-                identificationNo: "27",
+                displayName: "27",
             },
             {
                 id: "565",
-                identificationNo: "26",
+                displayName: "26",
             },
             {
                 id: "103",
-                identificationNo: "01 (Old)",
+                displayName: "01 (Old)",
             },
             {
                 id: "104",
-                identificationNo: "02 (Old)",
+                displayName: "02 (Old)",
             },
             {
                 id: "105",
-                identificationNo: "03 (Old)",
+                displayName: "03 (Old)",
             },
             {
                 id: "106",
-                identificationNo: "04 (Old)",
+                displayName: "04 (Old)",
             },
             {
                 id: "107",
-                identificationNo: "05 (Old)",
+                displayName: "05 (Old)",
             },
             {
                 id: "108",
-                identificationNo: "06 (Old)",
+                displayName: "06 (Old)",
             },
             {
                 id: "109",
-                identificationNo: "07 (Old)",
+                displayName: "07 (Old)",
             },
             {
                 id: "110",
-                identificationNo: "08 (Old)",
+                displayName: "08 (Old)",
             },
             {
                 id: "111",
-                identificationNo: "09 (Old)",
+                displayName: "09 (Old)",
             },
             {
                 id: "112",
-                identificationNo: "10 (Old)",
+                displayName: "10 (Old)",
             },
             {
                 id: "113",
-                identificationNo: "11 (Old)",
+                displayName: "11 (Old)",
             },
             {
                 id: "114",
-                identificationNo: "12 (Old)",
+                displayName: "12 (Old)",
             },
             {
                 id: "115",
-                identificationNo: "13 (Old)",
+                displayName: "13 (Old)",
             },
             {
                 id: "116",
-                identificationNo: "14 (Old)",
+                displayName: "14 (Old)",
             },
             {
                 id: "117",
-                identificationNo: "15 (Old)",
+                displayName: "15 (Old)",
             },
             {
                 id: "118",
-                identificationNo: "16 (Old)",
+                displayName: "16 (Old)",
             },
             {
                 id: "119",
-                identificationNo: "15 (17 Renum)",
+                displayName: "15 (17 Renum)",
             },
             {
                 id: "120",
-                identificationNo: "18 (Old)",
+                displayName: "18 (Old)",
             },
             {
                 id: "121",
-                identificationNo: "19 (Old)",
+                displayName: "19 (Old)",
             },
             {
                 id: "122",
-                identificationNo: "20 (Old)",
+                displayName: "20 (Old)",
             },
             {
                 id: "123",
-                identificationNo: "21 (Old)",
+                displayName: "21 (Old)",
             },
             {
                 id: "124",
-                identificationNo: "22 (Old)",
+                displayName: "22 (Old)",
             },
             {
                 id: "125",
-                identificationNo: "23 (Old)",
+                displayName: "23 (Old)",
             },
             {
                 id: "126",
-                identificationNo: "01 (24 Renum)",
+                displayName: "01 (24 Renum)",
             },
             {
                 id: "127",
-                identificationNo: "07 (25 Renum)",
+                displayName: "07 (25 Renum)",
             },
             {
                 id: "128",
-                identificationNo: "26 (Old)",
+                displayName: "26 (Old)",
             },
             {
                 id: "129",
-                identificationNo: "27 (Old)",
+                displayName: "27 (Old)",
             },
             {
                 id: "130",
-                identificationNo: "28 (Old)",
+                displayName: "28 (Old)",
             },
             {
                 id: "131",
-                identificationNo: "29 (Old)",
+                displayName: "29 (Old)",
             },
             {
                 id: "132",
-                identificationNo: "13 (30 Renum)",
+                displayName: "13 (30 Renum)",
             },
             {
                 id: "133",
-                identificationNo: "31 (Old)",
+                displayName: "31 (Old)",
             },
             {
                 id: "134",
-                identificationNo: "32 (Old)",
+                displayName: "32 (Old)",
             },
             {
                 id: "135",
-                identificationNo: "16 (33 Renum)",
+                displayName: "16 (33 Renum)",
             },
             {
                 id: "136",
-                identificationNo: "34 (Old)",
+                displayName: "34 (Old)",
             },
             {
                 id: "137",
-                identificationNo: "35 (Old)",
+                displayName: "35 (Old)",
             },
             {
                 id: "167",
-                identificationNo: "36",
+                displayName: "36",
             },
             {
                 id: "168",
-                identificationNo: "37",
+                displayName: "37",
             },
             {
                 id: "169",
-                identificationNo: "38",
+                displayName: "38",
             },
             {
                 id: "170",
-                identificationNo: "39",
+                displayName: "39",
             },
             {
                 id: "171",
-                identificationNo: "40",
+                displayName: "40",
             },
             {
                 id: "172",
-                identificationNo: "41",
+                displayName: "41",
             },
             {
                 id: "173",
-                identificationNo: "42",
+                displayName: "42",
             },
             {
                 id: "174",
-                identificationNo: "43",
+                displayName: "43",
             },
             {
                 id: "175",
-                identificationNo: "44",
+                displayName: "44",
             },
             {
                 id: "176",
-                identificationNo: "45",
+                displayName: "45",
             },
             {
                 id: "177",
-                identificationNo: "46",
+                displayName: "46",
             },
             {
                 id: "178",
-                identificationNo: "47",
+                displayName: "47",
             },
             {
                 id: "179",
-                identificationNo: "48",
+                displayName: "48",
             },
             {
                 id: "180",
-                identificationNo: "49",
+                displayName: "49",
             },
             {
                 id: "181",
-                identificationNo: "50",
+                displayName: "50",
             },
             {
                 id: "182",
-                identificationNo: "51",
+                displayName: "51",
             },
             {
                 id: "183",
-                identificationNo: "52",
+                displayName: "52",
             },
             {
                 id: "184",
-                identificationNo: "53",
+                displayName: "53",
             },
             {
                 id: "185",
-                identificationNo: "54",
+                displayName: "54",
             },
             {
                 id: "186",
-                identificationNo: "55",
+                displayName: "55",
             },
             {
                 id: "187",
-                identificationNo: "56",
+                displayName: "56",
             },
             {
                 id: "188",
-                identificationNo: "57",
+                displayName: "57",
             },
             {
                 id: "189",
-                identificationNo: "58",
+                displayName: "58",
             },
             {
                 id: "190",
-                identificationNo: "59",
+                displayName: "59",
             },
             {
                 id: "191",
-                identificationNo: "60",
+                displayName: "60",
             },
             {
                 id: "192",
-                identificationNo: "61",
+                displayName: "61",
             },
             {
                 id: "193",
-                identificationNo: "62",
+                displayName: "62",
             },
             {
                 id: "194",
-                identificationNo: "63",
+                displayName: "63",
             },
             {
                 id: "195",
-                identificationNo: "64",
+                displayName: "64",
             },
             {
                 id: "196",
-                identificationNo: "65",
+                displayName: "65",
             },
             {
                 id: "197",
-                identificationNo: "66",
+                displayName: "66",
             },
             {
                 id: "198",
-                identificationNo: "67",
+                displayName: "67",
             },
             {
                 id: "199",
-                identificationNo: "68",
+                displayName: "68",
             },
             {
                 id: "200",
-                identificationNo: "69",
+                displayName: "69",
             },
             {
                 id: "201",
-                identificationNo: "70",
+                displayName: "70",
             },
             {
                 id: "202",
-                identificationNo: "72",
+                displayName: "72",
             },
             {
                 id: "203",
-                identificationNo: "73",
+                displayName: "73",
             },
             {
                 id: "204",
-                identificationNo: "74",
+                displayName: "74",
             },
             {
                 id: "205",
-                identificationNo: "75",
+                displayName: "75",
             },
             {
                 id: "206",
-                identificationNo: "76",
+                displayName: "76",
             },
             {
                 id: "207",
-                identificationNo: "77",
+                displayName: "77",
             },
             {
                 id: "208",
-                identificationNo: "78",
+                displayName: "78",
             },
             {
                 id: "209",
-                identificationNo: "79",
+                displayName: "79",
             },
             {
                 id: "210",
-                identificationNo: "80",
+                displayName: "80",
             },
             {
                 id: "211",
-                identificationNo: "81",
+                displayName: "81",
             },
             {
                 id: "212",
-                identificationNo: "82",
+                displayName: "82",
             },
             {
                 id: "213",
-                identificationNo: "83",
+                displayName: "83",
             },
             {
                 id: "214",
-                identificationNo: "84",
+                displayName: "84",
             },
             {
                 id: "215",
-                identificationNo: "85",
+                displayName: "85",
             },
             {
                 id: "216",
-                identificationNo: "87",
+                displayName: "87",
             },
             {
                 id: "217",
-                identificationNo: "88",
+                displayName: "88",
             },
             {
                 id: "218",
-                identificationNo: "89",
+                displayName: "89",
             },
             {
                 id: "219",
-                identificationNo: "90",
+                displayName: "90",
             },
             {
                 id: "220",
-                identificationNo: "91",
+                displayName: "91",
             },
             {
                 id: "221",
-                identificationNo: "92",
+                displayName: "92",
             },
             {
                 id: "222",
-                identificationNo: "93",
+                displayName: "93",
             },
             {
                 id: "223",
-                identificationNo: "94",
+                displayName: "94",
             },
             {
                 id: "224",
-                identificationNo: "95",
+                displayName: "95",
             },
             {
                 id: "225",
-                identificationNo: "96",
+                displayName: "96",
             },
             {
                 id: "226",
-                identificationNo: "97",
+                displayName: "97",
             },
             {
                 id: "227",
-                identificationNo: "98",
+                displayName: "98",
             },
             {
                 id: "228",
-                identificationNo: "99",
+                displayName: "99",
             },
         ],
         stations: [
@@ -3473,59 +3472,59 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "576",
-                identificationNo: "319",
+                displayName: "319",
             },
             {
                 id: "577",
-                identificationNo: "320",
+                displayName: "320",
             },
             {
                 id: "578",
-                identificationNo: "321",
+                displayName: "321",
             },
             {
                 id: "579",
-                identificationNo: "322",
+                displayName: "322",
             },
             {
                 id: "566",
-                identificationNo: "301",
+                displayName: "301",
             },
             {
                 id: "567",
-                identificationNo: "302",
+                displayName: "302",
             },
             {
                 id: "568",
-                identificationNo: "303",
+                displayName: "303",
             },
             {
                 id: "569",
-                identificationNo: "304",
+                displayName: "304",
             },
             {
                 id: "570",
-                identificationNo: "305",
+                displayName: "305",
             },
             {
                 id: "571",
-                identificationNo: "306",
+                displayName: "306",
             },
             {
                 id: "572",
-                identificationNo: "307",
+                displayName: "307",
             },
             {
                 id: "573",
-                identificationNo: "308",
+                displayName: "308",
             },
             {
                 id: "574",
-                identificationNo: "310",
+                displayName: "310",
             },
             {
                 id: "575",
-                identificationNo: "313",
+                displayName: "313",
             },
         ],
         stations: [],
@@ -3537,203 +3536,203 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "256",
-                identificationNo: "428",
+                displayName: "428",
             },
             {
                 id: "257",
-                identificationNo: "429",
+                displayName: "429",
             },
             {
                 id: "258",
-                identificationNo: "430",
+                displayName: "430",
             },
             {
                 id: "259",
-                identificationNo: "431",
+                displayName: "431",
             },
             {
                 id: "260",
-                identificationNo: "432",
+                displayName: "432",
             },
             {
                 id: "261",
-                identificationNo: "433",
+                displayName: "433",
             },
             {
                 id: "262",
-                identificationNo: "434",
+                displayName: "434",
             },
             {
                 id: "263",
-                identificationNo: "435",
+                displayName: "435",
             },
             {
                 id: "264",
-                identificationNo: "436",
+                displayName: "436",
             },
             {
                 id: "265",
-                identificationNo: "437",
+                displayName: "437",
             },
             {
                 id: "266",
-                identificationNo: "438",
+                displayName: "438",
             },
             {
                 id: "267",
-                identificationNo: "439",
+                displayName: "439",
             },
             {
                 id: "268",
-                identificationNo: "440",
+                displayName: "440",
             },
             {
                 id: "269",
-                identificationNo: "441",
+                displayName: "441",
             },
             {
                 id: "270",
-                identificationNo: "442",
+                displayName: "442",
             },
             {
                 id: "271",
-                identificationNo: "443",
+                displayName: "443",
             },
             {
                 id: "272",
-                identificationNo: "444",
+                displayName: "444",
             },
             {
                 id: "273",
-                identificationNo: "445",
+                displayName: "445",
             },
             {
                 id: "274",
-                identificationNo: "446",
+                displayName: "446",
             },
             {
                 id: "275",
-                identificationNo: "447",
+                displayName: "447",
             },
             {
                 id: "276",
-                identificationNo: "448",
+                displayName: "448",
             },
             {
                 id: "277",
-                identificationNo: "449",
+                displayName: "449",
             },
             {
                 id: "278",
-                identificationNo: "450",
+                displayName: "450",
             },
             {
                 id: "229",
-                identificationNo: "301",
+                displayName: "301",
             },
             {
                 id: "230",
-                identificationNo: "302",
+                displayName: "302",
             },
             {
                 id: "231",
-                identificationNo: "303",
+                displayName: "303",
             },
             {
                 id: "232",
-                identificationNo: "304",
+                displayName: "304",
             },
             {
                 id: "233",
-                identificationNo: "305",
+                displayName: "305",
             },
             {
                 id: "234",
-                identificationNo: "306",
+                displayName: "306",
             },
             {
                 id: "235",
-                identificationNo: "307",
+                displayName: "307",
             },
             {
                 id: "236",
-                identificationNo: "308",
+                displayName: "308",
             },
             {
                 id: "237",
-                identificationNo: "309",
+                displayName: "309",
             },
             {
                 id: "238",
-                identificationNo: "310",
+                displayName: "310",
             },
             {
                 id: "239",
-                identificationNo: "311",
+                displayName: "311",
             },
             {
                 id: "240",
-                identificationNo: "312",
+                displayName: "312",
             },
             {
                 id: "241",
-                identificationNo: "313",
+                displayName: "313",
             },
             {
                 id: "242",
-                identificationNo: "314",
+                displayName: "314",
             },
             {
                 id: "243",
-                identificationNo: "315",
+                displayName: "315",
             },
             {
                 id: "244",
-                identificationNo: "316",
+                displayName: "316",
             },
             {
                 id: "245",
-                identificationNo: "317",
+                displayName: "317",
             },
             {
                 id: "246",
-                identificationNo: "318",
+                displayName: "318",
             },
             {
                 id: "247",
-                identificationNo: "319",
+                displayName: "319",
             },
             {
                 id: "248",
-                identificationNo: "320",
+                displayName: "320",
             },
             {
                 id: "249",
-                identificationNo: "421",
+                displayName: "421",
             },
             {
                 id: "250",
-                identificationNo: "422",
+                displayName: "422",
             },
             {
                 id: "251",
-                identificationNo: "423",
+                displayName: "423",
             },
             {
                 id: "252",
-                identificationNo: "424",
+                displayName: "424",
             },
             {
                 id: "253",
-                identificationNo: "425",
+                displayName: "425",
             },
             {
                 id: "254",
-                identificationNo: "426",
+                displayName: "426",
             },
             {
                 id: "255",
-                identificationNo: "427",
+                displayName: "427",
             },
         ],
         stations: [
@@ -3862,99 +3861,99 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "1",
-                identificationNo: "RSV01",
+                displayName: "RSV01",
             },
             {
                 id: "2",
-                identificationNo: "RSV02",
+                displayName: "RSV02",
             },
             {
                 id: "3",
-                identificationNo: "RSV03",
+                displayName: "RSV03",
             },
             {
                 id: "4",
-                identificationNo: "RSV04",
+                displayName: "RSV04",
             },
             {
                 id: "5",
-                identificationNo: "RSV05",
+                displayName: "RSV05",
             },
             {
                 id: "6",
-                identificationNo: "RSV06",
+                displayName: "RSV06",
             },
             {
                 id: "7",
-                identificationNo: "RSV07",
+                displayName: "RSV07",
             },
             {
                 id: "8",
-                identificationNo: "RSV08",
+                displayName: "RSV08",
             },
             {
                 id: "9",
-                identificationNo: "RSV09",
+                displayName: "RSV09",
             },
             {
                 id: "10",
-                identificationNo: "RSV10",
+                displayName: "RSV10",
             },
             {
                 id: "11",
-                identificationNo: "RSV11",
+                displayName: "RSV11",
             },
             {
                 id: "12",
-                identificationNo: "RSV12",
+                displayName: "RSV12",
             },
             {
                 id: "13",
-                identificationNo: "RSV21",
+                displayName: "RSV21",
             },
             {
                 id: "14",
-                identificationNo: "RSV22",
+                displayName: "RSV22",
             },
             {
                 id: "15",
-                identificationNo: "RSV23",
+                displayName: "RSV23",
             },
             {
                 id: "16",
-                identificationNo: "RSV24",
+                displayName: "RSV24",
             },
             {
                 id: "17",
-                identificationNo: "RSV25",
+                displayName: "RSV25",
             },
             {
                 id: "18",
-                identificationNo: "RSV26",
+                displayName: "RSV26",
             },
             {
                 id: "19",
-                identificationNo: "RSV27",
+                displayName: "RSV27",
             },
             {
                 id: "20",
-                identificationNo: "RSV28",
+                displayName: "RSV28",
             },
             {
                 id: "21",
-                identificationNo: "RSV29",
+                displayName: "RSV29",
             },
             {
                 id: "22",
-                identificationNo: "RSV30",
+                displayName: "RSV30",
             },
             {
                 id: "23",
-                identificationNo: "RSV31",
+                displayName: "RSV31",
             },
             {
                 id: "24",
-                identificationNo: "RSV32",
+                displayName: "RSV32",
             },
         ],
         stations: [
@@ -4011,235 +4010,235 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "25",
-                identificationNo: "101",
+                displayName: "101",
             },
             {
                 id: "26",
-                identificationNo: "102",
+                displayName: "102",
             },
             {
                 id: "27",
-                identificationNo: "103",
+                displayName: "103",
             },
             {
                 id: "28",
-                identificationNo: "104",
+                displayName: "104",
             },
             {
                 id: "29",
-                identificationNo: "105",
+                displayName: "105",
             },
             {
                 id: "30",
-                identificationNo: "106",
+                displayName: "106",
             },
             {
                 id: "31",
-                identificationNo: "107",
+                displayName: "107",
             },
             {
                 id: "32",
-                identificationNo: "108",
+                displayName: "108",
             },
             {
                 id: "33",
-                identificationNo: "109",
+                displayName: "109",
             },
             {
                 id: "34",
-                identificationNo: "110",
+                displayName: "110",
             },
             {
                 id: "35",
-                identificationNo: "111",
+                displayName: "111",
             },
             {
                 id: "36",
-                identificationNo: "112",
+                displayName: "112",
             },
             {
                 id: "37",
-                identificationNo: "113",
+                displayName: "113",
             },
             {
                 id: "38",
-                identificationNo: "114",
+                displayName: "114",
             },
             {
                 id: "39",
-                identificationNo: "115",
+                displayName: "115",
             },
             {
                 id: "40",
-                identificationNo: "116",
+                displayName: "116",
             },
             {
                 id: "41",
-                identificationNo: "117",
+                displayName: "117",
             },
             {
                 id: "42",
-                identificationNo: "118",
+                displayName: "118",
             },
             {
                 id: "43",
-                identificationNo: "119",
+                displayName: "119",
             },
             {
                 id: "44",
-                identificationNo: "120",
+                displayName: "120",
             },
             {
                 id: "45",
-                identificationNo: "121",
+                displayName: "121",
             },
             {
                 id: "46",
-                identificationNo: "122",
+                displayName: "122",
             },
             {
                 id: "47",
-                identificationNo: "123",
+                displayName: "123",
             },
             {
                 id: "48",
-                identificationNo: "124",
+                displayName: "124",
             },
             {
                 id: "49",
-                identificationNo: "125",
+                displayName: "125",
             },
             {
                 id: "50",
-                identificationNo: "126",
+                displayName: "126",
             },
             {
                 id: "51",
-                identificationNo: "127",
+                displayName: "127",
             },
             {
                 id: "52",
-                identificationNo: "128",
+                displayName: "128",
             },
             {
                 id: "53",
-                identificationNo: "129",
+                displayName: "129",
             },
             {
                 id: "54",
-                identificationNo: "130",
+                displayName: "130",
             },
             {
                 id: "55",
-                identificationNo: "131",
+                displayName: "131",
             },
             {
                 id: "56",
-                identificationNo: "132",
+                displayName: "132",
             },
             {
                 id: "57",
-                identificationNo: "133",
+                displayName: "133",
             },
             {
                 id: "58",
-                identificationNo: "134",
+                displayName: "134",
             },
             {
                 id: "59",
-                identificationNo: "135",
+                displayName: "135",
             },
             {
                 id: "60",
-                identificationNo: "136",
+                displayName: "136",
             },
             {
                 id: "61",
-                identificationNo: "137",
+                displayName: "137",
             },
             {
                 id: "62",
-                identificationNo: "138",
+                displayName: "138",
             },
             {
                 id: "63",
-                identificationNo: "139",
+                displayName: "139",
             },
             {
                 id: "64",
-                identificationNo: "140",
+                displayName: "140",
             },
             {
                 id: "65",
-                identificationNo: "141",
+                displayName: "141",
             },
             {
                 id: "66",
-                identificationNo: "142",
+                displayName: "142",
             },
             {
                 id: "67",
-                identificationNo: "143",
+                displayName: "143",
             },
             {
                 id: "68",
-                identificationNo: "144",
+                displayName: "144",
             },
             {
                 id: "69",
-                identificationNo: "145",
+                displayName: "145",
             },
             {
                 id: "70",
-                identificationNo: "146",
+                displayName: "146",
             },
             {
                 id: "71",
-                identificationNo: "147",
+                displayName: "147",
             },
             {
                 id: "72",
-                identificationNo: "148",
+                displayName: "148",
             },
             {
                 id: "73",
-                identificationNo: "149",
+                displayName: "149",
             },
             {
                 id: "74",
-                identificationNo: "150",
+                displayName: "150",
             },
             {
                 id: "75",
-                identificationNo: "151",
+                displayName: "151",
             },
             {
                 id: "76",
-                identificationNo: "152",
+                displayName: "152",
             },
             {
                 id: "77",
-                identificationNo: "153",
+                displayName: "153",
             },
             {
                 id: "78",
-                identificationNo: "154",
+                displayName: "154",
             },
             {
                 id: "79",
-                identificationNo: "155",
+                displayName: "155",
             },
             {
                 id: "80",
-                identificationNo: "156",
+                displayName: "156",
             },
             {
                 id: "81",
-                identificationNo: "157",
+                displayName: "157",
             },
             {
                 id: "82",
-                identificationNo: "158",
+                displayName: "158",
             },
         ],
         stations: [
@@ -4372,199 +4371,199 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "138",
-                identificationNo: "221",
+                displayName: "221",
             },
             {
                 id: "139",
-                identificationNo: "222",
+                displayName: "222",
             },
             {
                 id: "140",
-                identificationNo: "223",
+                displayName: "223",
             },
             {
                 id: "141",
-                identificationNo: "224",
+                displayName: "224",
             },
             {
                 id: "142",
-                identificationNo: "225",
+                displayName: "225",
             },
             {
                 id: "143",
-                identificationNo: "226",
+                displayName: "226",
             },
             {
                 id: "144",
-                identificationNo: "227",
+                displayName: "227",
             },
             {
                 id: "145",
-                identificationNo: "228",
+                displayName: "228",
             },
             {
                 id: "146",
-                identificationNo: "229",
+                displayName: "229",
             },
             {
                 id: "147",
-                identificationNo: "230",
+                displayName: "230",
             },
             {
                 id: "148",
-                identificationNo: "231",
+                displayName: "231",
             },
             {
                 id: "149",
-                identificationNo: "232",
+                displayName: "232",
             },
             {
                 id: "150",
-                identificationNo: "233",
+                displayName: "233",
             },
             {
                 id: "151",
-                identificationNo: "234",
+                displayName: "234",
             },
             {
                 id: "152",
-                identificationNo: "235",
+                displayName: "235",
             },
             {
                 id: "153",
-                identificationNo: "236",
+                displayName: "236",
             },
             {
                 id: "154",
-                identificationNo: "237",
+                displayName: "237",
             },
             {
                 id: "155",
-                identificationNo: "238",
+                displayName: "238",
             },
             {
                 id: "156",
-                identificationNo: "239",
+                displayName: "239",
             },
             {
                 id: "157",
-                identificationNo: "240",
+                displayName: "240",
             },
             {
                 id: "158",
-                identificationNo: "241",
+                displayName: "241",
             },
             {
                 id: "159",
-                identificationNo: "242",
+                displayName: "242",
             },
             {
                 id: "160",
-                identificationNo: "243",
+                displayName: "243",
             },
             {
                 id: "161",
-                identificationNo: "244",
+                displayName: "244",
             },
             {
                 id: "162",
-                identificationNo: "245",
+                displayName: "245",
             },
             {
                 id: "163",
-                identificationNo: "246",
+                displayName: "246",
             },
             {
                 id: "164",
-                identificationNo: "247",
+                displayName: "247",
             },
             {
                 id: "165",
-                identificationNo: "248",
+                displayName: "248",
             },
             {
                 id: "166",
-                identificationNo: "249",
+                displayName: "249",
             },
             {
                 id: "83",
-                identificationNo: "201",
+                displayName: "201",
             },
             {
                 id: "84",
-                identificationNo: "202",
+                displayName: "202",
             },
             {
                 id: "85",
-                identificationNo: "203",
+                displayName: "203",
             },
             {
                 id: "86",
-                identificationNo: "204",
+                displayName: "204",
             },
             {
                 id: "87",
-                identificationNo: "205",
+                displayName: "205",
             },
             {
                 id: "88",
-                identificationNo: "206",
+                displayName: "206",
             },
             {
                 id: "89",
-                identificationNo: "207",
+                displayName: "207",
             },
             {
                 id: "90",
-                identificationNo: "208",
+                displayName: "208",
             },
             {
                 id: "91",
-                identificationNo: "209",
+                displayName: "209",
             },
             {
                 id: "92",
-                identificationNo: "210",
+                displayName: "210",
             },
             {
                 id: "93",
-                identificationNo: "211",
+                displayName: "211",
             },
             {
                 id: "94",
-                identificationNo: "212",
+                displayName: "212",
             },
             {
                 id: "95",
-                identificationNo: "213",
+                displayName: "213",
             },
             {
                 id: "96",
-                identificationNo: "214",
+                displayName: "214",
             },
             {
                 id: "97",
-                identificationNo: "215",
+                displayName: "215",
             },
             {
                 id: "98",
-                identificationNo: "216",
+                displayName: "216",
             },
             {
                 id: "99",
-                identificationNo: "217",
+                displayName: "217",
             },
             {
                 id: "100",
-                identificationNo: "218",
+                displayName: "218",
             },
             {
                 id: "101",
-                identificationNo: "219",
+                displayName: "219",
             },
             {
                 id: "102",
-                identificationNo: "220",
+                displayName: "220",
             },
         ],
         stations: [
@@ -4721,163 +4720,163 @@ export const data: LinesVehiclesStationData[] = [
         vehicles: [
             {
                 id: "297",
-                identificationNo: "EMU01",
+                displayName: "EMU01",
             },
             {
                 id: "298",
-                identificationNo: "EMU02",
+                displayName: "EMU02",
             },
             {
                 id: "299",
-                identificationNo: "EMU03",
+                displayName: "EMU03",
             },
             {
                 id: "300",
-                identificationNo: "EMU04",
+                displayName: "EMU04",
             },
             {
                 id: "301",
-                identificationNo: "EMU05",
+                displayName: "EMU05",
             },
             {
                 id: "302",
-                identificationNo: "EMU06",
+                displayName: "EMU06",
             },
             {
                 id: "303",
-                identificationNo: "EMU07",
+                displayName: "EMU07",
             },
             {
                 id: "304",
-                identificationNo: "EMU08",
+                displayName: "EMU08",
             },
             {
                 id: "305",
-                identificationNo: "EMU09",
+                displayName: "EMU09",
             },
             {
                 id: "306",
-                identificationNo: "EMU10",
+                displayName: "EMU10",
             },
             {
                 id: "307",
-                identificationNo: "EMU11",
+                displayName: "EMU11",
             },
             {
                 id: "308",
-                identificationNo: "EMU12",
+                displayName: "EMU12",
             },
             {
                 id: "309",
-                identificationNo: "EMU13",
+                displayName: "EMU13",
             },
             {
                 id: "310",
-                identificationNo: "EMU14",
+                displayName: "EMU14",
             },
             {
                 id: "311",
-                identificationNo: "EMU15",
+                displayName: "EMU15",
             },
             {
                 id: "312",
-                identificationNo: "EMU16",
+                displayName: "EMU16",
             },
             {
                 id: "313",
-                identificationNo: "EMU17",
+                displayName: "EMU17",
             },
             {
                 id: "314",
-                identificationNo: "EMU18",
+                displayName: "EMU18",
             },
             {
                 id: "315",
-                identificationNo: "EMU19",
+                displayName: "EMU19",
             },
             {
                 id: "316",
-                identificationNo: "EMU20",
+                displayName: "EMU20",
             },
             {
                 id: "317",
-                identificationNo: "EMU21",
+                displayName: "EMU21",
             },
             {
                 id: "318",
-                identificationNo: "EMU22",
+                displayName: "EMU22",
             },
             {
                 id: "319",
-                identificationNo: "EMU23",
+                displayName: "EMU23",
             },
             {
                 id: "320",
-                identificationNo: "EMU24",
+                displayName: "EMU24",
             },
             {
                 id: "321",
-                identificationNo: "EMU25",
+                displayName: "EMU25",
             },
             {
                 id: "322",
-                identificationNo: "EMU26",
+                displayName: "EMU26",
             },
             {
                 id: "323",
-                identificationNo: "EMU27",
+                displayName: "EMU27",
             },
             {
                 id: "324",
-                identificationNo: "EMU28",
+                displayName: "EMU28",
             },
             {
                 id: "325",
-                identificationNo: "EMU29",
+                displayName: "EMU29",
             },
             {
                 id: "326",
-                identificationNo: "EMU30",
+                displayName: "EMU30",
             },
             {
                 id: "327",
-                identificationNo: "EMU31",
+                displayName: "EMU31",
             },
             {
                 id: "328",
-                identificationNo: "EMU32",
+                displayName: "EMU32",
             },
             {
                 id: "329",
-                identificationNo: "EMU33",
+                displayName: "EMU33",
             },
             {
                 id: "330",
-                identificationNo: "EMU34",
+                displayName: "EMU34",
             },
             {
                 id: "331",
-                identificationNo: "EMU35",
+                displayName: "EMU35",
             },
             {
                 id: "332",
-                identificationNo: "EMU36",
+                displayName: "EMU36",
             },
             {
                 id: "333",
-                identificationNo: "EMU37",
+                displayName: "EMU37",
             },
             {
                 id: "334",
-                identificationNo: "EMU38",
+                displayName: "EMU38",
             },
             {
                 id: "335",
-                identificationNo: "EMU39",
+                displayName: "EMU39",
             },
             {
                 id: "336",
-                identificationNo: "EMU40",
+                displayName: "EMU40",
             },
         ],
         stations: [
