@@ -46,7 +46,7 @@ export class ImageCompressionService {
 
     async copyExif(src: Blob, dest: Blob) {
         const exif = await this.retrieveExif(src);
-        return new Blob([dest.slice(0, 2), exif, dest.slice(2)], {
+        return new File([dest.slice(0, 2), exif, dest.slice(2)], src.name, {
             type: "image/jpeg",
         });
     }
