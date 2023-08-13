@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-const SentryWebpackPlugin = require("@sentry/webpack-plugin");
+const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
 
 module.exports = {
     devtool: "source-map", // Source map generation must be turned on
     plugins: [
-        new SentryWebpackPlugin({
+        sentryWebpackPlugin({
             org: process.env.SENTRY_ORG,
             project: process.env.SENTRY_PROJECT,
 
