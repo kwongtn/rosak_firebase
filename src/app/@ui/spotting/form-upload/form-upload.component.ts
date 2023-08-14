@@ -1,7 +1,7 @@
 import { Message } from "ng-devui";
 import { IFileOptions, IUploadOptions } from "ng-devui/upload";
 import {
-    ImageCompressionService
+    ImageCompressionService,
 } from "src/app/services/image-compression/image-compression.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 

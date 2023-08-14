@@ -17,6 +17,10 @@ jobs:
         with:
           node-version: 18
           cache: "npm"
+      
+      - name: Set git values
+        run: |
+          git config --global user.name "${{ github.actor }}"
 
       - run: npm i -g angular-build-info && npm ci && npm run buildProd
         env:

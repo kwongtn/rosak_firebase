@@ -46,7 +46,7 @@ export class ImageCompressionService {
 
     async copyExif(src: Blob, dest: Blob) {
         const exif = await this.retrieveExif(src);
-        return new Blob([dest.slice(0, 2), exif, dest.slice(2)], {
+        return new File([dest.slice(0, 2), exif, dest.slice(2)], src.name, {
             type: "image/jpeg",
         });
     }
@@ -66,7 +66,7 @@ export class ImageCompressionService {
             img.src = await this.FileBlobToDataUrl(arg);
         }
 
-        firstValueFrom(
+        await firstValueFrom(
             combineLatest([onLoad, onError]).pipe(
                 map((values) => {
                     const [loaded, error] = values;
@@ -91,8 +91,6 @@ export class ImageCompressionService {
         const img = await this._createImage(file);
 
         const canvas = document.createElement("canvas");
-        let ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-        ctx.drawImage(img, 0, 0);
 
         let width = img.naturalWidth;
         let height = img.naturalHeight;
@@ -109,7 +107,8 @@ export class ImageCompressionService {
 
         canvas.width = width;
         canvas.height = height;
-        ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+
+        const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
         ctx.drawImage(img, 0, 0, width, height);
 
         const result = await new Promise<Blob>((resolve) =>
@@ -177,8 +176,6 @@ export class ImageCompressionService {
                 return await this.copyExif(file, output);
             }
         }
-
-        throw new Error("Cannot resize image to given parameters");
     }
 
     async FileBlobToDataUrl(file: File | Blob) {

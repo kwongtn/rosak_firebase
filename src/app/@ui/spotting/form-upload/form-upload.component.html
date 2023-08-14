@@ -3,7 +3,7 @@
     class="devui-add-images"
     [ngStyle]="{ width: imageWidth, height: imageHeight }"
 >
-    <div class="devui-add-items">
+    <nz-spin class="devui-add-items" [nzSpinning]="file.value.buffer === null">
         <img
             class="image"
             [src]="file.value.buffer"
@@ -12,7 +12,7 @@
             nzPopconfirmPlacement="bottom"
             (nzOnConfirm)="onImageClick(file.key)"
         />
-    </div>
+    </nz-spin>
     <span class="filename"> {{ file.value.displayFilename }}</span>
 </div>
 <div
