@@ -25,6 +25,9 @@ import {
     EventCardComponent,
 } from "./event-list/event-card/event-card.component";
 import {
+    ImageDrawerComponent,
+} from "./event-list/event-card/image-drawer/image-drawer.component";
+import {
     EventDetailsModalComponent,
 } from "./event-list/event-details-modal/event-details-modal.component";
 import { EventListComponent } from "./event-list/event-list.component";
@@ -37,6 +40,7 @@ import { InsidenMainComponent } from "./insiden.component";
         EventListComponent,
         EventCardComponent,
         EventDetailsModalComponent,
+        ImageDrawerComponent,
     ],
     imports: [
         CommonModule,
