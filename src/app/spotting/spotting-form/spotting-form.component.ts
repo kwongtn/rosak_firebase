@@ -343,7 +343,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     if (
                         atStationStation &&
                         this.spottingStorageService.getLine().value ==
-                        this.formGroup.value.line.value
+                            this.formGroup.value.line.value
                     ) {
                         this.formGroup.patchValue({
                             atStation: atStationStation,
@@ -423,15 +423,24 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     onSubmit():
         | Promise<{
-            spottingSubmission: Promise<MutationResult<any> | undefined>;
-            uploads: ImageFile[];
-        }>
+              spottingSubmission: Promise<MutationResult<any> | undefined>;
+              uploads: ImageFile[];
+          }>
         | undefined {
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
+
+            return undefined;
+        }
+        if (!this.authService.isLoggedIn()) {
+            this.toastService.addToast(
+                "Error",
+                "Please log in or wait for authentication to complete before proceeding.",
+                "error"
+            );
 
             return undefined;
         }
@@ -478,7 +487,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         const spottingDate: Date = formValues["spottingDate"];
         formValues["spottingDate"] = new Date(
             spottingDate.getTime() -
-            spottingDate.getTimezoneOffset() * 60 * 1000
+                spottingDate.getTimezoneOffset() * 60 * 1000
         )
             .toISOString()
             .slice(0, 10);
@@ -508,29 +517,31 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return Promise.all([
             // firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
             this.authService.getIdToken(),
-        ]).then(([
-            // captchaResponse, 
-            firebaseAuthKey,
-        ]) => {
-            const mutationObservable = this.apollo.mutate({
-                mutation: ADD_ENTRY,
-                variables: {
-                    data: formValues,
-                },
-                context: {
-                    headers: {
-                        // "g-recaptcha-response": captchaResponse,
-                        "firebase-auth-key": firebaseAuthKey,
+        ]).then(
+            ([
+                // captchaResponse,
+                firebaseAuthKey,
+            ]) => {
+                const mutationObservable = this.apollo.mutate({
+                    mutation: ADD_ENTRY,
+                    variables: {
+                        data: formValues,
                     },
-                },
-            });
+                    context: {
+                        headers: {
+                            // "g-recaptcha-response": captchaResponse,
+                            "firebase-auth-key": firebaseAuthKey,
+                        },
+                    },
+                });
 
-            this.submitting = lastValueFrom(mutationObservable);
+                this.submitting = lastValueFrom(mutationObservable);
 
-            return {
-                uploads,
-                spottingSubmission: this.submitting,
-            };
-        });
+                return {
+                    uploads,
+                    spottingSubmission: this.submitting,
+                };
+            }
+        );
     }
 }
