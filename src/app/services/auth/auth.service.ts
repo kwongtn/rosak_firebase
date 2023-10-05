@@ -187,7 +187,7 @@ export class AuthService {
     }
 
     isLoggedIn(): boolean {
-        return Boolean(this.userAuth.value);
+        return Boolean(this.userData.value);
     }
 
     isAdmin(): boolean {
