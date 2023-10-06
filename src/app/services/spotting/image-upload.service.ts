@@ -33,7 +33,7 @@ export class ImageUploadService {
     $totalUploadCount: BehaviorSubject<number> = new BehaviorSubject<number>(0);
     $percentUploaded: BehaviorSubject<number> = new BehaviorSubject<number>(0);
 
-    uploadIntervalObj: NodeJS.Timer | undefined = undefined;
+    uploadIntervalObj: NodeJS.Timeout | undefined = undefined;
     isUploading: boolean = false;
 
     constructor(

@@ -17,7 +17,7 @@ export class EventCardComponent implements OnInit, OnDestroy {
     @Input() data!: CalendarIncidentListItem;
     displayData!: CalendarIncidentListItem;
 
-    timer: NodeJS.Timer | undefined = undefined;
+    timer: NodeJS.Timeout | undefined = undefined;
     elapsedTime: string = "";
 
     constructor(private modalService: NzModalService) {}
