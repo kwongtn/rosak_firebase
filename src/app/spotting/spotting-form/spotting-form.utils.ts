@@ -112,7 +112,15 @@ export function numberSeenToSetNumber(input: string, line: string) {
         },
     };
 
-    if (["6", "7", "13", "14"].includes(line)) {
+    if (Object.keys(props).includes(line)) {
+        const prop = props[line];
+
+        if (input.length !== prop.triggerLength) {
+            return undefined;
+        }
+
+        return input.substring(prop.startConcat, prop.endConcat);
+    } else if (["6", "7", "13", "14"].includes(line)) {
         /**
          * KTM - Port Klang, Seremban, Padang Besar, Padang Rengas
          *
@@ -148,14 +156,6 @@ export function numberSeenToSetNumber(input: string, line: string) {
         } else {
             return undefined;
         }
-    } else if (Object.keys(props).includes(line)) {
-        const prop = props[line];
-
-        if (input.length !== prop.triggerLength) {
-            return undefined;
-        }
-
-        return input.substring(prop.startConcat, prop.endConcat);
     } else {
         return undefined;
     }
