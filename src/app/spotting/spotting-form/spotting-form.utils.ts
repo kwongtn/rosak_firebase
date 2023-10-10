@@ -170,10 +170,8 @@ export function numberSeenToSetNumber(input: string, line: string) {
                         .padStart(2, "0")
                 );
             }
-        } else {
-            return undefined;
         }
-    } else {
-        return undefined;
     }
+    
+    return undefined;
 }
