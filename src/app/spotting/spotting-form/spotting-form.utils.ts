@@ -120,18 +120,14 @@ export function numberSeenToSetNumber(input: string, line: string) {
         }
 
         return input.substring(prop.startConcat, prop.endConcat);
-    } else if (["6", "7", "13", "14"].includes(line)) {
+    } else if (["6", "7", "13", "14", "10", "20"].includes(line)) {
         /**
-         * KTM - Port Klang, Seremban, Padang Besar, Padang Rengas
+         * KTM - Port Klang, Seremban, Padang Besar, Padang Rengas, ETS, DMU
          *
-         * Covers class 81, 83, 92
+         * Covers class 61, 81, 83, 91, 92, 93
          */
         const coachClass = input[0].toUpperCase();
-        if (
-            input.length === 5 &&
-            // We can confirm that set number here starts with C, T or M
-            ["C", "T", "M"].includes(coachClass)
-        ) {
+        if (input.length === 5 && ["C", "T", "M", "D"].includes(coachClass)) {
             const classNum = Number(input.substring(1, 3));
             let coachNum = Number(input.substring(input.length - 2));
 
@@ -152,6 +148,27 @@ export function numberSeenToSetNumber(input: string, line: string) {
                     coachNum = Math.ceil(coachNum / 2);
                 }
                 return "EMU" + (coachNum + 18).toString().padStart(2, "0");
+            } else if (classNum === 91) {
+                return (
+                    "ETS 1" +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            } else if (classNum === 93) {
+                return (
+                    "ETS 2" +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            } else if (classNum === 61) {
+                return (
+                    "DMU " +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
             }
         } else {
             return undefined;
