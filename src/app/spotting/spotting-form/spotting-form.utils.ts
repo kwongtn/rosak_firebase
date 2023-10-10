@@ -113,16 +113,38 @@ export function numberSeenToSetNumber(input: string, line: string) {
     };
 
     if (["6", "7", "13", "14"].includes(line)) {
-        // KTM - Port Klang, Seremban, Padang Besar, Padang Rengas
+        /**
+         * KTM - Port Klang, Seremban, Padang Besar, Padang Rengas
+         *
+         * Covers class 81, 83, 92
+         */
+        const coachClass = input[0].toUpperCase();
         if (
-            // Allow inputs via numbers field only
-            input.length === 4 ||
-            (input.length === 5 &&
-                // We can confirm that set number here starts with C, T or M
-                ["C", "T", "M"].includes(input[0].toUpperCase()))
+            input.length === 5 &&
+            // We can confirm that set number here starts with C, T or M
+            ["C", "T", "M"].includes(coachClass)
         ) {
-            const coachNum = Number(input.substring(input.length - 2));
-            return "SCS" + Math.ceil(coachNum / 2).toString();
+            const classNum = Number(input.substring(1, 3));
+            let coachNum = Number(input.substring(input.length - 2));
+
+            if (classNum === 92) {
+                return (
+                    "SCS" +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            } else if (classNum === 81) {
+                if (coachClass === "C") {
+                    coachNum = Math.ceil(coachNum / 2);
+                }
+                return "EMU" + coachNum.toString().padStart(2, "0");
+            } else if (classNum === 83) {
+                if (coachClass === "C") {
+                    coachNum = Math.ceil(coachNum / 2);
+                }
+                return "EMU" + (coachNum + 18).toString().padStart(2, "0");
+            }
         } else {
             return undefined;
         }
