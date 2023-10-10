@@ -28,12 +28,9 @@ export function abnormalStatusSanityTestValidator(
     const errors: any = {};
 
     if (
-        [
-            "DECOMMISSIONED",
-            "MARRIED",
-            "OUT_OF_SERVICE",
-            "UNKNOWN",
-        ].includes(abstractControl.get("vehicle")?.value.status ?? "") &&
+        ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
+            abstractControl.get("vehicle")?.value.status ?? ""
+        ) &&
         !abstractControl.get("sanityTest")?.value
     ) {
         errors["sanityTest"] = "sanityTest not passed";
@@ -115,24 +112,20 @@ export function numberSeenToSetNumber(input: string, line: string) {
         },
     };
 
-    if (["KTMK-PKL", "KTMK-SRL"].includes(line)) {
-        // We can confirm that set number here starts with C, T or M
+    if (["6", "7", "13", "14"].includes(line)) {
+        // KTM - Port Klang, Seremban, Padang Besar, Padang Rengas
         if (
-            !(
-                input.length === 5 &&
-                ["C", "T", "M"].includes(input[0].toUpperCase())
-            )
+            // Allow inputs via numbers field only
+            input.length === 4 ||
+            (input.length === 5 &&
+                // We can confirm that set number here starts with C, T or M
+                ["C", "T", "M"].includes(input[0].toUpperCase()))
         ) {
+            const coachNum = Number(input.substring(input.length - 2));
+            return "SCS" + Math.ceil(coachNum / 2).toString();
+        } else {
             return undefined;
         }
-
-        let num = Number(input.substring(2, 4));
-        if (num % 2 !== 0) {
-            // Odd number
-            num += 1;
-        }
-
-        return "SCS" + num.toString();
     } else if (Object.keys(props).includes(line)) {
         const prop = props[line];
 
