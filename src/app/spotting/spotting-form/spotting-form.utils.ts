@@ -123,8 +123,10 @@ export function numberSeenToSetNumber(input: string, line: string) {
     } else if (["6", "7", "13", "14", "10", "20"].includes(line)) {
         /**
          * KTM - Port Klang, Seremban, Padang Besar, Padang Rengas, ETS, DMU
-         *
          * Covers class 61, 81, 83, 91, 92, 93
+         *
+         * Shout out to Malaysia Trains & Rail Enthusiasts (MTREC) on infographic
+         * to expedite coding process: https://www.instagram.com/p/CstppYzJ7rb/
          */
         const coachClass = input[0].toUpperCase();
         if (input.length === 5 && ["C", "T", "M", "D"].includes(coachClass)) {
@@ -172,6 +174,6 @@ export function numberSeenToSetNumber(input: string, line: string) {
             }
         }
     }
-    
+
     return undefined;
 }
