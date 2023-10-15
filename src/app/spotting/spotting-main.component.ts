@@ -15,6 +15,7 @@ import { environment } from "src/environments/environment";
 
 import {
     Component,
+    HostListener,
     OnDestroy,
     OnInit,
     TemplateRef,
@@ -74,6 +75,16 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     private querySubscription!: Subscription;
     private routeSubscription!: Subscription;
 
+    width: string = "700px";
+    @HostListener("window:resize")
+    resize(): void {
+        const clientWidth = document.body.clientWidth;
+        this.width =
+            clientWidth < 700
+                ? "500px"
+                : "700px";
+    }
+    
     constructor(
         private dialogService: DialogService,
         private drawerService: NzDrawerService,
@@ -82,7 +93,9 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         private router: Router,
         private route: ActivatedRoute,
         private imageUploadService: ImageUploadService
-    ) {}
+    ) {
+        this.resize();
+    }
 
     async onFormCloseHandle(data: SpottingFormReturnType | undefined) {
         console.log(data);
@@ -141,6 +154,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             nzFooter: this.drawerFooter,
             nzContent: SpottingFormComponent,
             nzContentParams: {},
+            nzWidth: this.width,
         });
     }
 
