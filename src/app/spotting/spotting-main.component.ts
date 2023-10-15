@@ -1,5 +1,4 @@
 import { Apollo, gql } from "apollo-angular";
-import { DialogService } from "ng-devui";
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
@@ -79,14 +78,10 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     @HostListener("window:resize")
     resize(): void {
         const clientWidth = document.body.clientWidth;
-        this.width =
-            clientWidth < 700
-                ? "500px"
-                : "700px";
+        this.width = clientWidth < 700 ? "100vw" : "700px";
     }
-    
+
     constructor(
-        private dialogService: DialogService,
         private drawerService: NzDrawerService,
         private toastService: ToastService,
         private apollo: Apollo,
