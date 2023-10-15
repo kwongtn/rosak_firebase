@@ -65,7 +65,7 @@ export function allowRunNumber(value: string): boolean {
     return ["2", "3"].includes(value);
 }
 
-export function numberSeenToSetNumber(input: string, line: string) {
+export function numberSeenToSetNumber(input: string | undefined, line: string) {
     const props: {
         [key: string]: {
             triggerLength: number;
@@ -111,6 +111,9 @@ export function numberSeenToSetNumber(input: string, line: string) {
             endConcat: 3,
         },
     };
+    if (!input) {
+        return undefined;
+    }
 
     if (Object.keys(props).includes(line)) {
         const prop = props[line];
