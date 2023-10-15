@@ -5,12 +5,13 @@ import { DataTableModule } from "ng-devui/data-table";
 import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
 import { LoadingModule } from "ng-devui/loading";
-import { ModalModule } from "ng-devui/modal";
 import { SelectModule } from "ng-devui/select";
 import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
@@ -18,13 +19,13 @@ import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
-    SpottingImageListModule
+    SpottingImageListModule,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.module";
 import {
-    FormUploadModule
+    FormUploadModule,
 } from "src/app/@ui/spotting/form-upload/form-upload.module";
 import {
-    SpottingStorageService
+    SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
 
 import { CommonModule } from "@angular/common";
@@ -33,46 +34,46 @@ import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
 import {
-    LineStatusTagModule
+    LineStatusTagModule,
 } from "../@ui/line-status-tag/line-status-tag.module";
 import {
-    SpottingTypeCellDisplayModule
+    SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
 import {
-    ImagePreviewButtonModule
+    ImagePreviewButtonModule,
 } from "../@ui/spotting/image-preview-button/image-preview-button.module";
 import {
-    VehicleStatusTagModule
+    VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
 import {
-    CoordinatesHumanizerModule
+    CoordinatesHumanizerModule,
 } from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
 import {
-    SpottingTypePipeModule
+    SpottingTypePipeModule,
 } from "../pipes/spotting-type/spotting-type.module";
 import {
-    VehicleStatusPipeModule
+    VehicleStatusPipeModule,
 } from "../pipes/vehicle-status/vehicle-status.module";
 import {
-    GetLinesAndVehiclesGqlService
+    GetLinesAndVehiclesGqlService,
 } from "./services/get-lines-vehicles-gql.service";
 import {
-    GetStationLinesGqlService
+    GetStationLinesGqlService,
 } from "./services/get-station-lines-gql.service";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
-import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
+import { SpottingMainComponent } from "./spotting-main.component";
 import {
-    InlineHistoryComponent
+    InlineHistoryComponent,
 } from "./vehicle-type-container/spotting-table/inline-history/inline-history.component";
 import {
-    InlineTimelineComponent
+    InlineTimelineComponent,
 } from "./vehicle-type-container/spotting-table/inline-timeline/inline-timeline.component";
 import {
-    SpottingTableComponent
+    SpottingTableComponent,
 } from "./vehicle-type-container/spotting-table/spotting-table.component";
 import {
-    VehicleTypeContainerComponent
+    VehicleTypeContainerComponent,
 } from "./vehicle-type-container/vehicle-type-container.component";
 
 @NgModule({
@@ -99,7 +100,6 @@ import {
         DevUIModule,
         IconModule,
         LoadingModule,
-        ModalModule,
         PanelModule,
         SelectModule,
         TabsModule,
@@ -120,6 +120,8 @@ import {
         VehicleStatusTagModule,
 
         // ng-zorro
+        NzButtonModule,
+        NzDrawerModule,
         NzGridModule,
         NzIconModule,
         NzPopconfirmModule,
