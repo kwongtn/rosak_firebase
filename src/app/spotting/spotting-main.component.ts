@@ -1,5 +1,6 @@
-import { Apollo, gql, MutationResult } from "apollo-angular";
+import { Apollo, gql } from "apollo-angular";
 import { DialogService } from "ng-devui";
+import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
@@ -12,12 +13,20 @@ import {
 } from "src/app/services/spotting/image-upload.service";
 import { environment } from "src/environments/environment";
 
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import {
+    Component,
+    OnDestroy,
+    OnInit,
+    TemplateRef,
+    ViewChild,
+} from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
-import { ImageFile } from "../@ui/spotting/form-upload/form-upload.component";
 import { ToastService } from "../services/toast/toast.service";
-import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
+import {
+    SpottingFormComponent,
+    SpottingFormReturnType,
+} from "./spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "./utils";
 
 const GET_LINES = gql`
@@ -57,11 +66,17 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
 
+    drawerRef:
+        | NzDrawerRef<SpottingFormComponent, SpottingFormReturnType | undefined>
+        | undefined = undefined;
+    @ViewChild("drawerFooter") drawerFooter!: TemplateRef<any>;
+
     private querySubscription!: Subscription;
     private routeSubscription!: Subscription;
 
     constructor(
         private dialogService: DialogService,
+        private drawerService: NzDrawerService,
         private toastService: ToastService,
         private apollo: Apollo,
         private router: Router,
@@ -69,99 +84,81 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         private imageUploadService: ImageUploadService
     ) {}
 
-    openStandardDialog(dialogtype?: string) {
-        const results = this.dialogService.open({
-            id: "dialog-service",
-            title: "Add spotting entry",
-            content: SpottingFormComponent,
-            backdropCloseable: true,
-            draggable: false,
-            dialogtype: dialogtype,
-            onClose: () => {
+    async onFormCloseHandle(data: SpottingFormReturnType | undefined) {
+        console.log(data);
+        if (!data) {
+            return;
+        }
+        const { spottingSubmission, uploads } = data;
+        try {
+            const mutationResult = await spottingSubmission;
+
+            if (!mutationResult) {
+                this.toastService.addToast(
+                    "Error",
+                    "Form is invalid.",
+                    "error"
+                );
                 return;
-            },
-            buttons: [
-                {
-                    cssClass: "primary",
-                    text: "Submit",
-                    handler: () => {
-                        const submitAction =
-                            results.modalContentInstance.onSubmit() as
-                                | Promise<{
-                                      spottingSubmission: Promise<
-                                          MutationResult<any> | undefined
-                                      >;
-                                      uploads: ImageFile[];
-                                  }>
-                                | undefined;
+            }
 
-                        submitAction
-                            ?.then(async ({ spottingSubmission, uploads }) => {
-                                const mutationResult = await spottingSubmission;
+            if (mutationResult.data?.addEvent.id) {
+                console.log(
+                    `Mutation successful, adding ${uploads.length} file to upload queue.`
+                );
+                uploads.forEach((file) => {
+                    this.imageUploadService.addToQueue(
+                        mutationResult.data?.addEvent.id,
+                        file,
+                        "SPOTTING_EVENT"
+                    );
+                });
+            }
 
-                                if (!mutationResult) {
-                                    this.toastService.addToast(
-                                        "Error",
-                                        "Form is invalid.",
-                                        "error"
-                                    );
-                                    return;
-                                }
+            let toastMessage = "Spotting entry recorded! ";
+            if (uploads.length > 0) {
+                toastMessage +=
+                    "Please wait for uploads to complete before closing this tab.";
+            } else {
+                toastMessage += "🥳";
+            }
 
-                                if (mutationResult.data?.addEvent.id) {
-                                    console.log(
-                                        `Mutation successful, adding ${uploads.length} file to upload queue.`
-                                    );
-                                    uploads.forEach((file) => {
-                                        this.imageUploadService.addToQueue(
-                                            mutationResult.data?.addEvent.id,
-                                            file,
-                                            "SPOTTING_EVENT"
-                                        );
-                                    });
+            this.toastService.addMessage(toastMessage, "success");
+        } catch (reason: any) {
+            console.log(reason);
 
-                                    results.modalInstance.hide();
-                                }
+            this.toastService.addToast("Error", reason.message, "error");
+        }
+    }
 
-                                let toastMessage = "Spotting entry recorded! ";
-                                if (uploads.length > 0) {
-                                    toastMessage +=
-                                        "Please wait for uploads to complete before closing this tab.";
-                                } else {
-                                    toastMessage += "🥳";
-                                }
-
-                                this.toastService.addMessage(
-                                    toastMessage,
-                                    "success"
-                                );
-                            })
-                            .catch((reason) => {
-                                console.log(reason);
-
-                                this.toastService.addToast(
-                                    "Error",
-                                    reason.message,
-                                    "error"
-                                );
-                            });
-                    },
-                },
-                {
-                    id: "btn-cancel",
-                    cssClass: "common",
-                    text: "Cancel",
-                    handler: () => {
-                        results.modalInstance.hide();
-                    },
-                },
-            ],
-            data: {},
+    openStandardDialog(dialogtype?: string) {
+        this.drawerRef = this.drawerService.create<
+            SpottingFormComponent,
+            unknown,
+            SpottingFormReturnType | undefined
+        >({
+            nzTitle: "Add spotting entry",
+            nzFooter: this.drawerFooter,
+            nzContent: SpottingFormComponent,
+            nzContentParams: {},
         });
-        console.log(
-            "results.modalContentInstance: ",
-            results.modalContentInstance
-        );
+    }
+
+    close() {
+        this.drawerRef?.close();
+    }
+
+    submit() {
+        this.drawerRef
+            ?.getContentComponent()
+            ?.onSubmit()
+            ?.then(async ({ spottingSubmission, uploads }) => {
+                this.onFormCloseHandle({
+                    uploads,
+                    spottingSubmission,
+                });
+                this.drawerRef?.close();
+            });
     }
 
     ngOnInit(): void {

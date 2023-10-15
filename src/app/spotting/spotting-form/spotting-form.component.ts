@@ -2,7 +2,8 @@ import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
-import { ReCaptchaV3Service } from "ng-recaptcha";
+// import { ReCaptchaV3Service } from "ng-recaptcha";
+import { NzDrawerRef } from "ng-zorro-antd/drawer";
 import { lastValueFrom, Observable, of, Subscription } from "rxjs";
 import {
     VehicleStatus,
@@ -61,6 +62,11 @@ interface VehicleFormInputType extends FormInputType {
     name: string;
     value: string;
     status: VehicleStatus;
+}
+
+export interface SpottingFormReturnType {
+    uploads: ImageFile[];
+    spottingSubmission: Promise<MutationResult<any> | undefined>;
 }
 
 @Component({
@@ -206,9 +212,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private getLinesVehiclesGql: GetLinesAndVehiclesGqlService,
         private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
-        private recaptchaV3Service: ReCaptchaV3Service,
+        // private recaptchaV3Service: ReCaptchaV3Service,
         private spottingStorageService: SpottingStorageService,
-        private toastService: ToastService
+        private toastService: ToastService,
+        private drawerRef: NzDrawerRef<SpottingFormReturnType>
     ) {
         const line = spottingStorageService.getLine();
         const type = spottingStorageService.getType();

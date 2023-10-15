@@ -5,12 +5,13 @@ import { DataTableModule } from "ng-devui/data-table";
 import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
 import { LoadingModule } from "ng-devui/loading";
-import { ModalModule } from "ng-devui/modal";
 import { SelectModule } from "ng-devui/select";
 import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
@@ -99,7 +100,6 @@ import {
         DevUIModule,
         IconModule,
         LoadingModule,
-        ModalModule,
         PanelModule,
         SelectModule,
         TabsModule,
@@ -120,6 +120,8 @@ import {
         VehicleStatusTagModule,
 
         // ng-zorro
+        NzButtonModule,
+        NzDrawerModule,
         NzGridModule,
         NzIconModule,
         NzPopconfirmModule,
