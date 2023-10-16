@@ -356,3 +356,31 @@
         </div>
     </form>
 </div>
+<div
+    class="form-component"
+    *ngIf="
+        (authService.userData | async) &&
+        (sessionHistoryService.historyStoreLength | async)
+    "
+>
+    <div nz-row [nzGutter]="[16, 16]">
+        <div nz-col nzXs="24">
+            <div class="sub-header">
+                As of Current Session, you did the following
+            </div>
+            <div
+                *ngFor="
+                    let historyItem of sessionHistoryService.historyStore
+                        | async
+                        | keyvalue
+                "
+            >
+                {{ historyItem.key | date: "fullDate" }}
+                {{ historyItem.value["id"] }}
+                <span *ngIf="historyItem.value.historyType === 'spotting'">
+                    {{ historyItem.value.historyType }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>

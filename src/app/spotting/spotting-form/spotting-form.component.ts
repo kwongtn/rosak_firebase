@@ -10,6 +10,9 @@ import {
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { AuthService } from "src/app/services/auth/auth.service";
 import {
+    SessionHistoryService,
+} from "src/app/services/session-history/session-history.service";
+import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
 import { ToastService } from "src/app/services/toast/toast.service";
@@ -213,13 +216,16 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
         // private recaptchaV3Service: ReCaptchaV3Service,
-        private spottingStorageService: SpottingStorageService,
         private toastService: ToastService,
-        private drawerRef: NzDrawerRef<SpottingFormReturnType>
+        private drawerRef: NzDrawerRef<SpottingFormReturnType>,
+        public sessionHistoryService: SessionHistoryService,
+        private spottingStorageService: SpottingStorageService
     ) {
         const line = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
         const atStationStation = spottingStorageService.getAtStationStation();
+
+        console.log(this.sessionHistoryService.historyStore.value);
 
         this.formGroup = this.fb.group(
             {
@@ -432,6 +438,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         | Promise<{
               spottingSubmission: Promise<MutationResult<any> | undefined>;
               uploads: ImageFile[];
+              formData: any;
           }>
         | undefined {
         console.log(this.formGroup.value);
@@ -547,6 +554,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 return {
                     uploads,
                     spottingSubmission: this.submitting,
+                    formData: { ...this.formGroup.value },
                 };
             }
         );
