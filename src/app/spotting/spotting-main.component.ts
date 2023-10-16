@@ -161,12 +161,18 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         this.drawerRef
             ?.getContentComponent()
             ?.onSubmit()
-            ?.then(async ({ spottingSubmission, uploads }) => {
+            ?.then(({ spottingSubmission, uploads }) => {
                 this.onFormCloseHandle({
                     uploads,
                     spottingSubmission,
                 });
                 this.drawerRef?.close();
+            })
+            .catch((reason: any) => {
+                this.toastService.addMessage(
+                    `Unknown Error: ${reason.message}`,
+                    "error"
+                );
             });
     }
 

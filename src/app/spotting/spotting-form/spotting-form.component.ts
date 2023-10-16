@@ -349,7 +349,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         this.spottingStorageService.getAtStationStation();
                     if (
                         atStationStation &&
-                        this.spottingStorageService.getLine().value ==
+                        this.spottingStorageService.getLine()?.value ==
                             this.formGroup.value.line.value
                     ) {
                         this.formGroup.patchValue({
