@@ -132,10 +132,13 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             }
 
             this.toastService.addMessage(toastMessage, "success");
+
+            return true;
         } catch (reason: any) {
             console.log(reason);
 
             this.toastService.addToast("Error", reason.message, "error");
+            return false;
         }
     }
 
@@ -165,8 +168,16 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                 this.onFormCloseHandle({
                     uploads,
                     spottingSubmission,
+                }).then((res) => {
+                    if (res) {
+                        this.sessionHistoryService.addSessionHistory(
+                            "spotting",
+                            spottingSubmission
+                        );
+
+                        this.drawerRef?.close();
+                    }
                 });
-                this.drawerRef?.close();
             })
             .catch((reason: any) => {
                 this.toastService.addMessage(
