@@ -22,6 +22,9 @@ import {
 } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
+import {
+    SessionHistoryService,
+} from "../services/session-history/session-history.service";
 import { ToastService } from "../services/toast/toast.service";
 import {
     SpottingFormComponent,
@@ -87,7 +90,8 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         private apollo: Apollo,
         private router: Router,
         private route: ActivatedRoute,
-        private imageUploadService: ImageUploadService
+        private imageUploadService: ImageUploadService,
+        private sessionHistoryService: SessionHistoryService
     ) {
         this.resize();
     }
@@ -164,15 +168,19 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
         this.drawerRef
             ?.getContentComponent()
             ?.onSubmit()
-            ?.then(({ spottingSubmission, uploads }) => {
+            ?.then(({ spottingSubmission, uploads, formData }) => {
                 this.onFormCloseHandle({
                     uploads,
                     spottingSubmission,
-                }).then((res) => {
+                }).then(async (res) => {
                     if (res) {
+                        const submissionData = await spottingSubmission;
                         this.sessionHistoryService.addSessionHistory(
                             "spotting",
-                            spottingSubmission
+                            {
+                                ...formData,
+                                id: submissionData?.data.addEvent.id,
+                            }
                         );
 
                         this.drawerRef?.close();
