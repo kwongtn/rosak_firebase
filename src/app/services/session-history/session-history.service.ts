@@ -4,7 +4,7 @@ import { Injectable } from "@angular/core";
 
 export type THistoryStore = "spotting" | "mediaUpload";
 
-type IHistoryStore = {
+export type IHistoryStore = {
     [timestamp: string]: {
         historyType: THistoryStore;
         [key: string]: any;
@@ -24,7 +24,10 @@ export class SessionHistoryService {
 
     addSessionHistory(type: THistoryStore, data: any): void {
         this.historyStore.next({
-            [new Date().getTime()]: data,
+            [new Date().getTime()]: {
+                historyType: type,
+                ...data,
+            },
             ...this.historyStore.value,
         });
     }
