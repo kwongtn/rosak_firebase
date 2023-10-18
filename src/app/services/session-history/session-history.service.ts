@@ -24,8 +24,8 @@ export class SessionHistoryService {
 
     addSessionHistory(type: THistoryStore, data: any): void {
         this.historyStore.next({
-            ...this.historyStore.value,
             [new Date().getTime()]: data,
+            ...this.historyStore.value,
         });
     }
 
