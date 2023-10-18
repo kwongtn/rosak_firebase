@@ -2,10 +2,10 @@ import { BehaviorSubject } from "rxjs";
 
 import { Injectable } from "@angular/core";
 
-type THistoryStore = "spotting" | "mediaUpload";
+export type THistoryStore = "spotting" | "mediaUpload";
 
 type IHistoryStore = {
-    [timestamp: number]: {
+    [timestamp: string]: {
         historyType: THistoryStore;
         [key: string]: any;
     };

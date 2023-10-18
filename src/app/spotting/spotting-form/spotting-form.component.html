@@ -366,21 +366,9 @@
     <div nz-row [nzGutter]="[16, 16]">
         <div nz-col nzXs="24">
             <div class="sub-header">
-                As of Current Session, you did the following
+                As of Current Session, you spotted the following:
             </div>
-            <div
-                *ngFor="
-                    let historyItem of sessionHistoryService.historyStore
-                        | async
-                        | keyvalue
-                "
-            >
-                {{ historyItem.key | date: "fullDate" }}
-                {{ historyItem.value["id"] }}
-                <span *ngIf="historyItem.value.historyType === 'spotting'">
-                    {{ historyItem.value.historyType }}
-                </span>
-            </div>
+            <ui-action-list [filter]="['spotting']"></ui-action-list>
         </div>
     </div>
 </div>

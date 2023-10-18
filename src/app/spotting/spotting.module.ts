@@ -14,6 +14,7 @@ import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzSpinModule } from "ng-zorro-antd/spin";
@@ -33,6 +34,7 @@ import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
+import { ActionListModule } from "../@ui/action-list/action-list.module";
 import {
     LineStatusTagModule,
 } from "../@ui/line-status-tag/line-status-tag.module";
@@ -108,6 +110,7 @@ import {
         TooltipModule,
 
         // Internal Imports
+        ActionListModule,
         CoordinatesHumanizerModule,
         FormUploadModule,
         GraphQLModule,
@@ -124,6 +127,7 @@ import {
         NzDrawerModule,
         NzGridModule,
         NzIconModule,
+        NzListModule,
         NzPopconfirmModule,
         NzProgressModule,
         NzSpinModule,
