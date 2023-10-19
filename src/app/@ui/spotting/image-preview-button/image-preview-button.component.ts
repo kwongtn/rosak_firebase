@@ -1,9 +1,9 @@
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import {
-    SpottingImageListComponent
+    SpottingImageListComponent,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
 import {
-    ImageUploadService
+    ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
@@ -12,7 +12,7 @@ import {
     HostListener,
     Input,
     TemplateRef,
-    ViewChild
+    ViewChild,
 } from "@angular/core";
 
 import { ImageFile } from "../form-upload/form-upload.component";
@@ -62,7 +62,7 @@ export class ImagePreviewButtonComponent {
     onPictureIconClick() {
         this.drawerRef = this.drawerService.create<
             SpottingImageListComponent,
-            { value: string },
+            { eventId: string; isMine: boolean },
             string
         >({
             nzTitle: "Image Preview",

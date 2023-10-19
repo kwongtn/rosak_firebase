@@ -18,7 +18,7 @@
         <nz-progress
             *ngIf="$totalCountIcon"
             class="loading-elem"
-            [nzPercent]="$uploadPercentage | async | number : '1.1-2'"
+            [nzPercent]="$uploadPercentage | async | number: '1.1-2'"
             [nzSteps]="$totalCountIcon | async"
             nzStrokeColor="#1890ff"
             nzSize="small"
@@ -67,3 +67,12 @@
         ></app-vehicle-type-container>
     </div>
 </div>
+
+<ng-template #drawerFooter>
+    <div style="float: right">
+        <button nz-button style="margin-right: 8px" (click)="close()">
+            Cancel
+        </button>
+        <button nz-button nzType="primary" (click)="submit()">Submit</button>
+    </div>
+</ng-template>
