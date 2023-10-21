@@ -45,7 +45,7 @@ import {
     allowRunNumber,
     atStationTypeStationValidator,
     betweenStationTypeOriginDestinationStationValidator,
-    numberSeenToSetNumber,
+    numberSeenToSetNumbers,
 } from "./spotting-form.utils";
 
 const ADD_ENTRY = gql`
@@ -133,7 +133,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     vehicleSearchFn = (
         term: string
     ): Observable<{ id: string | number; option: any }[]> => {
-        const setNumber = numberSeenToSetNumber(
+        const setNumber = numberSeenToSetNumbers(
             term,
             this.formGroup.value.line?.value
         );
@@ -142,30 +142,21 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             (this.vehicleOptions ?? [])
                 .map((option, index) => ({ id: index, option: option }))
                 .filter((item) => {
-                    if (!this.formGroup.value.line) {
+                    if (!term.length || !this.formGroup.value.line) {
                         return true;
                     }
 
-                    if (
-                        !isNaN(Number(term)) ||
-                        ["C", "T", "M"].includes(term[0].toUpperCase())
-                    ) {
-                        return (
-                            item.option.name
-                                .toLowerCase()
-                                .split(" (")[0]
-                                .indexOf(term.toLowerCase()) !== -1 ||
-                            item.option.name
-                                .toLowerCase()
-                                .indexOf(setNumber?.toLowerCase()) !== -1
-                        );
-                    } else {
-                        return (
-                            item.option.name
-                                .toLowerCase()
-                                .indexOf(term.toLowerCase()) !== -1
-                        );
-                    }
+                    return (
+                        setNumber.some((val) => {
+                            return (
+                                item.option.name.toUpperCase().indexOf(val) !==
+                                -1
+                            );
+                        }) ||
+                        item.option.name
+                            .toUpperCase()
+                            .indexOf(term.toUpperCase()) !== -1
+                    );
                 })
         );
     };
