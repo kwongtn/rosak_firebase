@@ -5,13 +5,26 @@ import { DataTableModule } from "ng-devui/data-table";
 import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
 import { LoadingModule } from "ng-devui/loading";
-import { ModalModule } from "ng-devui/modal";
 import { SelectModule } from "ng-devui/select";
 import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzDrawerModule } from "ng-zorro-antd/drawer";
+import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzListModule } from "ng-zorro-antd/list";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import {
+    SpottingImageListModule,
+} from "src/app/@ui/spotting-image-list/spotting-image-list.module";
+import {
+    FormUploadModule,
+} from "src/app/@ui/spotting/form-upload/form-upload.module";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -21,9 +34,16 @@ import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
+import { ActionListModule } from "../@ui/action-list/action-list.module";
+import {
+    LineStatusTagModule,
+} from "../@ui/line-status-tag/line-status-tag.module";
 import {
     SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+import {
+    ImagePreviewButtonModule,
+} from "../@ui/spotting/image-preview-button/image-preview-button.module";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
@@ -44,7 +64,7 @@ import {
     GetStationLinesGqlService,
 } from "./services/get-station-lines-gql.service";
 import { SpottingFormComponent } from "./spotting-form/spotting-form.component";
-import { SpottingMainComponent } from "./spotting-main/spotting-main.component";
+import { SpottingMainComponent } from "./spotting-main.component";
 import {
     InlineHistoryComponent,
 } from "./vehicle-type-container/spotting-table/inline-history/inline-history.component";
@@ -60,39 +80,57 @@ import {
 
 @NgModule({
     declarations: [
+        InlineHistoryComponent,
+        InlineTimelineComponent,
         SpottingFormComponent,
         SpottingMainComponent,
         SpottingTableComponent,
         VehicleTypeContainerComponent,
-        InlineHistoryComponent,
-        InlineTimelineComponent,
     ],
     imports: [
         CommonModule,
-        DevUIModule,
-        SelectModule,
         FormsModule,
-        ReactiveFormsModule,
-        DatepickerModule,
-        CascaderModule,
-        IconModule,
-        GraphQLModule,
         HttpClientModule,
-        ModalModule,
-        LoadingModule,
-        DataTableModule,
+        ReactiveFormsModule,
+
+        // DevUI
         AlertModule,
-        TagsModule,
-        TabsModule,
-        TooltipModule,
-        PanelModule,
+        CascaderModule,
         CheckBoxModule,
+        DataTableModule,
+        DatepickerModule,
+        DevUIModule,
+        IconModule,
+        LoadingModule,
+        PanelModule,
+        SelectModule,
+        TabsModule,
+        TagsModule,
         TimeAxisModule,
-        VehicleStatusPipeModule,
-        SpottingTypePipeModule,
-        VehicleStatusTagModule,
+        TooltipModule,
+
+        // Internal Imports
+        ActionListModule,
         CoordinatesHumanizerModule,
+        FormUploadModule,
+        GraphQLModule,
+        ImagePreviewButtonModule,
+        LineStatusTagModule,
+        SpottingImageListModule,
         SpottingTypeCellDisplayModule,
+        SpottingTypePipeModule,
+        VehicleStatusPipeModule,
+        VehicleStatusTagModule,
+
+        // ng-zorro
+        NzButtonModule,
+        NzDrawerModule,
+        NzGridModule,
+        NzIconModule,
+        NzListModule,
+        NzPopconfirmModule,
+        NzProgressModule,
+        NzSpinModule,
         NzToolTipModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],

@@ -1,0 +1,34 @@
+<div
+    *ngFor="let file of files | keyvalue"
+    class="devui-add-images"
+    [ngStyle]="{ width: imageWidth, height: imageHeight }"
+>
+    <nz-spin class="devui-add-items" [nzSpinning]="file.value.buffer === null">
+        <img
+            class="image"
+            [src]="file.value.buffer"
+            nz-popconfirm
+            nzPopconfirmTitle="Are you sure to remove this image?"
+            nzPopconfirmPlacement="bottom"
+            (nzOnConfirm)="onImageClick(file.key)"
+        />
+    </nz-spin>
+    <span class="filename"> {{ file.value.displayFilename }}</span>
+</div>
+<div
+    dUpload
+    #dUpload="dUpload"
+    class="devui-add-images devui-upload {{
+        isDropOver ? 'devui-upload-dropover' : ''
+    }}"
+    [ngStyle]="{ width: imageWidth, height: imageHeight }"
+    [enableDrop]="true"
+    [fileOptions]="fileOptions"
+    [uploadOptions]="uploadOptions"
+    [beforeUpload]="beforeUpload"
+    (alertMsgEvent)="alertMsgEvent($event)"
+    (fileSelect)="onAddFile($event)"
+    (fileOver)="fileOver($event)"
+>
+    <span class="icon-op-add"></span>
+</div>

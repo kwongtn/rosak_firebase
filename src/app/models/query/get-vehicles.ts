@@ -1,17 +1,21 @@
-import { SpottingType } from "../spotting-table/source-type";
+import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
+import {
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 
-export type VehicleStatus =
-    | "IN_SERVICE"
-    | "NOT_SPOTTED"
-    | "DECOMMISSIONED"
+export type LineStatus =
     | "TESTING"
-    | "UNKNOWN"
-    | "MARRIED";
+    | "DEFUNCT"
+    | "ACTIVE"
+    | "PARTIAL_ACTIVE"
+    | "PARTIAL_DISRUPTION"
+    | "TOTAL_DISRUPTION";
 
 export interface VehicleStatusCountType {
     vehicleStatusDecommissionedCount: number;
     vehicleStatusInServiceCount: number;
     vehicleStatusNotSpottedCount: number;
+    vehicleStatusOutOfServiceCount: number;
     vehicleStatusTestingCount: number;
     vehicleStatusUnknownCount: number;
     vehicleStatusMarriedCount: number;
@@ -44,7 +48,7 @@ export interface GetLinesAndVehiclesResponse {
         id: string;
         code: string;
         displayName: string;
-        vehicleTypes: Array<VehicleType>;
+        vehicleTypes: Array<Exclude<VehicleType, "displayName">>;
     }>;
 }
 
@@ -53,6 +57,7 @@ export interface GetLinesResponse {
         id: string;
         code: string;
         displayName: string;
+        status: LineStatus;
     }>;
 }
 
@@ -62,6 +67,7 @@ export interface LastSpottingsElementStation {
 }
 
 export interface LastSpottings {
+    id: string;
     spottingDate: string;
     status: VehicleStatus;
     type: SpottingType;
@@ -69,6 +75,8 @@ export interface LastSpottings {
     destinationStation: LastSpottingsElementStation | null;
     notes: string;
     runNumber: string | null;
+    mediaCount: number;
+    isMine: boolean;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;

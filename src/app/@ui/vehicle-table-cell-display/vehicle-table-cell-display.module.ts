@@ -14,7 +14,11 @@ import {
     declarations: [VehicleTableCellDisplayComponent],
     imports: [
         CommonModule,
+
+        // DevUI
         TooltipModule,
+
+        // Internal imports
         VehicleStatusTagModule,
     ],
     exports: [VehicleTableCellDisplayComponent],

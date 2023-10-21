@@ -1,6 +1,8 @@
 import { gql, Query } from "apollo-angular";
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
-import { SpottingType } from "src/app/models/spotting-table/source-type";
+import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
+import {
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 
 import { Injectable } from "@angular/core";
 
@@ -11,6 +13,7 @@ export interface ConsoleEventsGqlResponseElementStation {
 
 export interface ConsoleEventsGqlResponseElementReporter {
     shortId: string;
+    nickname: string;
 }
 
 export interface ConsoleEventsGqlResponseElement {
@@ -24,6 +27,8 @@ export interface ConsoleEventsGqlResponseElement {
     destinationStation: ConsoleEventsGqlResponseElementStation | null;
     reporter: ConsoleEventsGqlResponseElementReporter | null;
     runNumber: string | null;
+    mediaCount: number;
+    isMine: boolean;
     vehicle: {
         id: string;
         status: VehicleStatus;
@@ -67,6 +72,7 @@ export interface ConsoleEventsGqlResponse {
 
 export interface ConsoleEventsGqlResponseTableData {
     events: ConsoleEventsGqlResponseTableDataElement[];
+    eventsCount: number;
 }
 
 @Injectable({
@@ -79,6 +85,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
             $eventPagination: OffsetPaginationInput
             $eventOrder: EventOrder
         ) {
+            eventsCount
             events(
                 filters: $eventFilters
                 pagination: $eventPagination
@@ -91,6 +98,8 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 status
                 type
                 runNumber
+                mediaCount
+                isMine
                 location {
                     accuracy
                     altitudeAccuracy
@@ -120,6 +129,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 }
                 reporter {
                     shortId
+                    nickname
                 }
             }
         }

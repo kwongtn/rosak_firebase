@@ -1,3 +1,19 @@
+@import "ng-devui/styles-var/devui-var.scss";
+
 nz-row {
     margin: 20px;
+}
+
+.nickname-button {
+    color: $devui-text-weak;
+    cursor: pointer;
+}
+
+.nickname-form-group {
+    display: flex;
+}
+
+.nickname-form-cancel-button {
+    font-size: 15px;
+    margin: auto 10px;
 }

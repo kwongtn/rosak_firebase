@@ -30,6 +30,90 @@
         </nz-col>
     </nz-row>
     <nz-row [nzGutter]="[16, 16]">
+        <nz-col *ngIf="displayData" [nzXs]="12" [nzMd]="8" [nzXl]="6">
+            <nz-spin [nzSpinning]="isNicknameSaveLoading">
+                <nz-card>
+                    <nz-statistic
+                        [nzValueTemplate]="nicknameTpl"
+                        [nzSuffix]="suffixTpl"
+                        [nzTitle]="'Nickname'"
+                    ></nz-statistic>
+
+                    <ng-template #nicknameTpl>
+                        <span
+                            *ngIf="nicknameChangeButtonClicked"
+                            class="nickname-form-group"
+                        >
+                            <nz-input-group
+                                nzSize="large"
+                                [nzAddOnAfter]="suffixButton"
+                                [nzCompact]="true"
+                            >
+                                <input
+                                    type="text"
+                                    nz-input
+                                    placeholder="Enter your desired nickname"
+                                    [(ngModel)]="nickname"
+                                />
+                            </nz-input-group>
+                            <ng-template #suffixButton>
+                                <span>
+                                    <button
+                                        nz-button
+                                        nzType="text"
+                                        nz-tooltip
+                                        [nzTooltipTitle]="'Save'"
+                                        nzTooltipPlacement="bottom"
+                                        (click)="onNicknameSave()"
+                                    >
+                                        <span
+                                            nz-icon
+                                            nzType="check"
+                                            nzTheme="outline"
+                                        ></span>
+                                    </button>
+                                </span>
+                            </ng-template>
+                            <button
+                                nz-button
+                                nzType="text"
+                                nzSize="default"
+                                nz-tooltip
+                                [nzTooltipTitle]="'Cancel'"
+                                nzTooltipPlacement="bottom"
+                                class="nickname-form-cancel-button"
+                                (click)="toggleNicknameButtonClick()"
+                            >
+                                <span
+                                    nz-icon
+                                    nzType="close"
+                                    nzTheme="outline"
+                                ></span>
+                            </button>
+                        </span>
+                        <span *ngIf="!nicknameChangeButtonClicked">
+                            {{ nickname ? nickname : "N/A" }}
+                        </span>
+                    </ng-template>
+
+                    <ng-template #suffixTpl>
+                        <sub *ngIf="!nicknameChangeButtonClicked">
+                            <span
+                                nz-icon
+                                [nzType]="nickname ? 'edit' : 'plus'"
+                                nz-tooltip
+                                [nzTooltipTitle]="
+                                    nickname ? 'Edit Nickname' : 'Add Nickname'
+                                "
+                                nzTooltipPlacement="right"
+                                class="nickname-button"
+                                (click)="toggleNicknameButtonClick()"
+                            ></span>
+                        </sub>
+                    </ng-template>
+                </nz-card>
+            </nz-spin>
+        </nz-col>
         <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6" *ngIf="displayData">
             <nz-card>
                 <nz-statistic
@@ -39,7 +123,16 @@
             </nz-card>
         </nz-col>
 
-        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
+        <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6" *ngIf="displayData">
+            <nz-card>
+                <nz-statistic
+                    [nzValue]="(displayData.mediaCount | number)!"
+                    [nzTitle]="'Media Uploaded'"
+                ></nz-statistic>
+            </nz-card>
+        </nz-col>
+
+        <!-- <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
             <nz-card>
                 <nz-statistic
                     [nzValue]="
@@ -52,7 +145,7 @@
                     "
                 ></nz-statistic>
             </nz-card>
-        </nz-col>
+        </nz-col> -->
 
         <nz-col [nzXs]="12" [nzMd]="8" [nzXl]="6">
             <nz-card>

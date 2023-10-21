@@ -1,0 +1,43 @@
+@import "ng-devui/styles-var/devui-var.scss";
+
+.button-container {
+    display: flex;
+
+    &.staging {
+        @media (max-width: 1360px) {
+            padding-top: 40px;
+        }
+    }
+
+    .flex-buffer {
+        flex: 70%;
+    }
+
+    .spotting-progress-bar {
+        margin-top: 15px;
+        z-index: 10;
+        display: flex;
+
+        &.uploading {
+        }
+
+        .loading-elem {
+            margin-right: 10px;
+        }
+    }
+}
+
+.spotting-form-button {
+    margin-left: auto;
+    margin-right: 2%;
+    margin-top: 10px;
+    z-index: 10;
+}
+
+.spotting-table-container {
+}
+
+.spotting-main-container {
+    margin-top: 0px;
+    margin-bottom: 50px;
+}

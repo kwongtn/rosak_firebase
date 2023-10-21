@@ -37,7 +37,7 @@
             rel="noopener noreferrer"
             target="_blank"
         >
-            <span>GitHub</span>
+            <span nz-icon nzType="github" nzTheme="outline"></span>
         </a>
     </div>
 
@@ -57,4 +57,30 @@
     >
         <i class="icon icon-bug menu-link" (click)="reportBug()"></i>
     </div>
+
+    <div
+        *ngIf="countIcon > 0 || hadUpload"
+        dTooltip
+        class="menu-item"
+        [content]="
+            countIcon == 0
+                ? 'All uploads complete'
+                : countIcon + ' uploads pending'
+        "
+        [position]="'left'"
+    >
+        <nz-badge
+            nzStandalone
+            [nzCount]="countIcon == 0 && hadUpload ? iconTemplate : countIcon"
+        ></nz-badge>
+    </div>
 </div>
+
+<ng-template #iconTemplate>
+    <span
+        nz-icon
+        [nzType]="'check-circle'"
+        [nzTheme]="'twotone'"
+        [nzTwotoneColor]="'#52c41a'"
+    ></span>
+</ng-template>

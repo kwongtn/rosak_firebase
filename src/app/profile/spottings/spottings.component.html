@@ -70,9 +70,9 @@
                             ></i>
                         </span>
                         <span *ngSwitchCase="'datetime'">
-                            {{ rowItem[colOption.field] | date : "MMM dd, y" }}
+                            {{ rowItem[colOption.field] | date: "MMM dd, y" }}
                             <br />
-                            {{ rowItem[colOption.field] | date : "HH:mm:ss" }}
+                            {{ rowItem[colOption.field] | date: "HH:mm:ss" }}
                         </span>
                         <span *ngSwitchCase="'vehicle'">
                             <vehicle-table-cell-display
@@ -86,6 +86,23 @@
                                 [spottingType]="rowItem[colOption.field]"
                             >
                             </spotting-type-cell-display>
+                        </span>
+                        <span *ngSwitchCase="'notes'">
+                            <span
+                                class="picture-icon"
+                                *ngIf="
+                                    rowItem['mediaCount'] > 0 ||
+                                    rowItem['isMine']
+                                "
+                            >
+                                <ui-spotting-image-preview-button
+                                    [count]="rowItem['mediaCount']"
+                                    [eventId]="rowItem['id']"
+                                    [isMine]="rowItem['isMine']"
+                                >
+                                </ui-spotting-image-preview-button>
+                            </span>
+                            {{ rowItem[colOption.field] }}
                         </span>
                         <span *ngSwitchDefault>{{
                             rowItem[colOption.field]

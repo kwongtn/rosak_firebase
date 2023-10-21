@@ -12,8 +12,8 @@ export const categoryData: ICategorySearchTagItem[] = [
                 value: "IN_SERVICE",
             },
             {
-                status: "Not Spotted",
-                value: "NOT_SPOTTED",
+                status: "Not in Service",
+                value: "NOT_IN_SERVICE",
             },
             {
                 status: "Decommissioned",
@@ -22,14 +22,6 @@ export const categoryData: ICategorySearchTagItem[] = [
             {
                 status: "Testing",
                 value: "TESTING",
-            },
-            {
-                status: "Married",
-                value: "UNKNOWN",
-            },
-            {
-                status: "Unknown",
-                value: "MARRIED",
             },
         ],
     },{

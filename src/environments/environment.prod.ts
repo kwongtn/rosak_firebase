@@ -18,6 +18,7 @@ export const environment = {
             "https://rosak-7223b.web.app",
             "https://rosak-7223b.firebaseapp.com",
         ],
+        environment: "production",
     },
     captcha: {
         key: "6Le4ekQhAAAAAKu_C7LTyylJfe8Q8Gv5fiNFx_kj",
@@ -27,5 +28,8 @@ export const environment = {
     },
     mapbox: {
         token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGVjdHhpaTAwMGk4M29wMmNkcGRmMXZ3In0.la_4bLAwkHVwAOrby9YA-A",
+    },
+    upload: {
+        concurrency: 5,
     },
 };

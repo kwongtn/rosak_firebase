@@ -6,8 +6,14 @@ import {
     RecaptchaV3Module,
     ReCaptchaV3Service,
 } from "ng-recaptcha";
+import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzDrawerService } from "ng-zorro-antd/drawer";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { NzImageService } from "ng-zorro-antd/image";
+import { NzMessageModule } from "ng-zorro-antd/message";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
+import { MarkdownModule } from "ngx-markdown";
 
 import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -31,7 +37,7 @@ import { AngularFireStorageModule } from "@angular/fire/compat/storage";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
-import * as Sentry from "@sentry/angular";
+import * as Sentry from "@sentry/angular-ivy";
 
 import build from "../build";
 import { environment } from "../environments/environment";
@@ -60,6 +66,8 @@ const imports: any[] = [
     DevUIModule,
 
     // ng-zorro
+    NzAlertModule,
+    NzMessageModule,
     NzNotificationModule,
 
     // Internal Imports
@@ -70,6 +78,7 @@ const imports: any[] = [
     // Other Services
     RecaptchaFormsModule,
     RecaptchaV3Module,
+    MarkdownModule.forRoot(),
 ];
 
 const providers: any[] = [
@@ -98,6 +107,9 @@ const providers: any[] = [
     },
     I18nService,
     { provide: NZ_I18N, useValue: en_US },
+    NzModalService,
+    NzImageService,
+    NzDrawerService,
 ];
 
 if (environment.production) {

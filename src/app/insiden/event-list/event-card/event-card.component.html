@@ -1,0 +1,153 @@
+<nz-ribbon
+    [nzText]="
+        (displayData.severity | titlecase) +
+        (displayData.impactFactor > 0 ? ': ' + displayData.impactFactor : '')
+    "
+    [nzColor]="displayData.severity | calendarIncidentSeverity: 'color'"
+>
+    <nz-card
+        [class]="
+            displayData.longTerm ? 'incident-card-long-term' : 'incident-card'
+        "
+        [nzTitle]="cardTitleTemplate"
+    >
+        <div
+            *ngIf="
+                displayData.lines.length > 0 ||
+                displayData.vehicles.length > 0 ||
+                displayData.stations.length > 0
+            "
+        >
+            <span *ngIf="displayData.lines.length > 0">
+                <nz-tag
+                    *ngFor="let line of displayData.lines"
+                    [nzColor]="line.displayColor"
+                    class="incident-tags"
+                >
+                    {{ line.displayName }}
+                </nz-tag>
+            </span>
+            <span *ngIf="displayData.vehicles.length > 0">
+                <span class="incident-tags-separator"> | </span>
+                <nz-tag
+                    *ngFor="let vehicle of displayData.vehicles"
+                    class="incident-tags"
+                >
+                    {{ vehicle.identificationNo }}
+                </nz-tag>
+            </span>
+            <span *ngIf="displayData.stations.length > 0">
+                <span class="incident-tags-separator"> | </span>
+                <nz-tag
+                    *ngFor="let station of displayData.stations"
+                    class="incident-tags"
+                >
+                    {{ station.displayName }}
+                </nz-tag>
+            </span>
+        </div>
+
+        <div
+            nz-row
+            [class]="
+                displayData.lines.length > 0 ||
+                displayData.vehicles.length > 0 ||
+                displayData.stations.length > 0
+                    ? 'card-brief'
+                    : ''
+            "
+            [nzGutter]="16"
+        >
+            <div
+                *ngIf="displayData.chronologies.length > 0"
+                nz-col
+                [nzXs]="24"
+                [nzXl]="12"
+            >
+                <nz-timeline
+                    [nzPending]="
+                        displayData.endDatetime ? false : loadingTemplate
+                    "
+                >
+                    <nz-timeline-item
+                        *ngFor="let event of displayData.chronologies"
+                        [nzColor]="event.indicator"
+                    >
+                        <b>
+                            {{ event.datetime | date: "YYYY-MM-dd HH:mm:ss" }}
+                        </b>
+                        <span *ngIf="event.sourceUrl">
+                            -
+                            <a [href]="event.sourceUrl" target="_blank">
+                                Source
+                            </a>
+                        </span>
+                        <br />
+                        <div [innerHTML]="event.content"></div>
+                    </nz-timeline-item>
+                </nz-timeline>
+                <div *ngIf="displayData.duration">
+                    Duration: {{ displayData.duration }}
+                </div>
+            </div>
+            <div
+                nz-col
+                [nzXs]="24"
+                [nzXl]="displayData.chronologies.length > 0 ? 12 : 24"
+            >
+                <div [innerHTML]="displayData.brief"></div>
+                <!-- <img
+                                class="image"
+                                alt="logo"
+                                src="https://gw.alipayobjects.com/zos/rmsportal/mqaQswcyDLcXyDKnZfES.png"
+                            /><br> -->
+                <br />
+                <a
+                    *ngIf="displayData.hasDetails"
+                    (click)="onDetailsClick($event)"
+                    >Details</a
+                >
+
+                <div class="last-updated">
+                    <span>
+                        Last updated:
+                        {{
+                            displayData.lastUpdated
+                                | date: "YYYY-MM-dd HH:mm:ss"
+                        }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nz-card>
+    <ng-template #loadingTemplate>
+        Ongoing for... <br />
+        {{ elapsedTime }}
+    </ng-template>
+    <ng-template #cardTitleTemplate>
+        <!-- <a href="{{ displayData.href }}">{{ displayData.title }}</a> -->
+        <span
+            *ngIf="displayData.inaccurate"
+            class="indicator-icon"
+            nz-tooltip
+            nzTooltipTitle="Data may be inaccurate"
+            nzTooltipPlacement="topLeft"
+            [nzTooltipArrowPointAtCenter]="true"
+            nz-icon
+            nzType="exception"
+            nzTheme="outline"
+        ></span>
+        <span
+            *ngIf="displayData.longTerm"
+            class="indicator-icon"
+            nz-tooltip
+            nzTooltipTitle="Long term incident"
+            nzTooltipPlacement="topLeft"
+            [nzTooltipArrowPointAtCenter]="true"
+            nz-icon
+            nzType="clock-circle"
+            nzTheme="outline"
+        ></span>
+        {{ displayData.title }}
+    </ng-template>
+</nz-ribbon>

@@ -1,0 +1,78 @@
+<div [class]="'button-container ' + env.sentry.environment">
+    <span class="flex-buffer"></span>
+    <span
+        *ngIf="hadUpload"
+        [class]="
+            'spotting-progress-bar ' +
+            ($any($uploadPercentage | async) < 100 ? 'uploading' : '')
+        "
+        nz-tooltip
+        [nzTooltipTitle]="
+            $any($totalCountIcon | async) -
+            countIcon +
+            ' of ' +
+            ($totalCountIcon | async) +
+            ' uploaded'
+        "
+    >
+        <nz-progress
+            *ngIf="$totalCountIcon"
+            class="loading-elem"
+            [nzPercent]="$uploadPercentage | async | number: '1.1-2'"
+            [nzSteps]="$totalCountIcon | async"
+            nzStrokeColor="#1890ff"
+            nzSize="small"
+        ></nz-progress>
+        <nz-spin
+            nzSimple
+            *ngIf="($uploadPercentage | async) !== 100"
+            class="loading-elem"
+        ></nz-spin>
+    </span>
+    <span class="spotting-form-button">
+        <d-button (click)="openStandardDialog('standard')"
+            >Add spotting entry</d-button
+        >
+    </span>
+</div>
+<div dLoading class="spotting-main-container" [showLoading]="showLoading">
+    <div class="spotting-table-container" *ngIf="tabActiveId">
+        <section>
+            <d-tabs
+                type="pills"
+                size="lg"
+                [(activeTab)]="tabActiveId"
+                (activeTabChange)="activeTabChange($event)"
+                [scrollMode]="'auto'"
+            >
+                <d-tab *ngFor="let item of tabItems" [id]="item.id">
+                    <ng-template dTabTitle>
+                        <div
+                            dTooltip
+                            [content]="item.detail"
+                            [position]="'bottom'"
+                        >
+                            {{ item.title }}
+                        </div>
+                    </ng-template>
+                </d-tab>
+            </d-tabs>
+        </section>
+
+        <app-vehicle-type-container
+            [tableData]="tableData"
+            [lineId]="tabActiveId"
+            [title]="tabActiveTitle"
+            [lineStatus]="tabLineStatus"
+        ></app-vehicle-type-container>
+    </div>
+</div>
+
+<ng-template #drawerFooter>
+    <div style="float: right">
+        <button nz-button style="margin-right: 8px" (click)="close()">
+            Cancel
+        </button>
+        <button nz-button nzType="primary" (click)="submit()">Submit</button>
+    </div>
+</ng-template>

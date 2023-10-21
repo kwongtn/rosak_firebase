@@ -22,6 +22,7 @@ export const environment = {
             "http://localhost:4200",
             "https://lift-rosak.ddns.net:8000",
         ],
+        environment: "local",
     },
     captcha: {
         key: "6LdKj0QhAAAAAOEKyuxa6X2kIhVhgfinAorgxc4r",
@@ -31,7 +32,10 @@ export const environment = {
     },
     mapbox: {
         token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGU1cnJvd3UwZnp3M3Ftc2FvdWZlNGg4In0.rGGyBGsaSvW4Q6C8B0oh8Q",
-    }
+    },
+    upload: {
+        concurrency: 10,
+    },
 };
 
 /*
