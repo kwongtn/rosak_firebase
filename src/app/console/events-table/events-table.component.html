@@ -16,6 +16,33 @@
 </div>
 
 <nz-spin [nzSpinning]="showLoading">
+    <d-category-search
+        [category]="category"
+        [selectedTags]="selectedTags"
+        [allowShowMore]="true"
+        [toggleScrollToTail]="true"
+        [showSearchCategory]="false"
+        [allowSave]="false"
+        (searchEvent)="searchEvent($event)"
+    ></d-category-search>
+
+    <div class="mark-as-read-toggle">
+        <div style="width: 100%"></div>
+        <d-toggle
+            dTooltip
+            [content]="'Toggle mark as read'"
+            [position]="'bottom'"
+            (change)="onToggleChange($event)"
+        ></d-toggle>
+    </div>
+
+    <div class="mark-as-read-button" *ngIf="showCheckbox">
+        <div style="width: 100%"></div>
+        <d-button (btnClick)="markAsRead()" [bsSize]="'md'"
+            >Mark as Read</d-button
+        >
+    </div>
+
     <d-data-table
         #tableInstance
         [dataSource]="displayData"
@@ -78,6 +105,9 @@
                                 <vehicle-status-tag
                                     [vehicleStatus]="rowItem[colOption.field]"
                                 ></vehicle-status-tag>
+                                <div *ngIf="rowItem['runNumber']">
+                                    Run No. : {{ rowItem["runNumber"] }}
+                                </div>
                             </span>
                             <span *ngSwitchCase="'id'">
                                 <a
@@ -91,14 +121,53 @@
                                     {{ rowItem[colOption.field] }}
                                 </a>
                             </span>
+                            <span *ngSwitchCase="'reporter'">
+                                <span *ngIf="rowItem[colOption.field]">
+                                    <a
+                                        *ngIf="rowItem[colOption.field]"
+                                        href="{{
+                                            backendUrl
+                                        }}admin/common/user/?q={{
+                                            rowItem[colOption.field]['shortId']
+                                        }}"
+                                        target="_blank"
+                                    >
+                                        {{
+                                            rowItem[colOption.field][
+                                                "nickname"
+                                            ] === ""
+                                                ? rowItem[colOption.field][
+                                                      "shortId"
+                                                  ]
+                                                : rowItem[colOption.field][
+                                                      "nickname"
+                                                  ]
+                                        }}
+                                    </a>
+                                    <span
+                                        *ngIf="
+                                            rowItem[colOption.field][
+                                                'nickname'
+                                            ] !== ''
+                                        "
+                                        class="firebase-id-below-nickname"
+                                    >
+                                        {{
+                                            rowItem[colOption.field]["shortId"]
+                                        }}
+                                    </span>
+                                </span>
+                                <span *ngIf="!rowItem[colOption.field]">
+                                    --
+                                </span>
+                            </span>
                             <span *ngSwitchCase="'datetime'">
                                 {{
-                                    rowItem[colOption.field]
-                                        | date : "MMM dd, y"
+                                    rowItem[colOption.field] | date: "MMM dd, y"
                                 }}
                                 <br />
                                 {{
-                                    rowItem[colOption.field] | date : "HH:mm:ss"
+                                    rowItem[colOption.field] | date: "HH:mm:ss"
                                 }}
                             </span>
                             <span *ngSwitchCase="'vehicle'">
@@ -114,6 +183,23 @@
                                 >
                                 </spotting-type-cell-display>
                             </span>
+                            <span *ngSwitchCase="'notes'">
+                                <span
+                                    class="picture-icon"
+                                    *ngIf="
+                                        rowItem['mediaCount'] > 0 ||
+                                        rowItem['isMine']
+                                    "
+                                >
+                                    <ui-spotting-image-preview-button
+                                        [count]="rowItem['mediaCount']"
+                                        [eventId]="rowItem['id']"
+                                        [isMine]="rowItem['isMine']"
+                                    >
+                                    </ui-spotting-image-preview-button>
+                                </span>
+                                {{ rowItem[colOption.field] }}
+                            </span>
                             <span *ngSwitchDefault>{{
                                 rowItem[colOption.field]
                             }}</span>
@@ -123,4 +209,8 @@
             </ng-template>
         </tbody>
     </d-data-table>
+
+    <div class="total-data">
+        Total data (excluding filters): {{ totalCount | number }}
+    </div>
 </nz-spin>

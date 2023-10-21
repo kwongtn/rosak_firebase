@@ -1,0 +1,13 @@
+.flex-container {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: flex-start;
+    align-content: space-between;
+}
+
+img {
+    height: 200px;
+    width: 200px;
+    object-fit: cover;
+    margin: 5px;
+}

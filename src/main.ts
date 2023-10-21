@@ -5,7 +5,7 @@ import { galaxyTheme, infinityTheme } from "ng-devui/theme-collection";
 
 import { enableProdMode } from "@angular/core";
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
-import * as Sentry from "@sentry/angular";
+import * as Sentry from "@sentry/angular-ivy";
 import { Replay } from "@sentry/replay";
 import { BrowserTracing } from "@sentry/tracing";
 
@@ -15,6 +15,7 @@ import { environment } from "./environments/environment";
 Sentry.init({
     dsn: environment.sentry.dsn,
     tunnel: environment.sentry.tunnel,
+    environment: environment.sentry.environment,
     integrations: [
         new BrowserTracing({
             tracingOrigins: environment.sentry.tracingOrigins,

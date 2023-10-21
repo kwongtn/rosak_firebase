@@ -31,11 +31,11 @@
                 |
 
                 <span
+                    *ngFor="let elem of tagListDisplayConfig"
                     dTooltip
                     [content]="
                         (
-                            (dataSource.vehicleStatusCount
-                                .vehicleStatusInServiceCount /
+                            (dataSource.vehicleStatusCount[elem.key] /
                                 dataSource.vehicleStatusCount
                                     .vehicleTotalCount) *
                             100
@@ -45,126 +45,12 @@
                 >
                     <d-tag
                         [tag]="
-                            'In service: ' +
-                            dataSource.vehicleStatusCount.vehicleStatusInServiceCount.toString()
+                            elem.displayPrefix +
+                            ': ' +
+                            dataSource.vehicleStatusCount[elem.key].toString()
                         "
-                        [labelStyle]="'green-w98'"
-                        class="status-icon"
-                    >
-                    </d-tag>
-                </span>
-                <span
-                    dTooltip
-                    [content]="
-                        (
-                            (dataSource.vehicleStatusCount
-                                .vehicleStatusNotSpottedCount /
-                                dataSource.vehicleStatusCount
-                                    .vehicleTotalCount) *
-                            100
-                        ).toPrecision(3) + '%'
-                    "
-                    [position]="'bottom'"
-                >
-                    <d-tag
-                        [tag]="
-                            'Not Spotted: ' +
-                            dataSource.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
-                        "
-                        [labelStyle]="'yellow-w98'"
-                        class="status-icon"
-                    >
-                    </d-tag>
-                </span>
-                <span
-                    dTooltip
-                    [content]="
-                        (
-                            (dataSource.vehicleStatusCount
-                                .vehicleStatusTestingCount /
-                                dataSource.vehicleStatusCount
-                                    .vehicleTotalCount) *
-                            100
-                        ).toPrecision(3) + '%'
-                    "
-                    [position]="'bottom'"
-                >
-                    <d-tag
-                        [tag]="
-                            'Testing: ' +
-                            dataSource.vehicleStatusCount.vehicleStatusTestingCount.toString()
-                        "
-                        [labelStyle]="'blue-w98'"
-                        class="status-icon"
-                    >
-                    </d-tag>
-                </span>
-                <span
-                    dTooltip
-                    [content]="
-                        (
-                            (dataSource.vehicleStatusCount
-                                .vehicleStatusUnknownCount /
-                                dataSource.vehicleStatusCount
-                                    .vehicleTotalCount) *
-                            100
-                        ).toPrecision(3) + '%'
-                    "
-                    [position]="'bottom'"
-                >
-                    <d-tag
-                        [tag]="
-                            'Unknown: ' +
-                            dataSource.vehicleStatusCount.vehicleStatusUnknownCount.toString()
-                        "
-                        [labelStyle]="'red-w98'"
-                        class="status-icon"
-                    >
-                    </d-tag>
-                </span>
-                <span
-                    dTooltip
-                    [content]="
-                        (
-                            (dataSource.vehicleStatusCount
-                                .vehicleStatusDecommissionedCount /
-                                dataSource.vehicleStatusCount
-                                    .vehicleTotalCount) *
-                            100
-                        ).toPrecision(3) + '%'
-                    "
-                    [position]="'bottom'"
-                >
-                    <d-tag
-                        [tag]="
-                            'Decommissioned: ' +
-                            dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
-                        "
-                        [customColor]="'var(--devui-text-weak)'"
-                        class="status-icon"
-                    >
-                    </d-tag>
-                </span>
-
-                <span
-                    dTooltip
-                    [content]="
-                        (
-                            (dataSource.vehicleStatusCount
-                                .vehicleStatusMarriedCount /
-                                dataSource.vehicleStatusCount
-                                    .vehicleTotalCount) *
-                            100
-                        ).toPrecision(3) + '%'
-                    "
-                    [position]="'bottom'"
-                >
-                    <d-tag
-                        [tag]="
-                            'Married: ' +
-                            dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
-                        "
-                        [customColor]="'$devui-text'"
+                        [labelStyle]="elem.labelStyle ?? ''"
+                        [customColor]="elem.customColor ?? ''"
                         class="status-icon"
                     >
                     </d-tag>
@@ -191,11 +77,11 @@
             |
 
             <span
+                *ngFor="let elem of tagListDisplayConfig"
                 dTooltip
                 [content]="
                     (
-                        (dataSource.vehicleStatusCount
-                            .vehicleStatusInServiceCount /
+                        (dataSource.vehicleStatusCount[elem.key] /
                             dataSource.vehicleStatusCount.vehicleTotalCount) *
                         100
                     ).toPrecision(3) + '%'
@@ -204,140 +90,16 @@
             >
                 <d-tag
                     [tag]="
-                        'In service: ' +
-                        dataSource.vehicleStatusCount.vehicleStatusInServiceCount.toString()
+                        elem.displayPrefix +
+                        ': ' +
+                        dataSource.vehicleStatusCount[elem.key].toString()
                     "
                     [mode]="'checkable'"
-                    [labelStyle]="'green-w98'"
+                    [labelStyle]="elem.labelStyle ?? ''"
+                    [customColor]="elem.customColor ?? ''"
                     class="status-icon"
-                    [(checked)]="tagList.inService"
-                    (checkedChange)="changeChecked($event, 'IN_SERVICE')"
-                >
-                </d-tag>
-            </span>
-            <span
-                dTooltip
-                [content]="
-                    (
-                        (dataSource.vehicleStatusCount
-                            .vehicleStatusNotSpottedCount /
-                            dataSource.vehicleStatusCount.vehicleTotalCount) *
-                        100
-                    ).toPrecision(3) + '%'
-                "
-                [position]="'bottom'"
-            >
-                <d-tag
-                    [tag]="
-                        'Not Spotted: ' +
-                        dataSource.vehicleStatusCount.vehicleStatusNotSpottedCount.toString()
-                    "
-                    [mode]="'checkable'"
-                    [labelStyle]="'yellow-w98'"
-                    class="status-icon"
-                    [(checked)]="tagList.notSpotted"
-                    (checkedChange)="changeChecked($event, 'NOT_SPOTTED')"
-                >
-                </d-tag>
-            </span>
-            <span
-                dTooltip
-                [content]="
-                    (
-                        (dataSource.vehicleStatusCount
-                            .vehicleStatusTestingCount /
-                            dataSource.vehicleStatusCount.vehicleTotalCount) *
-                        100
-                    ).toPrecision(3) + '%'
-                "
-                [position]="'bottom'"
-            >
-                <d-tag
-                    [tag]="
-                        'Testing: ' +
-                        dataSource.vehicleStatusCount.vehicleStatusTestingCount.toString()
-                    "
-                    [mode]="'checkable'"
-                    [labelStyle]="'blue-w98'"
-                    class="status-icon"
-                    [(checked)]="tagList.testing"
-                    (checkedChange)="changeChecked($event, 'TESTING')"
-                >
-                </d-tag>
-            </span>
-            <span
-                dTooltip
-                [content]="
-                    (
-                        (dataSource.vehicleStatusCount
-                            .vehicleStatusUnknownCount /
-                            dataSource.vehicleStatusCount.vehicleTotalCount) *
-                        100
-                    ).toPrecision(3) + '%'
-                "
-                [position]="'bottom'"
-            >
-                <d-tag
-                    [tag]="
-                        'Unknown: ' +
-                        dataSource.vehicleStatusCount.vehicleStatusUnknownCount.toString()
-                    "
-                    [mode]="'checkable'"
-                    [labelStyle]="'red-w98'"
-                    class="status-icon"
-                    [(checked)]="tagList.unknown"
-                    (checkedChange)="changeChecked($event, 'UNKNOWN')"
-                >
-                </d-tag>
-            </span>
-            <span
-                dTooltip
-                [content]="
-                    (
-                        (dataSource.vehicleStatusCount
-                            .vehicleStatusDecommissionedCount /
-                            dataSource.vehicleStatusCount.vehicleTotalCount) *
-                        100
-                    ).toPrecision(3) + '%'
-                "
-                [position]="'bottom'"
-            >
-                <d-tag
-                    [tag]="
-                        'Decommissioned: ' +
-                        dataSource.vehicleStatusCount.vehicleStatusDecommissionedCount.toString()
-                    "
-                    [mode]="'checkable'"
-                    [customColor]="'var(--devui-text-weak)'"
-                    class="status-icon"
-                    [(checked)]="tagList.decommissioned"
-                    (checkedChange)="changeChecked($event, 'DECOMMISSIONED')"
-                >
-                </d-tag>
-            </span>
-
-            <span
-                dTooltip
-                [content]="
-                    (
-                        (dataSource.vehicleStatusCount
-                            .vehicleStatusMarriedCount /
-                            dataSource.vehicleStatusCount.vehicleTotalCount) *
-                        100
-                    ).toPrecision(3) + '%'
-                "
-                [position]="'bottom'"
-            >
-                <d-tag
-                    [tag]="
-                        'Married: ' +
-                        dataSource.vehicleStatusCount.vehicleStatusMarriedCount.toString()
-                    "
-                    [mode]="'checkable'"
-                    [customColor]="'var(--devui-text-weak)'"
-                    class="status-icon"
-                    [(checked)]="tagList.married"
-                    (checkedChange)="changeChecked($event, 'MARRIED')"
+                    [(checked)]="elem.checked"
+                    (checkedChange)="changeChecked($event, elem.status)"
                 >
                 </d-tag>
             </span>

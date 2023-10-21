@@ -22,6 +22,7 @@ export const environment = {
             "http://localhost:4200",
             "https://lift-rosak.ddns.net:8000",
         ],
+        environment: "local",
     },
     captcha: {
         key: "6LdKj0QhAAAAAOEKyuxa6X2kIhVhgfinAorgxc4r",
@@ -29,6 +30,9 @@ export const environment = {
     semaphore: {
         badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
     },
+    upload: {
+        concurrency: 10,
+    }
 };
 
 /*

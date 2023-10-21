@@ -8,7 +8,10 @@ import {
     TooltipModule,
 } from "ng-devui";
 import { ButtonModule } from "ng-devui/button";
+import { CategorySearchModule } from "ng-devui/category-search";
 import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzDrawerModule } from "ng-zorro-antd/drawer";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
@@ -18,11 +21,17 @@ import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import {
+    SpottingImageListModule,
+} from "../@ui/spotting-image-list/spotting-image-list.module";
+import {
     SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
 import {
     SpottingTypeTagModule,
 } from "../@ui/spotting-type-tag/spotting-type-tag.module";
+import {
+    ImagePreviewButtonModule,
+} from "../@ui/spotting/image-preview-button/image-preview-button.module";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
@@ -35,36 +44,46 @@ import {
 import {
     VehicleStatusPipeModule,
 } from "../pipes/vehicle-status/vehicle-status.module";
+import { ConsoleMainComponent } from "./console.component";
 import {
     ConsoleEventsTableComponent,
 } from "./events-table/events-table.component";
-import { ConsoleMainComponent } from "./main/main.component";
 
 @NgModule({
     declarations: [ConsoleMainComponent, ConsoleEventsTableComponent],
     imports: [
         CommonModule,
+        FormsModule,
+        
+        // devui
+        ButtonModule,
+        CategorySearchModule,
+        CheckBoxModule,
         DataTableModule,
-        TagsModule,
-        VehicleStatusPipeModule,
-        VehicleTableCellDisplayModule,
-        VehicleStatusTagModule,
-        SpottingTypeTagModule,
         LoadingModule,
         PanelModule,
+        TagsModule,
         ToggleModule,
         TooltipModule,
-        CheckBoxModule,
-        ButtonModule,
-        FormsModule,
-        CoordinatesHumanizerModule,
-        SpottingTypeCellDisplayModule,
-
+        
         // ng-zorro
         NzButtonModule,
         NzSpinModule,
         NzSwitchModule,
         NzToolTipModule,
+        NzDrawerModule,
+        NzIconModule,
+        NzSpinModule,
+        
+        // Own Imports
+        CoordinatesHumanizerModule,
+        ImagePreviewButtonModule,
+        SpottingImageListModule,
+        SpottingTypeCellDisplayModule,
+        SpottingTypeTagModule,
+        VehicleStatusPipeModule,
+        VehicleStatusTagModule,
+        VehicleTableCellDisplayModule,
     ],
 })
 export class ConsoleModule {}

@@ -1,0 +1,14 @@
+<div nz-row [nzGutter]="[40, 0]">
+    <div nz-col [nzXs]="24" [nzXl]="12">
+        <insiden-calendar
+            [(selectedDate)]="selectedDate"
+            [(calendarMode)]="calendarMode"
+        ></insiden-calendar>
+    </div>
+    <div nz-col [nzXs]="24" [nzXl]="12">
+        <insiden-event-list
+            [selectedDate]="selectedDate"
+            [calendarMode]="calendarMode"
+        ></insiden-event-list>
+    </div>
+</div>

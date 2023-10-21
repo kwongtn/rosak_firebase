@@ -1,12 +1,5 @@
 import { VehicleStatusCountType } from "src/app/models/query/get-vehicles";
 
-export type SpottingType =
-    | "DEPOT"
-    | "LOCATION"
-    | "BETWEEN_STATIONS"
-    | "JUST_SPOTTING"
-    | "AT_STATION";
-
 interface ExpandConfig {
     expandable: boolean;
     expand: boolean;

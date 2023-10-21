@@ -1,0 +1,19 @@
+.require-whitespace {
+    white-space: pre;
+}
+
+.flex-container {
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    width: 100vw;
+
+    .left {
+        display: flex;
+    }
+
+    .right {
+        display: flex;
+    }
+}

@@ -1,7 +1,7 @@
 export const environment = {
     production: true,
-    backendUrl: "https://lift-rosak.ddns.net:8000/",
-    backendGraphqlUrl: "https://lift-rosak.ddns.net:8000/graphql/",
+    backendUrl: "https://api-community.mlptf.org.my/",
+    backendGraphqlUrl: "https://api-community.mlptf.org.my/graphql/",
     firebase: {
         apiKey: "AIzaSyC6Z81AaCJ-PLofq0N0Ize43oWMqKKW-zA",
         authDomain: "rosak-7223b.firebaseapp.com",
@@ -13,16 +13,20 @@ export const environment = {
     },
     sentry: {
         dsn: "https://239abe11366d4590a1c1ebd5260c63e2@o1331817.ingest.sentry.io/6596136",
-        tunnel: "https://lift-rosak.ddns.net:8000/sentry/",
+        tunnel: "https://api-community.mlptf.org.my/sentry/",
         tracingOrigins: [
             "https://rosak-7223b.web.app",
             "https://rosak-7223b.firebaseapp.com",
         ],
+        environment: "production",
     },
     captcha: {
         key: "6Le4ekQhAAAAAKu_C7LTyylJfe8Q8Gv5fiNFx_kj",
     },
     semaphore: {
         badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
+    },
+    upload: {
+        concurrency: 5,
     },
 };

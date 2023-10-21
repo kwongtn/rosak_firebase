@@ -1,6 +1,11 @@
 import { TableWidthConfig } from "ng-devui/data-table";
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
+import {
+    tagListDisplayConfig,
+    TagListDisplayConfig,
+    vehicleStatus,
+    VehicleStatus
+} from "src/app/spotting/utils";
 
 import { Component, Input, OnInit } from "@angular/core";
 
@@ -15,23 +20,7 @@ export class SpottingTableComponent implements OnInit {
     displayData: TableDataType[] = [];
     isCollapsed: boolean = !false;
 
-    tagList = {
-        inService: false,
-        notSpotted: false,
-        testing: false,
-        unknown: false,
-        decommissioned: false,
-        married: false,
-    };
-
-    allowedStatuses: Set<VehicleStatus> = new Set<VehicleStatus>([
-        "IN_SERVICE",
-        "NOT_SPOTTED",
-        "DECOMMISSIONED",
-        "TESTING",
-        "UNKNOWN",
-        "MARRIED",
-    ]);
+    allowedStatuses: Set<VehicleStatus> = new Set<VehicleStatus>(vehicleStatus);
 
     totalChecked: boolean = true;
 
@@ -93,6 +82,10 @@ export class SpottingTableComponent implements OnInit {
         { field: "notes", width: "500px" },
     ];
 
+    tagListDisplayConfig: TagListDisplayConfig[] = JSON.parse(
+        JSON.stringify(tagListDisplayConfig)
+    );
+
     constructor() {
         return;
     }
@@ -103,20 +96,11 @@ export class SpottingTableComponent implements OnInit {
 
     private markTotalCheckedTrue() {
         this.totalChecked = true;
-        this.tagList.inService = false;
-        this.tagList.notSpotted = false;
-        this.tagList.testing = false;
-        this.tagList.unknown = false;
-        this.tagList.decommissioned = false;
-        this.tagList.married = false;
-        [
-            "IN_SERVICE",
-            "NOT_SPOTTED",
-            "DECOMMISSIONED",
-            "TESTING",
-            "UNKNOWN",
-            "MARRIED",
-        ].forEach((value) => {
+        this.tagListDisplayConfig.forEach((val) => {
+            val.checked = false;
+        });
+
+        vehicleStatus.forEach((value) => {
             this.allowedStatuses.add(value as VehicleStatus);
         });
     }
@@ -125,18 +109,12 @@ export class SpottingTableComponent implements OnInit {
         if (status === "total") {
             this.markTotalCheckedTrue();
             return;
-        } else if (status === "IN_SERVICE") {
-            this.tagList.inService = $event;
-        } else if (status === "NOT_SPOTTED") {
-            this.tagList.notSpotted = $event;
-        } else if (status === "TESTING") {
-            this.tagList.testing = $event;
-        } else if (status === "UNKNOWN") {
-            this.tagList.unknown = $event;
-        } else if (status === "DECOMMISSIONED") {
-            this.tagList.decommissioned = $event;
-        } else if (status === "MARRIED") {
-            this.tagList.married = $event;
+        } else if (vehicleStatus.includes(status)) {
+            this.tagListDisplayConfig.forEach((val) => {
+                if (status === val.status) {
+                    val.checked = $event;
+                }
+            });
         } else {
             console.error("Unknown status type: " + status);
         }
@@ -151,7 +129,11 @@ export class SpottingTableComponent implements OnInit {
             this.allowedStatuses.delete(status);
         }
 
-        this.totalChecked = !Object.values(this.tagList).some((value) => {
+        this.totalChecked = !Object.values(
+            this.tagListDisplayConfig.map((val) => {
+                return val.checked;
+            })
+        ).some((value) => {
             return value;
         });
 

@@ -1,0 +1,30 @@
+<nz-list nzBordered nzSize="small">
+    <!-- <nz-list-header>Header</nz-list-header> -->
+    <nz-list-item
+        *ngFor="
+            let hist of sessionHistoryService.historyStore | async | keyvalue
+        "
+    >
+        <span
+            *ngIf="filter.includes(hist.value['historyType'])"
+            class="flex-container"
+        >
+            <span class="left">
+                <a
+                    href="{{ backendUrl }}admin/spotting/event/{{
+                        hist.value['id']
+                    }}"
+                >
+                    {{ hist.value["id"] }}
+                </a>
+                <span class="require-whitespace"> - </span>
+                {{ hist.value["vehicle"]["name"] }}
+            </span>
+            <span class="right">
+                {{ hist.value["status"]["name"] }},
+                {{ hist.value["type"]["name"] }}
+            </span>
+        </span>
+    </nz-list-item>
+    <!-- <nz-list-footer>Footer</nz-list-footer> -->
+</nz-list>

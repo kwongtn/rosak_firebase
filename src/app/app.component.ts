@@ -3,7 +3,13 @@ import { filter } from "rxjs";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
-import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import {
+    Component,
+    ElementRef,
+    HostListener,
+    OnDestroy,
+    OnInit,
+} from "@angular/core";
 import { NavigationEnd, Router } from "@angular/router";
 
 import build from "../build";
@@ -17,6 +23,22 @@ interface BackendBuildInfo {
 const genericTitle = " Malaysia Land Public Transport Fans ";
 
 const initialMenuList: { [key: string]: string }[] = [
+    {
+        name: "Gallery",
+        href: "/gallery",
+        target: "_self",
+        tag: "Alpha",
+        style: "danger",
+        headerTitle: " - Gallery ",
+    },
+    {
+        name: "Insiden",
+        href: "/insiden",
+        target: "_self",
+        tag: "Beta",
+        style: "waiting",
+        headerTitle: " - Insiden ",
+    },
     {
         name: "TranSPOT",
         href: "/spotting",
@@ -53,18 +75,25 @@ export class AppComponent implements OnInit, OnDestroy {
     constructor(
         public authService: AuthService,
         private httpClient: HttpClient,
+        private elem: ElementRef,
         public router: Router
     ) {
         console.log(
-            "\n%cBuild Info:\n\n" +
+            [
+                "\n%cBuild Info:\n",
                 `%c > Environment: %c${
-                    environment.production ? "production 🏭" : "development 🚧"
-                }\n` +
-                `%c > Build Version: ${build.version}\n` +
-                ` > Build Timestamp: ${build.timestamp}\n` +
-                ` > Built by: ${build.git.user}\n` +
-                ` > Commit: ${build.git.hash} @ ${build.git.branch}\n` +
-                ` > Build Message: %c${build.message || "<no message>"}\n`,
+                    environment.production
+                        ? "production 🏭"
+                        : environment.sentry.environment === "staging"
+                            ? "staging 🚈"
+                            : "development 🚧"
+                }`,
+                `%c > Build Version: ${build.version}`,
+                ` > Build Timestamp: ${build.timestamp}`,
+                ` > Built by: ${build.git.user}`,
+                ` > Commit: ${build.git.hash} @ ${build.git.branch}`,
+                ` > Build Message: %c${build.message || "<no message>"}`,
+            ].join("\n"),
             "font-size: 14px; color: #7c7c7b;",
             "font-size: 12px; color: #7c7c7b",
             environment.production
@@ -73,6 +102,12 @@ export class AppComponent implements OnInit, OnDestroy {
             "font-size: 12px; color: #7c7c7b",
             "font-size: 12px; color: #bdc6cf"
         );
+
+        if (environment.sentry.environment === "staging") {
+            this.elem.nativeElement.style.setProperty("--padding-top", "100px");
+        } else {
+            this.elem.nativeElement.style.setProperty("--padding-top", "70px");
+        }
     }
 
     menuContainsHref(href: string) {
@@ -166,7 +201,6 @@ export class AppComponent implements OnInit, OnDestroy {
             .subscribe((event) => {
                 this.header = this.getHeader();
             });
-
     }
 
     ngOnDestroy(): void {

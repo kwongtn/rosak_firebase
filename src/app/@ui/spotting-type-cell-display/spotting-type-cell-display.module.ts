@@ -21,7 +21,7 @@ import {
     declarations: [SpottingTypeCellDisplayComponent],
     imports: [
         CommonModule,
-        
+
         // ng-zorro-antd
         NzIconModule,
         NzToolTipModule,
@@ -30,8 +30,6 @@ import {
         BeautifulDecimalModule,
         CoordinatesHumanizerModule,
         SpottingTypeTagModule,
-
-
     ],
     exports: [SpottingTypeCellDisplayComponent],
 })

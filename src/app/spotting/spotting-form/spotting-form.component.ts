@@ -2,16 +2,16 @@ import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
-import { ReCaptchaV3Service } from "ng-recaptcha";
+// import { ReCaptchaV3Service } from "ng-recaptcha";
+import { NzDrawerRef } from "ng-zorro-antd/drawer";
+import { lastValueFrom, Observable, of, Subscription } from "rxjs";
 import {
-    firstValueFrom,
-    lastValueFrom,
-    Observable,
-    of,
-    Subscription,
-} from "rxjs";
-import { VehicleStatus } from "src/app/models/query/get-vehicles";
+    VehicleStatus,
+} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { AuthService } from "src/app/services/auth/auth.service";
+import {
+    SessionHistoryService,
+} from "src/app/services/session-history/session-history.service";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -26,6 +26,9 @@ import {
 } from "@angular/forms";
 
 import {
+    ImageFile,
+} from "../../@ui/spotting/form-upload/form-upload.component";
+import {
     GetLinesAndVehiclesGqlService,
 } from "../services/get-lines-vehicles-gql.service";
 import {
@@ -39,6 +42,7 @@ import {
 import { VehicleFormOption } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
+    allowRunNumber,
     atStationTypeStationValidator,
     betweenStationTypeOriginDestinationStationValidator,
     numberSeenToSetNumber,
@@ -47,7 +51,7 @@ import {
 const ADD_ENTRY = gql`
     mutation AddSpottingEntry($data: EventInput!) {
         addEvent(input: $data) {
-            ok
+            id
         }
     }
 `;
@@ -63,6 +67,11 @@ interface VehicleFormInputType extends FormInputType {
     status: VehicleStatus;
 }
 
+export interface SpottingFormReturnType {
+    uploads: ImageFile[];
+    spottingSubmission: Promise<MutationResult<any> | undefined>;
+}
+
 @Component({
     selector: "app-spotting-form",
     templateUrl: "./spotting-form.component.html",
@@ -76,14 +85,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
     submitButtonClicked: boolean = false;
     showedLocationPopout: boolean = false;
+    showRunNumberInput: boolean = false;
     submitting: LoadingType = Promise.resolve("false");
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
-        { name: "Not Spotted", value: "NOT_SPOTTED" },
+        { name: "Not in Service", value: "NOT_IN_SERVICE" },
         { name: "Decommissioned", value: "DECOMMISSIONED" },
         { name: "Testing", value: "TESTING" },
-        { name: "Unknown", value: "UNKNOWN", disabled: true },
     ];
 
     typeOptions = [
@@ -206,13 +215,17 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private getLinesVehiclesGql: GetLinesAndVehiclesGqlService,
         private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
-        private recaptchaV3Service: ReCaptchaV3Service,
-        private spottingStorageService: SpottingStorageService,
-        private toastService: ToastService
+        // private recaptchaV3Service: ReCaptchaV3Service,
+        private toastService: ToastService,
+        private drawerRef: NzDrawerRef<SpottingFormReturnType>,
+        public sessionHistoryService: SessionHistoryService,
+        private spottingStorageService: SpottingStorageService
     ) {
         const line = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
         const atStationStation = spottingStorageService.getAtStationStation();
+
+        console.log(this.sessionHistoryService.historyStore.value);
 
         this.formGroup = this.fb.group(
             {
@@ -233,9 +246,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 originStation: new UntypedFormControl("", []),
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
+                runNumber: new UntypedFormControl(undefined, []),
                 isAnonymous: new UntypedFormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
                 location: new UntypedFormControl(false, []),
+                uploads: new UntypedFormControl({}, []),
             },
             {
                 validators: [
@@ -282,7 +297,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     onVehicleChanges(event: VehicleFormInputType): void {
         // When adding vehicle status here, remember to edit validators too
-        if (["DECOMMISSIONED", "MARRIED", "UNKNOWN"].includes(event.status)) {
+        if (
+            ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
+                event.status
+            )
+        ) {
             this.showVehicleWarning = true;
         } else {
             this.showVehicleWarning = false;
@@ -336,7 +355,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         this.spottingStorageService.getAtStationStation();
                     if (
                         atStationStation &&
-                        this.spottingStorageService.getLine().value ==
+                        this.spottingStorageService.getLine()?.value ==
                             this.formGroup.value.line.value
                     ) {
                         this.formGroup.patchValue({
@@ -348,9 +367,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     if (!this.showedLocationPopout) {
-                        this.toastService.addToast(
-                            "Location accessed",
-                            "Take note that we will not know your location until you submit the form.",
+                        this.toastService.addMessage(
+                            "Location accessed. Take note that we will not know your location until you submit the form.",
                             "info"
                         );
                         this.showedLocationPopout = true;
@@ -384,6 +402,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.showedLocationPopout = false;
     }
 
+    onNewImage(images: { [key: string]: ImageFile }) {
+        this.formGroup.patchValue({
+            uploads: images,
+        });
+    }
+
     onLineChanges(event: FormInputType): void {
         console.log(event);
 
@@ -397,23 +421,40 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.stationOptions = [];
 
         this.onInputTypeChanges();
+        this.showRunNumberInput = allowRunNumber(event.value);
 
         this.formGroup.patchValue({
             vehicle: "",
             originStation: "",
             destinationStation: "",
+            runNumber: undefined,
             atStation: "",
         });
 
         return;
     }
 
-    onSubmit(): Promise<MutationResult<any> | undefined> | undefined {
+    onSubmit():
+        | Promise<{
+              spottingSubmission: Promise<MutationResult<any> | undefined>;
+              uploads: ImageFile[];
+              formData: any;
+          }>
+        | undefined {
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
+
+            return undefined;
+        }
+        if (!this.authService.isLoggedIn()) {
+            this.toastService.addToast(
+                "Error",
+                "Please log in or wait for authentication to complete before proceeding.",
+                "error"
+            );
 
             return undefined;
         }
@@ -424,9 +465,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
-                this.toastService.addToast(
-                    "Error",
-                    "Location has not been loaded",
+                this.toastService.addMessage(
+                    "Error: Location has not been loaded.",
                     "error"
                 );
 
@@ -454,9 +494,15 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         formValues["atStation"] = undefined;
 
-        const date: Date = formValues["spottingDate"];
-        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-        formValues["spottingDate"] = formValues["spottingDate"]
+        if (!allowRunNumber(formValues["line"].value)) {
+            formValues["runNumber"] = undefined;
+        }
+
+        const spottingDate: Date = formValues["spottingDate"];
+        formValues["spottingDate"] = new Date(
+            spottingDate.getTime() -
+                spottingDate.getTimezoneOffset() * 60 * 1000
+        )
             .toISOString()
             .slice(0, 10);
 
@@ -468,31 +514,49 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         this.spottingStorageService.setLine(formValues["line"]);
 
+        const uploads: ImageFile[] = Object.values<ImageFile>(
+            formValues["uploads"]
+        ).filter((val) => {
+            return val != null;
+        });
+
         // Removing fields not required by GQL
         formValues["line"] = undefined;
         formValues["sanityTest"] = undefined;
+        formValues["uploads"] = undefined;
+
+        console.log(formValues);
 
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
         return Promise.all([
-            firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
+            // firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
             this.authService.getIdToken(),
-        ]).then(([captchaResponse, firebaseAuthKey]) => {
-            const mutationObservable = this.apollo.mutate({
-                mutation: ADD_ENTRY,
-                variables: {
-                    data: formValues,
-                },
-                context: {
-                    headers: {
-                        "g-recaptcha-response": captchaResponse,
-                        "firebase-auth-key": firebaseAuthKey,
+        ]).then(
+            ([
+                // captchaResponse,
+                firebaseAuthKey,
+            ]) => {
+                const mutationObservable = this.apollo.mutate({
+                    mutation: ADD_ENTRY,
+                    variables: {
+                        data: formValues,
                     },
-                },
-            });
+                    context: {
+                        headers: {
+                            // "g-recaptcha-response": captchaResponse,
+                            "firebase-auth-key": firebaseAuthKey,
+                        },
+                    },
+                });
 
-            this.submitting = lastValueFrom(mutationObservable);
+                this.submitting = lastValueFrom(mutationObservable);
 
-            return this.submitting;
-        });
+                return {
+                    uploads,
+                    spottingSubmission: this.submitting,
+                    formData: { ...this.formGroup.value },
+                };
+            }
+        );
     }
 }

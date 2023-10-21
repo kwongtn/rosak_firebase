@@ -1,0 +1,64 @@
+@media (min-width: 1200px) {
+    .incident-card {
+        width: 44vw;
+
+        .image {
+            width: 100%;
+        }
+    }
+
+    .incident-card-long-term {
+        width: 43vw;
+
+        .image {
+            width: 100%;
+        }
+    }
+}
+
+@media (max-width: 1200px) {
+    .incident-card {
+        width: 93vw;
+
+        .image {
+            width: 100%;
+            max-width: fit-content;
+            max-width: 50vw;
+        }
+    }
+
+    .incident-card-long-term {
+        width: 90vw;
+
+        .image {
+            width: 100%;
+        }
+    }
+}
+
+.card-brief {
+    margin-top: 20px;
+}
+
+.incident-tags {
+    margin-bottom: 5px;
+}
+
+.incident-tags-separator {
+    margin-right: 7px;
+}
+
+.indicator-icon {
+    margin-right: 7px;
+}
+
+.incident-card {
+    position: relative;
+
+    .last-updated span {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        font-size: smaller;
+    }
+}

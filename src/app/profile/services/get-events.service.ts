@@ -30,6 +30,9 @@ export class GetEventsService extends Query<GetEventsGqlResponse> {
                 created
                 status
                 type
+                runNumber
+                mediaCount
+                isMine
                 location {
                     accuracy
                     altitudeAccuracy

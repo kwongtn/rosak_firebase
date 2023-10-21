@@ -117,19 +117,35 @@ export class AuthService {
                 this.toastService.addToast(
                     "Login Successful",
                     toastMessage,
-                    "success"
+                    "success",
+                    {
+                        nzPlacement: "top",
+                    }
                 );
 
+                
                 console.log(res);
+                this.userData.next(res.user);
             })
             .catch((reason) => {
                 console.log("Login failed: ", reason);
 
-                this.toastService.addToast(
-                    "Login Error",
-                    reason.message,
-                    "error"
-                );
+                if ("auth/user-disabled" === reason.code) {
+                    this.toastService.addToast(
+                        "Account Banned",
+                        "Your account has been banned by an administrator. If you think this is an error, please contact us at 'tungnan5636@gmail.com'.",
+                        "error",
+                        {
+                            nzDuration: 0,
+                        }
+                    );
+                } else {
+                    this.toastService.addToast(
+                        "Login Error",
+                        reason.message,
+                        "error"
+                    );
+                }
             });
     }
 
@@ -168,6 +184,10 @@ export class AuthService {
 
     getIdToken(): Promise<string> | undefined {
         return this.userData.getValue()?.getIdToken();
+    }
+
+    isLoggedIn(): boolean {
+        return Boolean(this.userData.value);
     }
 
     isAdmin(): boolean {

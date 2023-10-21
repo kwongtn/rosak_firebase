@@ -1,6 +1,8 @@
 import { QueryRef } from "apollo-angular";
 import { DataTableComponent, TableWidthConfig } from "ng-devui";
+import { ICategorySearchTagItem, SearchEvent } from "ng-devui/category-search";
 import { Subscription } from "rxjs";
+import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth/auth.service";
 import { environment } from "src/environments/environment";
 
@@ -18,6 +20,10 @@ import {
     ConsoleEventsGqlService,
 } from "../services/events-gql/events-gql.service";
 import { MarkReadService } from "../services/mark-read/mark-read.service";
+import { categoryData } from "./category-search";
+
+const SEARCH_LIMIT = 100;
+const SEARCH_OFFSET = 0;
 
 interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
     $checked?: boolean;
@@ -33,23 +39,43 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     @ViewChild(DataTableComponent, { static: true })
         datatable!: DataTableComponent;
     eventGqlSubscription!: Subscription;
+    category = categoryData;
+    filters: { [key: string]: any } = {
+        isRead: false,
+    };
 
     allChecked: boolean = false;
     halfChecked: boolean = false;
-    showLoading: boolean = false;
+    showLoading: boolean = true;
 
     showCheckbox: boolean = false;
 
     backendUrl: string = environment.backendUrl;
 
     displayData: TableSourceType[] = [];
+    totalCount: number | undefined = undefined;
+    expandConfig: { [key: string]: boolean } = {};
 
     lastSelectedRow: any = undefined;
     isShiftKeyDown: boolean = false;
 
+    selectedTags: ICategorySearchTagItem[] = [
+        {
+            label: "Is Read",
+            field: "isRead",
+            value: {
+                label: "No",
+                value: {
+                    value: false,
+                },
+            },
+        },
+    ];
+    searchKey: string = "";
+
     // Pagination
-    limit = 100;
-    offset = 0;
+    limit = SEARCH_LIMIT;
+    offset = SEARCH_OFFSET;
 
     dataTableOptions = {
         columns: [
@@ -60,46 +86,53 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                 order: 1,
             },
             {
+                field: "reporter",
+                header: "Reporter",
+                fieldType: "reporter",
+                order: 2,
+            },
+            {
                 field: "created",
                 header: "Created",
                 fieldType: "datetime",
-                order: 2,
+                order: 3,
             },
             {
                 field: "status",
                 header: "Status",
                 fieldType: "status",
-                order: 3,
+                order: 4,
             },
             {
                 field: "spottingDate",
                 header: "Date",
                 fieldType: "text",
-                order: 4,
+                order: 5,
             },
             {
                 field: "type",
                 header: "Spotting Type",
                 fieldType: "spottingType",
-                order: 5,
+                order: 6,
             },
             {
                 field: "vehicle",
                 header: "Vehicle",
                 fieldType: "vehicle",
-                order: 6,
+                order: 7,
             },
             {
                 field: "notes",
                 header: "Notes",
-                fieldType: "text",
-                order: 7,
+                fieldType: "notes",
+                order: 8,
             },
         ],
     };
 
     tableWidthConfig: TableWidthConfig[] = [
         { field: "id", width: "100px" },
+        { field: "reporter", width: "100px" },
         { field: "created", width: "150px" },
         { field: "status", width: "150px" },
         { field: "spottingDate", width: "150px" },
@@ -121,9 +154,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     async ngOnInit(): Promise<void> {
         this.watchQueryOption = this.consoleEventsGqlService.watch(
             {
-                eventFilters: {
-                    isRead: false,
-                },
+                eventFilters: this.filters,
                 eventOrder: {
                     created: "DESC",
                 },
@@ -150,6 +181,9 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                     this.displayData = this.mapGqlResultsToDisplayData(
                         data.events
                     );
+                    this.expandConfig = this.mapGqlResultsToExpandConfig(data);
+
+                    this.totalCount = data.eventsCount;
                 }
             );
     }
@@ -227,6 +261,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
         this.watchQueryOption
             .fetchMore({
                 variables: {
+                    eventFilters: this.filters,
                     eventPagination: {
                         limit: this.limit,
                         offset: this.offset,
@@ -237,10 +272,24 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                 this.displayData = this.displayData.concat(
                     this.mapGqlResultsToDisplayData(data.events)
                 );
+                this.expandConfig = {
+                    ...this.expandConfig,
+                    ...this.mapGqlResultsToExpandConfig(data),
+                };
+                this.totalCount = data.eventsCount;
 
                 this.showLoading = loading;
                 this.offset = this.displayData.length;
             });
+    }
+
+
+    mapGqlResultsToExpandConfig(data: any) {
+        const returnObj: { [key: string]: boolean } = {};
+        data.events.forEach((val: LastSpottingsTableElement) => {
+            returnObj[val.id] = false;
+        });
+        return returnObj;
     }
 
     ngOnDestroy(): void {
@@ -250,7 +299,6 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     mapGqlResultsToDisplayData(
         data: ConsoleEventsGqlResponseElement[]
     ): TableSourceType[] {
-        console.log(data);
         return data.map((val) => {
             const returnObj: any = {
                 ...val,
@@ -269,4 +317,103 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             return returnObj;
         });
     }
+
+    searchEvent(event: SearchEvent) {
+        console.log("search items", event);
+        this.showLoading = true;
+        this.limit = SEARCH_LIMIT;
+        this.offset = SEARCH_OFFSET;
+
+        this.filters = this.tagsToGqlMapper(event.selectedTags);
+
+        if (event.searchKey) {
+            this.filters["freeSearch"] = event.searchKey;
+        }
+
+        console.log(this.filters);
+
+        this.watchQueryOption
+            .fetchMore({
+                variables: {
+                    eventFilters: this.filters,
+                    eventPagination: {
+                        limit: this.limit,
+                        offset: this.offset,
+                    },
+                },
+            })
+            .then(({ data, loading }) => {
+                this.displayData = this.mapGqlResultsToDisplayData(data.events);
+                this.totalCount = data.eventsCount;
+
+                this.showLoading = loading;
+                this.offset = this.displayData.length;
+            });
+    }
+
+    tagsToGqlMapper(tags: ICategorySearchTagItem[]) {
+        const returnObj: { [key: string]: any } = {};
+        tags.forEach((elem) => {
+            switch (elem.field) {
+            case "isVehicleStatusDifferent":
+                returnObj["differentStatusThanVehicle"] = (
+                        elem.value?.value as any
+                ).value;
+                break;
+
+            case "isAnonymous":
+                returnObj["isAnonymous"] = (elem.value?.value as any).value;
+                break;
+
+            case "isRead":
+                returnObj["isRead"] = (elem.value?.value as any).value;
+                break;
+
+            case "hasNotes":
+                returnObj["hasNotes"] = (elem.value?.value as any).value;
+                break;
+
+            case "status":
+                returnObj["statusIn"] = (elem.value?.value as any[]).map(
+                    (val) => {
+                        return val.value;
+                    }
+                );
+                break;
+
+            case "spottingType":
+                returnObj["typeIn"] = (elem.value?.value as any[]).map(
+                    (val) => {
+                        return val.value;
+                    }
+                );
+                break;
+
+            case "createdTime":
+                returnObj["createdStartDatetime"] = new Date(
+                    (elem.value as any).value[0]
+                );
+                returnObj["createdEndDatetime"] = new Date(
+                    (elem.value as any).value[1]
+                );
+                break;
+
+            case "spottedDate":
+                returnObj["spottedStartDate"] = new Date(
+                    (elem.value as any).value[0]
+                )
+                    .toISOString()
+                    .slice(0, 10);
+                returnObj["spottedEndDate"] = new Date(
+                    (elem.value as any).value[1]
+                )
+                    .toISOString()
+                    .slice(0, 10);
+                break;
+            }
+        });
+
+        return returnObj;
+    }
+
 }

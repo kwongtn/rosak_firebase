@@ -20,10 +20,14 @@ export class GetSpottingHistoryService extends Query<GetVehiclesLastSpottingResp
                 pagination: $eventPagination
                 order: $eventOrder
             ) {
+                id
                 spottingDate
                 status
                 type
                 notes
+                runNumber
+                mediaCount
+                isMine
                 location {
                     accuracy
                     altitudeAccuracy
@@ -31,6 +35,14 @@ export class GetSpottingHistoryService extends Query<GetVehiclesLastSpottingResp
                     speed
                     location
                     altitude
+                }
+                originStation {
+                    id
+                    displayName
+                }
+                destinationStation {
+                    id
+                    displayName
                 }
             }
         }

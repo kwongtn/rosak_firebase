@@ -28,7 +28,7 @@ export function abnormalStatusSanityTestValidator(
     const errors: any = {};
 
     if (
-        ["DECOMMISSIONED", "MARRIED", "UNKNOWN"].includes(
+        ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
             abstractControl.get("vehicle")?.value.status ?? ""
         ) &&
         !abstractControl.get("sanityTest")?.value
@@ -61,7 +61,11 @@ export function atStationTypeStationValidator(
     }
 }
 
-export function numberSeenToSetNumber(input: string, line: string) {
+export function allowRunNumber(value: string): boolean {
+    return ["2", "3"].includes(value);
+}
+
+export function numberSeenToSetNumber(input: string | undefined, line: string) {
     const props: {
         [key: string]: {
             triggerLength: number;
@@ -107,26 +111,11 @@ export function numberSeenToSetNumber(input: string, line: string) {
             endConcat: 3,
         },
     };
+    if (!input) {
+        return undefined;
+    }
 
-    if (["KTMK-PKL", "KTMK-SRL"].includes(line)) {
-        // We can confirm that set number here starts with C, T or M
-        if (
-            !(
-                input.length === 5 &&
-                ["C", "T", "M"].includes(input[0].toUpperCase())
-            )
-        ) {
-            return undefined;
-        }
-
-        let num = Number(input.substring(2, 4));
-        if (num % 2 !== 0) {
-            // Odd number
-            num += 1;
-        }
-
-        return "SCS" + num.toString();
-    } else if (Object.keys(props).includes(line)) {
+    if (Object.keys(props).includes(line)) {
         const prop = props[line];
 
         if (input.length !== prop.triggerLength) {
@@ -134,7 +123,60 @@ export function numberSeenToSetNumber(input: string, line: string) {
         }
 
         return input.substring(prop.startConcat, prop.endConcat);
-    } else {
-        return undefined;
+    } else if (["6", "7", "13", "14", "10", "20"].includes(line)) {
+        /**
+         * KTM - Port Klang, Seremban, Padang Besar, Padang Rengas, ETS, DMU
+         * Covers class 61, 81, 83, 91, 92, 93
+         *
+         * Shout out to Malaysia Trains & Rail Enthusiasts (MTREC) on infographic
+         * to expedite coding process: https://www.instagram.com/p/CstppYzJ7rb/
+         */
+        const coachClass = input[0].toUpperCase();
+        if (input.length === 5 && ["C", "T", "M", "D"].includes(coachClass)) {
+            const classNum = Number(input.substring(1, 3));
+            let coachNum = Number(input.substring(input.length - 2));
+
+            if (classNum === 92) {
+                return (
+                    "SCS" +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            } else if (classNum === 81) {
+                if (coachClass === "C") {
+                    coachNum = Math.ceil(coachNum / 2);
+                }
+                return "EMU" + coachNum.toString().padStart(2, "0");
+            } else if (classNum === 83) {
+                if (coachClass === "C") {
+                    coachNum = Math.ceil(coachNum / 2);
+                }
+                return "EMU" + (coachNum + 18).toString().padStart(2, "0");
+            } else if (classNum === 91) {
+                return (
+                    "ETS 1" +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            } else if (classNum === 93) {
+                return (
+                    "ETS 2" +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            } else if (classNum === 61) {
+                return (
+                    "DMU " +
+                    Math.ceil(coachNum / 2)
+                        .toString()
+                        .padStart(2, "0")
+                );
+            }
+        }
     }
+
+    return undefined;
 }

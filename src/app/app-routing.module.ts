@@ -11,13 +11,13 @@ import { AboutComponent } from "./about/about.component";
 import {
     MainComponent as ComplianceMainComponent,
 } from "./compliance/main/main.component";
-import { ConsoleMainComponent } from "./console/main/main.component";
+import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { FallbackComponent } from "./fallback/fallback.component";
-import { ProfileMainComponent } from "./profile/main/main.component";
-import {
-    SpottingMainComponent,
-} from "./spotting/spotting-main/spotting-main.component";
+import { GalleryComponent } from "./gallery/gallery.component";
+import { InsidenMainComponent } from "./insiden/insiden.component";
+import { ProfileMainComponent } from "./profile/profile.component";
+import { SpottingMainComponent } from "./spotting/spotting-main.component";
 
 interface MaintenanceElement {
     curentlyInMaintenance: boolean;
@@ -26,10 +26,26 @@ interface MaintenanceElement {
 
 interface MaintananceDocument {
     spotting: MaintenanceElement;
+    insiden: MaintenanceElement;
+    profile: MaintenanceElement;
+    console: MaintenanceElement;
+    gallery: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
     spotting: {
+        curentlyInMaintenance: false,
+    },
+    insiden: {
+        curentlyInMaintenance: false,
+    },
+    profile: {
+        curentlyInMaintenance: false,
+    },
+    console: {
+        curentlyInMaintenance: false,
+    },
+    gallery: {
         curentlyInMaintenance: false,
     },
 };
@@ -43,6 +59,42 @@ function adminOnly(): AuthPipe {
 }
 
 const routes: Routes = [
+    {
+        path: "insiden",
+        title: "MLPTF | Insiden",
+        loadChildren: async () => {
+            if (maintenance.insiden.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./insiden/insiden.module");
+                return module.InsidenModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : InsidenMainComponent,
+    },
+    {
+        path: "gallery",
+        title: "MLPTF | Gallery",
+        loadChildren: async () => {
+            if (maintenance.gallery.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./gallery/gallery.module");
+                return module.GalleryModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : GalleryComponent,
+    },
     {
         path: "spotting",
         title: "MLPTF | TranSPOT",
@@ -98,17 +150,39 @@ const routes: Routes = [
     {
         path: "console",
         title: "MLPTF | Console",
-        loadChildren: () =>
-            import("./console/console.module").then((m) => m.ConsoleModule),
-        component: ConsoleMainComponent,
+        loadChildren: async () => {
+            if (maintenance.console.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./console/console.module");
+                return module.ConsoleModule;
+            }
+        },
+        component: maintenance.console.curentlyInMaintenance
+            ? ConstructionComponent
+            : ConsoleMainComponent,
         ...canActivate(adminOnly),
     },
     {
         path: "profile",
         title: "MLPTF | Profile",
-        loadChildren: () =>
-            import("./profile/profile.module").then((m) => m.ProfileModule),
-        component: ProfileMainComponent,
+        loadChildren: async () => {
+            if (maintenance.console.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./profile/profile.module");
+                return module.ProfileModule;
+            }
+        },
+        component: maintenance.profile.curentlyInMaintenance
+            ? ConstructionComponent
+            : ProfileMainComponent,
         ...canActivate(redirectUnauthorizedToSpotting),
     },
     {
@@ -131,7 +205,11 @@ const routes: Routes = [
 ];
 
 @NgModule({
-    imports: [RouterModule.forRoot(routes)],
+    imports: [
+        RouterModule.forRoot(routes, {
+            scrollPositionRestoration: "enabled",
+        }),
+    ],
     exports: [RouterModule],
 })
 export class AppRoutingModule {}
