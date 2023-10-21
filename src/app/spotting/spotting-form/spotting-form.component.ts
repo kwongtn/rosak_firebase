@@ -2,12 +2,16 @@ import { Apollo, gql, MutationResult } from "apollo-angular";
 import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
-import { ReCaptchaV3Service } from "ng-recaptcha";
+// import { ReCaptchaV3Service } from "ng-recaptcha";
+import { NzDrawerRef } from "ng-zorro-antd/drawer";
 import { lastValueFrom, Observable, of, Subscription } from "rxjs";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { AuthService } from "src/app/services/auth/auth.service";
+import {
+    SessionHistoryService,
+} from "src/app/services/session-history/session-history.service";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -61,6 +65,11 @@ interface VehicleFormInputType extends FormInputType {
     name: string;
     value: string;
     status: VehicleStatus;
+}
+
+export interface SpottingFormReturnType {
+    uploads: ImageFile[];
+    spottingSubmission: Promise<MutationResult<any> | undefined>;
 }
 
 @Component({
@@ -206,13 +215,17 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private getLinesVehiclesGql: GetLinesAndVehiclesGqlService,
         private getStationLinesGql: GetStationLinesGqlService,
         public authService: AuthService,
-        private recaptchaV3Service: ReCaptchaV3Service,
-        private spottingStorageService: SpottingStorageService,
-        private toastService: ToastService
+        // private recaptchaV3Service: ReCaptchaV3Service,
+        private toastService: ToastService,
+        private drawerRef: NzDrawerRef<SpottingFormReturnType>,
+        public sessionHistoryService: SessionHistoryService,
+        private spottingStorageService: SpottingStorageService
     ) {
         const line = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
         const atStationStation = spottingStorageService.getAtStationStation();
+
+        console.log(this.sessionHistoryService.historyStore.value);
 
         this.formGroup = this.fb.group(
             {
@@ -342,8 +355,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         this.spottingStorageService.getAtStationStation();
                     if (
                         atStationStation &&
-                        this.spottingStorageService.getLine().value ==
-                        this.formGroup.value.line.value
+                        this.spottingStorageService.getLine()?.value ==
+                            this.formGroup.value.line.value
                     ) {
                         this.formGroup.patchValue({
                             atStation: atStationStation,
@@ -423,15 +436,25 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     onSubmit():
         | Promise<{
-            spottingSubmission: Promise<MutationResult<any> | undefined>;
-            uploads: ImageFile[];
-        }>
+              spottingSubmission: Promise<MutationResult<any> | undefined>;
+              uploads: ImageFile[];
+              formData: any;
+          }>
         | undefined {
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
+
+            return undefined;
+        }
+        if (!this.authService.isLoggedIn()) {
+            this.toastService.addToast(
+                "Error",
+                "Please log in or wait for authentication to complete before proceeding.",
+                "error"
+            );
 
             return undefined;
         }
@@ -478,7 +501,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         const spottingDate: Date = formValues["spottingDate"];
         formValues["spottingDate"] = new Date(
             spottingDate.getTime() -
-            spottingDate.getTimezoneOffset() * 60 * 1000
+                spottingDate.getTimezoneOffset() * 60 * 1000
         )
             .toISOString()
             .slice(0, 10);
@@ -508,29 +531,32 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return Promise.all([
             // firstValueFrom(this.recaptchaV3Service.execute("spottingEntry")),
             this.authService.getIdToken(),
-        ]).then(([
-            // captchaResponse, 
-            firebaseAuthKey,
-        ]) => {
-            const mutationObservable = this.apollo.mutate({
-                mutation: ADD_ENTRY,
-                variables: {
-                    data: formValues,
-                },
-                context: {
-                    headers: {
-                        // "g-recaptcha-response": captchaResponse,
-                        "firebase-auth-key": firebaseAuthKey,
+        ]).then(
+            ([
+                // captchaResponse,
+                firebaseAuthKey,
+            ]) => {
+                const mutationObservable = this.apollo.mutate({
+                    mutation: ADD_ENTRY,
+                    variables: {
+                        data: formValues,
                     },
-                },
-            });
+                    context: {
+                        headers: {
+                            // "g-recaptcha-response": captchaResponse,
+                            "firebase-auth-key": firebaseAuthKey,
+                        },
+                    },
+                });
 
-            this.submitting = lastValueFrom(mutationObservable);
+                this.submitting = lastValueFrom(mutationObservable);
 
-            return {
-                uploads,
-                spottingSubmission: this.submitting,
-            };
-        });
+                return {
+                    uploads,
+                    spottingSubmission: this.submitting,
+                    formData: { ...this.formGroup.value },
+                };
+            }
+        );
     }
 }

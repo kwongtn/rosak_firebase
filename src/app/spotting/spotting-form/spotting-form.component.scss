@@ -1,9 +1,17 @@
 @import "ng-devui/styles-var/devui-var.scss";
 
 .form-component {
-    width: 80vw;
-    margin-left: 40px;
-    margin-right: 40px;
+    @media (min-width: 700px) {
+        width: 630px;
+        margin-left: 15px;
+        margin-right: 15px;
+    }
+
+    @media (max-width: 700px) {
+        width: 90vw;
+        margin-left: -7px;
+        // margin-right: 10px;
+    }
 }
 
 .devui-input-group-addon {
