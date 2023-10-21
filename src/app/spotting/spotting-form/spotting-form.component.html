@@ -26,7 +26,7 @@
                 </d-alert>
             </div>
 
-            <div nz-col nzXs="24" nzLg="12">
+            <div nz-col nzXs="24">
                 <d-form-item>
                     <d-form-label class="required">Line*</d-form-label>
                     <d-form-control [feedbackStatus]="getStatus('line')">
@@ -347,7 +347,7 @@
                 </d-form-item>
             </div>
 
-            <div nz-col nzXs="24" nzLg="12">
+            <div nz-col nzXs="24">
                 <div class="sub-header">Image Uploads</div>
                 <spotting-form-upload
                     (newImageEvent)="onNewImage($event)"
@@ -355,4 +355,20 @@
             </div>
         </div>
     </form>
+</div>
+<div
+    class="form-component"
+    *ngIf="
+        (authService.userData | async) &&
+        (sessionHistoryService.historyStoreLength | async)
+    "
+>
+    <div nz-row [nzGutter]="[16, 16]">
+        <div nz-col nzXs="24">
+            <div class="sub-header">
+                As of Current Session, you added the following entries
+            </div>
+            <ui-action-list [filter]="['spotting']"></ui-action-list>
+        </div>
+    </div>
 </div>

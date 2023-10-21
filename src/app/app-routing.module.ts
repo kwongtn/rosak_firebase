@@ -18,9 +18,7 @@ import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/profile.component";
 import { SituasiComponent } from "./situasi/situasi.component";
-import {
-    SpottingMainComponent,
-} from "./spotting/spotting-main/spotting-main.component";
+import { SpottingMainComponent } from "./spotting/spotting-main.component";
 
 interface MaintenanceElement {
     curentlyInMaintenance: boolean;

@@ -1,41 +1,47 @@
 import { Injectable } from "@angular/core";
 
+interface TGenericSeachField {
+    name: string;
+    value: string;
+    disabled?: boolean;
+}
+
 @Injectable({
-    providedIn: "any",
+    providedIn: "root",
 })
 export class SpottingStorageService {
-    lineObj: any | undefined;
-    typeObj: any = {
+    lineObj: TGenericSeachField | undefined;
+    typeObj: TGenericSeachField = {
         name: "Just Spotting",
         value: "JUST_SPOTTING",
     };
-    atStationStationObj: any | undefined;
+    atStationStationObj: TGenericSeachField | undefined;
 
     constructor() {
         return;
     }
 
-    setLine(lineObj: any) {
+    setLine(lineObj: TGenericSeachField) {
         this.lineObj = lineObj;
     }
 
-    getLine(): any | undefined {
+    getLine(): TGenericSeachField | undefined {
         return this.lineObj;
     }
 
-    setType(typeObj: any) {
+    setType(typeObj: TGenericSeachField) {
         this.typeObj = typeObj;
     }
 
-    getType(): any {
+    getType(): TGenericSeachField {
         return this.typeObj;
     }
 
-    setAtStationStation(atStationStationObj: any) {
+    setAtStationStation(atStationStationObj: TGenericSeachField) {
         this.atStationStationObj = atStationStationObj;
     }
 
-    getAtStationStation(): any {
+    getAtStationStation(): TGenericSeachField | undefined {
         return this.atStationStationObj;
     }
 }
