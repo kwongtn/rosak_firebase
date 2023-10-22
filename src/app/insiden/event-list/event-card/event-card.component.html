@@ -160,3 +160,12 @@
         {{ displayData.title }}
     </ng-template>
 </nz-ribbon>
+
+<ng-template #drawerFooter>
+    <div style="float: right">
+        <button nz-button style="margin-right: 8px" (click)="close()">
+            Cancel
+        </button>
+        <button nz-button nzType="primary" (click)="submit()">Submit</button>
+    </div>
+</ng-template>

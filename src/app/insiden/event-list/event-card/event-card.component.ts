@@ -165,6 +165,7 @@ export class EventCardComponent implements OnInit, OnDestroy {
         >({
             nzTitle: `🖼️ - ${this.displayData.title}`,
             // nzExtra: 'Extra',
+            nzFooter: this.drawerFooter,
             nzWidth: this.width,
             nzContent: ImageDrawerComponent,
             nzContentParams: {
@@ -182,13 +183,13 @@ export class EventCardComponent implements OnInit, OnDestroy {
             this.drawerRef?.getContentComponent()?.pendingUploads ?? [];
 
         if (pendingUploads.length > 0) {
-            // pendingUploads.forEach((file: ImageFile) => {
-            //     this.imageUploadService.addToQueue(
-            //         this.eventId,
-            //         file,
-            //         "INCIDENT_CALENDAR_INCIDENT"
-            //     );
-            // });
+            pendingUploads.forEach((file: ImageFile) => {
+                this.imageUploadService.addToQueue(
+                    this.drawerRef?.getContentComponent()?.incidentId as string,
+                    file,
+                    "INCIDENT_CALENDAR_INCIDENT"
+                );
+            });
             this.toastService.addMessage(
                 "Image upload queued. Please wait for uploads to complete before closing this tab.",
                 "info"

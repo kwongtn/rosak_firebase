@@ -1,5 +1,6 @@
 // import { InViewportModule } from "ng-in-viewport";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCalendarModule } from "ng-zorro-antd/calendar";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
@@ -19,6 +20,9 @@ import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import { ImageGridModule } from "../@ui/image-grid/image-grid.module";
+import {
+    FormUploadModule,
+} from "../@ui/spotting/form-upload/form-upload.module";
 import {
     CalendarIncidentSeverityModule,
 } from "../pipes/calendar-incident-severity/calendar-incident-severity.module";
@@ -52,6 +56,7 @@ import { InsidenMainComponent } from "./insiden.component";
 
         // ng-zorro
         NzBadgeModule,
+        NzButtonModule,
         NzCalendarModule,
         NzCardModule,
         NzCollapseModule,
@@ -67,6 +72,7 @@ import { InsidenMainComponent } from "./insiden.component";
 
         // Self-imports
         CalendarIncidentSeverityModule,
+        FormUploadModule,
         ImageGridModule,
     ],
     providers: [],
