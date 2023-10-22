@@ -163,7 +163,7 @@ export class EventCardComponent implements OnInit, OnDestroy {
             { value: string },
             string
         >({
-            nzTitle: "Image Preview",
+            nzTitle: `🖼️ - ${this.displayData.title}`,
             // nzExtra: 'Extra',
             nzWidth: this.width,
             nzContent: ImageDrawerComponent,
