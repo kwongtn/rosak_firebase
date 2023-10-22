@@ -12,8 +12,10 @@ import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzImageModule } from "ng-zorro-antd/image";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
@@ -128,6 +130,10 @@ import {
         NzGridModule,
         NzIconModule,
         NzListModule,
+        NzEmptyModule,
+        NzGridModule,
+        NzIconModule,
+        NzImageModule,
         NzPopconfirmModule,
         NzProgressModule,
         NzSpinModule,
