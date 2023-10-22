@@ -1,3 +1,4 @@
+// import { InViewportModule } from "ng-in-viewport";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
 import { NzCalendarModule } from "ng-zorro-antd/calendar";
 import { NzCardModule } from "ng-zorro-antd/card";
@@ -17,6 +18,7 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
+import { ImageGridModule } from "../@ui/image-grid/image-grid.module";
 import {
     CalendarIncidentSeverityModule,
 } from "../pipes/calendar-incident-severity/calendar-incident-severity.module";
@@ -46,6 +48,7 @@ import { InsidenMainComponent } from "./insiden.component";
         CommonModule,
         FormsModule,
         MarkdownModule.forChild(),
+        // InViewportModule,
 
         // ng-zorro
         NzBadgeModule,
@@ -64,6 +67,7 @@ import { InsidenMainComponent } from "./insiden.component";
 
         // Self-imports
         CalendarIncidentSeverityModule,
+        ImageGridModule,
     ],
     providers: [],
 })

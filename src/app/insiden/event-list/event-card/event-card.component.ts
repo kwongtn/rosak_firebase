@@ -1,12 +1,29 @@
+import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import { NzModalService } from "ng-zorro-antd/modal";
+import {
+    ImageFile,
+} from "src/app/@ui/spotting/form-upload/form-upload.component";
+import {
+    ImageUploadService,
+} from "src/app/services/spotting/image-upload.service";
+import { ToastService } from "src/app/services/toast/toast.service";
 
-import { Component, Input, OnDestroy, OnInit } from "@angular/core";
+import {
+    Component,
+    HostListener,
+    Input,
+    OnDestroy,
+    OnInit,
+    TemplateRef,
+    ViewChild,
+} from "@angular/core";
 
 import {
     EventDetailsModalComponent,
 } from "../event-details-modal/event-details-modal.component";
 import { CalendarIncidentListItem } from "../event-list.component";
 import { getReadableTimeDifference } from "../event-list.component.util";
+import { ImageDrawerComponent } from "./image-drawer/image-drawer.component";
 
 @Component({
     selector: "insiden-event-card",
@@ -20,7 +37,14 @@ export class EventCardComponent implements OnInit, OnDestroy {
     timer: NodeJS.Timeout | undefined = undefined;
     elapsedTime: string = "";
 
-    constructor(private modalService: NzModalService) {}
+    constructor(
+        private modalService: NzModalService,
+        private drawerService: NzDrawerService,
+        private imageUploadService: ImageUploadService,
+        private toastService: ToastService
+    ) {
+        this.resize();
+    }
 
     ngOnInit(): void {
         this.displayData = JSON.parse(JSON.stringify(this.data));
@@ -107,5 +131,69 @@ export class EventCardComponent implements OnInit, OnDestroy {
             nzWidth: "80vw",
             nzData: this.displayData,
         });
+    }
+
+    @ViewChild("drawerFooter") drawerFooter!: TemplateRef<any>;
+
+    /**
+     * 280px - 1 img
+     * 480px - 2 imgs
+     * 700px - 3 imgs
+     * 905px - 4 imgs
+     */
+    width: string = "700px";
+    drawerRef!: NzDrawerRef<ImageDrawerComponent, string>;
+
+    @HostListener("window:resize")
+    resize(): void {
+        const clientWidth = document.body.clientWidth;
+        this.width =
+            clientWidth < 500
+                ? "280px"
+                : clientWidth < 1024
+                    ? "480px"
+                    : clientWidth < 1300
+                        ? "700px"
+                        : "905px";
+    }
+
+    onImagePanelClick($event: MouseEvent): void {
+        this.drawerRef = this.drawerService.create<
+            ImageDrawerComponent,
+            { value: string },
+            string
+        >({
+            nzTitle: "Image Preview",
+            // nzExtra: 'Extra',
+            nzWidth: this.width,
+            nzContent: ImageDrawerComponent,
+            nzContentParams: {
+                incidentId: this.data.id,
+            },
+        });
+    }
+
+    close() {
+        this.drawerRef?.close();
+    }
+
+    submit() {
+        const pendingUploads: ImageFile[] =
+            this.drawerRef?.getContentComponent()?.pendingUploads ?? [];
+
+        if (pendingUploads.length > 0) {
+            // pendingUploads.forEach((file: ImageFile) => {
+            //     this.imageUploadService.addToQueue(
+            //         this.eventId,
+            //         file,
+            //         "INCIDENT_CALENDAR_INCIDENT"
+            //     );
+            // });
+            this.toastService.addMessage(
+                "Image upload queued. Please wait for uploads to complete before closing this tab.",
+                "info"
+            );
+        }
+        this.drawerRef?.close();
     }
 }
