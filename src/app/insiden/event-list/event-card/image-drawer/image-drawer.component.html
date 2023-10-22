@@ -19,5 +19,13 @@
     ></image-grid>
 </div> -->
 <div *ngIf="!loading">
-    <image-grid [images]="imageUrls"></image-grid>
+    <image-grid
+        *ngIf="imageUrls.length !== 0"
+        [images]="imageUrls"
+    ></image-grid>
+
+    <nz-empty
+        *ngIf="imageUrls.length === 0"
+        nzNotFoundContent="No images. Add some?"
+    ></nz-empty>
 </div>
