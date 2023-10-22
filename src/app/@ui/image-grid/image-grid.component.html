@@ -12,8 +12,8 @@
         (inViewportAction)="onIntersection($event)"
         *ngFor="let img of images; let i = index"
         [ngStyle]="{
-            width: (img.width*ratioBaseline/img.height) + 'px',
-            'flex-grow': img.width*ratioBaseline/img.height,
+            width: (img.width * ratioBaseline) / img.height + 'px',
+            'flex-grow': (img.width * ratioBaseline) / img.height
         }"
         class="child-container"
         [id]="i"
@@ -27,7 +27,7 @@
         ></div>
         <img
             class="content"
-            *ngIf="displayImage[i]"
+            *ngIf="displayImage[i] ?? true"
             [src]="img.thumbnailUrl"
             alt=""
             [attr.data-index]="i"
