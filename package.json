@@ -29,6 +29,7 @@
         "@angular/platform-browser": "^16.2.8",
         "@angular/platform-browser-dynamic": "^16.2.8",
         "@angular/router": "^16.2.8",
+        "@antv/g2": "^5.1.6",
         "@antv/g2plot": "^2.4.23",
         "@antv/scale": "^0.3.11",
         "@apollo/client": "^3.8.4",
