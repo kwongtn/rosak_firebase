@@ -4377,8 +4377,8 @@ a.ant-btn-sm {
     margin: 0;
     padding: 0;
     list-style: none;
-    background: #fff;
-    border-top: 1px solid #f0f0f0;
+    background: $devui-base-bg;
+    border-top: 1px solid $devui-form-control-line;
 }
 .ant-card-actions::before {
     display: table;
@@ -4423,7 +4423,7 @@ a.ant-btn-sm {
 .ant-card-actions > li > span > .anticon {
     display: inline-block;
     width: 100%;
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-icon-fill;
     line-height: 22px;
     transition: color 0.3s;
 }
