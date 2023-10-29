@@ -1,29 +1,25 @@
 import { NzImageService } from "ng-zorro-antd/image";
 import { Subscription } from "rxjs";
+import { InputImage } from "src/app/@ui/image-grid/image-grid.component";
 import {
     ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { getThumbnail } from "src/app/@util/imgur";
+import {
+    GetCalIncidentMediasService,
+} from "src/app/insiden/services/get-cal-incident-medias.service";
 
-import { Component, Input, OnDestroy, OnInit } from "@angular/core";
-
-import { GetMediasService } from "./services/get-medias.service";
-
-interface ImageUrls {
-    fullSize: string;
-    preview: string;
-}
+import { Component, Input } from "@angular/core";
 
 @Component({
-    selector: "ui-spotting-image-list",
-    templateUrl: "./spotting-image-list.component.html",
-    styleUrls: ["./spotting-image-list.component.scss"],
+    selector: "insiden-event-image-drawer",
+    templateUrl: "./image-drawer.component.html",
+    styleUrls: ["./image-drawer.component.scss"],
 })
-export class SpottingImageListComponent implements OnInit, OnDestroy {
-    @Input() eventId!: string;
-    @Input() isMine: boolean = false;
+export class ImageDrawerComponent {
+    @Input() incidentId!: string;
 
-    imageUrls: ImageUrls[] = [];
+    imageUrls: InputImage[] = [];
 
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
@@ -31,7 +27,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     pendingUploads: ImageFile[] = [];
 
     constructor(
-        public getMediaService: GetMediasService,
+        public getMediaService: GetCalIncidentMediasService,
         private nzImageService: NzImageService
     ) {
         return;
@@ -41,22 +37,25 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
         this.subscription = this.getMediaService
             .fetch({
                 filters: {
-                    id: this.eventId,
+                    id: this.incidentId,
                 },
             })
             .subscribe(({ data, loading }) => {
                 console.log("Received data");
                 console.log(data);
-                this.imageUrls = data.events[0].medias.map((media) => {
-                    return {
-                        fullSize: media.file.url,
-                        preview: getThumbnail(media.file.url, "m"),
-                    };
-                });
+                this.imageUrls = data.calendarIncidents[0].medias.map(
+                    (media) => {
+                        return {
+                            url: media.file.url,
+                            thumbnailUrl: getThumbnail(media.file.url, "m"),
+                            width: media.width,
+                            height: media.height,
+                            display: true,
+                        };
+                    }
+                );
 
-                if (this.imageUrls.length === 0) {
-                    this.loading = loading;
-                }
+                this.loading = loading;
             });
     }
 
@@ -68,7 +67,7 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
         this.nzImageService
             .preview(
                 this.imageUrls.map((val) => {
-                    return { src: val.fullSize };
+                    return { src: val.url };
                 })
             )
             .switchTo(index);

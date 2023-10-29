@@ -9,7 +9,14 @@ import { ImageGridComponent } from "./image-grid.component";
 
 @NgModule({
     declarations: [ImageGridComponent],
-    imports: [CommonModule, NzImageModule, InViewportModule, NzSpinModule],
+    imports: [
+        CommonModule,
+        InViewportModule,
+
+        // ng-zorro
+        NzImageModule,
+        NzSpinModule,
+    ],
     exports: [ImageGridComponent],
 })
 export class ImageGridModule {}
