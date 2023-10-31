@@ -9,11 +9,18 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
 import { ContentComponent } from "./content/content.component";
+import {
+    SpottingHistoryComponent,
+} from "./content/vehicle/spotting-history/spotting-history.component";
 import { SituasiRoutingModule } from "./situasi-routing.module";
 import { SituasiComponent } from "./situasi.component";
 
 @NgModule({
-    declarations: [SituasiComponent, ContentComponent],
+    declarations: [
+        SituasiComponent,
+        ContentComponent,
+        SpottingHistoryComponent,
+    ],
     imports: [
         CommonModule,
 

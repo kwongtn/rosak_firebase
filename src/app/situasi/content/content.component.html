@@ -7,6 +7,9 @@
         </nz-breadcrumb-item>
     </nz-breadcrumb>
     <nz-page-header-content>
-        <div>This is content</div>
+        <situasi-content-vehicle-spotting-history
+            *ngIf="lineId && assetType === 'vehicle' && !assetId"
+        >
+        </situasi-content-vehicle-spotting-history>
     </nz-page-header-content>
 </nz-page-header>
