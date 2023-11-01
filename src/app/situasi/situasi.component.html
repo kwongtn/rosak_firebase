@@ -152,7 +152,23 @@
         <!-- <nz-header></nz-header> -->
         <nz-content>
             <div class="inner-content">
-                <router-outlet></router-outlet>
+                <nz-page-header [nzTitle]="titleString">
+                    <nz-breadcrumb nz-page-header-breadcrumb>
+                        <nz-breadcrumb-item
+                            *ngFor="let item of breadcrumbsData"
+                        >
+                            <a
+                                [routerLink]="
+                                    ['/', 'situasi'].concat(item.href)
+                                "
+                                >{{ item.displayText }}</a
+                            >
+                        </nz-breadcrumb-item>
+                    </nz-breadcrumb>
+                    <nz-page-header-content>
+                        <router-outlet></router-outlet>
+                    </nz-page-header-content>
+                </nz-page-header>
             </div>
         </nz-content>
         <nz-footer>

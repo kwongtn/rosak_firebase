@@ -1,15 +1,5 @@
-<nz-page-header [nzTitle]="titleString">
-    <nz-breadcrumb nz-page-header-breadcrumb>
-        <nz-breadcrumb-item *ngFor="let item of breadcrumbsData">
-            <a [routerLink]="['/', 'situasi'].concat(item.href)">{{
-                item.displayText
-            }}</a>
-        </nz-breadcrumb-item>
-    </nz-breadcrumb>
-    <nz-page-header-content>
-        <situasi-content-vehicle-spotting-history
-            *ngIf="lineId && assetType === 'vehicle' && !assetId"
-        >
-        </situasi-content-vehicle-spotting-history>
-    </nz-page-header-content>
-</nz-page-header>
+<!-- <situasi-content-vehicle-spotting-history
+    *ngIf="lineId && assetType === 'vehicle' && !assetId"
+>
+</situasi-content-vehicle-spotting-history> -->
+<div>situasi-content-vehicle-spotting-history</div>
