@@ -321,6 +321,19 @@
                 </div>
 
                 <hr />
+                <d-form-item>
+                    <d-form-label>Wheel Status</d-form-label>
+                    <d-form-control [feedbackStatus]="getStatus('wheelStatus')">
+                        <d-select
+                            [options]="wheelStatusOptions"
+                            [filterKey]="'name'"
+                            [placeholder]="'Wheel Status'"
+                            formControlName="wheelStatus"
+                            [width]="300"
+                            [allowClear]="true"
+                        ></d-select>
+                    </d-form-control>
+                </d-form-item>
 
                 <d-form-item>
                     <d-form-label>Notes</d-form-label>
