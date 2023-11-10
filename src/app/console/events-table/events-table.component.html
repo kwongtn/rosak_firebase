@@ -89,7 +89,14 @@
                                     [vehicleStatus]="rowItem[colOption.field]"
                                 ></vehicle-status-tag>
                                 <div *ngIf="rowItem['runNumber']">
-                                    Run No. : {{ rowItem["runNumber"] }}
+                                    🏃: {{ rowItem["runNumber"] }}
+                                </div>
+                                <div *ngIf="rowItem['wheelStatus']">
+                                    🛞:
+                                    {{
+                                        rowItem["wheelStatus"].replace("_", " ")
+                                            | titlecase
+                                    }}
                                 </div>
                             </span>
                             <span *ngSwitchCase="'id'">
@@ -146,12 +153,11 @@
                             </span>
                             <span *ngSwitchCase="'datetime'">
                                 {{
-                                    rowItem[colOption.field]
-                                        | date : "MMM dd, y"
+                                    rowItem[colOption.field] | date: "MMM dd, y"
                                 }}
                                 <br />
                                 {{
-                                    rowItem[colOption.field] | date : "HH:mm:ss"
+                                    rowItem[colOption.field] | date: "HH:mm:ss"
                                 }}
                             </span>
                             <span *ngSwitchCase="'vehicle'">
