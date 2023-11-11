@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from "@angular/core";
+import { Component, HostListener, Input, OnInit } from "@angular/core";
 import { Chart } from "@antv/g2";
 
 @Component({
@@ -7,6 +7,8 @@ import { Chart } from "@antv/g2";
     styleUrls: ["./spotting-line-calendar-heatmap.component.scss"],
 })
 export class SpottingLineCalendarHeatmapComponent implements OnInit {
+    @Input() lineId!: string;
+
     chart: Chart | undefined = undefined;
     chartData: any[] = [];
 
