@@ -118,7 +118,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         },
     ];
 
-    
     wheelStatusOptions = [
         { name: "Fresh", value: "FRESH" },
         { name: "Near Perfect", value: "NEAR_PERFECT" },
@@ -244,7 +243,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 type: new UntypedFormControl(type, [Validators.required]),
                 atStation: new UntypedFormControl(atStationStation, []),
                 originStation: new UntypedFormControl("", []),
-                wheelStatus: new UntypedFormControl("", []),
+                wheelStatus: new UntypedFormControl(undefined, []),
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
                 runNumber: new UntypedFormControl(undefined, []),
@@ -509,8 +508,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         formValues["vehicle"] = formValues["vehicle"].value;
         formValues["status"] = formValues["status"].value;
-        formValues["wheelStatus"] = formValues["wheelStatus"].value;
-
+        if (formValues["wheelStatus"]) {
+            formValues["wheelStatus"] = formValues["wheelStatus"].value;
+        }
         this.spottingStorageService.setType(formValues["type"]);
         formValues["type"] = formValues["type"].value;
 
