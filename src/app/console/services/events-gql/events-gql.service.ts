@@ -29,6 +29,7 @@ export interface ConsoleEventsGqlResponseElement {
     runNumber: string | null;
     mediaCount: number;
     isMine: boolean;
+    wheelStatus: string | null;
     vehicle: {
         id: string;
         status: VehicleStatus;
@@ -100,6 +101,7 @@ export class ConsoleEventsGqlService extends Query<ConsoleEventsGqlResponse> {
                 runNumber
                 mediaCount
                 isMine
+                wheelStatus
                 location {
                     accuracy
                     altitudeAccuracy
