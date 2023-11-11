@@ -2,11 +2,11 @@ import { Component, HostListener, OnInit } from "@angular/core";
 import { Chart } from "@antv/g2";
 
 @Component({
-    selector: "situasi-content-vehicle-spotting-history",
-    templateUrl: "./spotting-history.component.html",
-    styleUrls: ["./spotting-history.component.scss"],
+    selector: "spotting-line-calendar-heatmap",
+    templateUrl: "./spotting-line-calendar-heatmap.component.html",
+    styleUrls: ["./spotting-line-calendar-heatmap.component.scss"],
 })
-export class SpottingHistoryComponent implements OnInit {
+export class SpottingLineCalendarHeatmapComponent implements OnInit {
     chart: Chart | undefined = undefined;
     chartData: any[] = [];
 
