@@ -10,8 +10,12 @@ import {
 } from "@angular/router";
 
 import { ThemeService } from "../services/theme/theme.service";
-import { BreadcrumbsData } from "./content/content.component";
 import { data } from "./data";
+
+export interface BreadcrumbsData {
+    displayText: string;
+    href: string[];
+}
 
 @Component({
     selector: "app-situasi",
