@@ -1,5 +1,13 @@
+import { QueryRef } from "apollo-angular";
+import { Subscription } from "rxjs";
+import { environment } from "src/environments/environment";
+
 import { Component, HostListener, Input, OnInit } from "@angular/core";
 import { Chart } from "@antv/g2";
+
+import {
+    GetSpottingLineCalendarHeatmapResponse,
+} from "./services/get-data-gql/get-data-gql.service";
 
 @Component({
     selector: "spotting-line-calendar-heatmap",
@@ -10,7 +18,9 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
     @Input() lineId!: string;
 
     chart: Chart | undefined = undefined;
-    chartData: any[] = [];
+
+    gqlSubscription!: Subscription;
+    watchQueryOption!: QueryRef<GetSpottingLineCalendarHeatmapResponse>;
 
     getNewChartWidthHeight(): [number, number] {
         return [window.innerWidth - 300, window.innerHeight - 200];
@@ -23,24 +33,31 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
         this.chart?.render();
     }
 
+    constructor() {
+        return;
+    }
+
     ngOnInit(): void {
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 12);
+        startDate.setDate(1);
+        const startDateString = startDate.toISOString().split("T")[0];
+
+        const endDateString = new Date().toISOString().split("T")[0];
+
         const [width, height] = this.getNewChartWidthHeight();
+
         this.chart = new Chart({
+            scrollbar: true,
             container: "container",
             type: "view",
             data: {
-                type: "inline",
-                value: this.chartData.map((val) => {
-                    return {
-                        ...val,
-                        vehicle: val.vehicle.id,
-                    };
-                }),
+                type: "fetch",
+                value: `${environment.backendUrl}operation/line_vehicles_spotting_trend/${this.lineId}/${startDateString}/${endDateString}/`,
+                format: "json",
             },
-            autoFit: true,
-            width,
-            height,
-
+            width: 1600,
+            height: 2000,
             scale: {
                 color: {
                     palette: "puRd",
@@ -51,13 +68,24 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
                 },
             },
             axis: {
-                y: { labelAutoRotate: false },
-                x: { tickFilter: (d: number) => d % 10 === 0, position: "top" },
+                y: { labelAutoRotate: false, title: "Set Number" },
+                x: {
+                    tickFilter: (d: string) => {
+                        const week = d.split("-W")[1];
+                        return Number.parseInt(week) % 3 === 0;
+                    },
+                    position: "top",
+                    title: "Week of Year",
+                },
             },
             children: [
                 {
                     type: "cell",
-                    encode: { x: "dateKey", y: "vehicle", color: "count" },
+                    encode: {
+                        x: "dateKey",
+                        y: "vehicle",
+                        color: "count",
+                    },
                     style: { inset: 0.5 },
                     tooltip: {
                         title: {
@@ -65,7 +93,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
                         },
                         items: [
                             {
-                                name: "Date",
+                                name: "Week of Year",
                                 channel: "x",
                                 field: "dateKey",
                             },
@@ -73,6 +101,11 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
                                 name: "Vehicle",
                                 channel: "y",
                                 field: "vehicle",
+                            },
+                            {
+                                name: "Count",
+                                channel: "color",
+                                field: "count",
                             },
                         ],
                     },
