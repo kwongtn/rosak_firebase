@@ -1,13 +1,7 @@
-import { QueryRef } from "apollo-angular";
-import { Subscription } from "rxjs";
 import { environment } from "src/environments/environment";
 
 import { Component, HostListener, Input, OnInit } from "@angular/core";
 import { Chart } from "@antv/g2";
-
-import {
-    GetSpottingLineCalendarHeatmapResponse,
-} from "./services/get-data-gql/get-data-gql.service";
 
 @Component({
     selector: "spotting-line-calendar-heatmap",
@@ -18,9 +12,6 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
     @Input() lineId!: string;
 
     chart: Chart | undefined = undefined;
-
-    gqlSubscription!: Subscription;
-    watchQueryOption!: QueryRef<GetSpottingLineCalendarHeatmapResponse>;
 
     getNewChartWidthHeight(): [number, number] {
         return [window.innerWidth - 300, window.innerHeight - 200];
