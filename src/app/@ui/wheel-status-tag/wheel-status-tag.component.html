@@ -1,0 +1,38 @@
+<span *ngIf="wheelStatus" [ngSwitch]="wheelStatus">
+    <d-tag
+        *ngSwitchCase="'FRESH'"
+        [tag]="wheelStatus.replace('_', ' ') | titlecase"
+        [labelStyle]="'green-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'NEAR_PERFECT'"
+        [tag]="wheelStatus.replace('_', ' ') | titlecase"
+        [labelStyle]="'green-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'FLAT'"
+        [tag]="wheelStatus.replace('_', ' ') | titlecase"
+        [labelStyle]="'yellow-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'WORN_OUT'"
+        [tag]="wheelStatus.replace('_', ' ') | titlecase"
+        [labelStyle]="'red-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchCase="'WORRYING'"
+        [tag]="wheelStatus.replace('_', ' ') | titlecase"
+        [labelStyle]="'red-w98'"
+    >
+    </d-tag>
+    <d-tag
+        *ngSwitchDefault
+        [tag]="wheelStatus.replace('_', ' ') | titlecase"
+        [customColor]="'var(--devui-text-weak)'"
+    >
+    </d-tag>
+</span>

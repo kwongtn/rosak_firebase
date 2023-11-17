@@ -3,8 +3,8 @@ import { Subscription } from "rxjs";
 import { LineStatus, VehicleType } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
+    TagListDisplayConfig,
     tagListDisplayConfig,
-    TagListDisplayConfig
 } from "src/app/spotting/utils";
 
 import {
@@ -13,7 +13,7 @@ import {
     OnChanges,
     OnDestroy,
     OnInit,
-    SimpleChanges
+    SimpleChanges,
 } from "@angular/core";
 
 const GET_VEHICLES = gql`
@@ -40,6 +40,7 @@ const GET_VEHICLES = gql`
                 spottingCount
                 notes
                 incidentCount
+                wheelStatus
             }
         }
     }
@@ -115,6 +116,7 @@ implements OnInit, OnChanges, OnDestroy
                             notes: value.notes,
                             nickname: value.nickname,
                             incidentCount: value.incidentCount,
+                            wheelStatus: value.wheelStatus,
                             $expandConfig:
                                 value.spottingCount > 0 ||
                                 value.incidentCount > 0

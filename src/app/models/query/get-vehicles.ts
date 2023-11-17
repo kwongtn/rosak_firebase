@@ -36,6 +36,7 @@ export interface VehicleType extends VehicleStatusCountType {
         notes: string;
         nickname: string | null;
         incidentCount: number;
+        wheelStatus: string;
     }>;
 }
 
@@ -77,6 +78,7 @@ export interface LastSpottings {
     runNumber: string | null;
     mediaCount: number;
     isMine: boolean;
+    wheelStatus: string;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;

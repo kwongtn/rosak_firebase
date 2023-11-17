@@ -164,6 +164,11 @@
                                         "
                                     ></vehicle-status-tag>
                                 </span>
+                                <span *ngSwitchCase="'wheelStatus'">
+                                    <wheel-status-tag
+                                        [wheelStatus]="rowItem[colOption.field]"
+                                    ></wheel-status-tag>
+                                </span>
                                 <span *ngSwitchCase="'id'">
                                     {{ rowItem[colOption.field] }}
                                     <span
