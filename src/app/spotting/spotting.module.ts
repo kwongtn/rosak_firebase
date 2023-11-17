@@ -49,6 +49,9 @@ import {
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
+import {
+    WheelStatusTagModule,
+} from "../@ui/wheel-status-tag/wheel-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
 import {
     CoordinatesHumanizerModule,
@@ -123,6 +126,7 @@ import {
         SpottingTypePipeModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,
+        WheelStatusTagModule,
 
         // ng-zorro
         NzButtonModule,
