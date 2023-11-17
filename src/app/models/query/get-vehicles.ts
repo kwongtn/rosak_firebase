@@ -77,6 +77,7 @@ export interface LastSpottings {
     runNumber: string | null;
     mediaCount: number;
     isMine: boolean;
+    wheelStatus: string;
     location: {
         accuracy: number;
         altitudeAccuracy: number | null;
