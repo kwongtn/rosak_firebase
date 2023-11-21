@@ -14,7 +14,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
     chart: Chart | undefined = undefined;
 
     getNewChartWidthHeight(rowCount: number): [number, number] {
-        const MULTIPLIER = 50; // 50px per unique value
+        const MULTIPLIER = 30; // 50px per unique value
         return [1600, rowCount * MULTIPLIER];
     }
 
