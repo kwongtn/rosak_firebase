@@ -12,6 +12,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
     @Input() lineId!: string;
 
     chart: Chart | undefined = undefined;
+    loading: boolean = true;
 
     getNewChartWidthHeight(rowCount: number): [number, number] {
         const MULTIPLIER = 30; // 50px per unique value
@@ -104,6 +105,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
                 });
 
                 this.chart.render();
+                this.loading = false;
             });
     }
 }
