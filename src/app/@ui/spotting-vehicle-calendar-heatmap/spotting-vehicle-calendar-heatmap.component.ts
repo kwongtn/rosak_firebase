@@ -8,6 +8,7 @@ import {
     GetDataGqlService,
     GetSpottingVehicleCalendarHeatmapResponse,
 } from "./services/get-data-gql/get-data-gql.service";
+import { GetDataService } from "./services/get-data/get-data.service";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -110,7 +111,10 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
         });
     }
 
-    constructor(private gqlService: GetDataGqlService) {
+    constructor(
+        private gqlService: GetDataGqlService,
+        private getDataService: GetDataService
+    ) {
         this.registerPolygons();
     }
 
@@ -119,31 +123,17 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
         startDate.setMonth(startDate.getMonth() - 10);
         startDate.setDate(1);
 
-        this.watchQueryOption = this.gqlService.watch({
-            vehicleFilter: {
-                id: this.vehicleId,
-            },
-            startDate: startDate.toISOString().split("T")[0],
-            endDate: new Date().toISOString().split("T")[0],
-        });
-
-        this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
-            ({ data, loading }) => {
-                this.isLoading = loading;
-
-                const spottingTrends = [...data.vehicles[0].spottingTrends].map(
-                    (val) => {
-                        return {
-                            ...val,
-                            weekOfYear: val.weekOfYear.toString(),
-                        };
-                    }
-                );
-
+        this.getDataService
+            .getData(
+                this.vehicleId,
+                startDate.toISOString().split("T")[0],
+                new Date().toISOString().split("T")[0]
+            )
+            .then((data) => {
                 const heatmapPlot = new Heatmap(
                     document.getElementById("container") as HTMLElement,
                     {
-                        data: spottingTrends,
+                        data,
                         height: 400,
                         autoFit: false,
                         xField: "weekOfYear",
@@ -191,7 +181,22 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
                     }
                 );
                 heatmapPlot.render();
-            }
-        );
+            });
+
+        // this.watchQueryOption = this.gqlService.watch({
+        //     vehicleFilter: {
+        //         id: this.vehicleId,
+        //     },
+        //     startDate: startDate.toISOString().split("T")[0],
+        //     endDate: new Date().toISOString().split("T")[0],
+        // });
+
+        // this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
+        //     ({ data, loading }) => {
+        //         this.isLoading = loading;
+
+        //         const spottingTrends = [...data.vehicles[0].spottingTrends];
+        //     }
+        // );
     }
 }

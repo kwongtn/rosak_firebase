@@ -28,14 +28,6 @@ export class GetDataGqlService extends Query<GetSpottingVehicleCalendarHeatmapRe
                 id
                 identificationNo
                 nickname
-                spottingTrends {
-                    dateKey
-                    count
-                    dayOfWeek
-                    weekOfYear
-                    isLastDayOfMonth
-                    isLastWeekOfMonth
-                }
             }
         }
     `;
