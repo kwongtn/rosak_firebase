@@ -26,6 +26,7 @@ export interface UserAuthData {
 
 export interface CustomClaims {
     admin?: boolean;
+    betaTester?: boolean;
 }
 
 @Injectable({

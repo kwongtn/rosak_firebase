@@ -26,14 +26,6 @@ const initialMenuList: { [key: string]: string }[] = [
         headerTitle: " - Gallery ",
     },
     {
-        name: "Situasi",
-        href: "/situasi",
-        target: "_self",
-        tag: "Alpha",
-        style: "danger",
-        headerTitle: " - Situasi ",
-    },
-    {
         name: "Insiden",
         href: "/insiden",
         target: "_self",
@@ -159,6 +151,19 @@ export class AppComponent implements OnInit, OnDestroy {
                 });
             } else {
                 this.removeFromMenu("/console");
+            }
+
+            if (claim?.["betaTester"]) {
+                this.addToMenu({
+                    name: "Situasi",
+                    href: "/situasi",
+                    target: "_self",
+                    tag: "Alpha",
+                    style: "danger",
+                    headerTitle: " - Situasi ",
+                });
+            } else {
+                this.removeFromMenu("/situasi");
             }
         });
 
