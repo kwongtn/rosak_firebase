@@ -1,7 +1,11 @@
-import { Observable, Subscription } from "rxjs";
 
-import { Component, OnInit } from "@angular/core";
-import { AngularFirestore } from "@angular/fire/compat/firestore";
+import { Component, OnDestroy, OnInit } from "@angular/core";
+import {
+    doc,
+    Firestore,
+    onSnapshot,
+    Unsubscribe,
+} from "@angular/fire/firestore";
 
 import {
     GdprDetailChildrenPanel,
@@ -14,37 +18,39 @@ import {
     templateUrl: "./gdpr.component.html",
     styleUrls: ["./gdpr.component.scss"],
 })
-export class GdprComponent implements OnInit {
+export class GdprComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
-    $items!: Observable<PublicGdprDocument | undefined>;
-    itemSubscription!: Subscription;
+    items: PublicGdprDocument | undefined;
 
     definition: string = "";
     intro: string = "";
     details: GdprDetailPanel[] = [];
 
-    constructor(firestore: AngularFirestore) {
-        const itemDoc = firestore.doc<PublicGdprDocument>("public/gdpr");
+    unsubscribe: Unsubscribe | undefined = undefined;
 
-        this.$items = itemDoc.valueChanges();
+    constructor(firestore: Firestore) {
+        this.unsubscribe = onSnapshot(
+            doc(firestore, "public", "gdpr"),
+            (doc) => {
+                if (doc.exists()) {
+                    this.items = doc.data() as PublicGdprDocument;
 
-        this.itemSubscription = this.$items.subscribe((value) => {
-            console.log(value);
+                    this.definition = this.items?.definition ?? "";
+                    this.intro = this.items?.intro ?? "";
 
-            this.definition = value?.definition ?? "";
-            this.intro = value?.intro ?? "";
+                    this.details = (this.items?.details ?? []).map((value) => {
+                        return {
+                            ...value,
+                            children: value.children.map((child) => {
+                                return { ...child, isCollapsed: !true };
+                            }),
+                        } as GdprDetailPanel;
+                    });
 
-            this.details = (value?.details ?? []).map((value) => {
-                return {
-                    ...value,
-                    children: value.children.map((child) => {
-                        return { ...child, isCollapsed: !true };
-                    }),
-                } as GdprDetailPanel;
-            });
-
-            this.showLoading = false;
-        });
+                    this.showLoading = false;
+                }
+            }
+        );
     }
 
     ngOnInit(): void {
@@ -53,5 +59,11 @@ export class GdprComponent implements OnInit {
 
     toggle($event: any, child: GdprDetailChildrenPanel) {
         child.isCollapsed = $event;
+    }
+
+    ngOnDestroy(): void {
+        if (this.unsubscribe) {
+            this.unsubscribe();
+        }
     }
 }

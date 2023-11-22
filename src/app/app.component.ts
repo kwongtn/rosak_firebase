@@ -9,6 +9,7 @@ import {
     OnDestroy,
     OnInit,
 } from "@angular/core";
+import { Analytics } from "@angular/fire/analytics";
 import { NavigationEnd, Router } from "@angular/router";
 
 import { AuthService } from "./services/auth/auth.service";
@@ -75,7 +76,8 @@ export class AppComponent implements OnInit, OnDestroy {
     constructor(
         public authService: AuthService,
         private elem: ElementRef,
-        public router: Router
+        public router: Router,
+        public analytics: Analytics
     ) {
         if (environment.sentry.environment === "staging") {
             this.elem.nativeElement.style.setProperty("--padding-top", "100px");
@@ -129,7 +131,7 @@ export class AppComponent implements OnInit, OnDestroy {
             console.log(user);
 
             if (user) {
-                this.userAvatar = (user.multiFactor as any).user.photoURL;
+                this.userAvatar = user.photoURL ?? "";
 
                 this.addToMenu({
                     name: "@Me",
@@ -146,7 +148,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.authService.customClaims.subscribe((claim) => {
             console.log("Custom claims : ", claim);
 
-            if (claim?.admin) {
+            if (claim?.["admin"]) {
                 this.addToMenu({
                     name: "Console",
                     href: "/console",

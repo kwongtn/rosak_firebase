@@ -1,4 +1,4 @@
-import { NzMenuItemDirective } from "ng-zorro-antd/menu";
+import { NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { filter, Observable, Subscription } from "rxjs";
 
 import { Component } from "@angular/core";
@@ -116,7 +116,7 @@ export class SituasiComponent {
             });
     }
 
-    onMenuItemClick(event: NzMenuItemDirective): void {
+    onMenuItemClick(event: NzMenuItemComponent): void {
         console.log(event);
     }
 

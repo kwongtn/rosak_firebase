@@ -44,7 +44,7 @@ export class ImageCompressionService {
         });
     }
 
-    async copyExif(src: Blob, dest: Blob) {
+    async copyExif(src: File, dest: File) {
         const exif = await this.retrieveExif(src);
         return new File([dest.slice(0, 2), exif, dest.slice(2)], src.name, {
             type: "image/jpeg",
@@ -126,7 +126,7 @@ export class ImageCompressionService {
     ) {
         const img = await this._createImage(file);
 
-        let output: Blob = await this.ResizeImage(
+        let output: File = await this.ResizeImage(
             file,
             img.naturalHeight,
             img.naturalWidth,

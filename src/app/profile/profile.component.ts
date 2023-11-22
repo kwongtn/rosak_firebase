@@ -1,9 +1,9 @@
 import { QueryRef } from "apollo-angular";
-import firebase from "firebase/compat/app";
 import { Subscription } from "rxjs";
 import { AuthService } from "src/app/services/auth/auth.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
+import { User } from "@angular/fire/auth";
 
 import {
     GetUserDataService,
@@ -16,7 +16,7 @@ import {
     styleUrls: ["./profile.component.scss"],
 })
 export class ProfileMainComponent implements OnInit, OnDestroy {
-    user!: firebase.User;
+    user!: User;
     loading = true;
     watchQueryOption!: QueryRef<any>;
     data: UserDataResponseUser | undefined = undefined;
@@ -27,7 +27,7 @@ export class ProfileMainComponent implements OnInit, OnDestroy {
         private authService: AuthService,
         private getUserDataGql: GetUserDataService
     ) {
-        this.user = this.authService.userData.value as firebase.User;
+        this.user = this.authService.userData.value as User;
     }
 
     async ngOnInit() {

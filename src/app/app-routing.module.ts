@@ -4,7 +4,7 @@ import {
     canActivate,
     hasCustomClaim,
     redirectUnauthorizedTo,
-} from "@angular/fire/compat/auth-guard";
+} from "@angular/fire/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about.component";
@@ -61,6 +61,10 @@ function redirectUnauthorizedToSpotting(): AuthPipe {
 
 function adminOnly(): AuthPipe {
     return hasCustomClaim("admin");
+}
+
+function betaTesterOnly(): AuthPipe {
+    return hasCustomClaim("betaTester");
 }
 
 const routes: Routes = [
@@ -153,6 +157,7 @@ const routes: Routes = [
         component: maintenance.spotting.curentlyInMaintenance
             ? ConstructionComponent
             : SituasiComponent,
+        ...canActivate(betaTesterOnly),
     },
     {
         path: "about",
