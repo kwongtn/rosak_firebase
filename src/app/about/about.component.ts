@@ -1,12 +1,15 @@
-import { Observable, Subscription } from "rxjs";
 import build from "src/build";
 import { environment } from "src/environments/environment";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
-import { AngularFirestore } from "@angular/fire/compat/firestore";
+import {
+    doc,
+    Firestore,
+    onSnapshot,
+    Unsubscribe,
+} from "@angular/fire/firestore";
 
-import { Personnel, PublicAboutDocument } from "./models/firestore";
-import { sortOrder } from "./utils";
+import { PublicAboutDocument } from "./models/firestore";
 
 @Component({
     selector: "app-about",
@@ -15,28 +18,24 @@ import { sortOrder } from "./utils";
 })
 export class AboutComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
-    $items!: Observable<PublicAboutDocument | undefined>;
-    itemSubscription!: Subscription;
+    items: PublicAboutDocument | undefined = undefined;
 
     semaphoreBadgeKey: string = environment.semaphore.badgeKey;
     branchName: string = build.git.branch;
 
-    personnel: Personnel[] = [];
+    unsubscribe: Unsubscribe | undefined = undefined;
 
-    constructor(firestore: AngularFirestore) {
-        const itemDoc = firestore.doc<PublicAboutDocument>("public/about");
+    constructor(firestore: Firestore) {
+        this.unsubscribe = onSnapshot(
+            doc(firestore, "public", "about"),
+            (doc) => {
+                if (doc.exists()) {
+                    this.items = doc.data() as PublicAboutDocument;
 
-        this.$items = itemDoc.valueChanges();
-
-        this.itemSubscription = this.$items.subscribe((value) => {
-            console.log(value);
-
-            this.personnel = sortOrder(
-                (value as PublicAboutDocument).personnel
-            );
-
-            this.showLoading = false;
-        });
+                    this.showLoading = false;
+                }
+            }
+        );
     }
 
     ngOnInit(): void {
@@ -44,6 +43,8 @@ export class AboutComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.itemSubscription.unsubscribe();
+        if (this.unsubscribe) {
+            this.unsubscribe();
+        }
     }
 }

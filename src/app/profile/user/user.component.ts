@@ -1,4 +1,3 @@
-import firebase from "firebase/compat/app";
 import { take } from "rxjs";
 import { AuthService } from "src/app/services/auth/auth.service";
 import { ToastService } from "src/app/services/toast/toast.service";
@@ -8,12 +7,13 @@ import {
     Input,
     OnChanges,
     OnInit,
-    SimpleChanges
+    SimpleChanges,
 } from "@angular/core";
+import { User } from "@angular/fire/auth";
 
 import {
     UserDataResponseUser,
-    UserFavouriteVehicle
+    UserFavouriteVehicle,
 } from "../services/get-user-data.service";
 import { UpdateUserService } from "../services/update-user.service";
 
@@ -24,7 +24,7 @@ import { UpdateUserService } from "../services/update-user.service";
 })
 export class ProfileUserComponent implements OnInit, OnChanges {
     @Input() displayData: UserDataResponseUser | undefined = undefined;
-    @Input() user!: firebase.User;
+    @Input() user!: User;
     @Input() loading = true;
 
     nickname: string = "";

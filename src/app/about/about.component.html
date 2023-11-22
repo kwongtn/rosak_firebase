@@ -29,13 +29,13 @@
                 />
             </a> -->
         </h1>
-        {{ ($items | async)?.aboutProject }}
+        {{ items?.aboutProject }}
         <div>
             <nz-list nzGrid>
                 <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
-                        *ngFor="let item of ($items | async)?.projects"
+                        *ngFor="let item of items?.projects"
                         [nzXs]="24"
                         [nzMd]="12"
                         [nzXl]="8"
@@ -84,7 +84,7 @@
                 <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
-                        *ngFor="let item of personnel"
+                        *ngFor="let item of items?.personnel"
                         [nzXs]="24"
                         [nzSm]="12"
                         [nzMd]="8"
@@ -113,7 +113,7 @@
                 <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
-                        *ngFor="let item of ($items | async)?.techStacks"
+                        *ngFor="let item of items?.techStacks"
                         [nzXs]="12"
                         [nzMd]="8"
                         [nzXl]="6"

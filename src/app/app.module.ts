@@ -19,28 +19,27 @@ import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
 import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
-import { AngularFireModule } from "@angular/fire/compat";
 import {
-    AngularFireAnalyticsModule,
-    CONFIG,
+    getAnalytics,
+    provideAnalytics,
     ScreenTrackingService,
     UserTrackingService,
-} from "@angular/fire/compat/analytics";
-import { AngularFireAuthModule } from "@angular/fire/compat/auth";
-import { AngularFireDatabaseModule } from "@angular/fire/compat/database";
-import { AngularFirestoreModule } from "@angular/fire/compat/firestore";
-import {
-    AngularFirePerformanceModule,
-    PerformanceMonitoringService,
-} from "@angular/fire/compat/performance";
-import { AngularFireStorageModule } from "@angular/fire/compat/storage";
+} from "@angular/fire/analytics";
+import { initializeApp, provideFirebaseApp } from "@angular/fire/app";
+import { getAuth, provideAuth } from "@angular/fire/auth";
+// import { PerformanceMonitoringService } from "@angular/fire/performance";
+import { getDatabase, provideDatabase } from "@angular/fire/database";
+import { getFirestore, provideFirestore } from "@angular/fire/firestore";
+import { getPerformance, providePerformance } from "@angular/fire/performance";
+import { getStorage, provideStorage } from "@angular/fire/storage";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
 import * as Sentry from "@sentry/angular-ivy";
 
-import build from "../build";
+// import build from "../build";
 import { environment } from "../environments/environment";
+import { FooterModule } from "./@ui/footer/footer.module";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { GraphQLModule } from "./graphql.module";
@@ -49,13 +48,12 @@ import { HeaderModule } from "./header/header.module";
 registerLocaleData(en);
 
 const imports: any[] = [
-    // AngularFire
-    AngularFireModule.initializeApp(environment.firebase),
-    AngularFireAnalyticsModule,
-    AngularFireAuthModule,
-    AngularFireDatabaseModule,
-    AngularFireStorageModule,
-    AngularFirestoreModule,
+    provideFirebaseApp(() => initializeApp(environment.firebase)),
+    provideAnalytics(() => getAnalytics()),
+    provideFirestore(() => getFirestore()),
+    provideAuth(() => getAuth()),
+    provideDatabase(() => getDatabase()),
+    provideStorage(() => getStorage()),
 
     // Angular
     BrowserAnimationsModule,
@@ -74,6 +72,7 @@ const imports: any[] = [
     AppRoutingModule,
     GraphQLModule,
     HeaderModule,
+    FooterModule,
 
     // Other Services
     RecaptchaFormsModule,
@@ -113,17 +112,20 @@ const providers: any[] = [
 ];
 
 if (environment.production) {
-    imports.push(AngularFireAnalyticsModule, AngularFirePerformanceModule);
+    imports.push(
+        provideAnalytics(() => getAnalytics()),
+        providePerformance(() => getPerformance()),
+    );
     providers.push(
-        PerformanceMonitoringService,
+        // PerformanceMonitoringService,
         ScreenTrackingService,
         UserTrackingService,
-        {
-            provide: CONFIG,
-            useValue: {
-                APP_VERSION: build.git.hash,
-            },
-        }
+        // {
+        //     provide: CONFIG,
+        //     useValue: {
+        //         APP_VERSION: build.git.hash,
+        //     },
+        // }
     );
 }
 

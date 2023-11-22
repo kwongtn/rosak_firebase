@@ -12,27 +12,19 @@
         [selectedItem]="innerMenuList[0]"
     ></d-header-menu>
 </d-common-header>
-<div class="content-outer-container">
-    <div class="content-inner-container">
+<div [class]="applyPadding ? 'content-outer-container' : ''">
+    <div [class]="applyPadding ? 'content-inner-container' : 'top-margin-only'">
         <!-- <nz-alert
             nzBanner
             nzType="info"
             nzMessage="Upgrades incoming! 🥳 We will be undergoing maintenance on 0000hrs, 10 May 2023 (GMT+08) to facilitate for upgrades to better infrastructure. The operation will take an estimated time of 30 minutes. 😎"
         ></nz-alert> -->
-        <router-outlet class="main-container"></router-outlet>
+        <router-outlet
+            [class]="applyPadding ? 'main-container' : ''"
+        ></router-outlet>
     </div>
 </div>
-<footer class="footer">
+<div class="footer" *ngIf="applyPadding">
     <hr />
-
-    <div class="copyright">
-        Frontend build <i>{{ buildInfo.git.hash }}</i> @ {{ buildInfo.timestamp
-        }}<br />
-        Backend build <i>{{ backendBuildInfo.hash }}</i> @
-        {{ backendBuildInfo.datetime }}<br />
-        GNU AGPLv3 by
-        <a href="http://github.com/kwongtn" target="_blank"> KwongTN </a>
-        & contributors
-    </div>
-</footer>
-`
+    <app-footer></app-footer>
+</div>

@@ -2,7 +2,6 @@ import { filter } from "rxjs";
 // import { DevConfigService } from "ng-devui/utils";
 import { environment } from "src/environments/environment";
 
-import { HttpClient } from "@angular/common/http";
 import {
     Component,
     ElementRef,
@@ -10,15 +9,10 @@ import {
     OnDestroy,
     OnInit,
 } from "@angular/core";
+import { Analytics } from "@angular/fire/analytics";
 import { NavigationEnd, Router } from "@angular/router";
 
-import build from "../build";
 import { AuthService } from "./services/auth/auth.service";
-
-interface BackendBuildInfo {
-    hash: string;
-    datetime: string;
-}
 
 const genericTitle = " Malaysia Land Public Transport Fans ";
 
@@ -56,6 +50,8 @@ const initialMenuList: { [key: string]: string }[] = [
     },
 ];
 
+const noApplyPaddingRoutes: string[] = ["situasi"];
+
 @Component({
     selector: "app-root",
     templateUrl: "./app.component.html",
@@ -66,43 +62,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
     header: string = "...";
     userAvatar: string = "";
-    buildInfo = build;
-    backendBuildInfo: BackendBuildInfo = {
-        hash: "...",
-        datetime: "...",
-    };
+    routeKey = "";
+    applyPadding = true;
 
     constructor(
         public authService: AuthService,
-        private httpClient: HttpClient,
         private elem: ElementRef,
-        public router: Router
+        public router: Router,
+        public analytics: Analytics
     ) {
-        console.log(
-            [
-                "\n%cBuild Info:\n",
-                `%c > Environment: %c${
-                    environment.production
-                        ? "production 🏭"
-                        : environment.sentry.environment === "staging"
-                            ? "staging 🚈"
-                            : "development 🚧"
-                }`,
-                `%c > Build Version: ${build.version}`,
-                ` > Build Timestamp: ${build.timestamp}`,
-                ` > Built by: ${build.git.user}`,
-                ` > Commit: ${build.git.hash} @ ${build.git.branch}`,
-                ` > Build Message: %c${build.message || "<no message>"}`,
-            ].join("\n"),
-            "font-size: 14px; color: #7c7c7b;",
-            "font-size: 12px; color: #7c7c7b",
-            environment.production
-                ? "font-size: 12px; color: #95c230;"
-                : "font-size: 12px; color: #e26565;",
-            "font-size: 12px; color: #7c7c7b",
-            "font-size: 12px; color: #bdc6cf"
-        );
-
         if (environment.sentry.environment === "staging") {
             this.elem.nativeElement.style.setProperty("--padding-top", "100px");
         } else {
@@ -133,13 +101,14 @@ export class AppComponent implements OnInit, OnDestroy {
         this.header = this.getHeader();
     }
 
+    getRouteKey(): string {
+        return this.router.url.split("/")[1];
+    }
+
     getHeader(): string {
         if (window.innerWidth < 1024) {
             const headerTitle = this.innerMenuList.filter((value) => {
-                return (
-                    value["href"].split("/")[1] ===
-                    this.router.url.split("/")[1]
-                );
+                return value["href"].split("/")[1] === this.getRouteKey();
             })[0];
 
             if (headerTitle) {
@@ -154,7 +123,7 @@ export class AppComponent implements OnInit, OnDestroy {
             console.log(user);
 
             if (user) {
-                this.userAvatar = (user.multiFactor as any).user.photoURL;
+                this.userAvatar = user.photoURL ?? "";
 
                 this.addToMenu({
                     name: "@Me",
@@ -171,7 +140,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.authService.customClaims.subscribe((claim) => {
             console.log("Custom claims : ", claim);
 
-            if (claim?.admin) {
+            if (claim?.["admin"]) {
                 this.addToMenu({
                     name: "Console",
                     href: "/console",
@@ -183,14 +152,20 @@ export class AppComponent implements OnInit, OnDestroy {
             } else {
                 this.removeFromMenu("/console");
             }
-        });
 
-        this.httpClient
-            .get<BackendBuildInfo>(environment.backendUrl + "version/")
-            .subscribe((data) => {
-                this.backendBuildInfo = data;
-                console.log(this.backendBuildInfo);
-            });
+            if (claim?.["betaTester"]) {
+                this.addToMenu({
+                    name: "Situasi",
+                    href: "/situasi",
+                    target: "_self",
+                    tag: "Alpha",
+                    style: "danger",
+                    headerTitle: " - Situasi ",
+                });
+            } else {
+                this.removeFromMenu("/situasi");
+            }
+        });
 
         this.router.events
             .pipe(
@@ -200,6 +175,11 @@ export class AppComponent implements OnInit, OnDestroy {
             )
             .subscribe((event) => {
                 this.header = this.getHeader();
+                this.routeKey = this.getRouteKey();
+
+                this.applyPadding = !noApplyPaddingRoutes.includes(
+                    this.routeKey
+                );
             });
     }
 
