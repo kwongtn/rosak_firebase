@@ -10,6 +10,7 @@ import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
@@ -19,6 +20,7 @@ import { NzImageModule } from "ng-zorro-antd/image";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
@@ -129,6 +131,7 @@ import {
         WheelStatusTagModule,
 
         // ng-zorro
+        NzAlertModule,
         NzButtonModule,
         NzDrawerModule,
         NzGridModule,
@@ -140,6 +143,7 @@ import {
         NzImageModule,
         NzPopconfirmModule,
         NzProgressModule,
+        NzSpaceModule,
         NzSpinModule,
         NzToolTipModule,
     ],
