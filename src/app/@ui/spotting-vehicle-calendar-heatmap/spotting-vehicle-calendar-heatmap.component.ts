@@ -29,14 +29,8 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
         G2.registerShape("polygon", "boundary-polygon", {
             draw(cfg, container) {
                 const group = container.addGroup();
-                const attrs = {
-                    stroke: "#fff",
-                    lineWidth: 1,
-                    fill: cfg.color,
-                    paht: [],
-                };
                 const points = cfg.points as G2.Types.ShapeVertices;
-                const path = [
+                const path: PathCommand[] = [
                     [
                         "M",
                         (points[0] as G2.Types.Point).x,
@@ -59,12 +53,18 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
                     ],
                     ["Z"],
                 ];
-                (attrs as any).path = (this as any).parsePath(path);
+                const attrs: ShapeAttrs = {
+                    stroke: "#fff",
+                    lineWidth: 1,
+                    fill: cfg.color,
+                    path: (this as G2.Types.Shape).parsePath(path),
+                };
+
                 group.addShape("path", {
                     attrs,
                 });
 
-                if ((cfg.data as any).isLastWeekOfMonth) {
+                if ((cfg.data as Datum | Data).isLastWeekOfMonth) {
                     const linePath = [
                         [
                             "M",
@@ -80,15 +80,15 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
                     // 最后一周的多边形添加右侧边框
                     group.addShape("path", {
                         attrs: {
-                            path: (this as any).parsePath(linePath),
+                            path: (this as G2.Types.Shape).parsePath(linePath),
                             lineWidth: 4,
                             stroke: "#404040",
                         },
                     });
-                    if ((cfg.data as any).isLastDayOfMonth) {
+                    if ((cfg.data as Datum | Data).isLastDayOfMonth) {
                         group.addShape("path", {
                             attrs: {
-                                path: (this as any).parsePath([
+                                path: (this as G2.Types.Shape).parsePath([
                                     [
                                         "M",
                                         (points[1] as G2.Types.Point).x,
