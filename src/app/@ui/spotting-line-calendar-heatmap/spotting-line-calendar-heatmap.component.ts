@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, Input, NgZone, OnInit } from "@angular/core";
 import { Chart } from "@antv/g2";
 
 import { GetDataService } from "./get-data/get-data.service";
@@ -19,7 +19,10 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
         return [1600, rowCount * MULTIPLIER];
     }
 
-    constructor(private getDataService: GetDataService) {
+    constructor(
+        private getDataService: GetDataService,
+        private ngZone: NgZone
+    ) {
         return;
     }
 
@@ -39,69 +42,71 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit {
                     vehicleSet.size
                 );
 
-                this.chart = new Chart({
-                    scrollbar: true,
-                    container: "container",
-                    type: "view",
-                    data: {
-                        type: "inline",
-                        value: data,
-                    },
-                    width,
-                    height,
-                    scale: {
-                        color: {
-                            palette: "puRd",
-                            relations: [
-                                [(d: string) => d === null, "#eee"],
-                                [0, "#fff"],
-                            ],
+                this.chart = this.ngZone.runOutsideAngular(() => {
+                    return new Chart({
+                        scrollbar: true,
+                        container: "container",
+                        type: "view",
+                        data: {
+                            type: "inline",
+                            value: data,
                         },
-                    },
-                    axis: {
-                        y: { labelAutoRotate: false, title: "Set Number" },
-                        x: {
-                            tickFilter: (d: string) => {
-                                const week = d.split("-W")[1];
-                                return Number.parseInt(week) % 3 === 0;
-                            },
-                            position: "top",
-                            title: "Week of Year",
-                        },
-                    },
-                    children: [
-                        {
-                            type: "cell",
-                            encode: {
-                                x: "dateKey",
-                                y: "vehicle",
-                                color: "count",
-                            },
-                            style: { inset: 0.5 },
-                            tooltip: {
-                                title: {
-                                    channel: "y",
-                                },
-                                items: [
-                                    {
-                                        name: "Week of Year",
-                                        channel: "x",
-                                        field: "dateKey",
-                                    },
-                                    {
-                                        name: "Vehicle",
-                                        channel: "y",
-                                        field: "vehicle",
-                                    },
-                                    {
-                                        name: "Count",
-                                        channel: "color",
-                                        field: "count",
-                                    },
+                        width,
+                        height,
+                        scale: {
+                            color: {
+                                palette: "puRd",
+                                relations: [
+                                    [(d: string) => d === null, "#eee"],
+                                    [0, "#fff"],
                                 ],
                             },
                         },
-                    ],
+                        axis: {
+                            y: { labelAutoRotate: false, title: "Set Number" },
+                            x: {
+                                tickFilter: (d: string) => {
+                                    const week = d.split("-W")[1];
+                                    return Number.parseInt(week) % 3 === 0;
+                                },
+                                position: "top",
+                                title: "Week of Year",
+                            },
+                        },
+                        children: [
+                            {
+                                type: "cell",
+                                encode: {
+                                    x: "dateKey",
+                                    y: "vehicle",
+                                    color: "count",
+                                },
+                                style: { inset: 0.5 },
+                                tooltip: {
+                                    title: {
+                                        channel: "y",
+                                    },
+                                    items: [
+                                        {
+                                            name: "Week of Year",
+                                            channel: "x",
+                                            field: "dateKey",
+                                        },
+                                        {
+                                            name: "Vehicle",
+                                            channel: "y",
+                                            field: "vehicle",
+                                        },
+                                        {
+                                            name: "Count",
+                                            channel: "color",
+                                            field: "count",
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    });
                 });
 
                 this.chart.render();
