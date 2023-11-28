@@ -2,7 +2,14 @@ import { QueryRef } from "apollo-angular";
 import { Subscription } from "rxjs";
 import { ThemeService } from "src/app/services/theme/theme.service";
 
-import { Component, Input, NgZone, OnInit } from "@angular/core";
+import {
+    Component,
+    Input,
+    NgZone,
+    OnChanges,
+    OnInit,
+    SimpleChanges,
+} from "@angular/core";
 import { PathCommand, ShapeAttrs } from "@antv/g-base/lib";
 import { Data } from "@antv/g2";
 import { Datum, G2, Heatmap, HeatmapOptions } from "@antv/g2plot";
@@ -24,7 +31,9 @@ type MutableHeatmapOptions = {
     templateUrl: "./spotting-vehicle-calendar-heatmap.component.html",
     styleUrls: ["./spotting-vehicle-calendar-heatmap.component.scss"],
 })
-export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
+export class SpottingVehicleCalendarHeatmapComponent
+implements OnInit, OnChanges
+{
     @Input() vehicleId!: string;
 
     gqlSubscription!: Subscription;
@@ -81,7 +90,6 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
             },
         },
     };
-
 
     registerPolygons() {
         G2.registerShape("polygon", "boundary-polygon", {
@@ -186,7 +194,7 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
         // });
     }
 
-    ngOnInit(): void {
+    setAndRenderChart() {
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 10);
         startDate.setDate(1);
@@ -211,5 +219,19 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
 
                 this.loading = false;
             });
+    }
+
+    ngOnInit(): void {
+        this.setAndRenderChart();
+    }
+
+    ngOnChanges(changes: SimpleChanges) {
+        if (!changes["vehicleId"].firstChange) {
+            this.heatmapPlot?.destroy();
+            this.heatmapPlot = undefined;
+
+            this.loading = true;
+            this.setAndRenderChart();
+        }
     }
 }

@@ -1,6 +1,6 @@
-import { firstValueFrom } from "rxjs";
+import { Subscription } from "rxjs";
 
-import { Component } from "@angular/core";
+import { Component, OnDestroy } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 
 @Component({
@@ -8,16 +8,19 @@ import { ActivatedRoute } from "@angular/router";
     templateUrl: "./vehicle-details.component.html",
     styleUrls: ["./vehicle-details.component.scss"],
 })
-export class VehicleDetailsComponent {
+export class VehicleDetailsComponent implements OnDestroy {
     lineId: string | undefined = undefined;
     vehicleId: string | undefined = undefined;
 
-    constructor(
-        private route: ActivatedRoute
-    ) {
-        firstValueFrom(this.route.params).then((res) => {
-            this.lineId = res["lineId"];
-            this.vehicleId = res["assetId"];
+    routeSubscription!: Subscription;
+
+    constructor(private route: ActivatedRoute) {
+        this.routeSubscription = this.route.params.subscribe((params) => {
+            this.lineId = params["lineId"];
+            this.vehicleId = params["assetId"];
         });
+    }
+    ngOnDestroy(): void {
+        this.routeSubscription?.unsubscribe();
     }
 }
