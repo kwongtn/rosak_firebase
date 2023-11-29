@@ -156,6 +156,7 @@
                     <nz-breadcrumb nz-page-header-breadcrumb>
                         <nz-breadcrumb-item
                             *ngFor="let item of breadcrumbsData"
+                            [nzOverlay]="item.level ? menu : undefined"
                         >
                             <a
                                 [routerLink]="
@@ -163,6 +164,37 @@
                                 "
                                 >{{ item.displayText }}</a
                             >
+                            <nz-dropdown-menu #menu="nzDropdownMenu">
+                                <ul
+                                    nz-menu
+                                    nzSelectable
+                                    *ngIf="item.level === 'typeSeperator'"
+                                >
+                                    <ng-container
+                                        *ngFor="let assetType of menuAssetTypes"
+                                    >
+                                        <li
+                                            nz-menu-item
+                                            *ngIf="
+                                                item.displayText !==
+                                                assetType.displayText
+                                            "
+                                        >
+                                            <a
+                                                [routerLink]="
+                                                    [
+                                                        '/',
+                                                        'situasi',
+                                                        lineId
+                                                    ].concat(assetType.href)
+                                                "
+                                            >
+                                                {{ assetType.displayText }}
+                                            </a>
+                                        </li>
+                                    </ng-container>
+                                </ul>
+                            </nz-dropdown-menu>
                         </nz-breadcrumb-item>
                     </nz-breadcrumb>
                     <nz-page-header-content>

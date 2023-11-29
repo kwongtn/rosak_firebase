@@ -1,4 +1,5 @@
 import { NzBreadCrumbModule } from "ng-zorro-antd/breadcrumb";
+import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { NzMenuModule } from "ng-zorro-antd/menu";
@@ -21,6 +22,7 @@ import { SituasiComponent } from "./situasi.component";
 
         // ng-zorro-antd
         NzBreadCrumbModule,
+        NzDropDownModule,
         NzIconModule,
         NzLayoutModule,
         NzMenuModule,

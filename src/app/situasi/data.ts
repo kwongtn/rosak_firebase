@@ -4895,3 +4895,14 @@ export const data: LinesVehiclesStationData[] = [
         ],
     },
 ];
+
+export const assetTypes = [
+    {
+        displayText: "Vehicles",
+        href: ["vehicle"],
+    },
+    {
+        displayText: "Stations",
+        href: ["station"],
+    },
+];
