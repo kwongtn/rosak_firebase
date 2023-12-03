@@ -28,6 +28,7 @@ export class SituasiComponent {
 
     menuData = data;
     menuAssetTypes = assetTypes;
+    // menuAssets: VehiclesStationsData[] = [];
 
     lineId: string | undefined = undefined;
     assetType: string | undefined = undefined;
@@ -105,12 +106,16 @@ export class SituasiComponent {
                                     this.assetId,
                                 ],
                             });
+                            // this.menuAssets = this.menuData.filter((data) => {
+                            //     return data.id === this.lineId;
+                            // })[0][assetVerb];
                         } else {
                             this.titleString =
                                 currentLine.displayName +
                                 " - " +
                                 assetVerb.charAt(0).toUpperCase() +
                                 assetVerb.slice(1);
+                            // this.menuAssets = [];
                         }
                     } else {
                         this.titleString = currentLine.displayName;

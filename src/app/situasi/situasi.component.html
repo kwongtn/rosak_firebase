@@ -162,8 +162,9 @@
                                 [routerLink]="
                                     ['/', 'situasi'].concat(item.href)
                                 "
-                                >{{ item.displayText }}</a
                             >
+                                {{ item.displayText }}
+                            </a>
                             <nz-dropdown-menu #menu="nzDropdownMenu">
                                 <ul
                                     nz-menu
@@ -194,6 +195,38 @@
                                         </li>
                                     </ng-container>
                                 </ul>
+                                <!-- <ul
+                                    nz-menu
+                                    nzSelectable
+                                    style="max-height: 80vh;"
+                                    *ngIf="item.level === 'asset'"
+                                >
+                                    <ng-container
+                                        *ngFor="let asset of menuAssets"
+                                    >
+                                        <li
+                                            nz-menu-item
+                                            *ngIf="
+                                                item.displayText !==
+                                                asset.displayName
+                                            "
+                                        >
+                                            <a
+                                                [routerLink]="
+                                                    [
+                                                        '/',
+                                                        'situasi',
+                                                        item.href[0],
+                                                        item.href[1],
+                                                        asset.id
+                                                    ]
+                                                "
+                                            >
+                                                {{ asset.displayName }}
+                                            </a>
+                                        </li>
+                                    </ng-container>
+                                </ul> -->
                             </nz-dropdown-menu>
                         </nz-breadcrumb-item>
                     </nz-breadcrumb>
