@@ -1,0 +1,73 @@
+.g2-tooltip {
+    // position: absolute;
+    // z-index: 8;
+    transition:
+        left 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s,
+        top 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s;
+    // background-color: transparent;
+    // color: rgb(89, 89, 89);
+    padding: 0px 12px;
+    // margin: 0px;
+    // overflow-x: auto;
+    // width: 100%;
+    // left: 0px;
+    // top: 0px;
+    pointer-events: auto;
+}
+
+.g2-tooltip-title {
+    margin: 10px 0;
+    font-weight: 700;
+    height: 12px;
+    line-height: 12px;
+}
+
+.g2-tooltip-items {
+    // display: flex;
+    // flex-direction: row;
+    // align-items: center;
+    // overflow: auto;
+    // width: 100%;
+}
+
+.g2-tooltip-item {
+    opacity: 1;
+    cursor: pointer;
+    padding-left: 12px;
+}
+
+.g2-tooltip-item.inactive {
+    opacity: 0.25;
+}
+
+.g2-tooltip-item-marker {
+    width: 3px;
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    height: 48px;
+    left: 0px;
+}
+
+.g2-tooltip-item-label {
+    font-size: 14px;
+    line-height: 14px;
+    margin: 2px 0px 12px;
+}
+
+.g2-tooltip-item-value {
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 18px;
+    color: rgba(0, 0, 0, 0.65);
+    margin: 0px 0px 4px;
+}
+
+#container {
+    top: 94px;
+    bottom: 0px;
+    right: 10px;
+    left: 10px;
+    height: calc(100% - 88px);
+}
