@@ -1,5 +1,4 @@
 import { CheckBoxModule, DevUIModule, PanelModule } from "ng-devui";
-import { AlertModule } from "ng-devui/alert";
 import { CascaderModule } from "ng-devui/cascader";
 import { DataTableModule } from "ng-devui/data-table";
 import { DatepickerModule } from "ng-devui/datepicker";
@@ -101,7 +100,6 @@ import {
         ReactiveFormsModule,
 
         // DevUI
-        AlertModule,
         CascaderModule,
         CheckBoxModule,
         DataTableModule,

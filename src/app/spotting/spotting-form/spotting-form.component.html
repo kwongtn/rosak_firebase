@@ -89,29 +89,41 @@
                     </d-form-control>
                 </d-form-item>
                 <div class="vehicle-alert" *ngIf="showVehicleWarning">
-                    <d-alert [type]="'warning'" [closeable]="false">
-                        It seems that you are trying to record a vehicle that is
-                        either decommissioned, married, out of service or
-                        unknown. Please complete the sanity test below.
-
-                        <hr />
-                        <b>Sanity test</b>
-                        <br />
-                        <br />
-
-                        <d-form-item>
-                            <d-form-control
-                                [feedbackStatus]="getStatus('sanityTest')"
-                            >
-                                <d-checkbox
-                                    [label]="'Yes, I know what I\'m doing'"
-                                    [isShowTitle]="false"
-                                    formControlName="sanityTest"
+                    <nz-alert
+                        nzType="warning"
+                        nzCloseable="false"
+                        nzShowIcon
+                        [nzAction]="sanityTestTemplate"
+                    ></nz-alert>
+                    <ng-template #sanityTestTemplate>
+                        <nz-space nzDirection="vertical">
+                            <span class="sanity-test-text">
+                                It seems that you are trying to record a vehicle
+                                that is either decommissioned, married, out of
+                                service or unknown. Please complete the sanity
+                                test below.
+                            </span>
+                            <hr />
+                            <d-form-item>
+                                <d-form-control
+                                    [feedbackStatus]="getStatus('sanityTest')"
                                 >
-                                </d-checkbox>
-                            </d-form-control>
-                        </d-form-item>
-                    </d-alert>
+                                    <d-checkbox
+                                        class="sanity-test-text"
+                                        [labelTemplate]="sanityTestTemplate"
+                                        [isShowTitle]="false"
+                                        formControlName="sanityTest"
+                                    >
+                                    </d-checkbox>
+                                    <ng-template #sanityTestTemplate>
+                                        <span class="sanity-test-text">
+                                            Yes, I know what I\'m doing
+                                        </span>
+                                    </ng-template>
+                                </d-form-control>
+                            </d-form-item>
+                        </nz-space>
+                    </ng-template>
                 </div>
 
                 <d-form-item>
