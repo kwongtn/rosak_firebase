@@ -1,8 +1,18 @@
 import { QueryRef } from "apollo-angular";
 import { Subscription } from "rxjs";
+import { ThemeService } from "src/app/services/theme/theme.service";
 
-import { Component, Input, OnInit } from "@angular/core";
-import { G2, Heatmap } from "@antv/g2plot";
+import {
+    Component,
+    Input,
+    NgZone,
+    OnChanges,
+    OnInit,
+    SimpleChanges,
+} from "@angular/core";
+import { PathCommand, ShapeAttrs } from "@antv/g-base/lib";
+import { Data } from "@antv/g2";
+import { Datum, G2, Heatmap, HeatmapOptions } from "@antv/g2plot";
 
 import {
     GetDataGqlService,
@@ -12,31 +22,81 @@ import { GetDataService } from "./services/get-data/get-data.service";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+type MutableHeatmapOptions = {
+    -readonly [K in keyof HeatmapOptions]: HeatmapOptions[K];
+};
+
 @Component({
     selector: "spotting-vehicle-calendar-heatmap",
     templateUrl: "./spotting-vehicle-calendar-heatmap.component.html",
     styleUrls: ["./spotting-vehicle-calendar-heatmap.component.scss"],
 })
-export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
+export class SpottingVehicleCalendarHeatmapComponent
+implements OnInit, OnChanges
+{
     @Input() vehicleId!: string;
 
     gqlSubscription!: Subscription;
     watchQueryOption!: QueryRef<GetSpottingVehicleCalendarHeatmapResponse>;
 
-    isLoading = true;
+    loading = true;
+    heatmapPlot: Heatmap | undefined = undefined;
+    heatmapPlotOptions: MutableHeatmapOptions = {
+        data: [],
+        height: 400,
+        autoFit: false,
+        xField: "weekOfYear",
+        yField: "dayOfWeek",
+        colorField: "count",
+        reflect: "y",
+        shape: "boundary-polygon",
+        legend: {},
+        // theme: "light",
+        color: "puRd",
+        meta: {
+            dayOfWeek: {
+                type: "cat",
+                values: daysOfWeek,
+            },
+            weekOfYear: {
+                type: "cat",
+            },
+            count: {
+                sync: true,
+            },
+            dateKey: {
+                type: "cat",
+            },
+        },
+        yAxis: {
+            grid: null,
+        },
+        tooltip: {
+            title: "dateKey",
+            showMarkers: false,
+        },
+        interactions: [{ type: "element-active" }],
+        xAxis: {
+            position: "top",
+            tickLine: null,
+            line: null,
+            label: {
+                offset: 12,
+                style: {
+                    fontSize: 12,
+                    fill: "#666",
+                    textBaseline: "top",
+                },
+            },
+        },
+    };
 
     registerPolygons() {
         G2.registerShape("polygon", "boundary-polygon", {
             draw(cfg, container) {
                 const group = container.addGroup();
-                const attrs = {
-                    stroke: "#fff",
-                    lineWidth: 1,
-                    fill: cfg.color,
-                    paht: [],
-                };
                 const points = cfg.points as G2.Types.ShapeVertices;
-                const path = [
+                const path: PathCommand[] = [
                     [
                         "M",
                         (points[0] as G2.Types.Point).x,
@@ -59,12 +119,18 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
                     ],
                     ["Z"],
                 ];
-                (attrs as any).path = (this as any).parsePath(path);
+                const attrs: ShapeAttrs = {
+                    stroke: "#fff",
+                    lineWidth: 1,
+                    fill: cfg.color,
+                    path: (this as G2.Types.Shape).parsePath(path),
+                };
+
                 group.addShape("path", {
                     attrs,
                 });
 
-                if ((cfg.data as any).isLastWeekOfMonth) {
+                if ((cfg.data as Datum | Data).isLastWeekOfMonth) {
                     const linePath = [
                         [
                             "M",
@@ -80,15 +146,15 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
                     // 最后一周的多边形添加右侧边框
                     group.addShape("path", {
                         attrs: {
-                            path: (this as any).parsePath(linePath),
+                            path: (this as G2.Types.Shape).parsePath(linePath),
                             lineWidth: 4,
                             stroke: "#404040",
                         },
                     });
-                    if ((cfg.data as any).isLastDayOfMonth) {
+                    if ((cfg.data as Datum | Data).isLastDayOfMonth) {
                         group.addShape("path", {
                             attrs: {
-                                path: (this as any).parsePath([
+                                path: (this as G2.Types.Shape).parsePath([
                                     [
                                         "M",
                                         (points[1] as G2.Types.Point).x,
@@ -113,12 +179,22 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
 
     constructor(
         private gqlService: GetDataGqlService,
-        private getDataService: GetDataService
+        private getDataService: GetDataService,
+        private ngZone: NgZone,
+        themeService: ThemeService
     ) {
         this.registerPolygons();
+
+        // themeService.colorScheme.subscribe((theme) => {
+        //     console.log(theme);
+        //     // this.heatmapPlotOptions.theme = theme;
+
+        //     this.heatmapPlot?.update(this.heatmapPlotOptions);
+        //     this.heatmapPlot?.render();
+        // });
     }
 
-    ngOnInit(): void {
+    setAndRenderChart() {
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 10);
         startDate.setDate(1);
@@ -130,73 +206,32 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit {
                 new Date().toISOString().split("T")[0]
             )
             .then((data) => {
-                const heatmapPlot = new Heatmap(
-                    document.getElementById("container") as HTMLElement,
-                    {
-                        data,
-                        height: 400,
-                        autoFit: false,
-                        xField: "weekOfYear",
-                        yField: "dayOfWeek",
-                        colorField: "count",
-                        reflect: "y",
-                        shape: "boundary-polygon",
-                        legend: {},
-                        meta: {
-                            dayOfWeek: {
-                                type: "cat",
-                                values: daysOfWeek,
-                            },
-                            weekOfYear: {
-                                type: "cat",
-                            },
-                            count: {
-                                sync: true,
-                            },
-                            dateKey: {
-                                type: "cat",
-                            },
-                        },
-                        yAxis: {
-                            grid: null,
-                        },
-                        tooltip: {
-                            title: "dateKey",
-                            showMarkers: false,
-                        },
-                        interactions: [{ type: "element-active" }],
-                        xAxis: {
-                            position: "top",
-                            tickLine: null,
-                            line: null,
-                            label: {
-                                offset: 12,
-                                style: {
-                                    fontSize: 12,
-                                    fill: "#666",
-                                    textBaseline: "top",
-                                },
-                            },
-                        },
-                    }
-                );
-                heatmapPlot.render();
+                this.heatmapPlotOptions["data"] = data;
+
+                this.heatmapPlot = this.ngZone.runOutsideAngular(() => {
+                    return new Heatmap(
+                        document.getElementById("container") as HTMLElement,
+                        this.heatmapPlotOptions
+                    );
+                });
+
+                this.heatmapPlot.render();
+
+                this.loading = false;
             });
+    }
 
-        // this.watchQueryOption = this.gqlService.watch({
-        //     vehicleFilter: {
-        //         id: this.vehicleId,
-        //     },
-        //     startDate: startDate.toISOString().split("T")[0],
-        //     endDate: new Date().toISOString().split("T")[0],
-        // });
+    ngOnInit(): void {
+        this.setAndRenderChart();
+    }
 
-        // this.gqlSubscription = this.watchQueryOption.valueChanges.subscribe(
-        //     ({ data, loading }) => {
-        //         this.isLoading = loading;
+    ngOnChanges(changes: SimpleChanges) {
+        if (!changes["vehicleId"].firstChange) {
+            this.heatmapPlot?.destroy();
+            this.heatmapPlot = undefined;
 
-        //         const spottingTrends = [...data.vehicles[0].spottingTrends];
-        //     }
-        // );
+            this.loading = true;
+            this.setAndRenderChart();
+        }
     }
 }

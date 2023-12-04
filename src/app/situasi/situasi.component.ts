@@ -10,10 +10,11 @@ import {
 } from "@angular/router";
 
 import { ThemeService } from "../services/theme/theme.service";
-import { data } from "./data";
+import { assetTypes, data } from "./data";
 
 export interface BreadcrumbsData {
     displayText: string;
+    level: "asset" | "line" | "typeSeperator" | undefined;
     href: string[];
 }
 
@@ -26,6 +27,8 @@ export class SituasiComponent {
     $theme!: Observable<"light" | "dark">;
 
     menuData = data;
+    menuAssetTypes = assetTypes;
+    // menuAssets: VehiclesStationsData[] = [];
 
     lineId: string | undefined = undefined;
     assetType: string | undefined = undefined;
@@ -70,6 +73,7 @@ export class SituasiComponent {
                 if (currentLine && this.lineId) {
                     this.breadcrumbsData.push({
                         displayText: currentLine.displayName,
+                        level: undefined, // We don't show dropdown for line
                         href: [this.lineId],
                     });
 
@@ -80,6 +84,7 @@ export class SituasiComponent {
                             displayText:
                                 assetVerb.charAt(0).toUpperCase() +
                                 assetVerb.slice(1),
+                            level: "typeSeperator",
                             href: [this.lineId, this.assetType],
                         });
 
@@ -94,18 +99,23 @@ export class SituasiComponent {
 
                             this.breadcrumbsData.push({
                                 displayText: this.titleString,
+                                level: "asset",
                                 href: [
                                     this.lineId,
                                     this.assetType,
                                     this.assetId,
                                 ],
                             });
+                            // this.menuAssets = this.menuData.filter((data) => {
+                            //     return data.id === this.lineId;
+                            // })[0][assetVerb];
                         } else {
                             this.titleString =
                                 currentLine.displayName +
                                 " - " +
                                 assetVerb.charAt(0).toUpperCase() +
                                 assetVerb.slice(1);
+                            // this.menuAssets = [];
                         }
                     } else {
                         this.titleString = currentLine.displayName;
