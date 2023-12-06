@@ -26,7 +26,7 @@ export class VehicleStatusHistoryComponent implements OnInit {
             .then((res) => res.json())
             .then((data) => {
                 this.chartRef = this.ngZone.runOutsideAngular(() => {
-                    return new Line("container", {
+                    return new Line("vehicle-status-history-container", {
                         data,
                         autoFit: true,
                         xField: "Date",
