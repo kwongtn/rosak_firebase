@@ -1,3 +1,4 @@
+import { NzTabsModule } from "ng-zorro-antd/tabs";
 import {
     SpottingLineCalendarHeatmapModule,
 } from "src/app/@ui/spotting-line-calendar-heatmap/spotting-line-calendar-heatmap.module";
@@ -14,6 +15,7 @@ import { VehiclesComponent } from "./vehicles.component";
     declarations: [VehiclesComponent],
     imports: [
         CommonModule,
+        NzTabsModule,
 
         // Internal Imports
         SpottingLineCalendarHeatmapModule,
