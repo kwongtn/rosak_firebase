@@ -20,10 +20,15 @@ export class VehicleStatusHistoryComponent implements OnInit {
     activeTooltipTitle: string | undefined = undefined;
     activeSeriesList: any[] = [];
 
-    sourceString: "MLPTF" | "MTREC" = "MLPTF";
-
     chartRef: Line | undefined = undefined;
     colors10: LooseObject = {};
+    
+    sourceString: "MLPTF" | "MTREC" = "MLPTF";
+    dataSourceOptions = [
+        { label: "MLPTF", value: "MLPTF", disabled: false },
+        { label: "MTREC", value: "MTREC", disabled: false },
+        { label: "Prasarana", value: "prasarana", disabled: true },
+    ];
 
     constructor(
         private ngZone: NgZone,
@@ -186,6 +191,10 @@ export class VehicleStatusHistoryComponent implements OnInit {
                     }
                 });
         }
+    }
+
+    onDataSourceChange(index: number) {
+        this.sourceString = this.dataSourceOptions[index].value as any;
     }
 
     ngOnInit(): void {
