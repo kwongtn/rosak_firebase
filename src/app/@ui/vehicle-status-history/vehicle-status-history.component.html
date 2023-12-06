@@ -16,8 +16,8 @@
                 (click)="changeActiveSeries(item.series)"
             >
                 <nz-statistic
-                    [nzValue]="item.value || '-'"
-                    [nzTitle]="item.series"
+                    [nzValue]="item.count || '-'"
+                    [nzTitle]="item.status.replaceAll('_', ' ') | titlecase"
                     [nzPrefix]="statPrefixTemplate"
                 >
                     <ng-template #statPrefixTemplate>

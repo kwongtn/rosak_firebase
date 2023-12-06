@@ -1,4 +1,7 @@
+<ui-vehicle-status-history
+    *ngIf="lineId"
+    [lineId]="lineId"
+></ui-vehicle-status-history>
 <spotting-line-calendar-heatmap *ngIf="lineId" [lineId]="lineId">
 </spotting-line-calendar-heatmap>
 <!-- <spotting-vehicle-calendar-heatmap></spotting-vehicle-calendar-heatmap> -->
-<ui-vehicle-status-history></ui-vehicle-status-history>
