@@ -3,7 +3,6 @@ import { CascaderModule } from "ng-devui/cascader";
 import { DataTableModule } from "ng-devui/data-table";
 import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
-import { LoadingModule } from "ng-devui/loading";
 import { SelectModule } from "ng-devui/select";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
@@ -106,7 +105,6 @@ import {
         DatepickerModule,
         DevUIModule,
         IconModule,
-        LoadingModule,
         PanelModule,
         SelectModule,
         TagsModule,

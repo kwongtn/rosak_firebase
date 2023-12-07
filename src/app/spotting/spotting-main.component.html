@@ -35,7 +35,8 @@
         >
     </span>
 </div>
-<div dLoading class="spotting-main-container" [showLoading]="showLoading">
+<nz-spin class="spinner" nzSimple *ngIf="showLoading"></nz-spin>
+<div class="spotting-main-container">
     <div class="spotting-table-container" *ngIf="tabActiveId">
         <nz-tabset
             [nzSelectedIndex]="tabActiveIndex"
