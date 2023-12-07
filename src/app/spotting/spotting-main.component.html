@@ -30,9 +30,13 @@
         ></nz-spin>
     </span>
     <span class="spotting-form-button">
-        <d-button (click)="openStandardDialog('standard')"
-            >Add spotting entry</d-button
+        <button
+            nz-button
+            nzType="primary"
+            (click)="openStandardDialog('standard')"
         >
+            Add spotting entry
+        </button>
     </span>
 </div>
 <nz-spin class="spinner" nzSimple *ngIf="showLoading"></nz-spin>
