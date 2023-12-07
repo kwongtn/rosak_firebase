@@ -4,9 +4,7 @@ import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
     GetLinesResponse,
-    LineStatus,
 } from "src/app/models/query/get-vehicles";
-import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
     ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
@@ -50,13 +48,11 @@ const GET_LINES = gql`
 })
 export class SpottingMainComponent implements OnInit, OnDestroy {
     env = environment;
-    tableData: TableDataType[] = [];
     showLoading: boolean = true;
 
     tabActiveId: string | number | undefined = undefined;
-    tabActiveTitle: string = "";
+    tabActiveIndex: number = 0;
     tabItems: LineTabType[] = [];
-    tabLineStatus: LineStatus = "ACTIVE";
 
     countIcon: number = 0;
     $countIcon: Subscription | undefined = undefined;
@@ -65,8 +61,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     $uploadPercentage: Observable<number> | undefined = undefined;
 
     hadUpload: boolean = false;
-
-    currentDataId: string | undefined;
     vehicleAndLineData: GetLinesAndVehiclesResponse | undefined = undefined;
 
     drawerRef:
@@ -75,7 +69,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     @ViewChild("drawerFooter") drawerFooter!: TemplateRef<any>;
 
     private querySubscription!: Subscription;
-    private routeSubscription!: Subscription;
 
     width: string = "700px";
     @HostListener("window:resize")
@@ -165,9 +158,14 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     }
 
     submit() {
-        this.drawerRef
-            ?.getContentComponent()
-            ?.onSubmit()
+        const drawerRef = this.drawerRef;
+        if (!drawerRef) return;
+
+        const contentComponent = drawerRef.getContentComponent();
+        if (!contentComponent) return;
+
+        contentComponent
+            .onSubmit()
             ?.then(({ spottingSubmission, uploads, formData }) => {
                 this.onFormCloseHandle({
                     uploads,
@@ -182,8 +180,11 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                 id: submissionData?.data.addEvent.id,
                             }
                         );
+                        contentComponent.showLoading = false;
 
-                        this.drawerRef?.close();
+                        drawerRef.close();
+                    } else {
+                        contentComponent.showLoading = false;
                     }
                 });
             })
@@ -192,14 +193,11 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     `Unknown Error: ${reason.message}`,
                     "error"
                 );
+                contentComponent.showLoading = false;
             });
     }
 
     ngOnInit(): void {
-        this.routeSubscription = this.route.params.subscribe((params: any) => {
-            this.currentDataId = params["id"];
-        });
-
         this.$totalCountIcon =
             this.imageUploadService.$totalUploadCount.asObservable();
         this.$uploadPercentage =
@@ -219,45 +217,36 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
             .query<GetLinesResponse>({
                 query: GET_LINES,
             })
-            .subscribe(({ data, loading }) => {
+            .subscribe(async ({ data, loading }) => {
                 this.showLoading = loading;
 
                 this.tabItems = lineQueryResultToTabEntries(data);
+                const currentDataId = (await firstValueFrom(this.route.params))[
+                    "id"
+                ];
 
-                if (!this.currentDataId) {
-                    this.tabActiveId = data.lines[0].id;
-                    firstValueFrom(this.route.url).then((value) => {
-                        this.router.navigate([value[0].path, data.lines[0].id]);
-                    });
+                if (!currentDataId) {
+                    this.tabActiveIndex = 0;
+                    this.tabActiveId = data.lines[this.tabActiveIndex].id;
+                    this.router.navigate(["spotting", this.tabActiveId]);
                 } else {
-                    this.tabActiveId = this.currentDataId;
+                    this.tabActiveId = currentDataId;
+                    this.tabActiveIndex = this.tabItems.findIndex((item) => {
+                        return parseInt(item.id) === parseInt(currentDataId);
+                    });
                 }
-
-                this.setActiveTitle();
             });
     }
 
     ngOnDestroy() {
         // this.querySubscription.unsubscribe();
-        this.routeSubscription.unsubscribe();
         this.$countIcon?.unsubscribe();
     }
 
-    activeTabChange(event: any) {
-        console.log("Active tab change: ", event);
+    activeTabChange(index: number) {
+        this.tabActiveId = this.tabItems[index].id;
+        this.tabActiveIndex = index;
 
-        this.router.navigate(["spotting", event]);
-
-        this.tabActiveId = event;
-        // this.filterTabItems();
-        this.setActiveTitle();
-    }
-
-    setActiveTitle() {
-        const currObj = this.tabItems.find((val) => {
-            return val.id === this.tabActiveId;
-        });
-        this.tabActiveTitle = currObj?.detail ?? "";
-        this.tabLineStatus = currObj?.lineStatus ?? "ACTIVE";
+        this.router.navigate(["spotting", this.tabActiveId]);
     }
 }

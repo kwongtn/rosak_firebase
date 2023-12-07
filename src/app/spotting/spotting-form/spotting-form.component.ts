@@ -87,6 +87,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     showedLocationPopout: boolean = false;
     showRunNumberInput: boolean = false;
     submitting: LoadingType = Promise.resolve("false");
+    showLoading: boolean = false;
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
@@ -441,6 +442,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
               formData: any;
           }>
         | undefined {
+        this.showLoading = true;
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
@@ -552,6 +554,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 });
 
                 this.submitting = lastValueFrom(mutationObservable);
+                this.submitting.then(() => {
+                    this.showLoading = false;
+                });
 
                 return {
                     uploads,
