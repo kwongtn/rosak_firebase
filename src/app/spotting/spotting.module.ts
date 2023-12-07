@@ -5,7 +5,6 @@ import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
 import { LoadingModule } from "ng-devui/loading";
 import { SelectModule } from "ng-devui/select";
-import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { TooltipModule } from "ng-devui/tooltip";
@@ -21,6 +20,7 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     SpottingImageListModule,
@@ -109,7 +109,6 @@ import {
         LoadingModule,
         PanelModule,
         SelectModule,
-        TabsModule,
         TagsModule,
         TimeAxisModule,
         TooltipModule,
@@ -132,17 +131,18 @@ import {
         NzAlertModule,
         NzButtonModule,
         NzDrawerModule,
-        NzGridModule,
-        NzIconModule,
-        NzListModule,
         NzEmptyModule,
         NzGridModule,
+        NzGridModule,
+        NzIconModule,
         NzIconModule,
         NzImageModule,
+        NzListModule,
         NzPopconfirmModule,
         NzProgressModule,
         NzSpaceModule,
         NzSpinModule,
+        NzTabsModule,
         NzToolTipModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],

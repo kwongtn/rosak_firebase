@@ -37,34 +37,20 @@
 </div>
 <div dLoading class="spotting-main-container" [showLoading]="showLoading">
     <div class="spotting-table-container" *ngIf="tabActiveId">
-        <section>
-            <d-tabs
-                type="pills"
-                size="lg"
-                [(activeTab)]="tabActiveId"
-                (activeTabChange)="activeTabChange($event)"
-                [scrollMode]="'auto'"
-            >
-                <d-tab *ngFor="let item of tabItems" [id]="item.id">
-                    <ng-template dTabTitle>
-                        <div
-                            dTooltip
-                            [content]="item.detail"
-                            [position]="'bottom'"
-                        >
-                            {{ item.title }}
-                        </div>
-                    </ng-template>
-                </d-tab>
-            </d-tabs>
-        </section>
-
-        <app-vehicle-type-container
-            [tableData]="tableData"
-            [lineId]="tabActiveId"
-            [title]="tabActiveTitle"
-            [lineStatus]="tabLineStatus"
-        ></app-vehicle-type-container>
+        <nz-tabset
+            [nzSelectedIndex]="tabActiveIndex"
+            (nzSelectedIndexChange)="activeTabChange($event)"
+        >
+            <nz-tab *ngFor="let item of tabItems" [nzTitle]="item.title">
+                <ng-template nz-tab>
+                    <app-vehicle-type-container
+                        [lineId]="item.id"
+                        [title]="item.title"
+                        [lineStatus]="item.lineStatus"
+                    ></app-vehicle-type-container>
+                </ng-template>
+            </nz-tab>
+        </nz-tabset>
     </div>
 </div>
 
