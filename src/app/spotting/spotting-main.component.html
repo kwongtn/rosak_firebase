@@ -42,13 +42,24 @@
             [nzSelectedIndex]="tabActiveIndex"
             (nzSelectedIndexChange)="activeTabChange($event)"
         >
-            <nz-tab *ngFor="let item of tabItems" [nzTitle]="item.title">
+            <nz-tab *ngFor="let item of tabItems" [nzTitle]="tabTitle">
                 <ng-template nz-tab>
                     <app-vehicle-type-container
                         [lineId]="item.id"
                         [title]="item.detail"
                         [lineStatus]="item.lineStatus"
                     ></app-vehicle-type-container>
+                </ng-template>
+
+                <ng-template #tabTitle>
+                    <span
+                        nz-tooltip
+                        [nzTooltipTitle]="item.detail"
+                        nzTooltipPlacement="topLeft"
+                        [nzTooltipArrowPointAtCenter]="true"
+                    >
+                        {{ item.title }}
+                    </span>
                 </ng-template>
             </nz-tab>
         </nz-tabset>
