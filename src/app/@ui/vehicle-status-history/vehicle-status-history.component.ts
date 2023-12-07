@@ -22,7 +22,7 @@ export class VehicleStatusHistoryComponent implements OnInit {
 
     chartRef: Line | undefined = undefined;
     colors10: LooseObject = {};
-    
+
     sourceString: "MLPTF" | "MTREC" = "MLPTF";
     dataSourceOptions = [
         { label: "MLPTF", value: "MLPTF", disabled: false },
@@ -34,6 +34,33 @@ export class VehicleStatusHistoryComponent implements OnInit {
         private ngZone: NgZone,
         private getDataService: GetDataService
     ) {}
+
+    setInitialHighlight(data: TVehicleStatusTrendCount[]) {
+        if (!this.chartRef) {
+            return;
+        }
+
+        const lastData = AntVUtil.last(data);
+        const point = this.chartRef.chart.getXY(lastData);
+        this.chartRef.chart.showTooltip(point);
+        this.activeTooltipTitle = lastData.date;
+
+        this.tooltipItems = data.filter((d: TVehicleStatusTrendCount) => {
+            return d.date === this.activeTooltipTitle;
+        });
+
+        this.chartRef.on("plot:mouseleave", () => {
+            (this.chartRef as Line).chart.hideTooltip();
+        });
+        this.chartRef.on("tooltip:change", (evt: any) => {
+            const { title } = evt.data;
+            this.tooltipItems = data.filter((d: TVehicleStatusTrendCount) => {
+                return d.date === title;
+            });
+
+            this.activeTooltipTitle = title;
+        });
+    }
 
     setAndRenderChart() {
         this.chartRef?.destroy();
@@ -127,33 +154,9 @@ export class VehicleStatusHistoryComponent implements OnInit {
                 this.chartRef.render();
 
                 // Set initial highlighted data point to latest
-                const lastData = AntVUtil.last(data);
-                const point = this.chartRef.chart.getXY(lastData);
-                this.chartRef.chart.showTooltip(point);
-                this.activeTooltipTitle = lastData.date;
-
-                this.tooltipItems = data.filter(
-                    (d: TVehicleStatusTrendCount) => {
-                        return d.date === this.activeTooltipTitle;
-                    }
-                );
-
-                this.chartRef.on("plot:mouseleave", () => {
-                    (this.chartRef as Line).chart.hideTooltip();
-                });
-                this.chartRef.on("tooltip:change", (evt: any) => {
-                    const { title } = evt.data;
-                    this.tooltipItems = data.filter(
-                        (d: TVehicleStatusTrendCount) => {
-                            return d.date === title;
-                        }
-                    );
-
-                    this.activeTooltipTitle = title;
-                });
+                this.setInitialHighlight(data);
 
                 this.colors10 = this.chartRef.chart.getTheme();
-                console.log(this.colors10);
             });
     }
 
@@ -195,6 +198,27 @@ export class VehicleStatusHistoryComponent implements OnInit {
 
     onDataSourceChange(index: number) {
         this.sourceString = this.dataSourceOptions[index].value as any;
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 10);
+
+        this.getDataService
+            .getData(
+                this.lineId,
+                this.sourceString,
+                startDate.toISOString().split("T")[0],
+                new Date().toISOString().split("T")[0]
+            )
+            .then((data) => {
+                if (!this.chartRef) {
+                    return;
+                }
+                this.chartRef.update({
+                    data,
+                });
+                this.setInitialHighlight(data);
+
+                this.chartRef.render();
+            });
     }
 
     ngOnInit(): void {
