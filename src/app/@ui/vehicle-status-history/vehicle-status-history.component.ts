@@ -63,7 +63,6 @@ export class VehicleStatusHistoryComponent implements OnInit {
     }
 
     setAndRenderChart() {
-        this.chartRef?.destroy();
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 10);
 
