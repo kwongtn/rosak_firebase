@@ -6,7 +6,6 @@ import { IconModule } from "ng-devui/icon";
 import { SelectModule } from "ng-devui/select";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
-import { TooltipModule } from "ng-devui/tooltip";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
@@ -109,7 +108,6 @@ import {
         SelectModule,
         TagsModule,
         TimeAxisModule,
-        TooltipModule,
 
         // Internal Imports
         ActionListModule,
