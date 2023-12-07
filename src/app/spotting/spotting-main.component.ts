@@ -158,9 +158,14 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
     }
 
     submit() {
-        this.drawerRef
-            ?.getContentComponent()
-            ?.onSubmit()
+        const drawerRef = this.drawerRef;
+        if (!drawerRef) return;
+
+        const contentComponent = drawerRef.getContentComponent();
+        if (!contentComponent) return;
+
+        contentComponent
+            .onSubmit()
             ?.then(({ spottingSubmission, uploads, formData }) => {
                 this.onFormCloseHandle({
                     uploads,
@@ -175,8 +180,11 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                 id: submissionData?.data.addEvent.id,
                             }
                         );
+                        contentComponent.showLoading = false;
 
-                        this.drawerRef?.close();
+                        drawerRef.close();
+                    } else {
+                        contentComponent.showLoading = false;
                     }
                 });
             })
@@ -185,6 +193,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                     `Unknown Error: ${reason.message}`,
                     "error"
                 );
+                contentComponent.showLoading = false;
             });
     }
 
