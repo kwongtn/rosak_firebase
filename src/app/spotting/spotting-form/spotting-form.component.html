@@ -42,15 +42,30 @@
                         </nz-form-label>
                         <nz-form-control
                             nzFlex="auto"
-                            [nzValidateStatus]="getStatus('line')"
+                            [nzSpan]="20"
+                            [nzValidateStatus]="
+                                isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                    ? 'error'
+                                    : getStatus('line')
+                            "
                             [nzHasFeedback]="hasStatus('line')"
                             class="nz-padded-form-item"
+                            [nzErrorTip]="
+                                isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                    ? 'Please select a line before selecting \'Between Stations\' or \'At Station\' mode. Then, select the type again.'
+                                    : undefined
+                            "
                         >
                             <nz-select
                                 nzShowSearch
                                 nzAllowClear
                                 nzPlaceHolder="Line"
                                 formControlName="line"
+                                [nzStatus]="
+                                    isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                        ? 'error'
+                                        : ''
+                                "
                                 (ngModelChange)="onLineChanges($event)"
                             >
                                 <nz-option
@@ -60,29 +75,8 @@
                                     [nzDisabled]="line.disabled"
                                 ></nz-option>
                             </nz-select>
-                            <d-alert
-                                *ngIf="
-                                    isShowBetweenStationsModeSelectedBeforeLineSelectionError
-                                "
-                                [type]="'danger'"
-                                [closeable]="false"
-                            >
-                                Please select a line before selecting 'Between
-                                Stations' or 'At Station' mode. Then, select the
-                                type again.
-                            </d-alert>
                         </nz-form-control>
                     </nz-form-item>
-
-                    <!-- <d-alert
-                        *ngIf="formGroup['value']?.line?.value === '3'"
-                        class="test-type-info"
-                        [type]="'info'"
-                        [closeable]="false"
-                    >
-                        Some trains may have a 'testing' banner on it. If so, do mark your
-                        entry as testing 😉
-                    </d-alert> -->
 
                     <nz-form-item>
                         <nz-form-label nzRequired [nzSpan]="4">
@@ -198,20 +192,30 @@
                             Status
                         </nz-form-label>
                         <nz-form-control
+                            [nzSpan]="20"
                             nzFlex="auto"
                             [nzValidateStatus]="getStatus('status')"
                             [nzHasFeedback]="hasStatus('status')"
                         >
-                            <d-select
-                                [options]="statusOptions"
-                                [isSearch]="false"
-                                [filterKey]="'name'"
+                            <nz-select
+                                nzPlaceHolder="Status"
                                 formControlName="status"
-                                [placeholder]="'Status'"
                                 (ngModelChange)="onChanges($event)"
-                                [optionDisabledKey]="'disabled'"
                             >
-                            </d-select>
+                                <nz-option
+                                    *ngFor="let status of statusOptions"
+                                    [nzLabel]="status.name"
+                                    [nzValue]="status.value"
+                                ></nz-option>
+                            </nz-select>
+
+                            <nz-alert
+                                *ngIf="formGroup['value']?.line === '3'"
+                                class="test-type-info"
+                                nzType="info"
+                                nzMessage="Some trains may have a 'testing' banner on it. If so, do mark your entry as testing 😉"
+                                nzShowIcon
+                            ></nz-alert>
                         </nz-form-control>
                     </nz-form-item>
 
