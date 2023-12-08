@@ -10,12 +10,14 @@ import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
+import { NzFormModule } from "ng-zorro-antd/form";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzImageModule } from "ng-zorro-antd/image";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
@@ -128,6 +130,7 @@ import {
         NzButtonModule,
         NzDrawerModule,
         NzEmptyModule,
+        NzFormModule,
         NzGridModule,
         NzGridModule,
         NzIconModule,
@@ -136,6 +139,7 @@ import {
         NzListModule,
         NzPopconfirmModule,
         NzProgressModule,
+        NzSelectModule,
         NzSpaceModule,
         NzSpinModule,
         NzTabsModule,

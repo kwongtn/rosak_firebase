@@ -1,5 +1,4 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
-import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 // import { ReCaptchaV3Service } from "ng-recaptcha";
@@ -19,6 +18,7 @@ import { ToastService } from "src/app/services/toast/toast.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
+    FormControl,
     UntypedFormBuilder,
     UntypedFormControl,
     UntypedFormGroup,
@@ -78,7 +78,6 @@ export interface SpottingFormReturnType {
     styleUrls: ["./spotting-form.component.scss"],
 })
 export class SpottingFormComponent implements OnInit, OnDestroy {
-    layoutDirection: FormLayout = FormLayout.Horizontal;
     appendToBodyDirections: AppendToBodyDirection[] = [
         "rightDown",
         "centerDown",

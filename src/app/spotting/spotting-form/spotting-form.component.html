@@ -1,10 +1,12 @@
 <nz-spin [nzSpinning]="showLoading">
     <div class="form-component">
         <form
-            dForm
-            [layout]="layoutDirection"
-            [labelSize]="'sm'"
+            nz-form
+            nzLayout="horizontal"
+            nzLabelAlign="left"
             [formGroup]="formGroup"
+            [nzNoColon]="true"
+            [nzLabelWrap]="true"
         >
             <div nz-row [nzGutter]="[16, 16]">
                 <div
@@ -367,9 +369,9 @@
                         </d-form-control>
                     </d-form-item>
 
-                    <d-form-item>
-                        <d-form-label>Notes</d-form-label>
-                        <d-form-control>
+                    <nz-form-item>
+                        <nz-form-label [nzSpan]="4">Notes</nz-form-label>
+                        <nz-form-control nzFlex="auto">
                             <textarea
                                 dTextarea
                                 placeholder="Additional notes"
@@ -377,19 +379,19 @@
                                 resize="both"
                                 (ngModelChange)="onChanges($event)"
                             ></textarea>
-                        </d-form-control>
-                    </d-form-item>
+                        </nz-form-control>
+                    </nz-form-item>
 
-                    <d-form-item>
-                        <d-form-control>
+                    <nz-form-item>
+                        <nz-form-control>
                             <d-checkbox
                                 [label]="'Anonymous Entry'"
                                 [isShowTitle]="false"
                                 formControlName="isAnonymous"
                             >
                             </d-checkbox>
-                        </d-form-control>
-                    </d-form-item>
+                        </nz-form-control>
+                    </nz-form-item>
                 </div>
 
                 <div nz-col nzXs="24">
