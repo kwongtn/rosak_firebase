@@ -8,12 +8,14 @@ import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzImageModule } from "ng-zorro-antd/image";
+import { NzInputModule } from "ng-zorro-antd/input";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
@@ -128,14 +130,14 @@ import {
         // ng-zorro
         NzAlertModule,
         NzButtonModule,
+        NzCheckboxModule,
         NzDrawerModule,
         NzEmptyModule,
         NzFormModule,
         NzGridModule,
-        NzGridModule,
-        NzIconModule,
         NzIconModule,
         NzImageModule,
+        NzInputModule,
         NzListModule,
         NzPopconfirmModule,
         NzProgressModule,

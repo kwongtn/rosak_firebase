@@ -87,6 +87,7 @@
                             [nzValidateStatus]="getStatus('vehicle')"
                             [nzHasFeedback]="hasStatus('vehicle')"
                         >
+                            <!-- TODO: Replace with new logic -->
                             <d-select
                                 formControlName="vehicle"
                                 (ngModelChange)="onVehicleChanges($event)"
@@ -114,7 +115,6 @@
                                     married, out of service or unknown. Please
                                     complete the sanity test below.
                                 </span>
-                                <hr />
                                 <nz-form-item>
                                     <nz-form-control
                                         [nzValidateStatus]="
@@ -124,18 +124,12 @@
                                             hasStatus('sanityTest')
                                         "
                                     >
-                                        <d-checkbox
-                                            class="sanity-test-text"
-                                            [labelTemplate]="sanityTestTemplate"
-                                            [isShowTitle]="false"
-                                            formControlName="sanityTest"
+                                        <label
+                                            nz-checkbox
+                                            (click)="toggleSanityTest()"
                                         >
-                                        </d-checkbox>
-                                        <ng-template #sanityTestTemplate>
-                                            <span class="sanity-test-text">
-                                                Yes, I know what I\'m doing
-                                            </span>
-                                        </ng-template>
+                                            Yes, I know what I'm doing
+                                        </label>
                                     </nz-form-control>
                                 </nz-form-item>
                             </nz-space>
@@ -151,6 +145,7 @@
                             [nzValidateStatus]="getStatus('spottingDate')"
                             [nzHasFeedback]="hasStatus('spottingDate')"
                         >
+                            <!-- TODO: Replace with new logic -->
                             <div
                                 class="devui-input-group devui-dropdown-origin"
                             >
@@ -253,11 +248,9 @@
                                 [nzHasFeedback]="hasStatus('runNumber')"
                             >
                                 <input
-                                    dTextInput
-                                    placeholder=""
+                                    nz-input
+                                    placeholder="Run Number (Optional)"
                                     formControlName="runNumber"
-                                    resize="none"
-                                    (ngModelChange)="onChanges($event)"
                                 />
                             </nz-form-control>
                         </nz-form-item>
@@ -271,7 +264,8 @@
                                 nzValidateStatus="success"
                             >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="
                                         '' +
                                         formGroup.value.location.altitude +
@@ -279,7 +273,6 @@
                                         formGroup.value.location
                                             .altitudeAccuracy
                                     "
-                                    [readonly]="true"
                                 />
                             </nz-form-control>
                         </nz-form-item>
@@ -291,9 +284,9 @@
                                 nzValidateStatus="success"
                             >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="formGroup.value.location.heading"
-                                    [readonly]="true"
                                 />
                             </nz-form-control>
                         </nz-form-item>
@@ -305,13 +298,13 @@
                                 nzValidateStatus="success"
                             >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="
                                         '' +
                                         formGroup.value.location.speed * 3.6 +
                                         'km/h'
                                     "
-                                    [readonly]="true"
                                 />
                             </nz-form-control>
                         </nz-form-item>
@@ -325,12 +318,12 @@
                                 nzValidateStatus="success"
                             >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="
                                         formGroup.value.location
                                             | coordinatesHumanizer
                                     "
-                                    [readonly]="true"
                                 />
                             </nz-form-control>
                         </nz-form-item>
@@ -429,7 +422,7 @@
                         >
                             <nz-select
                                 nzAllowClear
-                                nzPlaceHolder="Wheel Status"
+                                nzPlaceHolder="Wheel Status (Optional)"
                                 formControlName="wheelStatus"
                                 (ngModelChange)="onLineChanges($event)"
                             >
@@ -448,10 +441,10 @@
                         <nz-form-label [nzSpan]="4">Notes</nz-form-label>
                         <nz-form-control nzFlex="auto">
                             <textarea
-                                dTextarea
-                                placeholder="Additional notes"
+                                [nzAutosize]="{ minRows: 2, maxRows: 6 }"
+                                nz-input
                                 formControlName="notes"
-                                resize="both"
+                                placeholder="Additional notes"
                                 (ngModelChange)="onChanges($event)"
                             ></textarea>
                         </nz-form-control>
@@ -459,12 +452,9 @@
 
                     <nz-form-item>
                         <nz-form-control>
-                            <d-checkbox
-                                [label]="'Anonymous Entry'"
-                                [isShowTitle]="false"
-                                formControlName="isAnonymous"
-                            >
-                            </d-checkbox>
+                            <label nz-checkbox (click)="toggleIsAnonymous()">
+                                Anonymous Entry
+                            </label>
                         </nz-form-control>
                     </nz-form-item>
                 </div>

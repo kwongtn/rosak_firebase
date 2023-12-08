@@ -228,7 +228,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         const type = spottingStorageService.getType();
         const atStationStation = spottingStorageService.getAtStationStation();
 
-        console.log(this.sessionHistoryService.historyStore.value);
+        console.debug(
+            "History store: ",
+            this.sessionHistoryService.historyStore.value
+        );
 
         this.formGroup = this.fb.group(
             {
@@ -239,13 +242,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 spottingDate: new UntypedFormControl(new Date(), [
                     Validators.required,
                 ]),
-                status: new UntypedFormControl(
-                    {
-                        name: "In Service",
-                        value: "IN_SERVICE",
-                    },
-                    [Validators.required]
-                ),
+                status: new FormControl("IN_SERVICE", [Validators.required]),
                 type: new UntypedFormControl(type, [Validators.required]),
                 atStation: new UntypedFormControl(atStationStation, []),
                 originStation: new UntypedFormControl("", []),
@@ -253,7 +250,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 destinationStation: new UntypedFormControl("", []),
                 notes: new UntypedFormControl("", []),
                 runNumber: new UntypedFormControl(undefined, []),
-                isAnonymous: new UntypedFormControl(false, []),
+                isAnonymous: new FormControl(false, []),
                 sanityTest: new UntypedFormControl(false, []),
                 location: new UntypedFormControl(false, []),
                 uploads: new UntypedFormControl({}, []),
@@ -437,6 +434,18 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         return;
     }
 
+    toggleIsAnonymous() {
+        this.formGroup.patchValue({
+            isAnonymous: !this.formGroup.value.isAnonymous,
+        });
+    }
+
+    toggleSanityTest() {
+        this.formGroup.patchValue({
+            sanityTest: !this.formGroup.value.sanityTest,
+        });
+    }
+
     onSubmit():
         | Promise<{
               spottingSubmission: Promise<MutationResult<any> | undefined>;
@@ -479,21 +488,17 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         }
 
         // Form Distillation
-        if (formValues.type === "BETWEEN_STATIONS") {
-            formValues["originStation"] = formValues["originStation"].value;
-            formValues["destinationStation"] =
-                formValues["destinationStation"].value;
+        if (!["BETWEEN_STATIONS", "AT_STATION"].includes(formValues.type)) {
+            formValues["originStation"] = undefined;
+            formValues["destinationStation"] = undefined;
         } else if (formValues.type === "AT_STATION") {
             this.spottingStorageService.setAtStationStation({
                 ...formValues["atStation"],
             });
 
-            formValues["originStation"] = formValues["atStation"].value;
+            formValues["originStation"] = formValues["atStation"];
             formValues["destinationStation"] = undefined;
             formValues["atStation"] = undefined;
-        } else {
-            formValues["originStation"] = undefined;
-            formValues["destinationStation"] = undefined;
         }
 
         formValues["atStation"] = undefined;
@@ -510,14 +515,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             .toISOString()
             .slice(0, 10);
 
-        formValues["vehicle"] = formValues["vehicle"].value;
-        formValues["status"] = formValues["status"].value;
-        if (formValues["wheelStatus"]) {
-            formValues["wheelStatus"] = formValues["wheelStatus"].value;
-        }
         this.spottingStorageService.setType(formValues["type"]);
-        formValues["type"] = formValues["type"].value;
-
         this.spottingStorageService.setLine(formValues["line"]);
 
         const uploads: ImageFile[] = Object.values<ImageFile>(
