@@ -259,7 +259,7 @@
                         </nz-form-item>
                     </div>
 
-                    <div *ngIf="this.formGroup.value.type.value === 'LOCATION'">
+                    <div *ngIf="this.formGroup.value.type === 'LOCATION'">
                         <nz-form-item *ngIf="formGroup.value.location.altitude">
                             <nz-form-label [nzSpan]="4">Altitude</nz-form-label>
                             <nz-form-control
@@ -332,9 +332,7 @@
                         </nz-form-item>
                     </div>
 
-                    <div
-                        *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'"
-                    >
+                    <div *ngIf="formGroup.value.type == 'BETWEEN_STATIONS'">
                         <nz-form-item>
                             <nz-form-label nzRequired [nzSpan]="4">
                                 Origin Station
@@ -390,7 +388,7 @@
                         </nz-form-item>
                     </div>
 
-                    <div *ngIf="formGroup.value.type.value == 'AT_STATION'">
+                    <div *ngIf="formGroup.value.type == 'AT_STATION'">
                         <nz-form-item>
                             <nz-form-label nzRequired [nzSpan]="4">
                                 At Station
