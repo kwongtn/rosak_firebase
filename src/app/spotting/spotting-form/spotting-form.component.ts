@@ -169,7 +169,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         );
     };
 
-    getStatus(fieldName: string): DFormControlStatus | null {
+    getStatus(fieldName: string): string {
         if (this.loading[fieldName]) {
             return "pending";
         } else if (this.formGroup.controls[fieldName].valid) {
@@ -182,16 +182,20 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 if (this.submitButtonClicked) {
                     return "error";
                 } else {
-                    return null;
+                    return "";
                 }
             } else {
                 return "success";
             }
         } else if (!this.submitButtonClicked) {
-            return null;
+            return "";
         } else {
             return "error";
         }
+    }
+
+    hasStatus(fieldName: string): boolean {
+        return Boolean(this.getStatus(fieldName));
     }
 
     /**
@@ -220,7 +224,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         public sessionHistoryService: SessionHistoryService,
         private spottingStorageService: SpottingStorageService
     ) {
-        const line = spottingStorageService.getLine();
+        const lineId = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
         const atStationStation = spottingStorageService.getAtStationStation();
 
@@ -228,8 +232,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         this.formGroup = this.fb.group(
             {
-                line: new UntypedFormControl(line, [Validators.required]),
-                vehicle: new UntypedFormControl("", [Validators.required]),
+                line: new UntypedFormControl(lineId, [Validators.required]),
+                vehicle: new FormControl({ value: "", disabled: true }, [
+                    Validators.required,
+                ]),
                 spottingDate: new UntypedFormControl(new Date(), [
                     Validators.required,
                 ]),
@@ -276,8 +282,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 this.vehicleOptions =
                     lineQueryResultToVehicleCascaderOptions(data);
 
-                if (line) {
-                    this.onLineChanges(line);
+                if (lineId) {
+                    this.onLineChanges(lineId);
                 }
             });
     }
@@ -308,18 +314,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    onInputTypeChanges() {
-        if (
-            ["BETWEEN_STATIONS", "AT_STATION"].includes(
-                this.formGroup.value.type.value
-            )
-        ) {
+    onInputTypeChanged(value: string) {
+        if (["BETWEEN_STATIONS", "AT_STATION"].includes(value)) {
             if (!this.formGroup.value.line) {
                 this.formGroup.patchValue({
-                    type: {
-                        name: "Just Spotting",
-                        value: "JUST_SPOTTING",
-                    },
+                    type: "JUST_SPOTTING",
                 });
 
                 this.isShowBetweenStationsModeSelectedBeforeLineSelectionError =
@@ -335,7 +334,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             this.stationQuerySubscription = this.getStationLinesGql
                 .watch({
                     stationLineFilter: {
-                        lineId: this.formGroup.value.line.value,
+                        lineId: this.formGroup.value.line,
                     },
                 })
                 .valueChanges.subscribe(({ data, loading }) => {
@@ -355,15 +354,15 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         this.spottingStorageService.getAtStationStation();
                     if (
                         atStationStation &&
-                        this.spottingStorageService.getLine()?.value ==
-                            this.formGroup.value.line.value
+                        this.spottingStorageService.getLine() ==
+                            this.formGroup.value.line
                     ) {
                         this.formGroup.patchValue({
                             atStation: atStationStation,
                         });
                     }
                 });
-        } else if (this.formGroup.value.type.value === "LOCATION") {
+        } else if (this.formGroup.value.type === "LOCATION") {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     if (!this.showedLocationPopout) {
@@ -394,6 +393,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         positionError.message,
                         "error"
                     );
+                    this.formGroup.patchValue({
+                        type: "JUST_SPOTTING",
+                    });
                 },
                 { maximumAge: 0, timeout: Infinity, enableHighAccuracy: true }
             );
@@ -408,23 +410,24 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    onLineChanges(event: FormInputType): void {
-        console.log(event);
+    onLineChanges(lineId: string): void {
+        console.log(lineId);
+        console.log(this.formGroup);
 
         this.isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
 
         this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
             this.queryResult,
-            (event as any).value
+            lineId
         );
 
         this.stationOptions = [];
 
-        this.onInputTypeChanges();
-        this.showRunNumberInput = allowRunNumber(event.value);
+        this.onInputTypeChanged("JUST_SPOTTING");
+        this.showRunNumberInput = allowRunNumber(lineId);
 
         this.formGroup.patchValue({
-            vehicle: "",
+            vehicle: { value: "", disabled: !lineId },
             originStation: "",
             destinationStation: "",
             runNumber: undefined,
@@ -462,7 +465,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         const formValues = { ...this.formGroup.value };
 
-        if (formValues.type.value !== "LOCATION") {
+        if (formValues.type !== "LOCATION") {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
@@ -476,11 +479,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         }
 
         // Form Distillation
-        if (formValues.type.value === "BETWEEN_STATIONS") {
+        if (formValues.type === "BETWEEN_STATIONS") {
             formValues["originStation"] = formValues["originStation"].value;
             formValues["destinationStation"] =
                 formValues["destinationStation"].value;
-        } else if (formValues.type.value === "AT_STATION") {
+        } else if (formValues.type === "AT_STATION") {
             this.spottingStorageService.setAtStationStation({
                 ...formValues["atStation"],
             });
@@ -495,7 +498,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         formValues["atStation"] = undefined;
 
-        if (!allowRunNumber(formValues["line"].value)) {
+        if (!allowRunNumber(formValues["line"])) {
             formValues["runNumber"] = undefined;
         }
 

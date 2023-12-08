@@ -10,30 +10,27 @@ interface TGenericSeachField {
     providedIn: "root",
 })
 export class SpottingStorageService {
-    lineObj: TGenericSeachField | undefined;
-    typeObj: TGenericSeachField = {
-        name: "Just Spotting",
-        value: "JUST_SPOTTING",
-    };
+    lineId: string | undefined;
+    typeObj: string = "JUST_SPOTTING";
     atStationStationObj: TGenericSeachField | undefined;
 
     constructor() {
         return;
     }
 
-    setLine(lineObj: TGenericSeachField) {
-        this.lineObj = lineObj;
+    setLine(lineId: string) {
+        this.lineId = lineId;
     }
 
-    getLine(): TGenericSeachField | undefined {
-        return this.lineObj;
+    getLine(): string | undefined {
+        return this.lineId;
     }
 
-    setType(typeObj: TGenericSeachField) {
+    setType(typeObj: string) {
         this.typeObj = typeObj;
     }
 
-    getType(): TGenericSeachField {
+    getType(): string {
         return this.typeObj;
     }
 
