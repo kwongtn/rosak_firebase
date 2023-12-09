@@ -183,13 +183,14 @@ implements OnInit, OnChanges
     ) {
         this.registerPolygons();
 
-        // themeService.colorScheme.subscribe((theme) => {
-        //     console.log(theme);
-        //     // this.heatmapPlotOptions.theme = theme;
+        themeService.colorScheme.subscribe((theme) => {
+            this.heatmapPlotOptions.theme = theme;
 
-        //     this.heatmapPlot?.update(this.heatmapPlotOptions);
-        //     this.heatmapPlot?.render();
-        // });
+            this.heatmapPlot?.update({
+                theme,
+            });
+            this.heatmapPlot?.render();
+        });
     }
 
     setAndRenderChart() {
