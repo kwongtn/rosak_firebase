@@ -22,18 +22,10 @@
     line-height: 12px;
 }
 
-.g2-tooltip-items {
-    // display: flex;
-    // flex-direction: row;
-    // align-items: center;
-    // overflow: auto;
-    // width: 100%;
-}
-
 .g2-tooltip-item {
     opacity: 1;
     cursor: pointer;
-    padding-left: 12px;
+    padding-left: 20px;
 }
 
 .g2-tooltip-item.inactive {
@@ -41,12 +33,12 @@
 }
 
 .g2-tooltip-item-marker {
-    width: 3px;
+    width: 5px;
     position: absolute;
     top: 0px;
     right: 0px;
     bottom: 0px;
-    height: 48px;
+    // height: 48px;
     left: 0px;
 }
 
@@ -64,12 +56,12 @@
     margin: 0px 0px 4px;
 }
 
-#container {
+#vehicle-status-history-container {
     top: 94px;
     bottom: 0px;
     right: 10px;
     left: 10px;
-    height: calc(100% - 88px);
+    padding-top: 20px;
 }
 
 .spinner {

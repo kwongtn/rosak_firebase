@@ -1,5 +1,5 @@
 import { Component, Input, NgZone, OnInit } from "@angular/core";
-import { Datum, Line } from "@antv/g2plot";
+import { Area, Datum } from "@antv/g2plot";
 import { LooseObject } from "@antv/g2plot/node_modules/@antv/g2/lib/interface";
 import * as AntVUtil from "@antv/util";
 
@@ -22,8 +22,8 @@ export class VehicleStatusHistoryComponent implements OnInit {
     activeTooltipTitle: string | undefined = undefined;
     activeSeriesList: any[] = [];
 
-    chartRef: Line | undefined = undefined;
-    colors10: LooseObject = {};
+    chartRef: Area | undefined = undefined;
+    sequenceColors: LooseObject = {};
 
     sourceString: "MLPTF" | "MTREC" = "MLPTF";
     infoTip: string | undefined = undefined;
@@ -65,7 +65,7 @@ export class VehicleStatusHistoryComponent implements OnInit {
         });
 
         this.chartRef.on("plot:mouseleave", () => {
-            (this.chartRef as Line).chart.hideTooltip();
+            (this.chartRef as Area).chart.hideTooltip();
         });
         this.chartRef.on("tooltip:change", (evt: any) => {
             const { title } = evt.data;
@@ -90,13 +90,13 @@ export class VehicleStatusHistoryComponent implements OnInit {
             )
             .then((data) => {
                 this.chartRef = this.ngZone.runOutsideAngular(() => {
-                    return new Line("vehicle-status-history-container", {
+                    return new Area("vehicle-status-history-container", {
                         data,
                         autoFit: true,
                         xField: "date",
                         yField: "count",
                         seriesField: "status",
-                        connectNulls: true,
+                        // connectNulls: true,
                         xAxis: {
                             type: "cat",
                             label: {
@@ -133,9 +133,9 @@ export class VehicleStatusHistoryComponent implements OnInit {
                         appendPadding: [0, 0, 0, 0],
                         legend: false,
                         smooth: true,
-                        lineStyle: {
-                            lineWidth: 1.5,
-                        },
+                        // lineStyle: {
+                        //     lineWidth: 1.5,
+                        // },
                         tooltip: {
                             showContent: false,
                             showMarkers: false,
@@ -170,13 +170,13 @@ export class VehicleStatusHistoryComponent implements OnInit {
                 // Set initial highlighted data point to latest
                 this.setInitialHighlight(data);
 
-                this.colors10 = this.chartRef.chart.getTheme();
+                this.sequenceColors =
+                    this.chartRef.chart.getTheme()["colors10"];
                 this.loading = false;
             });
     }
 
     changeActiveSeries(activeSeries: string) {
-        console.log(activeSeries);
         let newList: TVehicleStatusTrendCount[] = [];
 
         if (!this.activeSeriesList.includes(activeSeries)) {
@@ -185,14 +185,12 @@ export class VehicleStatusHistoryComponent implements OnInit {
             newList = this.activeSeriesList.filter((s) => s !== activeSeries);
         }
 
-        console.log(this.activeSeriesList);
         this.activeSeriesList = newList;
-        console.log(this.activeSeriesList);
         const chart = this.chartRef?.chart;
 
         if (chart && activeSeries) {
-            chart.filter("series", (series) => {
-                return newList.includes(series) ? false : true;
+            chart.filter("status", (status) => {
+                return newList.includes(status) ? false : true;
             });
             chart.render(true);
             chart.geometries
