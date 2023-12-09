@@ -37,8 +37,8 @@ const initialMenuList: { [key: string]: string }[] = [
         name: "TranSPOT",
         href: "/spotting",
         target: "_self",
-        tag: "Beta",
-        style: "waiting",
+        // tag: "Beta",
+        // style: "waiting",
         headerTitle: " - TranSPOT ",
     },
     {
