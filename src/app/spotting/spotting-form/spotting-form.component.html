@@ -87,17 +87,21 @@
                             [nzValidateStatus]="getStatus('vehicle')"
                             [nzHasFeedback]="hasStatus('vehicle')"
                         >
-                            <!-- TODO: Replace with new logic -->
-                            <d-select
+                            <nz-select
+                                nzShowSearch
+                                nzAllowClear
+                                nzPlaceHolder="Vehicle"
                                 formControlName="vehicle"
                                 (ngModelChange)="onVehicleChanges($event)"
-                                [width]="300"
-                                [disabled]="!formGroup['value']?.line"
-                                [isSearch]="true"
-                                [filterKey]="'name'"
-                                [searchFn]="vehicleSearchFn"
+                                [nzFilterOption]="vehicleSearchFn"
                             >
-                            </d-select>
+                                <nz-option
+                                    *ngFor="let vehicle of vehicleOptions"
+                                    [nzLabel]="vehicle.name"
+                                    [nzValue]="vehicle.value"
+                                    [nzDisabled]="vehicle.disabled"
+                                ></nz-option>
+                            </nz-select>
                         </nz-form-control>
                     </nz-form-item>
                     <div class="vehicle-alert" *ngIf="showVehicleWarning">

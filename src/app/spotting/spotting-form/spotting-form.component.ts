@@ -3,7 +3,8 @@ import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 // import { ReCaptchaV3Service } from "ng-recaptcha";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
-import { lastValueFrom, Observable, of, Subscription } from "rxjs";
+import { NzSelectItemInterface } from "ng-zorro-antd/select";
+import { lastValueFrom, Subscription } from "rxjs";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
@@ -139,33 +140,23 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     };
 
     vehicleSearchFn = (
-        term: string
-    ): Observable<{ id: string | number; option: any }[]> => {
-        const setNumber = numberSeenToSetNumbers(
-            term,
-            this.formGroup.value.line?.value
+        input: string,
+        option: NzSelectItemInterface
+    ): boolean => {
+        if (!input.length || !this.formGroup.value.line) {
+            return true;
+        }
+
+        const labelUpperCase = String(option.nzLabel ?? "");
+        const setNumbers = numberSeenToSetNumbers(
+            input,
+            this.formGroup.get("line")?.value
         );
 
-        return of(
-            (this.vehicleOptions ?? [])
-                .map((option, index) => ({ id: index, option: option }))
-                .filter((item) => {
-                    if (!term.length || !this.formGroup.value.line) {
-                        return true;
-                    }
-
-                    return (
-                        setNumber.some((val) => {
-                            return (
-                                item.option.name.toUpperCase().indexOf(val) !==
-                                -1
-                            );
-                        }) ||
-                        item.option.name
-                            .toUpperCase()
-                            .indexOf(term.toUpperCase()) !== -1
-                    );
-                })
+        return (
+            setNumbers.some((val) => {
+                return labelUpperCase.indexOf(val) !== -1;
+            }) || labelUpperCase.indexOf(input.toUpperCase()) !== -1
         );
     };
 
@@ -236,9 +227,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.formGroup = this.fb.group(
             {
                 line: new UntypedFormControl(lineId, [Validators.required]),
-                vehicle: new FormControl({ value: "", disabled: true }, [
-                    Validators.required,
-                ]),
+                vehicle: new FormControl(
+                    { value: "", disabled: lineId ? false : true },
+                    [Validators.required]
+                ),
                 spottingDate: new UntypedFormControl(new Date(), [
                     Validators.required,
                 ]),
@@ -423,8 +415,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         this.onInputTypeChanged("JUST_SPOTTING");
         this.showRunNumberInput = allowRunNumber(lineId);
 
+        if (lineId) {
+            this.formGroup.get("vehicle")?.enable();
+        } else {
+            this.formGroup.get("vehicle")?.disable();
+        }
+
         this.formGroup.patchValue({
-            vehicle: { value: "", disabled: !lineId },
+            vehicle: { value: "" },
             originStation: "",
             destinationStation: "",
             runNumber: undefined,
