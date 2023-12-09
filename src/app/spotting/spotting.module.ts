@@ -9,6 +9,7 @@ import { TimeAxisModule } from "ng-devui/time-axis";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
+import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzFormModule } from "ng-zorro-antd/form";
@@ -131,6 +132,7 @@ import {
         NzAlertModule,
         NzButtonModule,
         NzCheckboxModule,
+        NzDatePickerModule,
         NzDrawerModule,
         NzEmptyModule,
         NzFormModule,

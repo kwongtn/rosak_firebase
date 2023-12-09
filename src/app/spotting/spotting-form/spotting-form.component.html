@@ -149,40 +149,11 @@
                             [nzValidateStatus]="getStatus('spottingDate')"
                             [nzHasFeedback]="hasStatus('spottingDate')"
                         >
-                            <!-- TODO: Replace with new logic -->
-                            <div
-                                class="devui-input-group devui-dropdown-origin"
-                            >
-                                <input
-                                    class="devui-input devui-form-control"
-                                    placeholder="y/MM/dd"
-                                    (click)="datePicker1.toggle()"
-                                    name="dp"
-                                    formControlName="spottingDate"
-                                    (ngModelChange)="onChanges($event)"
-                                    autocomplete="off"
-                                    dDatepicker
-                                    #datePicker1="datepicker"
-                                    locale="en-us"
-                                    appendToBody
-                                    [appendToBodyDirections]="
-                                        appendToBodyDirections
-                                    "
-                                />
-                                <div
-                                    *ngIf="selectedDate1"
-                                    class="devui-input-group-addon close-icon-wrapper"
-                                    (click)="datePicker1.clearAll()"
-                                >
-                                    <i class="icon icon-close"></i>
-                                </div>
-                                <div
-                                    class="devui-input-group-addon"
-                                    (click)="datePicker1.toggle()"
-                                >
-                                    <i class="icon icon-calendar"></i>
-                                </div>
-                            </div>
+                            <nz-date-picker
+                                formControlName="spottingDate"
+                                (ngModelChange)="onChanges($event)"
+                                [nzAllowClear]="false"
+                            ></nz-date-picker>
                         </nz-form-control>
                     </nz-form-item>
 
