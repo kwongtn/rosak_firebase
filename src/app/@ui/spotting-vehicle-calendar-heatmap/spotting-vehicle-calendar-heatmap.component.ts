@@ -18,9 +18,26 @@ import {
     GetDataGqlService,
     GetSpottingVehicleCalendarHeatmapResponse,
 } from "./services/get-data-gql/get-data-gql.service";
-import { GetDataService } from "./services/get-data/get-data.service";
+import {
+    GetDataService,
+    TVehicleSpottingTrendData,
+} from "./services/get-data/get-data.service";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const monthStr = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+];
 
 type MutableHeatmapOptions = {
     -readonly [K in keyof HeatmapOptions]: HeatmapOptions[K];
@@ -45,7 +62,7 @@ implements OnInit, OnChanges
         data: [],
         height: 400,
         autoFit: false,
-        xField: "weekOfYear",
+        xField: "index",
         yField: "dayOfWeek",
         colorField: "count",
         reflect: "y",
@@ -56,7 +73,7 @@ implements OnInit, OnChanges
                 type: "cat",
                 values: daysOfWeek,
             },
-            weekOfYear: {
+            index: {
                 type: "cat",
             },
             count: {
@@ -80,10 +97,19 @@ implements OnInit, OnChanges
             line: null,
             label: {
                 offset: 12,
-                style: {
-                    fontSize: 12,
-                    fill: "#666",
-                    textBaseline: "top",
+                formatter: (txt, itm, idx) => {
+                    const val = this.heatmapPlotOptions["data"].filter(
+                        (item) => {
+                            return item["dayOfWeek"] === 6;
+                        }
+                    )[idx] as TVehicleSpottingTrendData;
+                    const [year, month, day] = val.dateKey.split("-");
+
+                    if (Number.parseInt(day) <= 7) {
+                        return `${year}\n${monthStr[Number.parseInt(month) - 1]}`;
+                    }
+
+                    return "";
                 },
             },
         },
@@ -204,8 +230,17 @@ implements OnInit, OnChanges
                 startDate.toISOString().split("T")[0],
                 new Date().toISOString().split("T")[0]
             )
-            .then((data) => {
-                this.heatmapPlotOptions["data"] = data;
+            .then((res) => {
+                this.heatmapPlotOptions["data"] = res.data.map((val) => {
+                    const yearWeekKey = `${val.dateKey.split("-")[0]}W${
+                        val.weekOfYear
+                    }`;
+
+                    return {
+                        ...val,
+                        index: res.mappings.yearWeek[yearWeekKey],
+                    };
+                });
 
                 this.heatmapPlot = this.ngZone.runOutsideAngular(() => {
                     return new Heatmap(

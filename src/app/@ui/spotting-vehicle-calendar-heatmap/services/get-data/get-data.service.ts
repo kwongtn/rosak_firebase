@@ -4,7 +4,7 @@ import { environment } from "src/environments/environment";
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 
-export interface TVehicleSpottingTrend {
+export interface TVehicleSpottingTrendData {
     vehicle: string;
     count: number;
     dateKey: string;
@@ -12,6 +12,15 @@ export interface TVehicleSpottingTrend {
     weekOfYear: number;
     isLastDayOfMonth: boolean;
     isLastWeekOfMonth: boolean;
+}
+
+export interface TVehicleSpottingTrend {
+    mappings: {
+        yearWeek: {
+            [key: string]: number;
+        };
+    };
+    data: TVehicleSpottingTrendData[];
 }
 
 @Injectable({
@@ -24,9 +33,9 @@ export class GetDataService {
         lineId: string,
         startDateString: string,
         endDateString: string
-    ): Promise<TVehicleSpottingTrend[]> {
-        return firstValueFrom<TVehicleSpottingTrend[]>(
-            this.http.get<TVehicleSpottingTrend[]>(
+    ): Promise<TVehicleSpottingTrend> {
+        return firstValueFrom<TVehicleSpottingTrend>(
+            this.http.get<TVehicleSpottingTrend>(
                 `${environment.backendUrl}operation/vehicle_spotting_trend/${lineId}/${startDateString}/${endDateString}/`
             )
         );
