@@ -1,9 +1,6 @@
-import { CheckBoxModule, DevUIModule, PanelModule } from "ng-devui";
-import { CascaderModule } from "ng-devui/cascader";
+import { DevUIModule, PanelModule } from "ng-devui";
 import { DataTableModule } from "ng-devui/data-table";
-import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
-import { SelectModule } from "ng-devui/select";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
 import { NzAlertModule } from "ng-zorro-antd/alert";
@@ -15,7 +12,6 @@ import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
-import { NzImageModule } from "ng-zorro-antd/image";
 import { NzInputModule } from "ng-zorro-antd/input";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
@@ -103,14 +99,10 @@ import {
         ReactiveFormsModule,
 
         // DevUI
-        CascaderModule,
-        CheckBoxModule,
         DataTableModule,
-        DatepickerModule,
         DevUIModule,
         IconModule,
         PanelModule,
-        SelectModule,
         TagsModule,
         TimeAxisModule,
 
@@ -138,7 +130,7 @@ import {
         NzFormModule,
         NzGridModule,
         NzIconModule,
-        NzImageModule,
+        // NzImageModule,
         NzInputModule,
         NzListModule,
         NzPopconfirmModule,

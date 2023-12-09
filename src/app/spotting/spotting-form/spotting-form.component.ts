@@ -193,7 +193,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
      * Form stuff
      */
     formGroup: UntypedFormGroup;
-    selectedDate1 = new Date();
     queryResult = {};
     stationResult = {};
     showVehicleWarning = false;
@@ -226,26 +225,26 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         this.formGroup = this.fb.group(
             {
-                line: new UntypedFormControl(lineId, [Validators.required]),
+                line: new FormControl(lineId, [Validators.required]),
                 vehicle: new FormControl(
                     { value: "", disabled: lineId ? false : true },
                     [Validators.required]
                 ),
-                spottingDate: new UntypedFormControl(new Date(), [
+                spottingDate: new FormControl(new Date(), [
                     Validators.required,
                 ]),
                 status: new FormControl("IN_SERVICE", [Validators.required]),
-                type: new UntypedFormControl(type, [Validators.required]),
+                type: new FormControl(type, [Validators.required]),
                 atStation: new UntypedFormControl(atStationStation, []),
-                originStation: new UntypedFormControl("", []),
-                wheelStatus: new UntypedFormControl(undefined, []),
-                destinationStation: new UntypedFormControl("", []),
-                notes: new UntypedFormControl("", []),
-                runNumber: new UntypedFormControl(undefined, []),
+                originStation: new FormControl("", []),
+                wheelStatus: new FormControl(undefined, []),
+                destinationStation: new FormControl("", []),
+                notes: new FormControl("", []),
+                runNumber: new FormControl(undefined, []),
                 isAnonymous: new FormControl(false, []),
-                sanityTest: new UntypedFormControl(false, []),
-                location: new UntypedFormControl(false, []),
-                uploads: new UntypedFormControl({}, []),
+                sanityTest: new FormControl(false, []),
+                location: new FormControl(false, []),
+                uploads: new FormControl({}, []),
             },
             {
                 validators: [
