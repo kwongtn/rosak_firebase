@@ -21,8 +21,16 @@
                 {{ hist.value["vehicle"]["name"] }}
             </span>
             <span class="right">
-                {{ hist.value["status"]["name"] }},
-                {{ hist.value["type"]["name"] }}
+                <nz-space>
+                    <spotting-type-tag
+                        *nzSpaceItem
+                        [spottingType]="hist.value['type']"
+                    ></spotting-type-tag>
+                    <vehicle-status-tag
+                        *nzSpaceItem
+                        [vehicleStatus]="hist.value['status']"
+                    ></vehicle-status-tag>
+                </nz-space>
             </span>
         </span>
     </nz-list-item>

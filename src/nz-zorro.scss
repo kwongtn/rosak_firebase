@@ -599,7 +599,8 @@ html {
     box-shadow: 0 0 0 0 #1890ff;
     box-shadow: 0 0 0 0 var(--antd-wave-shadow-color);
     opacity: 0.2;
-    animation: fadeEffect 2s cubic-bezier(0.08, 0.82, 0.17, 1),
+    animation:
+        fadeEffect 2s cubic-bezier(0.08, 0.82, 0.17, 1),
         waveEffect 0.4s cubic-bezier(0.08, 0.82, 0.17, 1);
     animation-fill-mode: forwards;
     content: "";
@@ -1196,12 +1197,14 @@ html {
     overflow: hidden;
 }
 .ant-motion-collapse-legacy-active {
-    transition: height 0.2s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        height 0.2s cubic-bezier(0.645, 0.045, 0.355, 1),
         opacity 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
 }
 .ant-motion-collapse {
     overflow: hidden;
-    transition: height 0.2s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        height 0.2s cubic-bezier(0.645, 0.045, 0.355, 1),
         opacity 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
 }
 /* stylelint-disable at-rule-empty-line-before,at-rule-name-space-after,at-rule-no-unknown */
@@ -1452,7 +1455,8 @@ nz-affix {
 .ant-alert.ant-alert-motion-leave {
     overflow: hidden;
     opacity: 1;
-    transition: max-height 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86),
+    transition:
+        max-height 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86),
         opacity 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86),
         padding-top 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86),
         padding-bottom 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86),
@@ -3638,7 +3642,8 @@ a.ant-btn-icon-only > .anticon {
     display: block;
 }
 .ant-btn > .ant-btn-loading-icon {
-    transition: width 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        width 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 .ant-btn > .ant-btn-loading-icon .anticon {
@@ -4231,12 +4236,16 @@ a.ant-btn-sm {
 }
 .ant-card-hoverable {
     cursor: pointer;
-    transition: box-shadow 0.3s, border-color 0.3s;
+    transition:
+        box-shadow 0.3s,
+        border-color 0.3s;
 }
 .ant-card-hoverable:hover {
     border-color: transparent;
-    box-shadow: 0 1px 2px -2px rgba(0, 0, 0, 0.16),
-        0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09);
+    box-shadow:
+        0 1px 2px -2px rgba(0, 0, 0, 0.16),
+        0 3px 6px 0 rgba(0, 0, 0, 0.12),
+        0 5px 12px 4px rgba(0, 0, 0, 0.09);
 }
 .ant-card-bordered {
     border: 1px solid $devui-line;
@@ -4341,8 +4350,12 @@ a.ant-btn-sm {
     padding: 24px;
     border: 0;
     border-radius: 0;
-    box-shadow: 1px 0 0 0 #f0f0f0, 0 1px 0 0 #f0f0f0, 1px 1px 0 0 #f0f0f0,
-        1px 0 0 0 #f0f0f0 inset, 0 1px 0 0 #f0f0f0 inset;
+    box-shadow:
+        1px 0 0 0 #f0f0f0,
+        0 1px 0 0 #f0f0f0,
+        1px 1px 0 0 #f0f0f0,
+        1px 0 0 0 #f0f0f0 inset,
+        0 1px 0 0 #f0f0f0 inset;
     transition: all 0.3s;
 }
 .ant-card-rtl .ant-card-grid {
@@ -4351,8 +4364,10 @@ a.ant-btn-sm {
 .ant-card-grid-hoverable:hover {
     position: relative;
     z-index: 1;
-    box-shadow: 0 1px 2px -2px rgba(0, 0, 0, 0.16),
-        0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09);
+    box-shadow:
+        0 1px 2px -2px rgba(0, 0, 0, 0.16),
+        0 3px 6px 0 rgba(0, 0, 0, 0.12),
+        0 5px 12px 4px rgba(0, 0, 0, 0.09);
 }
 .ant-card-contain-tabs > .ant-card-head .ant-card-head-title {
     min-height: 32px;
@@ -4929,7 +4944,9 @@ nz-carousel {
     border-left: 0;
     transform: rotate(45deg) scale(0) translate(-50%, -50%);
     opacity: 0;
-    transition: all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6), opacity 0.1s;
+    transition:
+        all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6),
+        opacity 0.1s;
     content: " ";
 }
 .ant-checkbox-input {
@@ -5110,7 +5127,9 @@ nz-carousel {
     color: $devui-text;
     line-height: 1.5715;
     cursor: pointer;
-    transition: all 0.3s, visibility 0s;
+    transition:
+        all 0.3s,
+        visibility 0s;
 }
 .ant-collapse > .ant-collapse-item > .ant-collapse-header .ant-collapse-arrow {
     display: inline-block;
@@ -5411,10 +5430,12 @@ nz-comment-content {
     position: relative;
     display: inline-flex;
     align-items: center;
-    background: #fff;
+    background: $devui-form-control-bg;
     border: 1px solid #d9d9d9;
     border-radius: 2px;
-    transition: border 0.3s, box-shadow 0.3s;
+    transition:
+        border 0.3s,
+        box-shadow 0.3s;
 }
 .ant-picker:hover,
 .ant-picker-focused {
@@ -5547,7 +5568,9 @@ textarea.ant-picker-input > input {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-picker-input > input-lg {
     padding: 6.5px 11px;
@@ -5585,7 +5608,7 @@ textarea.ant-picker-input > input {
     flex: none;
     align-self: center;
     margin-left: 4px;
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-icon-fill;
     line-height: 1;
     pointer-events: none;
 }
@@ -5605,7 +5628,9 @@ textarea.ant-picker-input > input {
     transform: translateY(-50%);
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.3s, color 0.3s;
+    transition:
+        opacity 0.3s,
+        color 0.3s;
 }
 .ant-picker-clear > * {
     vertical-align: top;
@@ -5775,8 +5800,10 @@ textarea.ant-picker-input > input {
     vertical-align: top;
     background: $devui-base-bg;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
     transition: margin 0.3s;
 }
 .ant-picker-panel-container .ant-picker-panels {
@@ -5946,7 +5973,9 @@ textarea.ant-picker-input > input {
     height: 24px;
     line-height: 24px;
     border-radius: 2px;
-    transition: background 0.3s, border 0.3s;
+    transition:
+        background 0.3s,
+        border 0.3s;
 }
 .ant-picker-cell:hover:not(.ant-picker-cell-in-view) .ant-picker-cell-inner,
 .ant-picker-cell:hover:not(.ant-picker-cell-selected):not(
@@ -6429,7 +6458,9 @@ _:-ms-fullscreen
     height: 24px;
     line-height: 24px;
     border-radius: 2px;
-    transition: background 0.3s, border 0.3s;
+    transition:
+        background 0.3s,
+        border 0.3s;
 }
 .ant-picker-panel-rtl
     .ant-picker-cell-in-view.ant-picker-cell-range-start::before {
@@ -6858,13 +6889,16 @@ nz-descriptions {
     z-index: 1000;
     width: 0%;
     height: 100%;
-    transition: width 0s ease 0.3s, height 0s ease 0.3s;
+    transition:
+        width 0s ease 0.3s,
+        height 0s ease 0.3s;
 }
 .ant-drawer-content-wrapper {
     position: absolute;
     width: 100%;
     height: 100%;
-    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+    transition:
+        transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
         box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .ant-drawer .ant-drawer-content {
@@ -6893,8 +6927,10 @@ nz-descriptions {
     left: 0;
 }
 .ant-drawer-left.ant-drawer-open .ant-drawer-content-wrapper {
-    box-shadow: 6px 0 16px -8px rgba(0, 0, 0, 0.08),
-        9px 0 28px 0 rgba(0, 0, 0, 0.05), 12px 0 48px 16px rgba(0, 0, 0, 0.03);
+    box-shadow:
+        6px 0 16px -8px rgba(0, 0, 0, 0.08),
+        9px 0 28px 0 rgba(0, 0, 0, 0.05),
+        12px 0 48px 16px rgba(0, 0, 0, 0.03);
 }
 .ant-drawer-right {
     right: 0;
@@ -6903,8 +6939,10 @@ nz-descriptions {
     right: 0;
 }
 .ant-drawer-right.ant-drawer-open .ant-drawer-content-wrapper {
-    box-shadow: -6px 0 16px -8px rgba(0, 0, 0, 0.08),
-        -9px 0 28px 0 rgba(0, 0, 0, 0.05), -12px 0 48px 16px rgba(0, 0, 0, 0.03);
+    box-shadow:
+        -6px 0 16px -8px rgba(0, 0, 0, 0.08),
+        -9px 0 28px 0 rgba(0, 0, 0, 0.05),
+        -12px 0 48px 16px rgba(0, 0, 0, 0.03);
 }
 .ant-drawer-right.ant-drawer-open.no-mask {
     right: 1px;
@@ -6929,8 +6967,10 @@ nz-descriptions {
     top: 0;
 }
 .ant-drawer-top.ant-drawer-open .ant-drawer-content-wrapper {
-    box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.08),
-        0 9px 28px 0 rgba(0, 0, 0, 0.05), 0 12px 48px 16px rgba(0, 0, 0, 0.03);
+    box-shadow:
+        0 6px 16px -8px rgba(0, 0, 0, 0.08),
+        0 9px 28px 0 rgba(0, 0, 0, 0.05),
+        0 12px 48px 16px rgba(0, 0, 0, 0.03);
 }
 .ant-drawer-bottom {
     bottom: 0;
@@ -6939,8 +6979,10 @@ nz-descriptions {
     bottom: 0;
 }
 .ant-drawer-bottom.ant-drawer-open .ant-drawer-content-wrapper {
-    box-shadow: 0 -6px 16px -8px rgba(0, 0, 0, 0.08),
-        0 -9px 28px 0 rgba(0, 0, 0, 0.05), 0 -12px 48px 16px rgba(0, 0, 0, 0.03);
+    box-shadow:
+        0 -6px 16px -8px rgba(0, 0, 0, 0.08),
+        0 -9px 28px 0 rgba(0, 0, 0, 0.05),
+        0 -12px 48px 16px rgba(0, 0, 0, 0.03);
 }
 .ant-drawer-bottom.ant-drawer-open.no-mask {
     bottom: 1px;
@@ -7040,7 +7082,9 @@ nz-descriptions {
     height: 0;
     background-color: rgba(0, 0, 0, 0.45);
     opacity: 0;
-    transition: opacity 0.3s linear, height 0s ease 0.3s;
+    transition:
+        opacity 0.3s linear,
+        height 0s ease 0.3s;
     pointer-events: none;
 }
 .ant-drawer .ant-picker-clear {
@@ -7189,8 +7233,10 @@ nz-descriptions {
     background-clip: padding-box;
     border-radius: 2px;
     outline: none;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-dropdown-menu-item-group-title {
     padding: 5px 12px;
@@ -12848,7 +12894,9 @@ textarea.ant-input-affix-wrapper {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-input-affix-wrapper-lg {
     padding: 6.5px 11px;
@@ -13073,7 +13121,7 @@ textarea.ant-input-affix-wrapper {
     color: $devui-text;
     font-size: 14px;
     line-height: 1.5715;
-    background-color: #fff;
+    background-color: $devui-form-control-bg;
     background-image: none;
     border: 1px solid #d9d9d9;
     border-radius: 2px;
@@ -13123,8 +13171,8 @@ textarea.ant-input-affix-wrapper {
     border-right-width: 1px;
 }
 .ant-input[disabled] {
-    color: rgba(0, 0, 0, 0.25);
-    background-color: #f5f5f5;
+    color: $devui-disabled-text;
+    background-color: $devui-disabled-bg;
     border-color: #d9d9d9;
     box-shadow: none;
     cursor: not-allowed;
@@ -13150,7 +13198,9 @@ textarea.ant-input {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-input-lg {
     padding: 6.5px 11px;
@@ -13892,7 +13942,9 @@ textarea.ant-input-number-affix-wrapper {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-input-number-affix-wrapper-lg {
     padding: 6.5px 11px;
@@ -14176,7 +14228,9 @@ textarea.ant-input-number {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-input-number-lg {
     padding: 6.5px 11px;
@@ -15439,7 +15493,9 @@ nz-header {
     color: #1890ff;
 }
 .ant-show-help {
-    transition: height 0.3s linear, min-height 0.3s linear,
+    transition:
+        height 0.3s linear,
+        min-height 0.3s linear,
         margin-bottom 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
@@ -15451,7 +15507,8 @@ nz-header {
 }
 .ant-show-help-item {
     overflow: hidden;
-    transition: height 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        height 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
 }
@@ -16010,9 +16067,13 @@ nz-list-item-extra {
     list-style: none;
     background: #fff;
     outline: none;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
-    transition: background 0.3s, width 0.3s cubic-bezier(0.2, 0, 0, 1) 0s;
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    transition:
+        background 0.3s,
+        width 0.3s cubic-bezier(0.2, 0, 0, 1) 0s;
 }
 .ant-menu::before {
     display: table;
@@ -16060,12 +16121,14 @@ nz-list-item-extra {
     transition: all 0.3s;
 }
 .ant-menu-horizontal .ant-menu-submenu {
-    transition: border-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        border-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 .ant-menu-submenu,
 .ant-menu-submenu-inline {
-    transition: border-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        border-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         padding 0.15s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
@@ -16078,7 +16141,8 @@ nz-list-item-extra {
 }
 .ant-menu-submenu .ant-menu-sub {
     cursor: initial;
-    transition: background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         padding 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 .ant-menu-title-content {
@@ -16182,7 +16246,9 @@ nz-list-item-extra {
 }
 .ant-menu-horizontal .ant-menu-item,
 .ant-menu-horizontal .ant-menu-submenu-title {
-    transition: border-color 0.3s, background 0.3s;
+    transition:
+        border-color 0.3s,
+        background 0.3s;
 }
 .ant-menu-item,
 .ant-menu-submenu-title {
@@ -16192,7 +16258,9 @@ nz-list-item-extra {
     padding: 0 20px;
     white-space: nowrap;
     cursor: pointer;
-    transition: border-color 0.3s, background 0.3s,
+    transition:
+        border-color 0.3s,
+        background 0.3s,
         padding 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 .ant-menu-item .ant-menu-item-icon,
@@ -16201,8 +16269,10 @@ nz-list-item-extra {
 .ant-menu-submenu-title .anticon {
     min-width: 14px;
     font-size: 14px;
-    transition: font-size 0.15s cubic-bezier(0.215, 0.61, 0.355, 1),
-        margin 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), color 0.3s;
+    transition:
+        font-size 0.15s cubic-bezier(0.215, 0.61, 0.355, 1),
+        margin 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+        color 0.3s;
 }
 .ant-menu-item .ant-menu-item-icon + span,
 .ant-menu-submenu-title .ant-menu-item-icon + span,
@@ -16210,7 +16280,9 @@ nz-list-item-extra {
 .ant-menu-submenu-title .anticon + span {
     margin-left: 10px;
     opacity: 1;
-    transition: opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), margin 0.3s,
+    transition:
+        opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+        margin 0.3s,
         color 0.3s;
 }
 .ant-menu-item .ant-menu-item-icon.svg,
@@ -16282,7 +16354,8 @@ nz-list-item-extra {
     height: 1.5px;
     background-color: currentcolor;
     border-radius: 2px;
-    transition: background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         top 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
@@ -16418,7 +16491,8 @@ nz-list-item-extra {
     border-right: 3px solid #1890ff;
     transform: scaleY(0.0001);
     opacity: 0;
-    transition: transform 0.15s cubic-bezier(0.215, 0.61, 0.355, 1),
+    transition:
+        transform 0.15s cubic-bezier(0.215, 0.61, 0.355, 1),
         opacity 0.15s cubic-bezier(0.215, 0.61, 0.355, 1);
     content: "";
 }
@@ -16472,7 +16546,8 @@ nz-list-item-extra {
 .ant-menu-inline .ant-menu-item-selected::after {
     transform: scaleY(1);
     opacity: 1;
-    transition: transform 0.15s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        transform 0.15s cubic-bezier(0.645, 0.045, 0.355, 1),
         opacity 0.15s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 .ant-menu-inline .ant-menu-item,
@@ -16487,7 +16562,9 @@ nz-list-item-extra {
 .ant-menu-inline.ant-menu-root .ant-menu-submenu-title {
     display: flex;
     align-items: center;
-    transition: border-color 0.3s, background 0.3s,
+    transition:
+        border-color 0.3s,
+        background 0.3s,
         padding 0.1s cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 .ant-menu-inline.ant-menu-root .ant-menu-item > .ant-menu-title-content,
@@ -17275,7 +17352,9 @@ textarea.ant-mentions {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-mentions-lg {
     padding: 6.5px 11px;
@@ -17385,8 +17464,10 @@ textarea.ant-mentions {
     background-color: #fff;
     border-radius: 2px;
     outline: none;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-mentions-dropdown-hidden {
     display: none;
@@ -17512,8 +17593,10 @@ textarea.ant-mentions {
     padding: 10px 16px;
     background: $devui-base-bg;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
     pointer-events: all;
 }
 .ant-message-success .anticon {
@@ -17626,7 +17709,9 @@ textarea.ant-mentions {
     background-clip: padding-box;
     border: 0;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px $devui-shadow, 0 6px 16px 0 $devui-shadow,
+    box-shadow:
+        0 3px 6px -4px $devui-shadow,
+        0 6px 16px 0 $devui-shadow,
         0 9px 28px 8px $devui-shadow;
     pointer-events: auto;
 }
@@ -17857,8 +17942,10 @@ textarea.ant-mentions {
     word-wrap: break-word;
     background: $devui-glass-morphism-bg;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-notification-top .ant-notification-notice,
 .ant-notification-bottom .ant-notification-notice {
@@ -18599,7 +18686,9 @@ textarea.ant-pagination-options-quick-jumper input {
     min-height: 32px;
     line-height: 1.5715;
     vertical-align: bottom;
-    transition: all 0.3s, height 0s;
+    transition:
+        all 0.3s,
+        height 0s;
 }
 .ant-pagination-options-quick-jumper input-lg {
     padding: 6.5px 11px;
@@ -18860,8 +18949,10 @@ nz-pagination {
     background-color: $devui-base-bg;
     background-clip: padding-box;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.15) \9;
 }
 @media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
@@ -18869,8 +18960,10 @@ nz-pagination {
         /* IE10+ */
     }
     .ant-popover-inner {
-        box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-            0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+        box-shadow:
+            0 3px 6px -4px rgba(0, 0, 0, 0.12),
+            0 6px 16px 0 rgba(0, 0, 0, 0.08),
+            0 9px 28px 8px rgba(0, 0, 0, 0.05);
     }
 }
 .ant-popover-title {
@@ -19493,7 +19586,11 @@ span.ant-radio + * {
     border-top-width: 1.02px;
     border-left-width: 0;
     cursor: pointer;
-    transition: color 0.3s, background 0.3s, border-color 0.3s, box-shadow 0.3s;
+    transition:
+        color 0.3s,
+        background 0.3s,
+        border-color 0.3s,
+        box-shadow 0.3s;
 }
 .ant-radio-button-wrapper a {
     color: $devui-text;
@@ -19724,7 +19821,9 @@ span.ant-radio + * {
     margin-right: 8px;
 }
 .ant-rate-star > div {
-    transition: all 0.3s, outline 0s;
+    transition:
+        all 0.3s,
+        outline 0s;
 }
 .ant-rate-star > div:hover {
     transform: scale(1.1);
@@ -19991,7 +20090,10 @@ span.ant-radio + * {
     border: 1px solid #f0f0f0;
     border-radius: 2px;
     cursor: default;
-    transition: font-size 0.3s, line-height 0.3s, height 0.3s;
+    transition:
+        font-size 0.3s,
+        line-height 0.3s,
+        height 0.3s;
     user-select: none;
     margin-inline-end: 4px;
     padding-inline-start: 8px;
@@ -20136,7 +20238,7 @@ span.ant-radio + * {
         .ant-select-customize-input
     )
     .ant-select-selector {
-    background-color: #fff;
+    background-color: $devui-form-control-bg;
     border-color: #ff4d4f !important;
 }
 .ant-select-status-error.ant-select:not(.ant-select-disabled):not(
@@ -20242,14 +20344,14 @@ span.ant-radio + * {
 .ant-select-disabled.ant-select:not(.ant-select-customize-input)
     .ant-select-selector {
     color: rgba(0, 0, 0, 0.25);
-    background: #f5f5f5;
+    background: $devui-disabled-bg;
     cursor: not-allowed;
 }
 .ant-select-multiple.ant-select-disabled.ant-select:not(
         .ant-select-customize-input
     )
     .ant-select-selector {
-    background: #f5f5f5;
+    background: $devui-disabled-bg;
 }
 .ant-select-disabled.ant-select:not(.ant-select-customize-input)
     .ant-select-selector
@@ -20370,16 +20472,18 @@ span.ant-radio + * {
     width: 12px;
     height: 12px;
     margin-top: -6px;
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-icon-text;
     font-size: 12px;
     font-style: normal;
     line-height: 1;
     text-align: center;
     text-transform: none;
-    background: #fff;
+    background: $devui-form-control-bg;
     cursor: pointer;
     opacity: 0;
-    transition: color 0.3s ease, opacity 0.15s ease;
+    transition:
+        color 0.3s ease,
+        opacity 0.15s ease;
     text-rendering: auto;
 }
 .ant-select-clear::before {
@@ -20411,8 +20515,10 @@ span.ant-radio + * {
     background-color: $devui-base-bg;
     border-radius: 2px;
     outline: none;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-select-dropdown.ant-slide-up-enter.ant-slide-up-enter-active.ant-select-dropdown-placement-bottomLeft,
 .ant-select-dropdown.ant-slide-up-appear.ant-slide-up-appear-active.ant-select-dropdown-placement-bottomLeft {
@@ -20622,8 +20728,10 @@ span.ant-radio + * {
 .segmented-item-selected {
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05),
-        0 1px 4px -1px rgba(0, 0, 0, 0.07), 0 0 1px 0 rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 2px 8px -2px rgba(0, 0, 0, 0.05),
+        0 1px 4px -1px rgba(0, 0, 0, 0.07),
+        0 0 1px 0 rgba(0, 0, 0, 0.08);
 }
 .segmented-text-ellipsis {
     overflow: hidden;
@@ -20675,8 +20783,10 @@ span.ant-radio + * {
 .ant-segmented-item-selected {
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05),
-        0 1px 4px -1px rgba(0, 0, 0, 0.07), 0 0 1px 0 rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 2px 8px -2px rgba(0, 0, 0, 0.05),
+        0 1px 4px -1px rgba(0, 0, 0, 0.07),
+        0 0 1px 0 rgba(0, 0, 0, 0.08);
     color: #262626;
 }
 .ant-segmented-item:hover,
@@ -20724,8 +20834,10 @@ span.ant-radio + * {
 .ant-segmented-thumb {
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05),
-        0 1px 4px -1px rgba(0, 0, 0, 0.07), 0 0 1px 0 rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 2px 8px -2px rgba(0, 0, 0, 0.05),
+        0 1px 4px -1px rgba(0, 0, 0, 0.07),
+        0 0 1px 0 rgba(0, 0, 0, 0.08);
     position: absolute;
     top: 0;
     left: 0;
@@ -20734,7 +20846,8 @@ span.ant-radio + * {
     padding: 4px 0;
 }
 .ant-segmented-thumb-motion-appear-active {
-    transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    transition:
+        transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
         width 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     will-change: transform, width;
 }
@@ -21148,7 +21261,9 @@ span.ant-radio + * {
     border-radius: 50%;
     box-shadow: 0;
     cursor: pointer;
-    transition: border-color 0.3s, box-shadow 0.6s,
+    transition:
+        border-color 0.3s,
+        box-shadow 0.6s,
         transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 .ant-slider-handle-dragging {
@@ -21530,7 +21645,9 @@ nz-spin {
     text-align: center;
     border: 1px solid rgba(0, 0, 0, 0.25);
     border-radius: 32px;
-    transition: background-color 0.3s, border-color 0.3s;
+    transition:
+        background-color 0.3s,
+        border-color 0.3s;
 }
 .ant-steps-item-icon .ant-steps-icon {
     position: relative;
@@ -22173,7 +22290,9 @@ nz-spin {
     width: 0;
     height: 2px;
     background-color: #1890ff;
-    transition: width 0.3s, left 0.3s;
+    transition:
+        width 0.3s,
+        left 0.3s;
     transition-timing-function: ease-out;
     content: "";
 }
@@ -23357,8 +23476,10 @@ td.ant-table-column-sort {
     min-width: 120px;
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-table-filter-dropdown .ant-dropdown-menu {
     max-height: 264px;
@@ -24102,7 +24223,10 @@ cdk-virtual-scroll-viewport.ant-table-body {
 .ant-tabs-bottom > .ant-tabs-nav .ant-tabs-ink-bar-animated,
 .ant-tabs-top > div > .ant-tabs-nav .ant-tabs-ink-bar-animated,
 .ant-tabs-bottom > div > .ant-tabs-nav .ant-tabs-ink-bar-animated {
-    transition: width 0.3s, left 0.3s, right 0.3s;
+    transition:
+        width 0.3s,
+        left 0.3s,
+        right 0.3s;
 }
 .ant-tabs-top > .ant-tabs-nav .ant-tabs-nav-wrap::before,
 .ant-tabs-bottom > .ant-tabs-nav .ant-tabs-nav-wrap::before,
@@ -24282,7 +24406,9 @@ cdk-virtual-scroll-viewport.ant-table-body {
 .ant-tabs-right > .ant-tabs-nav .ant-tabs-ink-bar-animated,
 .ant-tabs-left > div > .ant-tabs-nav .ant-tabs-ink-bar-animated,
 .ant-tabs-right > div > .ant-tabs-nav .ant-tabs-ink-bar-animated {
-    transition: height 0.3s, top 0.3s;
+    transition:
+        height 0.3s,
+        top 0.3s;
 }
 .ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-list,
 .ant-tabs-right > .ant-tabs-nav .ant-tabs-nav-list,
@@ -24371,8 +24497,10 @@ cdk-virtual-scroll-viewport.ant-table-body {
     background-clip: padding-box;
     border-radius: 2px;
     outline: none;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-tabs-dropdown-menu-item {
     display: flex;
@@ -24710,12 +24838,14 @@ nz-tabs-nav {
     overflow-y: auto;
     text-align: left;
     list-style-type: none;
-    background-color: #fff;
+    background-color: $devui-glass-morphism-bg;
     background-clip: padding-box;
     border-radius: 2px;
     outline: none;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item {
     min-width: 120px;
@@ -24732,7 +24862,7 @@ nz-tabs-nav {
     transition: all 0.3s;
 }
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item:hover {
-    background: #f5f5f5;
+    background: $devui-base-bg;
 }
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item-disabled,
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item-disabled:hover {
@@ -25348,8 +25478,10 @@ nz-tabs-nav {
     word-wrap: break-word;
     background-color: rgba(0, 0, 0, 0.75);
     border-radius: 2px;
-    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12),
-        0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 3px 6px -4px rgba(0, 0, 0, 0.12),
+        0 6px 16px 0 rgba(0, 0, 0, 0.08),
+        0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 .ant-tooltip-arrow {
     position: absolute;
@@ -26750,7 +26882,9 @@ div.ant-typography-edit-content.ant-typography-rtl {
 }
 .ant-upload-list-text-container,
 .ant-upload-list-picture-container {
-    transition: opacity 0.3s, height 0.3s;
+    transition:
+        opacity 0.3s,
+        height 0.3s;
 }
 .ant-upload-list-text-container::before,
 .ant-upload-list-picture-container::before {
@@ -27010,7 +27144,9 @@ div.ant-typography-edit-content.ant-typography-rtl {
     border-left: 0;
     transform: rotate(45deg) scale(0) translate(-50%, -50%);
     opacity: 0;
-    transition: all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6), opacity 0.1s;
+    transition:
+        all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6),
+        opacity 0.1s;
     content: " ";
 }
 .ant-cascader-checkbox-input {
@@ -27408,7 +27544,9 @@ nz-tree-view .ant-tree-list-holder-inner {
     border-left: 0;
     transform: rotate(45deg) scale(0) translate(-50%, -50%);
     opacity: 0;
-    transition: all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6), opacity 0.1s;
+    transition:
+        all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6),
+        opacity 0.1s;
     content: " ";
 }
 .ant-tree-checkbox-input {
@@ -27717,7 +27855,11 @@ nz-tree-view .ant-tree-list-holder-inner {
     background: transparent;
     border-radius: 2px;
     cursor: pointer;
-    transition: all 0.3s, border 0s, line-height 0s, box-shadow 0s;
+    transition:
+        all 0.3s,
+        border 0s,
+        line-height 0s,
+        box-shadow 0s;
 }
 .ant-tree .ant-tree-node-content-wrapper:hover {
     background-color: #f5f5f5;
@@ -27896,7 +28038,9 @@ nz-tree {
     border-left: 0;
     transform: rotate(45deg) scale(0) translate(-50%, -50%);
     opacity: 0;
-    transition: all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6), opacity 0.1s;
+    transition:
+        all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6),
+        opacity 0.1s;
     content: " ";
 }
 .ant-select-tree-checkbox-input {
@@ -28233,7 +28377,11 @@ nz-tree {
     background: transparent;
     border-radius: 2px;
     cursor: pointer;
-    transition: all 0.3s, border 0s, line-height 0s, box-shadow 0s;
+    transition:
+        all 0.3s,
+        border 0s,
+        line-height 0s,
+        box-shadow 0s;
 }
 .ant-select-tree .ant-select-tree-node-content-wrapper:hover {
     background-color: #f5f5f5;

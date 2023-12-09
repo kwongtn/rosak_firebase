@@ -30,41 +30,43 @@
         ></nz-spin>
     </span>
     <span class="spotting-form-button">
-        <d-button (click)="openStandardDialog('standard')"
-            >Add spotting entry</d-button
+        <button
+            nz-button
+            nzType="primary"
+            (click)="openStandardDialog('standard')"
         >
+            Add spotting entry
+        </button>
     </span>
 </div>
-<div dLoading class="spotting-main-container" [showLoading]="showLoading">
+<nz-spin class="spinner" nzSimple *ngIf="showLoading"></nz-spin>
+<div class="spotting-main-container">
     <div class="spotting-table-container" *ngIf="tabActiveId">
-        <section>
-            <d-tabs
-                type="pills"
-                size="lg"
-                [(activeTab)]="tabActiveId"
-                (activeTabChange)="activeTabChange($event)"
-                [scrollMode]="'auto'"
-            >
-                <d-tab *ngFor="let item of tabItems" [id]="item.id">
-                    <ng-template dTabTitle>
-                        <div
-                            dTooltip
-                            [content]="item.detail"
-                            [position]="'bottom'"
-                        >
-                            {{ item.title }}
-                        </div>
-                    </ng-template>
-                </d-tab>
-            </d-tabs>
-        </section>
+        <nz-tabset
+            [nzSelectedIndex]="tabActiveIndex"
+            (nzSelectedIndexChange)="activeTabChange($event)"
+        >
+            <nz-tab *ngFor="let item of tabItems" [nzTitle]="tabTitle">
+                <ng-template nz-tab>
+                    <app-vehicle-type-container
+                        [lineId]="item.id"
+                        [title]="item.detail"
+                        [lineStatus]="item.lineStatus"
+                    ></app-vehicle-type-container>
+                </ng-template>
 
-        <app-vehicle-type-container
-            [tableData]="tableData"
-            [lineId]="tabActiveId"
-            [title]="tabActiveTitle"
-            [lineStatus]="tabLineStatus"
-        ></app-vehicle-type-container>
+                <ng-template #tabTitle>
+                    <span
+                        nz-tooltip
+                        [nzTooltipTitle]="item.detail"
+                        nzTooltipPlacement="topLeft"
+                        [nzTooltipArrowPointAtCenter]="true"
+                    >
+                        {{ item.title }}
+                    </span>
+                </ng-template>
+            </nz-tab>
+        </nz-tabset>
     </div>
 </div>
 
