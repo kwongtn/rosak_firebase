@@ -4,6 +4,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSegmentedModule } from "ng-zorro-antd/segmented";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -24,6 +25,7 @@ import {
         NzSegmentedModule,
         NzSpinModule,
         NzStatisticModule,
+        NzToolTipModule,
     ],
     exports: [VehicleStatusHistoryComponent],
 })

@@ -26,10 +26,23 @@ export class VehicleStatusHistoryComponent implements OnInit {
     colors10: LooseObject = {};
 
     sourceString: "MLPTF" | "MTREC" = "MLPTF";
+    infoTip: string | undefined = undefined;
     dataSourceOptions = [
-        { label: "MLPTF", value: "MLPTF", disabled: false },
-        { label: "MTREC", value: "MTREC", disabled: false },
-        { label: "Prasarana", value: "prasarana", disabled: true },
+        { label: "MLPTF", value: "MLPTF", disabled: false, infoTip: undefined },
+        {
+            label: "MTREC",
+            value: "MTREC",
+            disabled: false,
+            infoTip:
+                "Data is scraped on a best effort basis from Malaysia Trains & Rail Enthusiasts (MTREC) and hence may be inaccurate.",
+        },
+        {
+            label: "Prasarana",
+            value: "prasarana",
+            disabled: true,
+            infoTip:
+                "Official data from Prasarana website collected on a best effort basis.",
+        },
     ];
 
     constructor(
@@ -201,6 +214,8 @@ export class VehicleStatusHistoryComponent implements OnInit {
     onDataSourceChange(index: number) {
         this.loading = true;
         this.sourceString = this.dataSourceOptions[index].value as any;
+        this.infoTip = this.dataSourceOptions[index].infoTip;
+
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 10);
 

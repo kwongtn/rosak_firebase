@@ -7,6 +7,14 @@
         </nz-col>
         <div nz-col nzFlex="auto"></div>
         <nz-col [nzXs]="8" [nzMd]="6" [nzXl]="4">
+            <span nz-tooltip [nzTooltipTitle]="infoTip">
+                <span
+                    nz-icon
+                    nzType="info-circle"
+                    nzTheme="twotone"
+                    *ngIf="infoTip"
+                ></span>
+            </span>
             Source
             <span *ngIf="chartRef && loading">
                 <span nz-icon nzType="loading"></span>
