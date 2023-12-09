@@ -1,3 +1,5 @@
+<nz-spin class="spinner" nzSimple *ngIf="!chartRef && loading"></nz-spin>
+
 <div className="g2-tooltip" *ngIf="chartRef">
     <nz-row nzJustify="start" nzAlign="bottom" [nzGutter]="[4, 4]">
         <nz-col [nzMd]="12" [nzXl]="8">
@@ -6,6 +8,9 @@
         <div nz-col nzFlex="auto"></div>
         <nz-col [nzXs]="8" [nzMd]="6" [nzXl]="4">
             Source
+            <span *ngIf="chartRef && loading">
+                <span nz-icon nzType="loading"></span>
+            </span>
             <nz-segmented
                 (nzValueChange)="onDataSourceChange($event)"
                 [nzOptions]="dataSourceOptions"

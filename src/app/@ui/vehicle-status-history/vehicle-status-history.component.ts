@@ -16,6 +16,8 @@ import {
 export class VehicleStatusHistoryComponent implements OnInit {
     @Input() lineId!: string;
 
+    loading: boolean = true;
+
     tooltipItems: any[] = [];
     activeTooltipTitle: string | undefined = undefined;
     activeSeriesList: any[] = [];
@@ -156,6 +158,7 @@ export class VehicleStatusHistoryComponent implements OnInit {
                 this.setInitialHighlight(data);
 
                 this.colors10 = this.chartRef.chart.getTheme();
+                this.loading = false;
             });
     }
 
@@ -196,6 +199,7 @@ export class VehicleStatusHistoryComponent implements OnInit {
     }
 
     onDataSourceChange(index: number) {
+        this.loading = true;
         this.sourceString = this.dataSourceOptions[index].value as any;
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 10);
@@ -217,6 +221,7 @@ export class VehicleStatusHistoryComponent implements OnInit {
                 this.setInitialHighlight(data);
 
                 this.chartRef.render();
+                this.loading = false;
             });
     }
 
