@@ -51,8 +51,6 @@ implements OnInit, OnChanges
         reflect: "y",
         shape: "boundary-polygon",
         legend: {},
-        // theme: "light",
-        color: "puRd",
         meta: {
             dayOfWeek: {
                 type: "cat",
@@ -210,7 +208,7 @@ implements OnInit, OnChanges
 
                 this.heatmapPlot = this.ngZone.runOutsideAngular(() => {
                     return new Heatmap(
-                        document.getElementById("container") as HTMLElement,
+                        "spotting-vehicle-calendar-heatmap-container",
                         this.heatmapPlotOptions
                     );
                 });
