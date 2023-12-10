@@ -103,10 +103,53 @@ implements OnInit, OnChanges
                             return item["dayOfWeek"] === 6;
                         }
                     )[idx] as TVehicleSpottingTrendData;
-                    const [year, month, day] = val.dateKey.split("-");
 
-                    if (Number.parseInt(day) <= 7) {
-                        return `${year}\n${monthStr[Number.parseInt(month) - 1]}`;
+                    if (val) {
+                        const [year, month, day] = val.dateKey.split("-");
+
+                        if (Number.parseInt(day) <= 7) {
+                            return `${year}\n${
+                                monthStr[Number.parseInt(month) - 1]
+                            }`;
+                        }
+                    } else {
+                        /**
+                         * val being undefined will only happen at the last column of the heatmap,
+                         * and that there are no saturday entries.
+                         */
+                        const monthYear: { [key: string]: string[] } = {};
+                        [0, 1, 2, 3, 4, 5].forEach((day) => {
+                            const newVal = this.heatmapPlotOptions[
+                                "data"
+                            ].filter((item) => {
+                                return item["dayOfWeek"] === day;
+                            })[idx - 1] as TVehicleSpottingTrendData;
+
+                            if (newVal) {
+                                const [year, month, day] =
+                                    newVal.dateKey.split("-");
+
+                                if (monthYear[year]) {
+                                    monthYear[year].push(month);
+                                } else {
+                                    monthYear[year] = [month];
+                                }
+                            }
+                        });
+
+                        console.log(monthYear);
+
+                        const year = Math.max(
+                            ...Object.keys(monthYear).map((elem) => {
+                                return Number.parseInt(elem);
+                            })
+                        );
+                        const month = Math.max(
+                            ...monthYear[year].map((elem) => {
+                                return Number.parseInt(elem) - 1;
+                            })
+                        );
+                        return `${year}\n${monthStr[month]}`;
                     }
 
                     return "";
