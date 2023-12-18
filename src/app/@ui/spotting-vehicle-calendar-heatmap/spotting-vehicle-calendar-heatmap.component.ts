@@ -51,8 +51,6 @@ implements OnInit, OnChanges
         reflect: "y",
         shape: "boundary-polygon",
         legend: {},
-        // theme: "light",
-        color: "puRd",
         meta: {
             dayOfWeek: {
                 type: "cat",
@@ -185,13 +183,14 @@ implements OnInit, OnChanges
     ) {
         this.registerPolygons();
 
-        // themeService.colorScheme.subscribe((theme) => {
-        //     console.log(theme);
-        //     // this.heatmapPlotOptions.theme = theme;
+        themeService.colorScheme.subscribe((theme) => {
+            this.heatmapPlotOptions.theme = theme;
 
-        //     this.heatmapPlot?.update(this.heatmapPlotOptions);
-        //     this.heatmapPlot?.render();
-        // });
+            this.heatmapPlot?.update({
+                theme,
+            });
+            this.heatmapPlot?.render();
+        });
     }
 
     setAndRenderChart() {
@@ -210,7 +209,7 @@ implements OnInit, OnChanges
 
                 this.heatmapPlot = this.ngZone.runOutsideAngular(() => {
                     return new Heatmap(
-                        document.getElementById("container") as HTMLElement,
+                        "spotting-vehicle-calendar-heatmap-container",
                         this.heatmapPlotOptions
                     );
                 });

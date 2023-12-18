@@ -1,405 +1,420 @@
-<div dLoading class="form-component" [loading]="submitting" [backdrop]="true">
-    <form
-        dForm
-        [layout]="layoutDirection"
-        [labelSize]="'sm'"
-        [formGroup]="formGroup"
-    >
-        <div nz-row [nzGutter]="[16, 16]">
-            <div
-                nz-col
-                nzXs="24"
-                class="login-alert"
-                *ngIf="!(authService.userData | async)"
-            >
-                <nz-alert
-                    nzType="info"
-                    nzMessage="It seems that you're not logged in. Please login to proceed. If you are already logged in, please wait for a few seconds."
-                    nzShowIcon
-                    [nzAction]="loginActionTemplate"
-                ></nz-alert>
-                <ng-template #loginActionTemplate>
-                    <nz-space nzDirection="vertical">
-                        <button
-                            *nzSpaceItem
-                            nz-button
-                            nzType="primary"
-                            (click)="authService.login()"
-                        >
-                            Login
-                        </button>
-                    </nz-space>
-                </ng-template>
-            </div>
-
-            <div nz-col nzXs="24">
-                <d-form-item>
-                    <d-form-label class="required">Line*</d-form-label>
-                    <d-form-control [feedbackStatus]="getStatus('line')">
-                        <d-select
-                            [options]="lineOptions"
-                            [isSearch]="true"
-                            [filterKey]="'name'"
-                            formControlName="line"
-                            [placeholder]="'Line'"
-                            (ngModelChange)="onLineChanges($event)"
-                            [optionDisabledKey]="'disabled'"
-                        >
-                        </d-select>
-                        <d-alert
-                            *ngIf="
-                                isShowBetweenStationsModeSelectedBeforeLineSelectionError
-                            "
-                            [type]="'danger'"
-                            [closeable]="false"
-                        >
-                            Please select a line before selecting 'Between
-                            Stations' or 'At Station' mode. Then, select the
-                            type again.
-                        </d-alert>
-                    </d-form-control>
-                </d-form-item>
-
-                <!-- <d-alert
-                    *ngIf="formGroup['value']?.line?.value === '3'"
-                    class="test-type-info"
-                    [type]="'info'"
-                    [closeable]="false"
+<nz-spin [nzSpinning]="showLoading">
+    <div class="form-component">
+        <form
+            dForm
+            [layout]="layoutDirection"
+            [labelSize]="'sm'"
+            [formGroup]="formGroup"
+        >
+            <div nz-row [nzGutter]="[16, 16]">
+                <div
+                    nz-col
+                    nzXs="24"
+                    class="login-alert"
+                    *ngIf="!(authService.userData | async)"
                 >
-                    Some trains may have a 'testing' banner on it. If so, do mark your
-                    entry as testing 😉
-                </d-alert> -->
-
-                <d-form-item>
-                    <d-form-label class="required">Vehicle*</d-form-label>
-                    <d-form-control
-                        [feedbackStatus]="getStatus('vehicle')"
-                        *ngIf="formGroup['value']?.line?.value"
-                    >
-                        <d-select
-                            formControlName="vehicle"
-                            (ngModelChange)="onVehicleChanges($event)"
-                            [width]="300"
-                            [disabled]="!formGroup['value']?.line?.value"
-                            [isSearch]="true"
-                            [filterKey]="'name'"
-                            [searchFn]="vehicleSearchFn"
-                        >
-                        </d-select>
-                    </d-form-control>
-                </d-form-item>
-                <div class="vehicle-alert" *ngIf="showVehicleWarning">
                     <nz-alert
-                        nzType="warning"
-                        nzCloseable="false"
+                        nzType="info"
+                        nzMessage="It seems that you're not logged in. Please login to proceed. If you are already logged in, please wait for a few seconds."
                         nzShowIcon
-                        [nzAction]="sanityTestTemplate"
+                        [nzAction]="loginActionTemplate"
                     ></nz-alert>
-                    <ng-template #sanityTestTemplate>
+                    <ng-template #loginActionTemplate>
                         <nz-space nzDirection="vertical">
-                            <span class="sanity-test-text">
-                                It seems that you are trying to record a vehicle
-                                that is either decommissioned, married, out of
-                                service or unknown. Please complete the sanity
-                                test below.
-                            </span>
-                            <hr />
-                            <d-form-item>
-                                <d-form-control
-                                    [feedbackStatus]="getStatus('sanityTest')"
-                                >
-                                    <d-checkbox
-                                        class="sanity-test-text"
-                                        [labelTemplate]="sanityTestTemplate"
-                                        [isShowTitle]="false"
-                                        formControlName="sanityTest"
-                                    >
-                                    </d-checkbox>
-                                    <ng-template #sanityTestTemplate>
-                                        <span class="sanity-test-text">
-                                            Yes, I know what I\'m doing
-                                        </span>
-                                    </ng-template>
-                                </d-form-control>
-                            </d-form-item>
+                            <button
+                                *nzSpaceItem
+                                nz-button
+                                nzType="primary"
+                                (click)="authService.login()"
+                            >
+                                Login
+                            </button>
                         </nz-space>
                     </ng-template>
                 </div>
 
-                <d-form-item>
-                    <d-form-label class="required">Spotting Date*</d-form-label>
-                    <d-form-control
-                        [feedbackStatus]="getStatus('spottingDate')"
+                <div nz-col nzXs="24">
+                    <d-form-item>
+                        <d-form-label class="required">Line*</d-form-label>
+                        <d-form-control [feedbackStatus]="getStatus('line')">
+                            <d-select
+                                [options]="lineOptions"
+                                [isSearch]="true"
+                                [filterKey]="'name'"
+                                formControlName="line"
+                                [placeholder]="'Line'"
+                                (ngModelChange)="onLineChanges($event)"
+                                [optionDisabledKey]="'disabled'"
+                            >
+                            </d-select>
+                            <d-alert
+                                *ngIf="
+                                    isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                "
+                                [type]="'danger'"
+                                [closeable]="false"
+                            >
+                                Please select a line before selecting 'Between
+                                Stations' or 'At Station' mode. Then, select the
+                                type again.
+                            </d-alert>
+                        </d-form-control>
+                    </d-form-item>
+
+                    <!-- <d-alert
+                        *ngIf="formGroup['value']?.line?.value === '3'"
+                        class="test-type-info"
+                        [type]="'info'"
+                        [closeable]="false"
                     >
-                        <div class="devui-input-group devui-dropdown-origin">
-                            <input
-                                class="devui-input devui-form-control"
-                                placeholder="y/MM/dd"
-                                (click)="datePicker1.toggle()"
-                                name="dp"
-                                formControlName="spottingDate"
-                                (ngModelChange)="onChanges($event)"
-                                autocomplete="off"
-                                dDatepicker
-                                #datePicker1="datepicker"
-                                locale="en-us"
-                                appendToBody
-                                [appendToBodyDirections]="
-                                    appendToBodyDirections
-                                "
-                            />
+                        Some trains may have a 'testing' banner on it. If so, do mark your
+                        entry as testing 😉
+                    </d-alert> -->
+
+                    <d-form-item>
+                        <d-form-label class="required">Vehicle*</d-form-label>
+                        <d-form-control
+                            [feedbackStatus]="getStatus('vehicle')"
+                            *ngIf="formGroup['value']?.line?.value"
+                        >
+                            <d-select
+                                formControlName="vehicle"
+                                (ngModelChange)="onVehicleChanges($event)"
+                                [width]="300"
+                                [disabled]="!formGroup['value']?.line?.value"
+                                [isSearch]="true"
+                                [filterKey]="'name'"
+                                [searchFn]="vehicleSearchFn"
+                            >
+                            </d-select>
+                        </d-form-control>
+                    </d-form-item>
+                    <div class="vehicle-alert" *ngIf="showVehicleWarning">
+                        <nz-alert
+                            nzType="warning"
+                            nzCloseable="false"
+                            nzShowIcon
+                            [nzAction]="sanityTestTemplate"
+                        ></nz-alert>
+                        <ng-template #sanityTestTemplate>
+                            <nz-space nzDirection="vertical">
+                                <span class="sanity-test-text">
+                                    It seems that you are trying to record a
+                                    vehicle that is either decommissioned,
+                                    married, out of service or unknown. Please
+                                    complete the sanity test below.
+                                </span>
+                                <hr />
+                                <d-form-item>
+                                    <d-form-control
+                                        [feedbackStatus]="
+                                            getStatus('sanityTest')
+                                        "
+                                    >
+                                        <d-checkbox
+                                            class="sanity-test-text"
+                                            [labelTemplate]="sanityTestTemplate"
+                                            [isShowTitle]="false"
+                                            formControlName="sanityTest"
+                                        >
+                                        </d-checkbox>
+                                        <ng-template #sanityTestTemplate>
+                                            <span class="sanity-test-text">
+                                                Yes, I know what I\'m doing
+                                            </span>
+                                        </ng-template>
+                                    </d-form-control>
+                                </d-form-item>
+                            </nz-space>
+                        </ng-template>
+                    </div>
+
+                    <d-form-item>
+                        <d-form-label class="required"
+                            >Spotting Date*</d-form-label
+                        >
+                        <d-form-control
+                            [feedbackStatus]="getStatus('spottingDate')"
+                        >
                             <div
-                                *ngIf="selectedDate1"
-                                class="devui-input-group-addon close-icon-wrapper"
-                                (click)="datePicker1.clearAll()"
+                                class="devui-input-group devui-dropdown-origin"
                             >
-                                <i class="icon icon-close"></i>
+                                <input
+                                    class="devui-input devui-form-control"
+                                    placeholder="y/MM/dd"
+                                    (click)="datePicker1.toggle()"
+                                    name="dp"
+                                    formControlName="spottingDate"
+                                    (ngModelChange)="onChanges($event)"
+                                    autocomplete="off"
+                                    dDatepicker
+                                    #datePicker1="datepicker"
+                                    locale="en-us"
+                                    appendToBody
+                                    [appendToBodyDirections]="
+                                        appendToBodyDirections
+                                    "
+                                />
+                                <div
+                                    *ngIf="selectedDate1"
+                                    class="devui-input-group-addon close-icon-wrapper"
+                                    (click)="datePicker1.clearAll()"
+                                >
+                                    <i class="icon icon-close"></i>
+                                </div>
+                                <div
+                                    class="devui-input-group-addon"
+                                    (click)="datePicker1.toggle()"
+                                >
+                                    <i class="icon icon-calendar"></i>
+                                </div>
                             </div>
-                            <div
-                                class="devui-input-group-addon"
-                                (click)="datePicker1.toggle()"
-                            >
-                                <i class="icon icon-calendar"></i>
-                            </div>
-                        </div>
-                    </d-form-control>
-                </d-form-item>
+                        </d-form-control>
+                    </d-form-item>
 
-                <d-form-item>
-                    <d-form-label class="required">Status*</d-form-label>
-                    <d-form-control [feedbackStatus]="getStatus('status')">
-                        <d-select
-                            [options]="statusOptions"
-                            [isSearch]="false"
-                            [filterKey]="'name'"
-                            formControlName="status"
-                            [placeholder]="'Status'"
-                            (ngModelChange)="onChanges($event)"
-                            [optionDisabledKey]="'disabled'"
-                        >
-                        </d-select>
-                    </d-form-control>
-                </d-form-item>
-
-                <d-form-item>
-                    <d-form-label class="required">Type*</d-form-label>
-                    <d-form-control [feedbackStatus]="getStatus('type')">
-                        <d-select
-                            [options]="typeOptions"
-                            [isSearch]="false"
-                            [filterKey]="'name'"
-                            formControlName="type"
-                            [placeholder]="'Type'"
-                            (ngModelChange)="onInputTypeChanges()"
-                            [optionDisabledKey]="'disabled'"
-                        >
-                        </d-select>
-                    </d-form-control>
-                </d-form-item>
-
-                <div *ngIf="showRunNumberInput">
                     <d-form-item>
-                        <d-form-label>Run Number</d-form-label>
-                        <d-form-control
-                            [feedbackStatus]="getStatus('runNumber')"
-                        >
-                            <input
-                                dTextInput
-                                placeholder=""
-                                formControlName="runNumber"
-                                resize="none"
+                        <d-form-label class="required">Status*</d-form-label>
+                        <d-form-control [feedbackStatus]="getStatus('status')">
+                            <d-select
+                                [options]="statusOptions"
+                                [isSearch]="false"
+                                [filterKey]="'name'"
+                                formControlName="status"
+                                [placeholder]="'Status'"
                                 (ngModelChange)="onChanges($event)"
-                            />
-                        </d-form-control>
-                    </d-form-item>
-                </div>
-
-                <div *ngIf="this.formGroup.value.type.value === 'LOCATION'">
-                    <d-form-item *ngIf="formGroup.value.location.altitude">
-                        <d-form-label>Altitude</d-form-label>
-                        <d-form-control [feedbackStatus]="'success'">
-                            <input
-                                dTextInput
-                                [value]="
-                                    '' +
-                                    formGroup.value.location.altitude +
-                                    'm±' +
-                                    formGroup.value.location.altitudeAccuracy
-                                "
-                                [readonly]="true"
-                            />
-                        </d-form-control>
-                    </d-form-item>
-
-                    <d-form-item *ngIf="formGroup.value.location.heading">
-                        <d-form-label>Heading</d-form-label>
-                        <d-form-control [feedbackStatus]="'success'">
-                            <input
-                                dTextInput
-                                [value]="formGroup.value.location.heading"
-                                [readonly]="true"
-                            />
-                        </d-form-control>
-                    </d-form-item>
-
-                    <d-form-item *ngIf="formGroup.value.location.speed">
-                        <d-form-label>Speed</d-form-label>
-                        <d-form-control [feedbackStatus]="'success'">
-                            <input
-                                dTextInput
-                                [value]="
-                                    '' +
-                                    formGroup.value.location.speed * 3.6 +
-                                    'km/h'
-                                "
-                                [readonly]="true"
-                            />
-                        </d-form-control>
-                    </d-form-item>
-
-                    <d-form-item *ngIf="formGroup.value.location.latitude">
-                        <d-form-label>Coordinates</d-form-label>
-                        <d-form-control [feedbackStatus]="'success'">
-                            <input
-                                dTextInput
-                                [value]="
-                                    formGroup.value.location
-                                        | coordinatesHumanizer
-                                "
-                                [readonly]="true"
-                            />
-                        </d-form-control>
-                    </d-form-item>
-                </div>
-
-                <div *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'">
-                    <d-form-item>
-                        <d-form-label class="required"
-                            >Origin Station*</d-form-label
-                        >
-
-                        <d-form-control
-                            [feedbackStatus]="getStatus('originStation')"
-                        >
-                            <d-select
-                                [options]="stationOptions"
-                                [filterKey]="'name'"
-                                [placeholder]="'Source Station'"
-                                formControlName="originStation"
-                                [width]="300"
-                                [allowClear]="true"
-                                [isSearch]="true"
+                                [optionDisabledKey]="'disabled'"
                             >
                             </d-select>
                         </d-form-control>
                     </d-form-item>
 
                     <d-form-item>
-                        <d-form-label class="required"
-                            >Destination Station*</d-form-label
-                        >
+                        <d-form-label class="required">Type*</d-form-label>
+                        <d-form-control [feedbackStatus]="getStatus('type')">
+                            <d-select
+                                [options]="typeOptions"
+                                [isSearch]="false"
+                                [filterKey]="'name'"
+                                formControlName="type"
+                                [placeholder]="'Type'"
+                                (ngModelChange)="onInputTypeChanges()"
+                                [optionDisabledKey]="'disabled'"
+                            >
+                            </d-select>
+                        </d-form-control>
+                    </d-form-item>
+
+                    <div *ngIf="showRunNumberInput">
+                        <d-form-item>
+                            <d-form-label>Run Number</d-form-label>
+                            <d-form-control
+                                [feedbackStatus]="getStatus('runNumber')"
+                            >
+                                <input
+                                    dTextInput
+                                    placeholder=""
+                                    formControlName="runNumber"
+                                    resize="none"
+                                    (ngModelChange)="onChanges($event)"
+                                />
+                            </d-form-control>
+                        </d-form-item>
+                    </div>
+
+                    <div *ngIf="this.formGroup.value.type.value === 'LOCATION'">
+                        <d-form-item *ngIf="formGroup.value.location.altitude">
+                            <d-form-label>Altitude</d-form-label>
+                            <d-form-control [feedbackStatus]="'success'">
+                                <input
+                                    dTextInput
+                                    [value]="
+                                        '' +
+                                        formGroup.value.location.altitude +
+                                        'm±' +
+                                        formGroup.value.location
+                                            .altitudeAccuracy
+                                    "
+                                    [readonly]="true"
+                                />
+                            </d-form-control>
+                        </d-form-item>
+
+                        <d-form-item *ngIf="formGroup.value.location.heading">
+                            <d-form-label>Heading</d-form-label>
+                            <d-form-control [feedbackStatus]="'success'">
+                                <input
+                                    dTextInput
+                                    [value]="formGroup.value.location.heading"
+                                    [readonly]="true"
+                                />
+                            </d-form-control>
+                        </d-form-item>
+
+                        <d-form-item *ngIf="formGroup.value.location.speed">
+                            <d-form-label>Speed</d-form-label>
+                            <d-form-control [feedbackStatus]="'success'">
+                                <input
+                                    dTextInput
+                                    [value]="
+                                        '' +
+                                        formGroup.value.location.speed * 3.6 +
+                                        'km/h'
+                                    "
+                                    [readonly]="true"
+                                />
+                            </d-form-control>
+                        </d-form-item>
+
+                        <d-form-item *ngIf="formGroup.value.location.latitude">
+                            <d-form-label>Coordinates</d-form-label>
+                            <d-form-control [feedbackStatus]="'success'">
+                                <input
+                                    dTextInput
+                                    [value]="
+                                        formGroup.value.location
+                                            | coordinatesHumanizer
+                                    "
+                                    [readonly]="true"
+                                />
+                            </d-form-control>
+                        </d-form-item>
+                    </div>
+
+                    <div
+                        *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'"
+                    >
+                        <d-form-item>
+                            <d-form-label class="required"
+                                >Origin Station*</d-form-label
+                            >
+
+                            <d-form-control
+                                [feedbackStatus]="getStatus('originStation')"
+                            >
+                                <d-select
+                                    [options]="stationOptions"
+                                    [filterKey]="'name'"
+                                    [placeholder]="'Source Station'"
+                                    formControlName="originStation"
+                                    [width]="300"
+                                    [allowClear]="true"
+                                    [isSearch]="true"
+                                >
+                                </d-select>
+                            </d-form-control>
+                        </d-form-item>
+
+                        <d-form-item>
+                            <d-form-label class="required"
+                                >Destination Station*</d-form-label
+                            >
+                            <d-form-control
+                                [feedbackStatus]="
+                                    getStatus('destinationStation')
+                                "
+                            >
+                                <d-select
+                                    [options]="stationOptions"
+                                    [filterKey]="'name'"
+                                    [placeholder]="'Destination Station'"
+                                    formControlName="destinationStation"
+                                    (ngModelChange)="onChanges($event)"
+                                    [width]="300"
+                                    [allowClear]="true"
+                                    [isSearch]="true"
+                                >
+                                </d-select>
+                            </d-form-control>
+                        </d-form-item>
+                    </div>
+
+                    <div *ngIf="formGroup.value.type.value == 'AT_STATION'">
+                        <d-form-item>
+                            <d-form-label class="required"
+                                >At Station*</d-form-label
+                            >
+                            <d-form-control
+                                [feedbackStatus]="getStatus('atStation')"
+                            >
+                                <d-select
+                                    [options]="stationOptions"
+                                    [filterKey]="'name'"
+                                    [placeholder]="'Station'"
+                                    formControlName="atStation"
+                                    [width]="300"
+                                    [allowClear]="true"
+                                    [isSearch]="true"
+                                >
+                                </d-select>
+                            </d-form-control>
+                        </d-form-item>
+                    </div>
+
+                    <hr />
+                    <d-form-item>
+                        <d-form-label>Wheel Status</d-form-label>
                         <d-form-control
-                            [feedbackStatus]="getStatus('destinationStation')"
+                            [feedbackStatus]="getStatus('wheelStatus')"
                         >
                             <d-select
-                                [options]="stationOptions"
+                                [options]="wheelStatusOptions"
                                 [filterKey]="'name'"
-                                [placeholder]="'Destination Station'"
-                                formControlName="destinationStation"
+                                [placeholder]="'Wheel Status'"
+                                formControlName="wheelStatus"
+                                [width]="300"
+                                [allowClear]="true"
+                            ></d-select>
+                        </d-form-control>
+                    </d-form-item>
+
+                    <d-form-item>
+                        <d-form-label>Notes</d-form-label>
+                        <d-form-control>
+                            <textarea
+                                dTextarea
+                                placeholder="Additional notes"
+                                formControlName="notes"
+                                resize="both"
                                 (ngModelChange)="onChanges($event)"
-                                [width]="300"
-                                [allowClear]="true"
-                                [isSearch]="true"
-                            >
-                            </d-select>
+                            ></textarea>
                         </d-form-control>
                     </d-form-item>
-                </div>
 
-                <div *ngIf="formGroup.value.type.value == 'AT_STATION'">
                     <d-form-item>
-                        <d-form-label class="required"
-                            >At Station*</d-form-label
-                        >
-                        <d-form-control
-                            [feedbackStatus]="getStatus('atStation')"
-                        >
-                            <d-select
-                                [options]="stationOptions"
-                                [filterKey]="'name'"
-                                [placeholder]="'Station'"
-                                formControlName="atStation"
-                                [width]="300"
-                                [allowClear]="true"
-                                [isSearch]="true"
+                        <d-form-control>
+                            <d-checkbox
+                                [label]="'Anonymous Entry'"
+                                [isShowTitle]="false"
+                                formControlName="isAnonymous"
                             >
-                            </d-select>
+                            </d-checkbox>
                         </d-form-control>
                     </d-form-item>
                 </div>
 
-                <hr />
-                <d-form-item>
-                    <d-form-label>Wheel Status</d-form-label>
-                    <d-form-control [feedbackStatus]="getStatus('wheelStatus')">
-                        <d-select
-                            [options]="wheelStatusOptions"
-                            [filterKey]="'name'"
-                            [placeholder]="'Wheel Status'"
-                            formControlName="wheelStatus"
-                            [width]="300"
-                            [allowClear]="true"
-                        ></d-select>
-                    </d-form-control>
-                </d-form-item>
-
-                <d-form-item>
-                    <d-form-label>Notes</d-form-label>
-                    <d-form-control>
-                        <textarea
-                            dTextarea
-                            placeholder="Additional notes"
-                            formControlName="notes"
-                            resize="both"
-                            (ngModelChange)="onChanges($event)"
-                        ></textarea>
-                    </d-form-control>
-                </d-form-item>
-
-                <d-form-item>
-                    <d-form-control>
-                        <d-checkbox
-                            [label]="'Anonymous Entry'"
-                            [isShowTitle]="false"
-                            formControlName="isAnonymous"
-                        >
-                        </d-checkbox>
-                    </d-form-control>
-                </d-form-item>
+                <div nz-col nzXs="24">
+                    <div class="sub-header">Image Uploads</div>
+                    <spotting-form-upload
+                        (newImageEvent)="onNewImage($event)"
+                    ></spotting-form-upload>
+                </div>
             </div>
-
+        </form>
+    </div>
+    <div
+        class="form-component"
+        *ngIf="
+            (authService.userData | async) &&
+            (sessionHistoryService.historyStoreLength | async)
+        "
+    >
+        <div nz-row [nzGutter]="[16, 16]">
             <div nz-col nzXs="24">
-                <div class="sub-header">Image Uploads</div>
-                <spotting-form-upload
-                    (newImageEvent)="onNewImage($event)"
-                ></spotting-form-upload>
+                <div class="sub-header">
+                    As of Current Session, you added the following entries
+                </div>
+                <ui-action-list [filter]="['spotting']"></ui-action-list>
             </div>
-        </div>
-    </form>
-</div>
-<div
-    class="form-component"
-    *ngIf="
-        (authService.userData | async) &&
-        (sessionHistoryService.historyStoreLength | async)
-    "
->
-    <div nz-row [nzGutter]="[16, 16]">
-        <div nz-col nzXs="24">
-            <div class="sub-header">
-                As of Current Session, you added the following entries
-            </div>
-            <ui-action-list [filter]="['spotting']"></ui-action-list>
         </div>
     </div>
-</div>
+</nz-spin>

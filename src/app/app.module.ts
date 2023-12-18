@@ -27,7 +27,6 @@ import {
 } from "@angular/fire/analytics";
 import { initializeApp, provideFirebaseApp } from "@angular/fire/app";
 import { getAuth, provideAuth } from "@angular/fire/auth";
-// import { PerformanceMonitoringService } from "@angular/fire/performance";
 import { getDatabase, provideDatabase } from "@angular/fire/database";
 import { getFirestore, provideFirestore } from "@angular/fire/firestore";
 import { getPerformance, providePerformance } from "@angular/fire/performance";
@@ -42,6 +41,7 @@ import { environment } from "../environments/environment";
 import { FooterModule } from "./@ui/footer/footer.module";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
+import { GlobalErrorHandler } from "./error-handler";
 import { GraphQLModule } from "./graphql.module";
 import { HeaderModule } from "./header/header.module";
 
@@ -83,6 +83,7 @@ const imports: any[] = [
 const providers: any[] = [
     {
         provide: ErrorHandler,
+        useClass: GlobalErrorHandler,
         useValue: Sentry.createErrorHandler({
             showDialog: true,
         }),
@@ -114,12 +115,11 @@ const providers: any[] = [
 if (environment.production) {
     imports.push(
         provideAnalytics(() => getAnalytics()),
-        providePerformance(() => getPerformance()),
+        providePerformance(() => getPerformance())
     );
     providers.push(
-        // PerformanceMonitoringService,
         ScreenTrackingService,
-        UserTrackingService,
+        UserTrackingService
         // {
         //     provide: CONFIG,
         //     useValue: {

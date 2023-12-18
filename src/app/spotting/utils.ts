@@ -1,13 +1,13 @@
 import {
     LineStatus,
-    VehicleStatusCountType
+    VehicleStatusCountType,
 } from "src/app/models/query/get-vehicles";
 
 import { GetLinesResponse } from "../models/query/get-vehicles";
 import { VehicleFormOption } from "./spotting-form/spotting-form.types";
 
 export interface LineTabType {
-    id: string | number;
+    id: string;
     title: string;
     disabled?: boolean;
     detail: string;
