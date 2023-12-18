@@ -1,0 +1,53 @@
+<nz-spin class="spinner" nzSimple *ngIf="!chartRef && loading"></nz-spin>
+
+<div className="g2-tooltip" *ngIf="chartRef">
+    <nz-row nzJustify="start" nzAlign="bottom" [nzGutter]="[4, 4]">
+        <nz-col [nzMd]="12" [nzXl]="8">
+            <h2>{{ activeTooltipTitle | date: "MMMM d, y" }}</h2>
+        </nz-col>
+        <div nz-col nzFlex="auto"></div>
+        <nz-col [nzXs]="8" [nzMd]="6" [nzXl]="4">
+            <span nz-tooltip [nzTooltipTitle]="infoTip">
+                <span
+                    nz-icon
+                    nzType="info-circle"
+                    nzTheme="twotone"
+                    *ngIf="infoTip"
+                ></span>
+            </span>
+            Source
+            <span *ngIf="chartRef && loading">
+                <span nz-icon nzType="loading"></span>
+            </span>
+            <nz-segmented
+                (nzValueChange)="onDataSourceChange($event)"
+                [nzOptions]="dataSourceOptions"
+            ></nz-segmented>
+        </nz-col>
+    </nz-row>
+    <nz-row [nzGutter]="[4, 4]">
+        <nz-col
+            *ngFor="let item of tooltipItems; index as idx"
+            [nzXs]="12"
+            [nzMd]="8"
+            [nzLg]="4"
+            [nzXl]="3"
+        >
+            <div
+                class="g2-tooltip-item-marker"
+                [style]="'background: ' + sequenceColors[idx]"
+            ></div>
+            <div class="g2-tooltip-item">
+                <nz-statistic
+                    class="{{
+                        activeSeriesList.includes(item.status) ? 'inactive' : ''
+                    }}"
+                    (click)="changeActiveSeries(item.status)"
+                    [nzValue]="item.count || '-'"
+                    [nzTitle]="item.status.replaceAll('_', ' ') | titlecase"
+                ></nz-statistic>
+            </div>
+        </nz-col>
+    </nz-row>
+</div>
+<div id="vehicle-status-history-container"></div>

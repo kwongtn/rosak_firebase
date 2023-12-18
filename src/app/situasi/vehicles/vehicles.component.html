@@ -1,3 +1,16 @@
-<spotting-line-calendar-heatmap *ngIf="lineId" [lineId]="lineId">
-</spotting-line-calendar-heatmap>
-<!-- <spotting-vehicle-calendar-heatmap></spotting-vehicle-calendar-heatmap> -->
+<nz-tabset>
+    <nz-tab nzTitle="Vehicle Status History">
+        <ng-template nz-tab>
+            <ui-vehicle-status-history
+                *ngIf="lineId"
+                [lineId]="lineId"
+            ></ui-vehicle-status-history>
+        </ng-template>
+    </nz-tab>
+    <nz-tab nzTitle="Spotting Line Calendar Heatmap">
+        <ng-template nz-tab>
+            <spotting-line-calendar-heatmap *ngIf="lineId" [lineId]="lineId">
+            </spotting-line-calendar-heatmap>
+        </ng-template>
+    </nz-tab>
+</nz-tabset>
