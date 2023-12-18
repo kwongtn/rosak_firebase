@@ -5,8 +5,8 @@ export type VehicleStatus =
     | "TESTING";
 
 export interface VehicleFormOption {
-    name: any;
-    value: any;
+    name: string;
+    value: string;
     disabled?: boolean;
     status: VehicleStatus;
 }

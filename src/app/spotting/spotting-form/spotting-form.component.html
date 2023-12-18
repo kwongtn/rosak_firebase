@@ -1,10 +1,12 @@
 <nz-spin [nzSpinning]="showLoading">
     <div class="form-component">
         <form
-            dForm
-            [layout]="layoutDirection"
-            [labelSize]="'sm'"
+            nz-form
+            nzLayout="horizontal"
+            nzLabelAlign="left"
             [formGroup]="formGroup"
+            [nzNoColon]="true"
+            [nzLabelWrap]="true"
         >
             <div nz-row [nzGutter]="[16, 16]">
                 <div
@@ -34,61 +36,73 @@
                 </div>
 
                 <div nz-col nzXs="24">
-                    <d-form-item>
-                        <d-form-label class="required">Line*</d-form-label>
-                        <d-form-control [feedbackStatus]="getStatus('line')">
-                            <d-select
-                                [options]="lineOptions"
-                                [isSearch]="true"
-                                [filterKey]="'name'"
-                                formControlName="line"
-                                [placeholder]="'Line'"
-                                (ngModelChange)="onLineChanges($event)"
-                                [optionDisabledKey]="'disabled'"
-                            >
-                            </d-select>
-                            <d-alert
-                                *ngIf="
-                                    isShowBetweenStationsModeSelectedBeforeLineSelectionError
-                                "
-                                [type]="'danger'"
-                                [closeable]="false"
-                            >
-                                Please select a line before selecting 'Between
-                                Stations' or 'At Station' mode. Then, select the
-                                type again.
-                            </d-alert>
-                        </d-form-control>
-                    </d-form-item>
-
-                    <!-- <d-alert
-                        *ngIf="formGroup['value']?.line?.value === '3'"
-                        class="test-type-info"
-                        [type]="'info'"
-                        [closeable]="false"
-                    >
-                        Some trains may have a 'testing' banner on it. If so, do mark your
-                        entry as testing 😉
-                    </d-alert> -->
-
-                    <d-form-item>
-                        <d-form-label class="required">Vehicle*</d-form-label>
-                        <d-form-control
-                            [feedbackStatus]="getStatus('vehicle')"
-                            *ngIf="formGroup['value']?.line?.value"
+                    <nz-form-item>
+                        <nz-form-label nzRequired [nzSpan]="4">
+                            Line
+                        </nz-form-label>
+                        <nz-form-control
+                            nzFlex="auto"
+                            [nzSpan]="20"
+                            [nzValidateStatus]="
+                                isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                    ? 'error'
+                                    : getStatus('line')
+                            "
+                            [nzHasFeedback]="hasStatus('line')"
+                            class="nz-padded-form-item"
+                            [nzErrorTip]="
+                                isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                    ? 'Please select a line before selecting \'Between Stations\' or \'At Station\' mode. Then, select the type again.'
+                                    : undefined
+                            "
                         >
-                            <d-select
+                            <nz-select
+                                nzShowSearch
+                                nzPlaceHolder="Line"
+                                formControlName="line"
+                                [nzStatus]="
+                                    isShowBetweenStationsModeSelectedBeforeLineSelectionError
+                                        ? 'error'
+                                        : ''
+                                "
+                                (ngModelChange)="onLineChanges($event)"
+                            >
+                                <nz-option
+                                    *ngFor="let line of lineOptions"
+                                    [nzLabel]="line.name"
+                                    [nzValue]="line.value"
+                                    [nzDisabled]="line.disabled"
+                                ></nz-option>
+                            </nz-select>
+                        </nz-form-control>
+                    </nz-form-item>
+
+                    <nz-form-item>
+                        <nz-form-label nzRequired [nzSpan]="4">
+                            Vehicle
+                        </nz-form-label>
+                        <nz-form-control
+                            nzFlex="auto"
+                            [nzValidateStatus]="getStatus('vehicle')"
+                            [nzHasFeedback]="hasStatus('vehicle')"
+                        >
+                            <nz-select
+                                nzShowSearch
+                                nzAllowClear
+                                nzPlaceHolder="Vehicle"
                                 formControlName="vehicle"
                                 (ngModelChange)="onVehicleChanges($event)"
-                                [width]="300"
-                                [disabled]="!formGroup['value']?.line?.value"
-                                [isSearch]="true"
-                                [filterKey]="'name'"
-                                [searchFn]="vehicleSearchFn"
+                                [nzFilterOption]="vehicleSearchFn"
                             >
-                            </d-select>
-                        </d-form-control>
-                    </d-form-item>
+                                <nz-option
+                                    *ngFor="let vehicle of vehicleOptions"
+                                    [nzLabel]="vehicle.name"
+                                    [nzValue]="vehicle.value"
+                                    [nzDisabled]="vehicle.disabled"
+                                ></nz-option>
+                            </nz-select>
+                        </nz-form-control>
+                    </nz-form-item>
                     <div class="vehicle-alert" *ngIf="showVehicleWarning">
                         <nz-alert
                             nzType="warning"
@@ -104,129 +118,128 @@
                                     married, out of service or unknown. Please
                                     complete the sanity test below.
                                 </span>
-                                <hr />
-                                <d-form-item>
-                                    <d-form-control
-                                        [feedbackStatus]="
+                                <nz-form-item>
+                                    <nz-form-control
+                                        [nzValidateStatus]="
                                             getStatus('sanityTest')
                                         "
+                                        [nzHasFeedback]="
+                                            hasStatus('sanityTest')
+                                        "
                                     >
-                                        <d-checkbox
-                                            class="sanity-test-text"
-                                            [labelTemplate]="sanityTestTemplate"
-                                            [isShowTitle]="false"
-                                            formControlName="sanityTest"
+                                        <label
+                                            nz-checkbox
+                                            (click)="toggleSanityTest()"
                                         >
-                                        </d-checkbox>
-                                        <ng-template #sanityTestTemplate>
-                                            <span class="sanity-test-text">
-                                                Yes, I know what I\'m doing
-                                            </span>
-                                        </ng-template>
-                                    </d-form-control>
-                                </d-form-item>
+                                            Yes, I know what I'm doing
+                                        </label>
+                                    </nz-form-control>
+                                </nz-form-item>
                             </nz-space>
                         </ng-template>
                     </div>
 
-                    <d-form-item>
-                        <d-form-label class="required"
-                            >Spotting Date*</d-form-label
+                    <nz-form-item>
+                        <nz-form-label nzRequired [nzSpan]="4">
+                            Spotting Date
+                        </nz-form-label>
+                        <nz-form-control
+                            nzFlex="auto"
+                            [nzValidateStatus]="getStatus('spottingDate')"
+                            [nzHasFeedback]="hasStatus('spottingDate')"
                         >
-                        <d-form-control
-                            [feedbackStatus]="getStatus('spottingDate')"
-                        >
-                            <div
-                                class="devui-input-group devui-dropdown-origin"
-                            >
-                                <input
-                                    class="devui-input devui-form-control"
-                                    placeholder="y/MM/dd"
-                                    (click)="datePicker1.toggle()"
-                                    name="dp"
-                                    formControlName="spottingDate"
-                                    (ngModelChange)="onChanges($event)"
-                                    autocomplete="off"
-                                    dDatepicker
-                                    #datePicker1="datepicker"
-                                    locale="en-us"
-                                    appendToBody
-                                    [appendToBodyDirections]="
-                                        appendToBodyDirections
-                                    "
-                                />
-                                <div
-                                    *ngIf="selectedDate1"
-                                    class="devui-input-group-addon close-icon-wrapper"
-                                    (click)="datePicker1.clearAll()"
-                                >
-                                    <i class="icon icon-close"></i>
-                                </div>
-                                <div
-                                    class="devui-input-group-addon"
-                                    (click)="datePicker1.toggle()"
-                                >
-                                    <i class="icon icon-calendar"></i>
-                                </div>
-                            </div>
-                        </d-form-control>
-                    </d-form-item>
-
-                    <d-form-item>
-                        <d-form-label class="required">Status*</d-form-label>
-                        <d-form-control [feedbackStatus]="getStatus('status')">
-                            <d-select
-                                [options]="statusOptions"
-                                [isSearch]="false"
-                                [filterKey]="'name'"
-                                formControlName="status"
-                                [placeholder]="'Status'"
+                            <nz-date-picker
+                                formControlName="spottingDate"
                                 (ngModelChange)="onChanges($event)"
-                                [optionDisabledKey]="'disabled'"
-                            >
-                            </d-select>
-                        </d-form-control>
-                    </d-form-item>
+                                [nzAllowClear]="false"
+                            ></nz-date-picker>
+                        </nz-form-control>
+                    </nz-form-item>
 
-                    <d-form-item>
-                        <d-form-label class="required">Type*</d-form-label>
-                        <d-form-control [feedbackStatus]="getStatus('type')">
-                            <d-select
-                                [options]="typeOptions"
-                                [isSearch]="false"
-                                [filterKey]="'name'"
-                                formControlName="type"
-                                [placeholder]="'Type'"
-                                (ngModelChange)="onInputTypeChanges()"
-                                [optionDisabledKey]="'disabled'"
+                    <nz-form-item>
+                        <nz-form-label nzRequired [nzSpan]="4">
+                            Status
+                        </nz-form-label>
+                        <nz-form-control
+                            [nzSpan]="20"
+                            nzFlex="auto"
+                            [nzValidateStatus]="getStatus('status')"
+                            [nzHasFeedback]="hasStatus('status')"
+                        >
+                            <nz-select
+                                nzPlaceHolder="Status"
+                                formControlName="status"
+                                (ngModelChange)="onChanges($event)"
                             >
-                            </d-select>
-                        </d-form-control>
-                    </d-form-item>
+                                <nz-option
+                                    *ngFor="let status of statusOptions"
+                                    [nzLabel]="status.name"
+                                    [nzValue]="status.value"
+                                ></nz-option>
+                            </nz-select>
+
+                            <nz-alert
+                                *ngIf="formGroup['value']?.line === '3'"
+                                class="test-type-info"
+                                nzType="info"
+                                nzMessage="Some trains may have a 'testing' banner on it. If so, do mark your entry as testing 😉"
+                                nzShowIcon
+                            ></nz-alert>
+                        </nz-form-control>
+                    </nz-form-item>
+
+                    <nz-form-item>
+                        <nz-form-label nzRequired [nzSpan]="4">
+                            Type
+                        </nz-form-label>
+                        <nz-form-control
+                            nzFlex="auto"
+                            [nzValidateStatus]="getStatus('type')"
+                            [nzHasFeedback]="hasStatus('type')"
+                        >
+                            <nz-select
+                                nzPlaceHolder="Type"
+                                formControlName="type"
+                                (ngModelChange)="onInputTypeChanged($event)"
+                            >
+                                <nz-option
+                                    *ngFor="let entryType of typeOptions"
+                                    [nzLabel]="entryType.name"
+                                    [nzValue]="entryType.value"
+                                ></nz-option>
+                            </nz-select>
+                        </nz-form-control>
+                    </nz-form-item>
 
                     <div *ngIf="showRunNumberInput">
-                        <d-form-item>
-                            <d-form-label>Run Number</d-form-label>
-                            <d-form-control
-                                [feedbackStatus]="getStatus('runNumber')"
+                        <nz-form-item>
+                            <nz-form-label [nzSpan]="4"
+                                >Run Number</nz-form-label
+                            >
+                            <nz-form-control
+                                nzFlex="auto"
+                                [nzValidateStatus]="getStatus('runNumber')"
+                                [nzHasFeedback]="hasStatus('runNumber')"
                             >
                                 <input
-                                    dTextInput
-                                    placeholder=""
+                                    nz-input
+                                    placeholder="Run Number (Optional)"
                                     formControlName="runNumber"
-                                    resize="none"
-                                    (ngModelChange)="onChanges($event)"
                                 />
-                            </d-form-control>
-                        </d-form-item>
+                            </nz-form-control>
+                        </nz-form-item>
                     </div>
 
-                    <div *ngIf="this.formGroup.value.type.value === 'LOCATION'">
-                        <d-form-item *ngIf="formGroup.value.location.altitude">
-                            <d-form-label>Altitude</d-form-label>
-                            <d-form-control [feedbackStatus]="'success'">
+                    <div *ngIf="this.formGroup.value.type === 'LOCATION'">
+                        <nz-form-item *ngIf="formGroup.value.location.altitude">
+                            <nz-form-label [nzSpan]="4">Altitude</nz-form-label>
+                            <nz-form-control
+                                nzFlex="auto"
+                                nzValidateStatus="success"
+                            >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="
                                         '' +
                                         formGroup.value.location.altitude +
@@ -234,162 +247,190 @@
                                         formGroup.value.location
                                             .altitudeAccuracy
                                     "
-                                    [readonly]="true"
                                 />
-                            </d-form-control>
-                        </d-form-item>
+                            </nz-form-control>
+                        </nz-form-item>
 
-                        <d-form-item *ngIf="formGroup.value.location.heading">
-                            <d-form-label>Heading</d-form-label>
-                            <d-form-control [feedbackStatus]="'success'">
+                        <nz-form-item *ngIf="formGroup.value.location.heading">
+                            <nz-form-label [nzSpan]="4">Heading</nz-form-label>
+                            <nz-form-control
+                                nzFlex="auto"
+                                nzValidateStatus="success"
+                            >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="formGroup.value.location.heading"
-                                    [readonly]="true"
                                 />
-                            </d-form-control>
-                        </d-form-item>
+                            </nz-form-control>
+                        </nz-form-item>
 
-                        <d-form-item *ngIf="formGroup.value.location.speed">
-                            <d-form-label>Speed</d-form-label>
-                            <d-form-control [feedbackStatus]="'success'">
+                        <nz-form-item *ngIf="formGroup.value.location.speed">
+                            <nz-form-label [nzSpan]="4">Speed</nz-form-label>
+                            <nz-form-control
+                                nzFlex="auto"
+                                nzValidateStatus="success"
+                            >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="
                                         '' +
                                         formGroup.value.location.speed * 3.6 +
                                         'km/h'
                                     "
-                                    [readonly]="true"
                                 />
-                            </d-form-control>
-                        </d-form-item>
+                            </nz-form-control>
+                        </nz-form-item>
 
-                        <d-form-item *ngIf="formGroup.value.location.latitude">
-                            <d-form-label>Coordinates</d-form-label>
-                            <d-form-control [feedbackStatus]="'success'">
+                        <nz-form-item *ngIf="formGroup.value.location.latitude">
+                            <nz-form-label [nzSpan]="4"
+                                >Coordinates</nz-form-label
+                            >
+                            <nz-form-control
+                                nzFlex="auto"
+                                nzValidateStatus="success"
+                            >
                                 <input
-                                    dTextInput
+                                    nz-input
+                                    [disabled]="true"
                                     [value]="
                                         formGroup.value.location
                                             | coordinatesHumanizer
                                     "
-                                    [readonly]="true"
                                 />
-                            </d-form-control>
-                        </d-form-item>
+                            </nz-form-control>
+                        </nz-form-item>
                     </div>
 
-                    <div
-                        *ngIf="formGroup.value.type.value == 'BETWEEN_STATIONS'"
-                    >
-                        <d-form-item>
-                            <d-form-label class="required"
-                                >Origin Station*</d-form-label
+                    <div *ngIf="formGroup.value.type == 'BETWEEN_STATIONS'">
+                        <nz-form-item>
+                            <nz-form-label nzRequired [nzSpan]="4">
+                                Origin Station
+                            </nz-form-label>
+                            <nz-form-control
+                                nzFlex="auto"
+                                [nzValidateStatus]="getStatus('originStation')"
+                                [nzHasFeedback]="hasStatus('originStation')"
                             >
-
-                            <d-form-control
-                                [feedbackStatus]="getStatus('originStation')"
-                            >
-                                <d-select
-                                    [options]="stationOptions"
-                                    [filterKey]="'name'"
-                                    [placeholder]="'Source Station'"
+                                <nz-select
+                                    nzShowSearch
+                                    nzAllowClear
+                                    nzPlaceHolder="Source Station"
                                     formControlName="originStation"
-                                    [width]="300"
-                                    [allowClear]="true"
-                                    [isSearch]="true"
                                 >
-                                </d-select>
-                            </d-form-control>
-                        </d-form-item>
+                                    <nz-option
+                                        *ngFor="let station of stationOptions"
+                                        [nzLabel]="station.name"
+                                        [nzValue]="station.value"
+                                        [nzDisabled]="station.disabled"
+                                    ></nz-option>
+                                </nz-select>
+                            </nz-form-control>
+                        </nz-form-item>
 
-                        <d-form-item>
-                            <d-form-label class="required"
-                                >Destination Station*</d-form-label
-                            >
-                            <d-form-control
-                                [feedbackStatus]="
+                        <nz-form-item>
+                            <nz-form-label nzRequired [nzSpan]="4">
+                                Destination Station
+                            </nz-form-label>
+                            <nz-form-control
+                                nzFlex="auto"
+                                [nzValidateStatus]="
                                     getStatus('destinationStation')
                                 "
+                                [nzHasFeedback]="
+                                    hasStatus('destinationStation')
+                                "
                             >
-                                <d-select
-                                    [options]="stationOptions"
-                                    [filterKey]="'name'"
-                                    [placeholder]="'Destination Station'"
+                                <nz-select
+                                    nzShowSearch
+                                    nzAllowClear
+                                    nzPlaceHolder="Destination Station"
                                     formControlName="destinationStation"
-                                    (ngModelChange)="onChanges($event)"
-                                    [width]="300"
-                                    [allowClear]="true"
-                                    [isSearch]="true"
                                 >
-                                </d-select>
-                            </d-form-control>
-                        </d-form-item>
+                                    <nz-option
+                                        *ngFor="let station of stationOptions"
+                                        [nzLabel]="station.name"
+                                        [nzValue]="station.value"
+                                        [nzDisabled]="station.disabled"
+                                    ></nz-option>
+                                </nz-select>
+                            </nz-form-control>
+                        </nz-form-item>
                     </div>
 
-                    <div *ngIf="formGroup.value.type.value == 'AT_STATION'">
-                        <d-form-item>
-                            <d-form-label class="required"
-                                >At Station*</d-form-label
+                    <div *ngIf="formGroup.value.type == 'AT_STATION'">
+                        <nz-form-item>
+                            <nz-form-label nzRequired [nzSpan]="4">
+                                At Station
+                            </nz-form-label>
+                            <nz-form-control
+                                nzFlex="auto"
+                                [nzValidateStatus]="getStatus('atStation')"
+                                [nzHasFeedback]="hasStatus('atStation')"
                             >
-                            <d-form-control
-                                [feedbackStatus]="getStatus('atStation')"
-                            >
-                                <d-select
-                                    [options]="stationOptions"
-                                    [filterKey]="'name'"
-                                    [placeholder]="'Station'"
+                                <nz-select
+                                    nzShowSearch
+                                    nzAllowClear
+                                    nzPlaceHolder="Station"
                                     formControlName="atStation"
-                                    [width]="300"
-                                    [allowClear]="true"
-                                    [isSearch]="true"
                                 >
-                                </d-select>
-                            </d-form-control>
-                        </d-form-item>
+                                    <nz-option
+                                        *ngFor="let station of stationOptions"
+                                        [nzLabel]="station.name"
+                                        [nzValue]="station.value"
+                                        [nzDisabled]="station.disabled"
+                                    ></nz-option>
+                                </nz-select>
+                            </nz-form-control>
+                        </nz-form-item>
                     </div>
 
                     <hr />
-                    <d-form-item>
-                        <d-form-label>Wheel Status</d-form-label>
-                        <d-form-control
-                            [feedbackStatus]="getStatus('wheelStatus')"
+                    <nz-form-item>
+                        <nz-form-label [nzSpan]="4">Wheel Status</nz-form-label>
+                        <nz-form-control
+                            nzFlex="auto"
+                            [nzValidateStatus]="getStatus('wheelStatus')"
+                            [nzHasFeedback]="hasStatus('wheelStatus')"
                         >
-                            <d-select
-                                [options]="wheelStatusOptions"
-                                [filterKey]="'name'"
-                                [placeholder]="'Wheel Status'"
+                            <nz-select
+                                nzAllowClear
+                                nzPlaceHolder="Wheel Status (Optional)"
                                 formControlName="wheelStatus"
-                                [width]="300"
-                                [allowClear]="true"
-                            ></d-select>
-                        </d-form-control>
-                    </d-form-item>
+                                (ngModelChange)="onLineChanges($event)"
+                            >
+                                <nz-option
+                                    *ngFor="
+                                        let wheelStatus of wheelStatusOptions
+                                    "
+                                    [nzLabel]="wheelStatus.name"
+                                    [nzValue]="wheelStatus.value"
+                                ></nz-option>
+                            </nz-select>
+                        </nz-form-control>
+                    </nz-form-item>
 
-                    <d-form-item>
-                        <d-form-label>Notes</d-form-label>
-                        <d-form-control>
+                    <nz-form-item>
+                        <nz-form-label [nzSpan]="4">Notes</nz-form-label>
+                        <nz-form-control nzFlex="auto">
                             <textarea
-                                dTextarea
-                                placeholder="Additional notes"
+                                [nzAutosize]="{ minRows: 2, maxRows: 6 }"
+                                nz-input
                                 formControlName="notes"
-                                resize="both"
+                                placeholder="Additional notes"
                                 (ngModelChange)="onChanges($event)"
                             ></textarea>
-                        </d-form-control>
-                    </d-form-item>
+                        </nz-form-control>
+                    </nz-form-item>
 
-                    <d-form-item>
-                        <d-form-control>
-                            <d-checkbox
-                                [label]="'Anonymous Entry'"
-                                [isShowTitle]="false"
-                                formControlName="isAnonymous"
-                            >
-                            </d-checkbox>
-                        </d-form-control>
-                    </d-form-item>
+                    <nz-form-item>
+                        <nz-form-control>
+                            <label nz-checkbox (click)="toggleIsAnonymous()">
+                                Anonymous Entry
+                            </label>
+                        </nz-form-control>
+                    </nz-form-item>
                 </div>
 
                 <div nz-col nzXs="24">
