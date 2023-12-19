@@ -19,6 +19,7 @@
             <span *ngIf="chartRef && loading">
                 <span nz-icon nzType="loading"></span>
             </span>
+            <br />
             <nz-segmented
                 (nzValueChange)="onDataSourceChange($event)"
                 [nzOptions]="dataSourceOptions"

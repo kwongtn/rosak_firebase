@@ -1,4 +1,15 @@
-import { Component, Input, NgZone, OnInit } from "@angular/core";
+import {
+    LineVehiclesChartographySource,
+} from "src/app/situasi/vehicles/get-gql-data/get-gql-data.service";
+
+import {
+    Component,
+    Input,
+    NgZone,
+    OnChanges,
+    OnInit,
+    SimpleChanges,
+} from "@angular/core";
 import { Area, Datum } from "@antv/g2plot";
 import { LooseObject } from "@antv/g2plot/node_modules/@antv/g2/lib/interface";
 import * as AntVUtil from "@antv/util";
@@ -13,8 +24,9 @@ import {
     templateUrl: "./vehicle-status-history.component.html",
     styleUrls: ["./vehicle-status-history.component.scss"],
 })
-export class VehicleStatusHistoryComponent implements OnInit {
+export class VehicleStatusHistoryComponent implements OnInit, OnChanges {
     @Input() lineId!: string;
+    @Input() sources!: LineVehiclesChartographySource[];
 
     loading: boolean = true;
 
@@ -49,6 +61,25 @@ export class VehicleStatusHistoryComponent implements OnInit {
         private ngZone: NgZone,
         private getDataService: GetDataService
     ) {}
+
+    ngOnChanges(changes: SimpleChanges) {
+        if (!changes["sources"].isFirstChange()) {
+            const hasMtrec =
+                changes["sources"].currentValue.filter(
+                    (val: LineVehiclesChartographySource) => {
+                        return val.name === "MTREC";
+                    }
+                ).length > 0;
+
+            this.dataSourceOptions = this.dataSourceOptions.map((option) => {
+                return {
+                    ...option,
+                    disabled:
+                        option.value === "MTREC" ? !hasMtrec : option.disabled,
+                };
+            });
+        }
+    }
 
     setInitialHighlight(data: TVehicleStatusTrendCount[]) {
         if (!this.chartRef) {
