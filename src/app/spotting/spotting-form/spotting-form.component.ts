@@ -533,6 +533,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["sanityTest"] = undefined;
         formValues["uploads"] = undefined;
 
+        formValues["vehicle"] = formValues["vehicle"].value;
+
         console.log(formValues);
 
         // TODO: If captchaResponse and/or firebaseAuthKey cannot be determined, show an error message
