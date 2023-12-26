@@ -289,11 +289,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         console.log("On changes: ", event);
     }
 
-    onVehicleChanges(event: VehicleFormInputType): void {
+    onVehicleChanges(vehicle: VehicleFormInputType): void {
+        console.debug("On vehicle changes: ", vehicle);
+
         // When adding vehicle status here, remember to edit validators too
         if (
             ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
-                event.status
+                vehicle.status
             )
         ) {
             this.showVehicleWarning = true;
