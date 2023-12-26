@@ -461,6 +461,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
+            this.showLoading = false;
 
             return undefined;
         }
@@ -470,6 +471,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 "Please log in or wait for authentication to complete before proceeding.",
                 "error"
             );
+            this.showLoading = false;
 
             return undefined;
         }
