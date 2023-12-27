@@ -4,7 +4,7 @@ import { AppendToBodyDirection } from "ng-devui/utils";
 // import { ReCaptchaV3Service } from "ng-recaptcha";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
 import { NzSelectItemInterface } from "ng-zorro-antd/select";
-import { lastValueFrom, Subscription } from "rxjs";
+import { firstValueFrom, lastValueFrom } from "rxjs";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
@@ -267,9 +267,26 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     lineQueryResultToVehicleCascaderOptions(data);
 
                 if (lineId) {
-                    this.onLineChanges(lineId);
+                    this.vehicleOptions =
+                        lineQueryResultToVehicleCascaderOptions(
+                            this.queryResult,
+                            lineId
+                        );
+
+                    if (type === "AT_STATION") {
+                        this.onInputTypeChanged("AT_STATION");
+                        this.formGroup.patchValue({
+                            type: "AT_STATION",
+                        });
+                    } else if (type === "BETWEEN_STATIONS") {
+                        this.onInputTypeChanged("BETWEEN_STATIONS");
+                        this.formGroup.patchValue({
+                            type: "BETWEEN_STATIONS",
+                        });
+                    }
                 }
-            });
+            }
+        );
     }
 
     ngOnInit(): void {
@@ -422,9 +439,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             destinationStation: "",
             runNumber: undefined,
             atStation: "",
+            type: "JUST_SPOTTING",
         });
-
-        return;
     }
 
     toggleIsAnonymous() {
@@ -490,9 +506,10 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
         } else if (formValues.type === "AT_STATION") {
-            this.spottingStorageService.setAtStationStation({
-                ...formValues["atStation"],
-            });
+            console.log(formValues["atStation"]);
+            this.spottingStorageService.setAtStationStation(
+                formValues["atStation"]
+            );
 
             formValues["originStation"] = formValues["atStation"];
             formValues["destinationStation"] = undefined;
