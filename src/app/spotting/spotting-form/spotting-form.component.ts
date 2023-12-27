@@ -199,9 +199,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
     isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
 
-    private mainQuerySubscription!: Subscription;
-    private stationQuerySubscription!: Subscription;
-
     constructor(
         private fb: UntypedFormBuilder,
         private apollo: Apollo,
@@ -255,9 +252,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             }
         );
 
-        this.mainQuerySubscription = this.getLinesVehiclesGql
-            .watch()
-            .valueChanges.subscribe(({ data, loading }) => {
+        firstValueFrom(this.getLinesVehiclesGql.fetch()).then(
+            ({ data, loading }) => {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
 
@@ -281,8 +277,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.mainQuerySubscription.unsubscribe();
-        this.stationQuerySubscription?.unsubscribe();
+        return;
     }
 
     onChanges(event: FormInputType): void {
@@ -320,38 +315,37 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             this.loading["originStation"] = true;
             this.loading["destinationStation"] = true;
             this.loading["atStation"] = true;
-
-            this.stationQuerySubscription = this.getStationLinesGql
-                .watch({
+            firstValueFrom(
+                this.getStationLinesGql.fetch({
                     stationLineFilter: {
                         lineId: this.formGroup.value.line,
                     },
                 })
-                .valueChanges.subscribe(({ data, loading }) => {
-                    console.log("Query loading: ", loading);
-                    console.log("Query data: ", data);
+            ).then(({ data, loading }) => {
+                console.log("Query loading: ", loading);
+                console.log("Query data: ", data);
 
-                    this.stationResult = data;
+                this.stationResult = data;
 
-                    this.loading["originStation"] = loading;
-                    this.loading["destinationStation"] = loading;
-                    this.loading["atStation"] = loading;
+                this.loading["originStation"] = loading;
+                this.loading["destinationStation"] = loading;
+                this.loading["atStation"] = loading;
 
-                    this.stationOptions =
-                        lineQueryResultToStationCascaderOptions(data);
+                this.stationOptions =
+                    lineQueryResultToStationCascaderOptions(data);
 
-                    const atStationStation =
-                        this.spottingStorageService.getAtStationStation();
-                    if (
-                        atStationStation &&
-                        this.spottingStorageService.getLine() ==
-                            this.formGroup.value.line
-                    ) {
-                        this.formGroup.patchValue({
-                            atStation: atStationStation,
-                        });
-                    }
-                });
+                const atStationStation =
+                    this.spottingStorageService.getAtStationStation();
+                if (
+                    atStationStation &&
+                    this.spottingStorageService.getLine() ==
+                        this.formGroup.value.line
+                ) {
+                    this.formGroup.patchValue({
+                        atStation: atStationStation,
+                    });
+                }
+            });
         } else if (this.formGroup.value.type === "LOCATION") {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
