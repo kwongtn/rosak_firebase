@@ -94,12 +94,21 @@
                                 (ngModelChange)="onVehicleChanges($event)"
                                 [nzFilterOption]="vehicleSearchFn"
                             >
-                                <nz-option
-                                    *ngFor="let vehicle of vehicleOptions"
-                                    [nzLabel]="vehicle.name"
-                                    [nzValue]="vehicle"
-                                    [nzDisabled]="vehicle.disabled"
-                                ></nz-option>
+                                <nz-option-group
+                                    *ngFor="let vehicleType of vehicleOptions"
+                                    [nzLabel]="
+                                        vehicleType.vehicleTypeDisplayName
+                                    "
+                                >
+                                    <nz-option
+                                        *ngFor="
+                                            let vehicle of vehicleType.vehicles
+                                        "
+                                        [nzLabel]="vehicle.name"
+                                        [nzValue]="vehicle"
+                                        [nzDisabled]="vehicle.disabled"
+                                    ></nz-option>
+                                </nz-option-group>
                             </nz-select>
                         </nz-form-control>
                     </nz-form-item>

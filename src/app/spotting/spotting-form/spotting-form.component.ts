@@ -5,6 +5,7 @@ import { AppendToBodyDirection } from "ng-devui/utils";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
 import { NzSelectItemInterface } from "ng-zorro-antd/select";
 import { firstValueFrom, lastValueFrom } from "rxjs";
+import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
@@ -40,7 +41,10 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
-import { VehicleFormOption } from "./spotting-form.types";
+import {
+    VehicleFormOption,
+    VehicleFormOptionWType,
+} from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
     allowRunNumber,
@@ -128,7 +132,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     ];
 
     stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
-    vehicleOptions: VehicleFormOption[] = [];
+    vehicleOptions: VehicleFormOptionWType[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
     loading: { [key: string]: boolean } = {
@@ -193,7 +197,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
      * Form stuff
      */
     formGroup: UntypedFormGroup;
-    queryResult = {};
+    queryResult!: GetLinesAndVehiclesResponse;
     stationResult = {};
     showVehicleWarning = false;
 
@@ -263,16 +267,12 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 this.lineOptions = lineQueryResultToOptions(data);
 
                 this.loading["vehicle"] = loading;
-                this.vehicleOptions =
-                    lineQueryResultToVehicleCascaderOptions(data);
+                this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
+                    data,
+                    lineId
+                );
 
                 if (lineId) {
-                    this.vehicleOptions =
-                        lineQueryResultToVehicleCascaderOptions(
-                            this.queryResult,
-                            lineId
-                        );
-
                     if (type === "AT_STATION") {
                         this.onInputTypeChanged("AT_STATION");
                         this.formGroup.patchValue({
@@ -580,9 +580,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     spottingSubmission: this.submitting,
                     formData: { ...this.formGroup.value },
                     uiData: {
-                        vehicle: this.vehicleOptions.filter((vehicle) => {
-                            return vehicle.value === formValues["vehicle"];
-                        })[0],
+                        vehicle: this.vehicleOptions[0].vehicles.filter(
+                            (vehicle) => {
+                                return vehicle.value === formValues["vehicle"];
+                            }
+                        )[0],
                     },
                 };
             }

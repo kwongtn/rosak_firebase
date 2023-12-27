@@ -49,7 +49,7 @@ export interface GetLinesAndVehiclesResponse {
         id: string;
         code: string;
         displayName: string;
-        vehicleTypes: Array<Exclude<VehicleType, "displayName">>;
+        vehicleTypes: Array<VehicleType>;
     }>;
 }
 

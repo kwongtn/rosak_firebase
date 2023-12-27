@@ -20564,7 +20564,7 @@ span.ant-radio + * {
     transition: background 0.3s ease;
 }
 .ant-select-item-group {
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-text;
     font-size: 12px;
     cursor: default;
 }

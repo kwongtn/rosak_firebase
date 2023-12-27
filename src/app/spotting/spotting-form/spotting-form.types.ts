@@ -4,9 +4,15 @@ export type VehicleStatus =
     | "DECOMMISSIONED"
     | "TESTING";
 
-export interface VehicleFormOption {
+export interface VehicleFormOption{
     name: string;
     value: string;
     disabled?: boolean;
     status: VehicleStatus;
+
+}
+
+export interface VehicleFormOptionWType {
+    vehicleTypeDisplayName: string;
+    vehicles: VehicleFormOption[];
 }
