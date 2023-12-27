@@ -144,11 +144,13 @@
                             Spotting Date
                         </nz-form-label>
                         <nz-form-control
+                            [nzSpan]="20"
                             nzFlex="auto"
                             [nzValidateStatus]="getStatus('spottingDate')"
                             [nzHasFeedback]="hasStatus('spottingDate')"
                         >
                             <nz-date-picker
+                                style="width: 100%"
                                 formControlName="spottingDate"
                                 (ngModelChange)="onChanges($event)"
                                 [nzAllowClear]="false"
