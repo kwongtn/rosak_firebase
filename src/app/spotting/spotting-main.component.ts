@@ -181,12 +181,11 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                                 vehicle: uiData.vehicle,
                             }
                         );
-                        contentComponent.showLoading = false;
 
                         drawerRef.close();
-                    } else {
-                        contentComponent.showLoading = false;
                     }
+
+                    contentComponent.showLoading = false;
                 });
             })
             .catch((reason: any) => {

@@ -289,11 +289,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         console.log("On changes: ", event);
     }
 
-    onVehicleChanges(event: VehicleFormInputType): void {
+    onVehicleChanges(vehicle: VehicleFormInputType): void {
+        console.debug("On vehicle changes: ", vehicle);
+
         // When adding vehicle status here, remember to edit validators too
         if (
             ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
-                event.status
+                vehicle.status
             )
         ) {
             this.showVehicleWarning = true;
@@ -459,6 +461,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
 
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
+            this.showLoading = false;
 
             return undefined;
         }
@@ -468,6 +471,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 "Please log in or wait for authentication to complete before proceeding.",
                 "error"
             );
+            this.showLoading = false;
 
             return undefined;
         }
@@ -528,6 +532,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["line"] = undefined;
         formValues["sanityTest"] = undefined;
         formValues["uploads"] = undefined;
+
+        formValues["vehicle"] = formValues["vehicle"].value;
 
         console.log(formValues);
 
