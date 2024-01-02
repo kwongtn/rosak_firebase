@@ -41,10 +41,7 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
-import {
-    VehicleFormOption,
-    VehicleFormOptionWType,
-} from "./spotting-form.types";
+import { VehicleFormOptionWType } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
     allowRunNumber,
@@ -460,9 +457,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
               spottingSubmission: Promise<MutationResult<any> | undefined>;
               uploads: ImageFile[];
               formData: any;
-              uiData: {
-                  vehicle: VehicleFormOption;
-              };
           }>
         | undefined {
         this.showLoading = true;
@@ -579,13 +573,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                     uploads,
                     spottingSubmission: this.submitting,
                     formData: { ...this.formGroup.value },
-                    uiData: {
-                        vehicle: this.vehicleOptions[0].vehicles.filter(
-                            (vehicle) => {
-                                return vehicle.value === formValues["vehicle"];
-                            }
-                        )[0],
-                    },
                 };
             }
         );

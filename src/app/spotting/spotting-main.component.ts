@@ -166,7 +166,7 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
 
         contentComponent
             .onSubmit()
-            ?.then(({ spottingSubmission, uploads, formData, uiData }) => {
+            ?.then(({ spottingSubmission, uploads, formData }) => {
                 this.onFormCloseHandle({
                     uploads,
                     spottingSubmission,
@@ -178,7 +178,6 @@ export class SpottingMainComponent implements OnInit, OnDestroy {
                             {
                                 ...formData,
                                 id: submissionData?.data.addEvent.id,
-                                vehicle: uiData.vehicle,
                             }
                         );
 
