@@ -1,7 +1,8 @@
 <!--
---- Readme.md Snippet without images Start ---
+&lt;--- Readme.md Snippet without images Start ---&gt;
 ## Tech Stack
 kwongtn/rosak_firebase is built on the following main stack:
+
 - [Firebase](https://firebase.google.com/) – Realtime Backend / API
 - [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
 - [Node.js](http://nodejs.org/) – Frameworks (Full Stack)
@@ -21,11 +22,13 @@ kwongtn/rosak_firebase is built on the following main stack:
 - [GitHub Actions](https://github.com/features/actions) – Continuous Integration
 
 Full tech stack [here](/techstack.md)
---- Readme.md Snippet without images End ---
 
---- Readme.md Snippet with images Start ---
+&lt;--- Readme.md Snippet without images End ---&gt;
+
+&lt;--- Readme.md Snippet with images Start ---&gt;
 ## Tech Stack
 kwongtn/rosak_firebase is built on the following main stack:
+
 - <img width='25' height='25' src='https://img.stackshare.io/service/116/cZLxNFZS.jpg' alt='Firebase'/> [Firebase](https://firebase.google.com/) – Realtime Backend / API
 - <img width='25' height='25' src='https://img.stackshare.io/service/831/7c0b595409af531b9cdeb07f8c513e8b.png' alt='Jasmine'/> [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
 - <img width='25' height='25' src='https://img.stackshare.io/service/1011/n1JRsFeB_400x400.png' alt='Node.js'/> [Node.js](http://nodejs.org/) – Frameworks (Full Stack)
@@ -45,14 +48,15 @@ kwongtn/rosak_firebase is built on the following main stack:
 - <img width='25' height='25' src='https://img.stackshare.io/service/11563/actions.png' alt='GitHub Actions'/> [GitHub Actions](https://github.com/features/actions) – Continuous Integration
 
 Full tech stack [here](/techstack.md)
---- Readme.md Snippet with images End ---
+
+&lt;--- Readme.md Snippet with images End ---&gt;
 -->
 <div align="center">
 
 # Tech Stack File
 ![](https://img.stackshare.io/repo.svg "repo") [kwongtn/rosak_firebase](https://github.com/kwongtn/rosak_firebase)![](https://img.stackshare.io/public_badge.svg "public")
 <br/><br/>
-|47<br/>Tools used|11/09/23 <br/>Report generated|
+|50<br/>Tools used|01/04/24 <br/>Report generated|
 |------|------|
 </div>
 
@@ -84,7 +88,7 @@ Full tech stack [here](/techstack.md)
   <br>
   <sub><a href="https://angular.io">Angular</a></sub>
   <br>
-  <sub>v16.2.8</sub>
+  <sub>v16.2.12</sub>
 </td>
 
 <td align='center'>
@@ -182,7 +186,7 @@ Full tech stack [here](/techstack.md)
   <br>
   <sub><a href="https://prettier.io/">Prettier</a></sub>
   <br>
-  <sub>v3.0.3</sub>
+  <sub>v3.1.0</sub>
 </td>
 
 <td align='center'>
@@ -214,12 +218,20 @@ Full tech stack [here](/techstack.md)
 </tr>
 </table>
 
-## Other (4)
+## Other (5)
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/4482/dVHQiE0t_400x400.png' alt='Google reCaptcha'>
   <br>
   <sub><a href="https://www.google.com/recaptcha/intro/index.html">Google reCaptcha</a></sub>
+  <br>
+  <sub></sub>
+</td>
+
+<td align='center'>
+  <img width='36' height='36' src='https://img.stackshare.io/service/2270/no-img-open-source.png' alt='HTML'>
+  <br>
+  <sub><a href="http://">HTML</a></sub>
   <br>
   <sub></sub>
 </td>
@@ -252,35 +264,37 @@ Full tech stack [here](/techstack.md)
 </table>
 
 
-## <img src='https://img.stackshare.io/group.svg' /> Open source packages (26)</h2>
+## <img src='https://img.stackshare.io/group.svg' /> Open source packages (28)</h2>
 
-## <img width='24' height='24' src='https://img.stackshare.io/service/1120/lejvzrnlpb308aftn31u.png'/> npm (26)
+## <img width='24' height='24' src='https://img.stackshare.io/service/1120/lejvzrnlpb308aftn31u.png'/> npm (28)
 
 |NAME|VERSION|LAST UPDATED|LAST UPDATED BY|LICENSE|VULNERABILITIES|
 |:------|:------|:------|:------|:------|:------|
-|[@angular-devkit/build-angular](https://www.npmjs.com/@angular-devkit/build-angular)|v16.2.5|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/animations](https://www.npmjs.com/@angular/animations)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/cli](https://www.npmjs.com/@angular/cli)|v16.2.5|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/common](https://www.npmjs.com/@angular/common)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/compiler](https://www.npmjs.com/@angular/compiler)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/compiler-cli](https://www.npmjs.com/@angular/compiler-cli)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/forms](https://www.npmjs.com/@angular/forms)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/platform-browser](https://www.npmjs.com/@angular/platform-browser)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/platform-browser-dynamic](https://www.npmjs.com/@angular/platform-browser-dynamic)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/router](https://www.npmjs.com/@angular/router)|v16.2.8|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[@types/jasmine](https://www.npmjs.com/@types/jasmine)|v4.3.6|08/03/23|Kwong Tung Nan |MIT|N/A|
+|[@angular-devkit/build-angular](https://www.npmjs.com/@angular-devkit/build-angular)|v16.2.10|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/animations](https://www.npmjs.com/@angular/animations)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/cli](https://www.npmjs.com/@angular/cli)|v16.2.10|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/common](https://www.npmjs.com/@angular/common)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/compiler](https://www.npmjs.com/@angular/compiler)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/compiler-cli](https://www.npmjs.com/@angular/compiler-cli)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/forms](https://www.npmjs.com/@angular/forms)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/platform-browser](https://www.npmjs.com/@angular/platform-browser)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/platform-browser-dynamic](https://www.npmjs.com/@angular/platform-browser-dynamic)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@angular/router](https://www.npmjs.com/@angular/router)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@types/jasmine](https://www.npmjs.com/@types/jasmine)|v4.3.6|11/21/23|Kwong Tung Nan |MIT|N/A|
 |[@types/marked](https://www.npmjs.com/@types/marked)|v4.3.2|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@types/node](https://www.npmjs.com/@types/node)|v18.18.3|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@types/react-dom](https://www.npmjs.com/@types/react-dom)|v18.2.10|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@typescript-eslint/eslint-plugin](https://www.npmjs.com/@typescript-eslint/eslint-plugin)|v5.62.0|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@typescript-eslint/parser](https://www.npmjs.com/@typescript-eslint/parser)|v5.62.0|08/03/23|Kwong Tung Nan |BSD-2-Clause|N/A|
-|[eslint-config-prettier](https://www.npmjs.com/eslint-config-prettier)|v8.10.0|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[eslint-plugin-json](https://www.npmjs.com/eslint-plugin-json)|v3.1.0|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[jasmine-core](https://www.npmjs.com/jasmine-core)|v4.5.0|10/05/23|Kwong Tung Nan |MIT|N/A|
-|[karma-chrome-launcher](https://www.npmjs.com/karma-chrome-launcher)|v3.1.1|02/22/23|Kwong Tung Nan |MIT|N/A|
-|[karma-coverage](https://www.npmjs.com/karma-coverage)|v2.2.1|02/22/23|Kwong Tung Nan |MIT|N/A|
-|[karma-jasmine](https://www.npmjs.com/karma-jasmine)|v5.1.0|02/22/23|Kwong Tung Nan |MIT|N/A|
-|[karma-jasmine-html-reporter](https://www.npmjs.com/karma-jasmine-html-reporter)|v2.0.0|08/03/23|Kwong Tung Nan |MIT|N/A|
+|[@types/node](https://www.npmjs.com/@types/node)|v18.18.12|08/03/23|Kwong Tung Nan |MIT|N/A|
+|[@types/react-dom](https://www.npmjs.com/@types/react-dom)|v18.2.17|08/03/23|Kwong Tung Nan |MIT|N/A|
+|[@typescript-eslint/eslint-plugin](https://www.npmjs.com/@typescript-eslint/eslint-plugin)|v5.62.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[@typescript-eslint/parser](https://www.npmjs.com/@typescript-eslint/parser)|v5.62.0|11/21/23|Kwong Tung Nan |BSD-2-Clause|N/A|
+|[eslint-config-prettier](https://www.npmjs.com/eslint-config-prettier)|v9.0.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[eslint-plugin-json](https://www.npmjs.com/eslint-plugin-json)|v3.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[husky](https://www.npmjs.com/husky)|v8.0.3|07/26/22|Kwong Tung Nan |MIT|N/A|
+|[jasmine-core](https://www.npmjs.com/jasmine-core)|v4.5.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[karma-chrome-launcher](https://www.npmjs.com/karma-chrome-launcher)|v3.2.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[karma-coverage](https://www.npmjs.com/karma-coverage)|v2.2.1|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[karma-jasmine](https://www.npmjs.com/karma-jasmine)|v5.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[karma-jasmine-html-reporter](https://www.npmjs.com/karma-jasmine-html-reporter)|v2.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
+|[lint-staged](https://www.npmjs.com/lint-staged)|v15.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
 |[marked](https://www.npmjs.com/marked)|v4.3.0|08/03/23|Kwong Tung Nan |MIT|N/A|
 |[tslib](https://www.npmjs.com/tslib)|v2.6.1|07/23/22|Kwong Tung Nan |0BSD|N/A|
 |[zone.js](https://www.npmjs.com/zone.js)|v0.13.3|05/08/23|Kwong Tung Nan |MIT|N/A|
@@ -288,4 +302,4 @@ Full tech stack [here](/techstack.md)
 <br/>
 <div align='center'>
 
-Generated via [Stack File](https://github.com/apps/stack-file)
+Generated via [Stack File](https://github.com/marketplace/stack-file)
