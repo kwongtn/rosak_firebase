@@ -281,6 +281,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                             type: "BETWEEN_STATIONS",
                         });
                     }
+                    
+                    this.showRunNumberInput = allowRunNumber(lineId);
                 }
             }
         );
