@@ -99,7 +99,7 @@ export function lineQueryResultToVehicleCascaderOptions(
         .forEach((line) => {
             line.vehicleTypes.forEach((vehicleType) => {
                 vehicles.push({
-                    vehicleTypeDisplayName: `${vehicleType.displayName} (${vehicleType.internalName})`,
+                    vehicleTypeDisplayName: vehicleType.displayName,
                     vehicles: vehicleType.vehicles
                         .map((vehicle) => {
                             return {
