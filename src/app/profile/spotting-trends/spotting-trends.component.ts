@@ -3,7 +3,7 @@ import {
     SpottingTypePipe,
 } from "src/app/pipes/spotting-type/spotting-type.pipe";
 
-import { Component, HostListener, Input, OnInit } from "@angular/core";
+import { Component, HostListener, Input, NgZone, OnInit } from "@angular/core";
 import { Line } from "@antv/g2plot";
 
 import { UserSpottingTrends } from "../services/get-user-data.service";
@@ -18,7 +18,7 @@ export class SpottingTrendsComponent implements OnInit {
 
     chart: Line | undefined = undefined;
 
-    constructor() {
+    constructor(private ngZone: NgZone) {
         return;
     }
 
@@ -53,78 +53,81 @@ export class SpottingTrendsComponent implements OnInit {
             };
         });
 
-        this.chart = new Line("container", {
-            data: this.data,
-            xField: "dateKey",
-            yField: "count",
-            seriesField: "eventType",
-            renderer: "svg",
-            theme: {
-                components: {
-                    axis: {
-                        common: {
-                            label: {
-                                style: {
+        this.chart = this.chart = this.ngZone.runOutsideAngular(() => {
+            return new Line("container", {
+                data: this.data,
+                xField: "dateKey",
+                yField: "count",
+                seriesField: "eventType",
+                renderer: "svg",
+                theme: {
+                    components: {
+                        axis: {
+                            common: {
+                                label: {
+                                    style: {
+                                        fill: "var(--devui-text, #252b3a)",
+                                    },
+                                },
+                            },
+                        },
+                        legend: {
+                            common: {
+                                itemName: {
+                                    style: {
+                                        fill: "var(--devui-text, #252b3a)",
+                                    },
+                                },
+                            },
+                        },
+                        slider: {
+                            common: {
+                                textStyle: {
                                     fill: "var(--devui-text, #252b3a)",
                                 },
                             },
                         },
-                    },
-                    legend: {
-                        common: {
-                            itemName: {
-                                style: {
-                                    fill: "var(--devui-text, #252b3a)",
+                        tooltip: {
+                            domStyles: {
+                                "g2-tooltip": {
+                                    backgroundColor:
+                                        "var(--devui-form-control-bg, #ffffff)",
+                                    color: "var(--devui-float-block-shadow, rgba(94, 124, 224, 0.3))",
+                                },
+                                "g2-tooltip-title": {
+                                    color: "var(--devui-text, #252b3a)",
+                                },
+                                "g2-tooltip-list": {
+                                    color: "var(--devui-text, #252b3a)",
+                                },
+                                "g2-tooltip-list-item": {
+                                    color: "var(--devui-text, #252b3a)",
+                                },
+                                "g2-tooltip-marker": {
+                                    color: "var(--devui-text, #252b3a)",
+                                },
+                                "g2-tooltip-value": {
+                                    color: "var(--devui-text, #252b3a)",
                                 },
                             },
                         },
                     },
-                    slider: {
-                        common: {
-                            textStyle: {
-                                fill: "var(--devui-text, #252b3a)",
-                            },
-                        },
-                    },
-                    tooltip: {
-                        domStyles: {
-                            "g2-tooltip": {
-                                backgroundColor: "var(--devui-form-control-bg, #ffffff)",
-                                color: "var(--devui-float-block-shadow, rgba(94, 124, 224, 0.3))",
-                            },
-                            "g2-tooltip-title": {
-                                color: "var(--devui-text, #252b3a)",
-                            },
-                            "g2-tooltip-list": {
-                                color: "var(--devui-text, #252b3a)",
-                            },
-                            "g2-tooltip-list-item": {
-                                color: "var(--devui-text, #252b3a)",
-                            },
-                            "g2-tooltip-marker": {
-                                color: "var(--devui-text, #252b3a)",
-                            },
-                            "g2-tooltip-value": {
-                                color: "var(--devui-text, #252b3a)",
-                            },
-                        },
+                },
+                syncViewPadding: true,
+                legend: {
+                    position: this.getLegendPosition(),
+                },
+                smooth: true,
+                animation: {
+                    appear: {
+                        animation: "path-in",
+                        duration: 1000,
                     },
                 },
-            },
-            syncViewPadding: true,
-            legend: {
-                position: this.getLegendPosition(),
-            },
-            smooth: true,
-            animation: {
-                appear: {
-                    animation: "path-in",
-                    duration: 1000,
+                slider: {
+                    height: this.getSliderHeight(),
                 },
-            },
-            slider: {
-                height: this.getSliderHeight(),
-            },
+            });
         });
 
         this.chart.render();

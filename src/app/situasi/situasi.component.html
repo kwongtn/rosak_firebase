@@ -1,0 +1,244 @@
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0"
+/>
+
+<nz-layout>
+    <nz-sider
+        nzCollapsible
+        nzWidth="200px"
+        [nzTheme]="($theme | async) ?? 'light'"
+    >
+        <ul
+            nz-menu
+            nzMode="inline"
+            [nzTheme]="($theme | async) ?? 'light'"
+            (nzClick)="onMenuItemClick($event)"
+        >
+            <li
+                nz-menu-item
+                nz-tooltip
+                nzTooltipPlacement="right"
+                nzSelected
+                [nzSelected]="router.isActive('/situasi', true)"
+            >
+                <a [routerLink]="['/', 'situasi']">
+                    <span nz-icon nzType="line-chart" nzTheme="outline"></span>
+                    <span>Overall</span>
+                </a>
+            </li>
+            <li
+                *ngFor="let line of menuData; let i = index"
+                nz-submenu
+                [class.ant-menu-item-selected]="
+                    router.isActive('/situasi/' + line.id, false)
+                "
+                [nzOpen]="router.isActive('/situasi/' + line.id, false)"
+                [nzTitle]="lineTitle"
+            >
+                <ng-template #lineTitle>
+                    <a [routerLink]="['/', 'situasi', line.id]">
+                        {{ line.code }}
+                    </a>
+                </ng-template>
+                <ul>
+                    <li
+                        nz-submenu
+                        [nzTitle]="vehicleTitle"
+                        [class.ant-menu-item-selected]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/vehicle',
+                                false
+                            )
+                        "
+                        [nzOpen]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/vehicle',
+                                false
+                            )
+                        "
+                    >
+                        <ng-template #vehicleTitle>
+                            <a
+                                [routerLink]="[
+                                    '/',
+                                    'situasi',
+                                    line.id,
+                                    'vehicle'
+                                ]"
+                            >
+                                Vehicle
+                            </a>
+                        </ng-template>
+                        <ul>
+                            <li
+                                *ngFor="
+                                    let vehicle of line.vehicles;
+                                    let j = index
+                                "
+                                nz-menu-item
+                                nzMatchRouter
+                            >
+                                <a
+                                    [routerLink]="[
+                                        '/',
+                                        'situasi',
+                                        line.id,
+                                        'vehicle',
+                                        vehicle.id
+                                    ]"
+                                >
+                                    {{ vehicle.displayName }}
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li
+                        nz-submenu
+                        [nzTitle]="stationTitle"
+                        [class.ant-menu-item-selected]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/station',
+                                false
+                            )
+                        "
+                        [nzOpen]="
+                            router.isActive(
+                                '/situasi/' + line.id + '/station',
+                                false
+                            )
+                        "
+                    >
+                        <ng-template #stationTitle>
+                            <a
+                                [routerLink]="[
+                                    '/',
+                                    'situasi',
+                                    line.id,
+                                    'station'
+                                ]"
+                            >
+                                Stations
+                            </a>
+                        </ng-template>
+                        <ul>
+                            <li
+                                *ngFor="
+                                    let station of line.stations;
+                                    let j = index
+                                "
+                                nz-menu-item
+                                nzMatchRouter
+                            >
+                                <a
+                                    [routerLink]="[
+                                        '/',
+                                        'situasi',
+                                        line.id,
+                                        'station',
+                                        station.id
+                                    ]"
+                                >
+                                    {{ station.displayName }}
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </nz-sider>
+    <nz-layout>
+        <!-- <nz-header></nz-header> -->
+        <nz-content>
+            <div class="inner-content">
+                <nz-page-header [nzTitle]="titleString">
+                    <nz-breadcrumb nz-page-header-breadcrumb>
+                        <nz-breadcrumb-item
+                            *ngFor="let item of breadcrumbsData"
+                            [nzOverlay]="item.level ? menu : undefined"
+                        >
+                            <a
+                                [routerLink]="
+                                    ['/', 'situasi'].concat(item.href)
+                                "
+                            >
+                                {{ item.displayText }}
+                            </a>
+                            <nz-dropdown-menu #menu="nzDropdownMenu">
+                                <ul
+                                    nz-menu
+                                    nzSelectable
+                                    *ngIf="item.level === 'typeSeperator'"
+                                >
+                                    <ng-container
+                                        *ngFor="let assetType of menuAssetTypes"
+                                    >
+                                        <li
+                                            nz-menu-item
+                                            *ngIf="
+                                                item.displayText !==
+                                                assetType.displayText
+                                            "
+                                        >
+                                            <a
+                                                [routerLink]="
+                                                    [
+                                                        '/',
+                                                        'situasi',
+                                                        lineId
+                                                    ].concat(assetType.href)
+                                                "
+                                            >
+                                                {{ assetType.displayText }}
+                                            </a>
+                                        </li>
+                                    </ng-container>
+                                </ul>
+                                <!-- <ul
+                                    nz-menu
+                                    nzSelectable
+                                    style="max-height: 80vh;"
+                                    *ngIf="item.level === 'asset'"
+                                >
+                                    <ng-container
+                                        *ngFor="let asset of menuAssets"
+                                    >
+                                        <li
+                                            nz-menu-item
+                                            *ngIf="
+                                                item.displayText !==
+                                                asset.displayName
+                                            "
+                                        >
+                                            <a
+                                                [routerLink]="
+                                                    [
+                                                        '/',
+                                                        'situasi',
+                                                        item.href[0],
+                                                        item.href[1],
+                                                        asset.id
+                                                    ]
+                                                "
+                                            >
+                                                {{ asset.displayName }}
+                                            </a>
+                                        </li>
+                                    </ng-container>
+                                </ul> -->
+                            </nz-dropdown-menu>
+                        </nz-breadcrumb-item>
+                    </nz-breadcrumb>
+                    <nz-page-header-content>
+                        <router-outlet></router-outlet>
+                    </nz-page-header-content>
+                </nz-page-header>
+            </div>
+        </nz-content>
+        <nz-footer>
+            <hr />
+            <app-footer></app-footer>
+        </nz-footer>
+    </nz-layout>
+</nz-layout>

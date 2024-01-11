@@ -1,10 +1,11 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
-import { DFormControlStatus, FormLayout } from "ng-devui/form";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 // import { ReCaptchaV3Service } from "ng-recaptcha";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
-import { lastValueFrom, Observable, of, Subscription } from "rxjs";
+import { NzSelectItemInterface } from "ng-zorro-antd/select";
+import { firstValueFrom, lastValueFrom } from "rxjs";
+import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
@@ -19,6 +20,7 @@ import { ToastService } from "src/app/services/toast/toast.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
+    FormControl,
     UntypedFormBuilder,
     UntypedFormControl,
     UntypedFormGroup,
@@ -39,13 +41,13 @@ import {
     lineQueryResultToStationCascaderOptions,
     lineQueryResultToVehicleCascaderOptions,
 } from "../utils";
-import { VehicleFormOption } from "./spotting-form.types";
+import { VehicleFormOptionWType } from "./spotting-form.types";
 import {
     abnormalStatusSanityTestValidator,
     allowRunNumber,
     atStationTypeStationValidator,
     betweenStationTypeOriginDestinationStationValidator,
-    numberSeenToSetNumber,
+    numberSeenToSetNumbers,
 } from "./spotting-form.utils";
 
 const ADD_ENTRY = gql`
@@ -78,7 +80,6 @@ export interface SpottingFormReturnType {
     styleUrls: ["./spotting-form.component.scss"],
 })
 export class SpottingFormComponent implements OnInit, OnDestroy {
-    layoutDirection: FormLayout = FormLayout.Horizontal;
     appendToBodyDirections: AppendToBodyDirection[] = [
         "rightDown",
         "centerDown",
@@ -87,6 +88,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     showedLocationPopout: boolean = false;
     showRunNumberInput: boolean = false;
     submitting: LoadingType = Promise.resolve("false");
+    showLoading: boolean = false;
 
     statusOptions = [
         { name: "In Service", value: "IN_SERVICE" },
@@ -118,8 +120,16 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         },
     ];
 
+    wheelStatusOptions = [
+        { name: "Fresh", value: "FRESH" },
+        { name: "Near Perfect", value: "NEAR_PERFECT" },
+        { name: "Flat", value: "FLAT" },
+        { name: "Worn Out", value: "WORN_OUT" },
+        { name: "Worrying", value: "WORRYING" },
+    ];
+
     stationOptions: { name: any; value: any; disabled?: boolean }[] = [];
-    vehicleOptions: VehicleFormOption[] = [];
+    vehicleOptions: VehicleFormOptionWType[] = [];
     lineOptions: { name: any; value: any; disabled?: boolean }[] = [];
 
     loading: { [key: string]: boolean } = {
@@ -131,46 +141,27 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     };
 
     vehicleSearchFn = (
-        term: string
-    ): Observable<{ id: string | number; option: any }[]> => {
-        const setNumber = numberSeenToSetNumber(
-            term,
-            this.formGroup.value.line?.value
+        input: string,
+        option: NzSelectItemInterface
+    ): boolean => {
+        if (!input.length || !this.formGroup.value.line) {
+            return true;
+        }
+
+        const labelUpperCase = String(option.nzLabel ?? "");
+        const setNumbers = numberSeenToSetNumbers(
+            input,
+            this.formGroup.get("line")?.value
         );
 
-        return of(
-            (this.vehicleOptions ?? [])
-                .map((option, index) => ({ id: index, option: option }))
-                .filter((item) => {
-                    if (!this.formGroup.value.line) {
-                        return true;
-                    }
-
-                    if (
-                        !isNaN(Number(term)) ||
-                        ["C", "T", "M"].includes(term[0].toUpperCase())
-                    ) {
-                        return (
-                            item.option.name
-                                .toLowerCase()
-                                .split(" (")[0]
-                                .indexOf(term.toLowerCase()) !== -1 ||
-                            item.option.name
-                                .toLowerCase()
-                                .indexOf(setNumber?.toLowerCase()) !== -1
-                        );
-                    } else {
-                        return (
-                            item.option.name
-                                .toLowerCase()
-                                .indexOf(term.toLowerCase()) !== -1
-                        );
-                    }
-                })
+        return (
+            setNumbers.some((val) => {
+                return labelUpperCase.indexOf(val) !== -1;
+            }) || labelUpperCase.indexOf(input.toUpperCase()) !== -1
         );
     };
 
-    getStatus(fieldName: string): DFormControlStatus | null {
+    getStatus(fieldName: string): string {
         if (this.loading[fieldName]) {
             return "pending";
         } else if (this.formGroup.controls[fieldName].valid) {
@@ -183,31 +174,31 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 if (this.submitButtonClicked) {
                     return "error";
                 } else {
-                    return null;
+                    return "";
                 }
             } else {
                 return "success";
             }
         } else if (!this.submitButtonClicked) {
-            return null;
+            return "";
         } else {
             return "error";
         }
+    }
+
+    hasStatus(fieldName: string): boolean {
+        return Boolean(this.getStatus(fieldName));
     }
 
     /**
      * Form stuff
      */
     formGroup: UntypedFormGroup;
-    selectedDate1 = new Date();
-    queryResult = {};
+    queryResult!: GetLinesAndVehiclesResponse;
     stationResult = {};
     showVehicleWarning = false;
 
     isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
-
-    private mainQuerySubscription!: Subscription;
-    private stationQuerySubscription!: Subscription;
 
     constructor(
         private fb: UntypedFormBuilder,
@@ -221,36 +212,37 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         public sessionHistoryService: SessionHistoryService,
         private spottingStorageService: SpottingStorageService
     ) {
-        const line = spottingStorageService.getLine();
+        const lineId = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
         const atStationStation = spottingStorageService.getAtStationStation();
 
-        console.log(this.sessionHistoryService.historyStore.value);
+        console.debug(
+            "History store: ",
+            this.sessionHistoryService.historyStore.value
+        );
 
         this.formGroup = this.fb.group(
             {
-                line: new UntypedFormControl(line, [Validators.required]),
-                vehicle: new UntypedFormControl("", [Validators.required]),
-                spottingDate: new UntypedFormControl(new Date(), [
-                    Validators.required,
-                ]),
-                status: new UntypedFormControl(
-                    {
-                        name: "In Service",
-                        value: "IN_SERVICE",
-                    },
+                line: new FormControl(lineId, [Validators.required]),
+                vehicle: new FormControl(
+                    { value: "", disabled: lineId ? false : true },
                     [Validators.required]
                 ),
-                type: new UntypedFormControl(type, [Validators.required]),
+                spottingDate: new FormControl(new Date(), [
+                    Validators.required,
+                ]),
+                status: new FormControl("IN_SERVICE", [Validators.required]),
+                type: new FormControl(type, [Validators.required]),
                 atStation: new UntypedFormControl(atStationStation, []),
-                originStation: new UntypedFormControl("", []),
-                destinationStation: new UntypedFormControl("", []),
-                notes: new UntypedFormControl("", []),
-                runNumber: new UntypedFormControl(undefined, []),
-                isAnonymous: new UntypedFormControl(false, []),
-                sanityTest: new UntypedFormControl(false, []),
-                location: new UntypedFormControl(false, []),
-                uploads: new UntypedFormControl({}, []),
+                originStation: new FormControl("", []),
+                wheelStatus: new FormControl(undefined, []),
+                destinationStation: new FormControl("", []),
+                notes: new FormControl("", []),
+                runNumber: new FormControl(undefined, []),
+                isAnonymous: new FormControl(false, []),
+                sanityTest: new FormControl(false, []),
+                location: new FormControl(false, []),
+                uploads: new FormControl({}, []),
             },
             {
                 validators: [
@@ -261,9 +253,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             }
         );
 
-        this.mainQuerySubscription = this.getLinesVehiclesGql
-            .watch()
-            .valueChanges.subscribe(({ data, loading }) => {
+        firstValueFrom(this.getLinesVehiclesGql.fetch()).then(
+            ({ data, loading }) => {
                 console.log("Query loading: ", loading);
                 console.log("Query data: ", data);
 
@@ -273,13 +264,28 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 this.lineOptions = lineQueryResultToOptions(data);
 
                 this.loading["vehicle"] = loading;
-                this.vehicleOptions =
-                    lineQueryResultToVehicleCascaderOptions(data);
+                this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
+                    data,
+                    lineId
+                );
 
-                if (line) {
-                    this.onLineChanges(line);
+                if (lineId) {
+                    if (type === "AT_STATION") {
+                        this.onInputTypeChanged("AT_STATION");
+                        this.formGroup.patchValue({
+                            type: "AT_STATION",
+                        });
+                    } else if (type === "BETWEEN_STATIONS") {
+                        this.onInputTypeChanged("BETWEEN_STATIONS");
+                        this.formGroup.patchValue({
+                            type: "BETWEEN_STATIONS",
+                        });
+                    }
+                    
+                    this.showRunNumberInput = allowRunNumber(lineId);
                 }
-            });
+            }
+        );
     }
 
     ngOnInit(): void {
@@ -287,19 +293,20 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.mainQuerySubscription.unsubscribe();
-        this.stationQuerySubscription?.unsubscribe();
+        return;
     }
 
     onChanges(event: FormInputType): void {
         console.log("On changes: ", event);
     }
 
-    onVehicleChanges(event: VehicleFormInputType): void {
+    onVehicleChanges(vehicle: VehicleFormInputType): void {
+        console.debug("On vehicle changes: ", vehicle);
+
         // When adding vehicle status here, remember to edit validators too
         if (
             ["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"].includes(
-                event.status
+                vehicle.status
             )
         ) {
             this.showVehicleWarning = true;
@@ -308,18 +315,11 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    onInputTypeChanges() {
-        if (
-            ["BETWEEN_STATIONS", "AT_STATION"].includes(
-                this.formGroup.value.type.value
-            )
-        ) {
+    onInputTypeChanged(value: string) {
+        if (["BETWEEN_STATIONS", "AT_STATION"].includes(value)) {
             if (!this.formGroup.value.line) {
                 this.formGroup.patchValue({
-                    type: {
-                        name: "Just Spotting",
-                        value: "JUST_SPOTTING",
-                    },
+                    type: "JUST_SPOTTING",
                 });
 
                 this.isShowBetweenStationsModeSelectedBeforeLineSelectionError =
@@ -331,39 +331,38 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             this.loading["originStation"] = true;
             this.loading["destinationStation"] = true;
             this.loading["atStation"] = true;
-
-            this.stationQuerySubscription = this.getStationLinesGql
-                .watch({
+            firstValueFrom(
+                this.getStationLinesGql.fetch({
                     stationLineFilter: {
-                        lineId: this.formGroup.value.line.value,
+                        lineId: this.formGroup.value.line,
                     },
                 })
-                .valueChanges.subscribe(({ data, loading }) => {
-                    console.log("Query loading: ", loading);
-                    console.log("Query data: ", data);
+            ).then(({ data, loading }) => {
+                console.log("Query loading: ", loading);
+                console.log("Query data: ", data);
 
-                    this.stationResult = data;
+                this.stationResult = data;
 
-                    this.loading["originStation"] = loading;
-                    this.loading["destinationStation"] = loading;
-                    this.loading["atStation"] = loading;
+                this.loading["originStation"] = loading;
+                this.loading["destinationStation"] = loading;
+                this.loading["atStation"] = loading;
 
-                    this.stationOptions =
-                        lineQueryResultToStationCascaderOptions(data);
+                this.stationOptions =
+                    lineQueryResultToStationCascaderOptions(data);
 
-                    const atStationStation =
-                        this.spottingStorageService.getAtStationStation();
-                    if (
-                        atStationStation &&
-                        this.spottingStorageService.getLine()?.value ==
-                            this.formGroup.value.line.value
-                    ) {
-                        this.formGroup.patchValue({
-                            atStation: atStationStation,
-                        });
-                    }
-                });
-        } else if (this.formGroup.value.type.value === "LOCATION") {
+                const atStationStation =
+                    this.spottingStorageService.getAtStationStation();
+                if (
+                    atStationStation &&
+                    this.spottingStorageService.getLine() ==
+                        this.formGroup.value.line
+                ) {
+                    this.formGroup.patchValue({
+                        atStation: atStationStation,
+                    });
+                }
+            });
+        } else if (this.formGroup.value.type === "LOCATION") {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     if (!this.showedLocationPopout) {
@@ -394,6 +393,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                         positionError.message,
                         "error"
                     );
+                    this.formGroup.patchValue({
+                        type: "JUST_SPOTTING",
+                    });
                 },
                 { maximumAge: 0, timeout: Infinity, enableHighAccuracy: true }
             );
@@ -408,30 +410,48 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    onLineChanges(event: FormInputType): void {
-        console.log(event);
+    onLineChanges(lineId: string): void {
+        console.log(lineId);
+        console.log(this.formGroup);
 
         this.isShowBetweenStationsModeSelectedBeforeLineSelectionError = false;
 
         this.vehicleOptions = lineQueryResultToVehicleCascaderOptions(
             this.queryResult,
-            (event as any).value
+            lineId
         );
 
         this.stationOptions = [];
 
-        this.onInputTypeChanges();
-        this.showRunNumberInput = allowRunNumber(event.value);
+        this.onInputTypeChanged("JUST_SPOTTING");
+        this.showRunNumberInput = allowRunNumber(lineId);
+
+        if (lineId) {
+            this.formGroup.get("vehicle")?.enable();
+        } else {
+            this.formGroup.get("vehicle")?.disable();
+        }
 
         this.formGroup.patchValue({
-            vehicle: "",
+            vehicle: { value: "" },
             originStation: "",
             destinationStation: "",
             runNumber: undefined,
             atStation: "",
+            type: "JUST_SPOTTING",
         });
+    }
 
-        return;
+    toggleIsAnonymous() {
+        this.formGroup.patchValue({
+            isAnonymous: !this.formGroup.value.isAnonymous,
+        });
+    }
+
+    toggleSanityTest() {
+        this.formGroup.patchValue({
+            sanityTest: !this.formGroup.value.sanityTest,
+        });
     }
 
     onSubmit():
@@ -441,11 +461,13 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
               formData: any;
           }>
         | undefined {
+        this.showLoading = true;
         console.log(this.formGroup.value);
         this.submitButtonClicked = true;
 
         if (this.formGroup.invalid) {
             this.toastService.addToast("Error", "Form is invalid.", "error");
+            this.showLoading = false;
 
             return undefined;
         }
@@ -455,13 +477,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 "Please log in or wait for authentication to complete before proceeding.",
                 "error"
             );
+            this.showLoading = false;
 
             return undefined;
         }
 
         const formValues = { ...this.formGroup.value };
 
-        if (formValues.type.value !== "LOCATION") {
+        if (formValues.type !== "LOCATION") {
             formValues["location"] = undefined;
         } else {
             if (!formValues["location"]) {
@@ -475,26 +498,23 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         }
 
         // Form Distillation
-        if (formValues.type.value === "BETWEEN_STATIONS") {
-            formValues["originStation"] = formValues["originStation"].value;
-            formValues["destinationStation"] =
-                formValues["destinationStation"].value;
-        } else if (formValues.type.value === "AT_STATION") {
-            this.spottingStorageService.setAtStationStation({
-                ...formValues["atStation"],
-            });
-
-            formValues["originStation"] = formValues["atStation"].value;
-            formValues["destinationStation"] = undefined;
-            formValues["atStation"] = undefined;
-        } else {
+        if (!["BETWEEN_STATIONS", "AT_STATION"].includes(formValues.type)) {
             formValues["originStation"] = undefined;
             formValues["destinationStation"] = undefined;
+        } else if (formValues.type === "AT_STATION") {
+            console.log(formValues["atStation"]);
+            this.spottingStorageService.setAtStationStation(
+                formValues["atStation"]
+            );
+
+            formValues["originStation"] = formValues["atStation"];
+            formValues["destinationStation"] = undefined;
+            formValues["atStation"] = undefined;
         }
 
         formValues["atStation"] = undefined;
 
-        if (!allowRunNumber(formValues["line"].value)) {
+        if (!allowRunNumber(formValues["line"])) {
             formValues["runNumber"] = undefined;
         }
 
@@ -506,12 +526,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             .toISOString()
             .slice(0, 10);
 
-        formValues["vehicle"] = formValues["vehicle"].value;
-        formValues["status"] = formValues["status"].value;
-
         this.spottingStorageService.setType(formValues["type"]);
-        formValues["type"] = formValues["type"].value;
-
         this.spottingStorageService.setLine(formValues["line"]);
 
         const uploads: ImageFile[] = Object.values<ImageFile>(
@@ -524,6 +539,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         formValues["line"] = undefined;
         formValues["sanityTest"] = undefined;
         formValues["uploads"] = undefined;
+
+        formValues["vehicle"] = formValues["vehicle"].value;
 
         console.log(formValues);
 
@@ -550,6 +567,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                 });
 
                 this.submitting = lastValueFrom(mutationObservable);
+                this.submitting.then(() => {
+                    this.showLoading = false;
+                });
 
                 return {
                     uploads,

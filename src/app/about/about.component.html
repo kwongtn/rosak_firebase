@@ -29,13 +29,13 @@
                 />
             </a> -->
         </h1>
-        {{ ($items | async)?.aboutProject }}
+        {{ items?.aboutProject }}
         <div>
             <nz-list nzGrid>
                 <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
-                        *ngFor="let item of ($items | async)?.projects"
+                        *ngFor="let item of items?.projects"
                         [nzXs]="24"
                         [nzMd]="12"
                         [nzXl]="8"
@@ -50,6 +50,31 @@
                 </div>
             </nz-list>
         </div>
+
+        <h2>
+            Like our projects? Buy us a coffee ☕ / beer 🍺 / whatever you like
+            ✨
+        </h2>
+        <a
+            href="https://opencollective.com/mlptf/projects/community-site"
+            target="_blank"
+        >
+            <img
+                src="https://opencollective.com/mlptf/contribute/button@2x.png?color=blue"
+                class="open-collective-button"
+            />
+        </a>
+        <p>
+            While the projects current does not require funding, it would be
+            good that we have some too. <br />
+            Maybe you want to reward the tireless souls that keep this site up
+            to date & develop features, or even just want to make an impact on
+            the local public transport landscape. <br />
+            Maybe you badly want some features to be developed? Or maybe..? You
+            name it. <br />
+            All funds are recorded in OpenCollective open ledger, ready anytime
+            to be audited. See for yourself! 😎 <br />
+        </p>
     </div>
 
     <div>
@@ -59,7 +84,7 @@
                 <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
-                        *ngFor="let item of personnel"
+                        *ngFor="let item of items?.personnel"
                         [nzXs]="24"
                         [nzSm]="12"
                         [nzMd]="8"
@@ -88,7 +113,7 @@
                 <div nz-row [nzGutter]="8" nzJustify="start">
                     <div
                         nz-col
-                        *ngFor="let item of ($items | async)?.techStacks"
+                        *ngFor="let item of items?.techStacks"
                         [nzXs]="12"
                         [nzMd]="8"
                         [nzXl]="6"

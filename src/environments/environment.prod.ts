@@ -2,6 +2,8 @@ export const environment = {
     production: true,
     backendUrl: "https://api-community.mlptf.org.my/",
     backendGraphqlUrl: "https://api-community.mlptf.org.my/graphql/",
+    // backendUrl: "https://api-community-mlptf.kwongtn.xyz/",
+    // backendGraphqlUrl: "https://api-community-mlptf.kwongtn.xyz/graphql/",
     firebase: {
         apiKey: "AIzaSyC6Z81AaCJ-PLofq0N0Ize43oWMqKKW-zA",
         authDomain: "rosak-7223b.firebaseapp.com",
@@ -14,6 +16,7 @@ export const environment = {
     sentry: {
         dsn: "https://239abe11366d4590a1c1ebd5260c63e2@o1331817.ingest.sentry.io/6596136",
         tunnel: "https://api-community.mlptf.org.my/sentry/",
+        // tunnel: "https://api-community-mlptf.kwongtn.xyz/sentry/",
         tracingOrigins: [
             "https://rosak-7223b.web.app",
             "https://rosak-7223b.firebaseapp.com",

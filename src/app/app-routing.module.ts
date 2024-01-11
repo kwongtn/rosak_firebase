@@ -4,7 +4,7 @@ import {
     canActivate,
     hasCustomClaim,
     redirectUnauthorizedTo,
-} from "@angular/fire/compat/auth-guard";
+} from "@angular/fire/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
 import { AboutComponent } from "./about/about.component";
@@ -18,6 +18,7 @@ import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { JejakMainComponent } from "./jejak/main/main.component";
 import { ProfileMainComponent } from "./profile/profile.component";
+import { SituasiComponent } from "./situasi/situasi.component";
 import { SpottingMainComponent } from "./spotting/spotting-main.component";
 
 interface MaintenanceElement {
@@ -31,6 +32,7 @@ interface MaintananceDocument {
     profile: MaintenanceElement;
     console: MaintenanceElement;
     gallery: MaintenanceElement;
+    situasi: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
@@ -49,6 +51,9 @@ const maintenance: MaintananceDocument = {
     gallery: {
         curentlyInMaintenance: false,
     },
+    situasi: {
+        curentlyInMaintenance: false,
+    },
 };
 
 function redirectUnauthorizedToSpotting(): AuthPipe {
@@ -57,6 +62,10 @@ function redirectUnauthorizedToSpotting(): AuthPipe {
 
 function adminOnly(): AuthPipe {
     return hasCustomClaim("admin");
+}
+
+function betaTesterOnly(): AuthPipe {
+    return hasCustomClaim("betaTester");
 }
 
 const routes: Routes = [
@@ -131,6 +140,25 @@ const routes: Routes = [
         component: maintenance.spotting.curentlyInMaintenance
             ? ConstructionComponent
             : SpottingMainComponent,
+    },
+    {
+        path: "situasi",
+        title: "MLPTF | Situasi",
+        loadChildren: async () => {
+            if (maintenance.situasi.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./situasi/situasi.module");
+                return module.SituasiModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : SituasiComponent,
+        ...canActivate(betaTesterOnly),
     },
     {
         path: "about",

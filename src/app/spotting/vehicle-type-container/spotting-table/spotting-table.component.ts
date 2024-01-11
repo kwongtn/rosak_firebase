@@ -4,7 +4,7 @@ import {
     tagListDisplayConfig,
     TagListDisplayConfig,
     vehicleStatus,
-    VehicleStatus
+    VehicleStatus,
 } from "src/app/spotting/utils";
 
 import { Component, Input, OnInit } from "@angular/core";
@@ -63,10 +63,16 @@ export class SpottingTableComponent implements OnInit {
                 order: 5,
             },
             {
+                field: "wheelStatus",
+                header: "Wheel Status",
+                fieldType: "wheelStatus",
+                order: 6,
+            },
+            {
                 field: "notes",
                 header: "Notes",
                 fieldType: "text",
-                order: 6,
+                order: 7,
             },
         ],
     };
@@ -79,6 +85,7 @@ export class SpottingTableComponent implements OnInit {
         { field: "inServiceSince", width: "150px" },
         // { field: "lastSpottedBy", width: "100px", },
         { field: "timesSpotted", width: "150px" },
+        { field: "wheelStatus", width: "100px" },
         { field: "notes", width: "500px" },
     ];
 
