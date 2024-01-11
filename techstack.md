@@ -4,6 +4,7 @@
 kwongtn/rosak_firebase is built on the following main stack:
 
 - [Firebase](https://firebase.google.com/) – Realtime Backend / API
+- [Sentry](https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile) – Exception Monitoring
 - [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
 - [Node.js](http://nodejs.org/) – Frameworks (Full Stack)
 - [React](https://reactjs.org/) – Javascript UI Libraries
@@ -30,6 +31,7 @@ Full tech stack [here](/techstack.md)
 kwongtn/rosak_firebase is built on the following main stack:
 
 - <img width='25' height='25' src='https://img.stackshare.io/service/116/cZLxNFZS.jpg' alt='Firebase'/> [Firebase](https://firebase.google.com/) – Realtime Backend / API
+- <img width='25' height='25' src='https://img.stackshare.io/service/191/default_9262326592c97828a2a4299dec085a3674dd05f4.png' alt='Sentry'/> [Sentry](https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile) – Exception Monitoring
 - <img width='25' height='25' src='https://img.stackshare.io/service/831/7c0b595409af531b9cdeb07f8c513e8b.png' alt='Jasmine'/> [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
 - <img width='25' height='25' src='https://img.stackshare.io/service/1011/n1JRsFeB_400x400.png' alt='Node.js'/> [Node.js](http://nodejs.org/) – Frameworks (Full Stack)
 - <img width='25' height='25' src='https://img.stackshare.io/service/1020/OYIaJ1KK.png' alt='React'/> [React](https://reactjs.org/) – Javascript UI Libraries
@@ -54,13 +56,16 @@ Full tech stack [here](/techstack.md)
 <div align="center">
 
 # Tech Stack File
+
 ![](https://img.stackshare.io/repo.svg "repo") [kwongtn/rosak_firebase](https://github.com/kwongtn/rosak_firebase)![](https://img.stackshare.io/public_badge.svg "public")
 <br/><br/>
-|48<br/>Tools used|12/14/23 <br/>Report generated|
+|51<br/>Tools used|01/11/24 <br/>Report generated|
 |------|------|
+
 </div>
 
 ## <img src='https://img.stackshare.io/languages.svg'/> Languages (2)
+
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/1209/javascript.jpeg' alt='JavaScript'>
@@ -82,6 +87,7 @@ Full tech stack [here](/techstack.md)
 </table>
 
 ## <img src='https://img.stackshare.io/frameworks.svg'/> Frameworks (4)
+
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/3745/cb8U-gL6_400x400.jpg' alt='Angular'>
@@ -119,6 +125,7 @@ Full tech stack [here](/techstack.md)
 </table>
 
 ## <img src='https://img.stackshare.io/databases.svg'/> Data (2)
+
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/116/cZLxNFZS.jpg' alt='Firebase'>
@@ -139,7 +146,8 @@ Full tech stack [here](/techstack.md)
 </tr>
 </table>
 
-## <img src='https://img.stackshare.io/devops.svg'/> DevOps (9)
+## <img src='https://img.stackshare.io/devops.svg'/> DevOps (10)
+
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/3337/Q4L7Jncy.jpg' alt='ESLint'>
@@ -186,7 +194,15 @@ Full tech stack [here](/techstack.md)
   <br>
   <sub><a href="https://prettier.io/">Prettier</a></sub>
   <br>
-  <sub>v3.1.0</sub>
+  <sub>v3.1.1</sub>
+</td>
+
+<td align='center'>
+  <img width='36' height='36' src='https://img.stackshare.io/service/191/default_9262326592c97828a2a4299dec085a3674dd05f4.png' alt='Sentry'>
+  <br>
+  <sub><a href="https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile">Sentry</a></sub>
+  <br>
+  <sub></sub>
 </td>
 
 <td align='center'>
@@ -197,7 +213,9 @@ Full tech stack [here](/techstack.md)
   <sub></sub>
 </td>
 
-<td align='center'>
+</tr>
+<tr>
+  <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/1682/IMG_4636.PNG' alt='Webpack'>
   <br>
   <sub><a href="http://webpack.js.org">Webpack</a></sub>
@@ -205,9 +223,7 @@ Full tech stack [here](/techstack.md)
   <sub>v5.88.2</sub>
 </td>
 
-</tr>
-<tr>
-  <td align='center'>
+<td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/1120/lejvzrnlpb308aftn31u.png' alt='npm'>
   <br>
   <sub><a href="https://www.npmjs.com/">npm</a></sub>
@@ -219,6 +235,7 @@ Full tech stack [here](/techstack.md)
 </table>
 
 ## Other (5)
+
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/4482/dVHQiE0t_400x400.png' alt='Google reCaptcha'>
@@ -263,39 +280,41 @@ Full tech stack [here](/techstack.md)
 </tr>
 </table>
 
+## <img src='https://img.stackshare.io/group.svg' /> Open source packages (29)</h2>
 
-## <img src='https://img.stackshare.io/group.svg' /> Open source packages (26)</h2>
+## <img width='24' height='24' src='https://img.stackshare.io/service/1120/lejvzrnlpb308aftn31u.png'/> npm (29)
 
-## <img width='24' height='24' src='https://img.stackshare.io/service/1120/lejvzrnlpb308aftn31u.png'/> npm (26)
-
-|NAME|VERSION|LAST UPDATED|LAST UPDATED BY|LICENSE|VULNERABILITIES|
-|:------|:------|:------|:------|:------|:------|
-|[@angular-devkit/build-angular](https://www.npmjs.com/@angular-devkit/build-angular)|v16.2.10|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/animations](https://www.npmjs.com/@angular/animations)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/cli](https://www.npmjs.com/@angular/cli)|v16.2.10|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/common](https://www.npmjs.com/@angular/common)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/compiler](https://www.npmjs.com/@angular/compiler)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/compiler-cli](https://www.npmjs.com/@angular/compiler-cli)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/forms](https://www.npmjs.com/@angular/forms)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/platform-browser](https://www.npmjs.com/@angular/platform-browser)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/platform-browser-dynamic](https://www.npmjs.com/@angular/platform-browser-dynamic)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@angular/router](https://www.npmjs.com/@angular/router)|v16.2.12|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@types/jasmine](https://www.npmjs.com/@types/jasmine)|v4.3.6|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@types/marked](https://www.npmjs.com/@types/marked)|v4.3.2|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@types/node](https://www.npmjs.com/@types/node)|v18.18.12|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@types/react-dom](https://www.npmjs.com/@types/react-dom)|v18.2.17|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[@typescript-eslint/eslint-plugin](https://www.npmjs.com/@typescript-eslint/eslint-plugin)|v5.62.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[@typescript-eslint/parser](https://www.npmjs.com/@typescript-eslint/parser)|v5.62.0|11/21/23|Kwong Tung Nan |BSD-2-Clause|N/A|
-|[eslint-config-prettier](https://www.npmjs.com/eslint-config-prettier)|v9.0.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[eslint-plugin-json](https://www.npmjs.com/eslint-plugin-json)|v3.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[jasmine-core](https://www.npmjs.com/jasmine-core)|v4.5.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[karma-chrome-launcher](https://www.npmjs.com/karma-chrome-launcher)|v3.2.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[karma-coverage](https://www.npmjs.com/karma-coverage)|v2.2.1|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[karma-jasmine](https://www.npmjs.com/karma-jasmine)|v5.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[karma-jasmine-html-reporter](https://www.npmjs.com/karma-jasmine-html-reporter)|v2.1.0|11/21/23|Kwong Tung Nan |MIT|N/A|
-|[marked](https://www.npmjs.com/marked)|v4.3.0|08/03/23|Kwong Tung Nan |MIT|N/A|
-|[tslib](https://www.npmjs.com/tslib)|v2.6.1|07/23/22|Kwong Tung Nan |0BSD|N/A|
-|[zone.js](https://www.npmjs.com/zone.js)|v0.13.3|05/08/23|Kwong Tung Nan |MIT|N/A|
+| NAME                                                                                         | VERSION  | LAST UPDATED | LAST UPDATED BY | LICENSE      | VULNERABILITIES |
+| :------------------------------------------------------------------------------------------- | :------- | :----------- | :-------------- | :----------- | :-------------- |
+| [@angular-devkit/build-angular](https://www.npmjs.com/@angular-devkit/build-angular)         | v16.2.11 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/animations](https://www.npmjs.com/@angular/animations)                             | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/cli](https://www.npmjs.com/@angular/cli)                                           | v16.2.11 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/common](https://www.npmjs.com/@angular/common)                                     | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/compiler](https://www.npmjs.com/@angular/compiler)                                 | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/compiler-cli](https://www.npmjs.com/@angular/compiler-cli)                         | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/forms](https://www.npmjs.com/@angular/forms)                                       | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/platform-browser](https://www.npmjs.com/@angular/platform-browser)                 | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/platform-browser-dynamic](https://www.npmjs.com/@angular/platform-browser-dynamic) | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@angular/router](https://www.npmjs.com/@angular/router)                                     | v16.2.12 | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@apollo/client](https://www.npmjs.com/@apollo/client)                                       | v3.8.8   | 12/26/23     | Kwong Tung Nan  | N/A          | N/A             |
+| [@types/jasmine](https://www.npmjs.com/@types/jasmine)                                       | v4.3.6   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@types/marked](https://www.npmjs.com/@types/marked)                                         | v4.3.2   | 08/03/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@types/node](https://www.npmjs.com/@types/node)                                             | v18.19.3 | 08/03/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@types/react-dom](https://www.npmjs.com/@types/react-dom)                                   | v18.2.18 | 08/03/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@typescript-eslint/eslint-plugin](https://www.npmjs.com/@typescript-eslint/eslint-plugin)   | v5.62.0  | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [@typescript-eslint/parser](https://www.npmjs.com/@typescript-eslint/parser)                 | v5.62.0  | 12/26/23     | Kwong Tung Nan  | BSD-2-Clause | N/A             |
+| [eslint-config-prettier](https://www.npmjs.com/eslint-config-prettier)                       | v9.1.0   | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [eslint-plugin-json](https://www.npmjs.com/eslint-plugin-json)                               | v3.1.0   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [husky](https://www.npmjs.com/husky)                                                         | v8.0.3   | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [jasmine-core](https://www.npmjs.com/jasmine-core)                                           | v4.5.0   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [karma-chrome-launcher](https://www.npmjs.com/karma-chrome-launcher)                         | v3.2.0   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [karma-coverage](https://www.npmjs.com/karma-coverage)                                       | v2.2.1   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [karma-jasmine](https://www.npmjs.com/karma-jasmine)                                         | v5.1.0   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [karma-jasmine-html-reporter](https://www.npmjs.com/karma-jasmine-html-reporter)             | v2.1.0   | 11/21/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [lint-staged](https://www.npmjs.com/lint-staged)                                             | v15.2.0  | 12/26/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [marked](https://www.npmjs.com/marked)                                                       | v4.3.0   | 08/03/23     | Kwong Tung Nan  | MIT          | N/A             |
+| [tslib](https://www.npmjs.com/tslib)                                                         | v2.6.1   | 07/23/22     | Kwong Tung Nan  | 0BSD         | N/A             |
+| [zone.js](https://www.npmjs.com/zone.js)                                                     | v0.13.3  | 05/08/23     | Kwong Tung Nan  | MIT          | N/A             |
 
 <br/>
 <div align='center'>
