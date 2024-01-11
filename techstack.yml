@@ -2,11 +2,11 @@ repo_name: kwongtn/rosak_firebase
 report_id: d23fd742602b8c2c76b7f1ca92571831
 version: 0.1
 repo_type: Public
-timestamp: '2024-01-05T09:16:06+00:00'
+timestamp: '2024-01-11T12:30:57+00:00'
 requested_by: kwongtn
 provider: github
 branch: main
-detected_tools_count: 50
+detected_tools_count: 51
 tools:
 - name: JavaScript
   description: Lightweight, interpreted, object-oriented language with first-class
@@ -43,7 +43,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: Node.js
   description: A platform built on Chrome's JavaScript runtime for easily building
     fast, scalable network applications
@@ -171,7 +171,7 @@ tools:
 - name: Prettier
   description: 'Prettier is an opinionated code formatter. '
   website_url: https://prettier.io/
-  version: 3.1.0
+  version: 3.1.1
   license: MIT
   open_source: true
   hosted_saas: false
@@ -182,6 +182,18 @@ tools:
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
   last_updated_on: 2023-11-21 14:31:54.000000000 Z
+- name: Sentry
+  description: 'See performance issues, fix errors faster, and optimize code health. '
+  website_url: https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile
+  open_source: true
+  hosted_saas: true
+  category: Monitoring
+  sub_category: Exception Monitoring
+  image_url: https://img.stackshare.io/service/191/default_9262326592c97828a2a4299dec085a3674dd05f4.png
+  detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package.json
+  detection_source: package.json
+  last_updated_by: Kwong Tung Nan
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: Visual Studio Code
   description: Build and debug modern web and cloud applications, by Microsoft
   website_url: https://code.visualstudio.com/
@@ -233,16 +245,6 @@ tools:
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
   last_updated_on: 2023-08-03 01:26:07.000000000 Z
-- name: HTML
-  description: Hypertext Markup Language for creating web pages.
-  website_url: http://
-  open_source: false
-  hosted_saas: false
-  image_url: https://img.stackshare.io/service/2270/no-img-open-source.png
-  detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/src/app/@ui/action-list/action-list.component.html
-  detection_source: src/app/@ui/action-list/action-list.component.html
-  last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-10-18 15:38:41.000000000 Z
 - name: Shell
   description: A shell is a text-based terminal, used for manipulating programs and
     files. Shell scripts typically manage program execution.
@@ -262,7 +264,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2022-07-26 17:22:34.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: lint-staged
   website_url: https://github.com/okonet/lint-staged
   open_source: false
@@ -271,11 +273,11 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular-devkit/build-angular"
   description: Angular Webpack Build Facade
   package_url: https://www.npmjs.com/@angular-devkit/build-angular
-  version: 16.2.10
+  version: 16.2.11
   license: MIT
   open_source: true
   hosted_saas: false
@@ -285,7 +287,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/animations"
   description: Angular - animations integration with web-animations
   package_url: https://www.npmjs.com/@angular/animations
@@ -299,11 +301,11 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/cli"
   description: CLI tool for Angular
   package_url: https://www.npmjs.com/@angular/cli
-  version: 16.2.10
+  version: 16.2.11
   license: MIT
   open_source: true
   hosted_saas: false
@@ -313,7 +315,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/common"
   description: Angular - commonly needed directives and services
   package_url: https://www.npmjs.com/@angular/common
@@ -327,7 +329,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/compiler"
   description: Angular - the compiler library
   package_url: https://www.npmjs.com/@angular/compiler
@@ -341,7 +343,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/compiler-cli"
   description: Angular - the compiler CLI for Node.js
   package_url: https://www.npmjs.com/@angular/compiler-cli
@@ -355,7 +357,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/forms"
   description: Angular - directives and services for creating forms
   package_url: https://www.npmjs.com/@angular/forms
@@ -369,7 +371,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/platform-browser"
   description: Angular - library for using Angular in a web browser
   package_url: https://www.npmjs.com/@angular/platform-browser
@@ -383,7 +385,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/platform-browser-dynamic"
   description: Angular - library for using Angular in a web browser with JIT compilation
   package_url: https://www.npmjs.com/@angular/platform-browser-dynamic
@@ -397,7 +399,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@angular/router"
   description: Angular - the routing library
   package_url: https://www.npmjs.com/@angular/router
@@ -411,7 +413,20 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
+- name: "@apollo/client"
+  description: A fully-featured caching GraphQL client
+  package_url: https://www.npmjs.com/@apollo/client
+  version: 3.8.8
+  open_source: false
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Package Managers
+  image_url: https://img.stackshare.io/package/npm/image.png
+  detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
+  detection_source: package.json
+  last_updated_by: Kwong Tung Nan
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@types/jasmine"
   description: TypeScript definitions for Jasmine
   package_url: https://www.npmjs.com/@types/jasmine
@@ -443,7 +458,7 @@ tools:
 - name: "@types/node"
   description: TypeScript definitions for Node.js
   package_url: https://www.npmjs.com/@types/node
-  version: 18.18.12
+  version: 18.19.3
   license: MIT
   open_source: true
   hosted_saas: false
@@ -457,7 +472,7 @@ tools:
 - name: "@types/react-dom"
   description: TypeScript definitions for React
   package_url: https://www.npmjs.com/@types/react-dom
-  version: 18.2.17
+  version: 18.2.18
   license: MIT
   open_source: true
   hosted_saas: false
@@ -481,7 +496,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: "@typescript-eslint/parser"
   description: An ESLint custom parser which leverages TypeScript ESTree
   package_url: https://www.npmjs.com/@typescript-eslint/parser
@@ -495,11 +510,11 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: eslint-config-prettier
   description: Turns off all rules that are unnecessary or might conflict with Prettier
   package_url: https://www.npmjs.com/eslint-config-prettier
-  version: 9.0.0
+  version: 9.1.0
   license: MIT
   open_source: true
   hosted_saas: false
@@ -509,7 +524,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: eslint-plugin-json
   description: Eslint plugin for JSON files
   package_url: https://www.npmjs.com/eslint-plugin-json
@@ -537,7 +552,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2022-07-26 17:22:34.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: jasmine-core
   description: Official packaging of Jasmine's core files for use by Node.js projects
   package_url: https://www.npmjs.com/jasmine-core
@@ -611,7 +626,7 @@ tools:
 - name: lint-staged
   description: Lint files staged by git
   package_url: https://www.npmjs.com/lint-staged
-  version: 15.1.0
+  version: 15.2.0
   license: MIT
   open_source: true
   hosted_saas: false
@@ -621,7 +636,7 @@ tools:
   detection_source_url: https://github.com/kwongtn/rosak_firebase/blob/main/package-lock.json
   detection_source: package.json
   last_updated_by: Kwong Tung Nan
-  last_updated_on: 2023-11-21 14:31:54.000000000 Z
+  last_updated_on: 2023-12-26 03:23:30.000000000 Z
 - name: marked
   description: A markdown parser built for speed
   package_url: https://www.npmjs.com/marked
