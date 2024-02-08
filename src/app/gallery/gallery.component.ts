@@ -1,7 +1,6 @@
 import { QueryRef } from "apollo-angular";
 import { Subscription } from "rxjs";
 import { InputImage } from "src/app/@ui/image-grid/image-grid.component";
-import { getThumbnail } from "src/app/@util/imgur";
 
 import { KeyValue } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
@@ -33,7 +32,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
     loading: boolean = true;
 
-    constructor(private gqlService: GetMediasService) {}
+    constructor(private gqlService: GetMediasService) { }
 
     async ngOnInit() {
         this.watchQueryOption = this.gqlService.watch(
@@ -67,11 +66,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
                                 return {
                                     height: media.height,
                                     width: media.width,
-                                    url: media.file.url,
-                                    thumbnailUrl: getThumbnail(
-                                        media.file.url,
-                                        "m"
-                                    ),
+                                    src: media.discordSuffix,
                                     display: false,
                                 };
                             });
@@ -91,9 +86,9 @@ export class GalleryComponent implements OnInit, OnDestroy {
     }): void {
         // this.renderer.addClass(target, visible ? 'active' : 'inactive');
         // this.renderer.removeClass(target, visible ? 'inactive' : 'active');
-        if(visible){
+        if (visible) {
             console.log(target.id, "✅");
-        }else{
+        } else {
             console.log(target.id, "❌");
         }
         this.imageDateMaps[target.id].displayImages = visible;

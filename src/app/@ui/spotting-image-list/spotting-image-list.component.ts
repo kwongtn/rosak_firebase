@@ -3,7 +3,6 @@ import { Subscription } from "rxjs";
 import {
     ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
-import { getThumbnail } from "src/app/@util/imgur";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
@@ -23,7 +22,8 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     @Input() eventId!: string;
     @Input() isMine: boolean = false;
 
-    imageUrls: ImageUrls[] = [];
+    // List of discord suffixes
+    imageSrcs: string[] = [];
 
     subscription: Subscription | undefined = undefined;
     loading: boolean = true;
@@ -47,14 +47,11 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
             .subscribe(({ data, loading }) => {
                 console.log("Received data");
                 console.log(data);
-                this.imageUrls = data.events[0].medias.map((media) => {
-                    return {
-                        fullSize: media.file.url,
-                        preview: getThumbnail(media.file.url, "m"),
-                    };
+                this.imageSrcs = data.events[0].medias.map((media) => {
+                    return media.discordSuffix;
                 });
 
-                if (this.imageUrls.length === 0) {
+                if (this.imageSrcs.length === 0) {
                     this.loading = loading;
                 }
             });
@@ -67,8 +64,8 @@ export class SpottingImageListComponent implements OnInit, OnDestroy {
     onViewImage(index: number): void {
         this.nzImageService
             .preview(
-                this.imageUrls.map((val) => {
-                    return { src: val.fullSize };
+                this.imageSrcs.map((src) => {
+                    return { src: `https://cdn.discordapp.com/attachments/${src}` };
                 })
             )
             .switchTo(index);
