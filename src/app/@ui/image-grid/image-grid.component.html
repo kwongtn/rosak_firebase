@@ -28,7 +28,8 @@
         <img
             class="content"
             *ngIf="displayImage[i] ?? true"
-            [src]="img.thumbnailUrl"
+            [src]="getUrl(i)"
+            onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
             alt=""
             [attr.data-index]="i"
             (click)="onViewImage(i)"

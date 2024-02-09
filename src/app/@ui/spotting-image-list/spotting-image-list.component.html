@@ -1,15 +1,20 @@
 <nz-spin [nzSpinning]="loading" [nzSize]="'large'">
     <nz-empty
-        *ngIf="imageUrls.length === 0 && !loading"
+        *ngIf="imageSrcs.length === 0 && !loading"
         nzNotFoundContent="No images. Add some?"
     ></nz-empty>
-    <nz-image-group *ngIf="imageUrls.length > 0" class="flex-container">
+    <nz-image-group *ngIf="imageSrcs.length > 0" class="flex-container">
         <img
             height="200px"
             width="200px"
-            *ngFor="let url of imageUrls; let i = index"
+            *ngFor="let src of imageSrcs; let i = index"
             [attr.data-index]="i"
-            [src]="url.preview"
+            [src]="
+                'https://media.discordapp.net/attachments/' +
+                src +
+                '?format=webp&quality=lossless&width=300&height=300'
+            "
+            onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
             (click)="onViewImage(i)"
             (load)="markLoaded()"
         />

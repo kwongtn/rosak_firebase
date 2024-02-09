@@ -5,9 +5,7 @@ import { Injectable } from "@angular/core";
 export interface Media {
     width: number;
     height: number;
-    file: {
-        url: string;
-    };
+    discordSuffix: string;
 }
 
 export interface MediaRelayResponse {
@@ -32,9 +30,7 @@ export class GetMediasService extends Query<MediaRelayResponse> {
                 medias {
                     width
                     height
-                    file {
-                        url
-                    }
+                    discordSuffix
                 }
             }
         }
