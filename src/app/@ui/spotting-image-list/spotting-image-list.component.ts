@@ -1,10 +1,12 @@
 import { NzImageService } from "ng-zorro-antd/image";
 import { Subscription } from "rxjs";
+import {
+    ImageFile,
+} from "src/app/@ui/spotting/form-upload/form-upload.component";
 import { getThumbnail } from "src/app/@util/imgur";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
-import { ImageFile } from "../spotting/form-upload/form-upload.component";
 import { GetMediasService } from "./services/get-medias.service";
 
 interface ImageUrls {

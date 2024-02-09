@@ -16,6 +16,7 @@ export class GetLinesAndVehiclesGqlService extends Query<GetLinesAndVehiclesResp
                 vehicleTypes {
                     id
                     internalName
+                    displayName
                     vehicles {
                         id
                         identificationNo

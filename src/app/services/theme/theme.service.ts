@@ -10,6 +10,7 @@ export class ThemeService {
     themeService!: NgThemeService;
     themes: { [key: string]: Theme } = {};
     themeFollowSystemColorScheme!: BehaviorSubject<boolean>;
+    colorScheme!: BehaviorSubject<"light" | "dark">;
 
     sub: Subscription | undefined;
     advancedThemeList = ["infinity", "galaxy"];
@@ -62,6 +63,13 @@ export class ThemeService {
     themeChange(theme: string) {
         this.currentTheme = theme;
         this.themeService.applyTheme(this.themes[theme]);
+        if (this.colorScheme) {
+            this.colorScheme.next(theme === "infinity" ? "light" : "dark");
+        } else {
+            this.colorScheme = new BehaviorSubject<"light" | "dark">(
+                theme === "infinity" ? "light" : "dark"
+            );
+        }
     }
 
     ThemeServiceFollowSystemOn(): Subscription {

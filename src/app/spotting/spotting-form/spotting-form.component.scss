@@ -53,7 +53,7 @@
 }
 
 .test-type-info {
-    padding-bottom: 20px;
+    padding-top: 20px;
 }
 
 .required {
@@ -68,4 +68,8 @@
     font-weight: bold;
     text-decoration: underline;
     padding-bottom: 10px;
+}
+
+.sanity-test-text {
+    color: $devui-gray-100;
 }

@@ -2,7 +2,7 @@ import { gql, Query } from "apollo-angular";
 
 import { Injectable } from "@angular/core";
 
-interface Media {
+export interface Media {
     width: number;
     height: number;
     file: {

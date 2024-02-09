@@ -40,7 +40,20 @@
                                 [nzTooltipTrigger]="'hover'"
                                 [nzTooltipPlacement]="'right'"
                             >
-                                🏃‍♂️ {{ rowItem["runNumber"] }}
+                                🏃‍♂️ {{ rowItem["runNumber"] }} <br />
+                            </span>
+                            <span
+                                *ngIf="rowItem['wheelStatus']"
+                                nz-tooltip
+                                [nzTooltipTitle]="'Wheel Status'"
+                                [nzTooltipTrigger]="'hover'"
+                                [nzTooltipPlacement]="'right'"
+                            >
+                                🛞:
+                                {{
+                                    rowItem["wheelStatus"].replace("_", " ")
+                                        | titlecase
+                                }}<br />
                             </span>
                         </span>
                         <span *ngSwitchCase="'type'">

@@ -1,13 +1,17 @@
 import {
+    GetLinesAndVehiclesResponse,
     LineStatus,
-    VehicleStatusCountType
+    VehicleStatusCountType,
 } from "src/app/models/query/get-vehicles";
+import {
+    VehicleStatus as SpottingVehicleStatus,
+} from "src/app/spotting/spotting-form/spotting-form.types";
 
 import { GetLinesResponse } from "../models/query/get-vehicles";
-import { VehicleFormOption } from "./spotting-form/spotting-form.types";
+import { VehicleFormOptionWType } from "./spotting-form/spotting-form.types";
 
 export interface LineTabType {
-    id: string | number;
+    id: string;
     title: string;
     disabled?: boolean;
     detail: string;
@@ -83,29 +87,36 @@ export function lineQueryResultToStationCascaderOptions(
 }
 
 export function lineQueryResultToVehicleCascaderOptions(
-    data: any,
+    data: GetLinesAndVehiclesResponse,
     lineId: string | undefined = undefined
-): VehicleFormOption[] {
-    const vehicles: VehicleFormOption[] = [];
+): VehicleFormOptionWType[] {
+    const vehicles: VehicleFormOptionWType[] = [];
 
-    for (const line of data.lines) {
-        if (!lineId || line.id === lineId) {
-            for (const vehicleType of line.vehicleTypes) {
-                for (const vehicle of vehicleType.vehicles) {
-                    vehicles.push({
-                        name: `${vehicle.identificationNo} (${vehicleType.internalName})`,
-                        value: vehicle.id,
-                        disabled: false,
-                        status: vehicle.status,
-                    });
-                }
-            }
-        }
-    }
+    data.lines
+        .filter((line) => {
+            return line.id === lineId;
+        })
+        .forEach((line) => {
+            line.vehicleTypes.forEach((vehicleType) => {
+                vehicles.push({
+                    vehicleTypeDisplayName: vehicleType.displayName,
+                    vehicles: vehicleType.vehicles
+                        .map((vehicle) => {
+                            return {
+                                name: vehicle.identificationNo,
+                                value: vehicle.id,
+                                disabled: false as boolean,
+                                status: vehicle.status as SpottingVehicleStatus,
+                            };
+                        })
+                        .sort((a, b) => {
+                            return a.name.localeCompare(b.name);
+                        }),
+                });
+            });
+        });
 
-    return vehicles.sort((a, b) => {
-        return a.name.localeCompare(b.name);
-    });
+    return vehicles;
 }
 
 export const vehicleStatus = [

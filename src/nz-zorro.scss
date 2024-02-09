@@ -4392,8 +4392,8 @@ a.ant-btn-sm {
     margin: 0;
     padding: 0;
     list-style: none;
-    background: #fff;
-    border-top: 1px solid #f0f0f0;
+    background: $devui-base-bg;
+    border-top: 1px solid $devui-form-control-line;
 }
 .ant-card-actions::before {
     display: table;
@@ -4438,7 +4438,7 @@ a.ant-btn-sm {
 .ant-card-actions > li > span > .anticon {
     display: inline-block;
     width: 100%;
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-icon-fill;
     line-height: 22px;
     transition: color 0.3s;
 }
@@ -5430,7 +5430,7 @@ nz-comment-content {
     position: relative;
     display: inline-flex;
     align-items: center;
-    background: #fff;
+    background: $devui-form-control-bg;
     border: 1px solid #d9d9d9;
     border-radius: 2px;
     transition:
@@ -5608,7 +5608,7 @@ textarea.ant-picker-input > input {
     flex: none;
     align-self: center;
     margin-left: 4px;
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-icon-fill;
     line-height: 1;
     pointer-events: none;
 }
@@ -13121,7 +13121,7 @@ textarea.ant-input-affix-wrapper {
     color: $devui-text;
     font-size: 14px;
     line-height: 1.5715;
-    background-color: #fff;
+    background-color: $devui-form-control-bg;
     background-image: none;
     border: 1px solid #d9d9d9;
     border-radius: 2px;
@@ -13171,8 +13171,8 @@ textarea.ant-input-affix-wrapper {
     border-right-width: 1px;
 }
 .ant-input[disabled] {
-    color: rgba(0, 0, 0, 0.25);
-    background-color: #f5f5f5;
+    color: $devui-disabled-text;
+    background-color: $devui-disabled-bg;
     border-color: #d9d9d9;
     box-shadow: none;
     cursor: not-allowed;
@@ -14935,7 +14935,7 @@ textarea.ant-input-number {
     flex-direction: column;
     /* fix firefox can't set height smaller than content on flex item */
     min-height: 0;
-    background: #f0f2f5;
+    background: $devui-global-bg;
 }
 .ant-layout,
 .ant-layout * {
@@ -14963,7 +14963,7 @@ textarea.ant-input-number {
     padding: 24px 50px;
     color: $devui-text;
     font-size: 14px;
-    background: #f0f2f5;
+    background: $devui-global-bg;
 }
 .ant-layout-content {
     flex: auto;
@@ -20238,7 +20238,7 @@ span.ant-radio + * {
         .ant-select-customize-input
     )
     .ant-select-selector {
-    background-color: #fff;
+    background-color: $devui-form-control-bg;
     border-color: #ff4d4f !important;
 }
 .ant-select-status-error.ant-select:not(.ant-select-disabled):not(
@@ -20344,14 +20344,14 @@ span.ant-radio + * {
 .ant-select-disabled.ant-select:not(.ant-select-customize-input)
     .ant-select-selector {
     color: rgba(0, 0, 0, 0.25);
-    background: #f5f5f5;
+    background: $devui-disabled-bg;
     cursor: not-allowed;
 }
 .ant-select-multiple.ant-select-disabled.ant-select:not(
         .ant-select-customize-input
     )
     .ant-select-selector {
-    background: #f5f5f5;
+    background: $devui-disabled-bg;
 }
 .ant-select-disabled.ant-select:not(.ant-select-customize-input)
     .ant-select-selector
@@ -20472,13 +20472,13 @@ span.ant-radio + * {
     width: 12px;
     height: 12px;
     margin-top: -6px;
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-icon-text;
     font-size: 12px;
     font-style: normal;
     line-height: 1;
     text-align: center;
     text-transform: none;
-    background: #fff;
+    background: $devui-form-control-bg;
     cursor: pointer;
     opacity: 0;
     transition:
@@ -20564,7 +20564,7 @@ span.ant-radio + * {
     transition: background 0.3s ease;
 }
 .ant-select-item-group {
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-text;
     font-size: 12px;
     cursor: default;
 }
@@ -24838,7 +24838,7 @@ nz-tabs-nav {
     overflow-y: auto;
     text-align: left;
     list-style-type: none;
-    background-color: #fff;
+    background-color: $devui-glass-morphism-bg;
     background-clip: padding-box;
     border-radius: 2px;
     outline: none;
@@ -24862,7 +24862,7 @@ nz-tabs-nav {
     transition: all 0.3s;
 }
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item:hover {
-    background: #f5f5f5;
+    background: $devui-base-bg;
 }
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item-disabled,
 .nz-tabs-dropdown.ant-dropdown .ant-dropdown-menu-item-disabled:hover {

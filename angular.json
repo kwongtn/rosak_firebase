@@ -20,6 +20,7 @@
                 "build": {
                     "builder": "@angular-builders/custom-webpack:browser",
                     "options": {
+                        "sourceMap": true,
                         "outputPath": "dist/public",
                         "index": "src/index.html",
                         "main": "src/main.ts",

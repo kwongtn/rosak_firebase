@@ -27,7 +27,7 @@
         ></div>
         <img
             class="content"
-            *ngIf="displayImage[i]"
+            *ngIf="displayImage[i] ?? true"
             [src]="img.thumbnailUrl"
             alt=""
             [attr.data-index]="i"

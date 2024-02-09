@@ -10,6 +10,7 @@
             displayData.longTerm ? 'incident-card-long-term' : 'incident-card'
         "
         [nzTitle]="cardTitleTemplate"
+        [nzActions]="[actionImages]"
     >
         <div
             *ngIf="
@@ -120,6 +121,14 @@
             </div>
         </div>
     </nz-card>
+    <ng-template #actionImages>
+        <span
+            nz-icon
+            nzType="camera"
+            nzTheme="outline"
+            (click)="onImagePanelClick($event)"
+        ></span>
+    </ng-template>
     <ng-template #loadingTemplate>
         Ongoing for... <br />
         {{ elapsedTime }}
@@ -151,3 +160,12 @@
         {{ displayData.title }}
     </ng-template>
 </nz-ribbon>
+
+<ng-template #drawerFooter>
+    <div style="float: right">
+        <button nz-button style="margin-right: 8px" (click)="close()">
+            Cancel
+        </button>
+        <button nz-button nzType="primary" (click)="submit()">Submit</button>
+    </div>
+</ng-template>

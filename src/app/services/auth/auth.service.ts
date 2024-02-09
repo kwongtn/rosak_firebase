@@ -1,9 +1,17 @@
-import firebase from "firebase/compat/app";
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
 
 import { Injectable } from "@angular/core";
-import { AngularFireAuth } from "@angular/fire/compat/auth";
-import { AngularFirestore } from "@angular/fire/compat/firestore";
+import {
+    Auth,
+    authState,
+    GoogleAuthProvider,
+    ParsedToken,
+    signInWithPopup,
+    signOut,
+    Unsubscribe,
+    User,
+} from "@angular/fire/auth";
+import { doc, Firestore, onSnapshot } from "@angular/fire/firestore";
 import { Router } from "@angular/router";
 import * as Sentry from "@sentry/browser";
 
@@ -18,17 +26,22 @@ export interface UserAuthData {
 
 export interface CustomClaims {
     admin?: boolean;
+    betaTester?: boolean;
 }
 
 @Injectable({
     providedIn: "root",
 })
 export class AuthService {
-    userData: BehaviorSubject<firebase.User | null | undefined> =
-        new BehaviorSubject<firebase.User | null | undefined>(undefined);
+    authState$ = authState(this.auth);
+    authStateSubscription: Subscription;
 
-    customClaims: BehaviorSubject<CustomClaims | undefined> =
-        new BehaviorSubject<CustomClaims | undefined>(undefined);
+    userData: BehaviorSubject<User | null | undefined> = new BehaviorSubject<
+        User | null | undefined
+    >(undefined);
+
+    customClaims: BehaviorSubject<ParsedToken | undefined> =
+        new BehaviorSubject<ParsedToken | undefined>(undefined);
 
     userAuth: BehaviorSubject<UserAuthData | null | undefined> =
         new BehaviorSubject<UserAuthData | null | undefined>(null);
@@ -36,58 +49,48 @@ export class AuthService {
         this.userAuth.asObservable();
 
     loginViaLoginFunction: boolean = false;
-    userAuthDataSubscription!: Subscription;
+    unsubscribe: Unsubscribe | undefined = undefined;
 
     constructor(
-        private angularFireAuth: AngularFireAuth,
         private toastService: ToastService,
-        private firestore: AngularFirestore,
-        private router: Router
+        private router: Router,
+        private auth: Auth,
+        private firestore: Firestore
     ) {
-        this.angularFireAuth.onAuthStateChanged(
-            (user) => {
-                this.userData.next(user);
-            },
-            (error) => {
-                this.toastService.addToast(
-                    "Authentication Error",
-                    error.message,
-                    "error"
-                );
+        this.authStateSubscription = this.authState$.subscribe(
+            (user: User | null) => {
+                if (user) {
+                    this.userData.next(user);
+                    user.getIdTokenResult().then((token) => {
+                        this.customClaims.next(token.claims);
+                    });
+                }
             }
         );
-
-        this.angularFireAuth.idTokenResult.subscribe((idTokenResult) => {
-            if (idTokenResult) {
-                this.customClaims.next({
-                    admin: idTokenResult.claims["admin"],
-                });
-            }
-        });
 
         this.userData.subscribe(async (user) => {
             this.sentrySetUser(user);
 
             if (user) {
-                const uid = user.uid;
-                const itemDoc = this.firestore
-                    .collection("users")
-                    .doc<UserAuthData | undefined>(uid);
+                this.unsubscribe = onSnapshot(
+                    doc(this.firestore, "users", user.uid),
+                    (doc) => {
+                        const exists = doc.exists();
+                        if (exists) {
+                            const data = doc.data();
+                            this.userAuth.next(data);
 
-                this.userAuthDataSubscription = itemDoc
-                    .valueChanges()
-                    .subscribe((value) => {
-                        this.userAuth.next(value);
-
-                        if (!isUserAllowed(value, this.router.url)) {
-                            this.router.navigate([""]);
+                            if (!isUserAllowed(data, this.router.url)) {
+                                this.router.navigate([""]);
+                            }
                         }
-                    });
+                    }
+                );
             } else if (user === null) {
                 this.userAuth.next(undefined);
 
-                if (this.userAuthDataSubscription) {
-                    this.userAuthDataSubscription.unsubscribe();
+                if (this.unsubscribe) {
+                    this.unsubscribe();
                 }
 
                 if (!isUserAllowed(undefined, this.router.url)) {
@@ -98,20 +101,15 @@ export class AuthService {
     }
 
     login() {
-        this.angularFireAuth
-            .signInWithPopup(new firebase.auth.GoogleAuthProvider())
+        signInWithPopup(this.auth, new GoogleAuthProvider())
             .then((res) => {
                 let toastMessage: string;
-                if (res.additionalUserInfo) {
-                    if (res.additionalUserInfo.isNewUser) {
-                        toastMessage = "Welcome!";
-                    } else {
-                        toastMessage =
-                            "Welcome back, " +
-                            (res.additionalUserInfo.profile as any).given_name;
-                    }
+                if (res.user.metadata.lastSignInTime) {
+                    toastMessage = `Welcome back, ${
+                        res.user.displayName ?? res.user.email
+                    }`;
                 } else {
-                    toastMessage = "";
+                    toastMessage = "Welcome!";
                 }
 
                 this.toastService.addToast(
@@ -123,7 +121,6 @@ export class AuthService {
                     }
                 );
 
-                
                 console.log(res);
                 this.userData.next(res.user);
             })
@@ -150,8 +147,7 @@ export class AuthService {
     }
 
     logout() {
-        this.angularFireAuth
-            .signOut()
+        signOut(this.auth)
             .then(() => {
                 this.userData.next(null);
                 this.toastService.addToast(
@@ -170,11 +166,11 @@ export class AuthService {
             });
     }
 
-    sentrySetUser(user: firebase.User | null | undefined) {
+    sentrySetUser(user: User | null | undefined) {
         if (user) {
             Sentry.setUser({
-                email: user?.email?.toString(),
-                id: user?.uid,
+                email: user.email?.toString(),
+                id: user.uid,
                 ip_address: "{{auto}}",
             });
         } else {
@@ -191,6 +187,6 @@ export class AuthService {
     }
 
     isAdmin(): boolean {
-        return Boolean(this.customClaims.value?.admin);
+        return Boolean(this.customClaims.value?.["admin"]);
     }
 }

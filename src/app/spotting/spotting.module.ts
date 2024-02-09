@@ -1,22 +1,23 @@
-import { CheckBoxModule, DevUIModule, PanelModule } from "ng-devui";
-import { AlertModule } from "ng-devui/alert";
-import { CascaderModule } from "ng-devui/cascader";
+import { DevUIModule, PanelModule } from "ng-devui";
 import { DataTableModule } from "ng-devui/data-table";
-import { DatepickerModule } from "ng-devui/datepicker";
 import { IconModule } from "ng-devui/icon";
-import { LoadingModule } from "ng-devui/loading";
-import { SelectModule } from "ng-devui/select";
-import { TabsModule } from "ng-devui/tabs";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
-import { TooltipModule } from "ng-devui/tooltip";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
+import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
+import { NzFormModule } from "ng-zorro-antd/form";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzInputModule } from "ng-zorro-antd/input";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSelectModule } from "ng-zorro-antd/select";
+import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
@@ -49,6 +50,9 @@ import {
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
+import {
+    WheelStatusTagModule,
+} from "../@ui/wheel-status-tag/wheel-status-tag.module";
 import { GraphQLModule } from "../graphql.module";
 import {
     CoordinatesHumanizerModule,
@@ -96,20 +100,12 @@ import {
         ReactiveFormsModule,
 
         // DevUI
-        AlertModule,
-        CascaderModule,
-        CheckBoxModule,
         DataTableModule,
-        DatepickerModule,
         DevUIModule,
         IconModule,
-        LoadingModule,
         PanelModule,
-        SelectModule,
-        TabsModule,
         TagsModule,
         TimeAxisModule,
-        TooltipModule,
 
         // Internal Imports
         ActionListModule,
@@ -128,16 +124,27 @@ import {
         SpottingTypePipeModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,
+        WheelStatusTagModule,
 
         // ng-zorro
+        NzAlertModule,
         NzButtonModule,
+        NzCheckboxModule,
+        NzDatePickerModule,
         NzDrawerModule,
+        NzEmptyModule,
+        NzFormModule,
         NzGridModule,
         NzIconModule,
+        // NzImageModule,
+        NzInputModule,
         NzListModule,
         NzPopconfirmModule,
         NzProgressModule,
+        NzSelectModule,
+        NzSpaceModule,
         NzSpinModule,
+        NzTabsModule,
         NzToolTipModule,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
