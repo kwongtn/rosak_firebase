@@ -46,7 +46,7 @@ export class VehicleStatusHistoryComponent implements OnInit, OnChanges {
             value: "MTREC",
             disabled: false,
             infoTip:
-                "Data is scraped on a best effort basis from Malaysia Trains & Rail Enthusiasts (MTREC) and hence may be inaccurate.",
+                "Data is scraped on a best effort basis from Malaysia Trains & Rail Enthusiasts (MTREC) and hence may not reflect entirely their data.",
         },
         {
             label: "Prasarana",
