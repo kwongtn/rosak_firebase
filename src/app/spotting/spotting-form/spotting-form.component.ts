@@ -443,9 +443,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             runNumber: undefined,
             atStation: "",
             type: "JUST_SPOTTING",
+            sanityTest: false,
         });
     }
-
 
     openGuide(e: MouseEvent) {
         const line = this.formGroup.value["line"];
