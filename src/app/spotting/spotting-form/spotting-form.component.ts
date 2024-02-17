@@ -446,17 +446,6 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    toggleIsAnonymous() {
-        this.formGroup.patchValue({
-            isAnonymous: !this.formGroup.value.isAnonymous,
-        });
-    }
-
-    toggleSanityTest() {
-        this.formGroup.patchValue({
-            sanityTest: !this.formGroup.value.sanityTest,
-        });
-    }
 
     openGuide(e: MouseEvent) {
         const line = this.formGroup.value["line"];
