@@ -107,7 +107,20 @@
                                         [nzLabel]="vehicle.name"
                                         [nzValue]="vehicle"
                                         [nzDisabled]="vehicle.disabled"
-                                    ></nz-option>
+                                        [nzCustomContent]="true"
+                                    >
+                                        <div nz-row>
+                                            <span nz-col nzSpan="12">
+                                                {{ vehicle.name }}
+                                            </span>
+                                            <vehicle-status-tag
+                                                nz-col
+                                                nzSpan="12"
+                                                *ngIf="vehicle.status"
+                                                [vehicleStatus]="vehicle.status"
+                                            ></vehicle-status-tag>
+                                        </div>
+                                    </nz-option>
                                 </nz-option-group>
                             </nz-select>
                         </nz-form-control>
