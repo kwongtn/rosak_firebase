@@ -1,32 +1,50 @@
 <span [ngSwitch]="spottingType">
-    <d-tag
+    <nz-tag
+        nzMode="checkable"
+        [nzChecked]="true"
         *ngSwitchCase="'JUST_SPOTTING'"
-        [tag]="spottingType | spottingType"
-        [labelStyle]="'green-w98'"
+        [nzColor]="'green'"
     >
-    </d-tag>
-    <d-tag
+        {{ spottingType | spottingType }}
+    </nz-tag>
+    <nz-tag
+        nzMode="checkable"
+        [nzChecked]="true"
         *ngSwitchCase="'BETWEEN_STATIONS'"
-        [tag]="spottingType | spottingType"
-        [labelStyle]="'green-w98'"
+        [nzColor]="'gold'"
     >
-    </d-tag>
-    <d-tag
+        {{ spottingType | spottingType }}
+    </nz-tag>
+    <nz-tag
+        nzMode="checkable"
+        [nzChecked]="true"
+        *ngSwitchCase="'AT_STATION'"
+        [nzColor]="'gold'"
+    >
+        {{ spottingType | spottingType }}
+    </nz-tag>
+    <nz-tag
+        nzMode="checkable"
+        [nzChecked]="true"
         *ngSwitchCase="'DEPOT'"
-        [tag]="spottingType | spottingType"
-        [labelStyle]="'yellow-w98'"
+        [nzColor]="'lime'"
     >
-    </d-tag>
-    <d-tag
+        {{ spottingType | spottingType }}
+    </nz-tag>
+    <nz-tag
+        nzMode="checkable"
+        [nzChecked]="true"
         *ngSwitchCase="'LOCATION'"
-        [tag]="spottingType | spottingType"
-        [labelStyle]="'red-w98'"
+        [nzColor]="'purple'"
     >
-    </d-tag>
-    <d-tag
+        {{ spottingType | spottingType }}
+    </nz-tag>
+    <nz-tag
+        nzMode="checkable"
+        [nzChecked]="true"
         *ngSwitchDefault
-        [tag]="spottingType | spottingType"
-        [customColor]="'var(--devui-text-weak)'"
+        [nzColor]="'red'"
     >
-    </d-tag>
+        {{ spottingType | spottingType }}
+    </nz-tag>
 </span>

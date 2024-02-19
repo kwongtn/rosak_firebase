@@ -9,9 +9,12 @@ import {
 } from "ng-devui";
 import { ButtonModule } from "ng-devui/button";
 import { CategorySearchModule } from "ng-devui/category-search";
+import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzSwitchModule } from "ng-zorro-antd/switch";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -64,6 +67,10 @@ import {
         TooltipModule,
         
         // ng-zorro
+        NzButtonModule,
+        NzSpinModule,
+        NzSwitchModule,
+        NzToolTipModule,
         NzDrawerModule,
         NzIconModule,
         NzSpinModule,

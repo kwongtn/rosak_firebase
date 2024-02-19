@@ -5,7 +5,7 @@
     inViewport
     [inViewportOptions]="{ rootMargin: '200px 0px' }"
     (inViewportAction)="onIntersection($event)"
-    *ngFor="let imgDate of imageDateMaps | keyvalue : compareFn"
+    *ngFor="let imgDate of imageDateMaps | keyvalue: compareFn"
     [id]="imgDate.key"
     class="date-image-container"
     #dateImageContainer

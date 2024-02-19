@@ -374,7 +374,8 @@
     }
 
     cursor: pointer;
-    transition: box-shadow $devui-animation-duration-slow
+    transition:
+        box-shadow $devui-animation-duration-slow
             $devui-animation-ease-in-out-smooth,
         transform $devui-animation-duration-slow
             $devui-animation-ease-in-out-smooth;
