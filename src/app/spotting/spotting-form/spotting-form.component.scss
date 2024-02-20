@@ -73,3 +73,17 @@
 .sanity-test-text {
     color: $devui-gray-100;
 }
+
+.dynamic-guide-button {
+    cursor: pointer;
+    position: relative;
+    top: 6px;
+    font-size: 20px;
+    color: $devui-icon-fill;
+    transition: all 0.3s;
+    padding-left: 10px;
+}
+
+.dynamic-guide-button:hover {
+    color: $devui-icon-fill-hover;
+}
