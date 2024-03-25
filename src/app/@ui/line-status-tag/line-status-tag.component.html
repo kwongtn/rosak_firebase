@@ -1,32 +1,25 @@
-<span [ngSwitch]="lineStatus">
-    <d-tag
-        *ngSwitchCase="'TESTING'"
-        [tag]="'Testing'"
-        [labelStyle]="'blue-w98'"
-    >
-    </d-tag>
-    <d-tag *ngSwitchCase="'DEFUNCT'" [tag]="'Defunct'"> </d-tag>
-    <d-tag *ngSwitchCase="'ACTIVE'" [tag]="'Active'" [labelStyle]="'green-w98'">
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'PARTIAL_ACTIVE'"
-        [tag]="'Partially Active'"
-        [labelStyle]="'aqua-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'PARTIAL_DISRUPTION'"
-        [tag]="'Partial Disruption'"
-        [labelStyle]="'yellow-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'TOTAL_DISRUPTION'"
-        [tag]="'Total Disruption'"
-        [labelStyle]="'red-w98'"
-    >
-    </d-tag>
-    <d-tag *ngSwitchDefault>
-        {{ lineStatus | titlecase }}
-    </d-tag>
-</span>
+@switch (lineStatus) {
+    @case ("TESTING") {
+        <d-tag [tag]="'Testing'" [labelStyle]="'blue-w98'" />
+    }
+    @case ("DEFUNCT") {
+        <d-tag [tag]="'Defunct'" />
+    }
+    @case ("ACTIVE") {
+        <d-tag [tag]="'Active'" [labelStyle]="'green-w98'" />
+    }
+    @case ("PARTIAL_ACTIVE") {
+        <d-tag [tag]="'Partially Active'" [labelStyle]="'aqua-w98'" />
+    }
+    @case ("PARTIAL_DISRUPTION") {
+        <d-tag [tag]="'Partial Disruption'" [labelStyle]="'yellow-w98'" />
+    }
+    @case ("TOTAL_DISRUPTION") {
+        <d-tag [tag]="'Total Disruption'" [labelStyle]="'red-w98'" />
+    }
+    @default {
+        <d-tag>
+            {{ lineStatus | titlecase }}
+        </d-tag>
+    }
+}
