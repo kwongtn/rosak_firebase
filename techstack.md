@@ -3,24 +3,24 @@
 ## Tech Stack
 kwongtn/rosak_firebase is built on the following main stack:
 
-- [Firebase](https://firebase.google.com/) – Realtime Backend / API
-- [Sentry](https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile) – Exception Monitoring
-- [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
+- [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript) – Languages
+- [TypeScript](http://www.typescriptlang.org) – Languages
+- [Angular](https://angular.io) – Javascript MVC Frameworks
 - [Node.js](http://nodejs.org/) – Frameworks (Full Stack)
 - [React](https://reactjs.org/) – Javascript UI Libraries
-- [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript) – Languages
-- [Karma](http://karma-runner.github.io/) – Browser Testing
-- [TypeScript](http://www.typescriptlang.org) – Languages
-- [Webpack](http://webpack.js.org) – JS Build Tools / JS Task Runners
 - [RxJS](http://reactivex.io/rxjs/) – Concurrency Frameworks
-- [ESLint](http://eslint.org/) – Code Review
-- [Angular](https://angular.io) – Javascript MVC Frameworks
+- [Firebase](https://firebase.google.com/) – Realtime Backend / API
 - [GraphQL](http://graphql.org/) – Query Languages
+- [ESLint](http://eslint.org/) – Code Review
+- [GitHub Actions](https://github.com/features/actions) – Continuous Integration
+- [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
+- [Karma](http://karma-runner.github.io/) – Browser Testing
+- [Prettier](https://prettier.io/) – Code Review
+- [Sentry](https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile) – Exception Monitoring
 - [Visual Studio Code](https://code.visualstudio.com/) – Text Editor
+- [Webpack](http://webpack.js.org) – JS Build Tools / JS Task Runners
 - [Google reCaptcha](https://www.google.com/recaptcha/intro/index.html) – Bot Detection
 - [Shell](https://en.wikipedia.org/wiki/Shell_script) – Shells
-- [Prettier](https://prettier.io/) – Code Review
-- [GitHub Actions](https://github.com/features/actions) – Continuous Integration
 
 Full tech stack [here](/techstack.md)
 
@@ -30,24 +30,24 @@ Full tech stack [here](/techstack.md)
 ## Tech Stack
 kwongtn/rosak_firebase is built on the following main stack:
 
-- <img width='25' height='25' src='https://img.stackshare.io/service/116/cZLxNFZS.jpg' alt='Firebase'/> [Firebase](https://firebase.google.com/) – Realtime Backend / API
-- <img width='25' height='25' src='https://img.stackshare.io/service/191/default_9262326592c97828a2a4299dec085a3674dd05f4.png' alt='Sentry'/> [Sentry](https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile) – Exception Monitoring
-- <img width='25' height='25' src='https://img.stackshare.io/service/831/7c0b595409af531b9cdeb07f8c513e8b.png' alt='Jasmine'/> [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
+- <img width='25' height='25' src='https://img.stackshare.io/service/1209/javascript.jpeg' alt='JavaScript'/> [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript) – Languages
+- <img width='25' height='25' src='https://img.stackshare.io/service/1612/bynNY5dJ.jpg' alt='TypeScript'/> [TypeScript](http://www.typescriptlang.org) – Languages
+- <img width='25' height='25' src='https://img.stackshare.io/service/3745/cb8U-gL6_400x400.jpg' alt='Angular'/> [Angular](https://angular.io) – Javascript MVC Frameworks
 - <img width='25' height='25' src='https://img.stackshare.io/service/1011/n1JRsFeB_400x400.png' alt='Node.js'/> [Node.js](http://nodejs.org/) – Frameworks (Full Stack)
 - <img width='25' height='25' src='https://img.stackshare.io/service/1020/OYIaJ1KK.png' alt='React'/> [React](https://reactjs.org/) – Javascript UI Libraries
-- <img width='25' height='25' src='https://img.stackshare.io/service/1209/javascript.jpeg' alt='JavaScript'/> [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript) – Languages
-- <img width='25' height='25' src='https://img.stackshare.io/service/1420/TidYGd6a.png' alt='Karma'/> [Karma](http://karma-runner.github.io/) – Browser Testing
-- <img width='25' height='25' src='https://img.stackshare.io/service/1612/bynNY5dJ.jpg' alt='TypeScript'/> [TypeScript](http://www.typescriptlang.org) – Languages
-- <img width='25' height='25' src='https://img.stackshare.io/service/1682/IMG_4636.PNG' alt='Webpack'/> [Webpack](http://webpack.js.org) – JS Build Tools / JS Task Runners
 - <img width='25' height='25' src='https://img.stackshare.io/service/1796/984368.png' alt='RxJS'/> [RxJS](http://reactivex.io/rxjs/) – Concurrency Frameworks
-- <img width='25' height='25' src='https://img.stackshare.io/service/3337/Q4L7Jncy.jpg' alt='ESLint'/> [ESLint](http://eslint.org/) – Code Review
-- <img width='25' height='25' src='https://img.stackshare.io/service/3745/cb8U-gL6_400x400.jpg' alt='Angular'/> [Angular](https://angular.io) – Javascript MVC Frameworks
+- <img width='25' height='25' src='https://img.stackshare.io/service/116/cZLxNFZS.jpg' alt='Firebase'/> [Firebase](https://firebase.google.com/) – Realtime Backend / API
 - <img width='25' height='25' src='https://img.stackshare.io/service/3820/12972006.png' alt='GraphQL'/> [GraphQL](http://graphql.org/) – Query Languages
+- <img width='25' height='25' src='https://img.stackshare.io/service/3337/Q4L7Jncy.jpg' alt='ESLint'/> [ESLint](http://eslint.org/) – Code Review
+- <img width='25' height='25' src='https://img.stackshare.io/service/11563/actions.png' alt='GitHub Actions'/> [GitHub Actions](https://github.com/features/actions) – Continuous Integration
+- <img width='25' height='25' src='https://img.stackshare.io/service/831/7c0b595409af531b9cdeb07f8c513e8b.png' alt='Jasmine'/> [Jasmine](http://jasmine.github.io/) – Javascript Testing Framework
+- <img width='25' height='25' src='https://img.stackshare.io/service/1420/TidYGd6a.png' alt='Karma'/> [Karma](http://karma-runner.github.io/) – Browser Testing
+- <img width='25' height='25' src='https://img.stackshare.io/service/7035/default_66f265943abed56bcdbfca1c866a4261b1fbb063.jpg' alt='Prettier'/> [Prettier](https://prettier.io/) – Code Review
+- <img width='25' height='25' src='https://img.stackshare.io/service/191/default_9262326592c97828a2a4299dec085a3674dd05f4.png' alt='Sentry'/> [Sentry](https://sentry.io/welcome/?utm_source=stackshare&utm_medium=link&utm_campaign=profile) – Exception Monitoring
 - <img width='25' height='25' src='https://img.stackshare.io/service/4202/Visual_Studio_Code_logo.png' alt='Visual Studio Code'/> [Visual Studio Code](https://code.visualstudio.com/) – Text Editor
+- <img width='25' height='25' src='https://img.stackshare.io/service/1682/IMG_4636.PNG' alt='Webpack'/> [Webpack](http://webpack.js.org) – JS Build Tools / JS Task Runners
 - <img width='25' height='25' src='https://img.stackshare.io/service/4482/dVHQiE0t_400x400.png' alt='Google reCaptcha'/> [Google reCaptcha](https://www.google.com/recaptcha/intro/index.html) – Bot Detection
 - <img width='25' height='25' src='https://img.stackshare.io/service/4631/default_c2062d40130562bdc836c13dbca02d318205a962.png' alt='Shell'/> [Shell](https://en.wikipedia.org/wiki/Shell_script) – Shells
-- <img width='25' height='25' src='https://img.stackshare.io/service/7035/default_66f265943abed56bcdbfca1c866a4261b1fbb063.jpg' alt='Prettier'/> [Prettier](https://prettier.io/) – Code Review
-- <img width='25' height='25' src='https://img.stackshare.io/service/11563/actions.png' alt='GitHub Actions'/> [GitHub Actions](https://github.com/features/actions) – Continuous Integration
 
 Full tech stack [here](/techstack.md)
 
@@ -59,7 +59,7 @@ Full tech stack [here](/techstack.md)
 
 ![](https://img.stackshare.io/repo.svg "repo") [kwongtn/rosak_firebase](https://github.com/kwongtn/rosak_firebase)![](https://img.stackshare.io/public_badge.svg "public")
 <br/><br/>
-|51<br/>Tools used|01/11/24 <br/>Report generated|
+|51<br/>Tools used|02/29/24 <br/>Report generated|
 |------|------|
 
 </div>
@@ -234,21 +234,13 @@ Full tech stack [here](/techstack.md)
 </tr>
 </table>
 
-## Other (5)
+## Other (4)
 
 <table><tr>
   <td align='center'>
   <img width='36' height='36' src='https://img.stackshare.io/service/4482/dVHQiE0t_400x400.png' alt='Google reCaptcha'>
   <br>
   <sub><a href="https://www.google.com/recaptcha/intro/index.html">Google reCaptcha</a></sub>
-  <br>
-  <sub></sub>
-</td>
-
-<td align='center'>
-  <img width='36' height='36' src='https://img.stackshare.io/service/2270/no-img-open-source.png' alt='HTML'>
-  <br>
-  <sub><a href="http://">HTML</a></sub>
   <br>
   <sub></sub>
 </td>
