@@ -1,22 +1,26 @@
-<nz-card *ngIf="authService.userData | async">
-    <nz-card-meta
-        [nzTitle]="titleTemplate"
-        [nzAvatar]="avatarTemplate"
-        nzDescription="{{ (authService.userData | async)?.email }}"
-    ></nz-card-meta>
-    <div class="card-content"></div>
-</nz-card>
+<nz-space nzDirection="vertical">
+    <span *nzSpaceItem>
+        <nz-card *ngIf="authService.userData | async">
+            <nz-card-meta
+                [nzTitle]="titleTemplate"
+                [nzAvatar]="avatarTemplate"
+                nzDescription="{{ (authService.userData | async)?.email }}"
+            ></nz-card-meta>
+            <div class="card-content"></div>
+        </nz-card>
 
-<ng-template #titleTemplate>
-    <a [href]="profileHref" [routerLink]="profileHref" class="text">{{
-        (authService.userData | async)?.displayName
-    }}</a>
-</ng-template>
+        <ng-template #titleTemplate>
+            <a [href]="profileHref" [routerLink]="profileHref" class="text">{{
+                (authService.userData | async)?.displayName
+            }}</a>
+        </ng-template>
 
-<ng-template #avatarTemplate>
-    <nz-avatar [nzSrc]="userAvatar" [nzSize]="85"></nz-avatar>
-</ng-template>
-
+        <ng-template #avatarTemplate>
+            <nz-avatar [nzSrc]="userAvatar" [nzSize]="85"></nz-avatar>
+        </ng-template>
+    </span>
+    <verification-code-card *nzSpaceItem></verification-code-card>
+</nz-space>
 <div class="theme-menu">
     <nz-switch
         class="theme-follow-toggle"

@@ -38,8 +38,8 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
 import { ActionListModule } from "../@ui/action-list/action-list.module";
 import {
-    LineStatusTagModule,
-} from "../@ui/line-status-tag/line-status-tag.module";
+    LineStatusTagComponent,
+} from "../@ui/line-status-tag/line-status-tag.component";
 import {
     SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
@@ -112,7 +112,7 @@ import {
         FormUploadModule,
         GraphQLModule,
         ImagePreviewButtonModule,
-        LineStatusTagModule,
+        LineStatusTagComponent,
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         SpottingTypePipeModule,
