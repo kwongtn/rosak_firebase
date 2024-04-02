@@ -1,34 +1,34 @@
 <div [class]="'button-container ' + env.sentry.environment">
     <span class="flex-buffer"></span>
-    <span
-        *ngIf="hadUpload"
-        [class]="
-            'spotting-progress-bar ' +
-            ($any($uploadPercentage | async) < 100 ? 'uploading' : '')
-        "
-        nz-tooltip
-        [nzTooltipTitle]="
-            $any($totalCountIcon | async) -
-            countIcon +
-            ' of ' +
-            ($totalCountIcon | async) +
-            ' uploaded'
-        "
-    >
-        <nz-progress
-            *ngIf="$totalCountIcon"
-            class="loading-elem"
-            [nzPercent]="$uploadPercentage | async | number: '1.1-2'"
-            [nzSteps]="$totalCountIcon | async"
-            nzStrokeColor="#1890ff"
-            nzSize="small"
-        ></nz-progress>
-        <nz-spin
-            nzSimple
-            *ngIf="($uploadPercentage | async) !== 100"
-            class="loading-elem"
-        ></nz-spin>
-    </span>
+    @if (hadUpload) {
+        <span
+            [class]="
+                'spotting-progress-bar ' +
+                ($any($uploadPercentage | async) < 100 ? 'uploading' : '')
+            "
+            nz-tooltip
+            [nzTooltipTitle]="
+                $any($totalCountIcon | async) -
+                countIcon +
+                ' of ' +
+                ($totalCountIcon | async) +
+                ' uploaded'
+            "
+        >
+            @if ($totalCountIcon) {
+                <nz-progress
+                    class="loading-elem"
+                    [nzPercent]="$uploadPercentage | async | number: '1.1-2'"
+                    [nzSteps]="$totalCountIcon | async"
+                    nzStrokeColor="#1890ff"
+                    nzSize="small"
+                />
+            }
+            @if (($uploadPercentage | async) !== 100) {
+                <nz-spin nzSimple class="loading-elem" />
+            }
+        </span>
+    }
     <span class="spotting-form-button">
         <button
             nz-button
@@ -39,35 +39,41 @@
         </button>
     </span>
 </div>
-<nz-spin class="spinner" nzSimple *ngIf="showLoading"></nz-spin>
+@if (showLoading) {
+    <nz-spin class="spinner" nzSimple />
+}
 <div class="spotting-main-container">
-    <div class="spotting-table-container" *ngIf="tabActiveId">
-        <nz-tabset
-            [nzSelectedIndex]="tabActiveIndex"
-            (nzSelectedIndexChange)="activeTabChange($event)"
-        >
-            <nz-tab *ngFor="let item of tabItems" [nzTitle]="tabTitle">
-                <ng-template nz-tab>
-                    <app-vehicle-type-container
-                        [lineId]="item.id"
-                        [title]="item.detail"
-                        [lineStatus]="item.lineStatus"
-                    ></app-vehicle-type-container>
-                </ng-template>
+    @if (tabActiveId) {
+        <div class="spotting-table-container">
+            <nz-tabset
+                [nzSelectedIndex]="tabActiveIndex"
+                (nzSelectedIndexChange)="activeTabChange($event)"
+            >
+                @for (item of tabItems; track item) {
+                    <nz-tab [nzTitle]="tabTitle">
+                        <ng-template nz-tab>
+                            <app-vehicle-type-container
+                                [lineId]="item.id"
+                                [title]="item.detail"
+                                [lineStatus]="item.lineStatus"
+                            ></app-vehicle-type-container>
+                        </ng-template>
 
-                <ng-template #tabTitle>
-                    <span
-                        nz-tooltip
-                        [nzTooltipTitle]="item.detail"
-                        nzTooltipPlacement="topLeft"
-                        [nzTooltipArrowPointAtCenter]="true"
-                    >
-                        {{ item.title }}
-                    </span>
-                </ng-template>
-            </nz-tab>
-        </nz-tabset>
-    </div>
+                        <ng-template #tabTitle>
+                            <span
+                                nz-tooltip
+                                [nzTooltipTitle]="item.detail"
+                                nzTooltipPlacement="topLeft"
+                                [nzTooltipArrowPointAtCenter]="true"
+                            >
+                                {{ item.title }}
+                            </span>
+                        </ng-template>
+                    </nz-tab>
+                }
+            </nz-tabset>
+        </div>
+    }
 </div>
 
 <ng-template #drawerFooter>

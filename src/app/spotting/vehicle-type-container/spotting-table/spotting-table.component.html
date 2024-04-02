@@ -30,31 +30,34 @@
 
                 |
 
-                <span
-                    *ngFor="let elem of tagListDisplayConfig"
-                    dTooltip
-                    [content]="
-                        (
-                            (dataSource.vehicleStatusCount[elem.key] /
-                                dataSource.vehicleStatusCount
-                                    .vehicleTotalCount) *
-                            100
-                        ).toPrecision(3) + '%'
-                    "
-                    [position]="'bottom'"
-                >
-                    <d-tag
-                        [tag]="
-                            elem.displayPrefix +
-                            ': ' +
-                            dataSource.vehicleStatusCount[elem.key].toString()
+                @for (elem of tagListDisplayConfig; track elem) {
+                    <span
+                        dTooltip
+                        [content]="
+                            (
+                                (dataSource.vehicleStatusCount[elem.key] /
+                                    dataSource.vehicleStatusCount
+                                        .vehicleTotalCount) *
+                                100
+                            ).toPrecision(3) + '%'
                         "
-                        [labelStyle]="elem.labelStyle ?? ''"
-                        [customColor]="elem.customColor ?? ''"
-                        class="status-icon"
+                        [position]="'bottom'"
                     >
-                    </d-tag>
-                </span>
+                        <d-tag
+                            [tag]="
+                                elem.displayPrefix +
+                                ': ' +
+                                dataSource.vehicleStatusCount[
+                                    elem.key
+                                ].toString()
+                            "
+                            [labelStyle]="elem.labelStyle ?? ''"
+                            [customColor]="elem.customColor ?? ''"
+                            class="status-icon"
+                        >
+                        </d-tag>
+                    </span>
+                }
             </span>
         </h1>
     </d-panel-header>
@@ -76,33 +79,35 @@
 
             |
 
-            <span
-                *ngFor="let elem of tagListDisplayConfig"
-                dTooltip
-                [content]="
-                    (
-                        (dataSource.vehicleStatusCount[elem.key] /
-                            dataSource.vehicleStatusCount.vehicleTotalCount) *
-                        100
-                    ).toPrecision(3) + '%'
-                "
-                [position]="'bottom'"
-            >
-                <d-tag
-                    [tag]="
-                        elem.displayPrefix +
-                        ': ' +
-                        dataSource.vehicleStatusCount[elem.key].toString()
+            @for (elem of tagListDisplayConfig; track elem) {
+                <span
+                    dTooltip
+                    [content]="
+                        (
+                            (dataSource.vehicleStatusCount[elem.key] /
+                                dataSource.vehicleStatusCount
+                                    .vehicleTotalCount) *
+                            100
+                        ).toPrecision(3) + '%'
                     "
-                    [mode]="'checkable'"
-                    [labelStyle]="elem.labelStyle ?? ''"
-                    [customColor]="elem.customColor ?? ''"
-                    class="status-icon"
-                    [(checked)]="elem.checked"
-                    (checkedChange)="changeChecked($event, elem.status)"
+                    [position]="'bottom'"
                 >
-                </d-tag>
-            </span>
+                    <d-tag
+                        [tag]="
+                            elem.displayPrefix +
+                            ': ' +
+                            dataSource.vehicleStatusCount[elem.key].toString()
+                        "
+                        [mode]="'checkable'"
+                        [labelStyle]="elem.labelStyle ?? ''"
+                        [customColor]="elem.customColor ?? ''"
+                        class="status-icon"
+                        [(checked)]="elem.checked"
+                        (checkedChange)="changeChecked($event, elem.status)"
+                    >
+                    </d-tag>
+                </span>
+            }
         </div>
         <d-data-table
             [dataSource]="dataSource.tableData"
@@ -113,12 +118,14 @@
             <thead dTableHead>
                 <tr dTableRow>
                     <th dHeadCell></th>
-                    <th
-                        dHeadCell
-                        *ngFor="let colOption of dataTableOptions.columns"
-                    >
-                        {{ colOption.header }}
-                    </th>
+                    @for (
+                        colOption of dataTableOptions.columns;
+                        track colOption.header
+                    ) {
+                        <th dHeadCell>
+                            {{ colOption.header }}
+                        </th>
+                    }
                 </tr>
             </thead>
             <tbody dTableBody>
@@ -138,52 +145,56 @@
                             "
                             (click)="toggleExpand(rowItem)"
                         >
-                            <span
-                                *ngIf="rowItem.$expandConfig.expandable"
-                                class="expand-icon"
-                            >
-                                <span
-                                    class="icon-chevron-right"
-                                    *ngIf="!rowItem.$expandConfig?.expand"
-                                ></span>
-                                <span
-                                    class="icon-chevron-down"
-                                    *ngIf="rowItem.$expandConfig?.expand"
-                                ></span>
-                            </span>
-                        </td>
-                        <td
-                            dTableCell
-                            *ngFor="let colOption of dataTableOptions.columns"
-                        >
-                            <span [ngSwitch]="colOption.fieldType">
-                                <span *ngSwitchCase="'status'">
-                                    <vehicle-status-tag
-                                        [vehicleStatus]="
-                                            rowItem[colOption.field]
-                                        "
-                                    ></vehicle-status-tag>
-                                </span>
-                                <span *ngSwitchCase="'wheelStatus'">
-                                    <wheel-status-tag
-                                        [wheelStatus]="rowItem[colOption.field]"
-                                    ></wheel-status-tag>
-                                </span>
-                                <span *ngSwitchCase="'id'">
-                                    {{ rowItem[colOption.field] }}
+                            @if (rowItem.$expandConfig.expandable) {
+                                <span class="expand-icon">
                                     <span
-                                        *ngIf="rowItem.nickname"
-                                        class="nickname"
-                                    >
-                                        <br />
-                                        {{ rowItem.nickname }}
-                                    </span>
+                                        [class]="
+                                            rowItem.$expandConfig?.expand
+                                                ? 'icon-chevron-down'
+                                                : 'icon-chevron-right'
+                                        "
+                                    ></span>
                                 </span>
-                                <span *ngSwitchDefault>{{
-                                    rowItem[colOption.field]
-                                }}</span>
-                            </span>
+                            }
                         </td>
+                        @for (
+                            colOption of dataTableOptions.columns;
+                            track colOption
+                        ) {
+                            <td dTableCell>
+                                @switch (colOption.fieldType) {
+                                    @case ("status") {
+                                        <vehicle-status-tag
+                                            [vehicleStatus]="
+                                                rowItem[colOption.field]
+                                            "
+                                        />
+                                    }
+
+                                    @case ("wheelStatus") {
+                                        <wheel-status-tag
+                                            [wheelStatus]="
+                                                rowItem[colOption.field]
+                                            "
+                                        />
+                                    }
+
+                                    @case ("id") {
+                                        {{ rowItem[colOption.field] }}
+                                        @if (rowItem.nickname) {
+                                            <span class="nickname">
+                                                <br />
+                                                {{ rowItem.nickname }}
+                                            </span>
+                                        }
+                                    }
+
+                                    @default {
+                                        {{ rowItem[colOption.field] }}
+                                    }
+                                }
+                            </td>
+                        }
                     </tr>
 
                     <tr
@@ -196,16 +207,18 @@
                         "
                     >
                         <td dTableCell [attr.colspan]="tableWidthConfig.length">
-                            <app-inline-timeline
-                                class="inline-timeline"
-                                [vehicleId]="rowItem.id"
-                                *ngIf="rowItem.incidentCount > 0"
-                            ></app-inline-timeline>
-                            <app-inline-history
-                                class="inline-history"
-                                [vehicleId]="rowItem.id"
-                                *ngIf="rowItem.timesSpotted > 0"
-                            ></app-inline-history>
+                            @if (rowItem.incidentCount > 0) {
+                                <app-inline-timeline
+                                    class="inline-timeline"
+                                    [vehicleId]="rowItem.id"
+                                />
+                            }
+                            @if (rowItem.timesSpotted > 0) {
+                                <app-inline-history
+                                    class="inline-history"
+                                    [vehicleId]="rowItem.id"
+                                />
+                            }
                         </td>
                     </tr>
                 </ng-template>
