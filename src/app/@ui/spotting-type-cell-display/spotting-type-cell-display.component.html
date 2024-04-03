@@ -1,82 +1,93 @@
 <div>
     <spotting-type-tag [spottingType]="spottingType"></spotting-type-tag>
     <br />
-    <a
-        *ngIf="rowItem.location"
-        href="https://www.google.com/maps?q={{ rowItem.location.latitude }},{{
-            rowItem.location.longitude
-        }}"
-        target="_blank"
-    >
-        <span
-            *ngIf="showLocationPopover"
-            nz-tooltip
-            [nzTooltipTitle]="locationPopoverTemplate"
-            [nzTooltipTrigger]="'hover'"
-            [nzTooltipPlacement]="'right'"
-            nz-icon
-            [nzType]="'info-circle'"
-        ></span>
-        {{ rowItem.location | coordinatesHumanizer : 3 }}
-    </a>
-    <span *ngIf="rowItem.type == 'AT_STATION' && rowItem.originStation">
-        {{ rowItem.originStation.displayName }}
-    </span>
-    <span
-        *ngIf="
-            rowItem.type == 'BETWEEN_STATIONS' &&
-            rowItem.originStation &&
-            rowItem.destinationStation
-        "
-    >
-        {{ rowItem.originStation.displayName }} ->
-        {{ rowItem.destinationStation.displayName }}
-    </span>
+    @if (rowItem.location) {
+        <a
+            href="https://www.google.com/maps?q={{
+                rowItem.location.latitude
+            }},{{ rowItem.location.longitude }}"
+            target="_blank"
+        >
+            @if (showLocationPopover) {
+                <span
+                    nz-tooltip
+                    [nzTooltipTitle]="locationPopoverTemplate"
+                    [nzTooltipTrigger]="'hover'"
+                    [nzTooltipPlacement]="'right'"
+                    nz-icon
+                    [nzType]="'info-circle'"
+                ></span>
+            }
+            {{ rowItem.location | coordinatesHumanizer: 3 }}
+        </a>
+    } @else if (rowItem.originStation) {
+        @if (rowItem.type == "AT_STATION") {
+            {{ rowItem.originStation.displayName }}
+        } @else if (
+            rowItem.type == "BETWEEN_STATIONS" && rowItem.destinationStation
+        ) {
+            {{ rowItem.originStation.displayName }} ->
+            {{ rowItem.destinationStation.displayName }}
+        }
+    }
 </div>
 
 <ng-template #content> </ng-template>
 
 <ng-template #locationPopoverTemplate>
-    <table *ngIf="rowItem.location" class="location-popover">
-        <tr>
-            <td>Location</td>
-            <td>:</td>
-            <td>
-                {{
-                    rowItem.location
-                        | coordinatesHumanizer : 3 : ["location-only"]
-                }}
-            </td>
-        </tr>
-        <tr>
-            <td>Accuracy</td>
-            <td>:</td>
-            <td>{{ rowItem.location.accuracy | beautifulDecimal }}m</td>
-        </tr>
-        <tr *ngIf="rowItem.location.altitude">
-            <td>Altitude</td>
-            <td>:</td>
-            <td>
-                {{ rowItem.location.altitude | beautifulDecimal }}m<span
-                    *ngIf="rowItem.location.altitudeAccuracy"
-                >
-                    ±
+    @if (rowItem.location) {
+        <table class="location-popover">
+            <tr>
+                <td>Location</td>
+                <td>:</td>
+                <td>
                     {{
-                        rowItem.location.altitudeAccuracy | beautifulDecimal
-                    }}m</span
-                >
-            </td>
-        </tr>
-        <tr *ngIf="rowItem.location.heading">
-            <td>Heading</td>
-            <td>:</td>
-            <td>{{ rowItem.location.heading | beautifulDecimal }}°</td>
-        </tr>
+                        rowItem.location
+                            | coordinatesHumanizer: 3 : ["location-only"]
+                    }}
+                </td>
+            </tr>
+            <tr>
+                <td>Accuracy</td>
+                <td>:</td>
+                <td>{{ rowItem.location.accuracy | beautifulDecimal }}m</td>
+            </tr>
+            @if (rowItem.location.altitude) {
+                <tr>
+                    <td>Altitude</td>
+                    <td>:</td>
+                    <td>
+                        {{ rowItem.location.altitude | beautifulDecimal }}m
+                        @if (rowItem.location.altitudeAccuracy) {
+                            ±
+                            {{
+                                rowItem.location.altitudeAccuracy
+                                    | beautifulDecimal
+                            }}m
+                        }
+                    </td>
+                </tr>
+            }
+            @if (rowItem.location.heading) {
+                <tr>
+                    <td>Heading</td>
+                    <td>:</td>
+                    <td>{{ rowItem.location.heading | beautifulDecimal }}°</td>
+                </tr>
+            }
 
-        <tr *ngIf="rowItem.location.speed">
-            <td>Speed</td>
-            <td>:</td>
-            <td>{{ rowItem.location.speed * 3.6 | beautifulDecimal }} km/h</td>
-        </tr>
-    </table>
+            @if (rowItem.location.speed) {
+                <tr>
+                    <td>Speed</td>
+                    <td>:</td>
+                    <td>
+                        {{
+                            rowItem.location.speed * 3.6 | beautifulDecimal
+                        }}
+                        km/h
+                    </td>
+                </tr>
+            }
+        </table>
+    }
 </ng-template>

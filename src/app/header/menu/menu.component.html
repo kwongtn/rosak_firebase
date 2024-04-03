@@ -1,34 +1,35 @@
 <div class="header-menu">
-    <div
-        *ngFor="let item of menuList"
-        class="menu-item"
-        (click)="onSelect(item)"
-        [ngClass]="{
-            'menu-selected-item':
-                item.href.split('/')[1] === router.url.split('/')[1]
-        }"
-    >
-        <a
-            *ngIf="item.href"
-            class="menu-link"
-            [href]="item.href"
-            rel="noopener noreferrer"
-            [routerLink]="item.href"
+    @for (item of menuList; track item) {
+        <div
+            class="menu-item"
+            (click)="onSelect(item)"
+            [ngClass]="{
+                'menu-selected-item':
+                    item.href.split('/')[1] === router.url.split('/')[1]
+            }"
         >
-            <span *ngIf="item.tag">
-                <d-badge
-                    [count]="item.tag"
-                    [offset]="[5, -8]"
-                    [status]="item.style"
+            @if (item.href) {
+                <a
+                    class="menu-link"
+                    [href]="item.href"
+                    rel="noopener noreferrer"
+                    [routerLink]="item.href"
                 >
-                    {{ item.name }}
-                </d-badge>
-            </span>
-            <span *ngIf="!item.tag">
-                {{ item.name }}
-            </span>
-        </a>
-    </div>
+                    @if (item.tag) {
+                        <d-badge
+                            [count]="item.tag"
+                            [offset]="[5, -8]"
+                            [status]="item.style"
+                        >
+                            {{ item.name }}
+                        </d-badge>
+                    } @else {
+                        {{ item.name }}
+                    }
+                </a>
+            }
+        </div>
+    }
 
     <div class="menu-item">
         <a
@@ -58,22 +59,25 @@
         <i class="icon icon-bug menu-link" (click)="reportBug()"></i>
     </div>
 
-    <div
-        *ngIf="countIcon > 0 || hadUpload"
-        dTooltip
-        class="menu-item"
-        [content]="
-            countIcon == 0
-                ? 'All uploads complete'
-                : countIcon + ' uploads pending'
-        "
-        [position]="'left'"
-    >
-        <nz-badge
-            nzStandalone
-            [nzCount]="countIcon == 0 && hadUpload ? iconTemplate : countIcon"
-        ></nz-badge>
-    </div>
+    @if (countIcon > 0 || hadUpload) {
+        <div
+            dTooltip
+            class="menu-item"
+            [content]="
+                countIcon == 0
+                    ? 'All uploads complete'
+                    : countIcon + ' uploads pending'
+            "
+            [position]="'left'"
+        >
+            <nz-badge
+                nzStandalone
+                [nzCount]="
+                    countIcon == 0 && hadUpload ? iconTemplate : countIcon
+                "
+            ></nz-badge>
+        </div>
+    }
 </div>
 
 <ng-template #iconTemplate>
