@@ -19,32 +19,34 @@
                 displayData.stations.length > 0
             "
         >
-            <span *ngIf="displayData.lines.length > 0">
-                <nz-tag
-                    *ngFor="let line of displayData.lines"
-                    [nzColor]="line.displayColor"
-                    class="incident-tags"
-                >
+            <!-- <span *ngIf="displayData.lines.length > 0"> -->
+            @for (line of displayData.lines; track line) {
+                <nz-tag [nzColor]="line.displayColor" class="incident-tags">
                     {{ line.displayName }}
                 </nz-tag>
-            </span>
-            <span *ngIf="displayData.vehicles.length > 0">
+            }
+            <!-- </span> -->
+            @if (displayData.vehicles.length > 0) {
                 <span class="incident-tags-separator"> | </span>
-                <nz-tag
-                    *ngFor="let vehicle of displayData.vehicles"
-                    class="incident-tags"
-                >
-                    {{ vehicle.identificationNo }}
-                </nz-tag>
-            </span>
+                @for (
+                    vehicle of displayData.vehicles;
+                    track vehicle.identificationNo
+                ) {
+                    <nz-tag class="incident-tags">
+                        {{ vehicle.identificationNo }}
+                    </nz-tag>
+                }
+            }
             <span *ngIf="displayData.stations.length > 0">
                 <span class="incident-tags-separator"> | </span>
-                <nz-tag
-                    *ngFor="let station of displayData.stations"
-                    class="incident-tags"
-                >
-                    {{ station.displayName }}
-                </nz-tag>
+                @for (
+                    station of displayData.stations;
+                    track station.displayName
+                ) {
+                    <nz-tag class="incident-tags">
+                        {{ station.displayName }}
+                    </nz-tag>
+                }
             </span>
         </div>
 
@@ -70,26 +72,27 @@
                         displayData.endDatetime ? false : loadingTemplate
                     "
                 >
-                    <nz-timeline-item
-                        *ngFor="let event of displayData.chronologies"
-                        [nzColor]="event.indicator"
-                    >
-                        <b>
-                            {{ event.datetime | date: "YYYY-MM-dd HH:mm:ss" }}
-                        </b>
-                        <span *ngIf="event.sourceUrl">
-                            -
-                            <a [href]="event.sourceUrl" target="_blank">
-                                Source
-                            </a>
-                        </span>
-                        <br />
-                        <div [innerHTML]="event.content"></div>
-                    </nz-timeline-item>
+                    @for (event of displayData.chronologies; track event) {
+                        <nz-timeline-item [nzColor]="event.indicator">
+                            <b>
+                                {{
+                                    event.datetime | date: "YYYY-MM-dd HH:mm:ss"
+                                }}
+                            </b>
+                            @if (event.sourceUrl) {
+                                -
+                                <a [href]="event.sourceUrl" target="_blank">
+                                    Source
+                                </a>
+                            }
+                            <br />
+                            <div [innerHTML]="event.content"></div>
+                        </nz-timeline-item>
+                    }
                 </nz-timeline>
-                <div *ngIf="displayData.duration">
-                    Duration: {{ displayData.duration }}
-                </div>
+                @if (displayData.duration) {
+                    <div>Duration: {{ displayData.duration }}</div>
+                }
             </div>
             <div
                 nz-col
@@ -103,11 +106,9 @@
                                 src="https://gw.alipayobjects.com/zos/rmsportal/mqaQswcyDLcXyDKnZfES.png"
                             /><br> -->
                 <br />
-                <a
-                    *ngIf="displayData.hasDetails"
-                    (click)="onDetailsClick($event)"
-                    >Details</a
-                >
+                @if (displayData.hasDetails) {
+                    <a (click)="onDetailsClick($event)">Details</a>
+                }
 
                 <div class="last-updated">
                     <span>
