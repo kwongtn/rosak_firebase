@@ -1,23 +1,32 @@
 @switch (spottingType) {
     @case ("JUST_SPOTTING") {
-        <d-tag [tag]="spottingType | spottingType" [labelStyle]="'green-w98'" />
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'green'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
     }
     @case ("BETWEEN_STATIONS") {
-        <d-tag [tag]="spottingType | spottingType" [labelStyle]="'green-w98'" />
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'gold'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+    @case ("AT_STATION") {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'gold'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
     }
     @case ("DEPOT") {
-        <d-tag
-            [tag]="spottingType | spottingType"
-            [labelStyle]="'yellow-w98'"
-        />
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'lime'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
     }
     @case ("LOCATION") {
-        <d-tag [tag]="spottingType | spottingType" [labelStyle]="'red-w98'" />
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'purple'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
     }
     @default {
-        <d-tag
-            [tag]="spottingType | spottingType"
-            [customColor]="'var(--devui-text-weak)'"
-        />
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'red'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
     }
 }

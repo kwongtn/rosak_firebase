@@ -1,4 +1,4 @@
-import { TagsModule } from "ng-devui";
+import { NzTagModule } from "ng-zorro-antd/tag";
 import {
     SpottingTypePipeModule,
 } from "src/app/pipes/spotting-type/spotting-type.module";
@@ -10,7 +10,15 @@ import { SpottingTypeTagComponent } from "./spotting-type-tag.component";
 
 @NgModule({
     declarations: [SpottingTypeTagComponent],
-    imports: [CommonModule, TagsModule, SpottingTypePipeModule],
+    imports: [
+        CommonModule,
+
+        // ng-zorro-antd
+        NzTagModule,
+
+        // Internal modules
+        SpottingTypePipeModule,
+    ],
     exports: [SpottingTypeTagComponent],
 })
 export class SpottingTypeTagModule {}

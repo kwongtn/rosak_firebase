@@ -1,38 +1,27 @@
 @switch (vehicleStatus) {
     @case ("IN_SERVICE") {
-        <d-tag
-            [tag]="vehicleStatus | vehicleStatusPipe"
-            [labelStyle]="'green-w98'"
-        />
+        <nz-tag [nzColor]="'green'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
     }
     @case ("NOT_SPOTTED") {
-        <d-tag
-            [tag]="vehicleStatus | vehicleStatusPipe"
-            [labelStyle]="'yellow-w98'"
-        />
+        <nz-tag [nzColor]="'orange'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
     }
     @case ("TESTING") {
-        <d-tag
-            [tag]="vehicleStatus | vehicleStatusPipe"
-            [labelStyle]="'blue-w98'"
-        />
+        <nz-tag [nzColor]="'blue'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
     }
     @case ("UNKNOWN") {
-        <d-tag
-            [tag]="vehicleStatus | vehicleStatusPipe"
-            [labelStyle]="'red-w98'"
-        />
-    }
-    @case ("OUT_OF_SERVICE") {
-        <d-tag
-            [tag]="vehicleStatus | vehicleStatusPipe"
-            [labelStyle]="'red-w98'"
-        />
+        <nz-tag [nzColor]="'red'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
     }
     @default {
-        <d-tag
-            [tag]="vehicleStatus | vehicleStatusPipe"
-            [customColor]="'var(--devui-text-weak)'"
-        />
+        <nz-tag>
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
     }
 }

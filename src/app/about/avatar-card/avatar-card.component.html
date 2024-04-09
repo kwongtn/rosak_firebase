@@ -5,21 +5,22 @@
         <p>{{ data.description }}</p>
 
         <div class="social-svg-container">
-            <span
-                nz-tooltip
-                nzTooltipTitle="{{ social.name }}"
-                nzTooltipPlacement="bottom"
-                *ngFor="let social of data.socials"
-                class="card-block"
-            >
-                <a [href]="social.link" target="_blank">
-                    <span
-                        class="social-svg"
-                        nz-icon
-                        [nzType]="social.type"
-                    ></span>
-                </a>
-            </span>
+            @for (social of data.socials; track social) {
+                <span
+                    nz-tooltip
+                    nzTooltipTitle="{{ social.name }}"
+                    nzTooltipPlacement="bottom"
+                    class="card-block"
+                >
+                    <a [href]="social.link" target="_blank">
+                        <span
+                            class="social-svg"
+                            nz-icon
+                            [nzType]="social.type"
+                        ></span>
+                    </a>
+                </span>
+            }
         </div>
     </nz-card>
 </div>

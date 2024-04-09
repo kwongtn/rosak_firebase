@@ -1,4 +1,4 @@
-import { TagsModule } from "ng-devui";
+import { NzTagModule } from "ng-zorro-antd/tag";
 import {
     VehicleStatusPipeModule,
 } from "src/app/pipes/vehicle-status/vehicle-status.module";
@@ -10,7 +10,15 @@ import { VehicleStatusTagComponent } from "./vehicle-status-tag.component";
 
 @NgModule({
     declarations: [VehicleStatusTagComponent],
-    imports: [CommonModule, VehicleStatusPipeModule, TagsModule],
+    imports: [
+        CommonModule, 
+        
+        // ng-zorro-antd  
+        NzTagModule,
+
+        // Internal modules
+        VehicleStatusPipeModule, 
+    ],
     exports: [VehicleStatusTagComponent],
 })
 export class VehicleStatusTagModule {}

@@ -1,23 +1,24 @@
-<nz-card
-    *ngIf="authService.userData | async"
-    nzTitle="Bot Linking"
-    [nzExtra]="extraTemplate"
->
-    <nz-statistic
-        *ngIf="verificationCode !== undefined"
-        [nzValue]="verificationCode"
-        [nzTitle]="'Verification code expiring in ' + countdown + ' seconds.'"
-    ></nz-statistic>
-    <button
-        nz-button
-        *ngIf="verificationCode === undefined"
-        nzType="primary"
-        [nzLoading]="isLoading"
-        (click)="getCode()"
-    >
-        Request Code
-    </button>
-</nz-card>
+@if (authService.userData | async) {
+    <nz-card nzTitle="Bot Linking" [nzExtra]="extraTemplate">
+        @if (verificationCode === undefined) {
+            <button
+                nz-button
+                nzType="primary"
+                [nzLoading]="isLoading"
+                (click)="getCode()"
+            >
+                Request Code
+            </button>
+        } @else {
+            <nz-statistic
+                [nzValue]="verificationCode"
+                [nzTitle]="
+                    'Verification code expiring in ' + countdown + ' seconds.'
+                "
+            />
+        }
+    </nz-card>
+}
 
 <ng-template #extraTemplate>
     <a

@@ -16,75 +16,82 @@
 >
     <thead dTableHead>
         <tr dTableRow>
-            <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
-                {{ colOption.header }}
-            </th>
+            @for (
+                colOption of dataTableOptions.columns;
+                track colOption.header
+            ) {
+                <th dHeadCell>
+                    {{ colOption.header }}
+                </th>
+            }
         </tr>
     </thead>
     <tbody dTableBody>
         <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
             <tr dTableRow>
-                <td
-                    dTableCell
-                    *ngFor="let colOption of dataTableOptions.columns"
-                >
-                    <span [ngSwitch]="colOption.fieldType">
-                        <span *ngSwitchCase="'status'">
-                            <vehicle-status-tag
-                                [vehicleStatus]="rowItem[colOption.field]"
-                            ></vehicle-status-tag>
-                            <span
-                                *ngIf="rowItem['runNumber']"
-                                nz-tooltip
-                                [nzTooltipTitle]="'Run Number'"
-                                [nzTooltipTrigger]="'hover'"
-                                [nzTooltipPlacement]="'right'"
-                            >
-                                🏃‍♂️ {{ rowItem["runNumber"] }} <br />
-                            </span>
-                            <span
-                                *ngIf="rowItem['wheelStatus']"
-                                nz-tooltip
-                                [nzTooltipTitle]="'Wheel Status'"
-                                [nzTooltipTrigger]="'hover'"
-                                [nzTooltipPlacement]="'right'"
-                            >
-                                🛞:
-                                {{
-                                    rowItem["wheelStatus"].replace("_", " ")
-                                        | titlecase
-                                }}<br />
-                            </span>
-                        </span>
-                        <span *ngSwitchCase="'type'">
-                            <spotting-type-cell-display
-                                [rowItem]="rowItem"
-                                [spottingType]="rowItem[colOption.field]"
-                            >
-                            </spotting-type-cell-display>
-                        </span>
-                        <span *ngSwitchCase="'notes'">
-                            <span
-                                class="picture-icon"
-                                *ngIf="
-                                    rowItem['mediaCount'] > 0 ||
-                                    rowItem['isMine']
-                                "
-                            >
-                                <ui-spotting-image-preview-button
-                                    [count]="rowItem['mediaCount']"
-                                    [eventId]="rowItem['id']"
-                                    [isMine]="rowItem['isMine']"
+                @for (colOption of dataTableOptions.columns; track colOption) {
+                    <td dTableCell>
+                        @switch (colOption.fieldType) {
+                            @case ("status") {
+                                <vehicle-status-tag
+                                    [vehicleStatus]="rowItem[colOption.field]"
+                                ></vehicle-status-tag>
+                                @if (rowItem["runNumber"]) {
+                                    <span
+                                        nz-tooltip
+                                        [nzTooltipTitle]="'Run Number'"
+                                        [nzTooltipTrigger]="'hover'"
+                                        [nzTooltipPlacement]="'right'"
+                                    >
+                                        🏃‍♂️ {{ rowItem["runNumber"] }} <br />
+                                    </span>
+                                }
+                                @if (rowItem["wheelStatus"]) {
+                                    <span
+                                        nz-tooltip
+                                        [nzTooltipTitle]="'Wheel Status'"
+                                        [nzTooltipTrigger]="'hover'"
+                                        [nzTooltipPlacement]="'right'"
+                                    >
+                                        🛞:
+                                        {{
+                                            rowItem["wheelStatus"].replace(
+                                                "_",
+                                                " "
+                                            ) | titlecase
+                                        }}<br />
+                                    </span>
+                                }
+                            }
+                            @case ("type") {
+                                <spotting-type-cell-display
+                                    [rowItem]="rowItem"
+                                    [spottingType]="rowItem[colOption.field]"
                                 >
-                                </ui-spotting-image-preview-button>
-                            </span>
-                            {{ rowItem[colOption.field] }}
-                        </span>
-                        <span *ngSwitchDefault>{{
-                            rowItem[colOption.field]
-                        }}</span>
-                    </span>
-                </td>
+                                </spotting-type-cell-display>
+                            }
+                            @case ("notes") {
+                                @if (
+                                    rowItem["mediaCount"] > 0 ||
+                                    rowItem["isMine"]
+                                ) {
+                                    <span class="picture-icon">
+                                        <ui-spotting-image-preview-button
+                                            [count]="rowItem['mediaCount']"
+                                            [eventId]="rowItem['id']"
+                                            [isMine]="rowItem['isMine']"
+                                        >
+                                        </ui-spotting-image-preview-button>
+                                    </span>
+                                }
+                                {{ rowItem[colOption.field] }}
+                            }
+                            @default {
+                                <span>{{ rowItem[colOption.field] }}</span>
+                            }
+                        }
+                    </td>
+                }
             </tr>
         </ng-template>
     </tbody>

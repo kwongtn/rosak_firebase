@@ -1,48 +1,47 @@
 <div dLoading [loading]="querySubscription" class="" loader></div>
 
-<div *ngIf="!showLoading && timelineData.list.length > 0" class="content">
-    <h3>Notable Incidents</h3>
-    <div class="timeline">
-        <d-time-axis
-            [data]="timelineData"
-            [contentTemplate]="customTemplate"
-            [mode]="'alternative'"
-        ></d-time-axis>
-    </div>
-
-    <ng-template #customTemplate let-data="data">
-        <div style="position: relative; max-width: 500px">
-            <div
-                *ngIf="data.position === 'bottom'"
-                class="data-panel-bottom-line"
-            ></div>
-            <div
-                [style.border-color]="data.color"
-                style="
-                    border-left: 4px solid;
-                    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
-                    padding: 12px 8px;
-                "
-                [style.background-color]="'var(--devui-icon-bg)'"
-            >
-                <div
-                    style="
-                        padding-bottom: 8px;
-                        font-size: 14px;
-                        font-weight: bold;
-                    "
-                >
-                    {{ data.title }}
-                </div>
-                <div style="padding-bottom: 8px">
-                    {{ data.date }}
-                </div>
-                <div>{{ data.brief }}</div>
-            </div>
-            <div
-                *ngIf="data.position === 'top'"
-                class="data-panel-top-line"
-            ></div>
+@if (!showLoading && timelineData.list.length > 0) {
+    <div class="content">
+        <h3>Notable Incidents</h3>
+        <div class="timeline">
+            <d-time-axis
+                [data]="timelineData"
+                [contentTemplate]="customTemplate"
+                [mode]="'alternative'"
+            ></d-time-axis>
         </div>
-    </ng-template>
-</div>
+        <ng-template #customTemplate let-data="data">
+            <div style="position: relative; max-width: 500px">
+                @if (data.position === "bottom") {
+                    <div class="data-panel-bottom-line"></div>
+                }
+                <div
+                    [style.border-color]="data.color"
+                    style="
+                        border-left: 4px solid;
+                        box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+                        padding: 12px 8px;
+                    "
+                    [style.background-color]="'var(--devui-icon-bg)'"
+                >
+                    <div
+                        style="
+                            padding-bottom: 8px;
+                            font-size: 14px;
+                            font-weight: bold;
+                        "
+                    >
+                        {{ data.title }}
+                    </div>
+                    <div style="padding-bottom: 8px">
+                        {{ data.date }}
+                    </div>
+                    <div>{{ data.brief }}</div>
+                </div>
+                @if (data.position === "top") {
+                    <div class="data-panel-top-line"></div>
+                }
+            </div>
+        </ng-template>
+    </div>
+}

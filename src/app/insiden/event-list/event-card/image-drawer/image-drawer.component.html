@@ -1,4 +1,7 @@
-<nz-spin class="content spinner" nzSimple *ngIf="loading"></nz-spin>
+@if (loading) {
+    <nz-spin class="content spinner" nzSimple />
+}
+
 <!-- <div
     inViewport
     [inViewportOptions]="{ rootMargin: '200px 0px' }"
@@ -7,28 +10,27 @@
     [id]="imgDate.key"
     class="date-image-container"
 >
-    <div
-        *ngIf="!imgDate.value.displayImages"
-        [ngStyle]="{
-            height: (imgDate.value.images.length / 3) * 200 + 'px'
-        }"
-    ></div>
-    <image-grid
-        *ngIf="imgDate.value.displayImages"
-        [images]="imgDate.value.images"
-    ></image-grid>
-</div> -->
-<div *ngIf="!loading">
-    <image-grid
-        *ngIf="imageUrls.length !== 0"
-        [images]="imageUrls"
-    ></image-grid>
+    @if (imgDate.value.displayImages) {
+        <image-grid [images]="imgDate.value.images" />
 
-    <nz-empty
-        *ngIf="imageUrls.length === 0"
-        nzNotFoundContent="No images. Add some?"
-    ></nz-empty>
-</div>
+    } @else {
+        <div
+            [ngStyle]="{
+                height: (imgDate.value.images.length / 3) * 200 + 'px'
+            }"
+        ></div>
+    }
+</div> -->
+
+@if (!loading) {
+    <div>
+        @if (imageUrls.length !== 0) {
+            <image-grid [images]="imageUrls" />
+        } @else {
+            <nz-empty nzNotFoundContent="No images. Add some?" />
+        }
+    </div>
+}
 <div>
     <h1>Add Images</h1>
     <spotting-form-upload

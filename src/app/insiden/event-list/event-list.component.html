@@ -1,46 +1,56 @@
-<h1 *ngIf="calendarMode === 'month'">
-    {{ selectedDate | date : "MMM dd, yyyy (EEE)" }}
-</h1>
-<h1 *ngIf="calendarMode === 'year'">
-    {{ selectedDate | date : "MMM yyyy" }}
+<h1>
+    @switch (calendarMode) {
+        @case ("month") {
+            {{ selectedDate | date: "MMM dd, yyyy (EEE)" }}
+        }
+
+        @case ("year") {
+            {{ selectedDate | date: "MMM yyyy" }}
+        }
+    }
 </h1>
 
 <nz-spin [nzSpinning]="showLoading">
-    <nz-list *ngIf="data.shortTerm.length > 0" nzItemLayout="vertical">
-        <nz-list-item *ngFor="let cardData of data.shortTerm">
-            <insiden-event-card [data]="cardData"></insiden-event-card>
-        </nz-list-item>
-    </nz-list>
+    @if (data.shortTerm.length > 0) {
+        <nz-list nzItemLayout="vertical">
+            @for (cardData of data.shortTerm; track cardData) {
+                <nz-list-item>
+                    <insiden-event-card [data]="cardData" />
+                </nz-list-item>
+            }
+        </nz-list>
+    }
 
-    <div *ngIf="data.longTerm.length > 0">
-        <h2>Long term incidents</h2>
-        <nz-collapse>
-            <nz-collapse-panel
-                [nzHeader]="
-                    panelActive
-                        ? 'Click to Collapse '
-                        : 'Click to Expand (' +
-                          data.longTerm.length.toString() +
-                          (data.longTerm.length > 1
-                              ? ' incidents'
-                              : ' incident') +
-                          ')'
-                "
-                [(nzActive)]="panelActive"
-            >
-                <nz-list nzItemLayout="vertical">
-                    <nz-list-item *ngFor="let cardData of data.longTerm">
-                        <insiden-event-card
-                            [data]="cardData"
-                        ></insiden-event-card>
-                    </nz-list-item>
-                </nz-list>
-            </nz-collapse-panel>
-        </nz-collapse>
-    </div>
-
-    <nz-empty
-        *ngIf="dataLength === 0 && !showLoading"
-        nzNotFoundImage="https://gw.alipayobjects.com/zos/antfincdn/ZHrcdLPrvN/empty.svg"
-    ></nz-empty>
+    @if (data.longTerm.length > 0) {
+        <div>
+            <h2>Long term incidents</h2>
+            <nz-collapse>
+                <nz-collapse-panel
+                    [nzHeader]="
+                        panelActive
+                            ? 'Click to Collapse '
+                            : 'Click to Expand (' +
+                              data.longTerm.length.toString() +
+                              (data.longTerm.length > 1
+                                  ? ' incidents'
+                                  : ' incident') +
+                              ')'
+                    "
+                    [(nzActive)]="panelActive"
+                >
+                    <nz-list nzItemLayout="vertical">
+                        @for (cardData of data.longTerm; track cardData) {
+                            <nz-list-item>
+                                <insiden-event-card [data]="cardData" />
+                            </nz-list-item>
+                        }
+                    </nz-list>
+                </nz-collapse-panel>
+            </nz-collapse>
+        </div>
+    } @else if (dataLength === 0 && !showLoading) {
+        <nz-empty
+            nzNotFoundImage="https://gw.alipayobjects.com/zos/antfincdn/ZHrcdLPrvN/empty.svg"
+        />
+    }
 </nz-spin>

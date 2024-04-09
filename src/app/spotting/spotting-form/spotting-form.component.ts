@@ -447,6 +447,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     openGuide(e: MouseEvent) {
         const line = this.formGroup.value["line"];
         window.open(this.getLineGuideLinkService.getLink(line), "_blank");

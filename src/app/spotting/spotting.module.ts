@@ -35,6 +35,7 @@ import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { RouterModule } from "@angular/router";
 
 import { ActionListModule } from "../@ui/action-list/action-list.module";
 import {
@@ -115,6 +116,11 @@ import {
         LineStatusTagComponent,
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
+        NzButtonModule,
+        NzSpinModule,
+        NzTabsModule,
+        NzToolTipModule,
+        RouterModule,
         SpottingTypePipeModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,
