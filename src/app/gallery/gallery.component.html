@@ -1,24 +1,26 @@
 <h1>Gallery</h1>
 
-<nz-spin class="content spinner" nzSimple *ngIf="loading"></nz-spin>
-<div
-    inViewport
-    [inViewportOptions]="{ rootMargin: '200px 0px' }"
-    (inViewportAction)="onIntersection($event)"
-    *ngFor="let imgDate of imageDateMaps | keyvalue : compareFn"
-    [id]="imgDate.key"
-    class="date-image-container"
-    #dateImageContainer
->
-    <h2>{{ imgDate.key | date }}</h2>
+@if (loading) {
+    <nz-spin class="content spinner" nzSimple></nz-spin>
+}
+@for (imgDate of imageDateMaps | keyvalue: compareFn; track imgDate) {
     <div
-        *ngIf="!imgDate.value.displayImages"
-        [ngStyle]="{
-            height: (imgDate.value.images.length / 3) * 200 + 'px'
-        }"
-    ></div>
-    <image-grid
-        *ngIf="imgDate.value.displayImages"
-        [images]="imgDate.value.images"
-    ></image-grid>
-</div>
+        inViewport
+        [inViewportOptions]="{ rootMargin: '200px 0px' }"
+        (inViewportAction)="onIntersection($event)"
+        [id]="imgDate.key"
+        class="date-image-container"
+        #dateImageContainer
+    >
+        <h2>{{ imgDate.key | date }}</h2>
+        @if (imgDate.value.displayImages) {
+            <image-grid [images]="imgDate.value.images" />
+        } @else {
+            <div
+                [ngStyle]="{
+                    height: (imgDate.value.images.length / 3) * 200 + 'px'
+                }"
+            ></div>
+        }
+    </div>
+}

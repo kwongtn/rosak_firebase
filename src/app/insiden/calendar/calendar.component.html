@@ -5,8 +5,8 @@
         (nzPanelChange)="panelChange($event)"
     >
         <ul *nzDateCell="let date" class="events">
-            <ng-container [ngSwitch]="date | date: 'yyyy-MM-dd'">
-                <ng-container *ngSwitchCase="date | date: 'yyyy-MM-dd'">
+            @switch (date | date: "yyyy-MM-dd") {
+                @case (date | date: "yyyy-MM-dd") {
                     <li>
                         @for (
                             item of monthEvents[
@@ -30,13 +30,12 @@
                         }
                     </li>
                     <li>
-                        <span
-                            *ngFor="
-                                let item of monthEvents[
-                                    (date | date: 'yyyy-MM-dd') ?? ''
-                                ] | keyvalue
-                            "
-                        >
+                        @for (
+                            item of monthEvents[
+                                (date | date: "yyyy-MM-dd") ?? ""
+                            ] | keyvalue;
+                            track item
+                        ) {
                             @if (item.value.isLongTerm) {
                                 <span
                                     class="long-term-indicator"
@@ -59,15 +58,15 @@
                                     }"
                                 />
                             }
-                        </span>
+                        }
                     </li>
-                </ng-container>
-            </ng-container>
+                }
+            }
         </ul>
 
         <ng-container *nzMonthCell="let month" class="events">
-            <ng-container [ngSwitch]="month | date: 'yyyy-MM'">
-                <ng-container *ngSwitchCase="month | date: 'yyyy-MM'">
+            @switch (month | date: "yyyy-MM") {
+                @case (month | date: "yyyy-MM") {
                     @for (
                         item of yearEvents[(month | date: "yyyy-MM") ?? ""]
                             | keyvalue;
@@ -85,8 +84,8 @@
                             }"
                         />
                     }
-                </ng-container>
-            </ng-container>
+                }
+            }
         </ng-container>
     </nz-calendar>
 </nz-spin>

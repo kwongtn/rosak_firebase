@@ -12,43 +12,43 @@
         [nzTitle]="cardTitleTemplate"
         [nzActions]="[actionImages]"
     >
-        <div
-            *ngIf="
-                displayData.lines.length > 0 ||
-                displayData.vehicles.length > 0 ||
-                displayData.stations.length > 0
-            "
-        >
-            <!-- <span *ngIf="displayData.lines.length > 0"> -->
-            @for (line of displayData.lines; track line) {
-                <nz-tag [nzColor]="line.displayColor" class="incident-tags">
-                    {{ line.displayName }}
-                </nz-tag>
-            }
-            <!-- </span> -->
-            @if (displayData.vehicles.length > 0) {
-                <span class="incident-tags-separator"> | </span>
-                @for (
-                    vehicle of displayData.vehicles;
-                    track vehicle.identificationNo
-                ) {
-                    <nz-tag class="incident-tags">
-                        {{ vehicle.identificationNo }}
+        @if (
+            displayData.lines.length > 0 ||
+            displayData.vehicles.length > 0 ||
+            displayData.stations.length > 0
+        ) {
+            <div>
+                @for (line of displayData.lines; track line) {
+                    <nz-tag [nzColor]="line.displayColor" class="incident-tags">
+                        {{ line.displayName }}
                     </nz-tag>
                 }
-            }
-            <span *ngIf="displayData.stations.length > 0">
-                <span class="incident-tags-separator"> | </span>
-                @for (
-                    station of displayData.stations;
-                    track station.displayName
-                ) {
-                    <nz-tag class="incident-tags">
-                        {{ station.displayName }}
-                    </nz-tag>
+                @if (displayData.vehicles.length > 0) {
+                    <span class="incident-tags-separator"> | </span>
+                    @for (
+                        vehicle of displayData.vehicles;
+                        track vehicle.identificationNo
+                    ) {
+                        <nz-tag class="incident-tags">
+                            {{ vehicle.identificationNo }}
+                        </nz-tag>
+                    }
                 }
-            </span>
-        </div>
+                @if (displayData.stations.length > 0) {
+                    <span>
+                        <span class="incident-tags-separator"> | </span>
+                        @for (
+                            station of displayData.stations;
+                            track station.displayName
+                        ) {
+                            <nz-tag class="incident-tags">
+                                {{ station.displayName }}
+                            </nz-tag>
+                        }
+                    </span>
+                }
+            </div>
+        }
 
         <div
             nz-row
@@ -61,39 +61,37 @@
             "
             [nzGutter]="16"
         >
-            <div
-                *ngIf="displayData.chronologies.length > 0"
-                nz-col
-                [nzXs]="24"
-                [nzXl]="12"
-            >
-                <nz-timeline
-                    [nzPending]="
-                        displayData.endDatetime ? false : loadingTemplate
-                    "
-                >
-                    @for (event of displayData.chronologies; track event) {
-                        <nz-timeline-item [nzColor]="event.indicator">
-                            <b>
-                                {{
-                                    event.datetime | date: "YYYY-MM-dd HH:mm:ss"
-                                }}
-                            </b>
-                            @if (event.sourceUrl) {
-                                -
-                                <a [href]="event.sourceUrl" target="_blank">
-                                    Source
-                                </a>
-                            }
-                            <br />
-                            <div [innerHTML]="event.content"></div>
-                        </nz-timeline-item>
+            @if (displayData.chronologies.length > 0) {
+                <div nz-col [nzXs]="24" [nzXl]="12">
+                    <nz-timeline
+                        [nzPending]="
+                            displayData.endDatetime ? false : loadingTemplate
+                        "
+                    >
+                        @for (event of displayData.chronologies; track event) {
+                            <nz-timeline-item [nzColor]="event.indicator">
+                                <b>
+                                    {{
+                                        event.datetime
+                                            | date: "YYYY-MM-dd HH:mm:ss"
+                                    }}
+                                </b>
+                                @if (event.sourceUrl) {
+                                    -
+                                    <a [href]="event.sourceUrl" target="_blank">
+                                        Source
+                                    </a>
+                                }
+                                <br />
+                                <div [innerHTML]="event.content"></div>
+                            </nz-timeline-item>
+                        }
+                    </nz-timeline>
+                    @if (displayData.duration) {
+                        <div>Duration: {{ displayData.duration }}</div>
                     }
-                </nz-timeline>
-                @if (displayData.duration) {
-                    <div>Duration: {{ displayData.duration }}</div>
-                }
-            </div>
+                </div>
+            }
             <div
                 nz-col
                 [nzXs]="24"
@@ -136,28 +134,30 @@
     </ng-template>
     <ng-template #cardTitleTemplate>
         <!-- <a href="{{ displayData.href }}">{{ displayData.title }}</a> -->
-        <span
-            *ngIf="displayData.inaccurate"
-            class="indicator-icon"
-            nz-tooltip
-            nzTooltipTitle="Data may be inaccurate"
-            nzTooltipPlacement="topLeft"
-            [nzTooltipArrowPointAtCenter]="true"
-            nz-icon
-            nzType="exception"
-            nzTheme="outline"
-        ></span>
-        <span
-            *ngIf="displayData.longTerm"
-            class="indicator-icon"
-            nz-tooltip
-            nzTooltipTitle="Long term incident"
-            nzTooltipPlacement="topLeft"
-            [nzTooltipArrowPointAtCenter]="true"
-            nz-icon
-            nzType="clock-circle"
-            nzTheme="outline"
-        ></span>
+        @if (displayData.inaccurate) {
+            <span
+                class="indicator-icon"
+                nz-tooltip
+                nzTooltipTitle="Data may be inaccurate"
+                nzTooltipPlacement="topLeft"
+                [nzTooltipArrowPointAtCenter]="true"
+                nz-icon
+                nzType="exception"
+                nzTheme="outline"
+            ></span>
+        }
+        @if (displayData.longTerm) {
+            <span
+                class="indicator-icon"
+                nz-tooltip
+                nzTooltipTitle="Long term incident"
+                nzTooltipPlacement="topLeft"
+                [nzTooltipArrowPointAtCenter]="true"
+                nz-icon
+                nzType="clock-circle"
+                nzTheme="outline"
+            ></span>
+        }
         {{ displayData.title }}
     </ng-template>
 </nz-ribbon>

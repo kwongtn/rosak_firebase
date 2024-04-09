@@ -6,34 +6,38 @@
     #gridContainer
     class="main-container {{ fillLastRow ? 'fill-last-row' : '' }}"
 >
-    <nz-image-group
-        inViewport
-        [inViewportOptions]="{ rootMargin: '200px 0px' }"
-        (inViewportAction)="onIntersection($event)"
-        *ngFor="let img of images; let i = index"
-        [ngStyle]="{
-            width: (img.width * ratioBaseline) / img.height + 'px',
-            'flex-grow': (img.width * ratioBaseline) / img.height
-        }"
-        class="child-container"
-        [id]="i"
-    >
-        <nz-spin class="content spinner" nzSimple *ngIf="loading"></nz-spin>
-        <div
+    @for (img of images; track img; let i = $index) {
+        <nz-image-group
+            inViewport
+            [inViewportOptions]="{ rootMargin: '200px 0px' }"
+            (inViewportAction)="onIntersection($event)"
             [ngStyle]="{
-                'padding-bottom':
-                    (img.height / img.width) * (ratioBaseline / 2) + '%'
+                width: (img.width * ratioBaseline) / img.height + 'px',
+                'flex-grow': (img.width * ratioBaseline) / img.height
             }"
-        ></div>
-        <img
-            class="content"
-            *ngIf="displayImage[i] ?? true"
-            [src]="getUrl(i)"
-            onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
-            alt=""
-            [attr.data-index]="i"
-            (click)="onViewImage(i)"
-            (load)="markLoaded()"
-        />
-    </nz-image-group>
+            class="child-container"
+            [id]="i"
+        >
+            @if (loading) {
+                <nz-spin class="content spinner" nzSimple></nz-spin>
+            }
+            <div
+                [ngStyle]="{
+                    'padding-bottom':
+                        (img.height / img.width) * (ratioBaseline / 2) + '%'
+                }"
+            ></div>
+            @if (!displayImage[i]) {
+                <img
+                    class="content"
+                    [src]="getUrl(i)"
+                    onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
+                    alt=""
+                    [attr.data-index]="i"
+                    (click)="onViewImage(i)"
+                    (load)="markLoaded()"
+                />
+            }
+        </nz-image-group>
+    }
 </div>

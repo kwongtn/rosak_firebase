@@ -16,7 +16,7 @@
                 {{ dataSource.displayName }}
             </span>
 
-            <span *ngIf="!isCollapsed">
+            @if (!isCollapsed) {
                 <span dTooltip [content]="'Total'" [position]="'bottom'">
                     <d-tag
                         [tag]="
@@ -27,9 +27,7 @@
                     >
                     </d-tag>
                 </span>
-
                 |
-
                 @for (elem of tagListDisplayConfig; track elem) {
                     <span
                         dTooltip
@@ -58,7 +56,7 @@
                         </d-tag>
                     </span>
                 }
-            </span>
+            }
         </h1>
     </d-panel-header>
     <d-panel-body>
@@ -130,97 +128,91 @@
             </thead>
             <tbody dTableBody>
                 <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
-                    <tr
-                        dTableRow
-                        *ngIf="
-                            totalChecked || allowedStatuses.has(rowItem.status)
-                        "
-                    >
-                        <td
-                            dTableCell
-                            [ngClass]="
-                                rowItem.$expandConfig.expandable
-                                    ? 'cursor-pointer'
-                                    : ''
-                            "
-                            (click)="toggleExpand(rowItem)"
-                        >
-                            @if (rowItem.$expandConfig.expandable) {
-                                <span class="expand-icon">
-                                    <span
-                                        [class]="
-                                            rowItem.$expandConfig?.expand
-                                                ? 'icon-chevron-down'
-                                                : 'icon-chevron-right'
-                                        "
-                                    ></span>
-                                </span>
-                            }
-                        </td>
-                        @for (
-                            colOption of dataTableOptions.columns;
-                            track colOption
-                        ) {
-                            <td dTableCell>
-                                @switch (colOption.fieldType) {
-                                    @case ("status") {
-                                        <vehicle-status-tag
-                                            [vehicleStatus]="
-                                                rowItem[colOption.field]
+                    @if (totalChecked || allowedStatuses.has(rowItem.status)) {
+                        <tr dTableRow>
+                            <td
+                                dTableCell
+                                [ngClass]="
+                                    rowItem.$expandConfig.expandable
+                                        ? 'cursor-pointer'
+                                        : ''
+                                "
+                                (click)="toggleExpand(rowItem)"
+                            >
+                                @if (rowItem.$expandConfig.expandable) {
+                                    <span class="expand-icon">
+                                        <span
+                                            [class]="
+                                                rowItem.$expandConfig?.expand
+                                                    ? 'icon-chevron-down'
+                                                    : 'icon-chevron-right'
                                             "
-                                        />
-                                    }
-
-                                    @case ("wheelStatus") {
-                                        <wheel-status-tag
-                                            [wheelStatus]="
-                                                rowItem[colOption.field]
-                                            "
-                                        />
-                                    }
-
-                                    @case ("id") {
-                                        {{ rowItem[colOption.field] }}
-                                        @if (rowItem.nickname) {
-                                            <span class="nickname">
-                                                <br />
-                                                {{ rowItem.nickname }}
-                                            </span>
-                                        }
-                                    }
-
-                                    @default {
-                                        {{ rowItem[colOption.field] }}
-                                    }
+                                        ></span>
+                                    </span>
                                 }
                             </td>
-                        }
-                    </tr>
+                            @for (
+                                colOption of dataTableOptions.columns;
+                                track colOption
+                            ) {
+                                <td dTableCell>
+                                    @switch (colOption.fieldType) {
+                                        @case ("status") {
+                                            <vehicle-status-tag
+                                                [vehicleStatus]="
+                                                    rowItem[colOption.field]
+                                                "
+                                            />
+                                        }
+                                        @case ("wheelStatus") {
+                                            <wheel-status-tag
+                                                [wheelStatus]="
+                                                    rowItem[colOption.field]
+                                                "
+                                            />
+                                        }
+                                        @case ("id") {
+                                            {{ rowItem[colOption.field] }}
+                                            @if (rowItem.nickname) {
+                                                <span class="nickname">
+                                                    <br />
+                                                    {{ rowItem.nickname }}
+                                                </span>
+                                            }
+                                        }
+                                        @default {
+                                            {{ rowItem[colOption.field] }}
+                                        }
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
 
-                    <tr
-                        dTableRow
-                        class="expand-row"
-                        *ngIf="
-                            (totalChecked ||
-                                allowedStatuses.has(rowItem.status)) &&
-                            rowItem.$expandConfig?.expand
-                        "
-                    >
-                        <td dTableCell [attr.colspan]="tableWidthConfig.length">
-                            @if (rowItem.incidentCount > 0) {
-                                <app-inline-timeline
-                                    class="inline-timeline"
-                                    [vehicleId]="rowItem.id"
-                                />
-                            }
-                            @if (rowItem.timesSpotted > 0) {
-                                <app-inline-history
-                                    class="inline-history"
-                                    [vehicleId]="rowItem.id"
-                                />
-                            }
-                        </td>
-                    </tr>
+                    @if (
+                        (totalChecked || allowedStatuses.has(rowItem.status)) &&
+                        rowItem.$expandConfig?.expand
+                    ) {
+                        <tr dTableRow class="expand-row">
+                            <td
+                                dTableCell
+                                [attr.colspan]="tableWidthConfig.length"
+                            >
+                                @if (rowItem.incidentCount > 0) {
+                                    <app-inline-timeline
+                                        class="inline-timeline"
+                                        [vehicleId]="rowItem.id"
+                                    />
+                                }
+                                @if (rowItem.timesSpotted > 0) {
+                                    <app-inline-history
+                                        class="inline-history"
+                                        [vehicleId]="rowItem.id"
+                                    />
+                                }
+                            </td>
+                        </tr>
+                    }
                 </ng-template>
             </tbody>
         </d-data-table>
