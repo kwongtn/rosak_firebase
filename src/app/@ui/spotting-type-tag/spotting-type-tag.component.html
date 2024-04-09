@@ -1,50 +1,32 @@
-<span [ngSwitch]="spottingType">
-    <nz-tag
-        nzMode="checkable"
-        [nzChecked]="true"
-        *ngSwitchCase="'JUST_SPOTTING'"
-        [nzColor]="'green'"
-    >
-        {{ spottingType | spottingType }}
-    </nz-tag>
-    <nz-tag
-        nzMode="checkable"
-        [nzChecked]="true"
-        *ngSwitchCase="'BETWEEN_STATIONS'"
-        [nzColor]="'gold'"
-    >
-        {{ spottingType | spottingType }}
-    </nz-tag>
-    <nz-tag
-        nzMode="checkable"
-        [nzChecked]="true"
-        *ngSwitchCase="'AT_STATION'"
-        [nzColor]="'gold'"
-    >
-        {{ spottingType | spottingType }}
-    </nz-tag>
-    <nz-tag
-        nzMode="checkable"
-        [nzChecked]="true"
-        *ngSwitchCase="'DEPOT'"
-        [nzColor]="'lime'"
-    >
-        {{ spottingType | spottingType }}
-    </nz-tag>
-    <nz-tag
-        nzMode="checkable"
-        [nzChecked]="true"
-        *ngSwitchCase="'LOCATION'"
-        [nzColor]="'purple'"
-    >
-        {{ spottingType | spottingType }}
-    </nz-tag>
-    <nz-tag
-        nzMode="checkable"
-        [nzChecked]="true"
-        *ngSwitchDefault
-        [nzColor]="'red'"
-    >
-        {{ spottingType | spottingType }}
-    </nz-tag>
-</span>
+@switch (spottingType) {
+    @case ("JUST_SPOTTING") {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'green'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+    @case ("BETWEEN_STATIONS") {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'gold'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+    @case ("AT_STATION") {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'gold'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+    @case ("DEPOT") {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'lime'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+    @case ("LOCATION") {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'purple'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+    @default {
+        <nz-tag nzMode="checkable" [nzChecked]="true" [nzColor]="'red'">
+            {{ spottingType | spottingType }}
+        </nz-tag>
+    }
+}

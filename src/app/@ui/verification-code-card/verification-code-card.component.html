@@ -1,0 +1,30 @@
+@if (authService.userData | async) {
+    <nz-card nzTitle="Bot Linking" [nzExtra]="extraTemplate">
+        @if (verificationCode === undefined) {
+            <button
+                nz-button
+                nzType="primary"
+                [nzLoading]="isLoading"
+                (click)="getCode()"
+            >
+                Request Code
+            </button>
+        } @else {
+            <nz-statistic
+                [nzValue]="verificationCode"
+                [nzTitle]="
+                    'Verification code expiring in ' + countdown + ' seconds.'
+                "
+            />
+        }
+    </nz-card>
+}
+
+<ng-template #extraTemplate>
+    <a
+        href="https://github.com/kwongtn/rosak_firebase/wiki/Linking-to-Telegram"
+        target="_blank"
+    >
+        <span nz-icon nzType="info-circle" nzTheme="outline"></span>
+    </a>
+</ng-template>

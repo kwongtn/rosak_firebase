@@ -31,6 +31,9 @@ import {
     ImageFile,
 } from "../../@ui/spotting/form-upload/form-upload.component";
 import {
+    GetLineGuideLinkService,
+} from "../services/get-line-guide-link.service";
+import {
     GetLinesAndVehiclesGqlService,
 } from "../services/get-lines-vehicles-gql.service";
 import {
@@ -210,7 +213,8 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
         private toastService: ToastService,
         private drawerRef: NzDrawerRef<SpottingFormReturnType>,
         public sessionHistoryService: SessionHistoryService,
-        private spottingStorageService: SpottingStorageService
+        private spottingStorageService: SpottingStorageService,
+        private getLineGuideLinkService: GetLineGuideLinkService
     ) {
         const lineId = spottingStorageService.getLine();
         const type = spottingStorageService.getType();
@@ -281,7 +285,7 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
                             type: "BETWEEN_STATIONS",
                         });
                     }
-                    
+
                     this.showRunNumberInput = allowRunNumber(lineId);
                 }
             }
@@ -439,19 +443,14 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             runNumber: undefined,
             atStation: "",
             type: "JUST_SPOTTING",
+            sanityTest: false,
         });
     }
 
-    toggleIsAnonymous() {
-        this.formGroup.patchValue({
-            isAnonymous: !this.formGroup.value.isAnonymous,
-        });
-    }
-
-    toggleSanityTest() {
-        this.formGroup.patchValue({
-            sanityTest: !this.formGroup.value.sanityTest,
-        });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    openGuide(e: MouseEvent) {
+        const line = this.formGroup.value["line"];
+        window.open(this.getLineGuideLinkService.getLink(line), "_blank");
     }
 
     onSubmit():

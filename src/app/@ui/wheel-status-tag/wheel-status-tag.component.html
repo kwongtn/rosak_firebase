@@ -1,38 +1,40 @@
-<span *ngIf="wheelStatus" [ngSwitch]="wheelStatus">
-    <d-tag
-        *ngSwitchCase="'FRESH'"
-        [tag]="wheelStatus.replace('_', ' ') | titlecase"
-        [labelStyle]="'green-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'NEAR_PERFECT'"
-        [tag]="wheelStatus.replace('_', ' ') | titlecase"
-        [labelStyle]="'green-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'FLAT'"
-        [tag]="wheelStatus.replace('_', ' ') | titlecase"
-        [labelStyle]="'yellow-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'WORN_OUT'"
-        [tag]="wheelStatus.replace('_', ' ') | titlecase"
-        [labelStyle]="'red-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchCase="'WORRYING'"
-        [tag]="wheelStatus.replace('_', ' ') | titlecase"
-        [labelStyle]="'red-w98'"
-    >
-    </d-tag>
-    <d-tag
-        *ngSwitchDefault
-        [tag]="wheelStatus.replace('_', ' ') | titlecase"
-        [customColor]="'var(--devui-text-weak)'"
-    >
-    </d-tag>
-</span>
+@if (wheelStatus) {
+    @switch (wheelStatus) {
+        @case ("FRESH") {
+            <d-tag
+                [tag]="wheelStatus.replace('_', ' ') | titlecase"
+                [labelStyle]="'green-w98'"
+            />
+        }
+        @case ("NEAR_PERFECT") {
+            <d-tag
+                [tag]="wheelStatus.replace('_', ' ') | titlecase"
+                [labelStyle]="'green-w98'"
+            />
+        }
+        @case ("FLAT") {
+            <d-tag
+                [tag]="wheelStatus.replace('_', ' ') | titlecase"
+                [labelStyle]="'yellow-w98'"
+            />
+        }
+        @case ("WORN_OUT") {
+            <d-tag
+                [tag]="wheelStatus.replace('_', ' ') | titlecase"
+                [labelStyle]="'red-w98'"
+            />
+        }
+        @case ("WORRYING") {
+            <d-tag
+                [tag]="wheelStatus.replace('_', ' ') | titlecase"
+                [labelStyle]="'red-w98'"
+            />
+        }
+        @default {
+            <d-tag
+                [tag]="wheelStatus.replace('_', ' ') | titlecase"
+                [customColor]="'var(--devui-text-weak)'"
+            />
+        }
+    }
+}

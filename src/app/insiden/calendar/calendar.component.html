@@ -5,39 +5,38 @@
         (nzPanelChange)="panelChange($event)"
     >
         <ul *nzDateCell="let date" class="events">
-            <ng-container [ngSwitch]="date | date: 'yyyy-MM-dd'">
-                <ng-container *ngSwitchCase="date | date: 'yyyy-MM-dd'">
+            @switch (date | date: "yyyy-MM-dd") {
+                @case (date | date: "yyyy-MM-dd") {
                     <li>
-                        <span
-                            *ngFor="
-                                let item of monthEvents[
-                                    (date | date: 'yyyy-MM-dd') ?? ''
-                                ] | keyvalue
-                            "
-                        >
-                            <nz-badge
-                                class="count-badge"
-                                nzStandalone
-                                *ngIf="!item.value.isLongTerm"
-                                [nzCount]="item.value.count"
-                                [nzStyle]="{
-                                    backgroundColor:
-                                        (item.key
-                                        | uppercase
-                                        | calendarIncidentSeverity: 'color')
-                                }"
-                            ></nz-badge>
-                        </span>
+                        @for (
+                            item of monthEvents[
+                                (date | date: "yyyy-MM-dd") ?? ""
+                            ] | keyvalue;
+                            track item
+                        ) {
+                            @if (!item.value.isLongTerm) {
+                                <nz-badge
+                                    class="count-badge"
+                                    nzStandalone
+                                    [nzCount]="item.value.count"
+                                    [nzStyle]="{
+                                        backgroundColor:
+                                            (item.key
+                                            | uppercase
+                                            | calendarIncidentSeverity: 'color')
+                                    }"
+                                />
+                            }
+                        }
                     </li>
                     <li>
-                        <span
-                            *ngFor="
-                                let item of monthEvents[
-                                    (date | date: 'yyyy-MM-dd') ?? ''
-                                ] | keyvalue
-                            "
-                        >
-                            <span *ngIf="item.value.isLongTerm">
+                        @for (
+                            item of monthEvents[
+                                (date | date: "yyyy-MM-dd") ?? ""
+                            ] | keyvalue;
+                            track item
+                        ) {
+                            @if (item.value.isLongTerm) {
                                 <span
                                     class="long-term-indicator"
                                     nz-icon
@@ -57,35 +56,36 @@
                                             | uppercase
                                             | calendarIncidentSeverity: 'color')
                                     }"
-                                ></nz-badge>
-                            </span>
-                        </span>
+                                />
+                            }
+                        }
                     </li>
-                </ng-container>
-            </ng-container>
+                }
+            }
         </ul>
 
         <ng-container *nzMonthCell="let month" class="events">
-            <ng-container [ngSwitch]="month | date: 'yyyy-MM'">
-                <ng-container *ngSwitchCase="month | date: 'yyyy-MM'">
-                    <nz-badge
-                        class="count-badge"
-                        nzStandalone
-                        *ngFor="
-                            let item of yearEvents[
-                                (month | date: 'yyyy-MM') ?? ''
-                            ] | keyvalue
-                        "
-                        [nzCount]="item.value"
-                        [nzStyle]="{
-                            backgroundColor:
-                                (item.key
-                                | uppercase
-                                | calendarIncidentSeverity: 'color')
-                        }"
-                    ></nz-badge>
-                </ng-container>
-            </ng-container>
+            @switch (month | date: "yyyy-MM") {
+                @case (month | date: "yyyy-MM") {
+                    @for (
+                        item of yearEvents[(month | date: "yyyy-MM") ?? ""]
+                            | keyvalue;
+                        track item
+                    ) {
+                        <nz-badge
+                            class="count-badge"
+                            nzStandalone
+                            [nzCount]="item.value"
+                            [nzStyle]="{
+                                backgroundColor:
+                                    (item.key
+                                    | uppercase
+                                    | calendarIncidentSeverity: 'color')
+                            }"
+                        />
+                    }
+                }
+            }
         </ng-container>
     </nz-calendar>
 </nz-spin>

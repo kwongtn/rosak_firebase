@@ -8,6 +8,7 @@ import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 
 import { CommonModule } from "@angular/common";
@@ -15,6 +16,9 @@ import { NgModule } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
 
+import {
+    VerificationCodeCardModule,
+} from "../@ui/verification-code-card/verification-code-card.module";
 import { HeaderComponent } from "./header.component";
 import {
     LoginDropdownComponent,
@@ -47,7 +51,11 @@ import { MenuComponent } from "./menu/menu.component";
         NzCardModule,
         NzDrawerModule,
         NzIconModule,
+        NzSpaceModule,
         NzSwitchModule,
+
+        // Self Imports
+        VerificationCodeCardModule,
     ],
     exports: [HeaderComponent, LogoComponent, MenuComponent],
 })

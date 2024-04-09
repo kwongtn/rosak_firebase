@@ -24,7 +24,9 @@
         ></router-outlet>
     </div>
 </div>
-<div class="footer" *ngIf="applyPadding">
-    <hr />
-    <app-footer></app-footer>
-</div>
+@if (applyPadding) {
+    <div class="footer">
+        <hr />
+        <app-footer></app-footer>
+    </div>
+}

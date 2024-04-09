@@ -11,10 +11,18 @@
 </div>
 
 <ng-template #extraTemplate>
-    <span [ngSwitch]="data.status">
-        <nz-tag [nzColor]="'volcano'" *ngSwitchCase="'alpha'">Alpha</nz-tag>
-        <nz-tag [nzColor]="'gold'" *ngSwitchCase="'beta'">Beta</nz-tag>
-        <nz-tag [nzColor]="'blue'" *ngSwitchCase="'stable'">Stable</nz-tag>
-        <nz-tag [nzColor]="'lime'" *ngSwitchDefault>Planned</nz-tag>
-    </span>
+    @switch (data.status) {
+        @case ("alpha") {
+            <nz-tag [nzColor]="'volcano'">Alpha</nz-tag>
+        }
+        @case ("beta") {
+            <nz-tag [nzColor]="'gold'">Beta</nz-tag>
+        }
+        @case ("stable") {
+            <nz-tag [nzColor]="'blue'">Stable</nz-tag>
+        }
+        @default {
+            <nz-tag [nzColor]="'lime'">Planned</nz-tag>
+        }
+    }
 </ng-template>

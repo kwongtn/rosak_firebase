@@ -1,17 +1,27 @@
-<span [ngSwitch]="vehicleStatus">
-    <nz-tag *ngSwitchCase="'IN_SERVICE'" [nzColor]="'green'">
-        {{ vehicleStatus | vehicleStatusPipe }}
-    </nz-tag>
-    <nz-tag *ngSwitchCase="'NOT_SPOTTED'" [nzColor]="'orange'">
-        {{ vehicleStatus | vehicleStatusPipe }}
-    </nz-tag>
-    <nz-tag *ngSwitchCase="'TESTING'" [nzColor]="'blue'">
-        {{ vehicleStatus | vehicleStatusPipe }}
-    </nz-tag>
-    <nz-tag *ngSwitchCase="'UNKNOWN'" [nzColor]="'red'">
-        {{ vehicleStatus | vehicleStatusPipe }}
-    </nz-tag>
-    <nz-tag *ngSwitchDefault>
-        {{ vehicleStatus | vehicleStatusPipe }}
-    </nz-tag>
-</span>
+@switch (vehicleStatus) {
+    @case ("IN_SERVICE") {
+        <nz-tag [nzColor]="'green'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
+    }
+    @case ("NOT_SPOTTED") {
+        <nz-tag [nzColor]="'orange'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
+    }
+    @case ("TESTING") {
+        <nz-tag [nzColor]="'blue'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
+    }
+    @case ("UNKNOWN") {
+        <nz-tag [nzColor]="'red'">
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
+    }
+    @default {
+        <nz-tag>
+            {{ vehicleStatus | vehicleStatusPipe }}
+        </nz-tag>
+    }
+}

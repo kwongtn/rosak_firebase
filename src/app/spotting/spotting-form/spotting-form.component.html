@@ -9,31 +9,28 @@
             [nzLabelWrap]="true"
         >
             <div nz-row [nzGutter]="[16, 16]">
-                <div
-                    nz-col
-                    nzXs="24"
-                    class="login-alert"
-                    *ngIf="!(authService.userData | async)"
-                >
-                    <nz-alert
-                        nzType="info"
-                        nzMessage="It seems that you're not logged in. Please login to proceed. If you are already logged in, please wait for a few seconds."
-                        nzShowIcon
-                        [nzAction]="loginActionTemplate"
-                    ></nz-alert>
-                    <ng-template #loginActionTemplate>
-                        <nz-space nzDirection="vertical">
-                            <button
-                                *nzSpaceItem
-                                nz-button
-                                nzType="primary"
-                                (click)="authService.login()"
-                            >
-                                Login
-                            </button>
-                        </nz-space>
-                    </ng-template>
-                </div>
+                @if (!(authService.userData | async)) {
+                    <div nz-col nzXs="24" class="login-alert">
+                        <nz-alert
+                            nzType="info"
+                            nzMessage="It seems that you're not logged in. Please login to proceed. If you are already logged in, please wait for a few seconds."
+                            nzShowIcon
+                            [nzAction]="loginActionTemplate"
+                        ></nz-alert>
+                        <ng-template #loginActionTemplate>
+                            <nz-space nzDirection="vertical">
+                                <button
+                                    *nzSpaceItem
+                                    nz-button
+                                    nzType="primary"
+                                    (click)="authService.login()"
+                                >
+                                    Login
+                                </button>
+                            </nz-space>
+                        </ng-template>
+                    </div>
+                }
 
                 <div nz-col nzXs="24">
                     <nz-form-item>
@@ -67,12 +64,13 @@
                                 "
                                 (ngModelChange)="onLineChanges($event)"
                             >
-                                <nz-option
-                                    *ngFor="let line of lineOptions"
-                                    [nzLabel]="line.name"
-                                    [nzValue]="line.value"
-                                    [nzDisabled]="line.disabled"
-                                ></nz-option>
+                                @for (line of lineOptions; track line) {
+                                    <nz-option
+                                        [nzLabel]="line.name"
+                                        [nzValue]="line.value"
+                                        [nzDisabled]="line.disabled"
+                                    />
+                                }
                             </nz-select>
                         </nz-form-control>
                     </nz-form-item>
@@ -94,59 +92,95 @@
                                 (ngModelChange)="onVehicleChanges($event)"
                                 [nzFilterOption]="vehicleSearchFn"
                             >
-                                <nz-option-group
-                                    *ngFor="let vehicleType of vehicleOptions"
-                                    [nzLabel]="
-                                        vehicleType.vehicleTypeDisplayName
-                                    "
-                                >
-                                    <nz-option
-                                        *ngFor="
-                                            let vehicle of vehicleType.vehicles
-                                        "
-                                        [nzLabel]="vehicle.name"
-                                        [nzValue]="vehicle"
-                                        [nzDisabled]="vehicle.disabled"
-                                    ></nz-option>
-                                </nz-option-group>
-                            </nz-select>
-                        </nz-form-control>
-                    </nz-form-item>
-                    <div class="vehicle-alert" *ngIf="showVehicleWarning">
-                        <nz-alert
-                            nzType="warning"
-                            nzCloseable="false"
-                            nzShowIcon
-                            [nzAction]="sanityTestTemplate"
-                        ></nz-alert>
-                        <ng-template #sanityTestTemplate>
-                            <nz-space nzDirection="vertical">
-                                <span class="sanity-test-text">
-                                    It seems that you are trying to record a
-                                    vehicle that is either decommissioned,
-                                    married, out of service or unknown. Please
-                                    complete the sanity test below.
-                                </span>
-                                <nz-form-item>
-                                    <nz-form-control
-                                        [nzValidateStatus]="
-                                            getStatus('sanityTest')
-                                        "
-                                        [nzHasFeedback]="
-                                            hasStatus('sanityTest')
+                                @for (
+                                    vehicleType of vehicleOptions;
+                                    track vehicleType
+                                ) {
+                                    <nz-option-group
+                                        [nzLabel]="
+                                            vehicleType.vehicleTypeDisplayName
                                         "
                                     >
-                                        <label
-                                            nz-checkbox
-                                            (click)="toggleSanityTest()"
+                                        @for (
+                                            vehicle of vehicleType.vehicles;
+                                            track vehicle
+                                        ) {
+                                            <nz-option
+                                                [nzLabel]="vehicle.name"
+                                                [nzValue]="vehicle"
+                                                [nzDisabled]="vehicle.disabled"
+                                                [nzCustomContent]="true"
+                                            >
+                                                <div nz-row>
+                                                    <span nz-col nzSpan="12">
+                                                        {{ vehicle.name }}
+                                                    </span>
+                                                    @if (vehicle.status) {
+                                                        <vehicle-status-tag
+                                                            nz-col
+                                                            nzSpan="12"
+                                                            [vehicleStatus]="
+                                                                vehicle.status
+                                                            "
+                                                        />
+                                                    }
+                                                </div>
+                                            </nz-option>
+                                        }
+                                    </nz-option-group>
+                                }
+                            </nz-select>
+                        </nz-form-control>
+                        <span
+                            nz-tooltip
+                            nzFlex="2"
+                            nzTooltipTitle="Click to open our guide in a new tab"
+                        >
+                            <span
+                                nz-icon
+                                nzType="question-circle"
+                                class="dynamic-guide-button"
+                                (click)="openGuide($event)"
+                            ></span>
+                        </span>
+                    </nz-form-item>
+                    @if (showVehicleWarning) {
+                        <div class="vehicle-alert">
+                            <nz-alert
+                                nzType="warning"
+                                nzCloseable="false"
+                                nzShowIcon
+                                [nzAction]="sanityTestTemplate"
+                            ></nz-alert>
+                            <ng-template #sanityTestTemplate>
+                                <nz-space nzDirection="vertical">
+                                    <span class="sanity-test-text">
+                                        It seems that you are trying to record a
+                                        vehicle that is either decommissioned,
+                                        married, out of service or unknown.
+                                        Please complete the sanity test below.
+                                    </span>
+                                    <nz-form-item>
+                                        <nz-form-control
+                                            [nzValidateStatus]="
+                                                getStatus('sanityTest')
+                                            "
+                                            [nzHasFeedback]="
+                                                hasStatus('sanityTest')
+                                            "
                                         >
-                                            Yes, I know what I'm doing
-                                        </label>
-                                    </nz-form-control>
-                                </nz-form-item>
-                            </nz-space>
-                        </ng-template>
-                    </div>
+                                            <label
+                                                nz-checkbox
+                                                formControlName="sanityTest"
+                                            >
+                                                Yes, I know what I'm doing
+                                            </label>
+                                        </nz-form-control>
+                                    </nz-form-item>
+                                </nz-space>
+                            </ng-template>
+                        </div>
+                    }
 
                     <nz-form-item>
                         <nz-form-label nzRequired [nzSpan]="4">
@@ -182,20 +216,24 @@
                                 formControlName="status"
                                 (ngModelChange)="onChanges($event)"
                             >
-                                <nz-option
-                                    *ngFor="let status of statusOptions"
-                                    [nzLabel]="status.name"
-                                    [nzValue]="status.value"
-                                ></nz-option>
+                                @for (status of statusOptions; track status) {
+                                    <nz-option
+                                        [nzLabel]="status.name"
+                                        [nzValue]="status.value"
+                                    />
+                                }
                             </nz-select>
 
-                            <!-- <nz-alert
-                                *ngIf="formGroup['value']?.line === '3'"
-                                class="test-type-info"
-                                nzType="info"
-                                nzMessage="Some trains may have a 'testing' banner on it. If so, do mark your entry as testing 😉"
-                                nzShowIcon
-                            ></nz-alert> -->
+                            <!-- 
+                                @if(formGroup['value']?.line === '3') {
+                                    <nz-alert
+                                        class="test-type-info"
+                                        nzType="info"
+                                        nzMessage="Some trains may have a 'testing' banner on it. If so, do mark your entry as testing 😉"
+                                        nzShowIcon
+                                    />
+                                }
+                            -->
                         </nz-form-control>
                     </nz-form-item>
 
@@ -213,16 +251,20 @@
                                 formControlName="type"
                                 (ngModelChange)="onInputTypeChanged($event)"
                             >
-                                <nz-option
-                                    *ngFor="let entryType of typeOptions"
-                                    [nzLabel]="entryType.name"
-                                    [nzValue]="entryType.value"
-                                ></nz-option>
+                                @for (
+                                    entryType of typeOptions;
+                                    track entryType
+                                ) {
+                                    <nz-option
+                                        [nzLabel]="entryType.name"
+                                        [nzValue]="entryType.value"
+                                    />
+                                }
                             </nz-select>
                         </nz-form-control>
                     </nz-form-item>
 
-                    <div *ngIf="showRunNumberInput">
+                    @if (showRunNumberInput) {
                         <nz-form-item>
                             <nz-form-label [nzSpan]="4"
                                 >Run Number</nz-form-label
@@ -239,82 +281,99 @@
                                 />
                             </nz-form-control>
                         </nz-form-item>
-                    </div>
+                    }
 
-                    <div *ngIf="this.formGroup.value.type === 'LOCATION'">
-                        <nz-form-item *ngIf="formGroup.value.location.altitude">
-                            <nz-form-label [nzSpan]="4">Altitude</nz-form-label>
-                            <nz-form-control
-                                nzFlex="auto"
-                                nzValidateStatus="success"
-                            >
-                                <input
-                                    nz-input
-                                    [disabled]="true"
-                                    [value]="
-                                        '' +
-                                        formGroup.value.location.altitude +
-                                        'm±' +
-                                        formGroup.value.location
-                                            .altitudeAccuracy
-                                    "
-                                />
-                            </nz-form-control>
-                        </nz-form-item>
+                    @if (formGroup.value.type === "LOCATION") {
+                        @if (formGroup.value.location.altitude) {
+                            <nz-form-item>
+                                <nz-form-label [nzSpan]="4"
+                                    >Altitude</nz-form-label
+                                >
+                                <nz-form-control
+                                    nzFlex="auto"
+                                    nzValidateStatus="success"
+                                >
+                                    <input
+                                        nz-input
+                                        [disabled]="true"
+                                        [value]="
+                                            '' +
+                                            formGroup.value.location.altitude +
+                                            'm±' +
+                                            formGroup.value.location
+                                                .altitudeAccuracy
+                                        "
+                                    />
+                                </nz-form-control>
+                            </nz-form-item>
+                        }
 
-                        <nz-form-item *ngIf="formGroup.value.location.heading">
-                            <nz-form-label [nzSpan]="4">Heading</nz-form-label>
-                            <nz-form-control
-                                nzFlex="auto"
-                                nzValidateStatus="success"
-                            >
-                                <input
-                                    nz-input
-                                    [disabled]="true"
-                                    [value]="formGroup.value.location.heading"
-                                />
-                            </nz-form-control>
-                        </nz-form-item>
+                        @if (formGroup.value.location.heading) {
+                            <nz-form-item>
+                                <nz-form-label [nzSpan]="4"
+                                    >Heading</nz-form-label
+                                >
+                                <nz-form-control
+                                    nzFlex="auto"
+                                    nzValidateStatus="success"
+                                >
+                                    <input
+                                        nz-input
+                                        [disabled]="true"
+                                        [value]="
+                                            formGroup.value.location.heading
+                                        "
+                                    />
+                                </nz-form-control>
+                            </nz-form-item>
+                        }
 
-                        <nz-form-item *ngIf="formGroup.value.location.speed">
-                            <nz-form-label [nzSpan]="4">Speed</nz-form-label>
-                            <nz-form-control
-                                nzFlex="auto"
-                                nzValidateStatus="success"
-                            >
-                                <input
-                                    nz-input
-                                    [disabled]="true"
-                                    [value]="
-                                        '' +
-                                        formGroup.value.location.speed * 3.6 +
-                                        'km/h'
-                                    "
-                                />
-                            </nz-form-control>
-                        </nz-form-item>
+                        @if (formGroup.value.location.speed) {
+                            <nz-form-item>
+                                <nz-form-label [nzSpan]="4"
+                                    >Speed</nz-form-label
+                                >
+                                <nz-form-control
+                                    nzFlex="auto"
+                                    nzValidateStatus="success"
+                                >
+                                    <input
+                                        nz-input
+                                        [disabled]="true"
+                                        [value]="
+                                            '' +
+                                            formGroup.value.location.speed *
+                                                3.6 +
+                                            'km/h'
+                                        "
+                                    />
+                                </nz-form-control>
+                            </nz-form-item>
+                        }
 
-                        <nz-form-item *ngIf="formGroup.value.location.latitude">
-                            <nz-form-label [nzSpan]="4"
-                                >Coordinates</nz-form-label
-                            >
-                            <nz-form-control
-                                nzFlex="auto"
-                                nzValidateStatus="success"
-                            >
-                                <input
-                                    nz-input
-                                    [disabled]="true"
-                                    [value]="
-                                        formGroup.value.location
-                                            | coordinatesHumanizer
-                                    "
-                                />
-                            </nz-form-control>
-                        </nz-form-item>
-                    </div>
+                        @if (formGroup.value.location.latitude) {
+                            <nz-form-item>
+                                <nz-form-label [nzSpan]="4"
+                                    >Coordinates</nz-form-label
+                                >
+                                <nz-form-control
+                                    nzFlex="auto"
+                                    nzValidateStatus="success"
+                                >
+                                    <input
+                                        nz-input
+                                        [disabled]="true"
+                                        [value]="
+                                            formGroup.value.location
+                                                | coordinatesHumanizer
+                                        "
+                                    />
+                                </nz-form-control>
+                            </nz-form-item>
+                        }
+                    }
 
-                    <div *ngIf="formGroup.value.type == 'BETWEEN_STATIONS'">
+                    @if (formGroup.value.type == "BETWEEN_STATIONS") {
                         <nz-form-item>
                             <nz-form-label nzRequired [nzSpan]="4">
                                 Origin Station
@@ -330,12 +389,16 @@
                                     nzPlaceHolder="Source Station"
                                     formControlName="originStation"
                                 >
-                                    <nz-option
-                                        *ngFor="let station of stationOptions"
-                                        [nzLabel]="station.name"
-                                        [nzValue]="station.value"
-                                        [nzDisabled]="station.disabled"
-                                    ></nz-option>
+                                    @for (
+                                        station of stationOptions;
+                                        track station
+                                    ) {
+                                        <nz-option
+                                            [nzLabel]="station.name"
+                                            [nzValue]="station.value"
+                                            [nzDisabled]="station.disabled"
+                                        />
+                                    }
                                 </nz-select>
                             </nz-form-control>
                         </nz-form-item>
@@ -359,18 +422,22 @@
                                     nzPlaceHolder="Destination Station"
                                     formControlName="destinationStation"
                                 >
-                                    <nz-option
-                                        *ngFor="let station of stationOptions"
-                                        [nzLabel]="station.name"
-                                        [nzValue]="station.value"
-                                        [nzDisabled]="station.disabled"
-                                    ></nz-option>
+                                    @for (
+                                        station of stationOptions;
+                                        track station
+                                    ) {
+                                        <nz-option
+                                            [nzLabel]="station.name"
+                                            [nzValue]="station.value"
+                                            [nzDisabled]="station.disabled"
+                                        />
+                                    }
                                 </nz-select>
                             </nz-form-control>
                         </nz-form-item>
-                    </div>
+                    }
 
-                    <div *ngIf="formGroup.value.type == 'AT_STATION'">
+                    @if (formGroup.value.type == "AT_STATION") {
                         <nz-form-item>
                             <nz-form-label nzRequired [nzSpan]="4">
                                 At Station
@@ -386,16 +453,20 @@
                                     nzPlaceHolder="Station"
                                     formControlName="atStation"
                                 >
-                                    <nz-option
-                                        *ngFor="let station of stationOptions"
-                                        [nzLabel]="station.name"
-                                        [nzValue]="station.value"
-                                        [nzDisabled]="station.disabled"
-                                    ></nz-option>
+                                    @for (
+                                        station of stationOptions;
+                                        track station
+                                    ) {
+                                        <nz-option
+                                            [nzLabel]="station.name"
+                                            [nzValue]="station.value"
+                                            [nzDisabled]="station.disabled"
+                                        />
+                                    }
                                 </nz-select>
                             </nz-form-control>
                         </nz-form-item>
-                    </div>
+                    }
 
                     <hr />
                     <nz-form-item>
@@ -410,13 +481,15 @@
                                 nzPlaceHolder="Wheel Status (Optional)"
                                 formControlName="wheelStatus"
                             >
-                                <nz-option
-                                    *ngFor="
-                                        let wheelStatus of wheelStatusOptions
-                                    "
-                                    [nzLabel]="wheelStatus.name"
-                                    [nzValue]="wheelStatus.value"
-                                ></nz-option>
+                                @for (
+                                    wheelStatus of wheelStatusOptions;
+                                    track wheelStatus
+                                ) {
+                                    <nz-option
+                                        [nzLabel]="wheelStatus.name"
+                                        [nzValue]="wheelStatus.value"
+                                    />
+                                }
                             </nz-select>
                         </nz-form-control>
                     </nz-form-item>
@@ -436,7 +509,7 @@
 
                     <nz-form-item>
                         <nz-form-control>
-                            <label nz-checkbox (click)="toggleIsAnonymous()">
+                            <label nz-checkbox formControlName="isAnonymous">
                                 Anonymous Entry
                             </label>
                         </nz-form-control>
@@ -452,20 +525,19 @@
             </div>
         </form>
     </div>
-    <div
-        class="form-component"
-        *ngIf="
-            (authService.userData | async) &&
-            (sessionHistoryService.historyStoreLength | async)
-        "
-    >
-        <div nz-row [nzGutter]="[16, 16]">
-            <div nz-col nzXs="24">
-                <div class="sub-header">
-                    As of Current Session, you added the following entries
+    @if (
+        (authService.userData | async) &&
+        (sessionHistoryService.historyStoreLength | async)
+    ) {
+        <div class="form-component">
+            <div nz-row [nzGutter]="[16, 16]">
+                <div nz-col nzXs="24">
+                    <div class="sub-header">
+                        As of Current Session, you added the following entries
+                    </div>
+                    <ui-action-list [filter]="['spotting']"></ui-action-list>
                 </div>
-                <ui-action-list [filter]="['spotting']"></ui-action-list>
             </div>
         </div>
-    </div>
+    }
 </nz-spin>
