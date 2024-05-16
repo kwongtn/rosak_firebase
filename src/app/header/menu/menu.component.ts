@@ -13,6 +13,7 @@ import {
     Output,
 } from "@angular/core";
 import { Router } from "@angular/router";
+import * as Sentry from "@sentry/angular-ivy";
 
 @Component({
     selector: "d-header-menu",
@@ -74,7 +75,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     reportBug(): void {
-        throw new Error(`User reported bug at time ${(new Date()).valueOf()}`);
+        const feedback = Sentry.feedbackIntegration();
+        feedback.openDialog();
     }
 
     toggleTheme(): void{
