@@ -1,28 +1,29 @@
 <nz-spin [nzSpinning]="loading" [nzSize]="'large'">
-    <nz-empty
-        *ngIf="imageSrcs.length === 0 && !loading"
-        nzNotFoundContent="No images. Add some?"
-    ></nz-empty>
-    <nz-image-group *ngIf="imageSrcs.length > 0" class="flex-container">
-        <img
-            height="200px"
-            width="200px"
-            *ngFor="let src of imageSrcs; let i = index"
-            [attr.data-index]="i"
-            [src]="
-                'https://media.discordapp.net/attachments/' +
-                src +
-                '?format=webp&quality=lossless&width=300&height=300'
-            "
-            onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
-            (click)="onViewImage(i)"
-            (load)="markLoaded()"
-        />
-    </nz-image-group>
-    <span *ngIf="isMine">
+    @if (imageSrcs.length > 0) {
+        <nz-image-group class="flex-container">
+            @for (src of imageSrcs; track src; let i = $index) {
+                <img
+                    height="200px"
+                    width="200px"
+                    [attr.data-index]="i"
+                    [src]="
+                        'https://media.discordapp.net/attachments/' +
+                        src +
+                        '?format=webp&quality=lossless&width=300&height=300'
+                    "
+                    onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
+                    (click)="onViewImage(i)"
+                    (load)="markLoaded()"
+                />
+            }
+        </nz-image-group>
+    } @else if (imageSrcs.length === 0 && !loading) {
+        <nz-empty nzNotFoundContent="No images. Add some?" />
+    }
+    @if (isMine) {
         <h1>Add Images</h1>
         <spotting-form-upload
             (newImageEvent)="onImageChange($event)"
         ></spotting-form-upload>
-    </span>
+    }
 </nz-spin>

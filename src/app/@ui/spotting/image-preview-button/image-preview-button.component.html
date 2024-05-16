@@ -4,18 +4,21 @@
         [nzType]="count === 0 && isMine ? 'text' : 'primary'"
         nzShape="round"
     >
-        <span *ngIf="count > 0">
+        @if (count > 0) {
             <span
                 class="picture-icon"
                 nz-icon
                 nzType="picture"
                 nzTheme="outline"
             ></span>
-            {{ count }}<span *ngIf="isMine">+</span>
-        </span>
-        <span *ngIf="count === 0 && isMine">
+            {{ count }}
+            @if (isMine) {
+                <span>+</span>
+            }
+        }
+        @if (count === 0 && isMine) {
             <span nz-icon nzType="plus" nzTheme="outline"></span>
-        </span>
+        }
     </button>
 </span>
 

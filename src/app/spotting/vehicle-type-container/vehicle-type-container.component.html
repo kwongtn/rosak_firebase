@@ -1,55 +1,67 @@
-<nz-spin class="spinner" nzSimple *ngIf="showLoading"></nz-spin>
-<div *ngIf="!showLoading">
-    <div class="title-container">
-        <table>
-            <tr>
-                <td>
-                    <line-status-tag
-                        [lineStatus]="lineStatus"
-                    ></line-status-tag>
-                </td>
-                <td>
-                    <h1 style="display: inline">
-                        {{ title }}
-                    </h1>
-                </td>
-            </tr>
-        </table>
+@if (showLoading) {
+    <nz-spin class="spinner" nzSimple></nz-spin>
+} @else {
+    <div>
+        <div class="title-container">
+            <table>
+                <tr>
+                    <td>
+                        <line-status-tag
+                            [lineStatus]="lineStatus"
+                        ></line-status-tag>
+                    </td>
+                    <td>
+                        <h1 style="display: inline">
+                            {{ title }}
+                        </h1>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="status-icon-grid">
+            <span dTooltip [content]="'Total'" [position]="'bottom'">
+                <d-tag
+                    [tag]="'Total: ' + totalCount.toString()"
+                    [customColor]="'var(--devui-primary)'"
+                >
+                </d-tag>
+            </span>
+
+            |
+
+            @for (elem of tagListDisplayConfig; track elem) {
+                <span
+                    dTooltip
+                    [content]="
+                        (((elem.count ?? 0) / totalCount) * 100).toPrecision(
+                            3
+                        ) + '%'
+                    "
+                    [position]="'bottom'"
+                >
+                    <d-tag
+                        [tag]="
+                            elem.displayPrefix +
+                            ': ' +
+                            (elem.count ?? 0).toString()
+                        "
+                        [labelStyle]="elem.labelStyle ?? ''"
+                        [customColor]="elem.customColor ?? ''"
+                        class="status-icon"
+                    >
+                    </d-tag>
+                </span>
+            }
+        </div>
     </div>
+}
 
-    <div class="status-icon-grid">
-        <span dTooltip [content]="'Total'" [position]="'bottom'">
-            <d-tag
-                [tag]="'Total: ' + totalCount.toString()"
-                [customColor]="'var(--devui-primary)'"
-            >
-            </d-tag>
-        </span>
-
-        |
-
-        <span
-            *ngFor="let elem of tagListDisplayConfig"
-            dTooltip
-            [content]="
-                (((elem.count ?? 0) / totalCount) * 100).toPrecision(3) + '%'
-            "
-            [position]="'bottom'"
-        >
-            <d-tag
-                [tag]="elem.displayPrefix + ': ' + (elem.count ?? 0).toString()"
-                [labelStyle]="elem.labelStyle ?? ''"
-                [customColor]="elem.customColor ?? ''"
-                class="status-icon"
-            >
-            </d-tag>
-        </span>
+@for (elem of tableData; track elem) {
+    <div class="spotting-table-elem">
+        <app-spotting-table
+            class="app-spotting-table"
+            [dataSource]="elem"
+        ></app-spotting-table>
     </div>
-</div>
-
-<div class="spotting-table-elem" *ngFor="let elem of tableData">
-    <app-spotting-table
-        class="app-spotting-table"
-        [dataSource]="elem"
-    ></app-spotting-table>
-</div>
+}

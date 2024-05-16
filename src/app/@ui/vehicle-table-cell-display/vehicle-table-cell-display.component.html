@@ -8,14 +8,11 @@
         {{ vehicleData.identificationNo }}
         ({{ vehicleData.vehicleType.internalName }}) <br />
     </a>
-    <span
-        dTooltip
-        [content]="vehicleData.notes"
-        [position]="'right'"
-        *ngIf="vehicleData.notes"
-    >
-        📝
-    </span>
+    @if (vehicleData.notes) {
+        <span dTooltip [content]="vehicleData.notes" [position]="'right'">
+            📝
+        </span>
+    }
     <vehicle-status-tag
         [vehicleStatus]="vehicleData.status"
     ></vehicle-status-tag>

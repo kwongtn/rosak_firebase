@@ -16,9 +16,9 @@
 >
     <thead dTableHead>
         <tr dTableRow>
-            <th dHeadCell *ngFor="let colOption of dataTableOptions.columns">
-                {{ colOption.header }}
-            </th>
+            @for (colOption of dataTableOptions.columns; track colOption) {
+                <th dHeadCell>{{ colOption.header }}</th>
+            }
         </tr>
     </thead>
     <tbody dTableBody>
@@ -31,84 +31,93 @@
                 dTableRow
                 [ngClass]="{ 'table-row-selected': rowItem.$checked }"
             >
-                <td
-                    dTableCell
-                    *ngFor="let colOption of dataTableOptions.columns"
-                >
-                    <span [ngSwitch]="colOption.fieldType">
-                        <span *ngSwitchCase="'status'">
-                            <vehicle-status-tag
-                                [vehicleStatus]="rowItem[colOption.field]"
-                            ></vehicle-status-tag>
-                            <span
-                                *ngIf="rowItem['runNumber']"
-                                nz-tooltip
-                                [nzTooltipTitle]="'Run Number'"
-                                [nzTooltipTrigger]="'hover'"
-                                [nzTooltipPlacement]="'right'"
-                            >
-                                🏃‍♂️ {{ rowItem["runNumber"] }}
-                            </span>
-                        </span>
-                        <span *ngSwitchCase="'id'">
-                            <a
-                                href="{{ backendUrl }}admin/spotting/event/{{
-                                    rowItem[colOption.field]
-                                }}"
-                                target="_blank"
-                            >
-                                {{ rowItem[colOption.field] }}
-                            </a>
+                @for (colOption of dataTableOptions.columns; track colOption) {
+                    <td dTableCell>
+                        @switch (colOption.fieldType) {
+                            @case ("status") {
+                                <vehicle-status-tag
+                                    [vehicleStatus]="rowItem[colOption.field]"
+                                ></vehicle-status-tag>
+                                @if (rowItem["runNumber"]) {
+                                    <span
+                                        nz-tooltip
+                                        [nzTooltipTitle]="'Run Number'"
+                                        [nzTooltipTrigger]="'hover'"
+                                        [nzTooltipPlacement]="'right'"
+                                    >
+                                        🏃‍♂️ {{ rowItem["runNumber"] }}
+                                    </span>
+                                }
+                            }
 
-                            <i
-                                nz-popconfirm
-                                nzPopconfirmTitle="Are you sure?"
-                                nzPopconfirmPlacement="bottom"
-                                (nzOnConfirm)="deleteEvent(rowItem.id)"
-                                class="icon icon-delete delete-icon"
-                                *ngIf="rowItem.canDelete"
-                            ></i>
-                        </span>
-                        <span *ngSwitchCase="'datetime'">
-                            {{ rowItem[colOption.field] | date : "MMM dd, y" }}
-                            <br />
-                            {{ rowItem[colOption.field] | date : "HH:mm:ss" }}
-                        </span>
-                        <span *ngSwitchCase="'vehicle'">
-                            <vehicle-table-cell-display
-                                [vehicleData]="rowItem[colOption.field]"
-                            >
-                            </vehicle-table-cell-display>
-                        </span>
-                        <span *ngSwitchCase="'spottingType'">
-                            <spotting-type-cell-display
-                                [rowItem]="rowItem"
-                                [spottingType]="rowItem[colOption.field]"
-                            >
-                            </spotting-type-cell-display>
-                        </span>
-                        <span *ngSwitchCase="'notes'">
-                            <span
-                                class="picture-icon"
-                                *ngIf="
-                                    rowItem['mediaCount'] > 0 ||
-                                    rowItem['isMine']
-                                "
-                            >
-                                <ui-spotting-image-preview-button
-                                    [count]="rowItem['mediaCount']"
-                                    [eventId]="rowItem['id']"
-                                    [isMine]="rowItem['isMine']"
+                            @case ("id") {
+                                <a
+                                    href="{{
+                                        backendUrl
+                                    }}admin/spotting/event/{{
+                                        rowItem[colOption.field]
+                                    }}"
+                                    target="_blank"
                                 >
-                                </ui-spotting-image-preview-button>
-                            </span>
-                            {{ rowItem[colOption.field] }}
-                        </span>
-                        <span *ngSwitchDefault>{{
-                            rowItem[colOption.field]
-                        }}</span>
-                    </span>
-                </td>
+                                    {{ rowItem[colOption.field] }}
+                                </a>
+
+                                @if (rowItem.canDelete) {
+                                    <i
+                                        nz-popconfirm
+                                        nzPopconfirmTitle="Are you sure?"
+                                        nzPopconfirmPlacement="bottom"
+                                        (nzOnConfirm)="deleteEvent(rowItem.id)"
+                                        class="icon icon-delete delete-icon"
+                                    ></i>
+                                }
+                            }
+
+                            @case ("datetime") {
+                                {{
+                                    rowItem[colOption.field] | date: "MMM dd, y"
+                                }}
+                                <br />
+                                {{
+                                    rowItem[colOption.field] | date: "HH:mm:ss"
+                                }}
+                            }
+
+                            @case ("vehicle") {
+                                <vehicle-table-cell-display
+                                    [vehicleData]="rowItem[colOption.field]"
+                                />
+                            }
+
+                            @case ("spottingType") {
+                                <spotting-type-cell-display
+                                    [rowItem]="rowItem"
+                                    [spottingType]="rowItem[colOption.field]"
+                                />
+                            }
+
+                            @case ("notes") {
+                                @if (
+                                    rowItem["mediaCount"] > 0 ||
+                                    rowItem["isMine"]
+                                ) {
+                                    <span class="picture-icon">
+                                        <ui-spotting-image-preview-button
+                                            [count]="rowItem['mediaCount']"
+                                            [eventId]="rowItem['id']"
+                                            [isMine]="rowItem['isMine']"
+                                        />
+                                    </span>
+                                }
+                                {{ rowItem[colOption.field] }}
+                            }
+
+                            @default {
+                                {{ rowItem[colOption.field] }}
+                            }
+                        }
+                    </td>
+                }
             </tr>
         </ng-template>
     </tbody>
