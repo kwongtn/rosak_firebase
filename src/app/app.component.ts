@@ -50,7 +50,7 @@ const initialMenuList: { [key: string]: string }[] = [
     },
 ];
 
-const noApplyPaddingRoutes: string[] = ["situasi"];
+const noApplyPaddingRoutes: string[] = ["situasi", "tracker"];
 
 @Component({
     selector: "app-root",
@@ -162,8 +162,17 @@ export class AppComponent implements OnInit, OnDestroy {
                     style: "danger",
                     headerTitle: " - Situasi ",
                 });
+                this.addToMenu({
+                    name: "Tracker",
+                    href: "/tracker",
+                    target: "_self",
+                    tag: "Alpha",
+                    style: "danger",
+                    headerTitle: " - Tracker ",
+                });
             } else {
                 this.removeFromMenu("/situasi");
+                this.removeFromMenu("/tracker");
             }
         });
 
@@ -173,7 +182,7 @@ export class AppComponent implements OnInit, OnDestroy {
                     return event instanceof NavigationEnd;
                 })
             )
-            .subscribe((event) => {
+            .subscribe(() => {
                 this.header = this.getHeader();
                 this.routeKey = this.getRouteKey();
 

@@ -19,6 +19,7 @@ import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/profile.component";
 import { SituasiComponent } from "./situasi/situasi.component";
 import { SpottingMainComponent } from "./spotting/spotting-main.component";
+import { TrackerComponent } from "./tracker/tracker.component";
 
 interface MaintenanceElement {
     curentlyInMaintenance: boolean;
@@ -26,12 +27,13 @@ interface MaintenanceElement {
 }
 
 interface MaintananceDocument {
-    spotting: MaintenanceElement;
-    insiden: MaintenanceElement;
-    profile: MaintenanceElement;
     console: MaintenanceElement;
     gallery: MaintenanceElement;
+    insiden: MaintenanceElement;
+    profile: MaintenanceElement;
     situasi: MaintenanceElement;
+    spotting: MaintenanceElement;
+    tracker: MaintenanceElement;
 }
 
 const maintenance: MaintananceDocument = {
@@ -51,6 +53,9 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
     situasi: {
+        curentlyInMaintenance: false,
+    },
+    tracker: {
         curentlyInMaintenance: false,
     },
 };
@@ -157,6 +162,25 @@ const routes: Routes = [
         component: maintenance.spotting.curentlyInMaintenance
             ? ConstructionComponent
             : SituasiComponent,
+        ...canActivate(betaTesterOnly),
+    },
+    {
+        path: "tracker",
+        title: "MLPTF | Tracker",
+        loadChildren: async () => {
+            if (maintenance.situasi.curentlyInMaintenance) {
+                const module = await import(
+                    "./construction/construction.module"
+                );
+                return module.ConstructionModule;
+            } else {
+                const module = await import("./tracker/tracker.module");
+                return module.TrackerModule;
+            }
+        },
+        component: maintenance.spotting.curentlyInMaintenance
+            ? ConstructionComponent
+            : TrackerComponent,
         ...canActivate(betaTesterOnly),
     },
     {
