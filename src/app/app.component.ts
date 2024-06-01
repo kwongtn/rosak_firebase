@@ -51,6 +51,7 @@ const initialMenuList: { [key: string]: string }[] = [
 ];
 
 const noApplyPaddingRoutes: string[] = ["situasi", "tracker"];
+const noApplyTopMarginRoutes: string[] = ["tracker"];
 
 @Component({
     selector: "app-root",
@@ -64,6 +65,7 @@ export class AppComponent implements OnInit, OnDestroy {
     userAvatar: string = "";
     routeKey = "";
     applyPadding = true;
+    applyTopPadding = true;
 
     constructor(
         public authService: AuthService,
@@ -187,6 +189,9 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.routeKey = this.getRouteKey();
 
                 this.applyPadding = !noApplyPaddingRoutes.includes(
+                    this.routeKey
+                );
+                this.applyTopPadding = !noApplyTopMarginRoutes.includes(
                     this.routeKey
                 );
             });
