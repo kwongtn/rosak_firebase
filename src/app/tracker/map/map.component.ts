@@ -2,6 +2,7 @@ import {
     Component,
     Input,
     OnChanges,
+    OnDestroy,
     OnInit,
     SimpleChanges,
 } from "@angular/core";
@@ -26,7 +27,7 @@ import { IFeedEntity } from "../types";
     templateUrl: "./map.component.html",
     styleUrl: "./map.component.scss",
 })
-export class TrackerMapComponent implements OnInit, OnChanges {
+export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
     @Input() feedEntities!: IFeedEntity;
 
     /**
@@ -39,9 +40,11 @@ export class TrackerMapComponent implements OnInit, OnChanges {
     markers: { [key: string]: IMarker } = {};
     popups: { [key: string]: IPopup } = {};
 
-    constructor() {}
+    constructor() { }
 
-    ngOnInit() {
+    async ngOnInit() {
+        document.documentElement.style.overflow = "hidden";
+
         this.scene = new Scene({
             id: "map",
             map: new Mapbox({
@@ -51,13 +54,60 @@ export class TrackerMapComponent implements OnInit, OnChanges {
                 token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGU1cnJvd3UwZnp3M3Ftc2FvdWZlNGg4In0.rGGyBGsaSvW4Q6C8B0oh8Q",
             }),
         });
+
         this.scene.addImage(
             "marker",
             "https://gw.alipayobjects.com/mdn/antv_site/afts/img/A*BJ6cTpDcuLcAAAAAAAAAAABkARQnAQ"
         );
+        this.scene.addImage(
+            "arrow",
+            "https://gw.alipayobjects.com/zos/bmw-prod/ce83fc30-701f-415b-9750-4b146f4b3dd6.svg"
+        );
 
         this.pointLayer = new PointLayer().shape("marker").size(12);
         this.scene?.addLayer(this.pointLayer as ILayer);
+
+        // TODO: This is placed here temporarily, when we have dynamic source changes it'll need to move
+
+        // gtfsToGeoJSON(KTMB_CONFIG)
+        //     .then(() => {
+        //         console.log("GeoJSON Generation Successful");
+        //     })
+        //     .catch((err: any) => {
+        //         console.error(err);
+        //     });
+
+        const layer = new LineLayer({
+
+        })
+            .source(ktmbGeojson)
+            .size(3)
+            .shape("line")
+            .texture("arrow")
+            .color("rgb(22,119,255)")
+            .animate({
+                interval: 1, // 间隔
+                duration: 1, // 持续时间，延时
+                trailLength: 2, // 流线长度
+            })
+            .style({
+                opacity: 0.6,
+                lineTexture: true, // 开启线的贴图功能
+                iconStep: 10, // 设置贴图纹理的间距
+                borderWidth: 0.4, // 默认文 0，最大有效值为 0.5
+                borderColor: "#fff", // 默认为 #ccc
+            });
+        this.scene?.addLayer(layer);
+
+
+        // const url = `${environment.backendUrl}api_data_gov_my/gtfs-static/ktmb/`;
+
+        // const gtfs = new Gtfs(url);
+        // await gtfs.init();
+
+        // gtfs.stopsToGeojson().then((geojson) => {
+        //     console.log(geojson);
+        // });
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -124,5 +174,9 @@ export class TrackerMapComponent implements OnInit, OnChanges {
                 this.markers[key].setPopup(this.popups[key]);
             }
         });
+    }
+
+    ngOnDestroy(): void {
+        document.documentElement.style.overflow = "auto";
     }
 }
