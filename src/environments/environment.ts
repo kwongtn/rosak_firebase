@@ -32,7 +32,10 @@ export const environment = {
     },
     upload: {
         concurrency: 10,
-    }
+    },
+    mapbox: {
+        token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbHd3d241ZWExMGhyMmpzN3hzcTh1bXU5In0.eQt0fqq-1aRq023MLG7VPg",
+    },
 };
 
 /*

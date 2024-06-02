@@ -1,3 +1,5 @@
+import { environment } from "src/environments/environment";
+
 import {
     Component,
     Input,
@@ -51,7 +53,7 @@ export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
                 style: "normal",
                 center: [101.492, 4.5],
                 zoom: 6.5,
-                token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGU1cnJvd3UwZnp3M3Ftc2FvdWZlNGg4In0.rGGyBGsaSvW4Q6C8B0oh8Q",
+                token: environment.mapbox.token,
             }),
         });
 
