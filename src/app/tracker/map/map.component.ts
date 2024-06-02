@@ -11,7 +11,6 @@ import {
 import {
     ILayer,
     IMarker,
-    IPopup,
     LineLayer,
     Marker,
     MarkerLayer,
@@ -22,7 +21,7 @@ import {
 import { Mapbox } from "@antv/l7-maps";
 
 import { GetGeojsonService } from "../services/get-geojson.service";
-import { IFeedEntity } from "../types";
+import { IFeedEntity, IPopupWithProps } from "../types";
 
 @Component({
     selector: "tracker-map",
@@ -43,7 +42,7 @@ export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
 
     markerLayer: MarkerLayer | undefined = undefined;
     markers: { [key: string]: IMarker } = {};
-    popups: { [key: string]: IPopup } = {};
+    popups: { [key: string]: IPopupWithProps } = {};
 
     constructor(private getGeojsonService: GetGeojsonService) {}
 
@@ -112,25 +111,37 @@ export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
                 if (!this.markers[key]) {
                     this.markers[key] = new Marker().setLnglat(data);
                     this.scene?.addMarker(this.markers[key]);
-                    // this.markerLayer.addMarker(this.markers[key]);
                 }
                 this.markers[key].setLnglat(data);
 
-                if (!this.popups[key]) {
-                    this.popups[key] = new Popup({
-                        anchor: "top",
+                let currPopup = this.popups[key];
+                if (!currPopup) {
+                    currPopup = {
+                        instance: new Popup({
+                            anchor: "top",
+                        }),
+                        isClosed: true,
+                    };
+                    this.markers[key].setPopup(currPopup.instance);
+
+                    currPopup.instance.on("hide", () => {
+                        currPopup.isClosed = true;
                     });
-                    this.markers[key].setPopup(this.popups[key]);
-                    // this.scene?.addPopup(this.popups[key]);
+
+                    currPopup.instance.on("show", () => {
+                        currPopup.isClosed = false;
+                    });
                 }
-                this.popups[key].setOptions({
+                currPopup.instance.setOptions({
                     title: value.vehicle?.label ?? "Vehicle label not found",
                     html: `<p>Vehicle ID: ${value.vehicle?.id}</p><p>Trip ID: ${value.trip?.tripId}</p><p>Speed: ${value.position.speed}</p>`,
                 });
-                this.popups[key].on("close", (val) => {
-                    console.log(val);
-                });
-                this.markers[key].setPopup(this.popups[key]);
+
+                if (currPopup.isClosed) {
+                    currPopup.instance.close();
+                } else {
+                    currPopup.instance.open();
+                }
             }
         });
     }
