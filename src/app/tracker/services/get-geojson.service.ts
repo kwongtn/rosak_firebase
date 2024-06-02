@@ -1,3 +1,4 @@
+import { FeatureCollection } from "geojson";
 import JSZip from "jszip";
 import { firstValueFrom } from "rxjs";
 
@@ -21,8 +22,8 @@ export class GetGeojsonService {
         // This service can now make HTTP requests via `this.http`.
     }
 
-    async getData(url: string, filePath: string) {
-        return firstValueFrom(
+    async getData(url: string, filePath: string): Promise<FeatureCollection> {
+        return await firstValueFrom(
             this.http.get(await getDownloadURL(ref(this.storage, url)), {
                 responseType: "arraybuffer",
             })
