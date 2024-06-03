@@ -1,13 +1,7 @@
+import { Subscription } from "rxjs";
 import { environment } from "src/environments/environment";
 
-import {
-    Component,
-    Input,
-    OnChanges,
-    OnDestroy,
-    OnInit,
-    SimpleChanges,
-} from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
     ILayer,
     IMarker,
@@ -21,6 +15,7 @@ import {
 import { Mapbox } from "@antv/l7-maps";
 
 import { GetGeojsonService } from "../services/get-geojson.service";
+import { GtfsStateService } from "../services/gtfs-state.service";
 import { IFeedEntity, IPopupWithProps } from "../types";
 
 @Component({
@@ -30,8 +25,8 @@ import { IFeedEntity, IPopupWithProps } from "../types";
     templateUrl: "./map.component.html",
     styleUrl: "./map.component.scss",
 })
-export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
-    @Input() feedEntities!: IFeedEntity;
+export class TrackerMapComponent implements OnInit, OnDestroy {
+    feedEntitySubscription!: Subscription;
 
     /**
      * Map stuff
@@ -44,10 +39,63 @@ export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
     markers: { [key: string]: IMarker } = {};
     popups: { [key: string]: IPopupWithProps } = {};
 
-    constructor(private getGeojsonService: GetGeojsonService) {}
+    constructor(
+        private getGeojsonService: GetGeojsonService,
+        private gtfsStateService: GtfsStateService
+    ) {}
+
+    processGtfs(gtfsData: IFeedEntity) {
+        Object.entries(gtfsData).forEach(([key, value]) => {
+            if (value?.position) {
+                const data = {
+                    lng: value.position.longitude,
+                    lat: value.position.latitude,
+                };
+                if (!this.markers[key]) {
+                    this.markers[key] = new Marker().setLnglat(data);
+                    this.scene?.addMarker(this.markers[key]);
+                }
+                this.markers[key].setLnglat(data);
+
+                let currPopup = this.popups[key];
+                if (!currPopup) {
+                    currPopup = {
+                        instance: new Popup({
+                            anchor: "top",
+                        }),
+                        isClosed: true,
+                    };
+                    this.markers[key].setPopup(currPopup.instance);
+
+                    currPopup.instance.on("hide", () => {
+                        currPopup.isClosed = true;
+                    });
+
+                    currPopup.instance.on("show", () => {
+                        currPopup.isClosed = false;
+                    });
+                }
+                currPopup.instance.setOptions({
+                    title: value.vehicle?.label ?? "Vehicle label not found",
+                    html: `<p>Vehicle ID: ${value.vehicle?.id}</p><p>Trip ID: ${value.trip?.tripId}</p><p>Speed: ${value.position.speed}</p>`,
+                });
+
+                if (currPopup.isClosed) {
+                    currPopup.instance.close();
+                } else {
+                    currPopup.instance.open();
+                }
+            }
+        });
+    }
 
     async ngOnInit() {
         document.documentElement.style.overflow = "hidden";
+
+        this.feedEntitySubscription =
+            this.gtfsStateService.feedEntities.subscribe((val) => {
+                this.processGtfs(val);
+            });
 
         this.scene = new Scene({
             id: "map",
@@ -99,54 +147,8 @@ export class TrackerMapComponent implements OnInit, OnChanges, OnDestroy {
             });
     }
 
-    ngOnChanges(changes: SimpleChanges): void {
-        const currVal: IFeedEntity = changes["feedEntities"].currentValue;
-
-        Object.entries(currVal).forEach(([key, value]) => {
-            if (value?.position) {
-                const data = {
-                    lng: value.position.longitude,
-                    lat: value.position.latitude,
-                };
-                if (!this.markers[key]) {
-                    this.markers[key] = new Marker().setLnglat(data);
-                    this.scene?.addMarker(this.markers[key]);
-                }
-                this.markers[key].setLnglat(data);
-
-                let currPopup = this.popups[key];
-                if (!currPopup) {
-                    currPopup = {
-                        instance: new Popup({
-                            anchor: "top",
-                        }),
-                        isClosed: true,
-                    };
-                    this.markers[key].setPopup(currPopup.instance);
-
-                    currPopup.instance.on("hide", () => {
-                        currPopup.isClosed = true;
-                    });
-
-                    currPopup.instance.on("show", () => {
-                        currPopup.isClosed = false;
-                    });
-                }
-                currPopup.instance.setOptions({
-                    title: value.vehicle?.label ?? "Vehicle label not found",
-                    html: `<p>Vehicle ID: ${value.vehicle?.id}</p><p>Trip ID: ${value.trip?.tripId}</p><p>Speed: ${value.position.speed}</p>`,
-                });
-
-                if (currPopup.isClosed) {
-                    currPopup.instance.close();
-                } else {
-                    currPopup.instance.open();
-                }
-            }
-        });
-    }
-
     ngOnDestroy(): void {
         document.documentElement.style.overflow = "auto";
+        this.feedEntitySubscription?.unsubscribe();
     }
 }
