@@ -181,7 +181,7 @@ const routes: Routes = [
         component: maintenance.spotting.curentlyInMaintenance
             ? ConstructionComponent
             : TrackerComponent,
-        ...canActivate(betaTesterOnly),
+        // ...canActivate(betaTesterOnly),
     },
     {
         path: "about",
