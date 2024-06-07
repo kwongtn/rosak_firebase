@@ -8,7 +8,7 @@
         "buildStaging": "angular-build-info && ng build --configuration staging && npm run sentry:sourcemaps",
         "watch": "ng build --watch --configuration development",
         "test": "ng test",
-        "prepare": "husky install",
+        "prepare": "husky",
         "sentry:sourcemaps": "sentry-cli sourcemaps inject --org kwongtn --project javascript-angular ./dist && sentry-cli sourcemaps upload --org kwongtn --project javascript-angular ./dist",
         "dev:ssr": "ng run public:serve-ssr",
         "serve:ssr": "node dist/public/server/main.js",
