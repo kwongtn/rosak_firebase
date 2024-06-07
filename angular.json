@@ -156,6 +156,7 @@
                         "prerender": false,
                         "ssr": false,
                         "browserTarget": "public:build:production",
+                        "serverTarget": "public:server:production",
                         "firebaseProject": "rosak-7223b",
                         "firebaseHostingSite": "rosak-7223b"
                     }
