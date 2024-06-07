@@ -12,7 +12,7 @@
         "sentry:sourcemaps": "sentry-cli sourcemaps inject --org kwongtn --project javascript-angular ./dist && sentry-cli sourcemaps upload --org kwongtn --project javascript-angular ./dist",
         "dev:ssr": "ng run public:serve-ssr",
         "serve:ssr": "node dist/public/server/main.js",
-        "build:ssr": "angular-build-info && ng build && ng run public:server",
+        "build:ssr": "angular-build-info && ng build --verbose && ng run public:server",
         "prerender": "ng run public:prerender"
     },
     "lint-staged": {

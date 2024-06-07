@@ -47,6 +47,10 @@
                             "node_modules/emoji-toolkit/lib/js/joypixels.min.js"
                         ],
                         "server": "src/main.server.ts",
+                        "prerender": {
+                            "routesFile": "routes.txt",
+                            "discoverRoutes": true
+                        },
                         "ssr": {
                             "entry": "server.ts"
                         }
@@ -139,7 +143,8 @@
                         "styles": [
                             "src/nz-zorro.scss",
                             "src/styles.scss",
-                            "node_modules/ng-devui/devui.min.css"
+                            "node_modules/ng-devui/devui.min.css",
+                            "node_modules/@devui-design/icons/icomoon/devui-icon.css"
                         ],
                         "scripts": [
                             "node_modules/marked/marked.min.js",
