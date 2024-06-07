@@ -17,21 +17,24 @@ export class ThemeService {
     currentTheme = "infinity";
 
     constructor() {
-        if (window) {
+        if (typeof window !== "undefined") {
             this.themeService = (window as { [key: string]: any })[
                 "devuiThemeService"
             ] as NgThemeService;
             this.themes = (window as { [key: string]: any })["devuiThemes"];
         }
 
-        this.themeFollowSystemColorScheme = new BehaviorSubject<boolean>(
-            localStorage.getItem("devuiThemeFollowSystemColorScheme") === "on"
-        );
+        if (typeof localStorage !== "undefined") {
+            this.themeFollowSystemColorScheme = new BehaviorSubject<boolean>(
+                localStorage.getItem("devuiThemeFollowSystemColorScheme") ===
+                    "on"
+            );
 
-        if (this.themeFollowSystemColorScheme.value) {
-            this.followSystemColorScheme(true);
-        } else {
-            this.initTheme();
+            if (this.themeFollowSystemColorScheme.value) {
+                this.followSystemColorScheme(true);
+            } else {
+                this.initTheme();
+            }
         }
     }
 
