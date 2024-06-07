@@ -18,10 +18,10 @@
             "prefix": "app",
             "architect": {
                 "build": {
-                    "builder": "@angular-devkit/build-angular:browser",
+                    "builder": "@angular-builders/custom-webpack:browser",
                     "options": {
                         "sourceMap": true,
-                        "outputPath": "dist/public",
+                        "outputPath": "dist/public/browser",
                         "index": "src/index.html",
                         "main": "src/main.ts",
                         "polyfills": "src/polyfills.ts",
@@ -45,7 +45,11 @@
                             "node_modules/marked/marked.min.js",
                             "node_modules/mermaid/dist/mermaid.min.js",
                             "node_modules/emoji-toolkit/lib/js/joypixels.min.js"
-                        ]
+                        ],
+                        "customWebpackConfig": {
+                            "path": "./webpack.config.js",
+                            "replaceDuplicatePlugins": true
+                        }
                     },
                     "configurations": {
                         "production": {
@@ -155,6 +159,81 @@
                         "firebaseProject": "rosak-7223b",
                         "firebaseHostingSite": "rosak-7223b"
                     }
+                },
+                "server": {
+                    "builder": "@angular-devkit/build-angular:server",
+                    "options": {
+                        "outputPath": "dist/public/server",
+                        "main": "server.ts",
+                        "tsConfig": "tsconfig.server.json",
+                        "sourceMap": true,
+                        "inlineStyleLanguage": "scss"
+                    },
+                    "configurations": {
+                        "production": {
+                            "sourceMap": {
+                                "scripts": true
+                            },
+                            "outputHashing": "media",
+                            "fileReplacements": [
+                                {
+                                    "replace": "src/environments/environment.ts",
+                                    "with": "src/environments/environment.prod.ts"
+                                }
+                            ]
+                        },
+                        "staging": {
+                            "sourceMap": {
+                                "scripts": true
+                            },
+                            "outputHashing": "media",
+                            "fileReplacements": [
+                                {
+                                    "replace": "src/environments/environment.ts",
+                                    "with": "src/environments/environment.staging.ts"
+                                }
+                            ]
+                        },
+                        "development": {
+                            "buildOptimizer": false,
+                            "optimization": false,
+                            "sourceMap": true,
+                            "extractLicenses": false,
+                            "vendorChunk": true
+                        }
+                    },
+                    "defaultConfiguration": "production"
+                },
+                "serve-ssr": {
+                    "builder": "@angular-devkit/build-angular:ssr-dev-server",
+                    "configurations": {
+                        "development": {
+                            "browserTarget": "public:build:development",
+                            "serverTarget": "public:server:development"
+                        },
+                        "production": {
+                            "browserTarget": "public:build:production",
+                            "serverTarget": "public:server:production"
+                        }
+                    },
+                    "defaultConfiguration": "development"
+                },
+                "prerender": {
+                    "builder": "@angular-devkit/build-angular:prerender",
+                    "options": {
+                        "routes": ["/"]
+                    },
+                    "configurations": {
+                        "production": {
+                            "browserTarget": "public:build:production",
+                            "serverTarget": "public:server:production"
+                        },
+                        "development": {
+                            "browserTarget": "public:build:development",
+                            "serverTarget": "public:server:development"
+                        }
+                    },
+                    "defaultConfiguration": "production"
                 }
             }
         }

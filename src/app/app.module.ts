@@ -31,7 +31,11 @@ import { getDatabase, provideDatabase } from "@angular/fire/database";
 import { getFirestore, provideFirestore } from "@angular/fire/firestore";
 import { getPerformance, providePerformance } from "@angular/fire/performance";
 import { getStorage, provideStorage } from "@angular/fire/storage";
-import { BrowserModule } from "@angular/platform-browser";
+import {
+    BrowserModule,
+    provideClientHydration,
+    withHttpTransferCacheOptions,
+} from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
 import * as Sentry from "@sentry/angular-ivy";
@@ -48,7 +52,6 @@ import { HeaderModule } from "./header/header.module";
 registerLocaleData(en);
 
 const imports: any[] = [
-
     // Angular
     BrowserAnimationsModule,
     BrowserModule,
@@ -75,6 +78,11 @@ const imports: any[] = [
 ];
 
 const providers: any[] = [
+    provideClientHydration(
+        withHttpTransferCacheOptions({
+            includePostRequests: true,
+        })
+    ),
     {
         provide: ErrorHandler,
         useClass: GlobalErrorHandler,
