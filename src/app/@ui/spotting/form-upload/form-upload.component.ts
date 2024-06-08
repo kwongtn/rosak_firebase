@@ -1,10 +1,13 @@
 import { Message } from "ng-devui";
-import { IFileOptions, IUploadOptions } from "ng-devui/upload";
+import { IFileOptions, IUploadOptions, UploadModule } from "ng-devui/upload";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import {
     ImageCompressionService,
 } from "src/app/services/image-compression/image-compression.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
+import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 
 const MAX_MEGABYTE = 9e6;
@@ -38,7 +41,9 @@ export class ImageFile {
         this.compressServiceInstance
             .ResizeImage(file, 300, 300)
             .then((resizedFile: File) => {
-                return this.compressServiceInstance.FileBlobToDataUrl(resizedFile);
+                return this.compressServiceInstance.FileBlobToDataUrl(
+                    resizedFile
+                );
             })
             .then((dataUrl: string) => {
                 this.buffer = dataUrl;
@@ -79,6 +84,8 @@ export class ImageFile {
     selector: "spotting-form-upload",
     templateUrl: "./form-upload.component.html",
     styleUrls: ["./form-upload.component.scss"],
+    standalone: true,
+    imports: [CommonModule, NzPopconfirmModule, NzSpinModule, UploadModule],
 })
 export class FormUploadComponent {
     @Input() imageWidth: string = "100px";
@@ -104,10 +111,12 @@ export class FormUploadComponent {
         return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     beforeUpload(file: any) {
         return false;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     alertMsgEvent(messages: Message[]) {
         this.toastService.addMessage(
             `You can only upload images of type ${VALID_TYPES.join(", ")}`,
@@ -138,7 +147,7 @@ export class FormUploadComponent {
     onImageClick(fileName: string) {
         console.log(`Removing ${fileName} from upload list`);
         delete this.files[fileName];
-        
+
         this.newImageEvent.emit(this.files);
     }
 }

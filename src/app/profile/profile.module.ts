@@ -28,8 +28,8 @@ import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import {
-    VehicleTableCellDisplayModule,
-} from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.module";
+    VehicleTableCellDisplayComponent,
+} from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import {
     CoordinatesHumanizerModule,
 } from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
@@ -74,7 +74,7 @@ import { ProfileUserComponent } from "./user/user.component";
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         VehicleStatusTagModule,
-        VehicleTableCellDisplayModule,
+        VehicleTableCellDisplayComponent,
     ],
 })
 export class ProfileModule {}

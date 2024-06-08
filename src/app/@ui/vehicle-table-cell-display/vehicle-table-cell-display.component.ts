@@ -1,10 +1,15 @@
-
+import { TooltipModule } from "ng-devui";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
 import { environment } from "src/environments/environment";
 
+import { CommonModule } from "@angular/common";
 import { Component, Input, OnInit } from "@angular/core";
+
+import {
+    VehicleStatusTagModule,
+} from "../vehicle-status-tag/vehicle-status-tag.module";
 
 interface VehicleData {
     id: string;
@@ -17,7 +22,7 @@ interface VehicleData {
     lines: [
         {
             code: string;
-        }
+        },
     ];
 }
 
@@ -25,6 +30,8 @@ interface VehicleData {
     selector: "vehicle-table-cell-display",
     templateUrl: "./vehicle-table-cell-display.component.html",
     styleUrls: ["./vehicle-table-cell-display.component.scss"],
+    standalone: true,
+    imports: [CommonModule, TooltipModule, VehicleStatusTagModule],
 })
 export class VehicleTableCellDisplayComponent implements OnInit {
     @Input() vehicleData!: VehicleData;

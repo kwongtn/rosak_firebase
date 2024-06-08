@@ -25,8 +25,8 @@ import {
     SpottingImageListModule,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.module";
 import {
-    FormUploadModule,
-} from "src/app/@ui/spotting/form-upload/form-upload.module";
+    FormUploadComponent,
+} from "src/app/@ui/spotting/form-upload/form-upload.component";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
@@ -109,7 +109,7 @@ import {
         // Internal Imports
         ActionListModule,
         CoordinatesHumanizerModule,
-        FormUploadModule,
+        FormUploadComponent,
         GraphQLModule,
         ImagePreviewButtonModule,
         LineStatusTagComponent,
