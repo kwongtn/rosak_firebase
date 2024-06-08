@@ -3,6 +3,7 @@ import { filter } from "rxjs";
 import { environment } from "src/environments/environment";
 
 import {
+    afterNextRender,
     Component,
     ElementRef,
     HostListener,
@@ -173,8 +174,11 @@ export class AppComponent implements OnInit, OnDestroy {
                     return event instanceof NavigationEnd;
                 })
             )
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             .subscribe((event) => {
-                this.header = this.getHeader();
+                afterNextRender(() => {
+                    this.header = this.getHeader();
+                });
                 this.routeKey = this.getRouteKey();
 
                 this.applyPadding = !noApplyPaddingRoutes.includes(

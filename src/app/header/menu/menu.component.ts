@@ -5,6 +5,7 @@ import {
 import { ThemeService } from "src/app/services/theme/theme.service";
 
 import {
+    afterNextRender,
     Component,
     EventEmitter,
     Input,
@@ -37,12 +38,15 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
-        const pathName = window.location.pathname;
-        for (let i = 0; i < this.menuList.length; i++) {
-            if (this.menuList[i].href === pathName) {
-                this.selectedItem = this.menuList[i];
+        afterNextRender(() => {
+            const pathName = window.location.pathname;
+            for (let i = 0; i < this.menuList.length; i++) {
+                if (this.menuList[i].href === pathName) {
+                    this.selectedItem = this.menuList[i];
+                }
             }
-        }
+
+        });
 
         this.$countIcon = this.imageUploadService.$pendingUploadCount.subscribe(
             (count) => {

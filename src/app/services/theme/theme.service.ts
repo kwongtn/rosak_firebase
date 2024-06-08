@@ -1,7 +1,7 @@
 import { Theme, ThemeService as NgThemeService } from "ng-devui/theme";
 import { BehaviorSubject, Subscription } from "rxjs";
 
-import { Injectable } from "@angular/core";
+import { afterNextRender, Injectable } from "@angular/core";
 
 @Injectable({
     providedIn: "root",
@@ -17,25 +17,29 @@ export class ThemeService {
     currentTheme = "infinity";
 
     constructor() {
-        if (typeof window !== "undefined") {
-            this.themeService = (window as { [key: string]: any })[
-                "devuiThemeService"
-            ] as NgThemeService;
-            this.themes = (window as { [key: string]: any })["devuiThemes"];
-        }
-
-        if (typeof localStorage !== "undefined") {
-            this.themeFollowSystemColorScheme = new BehaviorSubject<boolean>(
-                localStorage.getItem("devuiThemeFollowSystemColorScheme") ===
-                    "on"
-            );
-
-            if (this.themeFollowSystemColorScheme.value) {
-                this.followSystemColorScheme(true);
-            } else {
-                this.initTheme();
+        afterNextRender(() => {
+            if (typeof window !== "undefined") {
+                this.themeService = (window as { [key: string]: any })[
+                    "devuiThemeService"
+                ] as NgThemeService;
+                this.themes = (window as { [key: string]: any })["devuiThemes"];
             }
-        }
+
+            if (typeof localStorage !== "undefined") {
+                this.themeFollowSystemColorScheme =
+                    new BehaviorSubject<boolean>(
+                        localStorage.getItem(
+                            "devuiThemeFollowSystemColorScheme"
+                        ) === "on"
+                    );
+
+                if (this.themeFollowSystemColorScheme.value) {
+                    this.followSystemColorScheme(true);
+                } else {
+                    this.initTheme();
+                }
+            }
+        });
     }
 
     initTheme() {
