@@ -36,7 +36,7 @@ import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
-import { ActionListModule } from "../@ui/action-list/action-list.module";
+import { ActionListComponent } from "../@ui/action-list/action-list.component";
 import {
     LineStatusTagComponent,
 } from "../@ui/line-status-tag/line-status-tag.component";
@@ -107,7 +107,7 @@ import {
         TimeAxisModule,
 
         // Internal Imports
-        ActionListModule,
+        ActionListComponent,
         CoordinatesHumanizerModule,
         FormUploadComponent,
         GraphQLModule,
