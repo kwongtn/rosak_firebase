@@ -1,5 +1,5 @@
 import { FeatureCollection } from "geojson";
-import JSZip from "jszip";
+import { loadAsync } from "jszip";
 import { firstValueFrom } from "rxjs";
 
 import { HttpClient } from "@angular/common/http";
@@ -18,9 +18,7 @@ import { getDownloadURL, ref, Storage } from "@angular/fire/storage";
 export class GetGeojsonService {
     private readonly storage: Storage = inject(Storage);
 
-    constructor(private http: HttpClient) {
-        // This service can now make HTTP requests via `this.http`.
-    }
+    constructor(private http: HttpClient) {}
 
     async getData(url: string, filePath: string): Promise<FeatureCollection> {
         return await firstValueFrom(
@@ -28,7 +26,7 @@ export class GetGeojsonService {
                 responseType: "arraybuffer",
             })
         ).then(async (data: any) => {
-            const zipInstance = await JSZip.loadAsync(data);
+            const zipInstance = await loadAsync(data);
 
             return JSON.parse(
                 await zipInstance.files[filePath].async("string")
