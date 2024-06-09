@@ -1,4 +1,6 @@
+import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import {
     SpottingImageListComponent,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
@@ -21,6 +23,11 @@ import { ImageFile } from "../form-upload/form-upload.component";
     selector: "ui-spotting-image-preview-button",
     templateUrl: "./image-preview-button.component.html",
     styleUrls: ["./image-preview-button.component.scss"],
+    standalone: true,
+    imports: [
+        NzButtonModule,
+        NzIconModule,
+    ],
 })
 export class ImagePreviewButtonComponent {
     @Input() count!: number;

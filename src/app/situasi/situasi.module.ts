@@ -4,11 +4,11 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { NzMenuModule } from "ng-zorro-antd/menu";
 import { NzPageHeaderModule } from "ng-zorro-antd/page-header";
-import { FooterModule } from "src/app/@ui/footer/footer.module";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
+import { FooterComponent } from "../@ui/footer/footer.component";
 import {
     SpottingLineCalendarHeatmapModule,
 } from "../@ui/spotting-line-calendar-heatmap/spotting-line-calendar-heatmap.module";
@@ -29,7 +29,7 @@ import { SituasiComponent } from "./situasi.component";
         NzPageHeaderModule,
 
         // Self imports
-        FooterModule,
+        FooterComponent,
         SituasiRoutingModule,
         SpottingLineCalendarHeatmapModule,
     ],
