@@ -12,6 +12,7 @@ import { CategorySearchModule } from "ng-devui/category-search";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzStatisticModule } from "ng-zorro-antd/statistic";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -33,8 +34,8 @@ import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import {
-    VehicleTableCellDisplayModule,
-} from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.module";
+    VehicleTableCellDisplayComponent,
+} from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import {
     CoordinatesHumanizerModule,
 } from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
@@ -67,6 +68,7 @@ import {
         NzDrawerModule,
         NzIconModule,
         NzSpinModule,
+        NzStatisticModule,
         
         // Own Imports
         CoordinatesHumanizerModule,
@@ -76,7 +78,7 @@ import {
         SpottingTypeTagModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,
-        VehicleTableCellDisplayModule,
+        VehicleTableCellDisplayComponent,
     ],
 })
 export class ConsoleModule {}

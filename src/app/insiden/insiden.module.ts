@@ -21,8 +21,8 @@ import { FormsModule } from "@angular/forms";
 
 import { ImageGridModule } from "../@ui/image-grid/image-grid.module";
 import {
-    FormUploadModule,
-} from "../@ui/spotting/form-upload/form-upload.module";
+    FormUploadComponent,
+} from "../@ui/spotting/form-upload/form-upload.component";
 import {
     CalendarIncidentSeverityModule,
 } from "../pipes/calendar-incident-severity/calendar-incident-severity.module";
@@ -72,7 +72,7 @@ import { InsidenMainComponent } from "./insiden.component";
 
         // Self-imports
         CalendarIncidentSeverityModule,
-        FormUploadModule,
+        FormUploadComponent,
         ImageGridModule,
     ],
     providers: [],

@@ -26,12 +26,20 @@ export interface CalendarIncidentListItem
     duration?: string;
 }
 
+interface IIntComparisonFilterLookup {
+    exact: number;
+}
+
 interface CalendarFilterMonth {
-    date: string;
+    date: {
+        exact: string;
+    };
 }
 interface CalendarFilterYear {
-    startDate: string;
-    endDate: string;
+    date: {
+        month: IIntComparisonFilterLookup;
+        year: IIntComparisonFilterLookup;
+    };
 }
 
 interface VariablesType {
@@ -81,24 +89,20 @@ export class EventListComponent implements OnInit, OnChanges {
             },
         };
         if (this.calendarMode === "month") {
+            // Month view, hence on individual cell selection we will see day view
             variables["filters"] = {
-                date: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
-            };
+                date: {
+                    exact: formatDate(this.selectedDate, DATE_FORMAT, this.locale),
+                },
+            } as CalendarFilterMonth;
         } else if (this.calendarMode === "year") {
-            const firstDay = new Date(
-                this.selectedDate.getFullYear(),
-                this.selectedDate.getMonth(),
-                1
-            );
-            const lastDay = new Date(
-                this.selectedDate.getFullYear(),
-                this.selectedDate.getMonth() + 1,
-                0
-            );
+            // Year view, hence on individual cell selection we will see month view
             variables["filters"] = {
-                startDate: formatDate(firstDay, DATE_FORMAT, this.locale),
-                endDate: formatDate(lastDay, DATE_FORMAT, this.locale),
-            };
+                date: {
+                    month: { exact: this.selectedDate.getMonth() },
+                    year: { exact: this.selectedDate.getFullYear() },
+                },
+            } as CalendarFilterYear;
         } else {
             throw new Error("Invalid calendar mode");
         }

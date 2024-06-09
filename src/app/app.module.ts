@@ -48,12 +48,6 @@ import { HeaderModule } from "./header/header.module";
 registerLocaleData(en);
 
 const imports: any[] = [
-    provideFirebaseApp(() => initializeApp(environment.firebase)),
-    provideAnalytics(() => getAnalytics()),
-    provideFirestore(() => getFirestore()),
-    provideAuth(() => getAuth()),
-    provideDatabase(() => getDatabase()),
-    provideStorage(() => getStorage()),
 
     // Angular
     BrowserAnimationsModule,
@@ -107,6 +101,12 @@ const providers: any[] = [
     },
     I18nService,
     { provide: NZ_I18N, useValue: en_US },
+    provideFirebaseApp(() => initializeApp(environment.firebase)),
+    provideAnalytics(() => getAnalytics()),
+    provideFirestore(() => getFirestore()),
+    provideAuth(() => getAuth()),
+    provideDatabase(() => getDatabase()),
+    provideStorage(() => getStorage()),
     NzModalService,
     NzImageService,
     NzDrawerService,
