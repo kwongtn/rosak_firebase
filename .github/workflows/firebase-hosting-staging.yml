@@ -41,4 +41,3 @@ jobs:
           channelId: live
           target: staging
           projectId: rosak-7223b
-          expires: 30d
