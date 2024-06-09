@@ -283,7 +283,6 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             });
     }
 
-
     mapGqlResultsToExpandConfig(data: any) {
         const returnObj: { [key: string]: boolean } = {};
         data.events.forEach((val: LastSpottingsTableElement) => {
@@ -390,30 +389,25 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                 break;
 
             case "createdTime":
-                returnObj["createdStartDatetime"] = new Date(
-                    (elem.value as any).value[0]
-                );
-                returnObj["createdEndDatetime"] = new Date(
-                    (elem.value as any).value[1]
-                );
+                returnObj["created"] = {
+                    range: {
+                        start: new Date((elem.value as any).value[0]),
+                        end: new Date((elem.value as any).value[1]),
+                    },
+                };
                 break;
 
             case "spottedDate":
-                returnObj["spottedStartDate"] = new Date(
-                    (elem.value as any).value[0]
-                )
-                    .toISOString()
-                    .slice(0, 10);
-                returnObj["spottedEndDate"] = new Date(
-                    (elem.value as any).value[1]
-                )
-                    .toISOString()
-                    .slice(0, 10);
+                returnObj["spotted"] = {
+                    range: {
+                        start: new Date((elem.value as any).value[0]),
+                        end: new Date((elem.value as any).value[1]),
+                    },
+                };
                 break;
             }
         });
 
         return returnObj;
     }
-
 }

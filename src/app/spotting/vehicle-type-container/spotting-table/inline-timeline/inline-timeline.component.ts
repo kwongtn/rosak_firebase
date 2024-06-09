@@ -49,7 +49,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                 query: GET_TIMELINE_DATA,
                 variables: {
                     vehicleIncidentFilter: {
-                        vehicleId: this.vehicleId,
+                        vehicle: { id: this.vehicleId },
                     },
                 },
             })

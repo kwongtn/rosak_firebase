@@ -74,7 +74,7 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
         this.watchQueryOption = this.getSpottingHistoryGql.watch(
             {
                 eventFilters: {
-                    vehicleId: this.vehicleId,
+                    vehicle: { id: this.vehicleId },
                 },
                 eventPagination: {
                     limit: this.limit,

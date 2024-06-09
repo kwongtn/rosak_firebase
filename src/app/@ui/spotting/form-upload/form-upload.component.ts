@@ -111,12 +111,10 @@ export class FormUploadComponent {
         return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     beforeUpload(file: any) {
         return false;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     alertMsgEvent(messages: Message[]) {
         this.toastService.addMessage(
             `You can only upload images of type ${VALID_TYPES.join(", ")}`,
