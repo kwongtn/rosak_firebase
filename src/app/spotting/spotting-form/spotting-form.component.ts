@@ -338,7 +338,9 @@ export class SpottingFormComponent implements OnInit, OnDestroy {
             firstValueFrom(
                 this.getStationLinesGql.fetch({
                     stationLineFilter: {
-                        lineId: this.formGroup.value.line,
+                        line: {
+                            id: this.formGroup.value.line,
+                        },
                     },
                 })
             ).then(({ data, loading }) => {

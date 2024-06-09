@@ -15,7 +15,6 @@ import { Data } from "@antv/g2";
 import { Datum, G2, Heatmap, HeatmapOptions } from "@antv/g2plot";
 
 import {
-    GetDataGqlService,
     GetSpottingVehicleCalendarHeatmapResponse,
 } from "./services/get-data-gql/get-data-gql.service";
 import {
@@ -48,9 +47,7 @@ type MutableHeatmapOptions = {
     templateUrl: "./spotting-vehicle-calendar-heatmap.component.html",
     styleUrls: ["./spotting-vehicle-calendar-heatmap.component.scss"],
 })
-export class SpottingVehicleCalendarHeatmapComponent
-implements OnInit, OnChanges
-{
+export class SpottingVehicleCalendarHeatmapComponent implements OnInit, OnChanges {
     @Input() vehicleId!: string;
 
     gqlSubscription!: Subscription;
@@ -245,7 +242,6 @@ implements OnInit, OnChanges
     }
 
     constructor(
-        private gqlService: GetDataGqlService,
         private getDataService: GetDataService,
         private ngZone: NgZone,
         themeService: ThemeService

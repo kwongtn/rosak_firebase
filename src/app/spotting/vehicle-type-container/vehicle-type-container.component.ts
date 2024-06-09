@@ -138,9 +138,7 @@ implements OnInit, OnChanges, OnDestroy
                 } else {
                     val.count = vehicleType[val.key];
                 }
-
             });
-
         }
 
         console.log("sectionData: ", sectionData);
@@ -165,6 +163,7 @@ implements OnInit, OnChanges, OnDestroy
                 variables: {
                     vehicleTypeFilter: {
                         lineId: changes["lineId"].currentValue,
+                        DISTINCT: true,
                     },
                 },
             })
