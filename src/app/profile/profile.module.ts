@@ -22,8 +22,8 @@ import {
     SpottingTypeCellDisplayModule,
 } from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
 import {
-    ImagePreviewButtonModule,
-} from "../@ui/spotting/image-preview-button/image-preview-button.module";
+    ImagePreviewButtonComponent,
+} from "../@ui/spotting/image-preview-button/image-preview-button.component";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
@@ -70,7 +70,7 @@ import { ProfileUserComponent } from "./user/user.component";
 
         // Internal imports
         CoordinatesHumanizerModule,
-        ImagePreviewButtonModule,
+        ImagePreviewButtonComponent,
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         VehicleStatusTagModule,

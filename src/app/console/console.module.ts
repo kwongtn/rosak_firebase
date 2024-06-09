@@ -28,8 +28,8 @@ import {
     SpottingTypeTagModule,
 } from "../@ui/spotting-type-tag/spotting-type-tag.module";
 import {
-    ImagePreviewButtonModule,
-} from "../@ui/spotting/image-preview-button/image-preview-button.module";
+    ImagePreviewButtonComponent,
+} from "../@ui/spotting/image-preview-button/image-preview-button.component";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
@@ -72,7 +72,7 @@ import {
         
         // Own Imports
         CoordinatesHumanizerModule,
-        ImagePreviewButtonModule,
+        ImagePreviewButtonComponent,
         SpottingImageListModule,
         SpottingTypeCellDisplayModule,
         SpottingTypeTagModule,
