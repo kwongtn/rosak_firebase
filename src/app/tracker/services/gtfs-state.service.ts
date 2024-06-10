@@ -5,25 +5,28 @@ import { Injectable } from "@angular/core";
 
 import { IFeedEntity } from "../types";
 
-@Injectable({
-    providedIn: "root",
-})
-export class GtfsStateService {
-    sourceUrl!: string;
+class RtGtfs {
+    lastUpdatedMs!: number;
+    intervalMs!: number;
+    interval!: NodeJS.Timeout;
     feedEntities: BehaviorSubject<IFeedEntity> =
         new BehaviorSubject<IFeedEntity>({});
 
-    constructor() {}
+    constructor(private readonly config: { [key: string]: any }) {}
 
-    setSourceUrl(sourceUrl: string) {
-        this.sourceUrl = sourceUrl;
+    get timeRemaining() {
+        return this.intervalMs - new Date().valueOf() - this.lastUpdatedMs;
+    }
+
+    get percentageTimeRemaining() {
+        return this.lastUpdatedMs / this.intervalMs;
     }
 
     async refreshGtfsData() {
         const feedEntities = { ...this.feedEntities.getValue() };
 
         try {
-            const res = await fetch(this.sourceUrl);
+            const res = await fetch(this.config["sourceUrl"]);
             if (!res.ok) {
                 const error = new Error(
                     `${res.url}: ${res.status} ${res.statusText}`
@@ -47,5 +50,49 @@ export class GtfsStateService {
         }
 
         this.feedEntities.next(feedEntities);
+        this.lastUpdatedMs = new Date().valueOf();
+    }
+
+    async startIntervalRefresh(intervalMs: number) {
+        this.intervalMs = intervalMs;
+
+        this.interval = setInterval(() => {
+            this.refreshGtfsData();
+        }, this.intervalMs);
+
+        this.refreshGtfsData();
+    }
+
+    async stopIntervalRefresh() {
+        clearInterval(this.interval);
+    }
+}
+
+@Injectable({
+    providedIn: "root",
+})
+export class GtfsStateService {
+    sources: { [key: string]: RtGtfs } = {};
+
+    constructor() {}
+
+    addSourceUrl(...sources: { [key: string]: any }[]) {
+        for (const source of sources) {
+            if (!this.sources[source["name"]]) {
+                this.sources[source["name"]] = new RtGtfs(source);
+            }
+        }
+    }
+
+    startAllIntervalRefresh(intervalMs: number) {
+        for (const sourceUrl of Object.keys(this.sources)) {
+            this.sources[sourceUrl].startIntervalRefresh(intervalMs);
+        }
+    }
+
+    stopAllIntervalRefresh() {
+        for (const sourceUrl of Object.keys(this.sources)) {
+            this.sources[sourceUrl].stopIntervalRefresh();
+        }
     }
 }

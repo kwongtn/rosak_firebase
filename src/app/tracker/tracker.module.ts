@@ -9,7 +9,12 @@ import { TrackerComponent } from "./tracker.component";
 
 @NgModule({
     declarations: [TrackerComponent],
-    imports: [CommonModule, NzGridModule, TrackerMapComponent, TrackerRoutingModule],
+    imports: [
+        CommonModule,
+        NzGridModule,
+        TrackerMapComponent,
+        TrackerRoutingModule,
+    ],
     providers: [],
 })
 export class TrackerModule {}
