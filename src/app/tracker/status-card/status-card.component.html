@@ -3,7 +3,11 @@
         <nz-collapse [nzBordered]="false">
             @for (panel of panels | keyvalue; track panel) {
                 @if (panel.value.checkBoxes.length > 0) {
-                    <nz-collapse-panel [nzHeader]="panel.value.name">
+                    <nz-collapse-panel
+                        [nzHeader]="panel.value.name"
+                        [nzActive]="panel.value.active"
+                        [nzDisabled]="panel.value.disabled"
+                    >
                         @for (
                             checkbox of panel.value.checkBoxes;
                             track checkbox;
