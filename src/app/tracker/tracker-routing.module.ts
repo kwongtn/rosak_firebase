@@ -1,12 +1,12 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
-import { TrackerMapComponent } from "./map/map.component";
+import { StatusCardComponent } from "./status-card/status-card.component";
 
 const routes: Routes = [
     {
-        path: "",
-        component: TrackerMapComponent,
+        path: "**",
+        component: StatusCardComponent,
     },
 ];
 @NgModule({

@@ -1,0 +1,40 @@
+<div nz-row nzJustify="end" class="row-class">
+    <div nz-col nzSpan="8" class="info-panel">
+        <nz-collapse [nzBordered]="false">
+            @for (panel of panels | keyvalue; track panel) {
+                @if (panel.value.checkBoxes.length > 0) {
+                    <nz-collapse-panel [nzHeader]="panel.value.name">
+                        @for (
+                            checkbox of panel.value.checkBoxes;
+                            track checkbox;
+                            let i = $index
+                        ) {
+                            <label
+                                nz-checkbox
+                                [nzChecked]="checkbox.checked"
+                                (nzCheckedChange)="updateChecked(panel.key, i)"
+                            >
+                                {{ checkbox.label }}
+                            </label>
+                        }
+                    </nz-collapse-panel>
+                }
+            }
+        </nz-collapse>
+        @if (hasUnsavedChanges) {
+            <nz-card [nzBorderless]="true">
+                <div nz-flex [nzGap]="'small'" class="button-area">
+                    <button
+                        nz-button
+                        nzType="primary"
+                        [nzLoading]="applyLoading"
+                        (click)="onApply($event)"
+                    >
+                        Apply
+                    </button>
+                    <button nz-button nzType="default">Cancel</button>
+                </div>
+            </nz-card>
+        }
+    </div>
+</div>
