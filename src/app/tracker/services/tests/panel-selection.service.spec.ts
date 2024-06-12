@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { PanelSelectionService } from "./panel-selection.service";
+import { PanelSelectionService } from "../panel-selection.service";
 
 describe("PanelSelectionService", () => {
     let service: PanelSelectionService;

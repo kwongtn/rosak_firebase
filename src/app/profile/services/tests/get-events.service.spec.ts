@@ -1,13 +1,13 @@
 import { TestBed } from "@angular/core/testing";
 
-import { DeleteEventService } from "./delete-event.service";
+import { GetEventsService } from "../get-events.service";
 
-describe("DeleteEventService", () => {
-    let service: DeleteEventService;
+describe("GetEventsService", () => {
+    let service: GetEventsService;
 
     beforeEach(() => {
         TestBed.configureTestingModule({});
-        service = TestBed.inject(DeleteEventService);
+        service = TestBed.inject(GetEventsService);
     });
 
     it("should be created", () => {

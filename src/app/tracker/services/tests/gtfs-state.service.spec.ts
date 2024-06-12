@@ -1,13 +1,13 @@
 import { TestBed } from "@angular/core/testing";
 
-import { GetGeojsonService } from "./get-geojson.service";
+import { GtfsStateService } from "../gtfs-state.service";
 
-describe("GetGeojsonService", () => {
-    let service: GetGeojsonService;
+describe("GtfsStateService", () => {
+    let service: GtfsStateService;
 
     beforeEach(() => {
         TestBed.configureTestingModule({});
-        service = TestBed.inject(GetGeojsonService);
+        service = TestBed.inject(GtfsStateService);
     });
 
     it("should be created", () => {

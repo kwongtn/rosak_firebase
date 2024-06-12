@@ -1,13 +1,13 @@
 import { TestBed } from "@angular/core/testing";
 
-import { GtfsStateService } from "./gtfs-state.service";
+import { DeleteEventService } from "../delete-event.service";
 
-describe("GtfsStateService", () => {
-    let service: GtfsStateService;
+describe("DeleteEventService", () => {
+    let service: DeleteEventService;
 
     beforeEach(() => {
         TestBed.configureTestingModule({});
-        service = TestBed.inject(GtfsStateService);
+        service = TestBed.inject(DeleteEventService);
     });
 
     it("should be created", () => {
