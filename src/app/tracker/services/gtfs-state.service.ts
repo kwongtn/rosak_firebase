@@ -5,14 +5,28 @@ import { Injectable } from "@angular/core";
 
 import { IFeedEntity } from "../types";
 
+export interface RtGtfsConfig {
+    sourceUrl: string;
+    intervalMs?: number;
+}
+
 class RtGtfs {
+    intervalMs: number;
+    sourceUrl: string;
+
     lastUpdatedMs!: number;
-    intervalMs!: number;
     interval!: NodeJS.Timeout;
     feedEntities: BehaviorSubject<IFeedEntity> =
         new BehaviorSubject<IFeedEntity>({});
 
-    constructor(private readonly config: { [key: string]: any }) {}
+    constructor({ sourceUrl = "", intervalMs = 30000 }: RtGtfsConfig) {
+        this.intervalMs = intervalMs;
+
+        if (!sourceUrl) {
+            throw new Error("No sourceUrl provided");
+        }
+        this.sourceUrl = sourceUrl;
+    }
 
     get timeRemaining() {
         return this.intervalMs - new Date().valueOf() - this.lastUpdatedMs;
@@ -26,7 +40,7 @@ class RtGtfs {
         const feedEntities = { ...this.feedEntities.getValue() };
 
         try {
-            const res = await fetch(this.config["sourceUrl"]);
+            const res = await fetch(this.sourceUrl);
             if (!res.ok) {
                 const error = new Error(
                     `${res.url}: ${res.status} ${res.statusText}`
@@ -53,8 +67,8 @@ class RtGtfs {
         this.lastUpdatedMs = new Date().valueOf();
     }
 
-    async startIntervalRefresh(intervalMs: number) {
-        this.intervalMs = intervalMs;
+    async startIntervalRefresh(intervalMs?: number) {
+        this.intervalMs = intervalMs ?? this.intervalMs;
 
         this.interval = setInterval(() => {
             this.refreshGtfsData();
@@ -76,12 +90,24 @@ export class GtfsStateService {
 
     constructor() {}
 
-    addSourceUrl(...sources: { [key: string]: any }[]) {
-        for (const source of sources) {
-            if (!this.sources[source["name"]]) {
-                this.sources[source["name"]] = new RtGtfs(source);
-            }
+    upsertSourceUrls(
+        sources: { [key: string]: RtGtfsConfig },
+        removeUndeclared = true
+    ) {
+        if (removeUndeclared) {
+            Object.keys(this.sources).forEach((sourcename) => {
+                if (!sources[sourcename]) {
+                    this.sources[sourcename].stopIntervalRefresh();
+                    delete this.sources[sourcename];
+                }
+            });
         }
+        Object.entries(sources).forEach(([sourcename, config]) => {
+            if (!this.sources[sourcename]) {
+                this.sources[sourcename] = new RtGtfs(config);
+                this.sources[sourcename].startIntervalRefresh();
+            }
+        });
     }
 
     startAllIntervalRefresh(intervalMs: number) {

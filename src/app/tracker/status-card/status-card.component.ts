@@ -9,13 +9,12 @@ import { CommonModule } from "@angular/common";
 import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
-interface ICheckboxItem {
-    label: string;
-    value: string;
-    checked: boolean;
-    source?: string;
-    children?: ICheckboxItem[];
-}
+import { GtfsStateService } from "../services/gtfs-state.service";
+import {
+    ICheckboxItem,
+    PanelSelectionService,
+    PanelType,
+} from "../services/panel-selection.service";
 
 @Component({
     selector: "tracker-status-card",
@@ -35,120 +34,6 @@ interface ICheckboxItem {
 })
 export class StatusCardComponent {
     applyLoading = false;
-    panels: { [key: string]: any } = {
-        // Do checkboxes to select items
-        rtLayer: {
-            active: false,
-            disabled: false,
-            name: "Realtime layer",
-            checkBoxes: [
-                {
-                    label: "myBAS Johor Bahru",
-                    value: "mybas-johor",
-                    checked: true,
-                    source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#mybas-johor-bahru",
-                },
-                {
-                    label: "KTMB",
-                    value: "ktmb",
-                    checked: false,
-                    source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#ktmb",
-                },
-                {
-                    label: "Prasarana",
-                    value: "prasarana",
-                    checked: false,
-                    source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
-                    children: [
-                        {
-                            label: "RapidBus KL",
-                            value: "rapid-bus-kl",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidBus MRT Feeder",
-                            value: "rapid-bus-mrtfeeder",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidBus Kuantan",
-                            value: "rapid-bus-kuantan",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidBus Penang",
-                            value: "rapid-bus-penang",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidRail KL",
-                            value: "rapid-rail-kl",
-                            checked: false,
-                        },
-                    ],
-                },
-            ],
-        },
-        routeLayer: {
-            active: false,
-            disabled: true,
-            name: "Route layer",
-            checkBoxes: [],
-        },
-        stopsLayer: {
-            active: false,
-            disabled: false,
-            name: "Stops layer",
-            checkBoxes: [
-                {
-                    label: "myBAS Johor Bahru",
-                    value: "mybas-johor",
-                    checked: true,
-                    source: "https://api.data.gov.my/gtfs-static/mybas-johor",
-                },
-                {
-                    label: "KTMB",
-                    value: "ktmb",
-                    checked: false,
-                    source: "https://api.data.gov.my/gtfs-static/ktmb",
-                },
-                {
-                    label: "Prasarana",
-                    value: "prasarana",
-                    checked: false,
-                    source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
-                    children: [
-                        {
-                            label: "RapidBus KL",
-                            value: "rapid-bus-kl",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidBus MRT Feeder",
-                            value: "rapid-bus-mrtfeeder",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidRail KL",
-                            value: "rapid-rail-kl",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidBus Kuantan",
-                            value: "rapid-bus-kuantan",
-                            checked: false,
-                        },
-                        {
-                            label: "RapidBus Penang",
-                            value: "rapid-bus-penang",
-                            checked: false,
-                        },
-                    ],
-                },
-            ],
-        },
-    };
-
     hasUnsavedChanges = false;
 
     sources = [
@@ -163,7 +48,10 @@ export class StatusCardComponent {
         },
     ];
 
-    // On change of selection, display nz-card button area
+    constructor(
+        public panelSelectionService: PanelSelectionService,
+        public gtfsStateService: GtfsStateService
+    ) {}
 
     onRtChange(options: ICheckboxItem[]) {
         console.log(options);
@@ -171,13 +59,18 @@ export class StatusCardComponent {
 
     updateChecked(id: string, index: number) {
         console.log(id, index);
-        this.panels[id].checkBoxes[index].checked =
-            !this.panels[id].checkBoxes[index].checked;
+        this.panelSelectionService.toggleChecked(id as PanelType, index);
         this.hasUnsavedChanges = true;
     }
 
     onApply(event: Event) {
-        console.log(this.panels);
+        console.log(this.panelSelectionService.panels);
+
+        // Update realtime layer source
+        this.gtfsStateService.upsertSourceUrls(
+            this.panelSelectionService.getCurrentSelected("rtLayer")
+        );
+
         this.hasUnsavedChanges = false;
     }
 }

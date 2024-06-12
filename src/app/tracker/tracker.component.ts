@@ -8,20 +8,13 @@ import { GtfsStateService } from "./services/gtfs-state.service";
     styleUrl: "./tracker.component.scss",
 })
 export class TrackerComponent implements OnInit, OnDestroy {
-    constructor(private gtfsStateService: GtfsStateService) {
-        this.gtfsStateService.addSourceUrl({
-            name: "ktmb",
-            sourceUrl:
-                "https://api.data.gov.my/gtfs-realtime/vehicle-position/ktmb/",
-            intervalMs: 30000,
-        });
-    }
+    constructor(private gtfsStateService: GtfsStateService) {}
 
     async ngOnInit() {
-        this.gtfsStateService.startAllIntervalRefresh(30000);
+        // this.gtfsStateService.startAllIntervalRefresh(30000);
     }
 
     ngOnDestroy() {
-        this.gtfsStateService.stopAllIntervalRefresh();
+        // this.gtfsStateService.stopAllIntervalRefresh();
     }
 }

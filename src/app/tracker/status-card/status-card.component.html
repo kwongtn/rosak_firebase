@@ -1,7 +1,10 @@
 <div nz-row nzJustify="end" class="row-class">
     <div nz-col nzSpan="8" class="info-panel">
         <nz-collapse [nzBordered]="false">
-            @for (panel of panels | keyvalue; track panel) {
+            @for (
+                panel of panelSelectionService.panels | keyvalue;
+                track panel
+            ) {
                 @if (panel.value.checkBoxes.length > 0) {
                     <nz-collapse-panel
                         [nzHeader]="panel.value.name"
