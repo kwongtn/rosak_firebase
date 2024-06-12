@@ -1,3 +1,6 @@
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzResultModule } from "ng-zorro-antd/result";
+
 import { Component } from "@angular/core";
 import { Router } from "@angular/router";
 
@@ -5,6 +8,8 @@ import { Router } from "@angular/router";
     selector: "app-fallback",
     templateUrl: "./fallback.component.html",
     styleUrls: ["./fallback.component.scss"],
+    standalone: true,
+    imports: [NzButtonModule, NzResultModule],
 })
 export class FallbackComponent {
     title = "Whoops! Page does not exist.";

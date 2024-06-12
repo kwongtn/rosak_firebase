@@ -13,7 +13,6 @@ import {
 } from "./compliance/main/main.component";
 import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
-import { FallbackComponent } from "./fallback/fallback.component";
 import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/profile.component";
@@ -250,9 +249,10 @@ const routes: Routes = [
     {
         path: "**",
         title: "MLPTF | Page not Found",
-        loadChildren: () =>
-            import("./fallback/fallback.module").then((m) => m.FallbackModule),
-        component: FallbackComponent,
+        loadComponent: () =>
+            import("./fallback/fallback.component").then(
+                (m) => m.FallbackComponent
+            ),
     },
 ];
 
