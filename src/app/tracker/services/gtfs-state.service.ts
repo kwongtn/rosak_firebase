@@ -19,6 +19,8 @@ class RtGtfs {
     feedEntities: BehaviorSubject<IFeedEntity> =
         new BehaviorSubject<IFeedEntity>({});
 
+    isLoading = false;
+
     constructor({ sourceUrl = "", intervalMs = 30000 }: RtGtfsConfig) {
         this.intervalMs = intervalMs;
 
@@ -37,6 +39,7 @@ class RtGtfs {
     }
 
     async refreshGtfsData() {
+        this.isLoading = true;
         const feedEntities = { ...this.feedEntities.getValue() };
 
         try {
@@ -64,6 +67,7 @@ class RtGtfs {
         }
 
         this.feedEntities.next(feedEntities);
+        this.isLoading = false;
         this.lastUpdatedMs = new Date().valueOf();
     }
 

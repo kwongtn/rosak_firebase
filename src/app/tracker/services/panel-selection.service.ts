@@ -39,7 +39,7 @@ export class PanelSelectionService {
                     value: "mybas-johor",
                     endpoint:
                         "https://api.data.gov.my/gtfs-realtime/vehicle-position/mybas-johor",
-                    checked: true,
+                    checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#mybas-johor-bahru",
                 },
                 {

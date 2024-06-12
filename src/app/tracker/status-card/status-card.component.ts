@@ -4,9 +4,13 @@ import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { NzFlexModule } from "ng-zorro-antd/flex";
 import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzListModule } from "ng-zorro-antd/list";
+import { NzSpaceModule } from "ng-zorro-antd/space";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 
 import { CommonModule } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import { GtfsStateService } from "../services/gtfs-state.service";
@@ -24,15 +28,19 @@ import {
         NzButtonModule,
         NzCardModule,
         NzCheckboxModule,
-        NzFlexModule,
-        NzGridModule,
         NzCollapseModule,
+        NzFlexModule,
+        NzIconModule,
+        NzGridModule,
+        NzListModule,
+        NzSpaceModule,
+        NzSpinModule,
         FormsModule,
     ],
     templateUrl: "./status-card.component.html",
     styleUrl: "./status-card.component.scss",
 })
-export class StatusCardComponent {
+export class StatusCardComponent implements OnInit {
     applyLoading = false;
     hasUnsavedChanges = false;
 
@@ -53,6 +61,10 @@ export class StatusCardComponent {
         public gtfsStateService: GtfsStateService
     ) {}
 
+    ngOnInit(){
+        this.onApply();
+    }
+
     onRtChange(options: ICheckboxItem[]) {
         console.log(options);
     }
@@ -63,7 +75,7 @@ export class StatusCardComponent {
         this.hasUnsavedChanges = true;
     }
 
-    onApply(event: Event) {
+    onApply(event?: Event) {
         console.log(this.panelSelectionService.panels);
 
         // Update realtime layer source
