@@ -41,6 +41,7 @@ class RtLayer {
     }
 
     processGtfs(gtfsData: IFeedEntity) {
+        this.scene.removeMarkerLayer(this.markerLayer);
         Object.entries(gtfsData).forEach(([key, value]) => {
             if (value?.position) {
                 const data = {
@@ -49,8 +50,6 @@ class RtLayer {
                 };
                 if (!this.markers[key]) {
                     this.markers[key] = new Marker().setLnglat(data);
-                    // this.markerLayer.addMarker(this.markers[key]);
-                    this.scene?.addMarker(this.markers[key]);
                 }
                 this.markers[key].setLnglat(data);
 
@@ -82,9 +81,10 @@ class RtLayer {
                 } else {
                     currPopup.instance.open();
                 }
+                this.markerLayer.addMarker(this.markers[key]);
             }
         });
-        this.scene.render();
+        this.scene.addMarkerLayer(this.markerLayer);
     }
 
     tearDown() {
