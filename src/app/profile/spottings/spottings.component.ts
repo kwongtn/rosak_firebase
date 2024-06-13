@@ -1,7 +1,25 @@
 import { QueryRef } from "apollo-angular";
-import { DataTableComponent, TableWidthConfig } from "ng-devui";
+import {
+    DataTableComponent,
+    DataTableModule,
+    LoadingModule,
+    TableWidthConfig,
+} from "ng-devui";
 import { ReCaptchaV3Service } from "ng-recaptcha";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
+import {
+    SpottingTypeCellDisplayModule,
+} from "src/app/@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+import {
+    ImagePreviewButtonComponent,
+} from "src/app/@ui/spotting/image-preview-button/image-preview-button.component";
+import {
+    VehicleStatusTagModule,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
+import {
+    VehicleTableCellDisplayComponent,
+} from "src/app/@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
@@ -10,6 +28,7 @@ import { AuthService } from "src/app/services/auth/auth.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 import { environment } from "src/environments/environment";
 
+import { CommonModule } from "@angular/common";
 import { AfterViewInit, Component, OnDestroy, OnInit } from "@angular/core";
 
 import { DeleteEventService } from "../services/delete-event.service";
@@ -22,6 +41,17 @@ import {
     selector: "profile-spottings",
     templateUrl: "./spottings.component.html",
     styleUrls: ["./spottings.component.scss"],
+    standalone: true,
+    imports: [
+        CommonModule,
+        DataTableModule,
+        ImagePreviewButtonComponent,
+        LoadingModule,
+        NzToolTipModule,
+        SpottingTypeCellDisplayModule,
+        VehicleStatusTagModule,
+        VehicleTableCellDisplayComponent,
+    ],
 })
 export class ProfileSpottingsComponent
 implements OnInit, OnDestroy, AfterViewInit
@@ -133,8 +163,14 @@ implements OnInit, OnDestroy, AfterViewInit
 
         this.mainQuerySubscription =
             this.watchQueryOption.valueChanges.subscribe(
-                ({ data, loading }: {data: GetEventsGqlResponse, loading: boolean}) => {
-                    this.displayData =this.mapGqlResultsToDisplayData(data);
+                ({
+                    data,
+                    loading,
+                }: {
+                    data: GetEventsGqlResponse;
+                    loading: boolean;
+                }) => {
+                    this.displayData = this.mapGqlResultsToDisplayData(data);
                     this.expandConfig = this.mapGqlResultsToExpandConfig(data);
 
                     this.loading = loading;
@@ -259,7 +295,7 @@ implements OnInit, OnDestroy, AfterViewInit
     onPictureIconClick(eventId: string) {
         this.expandConfig[eventId] = !this.expandConfig[eventId];
     }
-    
+
     ngOnDestroy(): void {
         this.mainQuerySubscription?.unsubscribe();
     }
