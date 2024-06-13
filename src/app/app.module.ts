@@ -13,7 +13,7 @@ import { NzImageService } from "ng-zorro-antd/image";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
-import { MarkdownModule } from "ngx-markdown";
+import { MarkdownModule, provideMarkdown } from "ngx-markdown";
 
 import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -48,7 +48,6 @@ import { HeaderModule } from "./header/header.module";
 registerLocaleData(en);
 
 const imports: any[] = [
-
     // Angular
     BrowserAnimationsModule,
     BrowserModule,
@@ -107,6 +106,7 @@ const providers: any[] = [
     provideAuth(() => getAuth()),
     provideDatabase(() => getDatabase()),
     provideStorage(() => getStorage()),
+    provideMarkdown(),
     NzModalService,
     NzImageService,
     NzDrawerService,
