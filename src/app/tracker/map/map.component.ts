@@ -49,8 +49,8 @@ class RtLayer {
                 };
                 if (!this.markers[key]) {
                     this.markers[key] = new Marker().setLnglat(data);
-                    this.markerLayer.addMarker(this.markers[key]);
-                    // this.scene?.addMarker(this.markers[key]);
+                    // this.markerLayer.addMarker(this.markers[key]);
+                    this.scene?.addMarker(this.markers[key]);
                 }
                 this.markers[key].setLnglat(data);
 

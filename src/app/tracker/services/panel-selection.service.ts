@@ -82,14 +82,14 @@ export class PanelSelectionService {
                     checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
                 },
-                {
-                    label: "RapidRail KL",
-                    value: "prasarana-rapid-rail-kl",
-                    endpoint:
-                        "https://api.data.gov.my/gtfs-realtime/vehicle-position/prasarana?category=rapid-rail-kl",
-                    checked: false,
-                    source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
-                },
+                // {
+                //     label: "RapidRail KL",
+                //     value: "prasarana-rapid-rail-kl",
+                //     endpoint:
+                //         "https://api.data.gov.my/gtfs-realtime/vehicle-position/prasarana?category=rapid-rail-kl",
+                //     checked: false,
+                //     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
+                // },
             ],
         },
         routeLayer: {
