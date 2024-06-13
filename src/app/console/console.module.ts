@@ -22,8 +22,8 @@ import {
     SpottingImageListModule,
 } from "../@ui/spotting-image-list/spotting-image-list.module";
 import {
-    SpottingTypeCellDisplayModule,
-} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+    SpottingTypeCellDisplayComponent,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.component";
 import {
     SpottingTypeTagModule,
 } from "../@ui/spotting-type-tag/spotting-type-tag.module";
@@ -74,7 +74,7 @@ import {
         CoordinatesHumanizerModule,
         ImagePreviewButtonComponent,
         SpottingImageListModule,
-        SpottingTypeCellDisplayModule,
+        SpottingTypeCellDisplayComponent,
         SpottingTypeTagModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,

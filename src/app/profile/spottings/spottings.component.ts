@@ -9,8 +9,8 @@ import { ReCaptchaV3Service } from "ng-recaptcha";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import {
-    SpottingTypeCellDisplayModule,
-} from "src/app/@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+    SpottingTypeCellDisplayComponent,
+} from "src/app/@ui/spotting-type-cell-display/spotting-type-cell-display.component";
 import {
     ImagePreviewButtonComponent,
 } from "src/app/@ui/spotting/image-preview-button/image-preview-button.component";
@@ -48,7 +48,7 @@ import {
         ImagePreviewButtonComponent,
         LoadingModule,
         NzToolTipModule,
-        SpottingTypeCellDisplayModule,
+        SpottingTypeCellDisplayComponent,
         VehicleStatusTagModule,
         VehicleTableCellDisplayComponent,
     ],

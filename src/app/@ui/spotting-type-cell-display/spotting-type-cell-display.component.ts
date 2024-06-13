@@ -1,14 +1,35 @@
+import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
+import {
+    BeautifulDecimalModule,
+} from "src/app/pipes/beautiful-decimal/beautiful-decimal.module";
+import {
+    CoordinatesHumanizerModule,
+} from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.module";
 import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
 
 import { Component, Input, OnInit } from "@angular/core";
+
+import {
+    SpottingTypeTagModule,
+} from "../spotting-type-tag/spotting-type-tag.module";
 
 @Component({
     selector: "spotting-type-cell-display",
     templateUrl: "./spotting-type-cell-display.component.html",
     styleUrls: ["./spotting-type-cell-display.component.scss"],
+    standalone: true,
+    imports: [
+        // CommonModule,
+        NzIconModule,
+        NzToolTipModule,
+        BeautifulDecimalModule,
+        CoordinatesHumanizerModule,
+        SpottingTypeTagModule,
+    ],
 })
 export class SpottingTypeCellDisplayComponent implements OnInit {
     @Input() rowItem!: ConsoleEventsGqlResponseTableDataElement;
