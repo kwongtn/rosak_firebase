@@ -12,6 +12,7 @@ import { UserSpottingTrends } from "../services/get-user-data.service";
     selector: "profile-spotting-trends",
     templateUrl: "./spotting-trends.component.html",
     styleUrls: ["./spotting-trends.component.scss"],
+    standalone: true,
 })
 export class SpottingTrendsComponent implements OnInit {
     @Input() data!: UserSpottingTrends[];
