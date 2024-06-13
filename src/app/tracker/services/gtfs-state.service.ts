@@ -1,5 +1,5 @@
 import { transit_realtime } from "gtfs-realtime-bindings";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 
 import { Injectable } from "@angular/core";
 
@@ -91,6 +91,8 @@ class RtGtfs {
 })
 export class GtfsStateService {
     sources: { [key: string]: RtGtfs } = {};
+    $deletedFeed: Subject<string> = new Subject<string>();
+    $addedFeed: Subject<string> = new Subject<string>();
 
     constructor() {}
 
@@ -103,13 +105,16 @@ export class GtfsStateService {
                 if (!sources[sourcename]) {
                     this.sources[sourcename].stopIntervalRefresh();
                     delete this.sources[sourcename];
+                    this.$deletedFeed.next(sourcename);
                 }
             });
         }
+
         Object.entries(sources).forEach(([sourcename, config]) => {
             if (!this.sources[sourcename]) {
                 this.sources[sourcename] = new RtGtfs(config);
                 this.sources[sourcename].startIntervalRefresh();
+                this.$addedFeed.next(sourcename);
             }
         });
     }

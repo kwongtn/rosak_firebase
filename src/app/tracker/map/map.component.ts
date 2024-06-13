@@ -6,43 +6,39 @@ import {
     ILayer,
     IMarker,
     LineLayer,
+    Mapbox,
     Marker,
     MarkerLayer,
     PointLayer,
     Popup,
     Scene,
 } from "@antv/l7";
-import { Mapbox } from "@antv/l7-maps";
 
 import { GetGeojsonService } from "../services/get-geojson.service";
 import { GtfsStateService } from "../services/gtfs-state.service";
 import { IFeedEntity, IPopupWithProps } from "../types";
 
-@Component({
-    selector: "tracker-map",
-    standalone: true,
-    imports: [],
-    templateUrl: "./map.component.html",
-    styleUrl: "./map.component.scss",
-})
-export class TrackerMapComponent implements OnInit, OnDestroy {
-    feedEntitySubscription!: Subscription;
+class RtLayer {
+    scene: Scene;
+    $feedEntity: Subscription;
 
-    /**
-     * Map stuff
-     */
-    scene: Scene | undefined = undefined;
-    pointLayer: PointLayer | undefined = undefined;
-    lineLayer: ILayer | undefined = undefined;
-
-    markerLayer: MarkerLayer | undefined = undefined;
+    markerLayer = new MarkerLayer();
     markers: { [key: string]: IMarker } = {};
     popups: { [key: string]: IPopupWithProps } = {};
 
     constructor(
-        private getGeojsonService: GetGeojsonService,
+        scene: Scene,
+        sceneKey: string,
         private gtfsStateService: GtfsStateService
-    ) {}
+    ) {
+        this.scene = scene;
+        this.scene.addMarkerLayer(this.markerLayer);
+        this.$feedEntity = this.gtfsStateService.sources[
+            sceneKey
+        ].feedEntities.subscribe((val) => {
+            this.processGtfs(val);
+        });
+    }
 
     processGtfs(gtfsData: IFeedEntity) {
         Object.entries(gtfsData).forEach(([key, value]) => {
@@ -53,7 +49,8 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
                 };
                 if (!this.markers[key]) {
                     this.markers[key] = new Marker().setLnglat(data);
-                    this.scene?.addMarker(this.markers[key]);
+                    this.markerLayer.addMarker(this.markers[key]);
+                    // this.scene?.addMarker(this.markers[key]);
                 }
                 this.markers[key].setLnglat(data);
 
@@ -87,15 +84,39 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
                 }
             }
         });
+        this.scene.render();
     }
+
+    tearDown() {
+        this.$feedEntity.unsubscribe();
+        this.scene.removeMarkerLayer(this.markerLayer);
+    }
+}
+
+@Component({
+    selector: "tracker-map",
+    standalone: true,
+    imports: [],
+    templateUrl: "./map.component.html",
+    styleUrl: "./map.component.scss",
+})
+export class TrackerMapComponent implements OnInit, OnDestroy {
+    rtLayers: { [key: string]: RtLayer } = {};
+
+    /**
+     * Map stuff
+     */
+    scene: Scene | undefined = undefined;
+    pointLayer: PointLayer | undefined = undefined;
+    lineLayer: ILayer | undefined = undefined;
+
+    constructor(
+        private getGeojsonService: GetGeojsonService,
+        private gtfsStateService: GtfsStateService
+    ) {}
 
     async ngOnInit() {
         document.documentElement.style.overflow = "hidden";
-
-        this.feedEntitySubscription =
-            this.gtfsStateService.feedEntities.subscribe((val) => {
-                this.processGtfs(val);
-            });
 
         this.scene = new Scene({
             id: "map",
@@ -105,6 +126,21 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
                 zoom: 6.5,
                 token: environment.mapbox.token,
             }),
+        });
+
+        this.gtfsStateService.$deletedFeed.subscribe((val) => {
+            console.log("Deleted: ", val);
+            this.rtLayers[val].tearDown();
+            delete this.rtLayers[val];
+        });
+
+        this.gtfsStateService.$addedFeed.subscribe((key) => {
+            console.log("Added: ", key);
+            this.rtLayers[key] = new RtLayer(
+                this.scene as Scene,
+                key,
+                this.gtfsStateService
+            );
         });
 
         this.scene.addImage(
@@ -149,6 +185,8 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         document.documentElement.style.overflow = "auto";
-        this.feedEntitySubscription?.unsubscribe();
+        Object.keys(this.rtLayers).forEach((key) => {
+            this.rtLayers[key].tearDown();
+        });
     }
 }
