@@ -41,8 +41,8 @@ import {
     LineStatusTagComponent,
 } from "../@ui/line-status-tag/line-status-tag.component";
 import {
-    SpottingTypeCellDisplayModule,
-} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+    SpottingTypeCellDisplayComponent,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.component";
 import {
     ImagePreviewButtonComponent,
 } from "../@ui/spotting/image-preview-button/image-preview-button.component";
@@ -114,7 +114,7 @@ import {
         ImagePreviewButtonComponent,
         LineStatusTagComponent,
         SpottingImageListModule,
-        SpottingTypeCellDisplayModule,
+        SpottingTypeCellDisplayComponent,
         SpottingTypePipeModule,
         VehicleStatusPipeModule,
         VehicleStatusTagModule,
