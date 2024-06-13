@@ -7,7 +7,6 @@ import {
 } from "@angular/fire/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
-import { AboutComponent } from "./about/about.component";
 import {
     MainComponent as ComplianceMainComponent,
 } from "./compliance/main/main.component";
@@ -163,9 +162,17 @@ const routes: Routes = [
     {
         path: "about",
         title: "MLPTF | About",
-        loadChildren: () =>
-            import("./about/about.module").then((m) => m.AboutModule),
-        component: AboutComponent,
+        loadComponent: () => {
+            if (maintenance.spotting.curentlyInMaintenance) {
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
+                );
+            } else {
+                return import("./about/about.component").then(
+                    (m) => m.AboutComponent
+                );
+            }
+        },
     },
     {
         path: "compliance",
