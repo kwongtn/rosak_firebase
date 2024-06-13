@@ -8,6 +8,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";
 import { Component, OnInit } from "@angular/core";
@@ -41,6 +42,7 @@ import {
     styleUrl: "./status-card.component.scss",
 })
 export class StatusCardComponent implements OnInit {
+    env = environment;
     applyLoading = false;
     hasUnsavedChanges = false;
 

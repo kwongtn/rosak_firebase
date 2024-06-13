@@ -1,6 +1,10 @@
 .row-class {
     padding-right: 20px;
     padding-top: 70px;
+
+    &.staging {
+        padding-top: 110px;
+    }
 }
 
 .info-panel {

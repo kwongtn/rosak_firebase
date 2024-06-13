@@ -1,4 +1,4 @@
-<div nz-row nzJustify="end" class="row-class">
+<div nz-row nzJustify="end" [class]="'row-class ' + env.sentry.environment">
     <div nz-col nzSpan="8" class="info-panel">
         <nz-collapse [nzBordered]="false">
             @for (
@@ -70,7 +70,11 @@
                                 </nz-list>
                             }
                             @default {
-                                Unknown layer {{ panel.key }}
+                                <p>Layer not implemented yet. 🥲</p>
+                                <p>
+                                    Maybe buy Kwong a coffee so he can code
+                                    faster? 😉
+                                </p>
                             }
                         }
                     </nz-collapse-panel>
