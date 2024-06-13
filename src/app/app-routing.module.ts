@@ -18,7 +18,6 @@ import { InsidenMainComponent } from "./insiden/insiden.component";
 import { ProfileMainComponent } from "./profile/profile.component";
 import { SituasiComponent } from "./situasi/situasi.component";
 import { SpottingMainComponent } from "./spotting/spotting-main.component";
-import { TrackerComponent } from "./tracker/tracker.component";
 
 interface MaintenanceElement {
     curentlyInMaintenance: boolean;
@@ -166,20 +165,17 @@ const routes: Routes = [
     {
         path: "tracker",
         title: "MLPTF | Tracker",
-        loadChildren: async () => {
-            if (maintenance.situasi.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+        loadComponent: () => {
+            if (maintenance.spotting.curentlyInMaintenance) {
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./tracker/tracker.module");
-                return module.TrackerModule;
+                return import("./tracker/tracker.component").then(
+                    (m) => m.TrackerComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : TrackerComponent,
         // ...canActivate(betaTesterOnly),
     },
     {
