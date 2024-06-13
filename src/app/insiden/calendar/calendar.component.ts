@@ -1,8 +1,14 @@
 import { QueryRef } from "apollo-angular";
-import { NzCalendarMode } from "ng-zorro-antd/calendar";
+import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzCalendarMode, NzCalendarModule } from "ng-zorro-antd/calendar";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { Subscription } from "rxjs";
+import {
+    CalendarIncidentSeverityModule,
+} from "src/app/pipes/calendar-incident-severity/calendar-incident-severity.module";
 
-import { formatDate } from "@angular/common";
+import { CommonModule, formatDate } from "@angular/common";
 import {
     Component,
     EventEmitter,
@@ -12,6 +18,7 @@ import {
     OnInit,
     Output,
 } from "@angular/core";
+import { FormsModule } from "@angular/forms";
 
 import {
     GetCalendarIncidentListMonthResponseElem,
@@ -28,6 +35,16 @@ const DATE_FORMAT = "yyyy-MM-dd";
     selector: "insiden-calendar",
     templateUrl: "./calendar.component.html",
     styleUrls: ["./calendar.component.scss"],
+    standalone: true,
+    imports: [
+        CommonModule,
+        FormsModule,
+        NzBadgeModule,
+        NzCalendarModule,
+        CalendarIncidentSeverityModule,
+        NzToolTipModule,
+        NzSpinModule,
+    ],
 })
 export class CalendarComponent implements OnInit {
     @Input() selectedDate!: Date;
