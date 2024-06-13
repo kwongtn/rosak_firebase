@@ -42,7 +42,6 @@ import { InsidenMainComponent } from "./insiden.component";
 @NgModule({
     declarations: [
         InsidenMainComponent,
-        CalendarComponent,
         EventListComponent,
         EventCardComponent,
         EventDetailsModalComponent,
@@ -74,6 +73,7 @@ import { InsidenMainComponent } from "./insiden.component";
         CalendarIncidentSeverityModule,
         FormUploadComponent,
         ImageGridModule,
+        CalendarComponent,
     ],
     providers: [],
 })
