@@ -43,7 +43,6 @@ import { InsidenMainComponent } from "./insiden.component";
     declarations: [
         InsidenMainComponent,
         EventListComponent,
-        EventCardComponent,
         ImageDrawerComponent,
     ],
     imports: [
@@ -74,6 +73,7 @@ import { InsidenMainComponent } from "./insiden.component";
         ImageGridModule,
         CalendarComponent,
         EventDetailsModalComponent,
+        EventCardComponent,
     ],
     providers: [],
 })

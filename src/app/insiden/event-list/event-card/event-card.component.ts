@@ -1,13 +1,23 @@
+import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzCardModule } from "ng-zorro-antd/card";
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
+import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzTagModule } from "ng-zorro-antd/tag";
+import { NzTimelineModule } from "ng-zorro-antd/timeline";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
+import {
+    CalendarIncidentSeverityPipe,
+} from "src/app/pipes/calendar-incident-severity/calendar-incident-severity.pipe";
 import {
     ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
+import { CommonModule } from "@angular/common";
 import {
     Component,
     HostListener,
@@ -29,6 +39,17 @@ import { ImageDrawerComponent } from "./image-drawer/image-drawer.component";
     selector: "insiden-event-card",
     templateUrl: "./event-card.component.html",
     styleUrls: ["./event-card.component.scss"],
+    standalone: true,
+    imports: [
+        CalendarIncidentSeverityPipe,
+        CommonModule,
+        NzBadgeModule,
+        NzCardModule,
+        NzGridModule,
+        NzTagModule,
+        NzTimelineModule,
+        NzToolTipModule,
+    ],
 })
 export class EventCardComponent implements OnInit, OnDestroy {
     @Input() data!: CalendarIncidentListItem;
