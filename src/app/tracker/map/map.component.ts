@@ -1,7 +1,7 @@
 import { Subscription } from "rxjs";
 import { environment } from "src/environments/environment";
 
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, NgZone, OnDestroy, OnInit } from "@angular/core";
 import {
     ILayer,
     IMarker,
@@ -112,35 +112,40 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
 
     constructor(
         private getGeojsonService: GetGeojsonService,
-        private gtfsStateService: GtfsStateService
+        private gtfsStateService: GtfsStateService,
+        private ngZone: NgZone
     ) {}
 
     async ngOnInit() {
         document.documentElement.style.overflow = "hidden";
 
-        this.scene = new Scene({
-            id: "map",
-            map: new Mapbox({
-                style: "normal",
-                center: [101.492, 4.5],
-                zoom: 6.5,
-                token: environment.mapbox.token,
-            }),
+        this.scene = this.ngZone.runOutsideAngular(() => {
+            return new Scene({
+                id: "map",
+                map: new Mapbox({
+                    style: "normal",
+                    center: [101.492, 4.5],
+                    zoom: 6.5,
+                    token: environment.mapbox.token,
+                }),
+            });
         });
 
         this.gtfsStateService.$deletedFeed.subscribe((val) => {
-            console.log("Deleted: ", val);
+            console.debug("Selected to delete from scene layer: ", val);
             this.rtLayers[val].tearDown();
             delete this.rtLayers[val];
         });
 
         this.gtfsStateService.$addedFeed.subscribe((key) => {
-            console.log("Added: ", key);
-            this.rtLayers[key] = new RtLayer(
-                this.scene as Scene,
-                key,
-                this.gtfsStateService
-            );
+            console.debug("Selected to add to layer: ", key);
+            this.rtLayers[key] = this.ngZone.runOutsideAngular(() => {
+                return new RtLayer(
+                    this.scene as Scene,
+                    key,
+                    this.gtfsStateService
+                );
+            });
         });
 
         this.scene.addImage(
