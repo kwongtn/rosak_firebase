@@ -5,8 +5,8 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { Subscription } from "rxjs";
 import {
-    CalendarIncidentSeverityModule,
-} from "src/app/pipes/calendar-incident-severity/calendar-incident-severity.module";
+    CalendarIncidentSeverityPipe,
+} from "src/app/pipes/calendar-incident-severity/calendar-incident-severity.pipe";
 
 import { CommonModule, formatDate } from "@angular/common";
 import {
@@ -41,7 +41,7 @@ const DATE_FORMAT = "yyyy-MM-dd";
         FormsModule,
         NzBadgeModule,
         NzCalendarModule,
-        CalendarIncidentSeverityModule,
+        CalendarIncidentSeverityPipe,
         NzToolTipModule,
         NzSpinModule,
     ],
