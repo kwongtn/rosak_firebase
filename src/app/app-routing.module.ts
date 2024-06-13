@@ -23,15 +23,18 @@ interface MaintenanceElement {
     notes?: string | undefined;
 }
 
-interface MaintananceDocument {
-    console: MaintenanceElement;
-    gallery: MaintenanceElement;
-    insiden: MaintenanceElement;
-    profile: MaintenanceElement;
-    situasi: MaintenanceElement;
-    spotting: MaintenanceElement;
-    tracker: MaintenanceElement;
-}
+type PageType =
+    | "console"
+    | "gallery"
+    | "insiden"
+    | "profile"
+    | "situasi"
+    | "spotting"
+    | "tracker";
+
+type MaintananceDocument = {
+    [key in PageType]: MaintenanceElement;
+};
 
 const maintenance: MaintananceDocument = {
     spotting: {
