@@ -43,17 +43,60 @@
                                                 @if (
                                                     gtfsStateService.sources[
                                                         checkbox.value
-                                                    ] &&
-                                                    gtfsStateService.sources[
-                                                        checkbox.value
-                                                    ].isLoading
+                                                    ]
                                                 ) {
-                                                    <nz-list-item-action>
-                                                        <nz-spin
-                                                            nzSimple
-                                                            nzSize="small"
-                                                        />
-                                                    </nz-list-item-action>
+                                                    @if (
+                                                        gtfsStateService
+                                                            .sources[
+                                                            checkbox.value
+                                                        ].isLoading
+                                                    ) {
+                                                        <nz-list-item-action>
+                                                            <nz-spin
+                                                                nzSimple
+                                                                nzSize="small"
+                                                            />
+                                                        </nz-list-item-action>
+                                                    } @else {
+                                                        <nz-list-item-action>
+                                                            <nz-progress
+                                                                nz-tooltip
+                                                                [nzTooltipTitle]="
+                                                                    (gtfsStateService
+                                                                        .sources[
+                                                                        checkbox
+                                                                            .value
+                                                                    ]
+                                                                        .timeRemaining /
+                                                                        1000
+                                                                        | number
+                                                                            : '1.0-0') +
+                                                                    ' seconds remaining till refresh.'
+                                                                "
+                                                                [nzPercent]="
+                                                                    gtfsStateService
+                                                                        .sources[
+                                                                        checkbox
+                                                                            .value
+                                                                    ]
+                                                                        .percentageTimeRemaining
+                                                                        | async
+                                                                "
+                                                                [nzShowInfo]="
+                                                                    false
+                                                                "
+                                                                [nzStrokeColor]="{
+                                                                    '0%': '#108ee9',
+                                                                    '100%': '#87d068',
+                                                                }"
+                                                                nzType="circle"
+                                                                [nzStrokeWidth]="
+                                                                    20
+                                                                "
+                                                                [nzWidth]="20"
+                                                            />
+                                                        </nz-list-item-action>
+                                                    }
                                                 }
                                                 <nz-list-item-action>
                                                     <a [href]="checkbox.source">

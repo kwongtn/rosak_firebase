@@ -6,8 +6,10 @@ import { NzFlexModule } from "ng-zorro-antd/flex";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzListModule } from "ng-zorro-antd/list";
+import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";
@@ -31,11 +33,13 @@ import {
         NzCheckboxModule,
         NzCollapseModule,
         NzFlexModule,
-        NzIconModule,
         NzGridModule,
+        NzIconModule,
         NzListModule,
+        NzProgressModule,
         NzSpaceModule,
         NzSpinModule,
+        NzToolTipModule,
         FormsModule,
     ],
     templateUrl: "./status-card.component.html",

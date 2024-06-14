@@ -19,6 +19,10 @@ class RtGtfs {
     feedEntities: BehaviorSubject<IFeedEntity> =
         new BehaviorSubject<IFeedEntity>({});
 
+    percentageTimeRemainingInterval!: NodeJS.Timeout;
+    percentageTimeRemaining: BehaviorSubject<number> =
+        new BehaviorSubject<number>(0);
+
     isLoading = false;
 
     constructor({ sourceUrl = "", intervalMs = 30000 }: RtGtfsConfig) {
@@ -31,11 +35,7 @@ class RtGtfs {
     }
 
     get timeRemaining() {
-        return this.intervalMs - new Date().valueOf() - this.lastUpdatedMs;
-    }
-
-    get percentageTimeRemaining() {
-        return this.lastUpdatedMs / this.intervalMs;
+        return this.intervalMs - (new Date().valueOf() - this.lastUpdatedMs);
     }
 
     async refreshGtfsData() {
@@ -78,11 +78,18 @@ class RtGtfs {
             this.refreshGtfsData();
         }, this.intervalMs);
 
+        this.percentageTimeRemainingInterval = setInterval(() => {
+            this.percentageTimeRemaining.next(
+                (this.timeRemaining * 100) / this.intervalMs
+            );
+        }, 120);
+
         this.refreshGtfsData();
     }
 
     async stopIntervalRefresh() {
         clearInterval(this.interval);
+        clearInterval(this.percentageTimeRemainingInterval);
     }
 }
 
