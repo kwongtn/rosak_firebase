@@ -2,6 +2,7 @@ import { Pipe, PipeTransform } from "@angular/core";
 
 @Pipe({
     name: "coordinatesHumanizer",
+    standalone: true,
 })
 export class CoordinatesHumanizerPipe implements PipeTransform {
     transform(

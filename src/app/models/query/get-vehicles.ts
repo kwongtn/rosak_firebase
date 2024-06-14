@@ -1,7 +1,7 @@
 import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
 import {
     VehicleStatus,
-} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 
 export type LineStatus =
     | "TESTING"

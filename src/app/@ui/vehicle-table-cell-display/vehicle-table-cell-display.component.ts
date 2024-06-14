@@ -1,7 +1,7 @@
 import { TooltipModule } from "ng-devui";
 import {
     VehicleStatus,
-} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";
