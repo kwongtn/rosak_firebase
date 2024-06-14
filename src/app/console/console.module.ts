@@ -13,6 +13,9 @@ import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
+import {
+    VehicleStatusPipe,
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -37,11 +40,8 @@ import {
     VehicleTableCellDisplayComponent,
 } from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import {
-    CoordinatesHumanizerModule,
-} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
-import {
-    VehicleStatusPipeModule,
-} from "../pipes/vehicle-status/vehicle-status.module";
+    CoordinatesHumanizerPipe,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.pipe";
 import { ConsoleMainComponent } from "./console.component";
 import {
     ConsoleEventsTableComponent,
@@ -52,7 +52,7 @@ import {
     imports: [
         CommonModule,
         FormsModule,
-        
+
         // devui
         ButtonModule,
         CategorySearchModule,
@@ -63,20 +63,20 @@ import {
         TagsModule,
         ToggleModule,
         TooltipModule,
-        
+
         // ng-zorro
         NzDrawerModule,
         NzIconModule,
         NzSpinModule,
         NzStatisticModule,
-        
+
         // Own Imports
-        CoordinatesHumanizerModule,
+        CoordinatesHumanizerPipe,
         ImagePreviewButtonComponent,
         SpottingImageListModule,
         SpottingTypeCellDisplayComponent,
         SpottingTypeTagModule,
-        VehicleStatusPipeModule,
+        VehicleStatusPipe,
         VehicleStatusTagModule,
         VehicleTableCellDisplayComponent,
     ],

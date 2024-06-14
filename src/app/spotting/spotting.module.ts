@@ -28,6 +28,9 @@ import {
     FormUploadComponent,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
 import {
+    VehicleStatusPipe,
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
+import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
 
@@ -54,14 +57,9 @@ import {
 } from "../@ui/wheel-status-tag/wheel-status-tag.component";
 import { GraphQLModule } from "../graphql.module";
 import {
-    CoordinatesHumanizerModule,
-} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
-import {
-    SpottingTypePipeModule,
-} from "../pipes/spotting-type/spotting-type.module";
-import {
-    VehicleStatusPipeModule,
-} from "../pipes/vehicle-status/vehicle-status.module";
+    CoordinatesHumanizerPipe,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.pipe";
+import { SpottingTypePipe } from "../pipes/spotting-type/spotting-type.pipe";
 import {
     GetLinesAndVehiclesGqlService,
 } from "./services/get-lines-vehicles-gql.service";
@@ -108,15 +106,15 @@ import {
 
         // Internal Imports
         ActionListComponent,
-        CoordinatesHumanizerModule,
+        CoordinatesHumanizerPipe,
         FormUploadComponent,
         GraphQLModule,
         ImagePreviewButtonComponent,
         LineStatusTagComponent,
         SpottingImageListModule,
         SpottingTypeCellDisplayComponent,
-        SpottingTypePipeModule,
-        VehicleStatusPipeModule,
+        SpottingTypePipe,
+        VehicleStatusPipe,
         VehicleStatusTagModule,
         WheelStatusTagComponent,
 

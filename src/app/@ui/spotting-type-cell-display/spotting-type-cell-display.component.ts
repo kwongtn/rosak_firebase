@@ -4,11 +4,11 @@ import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
 import {
-    BeautifulDecimalModule,
-} from "src/app/pipes/beautiful-decimal/beautiful-decimal.module";
+    BeautifulDecimalPipe,
+} from "src/app/pipes/beautiful-decimal/beautiful-decimal.pipe";
 import {
-    CoordinatesHumanizerModule,
-} from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.module";
+    CoordinatesHumanizerPipe,
+} from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.pipe";
 import { SpottingType } from "src/app/pipes/spotting-type/spotting-type.pipe";
 
 import { Component, Input, OnInit } from "@angular/core";
@@ -26,8 +26,8 @@ import {
         // CommonModule,
         NzIconModule,
         NzToolTipModule,
-        BeautifulDecimalModule,
-        CoordinatesHumanizerModule,
+        BeautifulDecimalPipe,
+        CoordinatesHumanizerPipe,
         SpottingTypeTagModule,
     ],
 })

@@ -8,7 +8,7 @@ import { firstValueFrom, lastValueFrom } from "rxjs";
 import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
 import {
     VehicleStatus,
-} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 import { AuthService } from "src/app/services/auth/auth.service";
 import {
     SessionHistoryService,

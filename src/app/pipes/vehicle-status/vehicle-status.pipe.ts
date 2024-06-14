@@ -16,8 +16,9 @@ export type VehicleStatus =
 
 @Pipe({
     name: "vehicleStatusPipe",
+    standalone: true,
 })
-export class VehicleStatusPipePipe implements PipeTransform {
+export class VehicleStatusPipe implements PipeTransform {
     transform(value: VehicleStatus| SpottingVehicleStatus): string {
         const dict = {
             IN_SERVICE: "In Service",
