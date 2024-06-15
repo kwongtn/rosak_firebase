@@ -1,13 +1,13 @@
 import { TestBed } from "@angular/core/testing";
 
-import { GtfsStateService } from "../gtfs-state.service";
+import { GtfsRtStateService } from "../gtfs-rt-state.service";
 
-describe("GtfsStateService", () => {
-    let service: GtfsStateService;
+describe("GtfsRtStateService", () => {
+    let service: GtfsRtStateService;
 
     beforeEach(() => {
         TestBed.configureTestingModule({});
-        service = TestBed.inject(GtfsStateService);
+        service = TestBed.inject(GtfsRtStateService);
     });
 
     it("should be created", () => {

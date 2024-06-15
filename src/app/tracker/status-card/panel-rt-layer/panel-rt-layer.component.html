@@ -14,18 +14,19 @@
                 </nz-list-item-meta-avatar>
             </nz-list-item-meta>
             <ul nz-list-item-actions>
-                @if (gtfsStateService.sources[checkbox.value]) {
+                @if (gtfsRtStateService.sources[checkbox.value]) {
                     <nz-list-item-action>
                         @if (
-                            gtfsStateService.sources[checkbox.value].isLoading
+                            gtfsRtStateService.sources[checkbox.value].isLoading
                         ) {
                             <nz-spin nzSimple nzSize="small" />
                         } @else {
                             <div class="wrapper">
                                 <nz-progress
                                     [nzPercent]="
-                                        gtfsStateService.sources[checkbox.value]
-                                            .percentageTimeRemaining | async
+                                        gtfsRtStateService.sources[
+                                            checkbox.value
+                                        ].percentageTimeRemaining | async
                                     "
                                     [nzShowInfo]="false"
                                     [nzStrokeColor]="{
@@ -40,7 +41,7 @@
                                     class="overlay"
                                     nz-tooltip
                                     [nzTooltipTitle]="
-                                        ((gtfsStateService.sources[
+                                        ((gtfsRtStateService.sources[
                                             checkbox.value
                                         ].timeRemaining | async) ?? 0 / 1000
                                             | number: '1.0-0') +

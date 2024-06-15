@@ -9,7 +9,7 @@ import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { CommonModule } from "@angular/common";
 import { Component, Input } from "@angular/core";
 
-import { GtfsStateService } from "../../services/gtfs-state.service";
+import { GtfsRtStateService } from "../../services/gtfs-rt-state.service";
 import {
     ICollapseItem,
     PanelSelectionService,
@@ -38,7 +38,7 @@ export class PanelRtLayerComponent {
 
     constructor(
         public panelSelectionService: PanelSelectionService,
-        public gtfsStateService: GtfsStateService
+        public gtfsRtStateService: GtfsRtStateService
     ) {}
 
     updateChecked(id: string, index: number) {

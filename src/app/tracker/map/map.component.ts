@@ -15,7 +15,7 @@ import {
 } from "@antv/l7";
 
 import { GetGeojsonService } from "../services/get-geojson.service";
-import { GtfsStateService } from "../services/gtfs-state.service";
+import { GtfsRtStateService } from "../services/gtfs-rt-state.service";
 import { IFeedEntity, IPopupWithProps } from "../types";
 
 class RtLayer {
@@ -29,11 +29,11 @@ class RtLayer {
     constructor(
         scene: Scene,
         sceneKey: string,
-        private gtfsStateService: GtfsStateService
+        private gtfsRtStateService: GtfsRtStateService
     ) {
         this.scene = scene;
         this.scene.addMarkerLayer(this.markerLayer);
-        this.$feedEntity = this.gtfsStateService.sources[
+        this.$feedEntity = this.gtfsRtStateService.sources[
             sceneKey
         ].feedEntities.subscribe((val) => {
             this.processGtfs(val);
@@ -112,7 +112,7 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
 
     constructor(
         private getGeojsonService: GetGeojsonService,
-        private gtfsStateService: GtfsStateService,
+        private gtfsRtStateService: GtfsRtStateService,
         private ngZone: NgZone
     ) {}
 
@@ -131,19 +131,19 @@ export class TrackerMapComponent implements OnInit, OnDestroy {
             });
         });
 
-        this.gtfsStateService.$deletedFeed.subscribe((val) => {
+        this.gtfsRtStateService.$deletedFeed.subscribe((val) => {
             console.debug("Selected to delete from scene layer: ", val);
             this.rtLayers[val].tearDown();
             delete this.rtLayers[val];
         });
 
-        this.gtfsStateService.$addedFeed.subscribe((key) => {
+        this.gtfsRtStateService.$addedFeed.subscribe((key) => {
             console.debug("Selected to add to layer: ", key);
             this.rtLayers[key] = this.ngZone.runOutsideAngular(() => {
                 return new RtLayer(
                     this.scene as Scene,
                     key,
-                    this.gtfsStateService
+                    this.gtfsRtStateService
                 );
             });
         });

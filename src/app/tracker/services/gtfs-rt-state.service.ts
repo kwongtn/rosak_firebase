@@ -96,7 +96,7 @@ class RtGtfs {
 @Injectable({
     providedIn: "root",
 })
-export class GtfsStateService {
+export class GtfsRtStateService {
     sources: { [key: string]: RtGtfs } = {};
     $deletedFeed: Subject<string> = new Subject<string>();
     $addedFeed: Subject<string> = new Subject<string>();

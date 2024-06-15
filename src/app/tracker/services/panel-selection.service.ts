@@ -2,7 +2,7 @@ import { BehaviorSubject } from "rxjs";
 
 import { Injectable } from "@angular/core";
 
-import { RtGtfsConfig } from "./gtfs-state.service";
+import { RtGtfsConfig } from "./gtfs-rt-state.service";
 
 export interface ICheckboxItem {
     label: string;

@@ -4,7 +4,7 @@ import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import { TrackerMapComponent } from "./map/map.component";
-import { GtfsStateService } from "./services/gtfs-state.service";
+import { GtfsRtStateService } from "./services/gtfs-rt-state.service";
 import { StatusCardComponent } from "./status-card/status-card.component";
 
 @Component({
@@ -20,13 +20,13 @@ import { StatusCardComponent } from "./status-card/status-card.component";
     ],
 })
 export class TrackerComponent implements OnInit, OnDestroy {
-    constructor(private gtfsStateService: GtfsStateService) {}
+    constructor(private gtfsRtStateService: GtfsRtStateService) {}
 
     async ngOnInit() {
-        // this.gtfsStateService.startAllIntervalRefresh(30000);
+        // this.gtfsRtStateService.startAllIntervalRefresh(30000);
     }
 
     ngOnDestroy() {
-        // this.gtfsStateService.stopAllIntervalRefresh();
+        // this.gtfsRtStateService.stopAllIntervalRefresh();
     }
 }
