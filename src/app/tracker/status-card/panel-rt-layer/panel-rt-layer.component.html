@@ -21,15 +21,7 @@
                         ) {
                             <nz-spin nzSimple nzSize="small" />
                         } @else {
-                            <div
-                                nz-tooltip
-                                [nzTooltipTitle]="
-                                    ((gtfsStateService.sources[checkbox.value]
-                                        .timeRemaining | async) ?? 0 / 1000
-                                        | number: '1.0-0') +
-                                    ' seconds remaining till refresh.'
-                                "
-                            >
+                            <div class="wrapper">
                                 <nz-progress
                                     [nzPercent]="
                                         gtfsStateService.sources[checkbox.value]
@@ -44,6 +36,19 @@
                                     [nzStrokeWidth]="20"
                                     [nzWidth]="20"
                                 />
+                                <div
+                                    class="overlay"
+                                    nz-tooltip
+                                    [nzTooltipTitle]="
+                                        ((gtfsStateService.sources[
+                                            checkbox.value
+                                        ].timeRemaining | async) ?? 0 / 1000
+                                            | number: '1.0-0') +
+                                        ' seconds remaining till refresh.'
+                                    "
+                                >
+                                    <div class="shape"></div>
+                                </div>
                             </div>
                         }
                     </nz-list-item-action>
