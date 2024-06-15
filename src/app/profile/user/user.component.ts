@@ -7,7 +7,7 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { take } from "rxjs";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 
 import { CommonModule } from "@angular/common";

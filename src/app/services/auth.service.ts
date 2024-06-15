@@ -15,8 +15,8 @@ import { doc, Firestore, onSnapshot } from "@angular/fire/firestore";
 import { Router } from "@angular/router";
 import * as Sentry from "@sentry/browser";
 
-import { ToastService } from "../toast/toast.service";
-import { isUserAllowed } from "./permissions";
+import { isUserAllowed } from "./auth-permissions";
+import { ToastService } from "./toast/toast.service";
 
 export interface UserAuthData {
     permissions?: {

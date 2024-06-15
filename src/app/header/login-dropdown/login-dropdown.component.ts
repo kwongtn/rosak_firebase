@@ -1,5 +1,5 @@
 import { Subscription } from "rxjs";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 import { ThemeService } from "src/app/services/theme/theme.service";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";

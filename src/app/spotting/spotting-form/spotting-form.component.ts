@@ -9,7 +9,7 @@ import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status.pipe";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 import {
     SessionHistoryService,
 } from "src/app/services/session-history/session-history.service";
