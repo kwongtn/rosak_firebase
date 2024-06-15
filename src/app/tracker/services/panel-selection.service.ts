@@ -1,3 +1,5 @@
+import { BehaviorSubject } from "rxjs";
+
 import { Injectable } from "@angular/core";
 
 import { RtGtfsConfig } from "./gtfs-state.service";
@@ -10,7 +12,7 @@ export interface ICheckboxItem {
     source?: string;
 }
 
-interface ICollapseItem {
+export interface ICollapseItem {
     active: boolean;
     disabled: boolean;
     name: string;
@@ -19,7 +21,7 @@ interface ICollapseItem {
 
 export type PanelType = "rtLayer" | "routeLayer" | "stopsLayer";
 
-type IPanels = {
+export type IPanels = {
     [key in PanelType]: ICollapseItem;
 };
 
@@ -120,47 +122,56 @@ export class PanelSelectionService {
                 {
                     label: "RapidBus KL",
                     value: "prasarana-rapid-bus-kl",
-                    endpoint: "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kl",
+                    endpoint:
+                        "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kl",
                     checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
                 },
                 {
                     label: "RapidBus MRT Feeder",
                     value: "prasarana-rapid-bus-mrtfeeder",
-                    endpoint: "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-mrtfeeder",
+                    endpoint:
+                        "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-mrtfeeder",
                     checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
                 },
                 {
                     label: "RapidRail KL",
                     value: "prasarana-rapid-rail-kl",
-                    endpoint: "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-rail-kl",
+                    endpoint:
+                        "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-rail-kl",
                     checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
                 },
                 {
                     label: "RapidBus Kuantan",
                     value: "prasarana-rapid-bus-kuantan",
-                    endpoint: "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kuantan",
+                    endpoint:
+                        "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kuantan",
                     checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
                 },
                 {
                     label: "RapidBus Penang",
                     value: "prasarana-rapid-bus-penang",
-                    endpoint: "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-penang",
+                    endpoint:
+                        "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-penang",
                     checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-realtime#prasarana",
                 },
             ],
         },
     };
+    hasUnsavedChanges: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(
+        false
+    );
 
     constructor() {}
 
     toggleChecked(id: PanelType, index: number) {
         this.panels[id].checkBoxes[index].checked =
             !this.panels[id].checkBoxes[index].checked;
+        this.hasUnsavedChanges.next(true);
     }
 
     getCurrentSelected(panelType: PanelType): {
@@ -178,5 +189,9 @@ export class PanelSelectionService {
             });
 
         return returnObj;
+    }
+
+    onApply() {
+        this.hasUnsavedChanges.next(false);
     }
 }

@@ -22,6 +22,7 @@ class RtGtfs {
     percentageTimeRemainingInterval!: NodeJS.Timeout;
     percentageTimeRemaining: BehaviorSubject<number> =
         new BehaviorSubject<number>(0);
+    timeRemaining: BehaviorSubject<number> = new BehaviorSubject<number>(0);
 
     isLoading = false;
 
@@ -32,10 +33,6 @@ class RtGtfs {
             throw new Error("No sourceUrl provided");
         }
         this.sourceUrl = sourceUrl;
-    }
-
-    get timeRemaining() {
-        return this.intervalMs - (new Date().valueOf() - this.lastUpdatedMs);
     }
 
     async refreshGtfsData() {
@@ -79,8 +76,11 @@ class RtGtfs {
         }, this.intervalMs);
 
         this.percentageTimeRemainingInterval = setInterval(() => {
+            const timeRemaining =
+                this.intervalMs - (new Date().valueOf() - this.lastUpdatedMs);
+            this.timeRemaining.next(timeRemaining / 1000);
             this.percentageTimeRemaining.next(
-                (this.timeRemaining * 100) / this.intervalMs
+                (timeRemaining * 100) / this.intervalMs
             );
         }, 120);
 

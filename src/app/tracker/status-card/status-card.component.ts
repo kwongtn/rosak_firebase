@@ -22,6 +22,7 @@ import {
     PanelSelectionService,
     PanelType,
 } from "../services/panel-selection.service";
+import { PanelComponent } from "./panel/panel.component";
 
 @Component({
     selector: "tracker-status-card",
@@ -41,6 +42,7 @@ import {
         NzSpinModule,
         NzToolTipModule,
         FormsModule,
+        PanelComponent,
     ],
     templateUrl: "./status-card.component.html",
     styleUrl: "./status-card.component.scss",
@@ -67,7 +69,7 @@ export class StatusCardComponent implements OnInit {
         public gtfsStateService: GtfsStateService
     ) {}
 
-    ngOnInit(){
+    ngOnInit() {
         this.onApply();
     }
 
@@ -75,7 +77,7 @@ export class StatusCardComponent implements OnInit {
         console.log(options);
     }
 
-    updateChecked(id: string, index: number) {
+    updateChecked({ id, index }: { id: string; index: number }) {
         console.log(id, index);
         this.panelSelectionService.toggleChecked(id as PanelType, index);
         this.hasUnsavedChanges = true;
@@ -88,7 +90,6 @@ export class StatusCardComponent implements OnInit {
         this.gtfsStateService.upsertSourceUrls(
             this.panelSelectionService.getCurrentSelected("rtLayer")
         );
-
-        this.hasUnsavedChanges = false;
+        this.panelSelectionService.onApply();
     }
 }
