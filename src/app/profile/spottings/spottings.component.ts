@@ -24,7 +24,7 @@ import {
     ConsoleEventsGqlResponseTableDataElement,
 } from "src/app/console/services/events-gql/events-gql.service";
 import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 import { ToastService } from "src/app/services/toast/toast.service";
 import { environment } from "src/environments/environment";
 

@@ -1,6 +1,6 @@
 import { QueryRef } from "apollo-angular";
 import { Subscription } from "rxjs";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { User } from "@angular/fire/auth";
