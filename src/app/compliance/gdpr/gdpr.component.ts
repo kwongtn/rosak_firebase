@@ -1,4 +1,6 @@
+import { PanelModule } from "ng-devui";
 
+import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
     doc,
@@ -17,6 +19,8 @@ import {
     selector: "compliance-gdpr",
     templateUrl: "./gdpr.component.html",
     styleUrls: ["./gdpr.component.scss"],
+    standalone: true,
+    imports: [CommonModule, PanelModule],
 })
 export class GdprComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
