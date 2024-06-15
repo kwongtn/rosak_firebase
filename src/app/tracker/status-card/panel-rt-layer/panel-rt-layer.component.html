@@ -1,0 +1,63 @@
+<nz-list nzItemLayout="horizontal">
+    @for (checkbox of panelData.checkBoxes; track checkbox; let i = $index) {
+        <nz-list-item>
+            <nz-list-item-meta>
+                <nz-list-item-meta-title>
+                    {{ checkbox.label }}
+                </nz-list-item-meta-title>
+                <nz-list-item-meta-avatar>
+                    <label
+                        nz-checkbox
+                        [nzChecked]="checkbox.checked"
+                        (nzCheckedChange)="updateChecked(panelKey, i)"
+                    ></label>
+                </nz-list-item-meta-avatar>
+            </nz-list-item-meta>
+            <ul nz-list-item-actions>
+                @if (gtfsStateService.sources[checkbox.value]) {
+                    <nz-list-item-action>
+                        @if (
+                            gtfsStateService.sources[checkbox.value].isLoading
+                        ) {
+                            <nz-spin nzSimple nzSize="small" />
+                        } @else {
+                            <div
+                                nz-tooltip
+                                [nzTooltipTitle]="
+                                    ((gtfsStateService.sources[checkbox.value]
+                                        .timeRemaining | async) ?? 0 / 1000
+                                        | number: '1.0-0') +
+                                    ' seconds remaining till refresh.'
+                                "
+                            >
+                                <nz-progress
+                                    [nzPercent]="
+                                        gtfsStateService.sources[checkbox.value]
+                                            .percentageTimeRemaining | async
+                                    "
+                                    [nzShowInfo]="false"
+                                    [nzStrokeColor]="{
+                                        '0%': '#108ee9',
+                                        '100%': '#87d068',
+                                    }"
+                                    nzType="circle"
+                                    [nzStrokeWidth]="20"
+                                    [nzWidth]="20"
+                                />
+                            </div>
+                        }
+                    </nz-list-item-action>
+                }
+                <nz-list-item-action>
+                    <a [href]="checkbox.source">
+                        <span
+                            nz-icon
+                            nzType="info-circle"
+                            nzTheme="outline"
+                        ></span>
+                    </a>
+                </nz-list-item-action>
+            </ul>
+        </nz-list-item>
+    }
+</nz-list>
