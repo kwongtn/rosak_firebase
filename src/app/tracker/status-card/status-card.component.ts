@@ -17,6 +17,7 @@ import { Component, OnInit } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import { GtfsRtStateService } from "../services/gtfs-rt-state.service";
+import { GtfsStaticStateService } from "../services/gtfs-static-state.service";
 import {
     ICheckboxItem,
     PanelSelectionService,
@@ -66,7 +67,8 @@ export class StatusCardComponent implements OnInit {
 
     constructor(
         public panelSelectionService: PanelSelectionService,
-        public gtfsRtStateService: GtfsRtStateService
+        public gtfsRtStateService: GtfsRtStateService,
+        public gtfsStaticStateService: GtfsStaticStateService
     ) {}
 
     ngOnInit() {
@@ -89,6 +91,9 @@ export class StatusCardComponent implements OnInit {
         // Update realtime layer source
         this.gtfsRtStateService.upsertSourceUrls(
             this.panelSelectionService.getCurrentSelected("rtLayer")
+        );
+        this.gtfsStaticStateService.upsertSourceUrls(
+            this.panelSelectionService.getCurrentSelected("stopsLayer")
         );
         this.panelSelectionService.onApply();
     }

@@ -19,7 +19,7 @@ export interface ICollapseItem {
     checkBoxes: ICheckboxItem[];
 }
 
-export type PanelType = "rtLayer" | "routeLayer" | "stopsLayer";
+export type PanelType = "rtLayer" | "pathLayer" | "stopsLayer";
 
 export type IPanels = {
     [key in PanelType]: ICollapseItem;
@@ -94,11 +94,20 @@ export class PanelSelectionService {
                 // },
             ],
         },
-        routeLayer: {
+        pathLayer: {
             active: false,
-            disabled: true,
+            disabled: false,
             name: "Route layer",
-            checkBoxes: [],
+            checkBoxes: [
+                {
+                    label: "Malaysia Railway",
+                    value: "malaysia-railway",
+                    endpoint:
+                        "gs://rosak-7223b.appspot.com/public/malaysia_railway.geo.zip",
+                    checked: true,
+                    source: "https://www.openstreetmap.org/",
+                },
+            ],
         },
         stopsLayer: {
             active: false,
@@ -109,7 +118,7 @@ export class PanelSelectionService {
                     label: "myBAS Johor Bahru",
                     value: "mybas-johor",
                     endpoint: "https://api.data.gov.my/gtfs-static/mybas-johor",
-                    checked: true,
+                    checked: false,
                     source: "https://developer.data.gov.my/realtime-api/gtfs-static#mybas-johor-bahru",
                 },
                 {
