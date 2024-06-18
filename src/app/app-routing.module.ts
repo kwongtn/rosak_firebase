@@ -7,7 +7,6 @@ import {
 } from "@angular/fire/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
-import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
 import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
@@ -203,20 +202,17 @@ const routes: Routes = [
     {
         path: "console",
         title: "MLPTF | Console",
-        loadChildren: async () => {
-            if (maintenance.console.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+        loadComponent: () => {
+            if (maintenance.spotting.curentlyInMaintenance) {
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./console/console.module");
-                return module.ConsoleModule;
+                return import("./console/console.component").then(
+                    (m) => m.ConsoleMainComponent
+                );
             }
         },
-        component: maintenance.console.curentlyInMaintenance
-            ? ConstructionComponent
-            : ConsoleMainComponent,
         ...canActivate(adminOnly),
     },
     {
