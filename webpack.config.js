@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 // const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
+const BundleAnalyzerPlugin = require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
 
 module.exports = {
     devtool: "source-map", // Source map generation must be turned on
@@ -18,5 +19,10 @@ module.exports = {
         //     // Optionally uncomment the line below to override automatic release name detection
         //     // release: process.env.RELEASE,
         // }),
+        new BundleAnalyzerPlugin({
+            analyzerMode: "static",
+            reportFilename: "bundle-report.html",
+            openAnalyzer: false,
+        }),
     ],
 };

@@ -25,7 +25,8 @@ type PageType =
     | "insiden"
     | "profile"
     | "situasi"
-    | "spotting";
+    | "spotting"
+    | "tracker";
 
 type MaintananceDocument = {
     [key in PageType]: MaintenanceElement;
@@ -48,6 +49,9 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
     situasi: {
+        curentlyInMaintenance: false,
+    },
+    tracker: {
         curentlyInMaintenance: false,
     },
 };
@@ -155,6 +159,22 @@ const routes: Routes = [
             ? ConstructionComponent
             : SituasiComponent,
         ...canActivate(betaTesterOnly),
+    },
+    {
+        path: "tracker",
+        title: "MLPTF | Tracker",
+        loadComponent: () => {
+            if (maintenance.spotting.curentlyInMaintenance) {
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
+                );
+            } else {
+                return import("./tracker/tracker.component").then(
+                    (m) => m.TrackerComponent
+                );
+            }
+        },
+        // ...canActivate(betaTesterOnly),
     },
     {
         path: "about",

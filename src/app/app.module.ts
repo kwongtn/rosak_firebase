@@ -113,13 +113,11 @@ const providers: any[] = [
 ];
 
 if (environment.production) {
-    imports.push(
-        provideAnalytics(() => getAnalytics()),
-        providePerformance(() => getPerformance())
-    );
     providers.push(
         ScreenTrackingService,
-        UserTrackingService
+        UserTrackingService,
+        provideAnalytics(() => getAnalytics()),
+        providePerformance(() => getPerformance())
         // {
         //     provide: CONFIG,
         //     useValue: {

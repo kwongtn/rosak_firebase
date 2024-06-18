@@ -32,4 +32,7 @@ export const environment = {
     upload: {
         concurrency: 5,
     },
+    mapbox: {
+        token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbHd3eGIxazEwd2tsMm5yM3NyYmt4b2s4In0.l1ThIQzGXxoPDY3VyMtC-Q",
+    },
 };
