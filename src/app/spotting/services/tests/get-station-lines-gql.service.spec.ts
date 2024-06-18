@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { GetStationLinesGqlService } from "./get-station-lines-gql.service";
+import { GetStationLinesGqlService } from "../get-station-lines-gql.service";
 
 describe("GetStationLinesGqlService", () => {
     let service: GetStationLinesGqlService;

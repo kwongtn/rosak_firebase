@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { GetSpottingHistoryService } from "./get-spotting-history.service";
+import { GetSpottingHistoryService } from "../get-spotting-history.service";
 
 describe("GetSpottingHistoryService", () => {
     let service: GetSpottingHistoryService;

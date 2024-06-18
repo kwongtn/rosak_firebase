@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing";
 
 import {
     GetLinesAndVehiclesGqlService,
-} from "./get-lines-vehicles-gql.service";
+} from "../get-lines-vehicles-gql.service";
 
 describe("GetLinesAndVehiclesGqlService", () => {
     let service: GetLinesAndVehiclesGqlService;

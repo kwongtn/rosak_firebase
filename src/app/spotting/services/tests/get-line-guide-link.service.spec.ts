@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { GetLineGuideLinkService } from "./get-line-guide-link.service";
+import { GetLineGuideLinkService } from "../get-line-guide-link.service";
 
 describe("GetLineGuideLinkService", () => {
     let service: GetLineGuideLinkService;
