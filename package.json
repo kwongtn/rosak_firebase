@@ -68,6 +68,7 @@
         "@angular-devkit/build-angular": "^17.3.0",
         "@angular/cli": "^17.3.0",
         "@angular/compiler-cli": "^17.3.0",
+        "@codecov/webpack-plugin": "^0.0.1-beta.10",
         "@sentry/webpack-plugin": "^2.5.0",
         "@types/geojson": "^7946.0.14",
         "@types/jasmine": "~5.1.4",

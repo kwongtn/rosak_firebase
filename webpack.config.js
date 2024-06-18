@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 // const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
 const BundleAnalyzerPlugin = require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
+const { codecovWebpackPlugin } = require("@codecov/webpack-plugin");
 
 module.exports = {
     devtool: "source-map", // Source map generation must be turned on
@@ -23,6 +24,10 @@ module.exports = {
             analyzerMode: "static",
             reportFilename: "bundle-report.html",
             openAnalyzer: false,
+        }), codecovWebpackPlugin({
+            enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+            bundleName: "rosak_firebse",
+            uploadToken: process.env.CODECOV_TOKEN,
         }),
     ],
 };
