@@ -1,4 +1,6 @@
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { MarkdownComponent } from "ngx-markdown";
 import { Subscription } from "rxjs";
 
 import { Component, inject, OnInit } from "@angular/core";
@@ -12,6 +14,8 @@ import { CalendarIncidentListItem } from "../event-list.component";
     selector: "insiden-event-details-modal",
     templateUrl: "./event-details-modal.component.html",
     styleUrls: ["./event-details-modal.component.scss"],
+    standalone: true,
+    imports: [MarkdownComponent, NzSpinModule],
 })
 export class EventDetailsModalComponent implements OnInit {
     readonly nzModalData: CalendarIncidentListItem = inject(NZ_MODAL_DATA);

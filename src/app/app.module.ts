@@ -13,7 +13,7 @@ import { NzImageService } from "ng-zorro-antd/image";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzNotificationModule } from "ng-zorro-antd/notification";
-import { MarkdownModule } from "ngx-markdown";
+import { MarkdownModule, provideMarkdown } from "ngx-markdown";
 
 import { registerLocaleData } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
@@ -38,7 +38,7 @@ import * as Sentry from "@sentry/angular-ivy";
 
 // import build from "../build";
 import { environment } from "../environments/environment";
-import { FooterModule } from "./@ui/footer/footer.module";
+import { FooterComponent } from "./@ui/footer/footer.component";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
 import { GlobalErrorHandler } from "./error-handler";
@@ -48,7 +48,6 @@ import { HeaderModule } from "./header/header.module";
 registerLocaleData(en);
 
 const imports: any[] = [
-
     // Angular
     BrowserAnimationsModule,
     BrowserModule,
@@ -66,7 +65,7 @@ const imports: any[] = [
     AppRoutingModule,
     GraphQLModule,
     HeaderModule,
-    FooterModule,
+    FooterComponent,
 
     // Other Services
     RecaptchaFormsModule,
@@ -107,6 +106,7 @@ const providers: any[] = [
     provideAuth(() => getAuth()),
     provideDatabase(() => getDatabase()),
     provideStorage(() => getStorage()),
+    provideMarkdown(),
     NzModalService,
     NzImageService,
     NzDrawerService,

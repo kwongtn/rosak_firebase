@@ -12,6 +12,7 @@ import build from "../../../build";
     selector: "app-footer",
     templateUrl: "./footer.component.html",
     styleUrls: ["./footer.component.scss"],
+    standalone: true,
 })
 export class FooterComponent implements OnDestroy {
     backendBuildInfo!: BackendBuildInfo;

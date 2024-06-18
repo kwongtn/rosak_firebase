@@ -2,6 +2,7 @@ import { Pipe, PipeTransform } from "@angular/core";
 
 @Pipe({
     name: "calendarIncidentSeverity",
+    standalone: true,
 })
 export class CalendarIncidentSeverityPipe implements PipeTransform {
     transform(severity: string, returnType: "type" | "color" = "type"): string {

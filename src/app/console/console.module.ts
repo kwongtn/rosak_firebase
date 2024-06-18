@@ -13,6 +13,9 @@ import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzStatisticModule } from "ng-zorro-antd/statistic";
+import {
+    VehicleStatusPipe,
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -22,14 +25,14 @@ import {
     SpottingImageListModule,
 } from "../@ui/spotting-image-list/spotting-image-list.module";
 import {
-    SpottingTypeCellDisplayModule,
-} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+    SpottingTypeCellDisplayComponent,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.component";
 import {
     SpottingTypeTagModule,
 } from "../@ui/spotting-type-tag/spotting-type-tag.module";
 import {
-    ImagePreviewButtonModule,
-} from "../@ui/spotting/image-preview-button/image-preview-button.module";
+    ImagePreviewButtonComponent,
+} from "../@ui/spotting/image-preview-button/image-preview-button.component";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
@@ -37,11 +40,8 @@ import {
     VehicleTableCellDisplayComponent,
 } from "../@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import {
-    CoordinatesHumanizerModule,
-} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
-import {
-    VehicleStatusPipeModule,
-} from "../pipes/vehicle-status/vehicle-status.module";
+    CoordinatesHumanizerPipe,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.pipe";
 import { ConsoleMainComponent } from "./console.component";
 import {
     ConsoleEventsTableComponent,
@@ -52,7 +52,7 @@ import {
     imports: [
         CommonModule,
         FormsModule,
-        
+
         // devui
         ButtonModule,
         CategorySearchModule,
@@ -63,20 +63,20 @@ import {
         TagsModule,
         ToggleModule,
         TooltipModule,
-        
+
         // ng-zorro
         NzDrawerModule,
         NzIconModule,
         NzSpinModule,
         NzStatisticModule,
-        
+
         // Own Imports
-        CoordinatesHumanizerModule,
-        ImagePreviewButtonModule,
+        CoordinatesHumanizerPipe,
+        ImagePreviewButtonComponent,
         SpottingImageListModule,
-        SpottingTypeCellDisplayModule,
+        SpottingTypeCellDisplayComponent,
         SpottingTypeTagModule,
-        VehicleStatusPipeModule,
+        VehicleStatusPipe,
         VehicleStatusTagModule,
         VehicleTableCellDisplayComponent,
     ],

@@ -9,6 +9,7 @@ export type SpottingType =
 
 @Pipe({
     name: "spottingType",
+    standalone: true,
 })
 export class SpottingTypePipe implements PipeTransform {
     transform(value: SpottingType): string {

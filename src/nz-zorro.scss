@@ -5105,7 +5105,7 @@ nz-carousel {
     line-height: 1.5715;
     list-style: none;
     font-feature-settings: "tnum";
-    background-color: #fafafa;
+    background-color: $devui-base-bg;
     border: 1px solid $devui-dividing-line;
     border-bottom: 0;
     border-radius: 2px;
@@ -28746,7 +28746,7 @@ nz-tree {
     text-align: center;
 }
 .ant-result-subtitle {
-    color: rgba(0, 0, 0, 0.45);
+    color: $devui-text;
     font-size: 14px;
     line-height: 1.6;
     text-align: center;

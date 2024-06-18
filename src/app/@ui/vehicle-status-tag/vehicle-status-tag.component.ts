@@ -1,7 +1,7 @@
 
 import {
     VehicleStatus,
-} from "src/app/pipes/vehicle-status/vehicle-status-pipe.pipe";
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 import {
     VehicleStatus as SpottingVehicleStatus,
 } from "src/app/spotting/spotting-form/spotting-form.types";

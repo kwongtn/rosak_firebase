@@ -3,7 +3,7 @@ import { DataTableComponent, TableWidthConfig } from "ng-devui";
 import { ICategorySearchTagItem, SearchEvent } from "ng-devui/category-search";
 import { Subscription } from "rxjs";
 import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 import { environment } from "src/environments/environment";
 
 import {

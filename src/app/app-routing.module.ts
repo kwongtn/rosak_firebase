@@ -7,16 +7,10 @@ import {
 } from "@angular/fire/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
-import { AboutComponent } from "./about/about.component";
-import {
-    MainComponent as ComplianceMainComponent,
-} from "./compliance/main/main.component";
 import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
-import { FallbackComponent } from "./fallback/fallback.component";
 import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
-import { ProfileMainComponent } from "./profile/profile.component";
 import { SituasiComponent } from "./situasi/situasi.component";
 import { SpottingMainComponent } from "./spotting/spotting-main.component";
 
@@ -25,14 +19,17 @@ interface MaintenanceElement {
     notes?: string | undefined;
 }
 
-interface MaintananceDocument {
-    spotting: MaintenanceElement;
-    insiden: MaintenanceElement;
-    profile: MaintenanceElement;
-    console: MaintenanceElement;
-    gallery: MaintenanceElement;
-    situasi: MaintenanceElement;
-}
+type PageType =
+    | "console"
+    | "gallery"
+    | "insiden"
+    | "profile"
+    | "situasi"
+    | "spotting";
+
+type MaintananceDocument = {
+    [key in PageType]: MaintenanceElement;
+};
 
 const maintenance: MaintananceDocument = {
     spotting: {
@@ -162,18 +159,26 @@ const routes: Routes = [
     {
         path: "about",
         title: "MLPTF | About",
-        loadChildren: () =>
-            import("./about/about.module").then((m) => m.AboutModule),
-        component: AboutComponent,
+        loadComponent: () => {
+            if (maintenance.spotting.curentlyInMaintenance) {
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
+                );
+            } else {
+                return import("./about/about.component").then(
+                    (m) => m.AboutComponent
+                );
+            }
+        },
     },
     {
         path: "compliance",
         title: "MLPTF | Compliance",
-        loadChildren: () =>
-            import("./compliance/compliance.module").then(
-                (m) => m.ComplianceModule
-            ),
-        component: ComplianceMainComponent,
+        loadComponent: () => {
+            return import("./compliance/compliance.component").then(
+                (c) => c.ComplianceComponent
+            );
+        },
     },
     {
         path: "console",
@@ -197,20 +202,17 @@ const routes: Routes = [
     {
         path: "profile",
         title: "MLPTF | Profile",
-        loadChildren: async () => {
-            if (maintenance.console.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+        loadComponent: () => {
+            if (maintenance.spotting.curentlyInMaintenance) {
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./profile/profile.module");
-                return module.ProfileModule;
+                return import("./profile/profile.component").then(
+                    (m) => m.ProfileMainComponent
+                );
             }
         },
-        component: maintenance.profile.curentlyInMaintenance
-            ? ConstructionComponent
-            : ProfileMainComponent,
         ...canActivate(redirectUnauthorizedToSpotting),
     },
     {
@@ -226,9 +228,10 @@ const routes: Routes = [
     {
         path: "**",
         title: "MLPTF | Page not Found",
-        loadChildren: () =>
-            import("./fallback/fallback.module").then((m) => m.FallbackModule),
-        component: FallbackComponent,
+        loadComponent: () =>
+            import("./fallback/fallback.component").then(
+                (m) => m.FallbackComponent
+            ),
     },
 ];
 

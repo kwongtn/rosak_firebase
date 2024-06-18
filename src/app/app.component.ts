@@ -12,7 +12,7 @@ import {
 import { Analytics } from "@angular/fire/analytics";
 import { NavigationEnd, Router } from "@angular/router";
 
-import { AuthService } from "./services/auth/auth.service";
+import { AuthService } from "./services/auth.service";
 
 const genericTitle = " Malaysia Land Public Transport Fans ";
 

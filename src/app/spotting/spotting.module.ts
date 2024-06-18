@@ -28,6 +28,9 @@ import {
     FormUploadComponent,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
 import {
+    VehicleStatusPipe,
+} from "src/app/pipes/vehicle-status/vehicle-status.pipe";
+import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
 
@@ -36,32 +39,27 @@ import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 
-import { ActionListModule } from "../@ui/action-list/action-list.module";
+import { ActionListComponent } from "../@ui/action-list/action-list.component";
 import {
     LineStatusTagComponent,
 } from "../@ui/line-status-tag/line-status-tag.component";
 import {
-    SpottingTypeCellDisplayModule,
-} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.module";
+    SpottingTypeCellDisplayComponent,
+} from "../@ui/spotting-type-cell-display/spotting-type-cell-display.component";
 import {
-    ImagePreviewButtonModule,
-} from "../@ui/spotting/image-preview-button/image-preview-button.module";
+    ImagePreviewButtonComponent,
+} from "../@ui/spotting/image-preview-button/image-preview-button.component";
 import {
     VehicleStatusTagModule,
 } from "../@ui/vehicle-status-tag/vehicle-status-tag.module";
 import {
-    WheelStatusTagModule,
-} from "../@ui/wheel-status-tag/wheel-status-tag.module";
+    WheelStatusTagComponent,
+} from "../@ui/wheel-status-tag/wheel-status-tag.component";
 import { GraphQLModule } from "../graphql.module";
 import {
-    CoordinatesHumanizerModule,
-} from "../pipes/coordinates-humanizer/coordinates-humanizer.module";
-import {
-    SpottingTypePipeModule,
-} from "../pipes/spotting-type/spotting-type.module";
-import {
-    VehicleStatusPipeModule,
-} from "../pipes/vehicle-status/vehicle-status.module";
+    CoordinatesHumanizerPipe,
+} from "../pipes/coordinates-humanizer/coordinates-humanizer.pipe";
+import { SpottingTypePipe } from "../pipes/spotting-type/spotting-type.pipe";
 import {
     GetLinesAndVehiclesGqlService,
 } from "./services/get-lines-vehicles-gql.service";
@@ -107,18 +105,18 @@ import {
         TimeAxisModule,
 
         // Internal Imports
-        ActionListModule,
-        CoordinatesHumanizerModule,
+        ActionListComponent,
+        CoordinatesHumanizerPipe,
         FormUploadComponent,
         GraphQLModule,
-        ImagePreviewButtonModule,
+        ImagePreviewButtonComponent,
         LineStatusTagComponent,
         SpottingImageListModule,
-        SpottingTypeCellDisplayModule,
-        SpottingTypePipeModule,
-        VehicleStatusPipeModule,
+        SpottingTypeCellDisplayComponent,
+        SpottingTypePipe,
+        VehicleStatusPipe,
         VehicleStatusTagModule,
-        WheelStatusTagModule,
+        WheelStatusTagComponent,
 
         // ng-zorro
         NzAlertModule,

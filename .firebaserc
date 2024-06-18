@@ -1,14 +1,19 @@
 {
+  "projects": {
+    "default": "rosak-7223b"
+  },
   "targets": {
     "rosak-7223b": {
       "hosting": {
+        "staging": [
+          "staging-rosak"
+        ],
         "public": [
           "rosak-7223b"
         ]
       }
     }
   },
-  "projects": {
-    "default": "rosak-7223b"
-  }
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
 }
