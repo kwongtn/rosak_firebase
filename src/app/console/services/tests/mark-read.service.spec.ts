@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { MarkReadService } from "./mark-read.service";
+import { MarkReadService } from "../mark-read.service";
 
 describe("MarkReadService", () => {
     let service: MarkReadService;

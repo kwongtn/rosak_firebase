@@ -18,8 +18,8 @@ import {
     ConsoleEventsGqlResponseElement,
     ConsoleEventsGqlResponseTableDataElement,
     ConsoleEventsGqlService,
-} from "../services/events-gql/events-gql.service";
-import { MarkReadService } from "../services/mark-read/mark-read.service";
+} from "../services/events-gql.service";
+import { MarkReadService } from "../services/mark-read.service";
 import { categoryData } from "./category-search";
 
 const SEARCH_LIMIT = 100;

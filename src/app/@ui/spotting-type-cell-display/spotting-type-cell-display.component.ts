@@ -2,7 +2,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     ConsoleEventsGqlResponseTableDataElement,
-} from "src/app/console/services/events-gql/events-gql.service";
+} from "src/app/console/services/events-gql.service";
 import {
     BeautifulDecimalPipe,
 } from "src/app/pipes/beautiful-decimal/beautiful-decimal.pipe";

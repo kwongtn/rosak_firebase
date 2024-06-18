@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { ConsoleEventsGqlService } from "./events-gql.service";
+import { ConsoleEventsGqlService } from "../events-gql.service";
 
 describe("ConsoleEventsGqlService", () => {
     let service: ConsoleEventsGqlService;
