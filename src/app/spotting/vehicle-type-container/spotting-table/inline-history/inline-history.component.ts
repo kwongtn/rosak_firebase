@@ -2,7 +2,7 @@ import { QueryRef } from "apollo-angular";
 import {
     DataTableComponent,
     DataTableModule,
-    DevUIModule,
+    LoadingModule,
     TableWidthConfig,
 } from "ng-devui";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
@@ -35,8 +35,8 @@ import { Component, Input, OnDestroy, OnInit } from "@angular/core";
     imports: [
         CommonModule,
         DataTableModule,
-        DevUIModule,
         ImagePreviewButtonComponent,
+        LoadingModule,
         NzToolTipModule,
         SpottingTypeCellDisplayComponent,
         VehicleStatusTagModule,

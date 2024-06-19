@@ -1,4 +1,4 @@
-import { DevUIModule, PanelModule } from "ng-devui";
+import { PanelModule, TooltipModule } from "ng-devui";
 import { DataTableModule, TableWidthConfig } from "ng-devui/data-table";
 import { TagsModule } from "ng-devui/tags";
 import {
@@ -33,11 +33,11 @@ import {
     imports: [
         CommonModule,
         DataTableModule,
-        DevUIModule,
         InlineHistoryComponent,
         InlineTimelineComponent,
         PanelModule,
         TagsModule,
+        TooltipModule,
         VehicleStatusTagModule,
         WheelStatusTagComponent,
     ],

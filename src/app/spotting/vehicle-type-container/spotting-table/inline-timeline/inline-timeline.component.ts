@@ -1,5 +1,5 @@
 import { Apollo, gql } from "apollo-angular";
-import { DevUIModule } from "ng-devui";
+import { LoadingModule } from "ng-devui";
 import { TimeAxisData, TimeAxisModule } from "ng-devui/time-axis";
 import { Subscription } from "rxjs";
 import {
@@ -27,7 +27,7 @@ const GET_TIMELINE_DATA = gql`
     templateUrl: "./inline-timeline.component.html",
     styleUrls: ["./inline-timeline.component.scss"],
     standalone: true,
-    imports: [DevUIModule, TimeAxisModule],
+    imports: [LoadingModule, TimeAxisModule],
 })
 export class InlineTimelineComponent implements OnInit, OnDestroy {
     @Input() vehicleId!: string | number;
