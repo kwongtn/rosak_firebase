@@ -2,7 +2,7 @@ import { Subscription } from "rxjs";
 import {
     ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
-import { ThemeService } from "src/app/services/theme/theme.service";
+import { ThemeService } from "src/app/services/theme.service";
 
 import {
     Component,
