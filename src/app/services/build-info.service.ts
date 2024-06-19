@@ -4,7 +4,7 @@ import { environment } from "src/environments/environment";
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 
-import build from "../../../build";
+import build from "../../build";
 
 export interface BackendBuildInfo {
     hash: string;

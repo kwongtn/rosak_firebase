@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { BuildInfoService } from "./build-info.service";
+import { BuildInfoService } from "../build-info.service";
 
 describe("BuildInfoService", () => {
     let service: BuildInfoService;
