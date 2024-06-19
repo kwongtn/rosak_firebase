@@ -28,7 +28,7 @@ import { CommonModule } from "@angular/common";
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
 @Component({
-    selector: "app-inline-history",
+    selector: "spotting-table-inline-history",
     templateUrl: "./inline-history.component.html",
     styleUrls: ["./inline-history.component.scss"],
     standalone: true,
