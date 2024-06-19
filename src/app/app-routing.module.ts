@@ -154,7 +154,7 @@ const routes: Routes = [
                 return module.SituasiModule;
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
+        component: maintenance.situasi.curentlyInMaintenance
             ? ConstructionComponent
             : SituasiComponent,
         ...canActivate(betaTesterOnly),
@@ -163,7 +163,7 @@ const routes: Routes = [
         path: "tracker",
         title: "MLPTF | Tracker",
         loadComponent: () => {
-            if (maintenance.spotting.curentlyInMaintenance) {
+            if (maintenance.tracker.curentlyInMaintenance) {
                 return import("./construction/construction.component").then(
                     (m) => m.ConstructionComponent
                 );
@@ -179,15 +179,9 @@ const routes: Routes = [
         path: "about",
         title: "MLPTF | About",
         loadComponent: () => {
-            if (maintenance.spotting.curentlyInMaintenance) {
-                return import("./construction/construction.component").then(
-                    (m) => m.ConstructionComponent
-                );
-            } else {
-                return import("./about/about.component").then(
-                    (m) => m.AboutComponent
-                );
-            }
+            return import("./about/about.component").then(
+                (m) => m.AboutComponent
+            );
         },
     },
     {
@@ -203,7 +197,7 @@ const routes: Routes = [
         path: "console",
         title: "MLPTF | Console",
         loadComponent: () => {
-            if (maintenance.spotting.curentlyInMaintenance) {
+            if (maintenance.console.curentlyInMaintenance) {
                 return import("./construction/construction.component").then(
                     (m) => m.ConstructionComponent
                 );
@@ -219,7 +213,7 @@ const routes: Routes = [
         path: "profile",
         title: "MLPTF | Profile",
         loadComponent: () => {
-            if (maintenance.spotting.curentlyInMaintenance) {
+            if (maintenance.profile.curentlyInMaintenance) {
                 return import("./construction/construction.component").then(
                     (m) => m.ConstructionComponent
                 );
