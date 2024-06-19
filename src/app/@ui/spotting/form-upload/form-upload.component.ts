@@ -4,7 +4,7 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import {
     ImageCompressionService,
-} from "src/app/services/image-compression/image-compression.service";
+} from "src/app/services/image-compression.service";
 import { ToastService } from "src/app/services/toast.service";
 
 import { CommonModule } from "@angular/common";

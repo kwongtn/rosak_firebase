@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { ImageCompressionService } from "./image-compression.service";
+import { ImageCompressionService } from "../image-compression.service";
 
 describe("ImageCompressionService", () => {
     let service: ImageCompressionService;
