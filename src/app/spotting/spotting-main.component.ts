@@ -23,7 +23,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 import {
     SessionHistoryService,
 } from "../services/session-history/session-history.service";
-import { ToastService } from "../services/toast/toast.service";
+import { ToastService } from "../services/toast.service";
 import {
     SpottingFormComponent,
     SpottingFormReturnType,

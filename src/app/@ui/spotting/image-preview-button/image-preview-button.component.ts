@@ -7,7 +7,7 @@ import {
 import {
     ImageUploadService,
 } from "src/app/services/spotting/image-upload.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+import { ToastService } from "src/app/services/toast.service";
 
 import {
     Component,

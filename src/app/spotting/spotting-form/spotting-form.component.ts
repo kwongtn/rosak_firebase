@@ -16,7 +16,7 @@ import {
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+import { ToastService } from "src/app/services/toast.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {

@@ -25,7 +25,7 @@ import {
 } from "src/app/console/services/events-gql.service";
 import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+import { ToastService } from "src/app/services/toast.service";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";

@@ -3,6 +3,7 @@ import { catchError } from "rxjs/operators";
 import {
     ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
+import { ToastService } from "src/app/services/toast.service";
 import { environment } from "src/environments/environment";
 
 import { HttpClient } from "@angular/common/http";
@@ -10,7 +11,6 @@ import { Injectable } from "@angular/core";
 import { PromisePool } from "@supercharge/promise-pool";
 
 import { AuthService } from "../auth.service";
-import { ToastService } from "../toast/toast.service";
 
 export type PendingUploadType =
     | "SPOTTING_EVENT"

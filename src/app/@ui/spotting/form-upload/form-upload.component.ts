@@ -5,7 +5,7 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import {
     ImageCompressionService,
 } from "src/app/services/image-compression/image-compression.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+import { ToastService } from "src/app/services/toast.service";
 
 import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
