@@ -83,7 +83,6 @@ import {
 
 @NgModule({
     declarations: [
-        InlineHistoryComponent,
         InlineTimelineComponent,
         SpottingFormComponent,
         SpottingMainComponent,
@@ -138,6 +137,8 @@ import {
         NzSpinModule,
         NzTabsModule,
         NzToolTipModule,
+
+        InlineHistoryComponent,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [

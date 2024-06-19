@@ -1,6 +1,21 @@
 import { QueryRef } from "apollo-angular";
-import { DataTableComponent, TableWidthConfig } from "ng-devui";
+import {
+    DataTableComponent,
+    DataTableModule,
+    DevUIModule,
+    TableWidthConfig,
+} from "ng-devui";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { Subscription } from "rxjs";
+import {
+    SpottingTypeCellDisplayComponent,
+} from "src/app/@ui/spotting-type-cell-display/spotting-type-cell-display.component";
+import {
+    ImagePreviewButtonComponent,
+} from "src/app/@ui/spotting/image-preview-button/image-preview-button.component";
+import {
+    VehicleStatusTagModule,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
 import {
     GetVehiclesLastSpottingResponse,
     LastSpottingsTableElement,
@@ -9,12 +24,23 @@ import {
     GetSpottingHistoryService,
 } from "src/app/spotting/services/get-spotting-history.service";
 
+import { CommonModule } from "@angular/common";
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
 
 @Component({
     selector: "app-inline-history",
     templateUrl: "./inline-history.component.html",
     styleUrls: ["./inline-history.component.scss"],
+    standalone: true,
+    imports: [
+        CommonModule,
+        DataTableModule,
+        DevUIModule,
+        ImagePreviewButtonComponent,
+        NzToolTipModule,
+        SpottingTypeCellDisplayComponent,
+        VehicleStatusTagModule,
+    ],
 })
 export class InlineHistoryComponent implements OnInit, OnDestroy {
     @Input() vehicleId!: string | number;
