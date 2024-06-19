@@ -1,5 +1,10 @@
 import { Apollo, gql } from "apollo-angular";
+import { TagsModule, TooltipModule } from "ng-devui";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { Subscription } from "rxjs";
+import {
+    LineStatusTagComponent,
+} from "src/app/@ui/line-status-tag/line-status-tag.component";
 import { LineStatus, VehicleType } from "src/app/models/query/get-vehicles";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
@@ -15,6 +20,10 @@ import {
     OnInit,
     SimpleChanges,
 } from "@angular/core";
+
+import {
+    SpottingTableComponent,
+} from "./spotting-table/spotting-table.component";
 
 const GET_VEHICLES = gql`
     query ($vehicleTypeFilter: VehicleTypeFilter) {
@@ -50,6 +59,14 @@ const GET_VEHICLES = gql`
     selector: "app-vehicle-type-container",
     templateUrl: "./vehicle-type-container.component.html",
     styleUrls: ["./vehicle-type-container.component.scss"],
+    standalone: true,
+    imports: [
+        LineStatusTagComponent,
+        NzSpinModule,
+        SpottingTableComponent,
+        TagsModule,
+        TooltipModule,
+    ],
 })
 export class VehicleTypeContainerComponent
 implements OnInit, OnChanges, OnDestroy
