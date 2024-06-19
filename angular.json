@@ -18,7 +18,7 @@
             "prefix": "app",
             "architect": {
                 "build": {
-                    "builder": "@angular-builders/custom-webpack:browser",
+                    "builder": "@angular-devkit/build-angular:browser",
                     "options": {
                         "sourceMap": true,
                         "outputPath": "dist/public",
@@ -45,11 +45,7 @@
                             "node_modules/marked/marked.min.js",
                             "node_modules/mermaid/dist/mermaid.min.js",
                             "node_modules/emoji-toolkit/lib/js/joypixels.min.js"
-                        ],
-                        "customWebpackConfig": {
-                            "path": "./webpack.config.js",
-                            "replaceDuplicatePlugins": true
-                        }
+                        ]
                     },
                     "configurations": {
                         "production": {
