@@ -1,11 +1,13 @@
 import { Apollo, gql } from "apollo-angular";
-import { TimeAxisData } from "ng-devui/time-axis";
+import { DevUIModule } from "ng-devui";
+import { TimeAxisData, TimeAxisModule } from "ng-devui/time-axis";
 import { Subscription } from "rxjs";
-import { GetVehicleIncidentsResponse } from "src/app/models/query/get-vehicles";
+import {
+    GetVehicleIncidentsResponse,
+    IncidentSeverityType,
+} from "src/app/models/query/get-vehicles";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
-
-import { severityToDotColor } from "./utils";
 
 const GET_TIMELINE_DATA = gql`
     query ($vehicleIncidentFilter: VehicleIncidentFilter) {
@@ -21,9 +23,11 @@ const GET_TIMELINE_DATA = gql`
 `;
 
 @Component({
-    selector: "app-inline-timeline",
+    selector: "spotting-table-inline-timeline",
     templateUrl: "./inline-timeline.component.html",
     styleUrls: ["./inline-timeline.component.scss"],
+    standalone: true,
+    imports: [DevUIModule, TimeAxisModule],
 })
 export class InlineTimelineComponent implements OnInit, OnDestroy {
     @Input() vehicleId!: string | number;
@@ -41,6 +45,16 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
 
     constructor(private apollo: Apollo) {
         return;
+    }
+
+    severityToDotColor(severity: IncidentSeverityType): string {
+        const myMap = {
+            TRIVIA: "var(--devui-info)",
+            STATUS: "var(--devui-success)",
+            CRITICAL: "var(--devui-danger)",
+        };
+
+        return myMap[severity];
     }
 
     ngOnInit(): void {
@@ -61,7 +75,9 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                     })
                     .map((value, index, arr) => {
                         return {
-                            dotColor: severityToDotColor(value.severity as any),
+                            dotColor: this.severityToDotColor(
+                                value.severity as IncidentSeverityType
+                            ),
                             lineStyle: {
                                 style: value.isLast
                                     ? "none"
@@ -74,8 +90,8 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
                                 title: value.title,
                                 date: value.date,
                                 status: value.severity,
-                                color: severityToDotColor(
-                                    value.severity as any
+                                color: this.severityToDotColor(
+                                    value.severity as IncidentSeverityType
                                 ),
                                 position: index % 2 ? "top" : "bottom",
                                 brief: value.brief,
