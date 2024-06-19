@@ -3,30 +3,20 @@ import { DataTableModule } from "ng-devui/data-table";
 import { IconModule } from "ng-devui/icon";
 import { TagsModule } from "ng-devui/tags";
 import { TimeAxisModule } from "ng-devui/time-axis";
-import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
-import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
-import { NzFormModule } from "ng-zorro-antd/form";
-import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
-import { NzInputModule } from "ng-zorro-antd/input";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzProgressModule } from "ng-zorro-antd/progress";
-import { NzSelectModule } from "ng-zorro-antd/select";
-import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     SpottingImageListModule,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.module";
-import {
-    FormUploadComponent,
-} from "src/app/@ui/spotting/form-upload/form-upload.component";
 import {
     VehicleStatusPipe,
 } from "src/app/pipes/vehicle-status/vehicle-status.pipe";
@@ -37,9 +27,8 @@ import {
 import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";
 import { NgModule } from "@angular/core";
-import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { FormsModule } from "@angular/forms";
 
-import { ActionListComponent } from "../@ui/action-list/action-list.component";
 import {
     LineStatusTagComponent,
 } from "../@ui/line-status-tag/line-status-tag.component";
@@ -56,9 +45,6 @@ import {
     WheelStatusTagComponent,
 } from "../@ui/wheel-status-tag/wheel-status-tag.component";
 import { GraphQLModule } from "../graphql.module";
-import {
-    CoordinatesHumanizerPipe,
-} from "../pipes/coordinates-humanizer/coordinates-humanizer.pipe";
 import { SpottingTypePipe } from "../pipes/spotting-type/spotting-type.pipe";
 import {
     GetLinesAndVehiclesGqlService,
@@ -84,7 +70,6 @@ import {
 @NgModule({
     declarations: [
         InlineTimelineComponent,
-        SpottingFormComponent,
         SpottingMainComponent,
         SpottingTableComponent,
         VehicleTypeContainerComponent,
@@ -93,7 +78,6 @@ import {
         CommonModule,
         FormsModule,
         HttpClientModule,
-        ReactiveFormsModule,
 
         // DevUI
         DataTableModule,
@@ -104,9 +88,6 @@ import {
         TimeAxisModule,
 
         // Internal Imports
-        ActionListComponent,
-        CoordinatesHumanizerPipe,
-        FormUploadComponent,
         GraphQLModule,
         ImagePreviewButtonComponent,
         LineStatusTagComponent,
@@ -118,27 +99,20 @@ import {
         WheelStatusTagComponent,
 
         // ng-zorro
-        NzAlertModule,
         NzButtonModule,
         NzCheckboxModule,
-        NzDatePickerModule,
         NzDrawerModule,
         NzEmptyModule,
-        NzFormModule,
-        NzGridModule,
         NzIconModule,
-        // NzImageModule,
-        NzInputModule,
         NzListModule,
         NzPopconfirmModule,
         NzProgressModule,
-        NzSelectModule,
-        NzSpaceModule,
         NzSpinModule,
         NzTabsModule,
         NzToolTipModule,
 
         InlineHistoryComponent,
+        SpottingFormComponent,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [
