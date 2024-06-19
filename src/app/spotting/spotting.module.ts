@@ -32,7 +32,7 @@ import {
 } from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 import {
     SpottingStorageService,
-} from "src/app/services/spotting/storage.service";
+} from "src/app/services/spotting-storage.service";
 
 import { CommonModule } from "@angular/common";
 import { HttpClientModule } from "@angular/common/http";

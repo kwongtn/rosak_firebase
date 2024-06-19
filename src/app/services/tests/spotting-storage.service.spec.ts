@@ -1,8 +1,8 @@
 import { TestBed } from "@angular/core/testing";
 
-import { SpottingStorageService } from "./storage.service";
+import { SpottingStorageService } from "../spotting-storage.service";
 
-describe("StorageService", () => {
+describe("SpottingStorageService", () => {
     let service: SpottingStorageService;
 
     beforeEach(() => {

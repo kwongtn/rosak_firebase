@@ -15,7 +15,7 @@ import {
 } from "src/app/services/session-history.service";
 import {
     SpottingStorageService,
-} from "src/app/services/spotting/storage.service";
+} from "src/app/services/spotting-storage.service";
 import { ToastService } from "src/app/services/toast.service";
 
 import { Component, OnDestroy, OnInit } from "@angular/core";

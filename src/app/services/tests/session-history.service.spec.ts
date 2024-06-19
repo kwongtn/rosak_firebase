@@ -1,6 +1,6 @@
 import { TestBed } from "@angular/core/testing";
 
-import { SessionHistoryService } from "./session-history.service";
+import { SessionHistoryService } from "../session-history.service";
 
 describe("SessionHistoryService", () => {
     let service: SessionHistoryService;
