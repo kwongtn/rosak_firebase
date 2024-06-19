@@ -10,7 +10,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { PromisePool } from "@supercharge/promise-pool";
 
-import { AuthService } from "../auth.service";
+import { AuthService } from "./auth.service";
 
 export type PendingUploadType =
     | "SPOTTING_EVENT"

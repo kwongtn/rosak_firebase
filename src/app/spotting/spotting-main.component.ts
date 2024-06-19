@@ -5,9 +5,7 @@ import {
     GetLinesAndVehiclesResponse,
     GetLinesResponse,
 } from "src/app/models/query/get-vehicles";
-import {
-    ImageUploadService,
-} from "src/app/services/spotting/image-upload.service";
+import { ImageUploadService } from "src/app/services/image-upload.service";
 import { environment } from "src/environments/environment";
 
 import {

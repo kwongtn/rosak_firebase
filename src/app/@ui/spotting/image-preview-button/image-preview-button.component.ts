@@ -4,9 +4,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import {
     SpottingImageListComponent,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
-import {
-    ImageUploadService,
-} from "src/app/services/spotting/image-upload.service";
+import { ImageUploadService } from "src/app/services/image-upload.service";
 import { ToastService } from "src/app/services/toast.service";
 
 import {
