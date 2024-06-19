@@ -20,9 +20,7 @@ import {
 } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
-import {
-    SessionHistoryService,
-} from "../services/session-history/session-history.service";
+import { SessionHistoryService } from "../services/session-history.service";
 import { ToastService } from "../services/toast.service";
 import {
     SpottingFormComponent,

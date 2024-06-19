@@ -12,7 +12,7 @@ import {
 import { AuthService } from "src/app/services/auth.service";
 import {
     SessionHistoryService,
-} from "src/app/services/session-history/session-history.service";
+} from "src/app/services/session-history.service";
 import {
     SpottingStorageService,
 } from "src/app/services/spotting/storage.service";
