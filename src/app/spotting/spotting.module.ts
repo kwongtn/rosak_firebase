@@ -70,7 +70,6 @@ import {
 @NgModule({
     declarations: [
         SpottingMainComponent,
-        SpottingTableComponent,
         VehicleTypeContainerComponent,
     ],
     imports: [
@@ -113,6 +112,7 @@ import {
         InlineHistoryComponent,
         SpottingFormComponent,
         InlineTimelineComponent,
+        SpottingTableComponent,
     ],
     exports: [SpottingFormComponent, SpottingMainComponent],
     providers: [
