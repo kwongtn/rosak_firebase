@@ -5,7 +5,7 @@
         "ng": "ng",
         "start": "ng serve",
         "buildProd": "angular-build-info && ng build --configuration production && npm run sentry:sourcemaps",
-        "buildStaging": "angular-build-info && ng build --configuration staging && npm run sentry:sourcemaps",
+        "buildStaging": "angular-build-info && ng build --configuration staging --stats-json --verbose && npm run sentry:sourcemaps",
         "watch": "ng build --watch --configuration development",
         "test": "ng test",
         "prepare": "husky",
