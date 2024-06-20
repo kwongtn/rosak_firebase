@@ -29,7 +29,6 @@ module.exports = {
             enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
             bundleName: "rosak_firebase",
             uploadToken: process.env.CODECOV_TOKEN,
-            debug: true,
         }),
     ],
 };
