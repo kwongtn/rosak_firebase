@@ -47,8 +47,7 @@
                             "node_modules/emoji-toolkit/lib/js/joypixels.min.js"
                         ],
                         "customWebpackConfig": {
-                            "path": "./webpack.config.js",
-                            "replaceDuplicatePlugins": true
+                            "path": "./webpack.config.js"
                         }
                     },
                     "configurations": {
