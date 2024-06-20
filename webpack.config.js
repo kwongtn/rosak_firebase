@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 // const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
-// const BundleAnalyzerPlugin = require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
+const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
 const { codecovWebpackPlugin } = require("@codecov/webpack-plugin");
 
 module.exports = {
@@ -20,11 +20,11 @@ module.exports = {
         //     // Optionally uncomment the line below to override automatic release name detection
         //     // release: process.env.RELEASE,
         // }),
-        // new BundleAnalyzerPlugin({
-        //     analyzerMode: "static",
-        //     reportFilename: "bundle-report.html",
-        //     openAnalyzer: false,
-        // }), 
+        new BundleAnalyzerPlugin({
+            analyzerMode: "static",
+            reportFilename: "bundle-report.html",
+            openAnalyzer: false,
+        }), 
         codecovWebpackPlugin({
             enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
             bundleName: "rosak_firebase",
