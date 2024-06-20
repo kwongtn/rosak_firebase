@@ -11,7 +11,6 @@ import { ConstructionComponent } from "./construction/construction.component";
 import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { SituasiComponent } from "./situasi/situasi.component";
-import { SpottingMainComponent } from "./spotting/spotting-main.component";
 
 interface MaintenanceElement {
     curentlyInMaintenance: boolean;
@@ -107,38 +106,32 @@ const routes: Routes = [
     {
         path: "spotting",
         title: "MLPTF | TranSPOT",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.spotting.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./spotting/spotting.module");
-                return module.SpottingModule;
+                return import("./spotting/spotting-main.component").then(
+                    (m) => m.SpottingMainComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : SpottingMainComponent,
     },
     {
         path: "spotting/:id",
         title: "MLPTF | TranSPOT",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.spotting.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./spotting/spotting.module");
-                return module.SpottingModule;
+                return import("./spotting/spotting-main.component").then(
+                    (m) => m.SpottingMainComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : SpottingMainComponent,
     },
     {
         path: "situasi",

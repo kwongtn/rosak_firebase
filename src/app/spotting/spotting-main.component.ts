@@ -1,5 +1,9 @@
 import { Apollo, gql } from "apollo-angular";
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
@@ -8,6 +12,7 @@ import {
 import { ImageUploadService } from "src/app/services/image-upload.service";
 import { environment } from "src/environments/environment";
 
+import { CommonModule } from "@angular/common";
 import {
     Component,
     HostListener,
@@ -25,6 +30,9 @@ import {
     SpottingFormReturnType,
 } from "./spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "./utils";
+import {
+    VehicleTypeContainerComponent,
+} from "./vehicle-type-container/vehicle-type-container.component";
 
 const GET_LINES = gql`
     query GetLinesAndVehicles {
@@ -41,6 +49,15 @@ const GET_LINES = gql`
     selector: "app-spotting-main",
     templateUrl: "./spotting-main.component.html",
     styleUrls: ["./spotting-main.component.scss"],
+    standalone: true,
+    imports: [
+        CommonModule,
+        NzProgressModule,
+        NzSpinModule,
+        NzTabsModule,
+        NzToolTipModule,
+        VehicleTypeContainerComponent,
+    ],
 })
 export class SpottingMainComponent implements OnInit, OnDestroy {
     env = environment;

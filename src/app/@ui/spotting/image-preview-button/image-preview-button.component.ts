@@ -4,6 +4,9 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import {
     SpottingImageListComponent,
 } from "src/app/@ui/spotting-image-list/spotting-image-list.component";
+import {
+    SpottingImageListModule,
+} from "src/app/@ui/spotting-image-list/spotting-image-list.module";
 import { ImageUploadService } from "src/app/services/image-upload.service";
 import { ToastService } from "src/app/services/toast.service";
 
@@ -25,6 +28,7 @@ import { ImageFile } from "../form-upload/form-upload.component";
     imports: [
         NzButtonModule,
         NzIconModule,
+        SpottingImageListModule,
     ],
 })
 export class ImagePreviewButtonComponent {
