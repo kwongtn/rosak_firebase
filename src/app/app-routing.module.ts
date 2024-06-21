@@ -8,7 +8,6 @@ import {
 import { RouterModule, Routes } from "@angular/router";
 
 import { ConstructionComponent } from "./construction/construction.component";
-import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { SituasiComponent } from "./situasi/situasi.component";
 
@@ -88,20 +87,17 @@ const routes: Routes = [
     {
         path: "gallery",
         title: "MLPTF | Gallery",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.gallery.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./gallery/gallery.module");
-                return module.GalleryModule;
+                return import("./gallery/gallery.component").then(
+                    (m) => m.GalleryComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : GalleryComponent,
     },
     {
         path: "spotting",

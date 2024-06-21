@@ -1,9 +1,12 @@
 import { QueryRef } from "apollo-angular";
+import { InViewportModule } from "ng-in-viewport";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { Subscription } from "rxjs";
 import { InputImage } from "src/app/@ui/image-grid/image-grid.component";
+import { ImageGridModule } from "src/app/@ui/image-grid/image-grid.module";
 import { getThumbnail } from "src/app/@util/imgur";
 
-import { KeyValue } from "@angular/common";
+import { CommonModule, KeyValue } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import {
@@ -15,6 +18,8 @@ import {
     selector: "app-gallery",
     templateUrl: "./gallery.component.html",
     styleUrls: ["./gallery.component.scss"],
+    standalone: true,
+    imports: [CommonModule, ImageGridModule, InViewportModule, NzSpinModule],
 })
 export class GalleryComponent implements OnInit, OnDestroy {
     imageDateMaps: {
