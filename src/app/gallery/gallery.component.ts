@@ -64,16 +64,23 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
                         this.imageDateMaps[elem.dateKey].images =
                             elem.medias.map((media) => {
-                                return {
+                                const returnObj = {
                                     height: media.height,
                                     width: media.width,
-                                    url: media.file.url,
-                                    thumbnailUrl: getThumbnail(
-                                        media.file.url,
-                                        "m"
-                                    ),
+                                    url: "./assets/image-not-found.png",
+                                    thumbnailUrl:
+                                        "./assets/image-not-found.png",
                                     display: false,
                                 };
+                                if (media.file) {
+                                    returnObj.url = media.file.url;
+                                    returnObj.thumbnailUrl = getThumbnail(
+                                        media.file.url,
+                                        "m"
+                                    );
+                                }
+
+                                return returnObj;
                             });
                     });
 
@@ -91,9 +98,9 @@ export class GalleryComponent implements OnInit, OnDestroy {
     }): void {
         // this.renderer.addClass(target, visible ? 'active' : 'inactive');
         // this.renderer.removeClass(target, visible ? 'inactive' : 'active');
-        if(visible){
+        if (visible) {
             console.log(target.id, "✅");
-        }else{
+        } else {
             console.log(target.id, "❌");
         }
         this.imageDateMaps[target.id].displayImages = visible;

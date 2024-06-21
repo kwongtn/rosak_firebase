@@ -58,7 +58,7 @@ export class ImageGridComponent implements OnInit, AfterViewInit {
             .preview(
                 this.images.map((val) => {
                     return { src: val.url };
-                })
+                }),
             )
             .switchTo(index);
     }
