@@ -13,7 +13,7 @@
             (inViewportAction)="onIntersection($event)"
             [ngStyle]="{
                 width: (img.width * ratioBaseline) / img.height + 'px',
-                'flex-grow': (img.width * ratioBaseline) / img.height
+                'flex-grow': (img.width * ratioBaseline) / img.height,
             }"
             class="child-container"
             [id]="i"
@@ -24,13 +24,13 @@
             <div
                 [ngStyle]="{
                     'padding-bottom':
-                        (img.height / img.width) * (ratioBaseline / 2) + '%'
+                        (img.height / img.width) * (ratioBaseline / 2) + '%',
                 }"
             ></div>
             @if (!displayImage[i]) {
                 <img
                     class="content"
-                    [src]="getUrl(i)"
+                    [src]="img.thumbnailUrl"
                     onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
                     alt=""
                     [attr.data-index]="i"

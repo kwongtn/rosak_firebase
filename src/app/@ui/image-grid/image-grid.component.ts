@@ -12,7 +12,8 @@ import {
 } from "@angular/core";
 
 export interface InputImage {
-    src: string;
+    url: string;
+    thumbnailUrl: string;
     width: number;
     height: number;
     display: boolean;
@@ -52,25 +53,11 @@ export class ImageGridComponent implements OnInit, AfterViewInit {
         ]);
     }
 
-    getUrl(index: number): string {
-        const img = this.images[index];
-        const width = Math.round((img.width * this.ratioBaseline) * 1.1 / img.height);
-
-        // Use the height:width ratio to calculate the new height of the image.
-        const height = Math.round(img.height * width / img.width);
-        const params = `&width=${width}&height=${height}`;
-
-        return `https://media.discordapp.net/attachments/${img.src}?format=webp&quality=lossless${params}`;
-    };
-
-
     onViewImage(index: number): void {
         this.nzImageService
             .preview(
                 this.images.map((val) => {
-                    return {
-                        src: `https://cdn.discordapp.com/attachments/${val.src}`
-                    };
+                    return { src: val.url };
                 })
             )
             .switchTo(index);

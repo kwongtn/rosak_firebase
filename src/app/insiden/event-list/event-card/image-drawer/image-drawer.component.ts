@@ -4,6 +4,7 @@ import { InputImage } from "src/app/@ui/image-grid/image-grid.component";
 import {
     ImageFile,
 } from "src/app/@ui/spotting/form-upload/form-upload.component";
+import { getThumbnail } from "src/app/@util/imgur";
 import {
     GetCalIncidentMediasService,
 } from "src/app/insiden/services/get-cal-incident-medias.service";
@@ -45,7 +46,8 @@ export class ImageDrawerComponent {
                 this.imageUrls = data.calendarIncidents[0].medias.map(
                     (media) => {
                         return {
-                            src: media.discordSuffix,
+                            url: media.file.url,
+                            thumbnailUrl: getThumbnail(media.file.url, "m"),
                             width: media.width,
                             height: media.height,
                             display: true,
@@ -65,7 +67,7 @@ export class ImageDrawerComponent {
         this.nzImageService
             .preview(
                 this.imageUrls.map((val) => {
-                    return { src: `https://cdn.discordapp.com/attachments/${val.src}` };
+                    return { src: val.url };
                 })
             )
             .switchTo(index);
