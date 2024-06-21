@@ -25,10 +25,10 @@ module.exports = {
             reportFilename: "bundle-report.html",
             openAnalyzer: false,
         }), 
-        // codecovWebpackPlugin({
-        //     enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
-        //     bundleName: "rosak_firebase-local",
-        //     uploadToken: process.env.CODECOV_TOKEN,
-        // }),
+        codecovWebpackPlugin({
+            enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+            bundleName: "rosak_firebase",
+            uploadToken: process.env.CODECOV_TOKEN,
+        }),
     ],
 };
