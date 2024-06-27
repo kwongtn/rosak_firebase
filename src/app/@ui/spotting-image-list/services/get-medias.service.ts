@@ -6,7 +6,9 @@ export interface MediaResponse {
     events: {
         isMine: boolean;
         medias: {
-            discordSuffix: string;
+            file: {
+                url: string;
+            };
         }[];
     }[];
 }
@@ -20,7 +22,9 @@ export class GetMediasService extends Query<MediaResponse> {
             events(filters: $filters) {
                 isMine
                 medias {
-                    discordSuffix
+                    file {
+                        url
+                    }
                 }
             }
         }

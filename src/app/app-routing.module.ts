@@ -7,12 +7,9 @@ import {
 } from "@angular/fire/auth-guard";
 import { RouterModule, Routes } from "@angular/router";
 
-import { ConsoleMainComponent } from "./console/console.component";
 import { ConstructionComponent } from "./construction/construction.component";
-import { GalleryComponent } from "./gallery/gallery.component";
 import { InsidenMainComponent } from "./insiden/insiden.component";
 import { SituasiComponent } from "./situasi/situasi.component";
-import { SpottingMainComponent } from "./spotting/spotting-main.component";
 
 interface MaintenanceElement {
     curentlyInMaintenance: boolean;
@@ -25,7 +22,8 @@ type PageType =
     | "insiden"
     | "profile"
     | "situasi"
-    | "spotting";
+    | "spotting"
+    | "tracker";
 
 type MaintananceDocument = {
     [key in PageType]: MaintenanceElement;
@@ -48,6 +46,9 @@ const maintenance: MaintananceDocument = {
         curentlyInMaintenance: false,
     },
     situasi: {
+        curentlyInMaintenance: false,
+    },
+    tracker: {
         curentlyInMaintenance: false,
     },
 };
@@ -86,56 +87,47 @@ const routes: Routes = [
     {
         path: "gallery",
         title: "MLPTF | Gallery",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.gallery.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./gallery/gallery.module");
-                return module.GalleryModule;
+                return import("./gallery/gallery.component").then(
+                    (m) => m.GalleryComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : GalleryComponent,
     },
     {
         path: "spotting",
         title: "MLPTF | TranSPOT",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.spotting.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./spotting/spotting.module");
-                return module.SpottingModule;
+                return import("./spotting/spotting-main.component").then(
+                    (m) => m.SpottingMainComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : SpottingMainComponent,
     },
     {
         path: "spotting/:id",
         title: "MLPTF | TranSPOT",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.spotting.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./spotting/spotting.module");
-                return module.SpottingModule;
+                return import("./spotting/spotting-main.component").then(
+                    (m) => m.SpottingMainComponent
+                );
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
-            ? ConstructionComponent
-            : SpottingMainComponent,
     },
     {
         path: "situasi",
@@ -151,24 +143,34 @@ const routes: Routes = [
                 return module.SituasiModule;
             }
         },
-        component: maintenance.spotting.curentlyInMaintenance
+        component: maintenance.situasi.curentlyInMaintenance
             ? ConstructionComponent
             : SituasiComponent,
         ...canActivate(betaTesterOnly),
     },
     {
-        path: "about",
-        title: "MLPTF | About",
+        path: "tracker",
+        title: "MLPTF | Tracker",
         loadComponent: () => {
-            if (maintenance.spotting.curentlyInMaintenance) {
+            if (maintenance.tracker.curentlyInMaintenance) {
                 return import("./construction/construction.component").then(
                     (m) => m.ConstructionComponent
                 );
             } else {
-                return import("./about/about.component").then(
-                    (m) => m.AboutComponent
+                return import("./tracker/tracker.component").then(
+                    (m) => m.TrackerComponent
                 );
             }
+        },
+        // ...canActivate(betaTesterOnly),
+    },
+    {
+        path: "about",
+        title: "MLPTF | About",
+        loadComponent: () => {
+            return import("./about/about.component").then(
+                (m) => m.AboutComponent
+            );
         },
     },
     {
@@ -183,27 +185,24 @@ const routes: Routes = [
     {
         path: "console",
         title: "MLPTF | Console",
-        loadChildren: async () => {
+        loadComponent: () => {
             if (maintenance.console.curentlyInMaintenance) {
-                const module = await import(
-                    "./construction/construction.module"
+                return import("./construction/construction.component").then(
+                    (m) => m.ConstructionComponent
                 );
-                return module.ConstructionModule;
             } else {
-                const module = await import("./console/console.module");
-                return module.ConsoleModule;
+                return import("./console/console.component").then(
+                    (m) => m.ConsoleMainComponent
+                );
             }
         },
-        component: maintenance.console.curentlyInMaintenance
-            ? ConstructionComponent
-            : ConsoleMainComponent,
         ...canActivate(adminOnly),
     },
     {
         path: "profile",
         title: "MLPTF | Profile",
         loadComponent: () => {
-            if (maintenance.spotting.curentlyInMaintenance) {
+            if (maintenance.profile.curentlyInMaintenance) {
                 return import("./construction/construction.component").then(
                     (m) => m.ConstructionComponent
                 );

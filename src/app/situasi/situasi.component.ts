@@ -9,7 +9,7 @@ import {
     Router,
 } from "@angular/router";
 
-import { ThemeService } from "../services/theme/theme.service";
+import { ThemeService } from "../services/theme.service";
 import { assetTypes, data } from "./data";
 
 export interface BreadcrumbsData {

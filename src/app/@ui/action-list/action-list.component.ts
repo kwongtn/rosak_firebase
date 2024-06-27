@@ -3,7 +3,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import {
     SessionHistoryService,
-} from "src/app/services/session-history/session-history.service";
+} from "src/app/services/session-history.service";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";

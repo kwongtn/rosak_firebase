@@ -5195,7 +5195,7 @@ nz-carousel {
     border-radius: 0 0 2px 2px;
 }
 .ant-collapse-borderless {
-    background-color: #fafafa;
+    background-color: $devui-base-bg;
     border: 0;
 }
 .ant-collapse-borderless > .ant-collapse-item {
@@ -5238,7 +5238,7 @@ nz-carousel {
 }
 .ant-collapse .ant-collapse-item-disabled > .ant-collapse-header,
 .ant-collapse .ant-collapse-item-disabled > .ant-collapse-header > .arrow {
-    color: rgba(0, 0, 0, 0.25);
+    color: $devui-text-weak;
     cursor: not-allowed;
 }
 .ant-collapse-rtl {
@@ -19279,7 +19279,7 @@ nz-pagination {
     border-radius: 100px;
 }
 .ant-progress-circle-trail {
-    stroke: #f5f5f5;
+    stroke: $devui-light-shadow;
 }
 .ant-progress-circle-path {
     animation: ant-progress-appear 0.3s;
@@ -28945,7 +28945,7 @@ nz-space-item {
     position: absolute;
     top: 0;
     right: 0;
-    z-index: 1;
+    z-index: 10000;
     display: flex;
     flex-direction: row-reverse;
     align-items: center;

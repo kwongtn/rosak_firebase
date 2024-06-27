@@ -1,26 +1,44 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
+import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 // import { ReCaptchaV3Service } from "ng-recaptcha";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
-import { NzSelectItemInterface } from "ng-zorro-antd/select";
+import { NzFormModule } from "ng-zorro-antd/form";
+import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzInputModule } from "ng-zorro-antd/input";
+import { NzSelectItemInterface, NzSelectModule } from "ng-zorro-antd/select";
+import { NzSpaceModule } from "ng-zorro-antd/space";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { firstValueFrom, lastValueFrom } from "rxjs";
+import {
+    ActionListComponent,
+} from "src/app/@ui/action-list/action-list.component";
+import {
+    VehicleStatusTagModule,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
 import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
+import {
+    CoordinatesHumanizerPipe,
+} from "src/app/pipes/coordinates-humanizer/coordinates-humanizer.pipe";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status.pipe";
 import { AuthService } from "src/app/services/auth.service";
 import {
     SessionHistoryService,
-} from "src/app/services/session-history/session-history.service";
+} from "src/app/services/session-history.service";
 import {
     SpottingStorageService,
-} from "src/app/services/spotting/storage.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+} from "src/app/services/spotting-storage.service";
+import { ToastService } from "src/app/services/toast.service";
 
+import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
     FormControl,
+    ReactiveFormsModule,
     UntypedFormBuilder,
     UntypedFormControl,
     UntypedFormGroup,
@@ -28,6 +46,7 @@ import {
 } from "@angular/forms";
 
 import {
+    FormUploadComponent,
     ImageFile,
 } from "../../@ui/spotting/form-upload/form-upload.component";
 import {
@@ -81,6 +100,23 @@ export interface SpottingFormReturnType {
     selector: "app-spotting-form",
     templateUrl: "./spotting-form.component.html",
     styleUrls: ["./spotting-form.component.scss"],
+    standalone: true,
+    imports: [
+        ActionListComponent,
+        CommonModule,
+        CoordinatesHumanizerPipe,
+        FormUploadComponent,
+        NzAlertModule,
+        NzDatePickerModule,
+        NzFormModule,
+        NzGridModule,
+        NzInputModule,
+        NzSelectModule,
+        NzSpaceModule,
+        NzSpinModule,
+        ReactiveFormsModule,
+        VehicleStatusTagModule,
+    ],
 })
 export class SpottingFormComponent implements OnInit, OnDestroy {
     appendToBodyDirections: AppendToBodyDirection[] = [

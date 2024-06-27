@@ -27,7 +27,7 @@ export const environment = {
         badgeKey: "5ffc64e2-f67b-4205-8bcd-f5f5f076e385",
     },
     mapbox: {
-        token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbGVjdHhpaTAwMGk4M29wMmNkcGRmMXZ3In0.la_4bLAwkHVwAOrby9YA-A",
+        token: "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbHd3eDlibHUxMGV0MmxzN2E0eG04MGl0In0.LVf9Nq5laopxg5y4hy8i_w",
     },
     upload: {
         concurrency: 10,

@@ -1,11 +1,37 @@
 import { QueryRef } from "apollo-angular";
-import { DataTableComponent, TableWidthConfig } from "ng-devui";
-import { ICategorySearchTagItem, SearchEvent } from "ng-devui/category-search";
+import {
+    ButtonModule,
+    CheckBoxModule,
+    DataTableComponent,
+    DataTableModule,
+    TableWidthConfig,
+    ToggleModule,
+    TooltipModule,
+} from "ng-devui";
+import {
+    CategorySearchModule,
+    ICategorySearchTagItem,
+    SearchEvent,
+} from "ng-devui/category-search";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { Subscription } from "rxjs";
+import {
+    SpottingTypeCellDisplayComponent,
+} from "src/app/@ui/spotting-type-cell-display/spotting-type-cell-display.component";
+import {
+    ImagePreviewButtonComponent,
+} from "src/app/@ui/spotting/image-preview-button/image-preview-button.component";
+import {
+    VehicleStatusTagModule,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
+import {
+    VehicleTableCellDisplayComponent,
+} from "src/app/@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth.service";
 import { environment } from "src/environments/environment";
 
+import { CommonModule } from "@angular/common";
 import {
     Component,
     HostListener,
@@ -13,13 +39,14 @@ import {
     OnInit,
     ViewChild,
 } from "@angular/core";
+import { FormsModule } from "@angular/forms";
 
 import {
     ConsoleEventsGqlResponseElement,
     ConsoleEventsGqlResponseTableDataElement,
     ConsoleEventsGqlService,
-} from "../services/events-gql/events-gql.service";
-import { MarkReadService } from "../services/mark-read/mark-read.service";
+} from "../services/events-gql.service";
+import { MarkReadService } from "../services/mark-read.service";
 import { categoryData } from "./category-search";
 
 const SEARCH_LIMIT = 100;
@@ -34,6 +61,23 @@ interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
     selector: "console-events-table",
     templateUrl: "./events-table.component.html",
     styleUrls: ["./events-table.component.scss"],
+    standalone: true,
+    imports: [
+        ButtonModule,
+        CategorySearchModule,
+        CheckBoxModule,
+        CommonModule,
+        DataTableModule,
+        FormsModule,
+        ImagePreviewButtonComponent,
+        NzSpinModule,
+        SpottingTypeCellDisplayComponent,
+        ToggleModule,
+        TooltipModule,
+        VehicleStatusTagModule,
+        VehicleTableCellDisplayComponent,
+
+    ]
 })
 export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     @ViewChild(DataTableComponent, { static: true })

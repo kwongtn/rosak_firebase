@@ -16,7 +16,7 @@ import { Router } from "@angular/router";
 import * as Sentry from "@sentry/browser";
 
 import { isUserAllowed } from "./auth-permissions";
-import { ToastService } from "./toast/toast.service";
+import { ToastService } from "./toast.service";
 
 export interface UserAuthData {
     permissions?: {

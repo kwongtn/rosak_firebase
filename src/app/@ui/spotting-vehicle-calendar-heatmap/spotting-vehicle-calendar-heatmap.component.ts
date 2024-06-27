@@ -1,6 +1,6 @@
 import { QueryRef } from "apollo-angular";
 import { Subscription } from "rxjs";
-import { ThemeService } from "src/app/services/theme/theme.service";
+import { ThemeService } from "src/app/services/theme.service";
 
 import {
     Component,

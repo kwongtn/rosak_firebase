@@ -1,7 +1,7 @@
 import { gql, Query } from "apollo-angular";
 import {
     ConsoleEventsGqlResponseElement,
-} from "src/app/console/services/events-gql/events-gql.service";
+} from "src/app/console/services/events-gql.service";
 
 import { Injectable } from "@angular/core";
 

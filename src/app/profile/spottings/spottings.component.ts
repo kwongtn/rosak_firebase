@@ -22,10 +22,10 @@ import {
 } from "src/app/@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
 import {
     ConsoleEventsGqlResponseTableDataElement,
-} from "src/app/console/services/events-gql/events-gql.service";
+} from "src/app/console/services/events-gql.service";
 import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+import { ToastService } from "src/app/services/toast.service";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";

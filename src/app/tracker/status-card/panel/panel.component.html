@@ -1,0 +1,55 @@
+@switch (panelKey) {
+    @case ("rtLayer") {
+        <tracker-panel-rt-layer [panelKey]="panelKey" [panelData]="panelData" />
+    }
+    @case ("stopsLayer") {
+        <nz-list nzItemLayout="horizontal">
+            @for (
+                checkbox of panelData.checkBoxes;
+                track checkbox;
+                let i = $index
+            ) {
+                <nz-list-item>
+                    <nz-list-item-meta>
+                        <nz-list-item-meta-title>
+                            {{ checkbox.label }}
+                        </nz-list-item-meta-title>
+                        <nz-list-item-meta-avatar>
+                            <label
+                                nz-checkbox
+                                [nzChecked]="checkbox.checked"
+                                (nzCheckedChange)="updateChecked(panelKey, i)"
+                            ></label>
+                        </nz-list-item-meta-avatar>
+                    </nz-list-item-meta>
+                    <ul nz-list-item-actions>
+                        @if (gtfsStaticStateService.sources[checkbox.value]) {
+                            <nz-list-item-action>
+                                @if (
+                                    gtfsStaticStateService.sources[
+                                        checkbox.value
+                                    ].isLoading
+                                ) {
+                                    <nz-spin nzSimple nzSize="small" />
+                                }
+                            </nz-list-item-action>
+                        }
+                        <nz-list-item-action>
+                            <a [href]="checkbox.source">
+                                <span
+                                    nz-icon
+                                    nzType="info-circle"
+                                    nzTheme="outline"
+                                ></span>
+                            </a>
+                        </nz-list-item-action>
+                    </ul>
+                </nz-list-item>
+            }
+        </nz-list>
+    }
+    @default {
+        <p>Layer not implemented yet. 🥲</p>
+        <p>Maybe buy Kwong a coffee so he can code faster? 😉</p>
+    }
+}

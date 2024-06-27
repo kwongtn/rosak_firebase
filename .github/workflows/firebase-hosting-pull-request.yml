@@ -10,6 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: "npm"
 
       - run: npm ci && npm run buildStaging
         env:
@@ -32,4 +39,4 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           # SENTRY_URL: https://sentry.io/
         with:
-          environment: ${{ github.ref_name }}
+          environment: ${{ github.head_ref || github.ref_name }} 

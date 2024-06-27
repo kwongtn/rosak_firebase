@@ -13,7 +13,15 @@
     ></d-header-menu>
 </d-common-header>
 <div [class]="applyPadding ? 'content-outer-container' : ''">
-    <div [class]="applyPadding ? 'content-inner-container' : 'top-margin-only'">
+    <div
+        [class]="
+            applyPadding
+                ? 'content-inner-container'
+                : applyTopPadding
+                  ? 'top-margin-only'
+                  : ''
+        "
+    >
         <!-- <nz-alert
             nzBanner
             nzType="info"

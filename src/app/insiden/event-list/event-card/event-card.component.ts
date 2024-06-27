@@ -12,10 +12,8 @@ import {
 import {
     CalendarIncidentSeverityPipe,
 } from "src/app/pipes/calendar-incident-severity/calendar-incident-severity.pipe";
-import {
-    ImageUploadService,
-} from "src/app/services/spotting/image-upload.service";
-import { ToastService } from "src/app/services/toast/toast.service";
+import { ImageUploadService } from "src/app/services/image-upload.service";
+import { ToastService } from "src/app/services/toast.service";
 
 import { CommonModule } from "@angular/common";
 import {
