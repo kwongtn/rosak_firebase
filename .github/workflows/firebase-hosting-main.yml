@@ -25,6 +25,7 @@ jobs:
           git config --global user.name "${{ github.actor }}"
 
       - run: npm i -g angular-build-info && npm ci && npm run buildProd
+        timeout-minutes: 10
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -32,6 +33,7 @@ jobs:
 
       - name: Create Sentry release
         uses: getsentry/action-release@v1
+        if: always()
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -41,6 +43,7 @@ jobs:
           environment: production
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        if: always()
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROSAK_7223B }}"
