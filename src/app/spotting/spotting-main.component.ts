@@ -1,4 +1,5 @@
 import { Apollo, gql } from "apollo-angular";
+import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { NzSpinModule } from "ng-zorro-antd/spin";
@@ -55,6 +56,7 @@ const GET_LINES = gql`
         NzProgressModule,
         NzSpinModule,
         NzTabsModule,
+        NzButtonModule,
         NzToolTipModule,
         VehicleTypeContainerComponent,
     ],
