@@ -2,8 +2,8 @@ import { PanelModule, TooltipModule } from "ng-devui";
 import { DataTableModule, TableWidthConfig } from "ng-devui/data-table";
 import { TagsModule } from "ng-devui/tags";
 import {
-    VehicleStatusTagModule,
-} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
+    VehicleStatusTagComponent,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.component";
 import {
     WheelStatusTagComponent,
 } from "src/app/@ui/wheel-status-tag/wheel-status-tag.component";
@@ -38,7 +38,7 @@ import {
         PanelModule,
         TagsModule,
         TooltipModule,
-        VehicleStatusTagModule,
+        VehicleStatusTagComponent,
         WheelStatusTagComponent,
     ],
 })

@@ -14,8 +14,8 @@ import {
     ImagePreviewButtonComponent,
 } from "src/app/@ui/spotting/image-preview-button/image-preview-button.component";
 import {
-    VehicleStatusTagModule,
-} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
+    VehicleStatusTagComponent,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.component";
 import {
     GetVehiclesLastSpottingResponse,
     LastSpottingsTableElement,
@@ -39,7 +39,7 @@ import { Component, Input, OnDestroy, OnInit } from "@angular/core";
         LoadingModule,
         NzToolTipModule,
         SpottingTypeCellDisplayComponent,
-        VehicleStatusTagModule,
+        VehicleStatusTagComponent,
     ],
 })
 export class InlineHistoryComponent implements OnInit, OnDestroy {

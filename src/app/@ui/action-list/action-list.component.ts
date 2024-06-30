@@ -13,8 +13,8 @@ import {
     SpottingTypeTagModule,
 } from "../spotting-type-tag/spotting-type-tag.module";
 import {
-    VehicleStatusTagModule,
-} from "../vehicle-status-tag/vehicle-status-tag.module";
+    VehicleStatusTagComponent,
+} from "../vehicle-status-tag/vehicle-status-tag.component";
 
 @Component({
     selector: "ui-action-list",
@@ -26,7 +26,7 @@ import {
         NzListModule,
         NzSpaceModule,
         SpottingTypeTagModule,
-        VehicleStatusTagModule,
+        VehicleStatusTagComponent,
     ],
 })
 export class ActionListComponent {

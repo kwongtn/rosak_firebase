@@ -17,8 +17,8 @@ import {
     ActionListComponent,
 } from "src/app/@ui/action-list/action-list.component";
 import {
-    VehicleStatusTagModule,
-} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
+    VehicleStatusTagComponent,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.component";
 import { GetLinesAndVehiclesResponse } from "src/app/models/query/get-vehicles";
 import {
     CoordinatesHumanizerPipe,
@@ -117,7 +117,7 @@ export interface SpottingFormReturnType {
         NzSpaceModule,
         NzSpinModule,
         ReactiveFormsModule,
-        VehicleStatusTagModule,
+        VehicleStatusTagComponent,
     ],
 })
 export class SpottingFormComponent implements OnInit, OnDestroy {

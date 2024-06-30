@@ -22,8 +22,8 @@ import {
     ImagePreviewButtonComponent,
 } from "src/app/@ui/spotting/image-preview-button/image-preview-button.component";
 import {
-    VehicleStatusTagModule,
-} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.module";
+    VehicleStatusTagComponent,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.component";
 import {
     VehicleTableCellDisplayComponent,
 } from "src/app/@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
@@ -74,9 +74,8 @@ interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
         SpottingTypeCellDisplayComponent,
         ToggleModule,
         TooltipModule,
-        VehicleStatusTagModule,
+        VehicleStatusTagComponent,
         VehicleTableCellDisplayComponent,
-
     ]
 })
 export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
