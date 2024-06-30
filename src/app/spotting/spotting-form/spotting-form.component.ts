@@ -2,6 +2,7 @@ import { Apollo, gql, MutationResult } from "apollo-angular";
 import { LoadingType } from "ng-devui/loading";
 import { AppendToBodyDirection } from "ng-devui/utils";
 import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 // import { ReCaptchaV3Service } from "ng-recaptcha";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
@@ -107,6 +108,7 @@ export interface SpottingFormReturnType {
         CoordinatesHumanizerPipe,
         FormUploadComponent,
         NzAlertModule,
+        NzCheckboxModule,
         NzDatePickerModule,
         NzFormModule,
         NzGridModule,
