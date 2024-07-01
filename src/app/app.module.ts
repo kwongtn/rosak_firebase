@@ -38,6 +38,7 @@ import {
 } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
+import { UNIVERSAL_PROVIDERS } from "@ng-web-apis/universal";
 import * as Sentry from "@sentry/angular-ivy";
 
 // import build from "../build";
@@ -83,6 +84,7 @@ const providers: any[] = [
             includePostRequests: true,
         })
     ),
+    UNIVERSAL_PROVIDERS,
     {
         provide: ErrorHandler,
         useClass: GlobalErrorHandler,
