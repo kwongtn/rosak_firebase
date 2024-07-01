@@ -1,15 +1,19 @@
 import { Apollo, gql } from "apollo-angular";
+import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { firstValueFrom, Observable, Subscription } from "rxjs";
 import {
     GetLinesAndVehiclesResponse,
     GetLinesResponse,
 } from "src/app/models/query/get-vehicles";
-import {
-    ImageUploadService,
-} from "src/app/services/spotting/image-upload.service";
+import { ImageUploadService } from "src/app/services/image-upload.service";
 import { environment } from "src/environments/environment";
 
+import { CommonModule } from "@angular/common";
 import {
     Component,
     HostListener,
@@ -20,15 +24,16 @@ import {
 } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
-import {
-    SessionHistoryService,
-} from "../services/session-history/session-history.service";
-import { ToastService } from "../services/toast/toast.service";
+import { SessionHistoryService } from "../services/session-history.service";
+import { ToastService } from "../services/toast.service";
 import {
     SpottingFormComponent,
     SpottingFormReturnType,
 } from "./spotting-form/spotting-form.component";
 import { lineQueryResultToTabEntries, LineTabType } from "./utils";
+import {
+    VehicleTypeContainerComponent,
+} from "./vehicle-type-container/vehicle-type-container.component";
 
 const GET_LINES = gql`
     query GetLinesAndVehicles {
@@ -45,6 +50,16 @@ const GET_LINES = gql`
     selector: "app-spotting-main",
     templateUrl: "./spotting-main.component.html",
     styleUrls: ["./spotting-main.component.scss"],
+    standalone: true,
+    imports: [
+        CommonModule,
+        NzProgressModule,
+        NzSpinModule,
+        NzTabsModule,
+        NzButtonModule,
+        NzToolTipModule,
+        VehicleTypeContainerComponent,
+    ],
 })
 export class SpottingMainComponent implements OnInit, OnDestroy {
     env = environment;

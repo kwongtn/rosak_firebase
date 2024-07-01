@@ -24,8 +24,8 @@ import {
     FormUploadComponent,
 } from "../@ui/spotting/form-upload/form-upload.component";
 import {
-    CalendarIncidentSeverityModule,
-} from "../pipes/calendar-incident-severity/calendar-incident-severity.module";
+    CalendarIncidentSeverityPipe,
+} from "../pipes/calendar-incident-severity/calendar-incident-severity.pipe";
 import { CalendarComponent } from "./calendar/calendar.component";
 import {
     EventCardComponent,
@@ -42,10 +42,7 @@ import { InsidenMainComponent } from "./insiden.component";
 @NgModule({
     declarations: [
         InsidenMainComponent,
-        CalendarComponent,
         EventListComponent,
-        EventCardComponent,
-        EventDetailsModalComponent,
         ImageDrawerComponent,
     ],
     imports: [
@@ -71,9 +68,12 @@ import { InsidenMainComponent } from "./insiden.component";
         NzToolTipModule,
 
         // Self-imports
-        CalendarIncidentSeverityModule,
+        CalendarIncidentSeverityPipe,
         FormUploadComponent,
         ImageGridModule,
+        CalendarComponent,
+        EventDetailsModalComponent,
+        EventCardComponent,
     ],
     providers: [],
 })

@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v3
         with:
@@ -19,13 +21,16 @@ jobs:
           cache: "npm"
 
       - run: npm i -g angular-build-info && npm ci && npm run buildStaging
+        timeout-minutes: 30
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Create Sentry release
         uses: getsentry/action-release@v1
+        if: always()
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -35,9 +40,10 @@ jobs:
           environment: staging
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        if: always()
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROSAK_7223B }}"
-          channelId: staging
+          channelId: live
+          target: staging
           projectId: rosak-7223b
-          expires: 30d

@@ -1,18 +1,46 @@
-import { TableWidthConfig } from "ng-devui/data-table";
+import { PanelModule, TooltipModule } from "ng-devui";
+import { DataTableModule, TableWidthConfig } from "ng-devui/data-table";
+import { TagsModule } from "ng-devui/tags";
+import {
+    VehicleStatusTagComponent,
+} from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.component";
+import {
+    WheelStatusTagComponent,
+} from "src/app/@ui/wheel-status-tag/wheel-status-tag.component";
 import { TableDataType } from "src/app/models/spotting-table/source-type";
 import {
-    tagListDisplayConfig,
     TagListDisplayConfig,
-    vehicleStatus,
+    tagListDisplayConfig,
     VehicleStatus,
+    vehicleStatus,
 } from "src/app/spotting/utils";
 
+import { CommonModule } from "@angular/common";
 import { Component, Input, OnInit } from "@angular/core";
+
+import {
+    InlineHistoryComponent,
+} from "./inline-history/inline-history.component";
+import {
+    InlineTimelineComponent,
+} from "./inline-timeline/inline-timeline.component";
 
 @Component({
     selector: "app-spotting-table",
     templateUrl: "./spotting-table.component.html",
     styleUrls: ["./spotting-table.component.scss"],
+    standalone: true,
+    imports: [
+        CommonModule,
+        DataTableModule,
+        InlineHistoryComponent,
+        InlineTimelineComponent,
+        PanelModule,
+        TagsModule,
+        TooltipModule,
+        VehicleStatusTagComponent,
+        WheelStatusTagComponent,
+    ],
 })
 export class SpottingTableComponent implements OnInit {
     @Input() dataSource!: TableDataType;

@@ -63,7 +63,7 @@ export class VehicleStatusHistoryComponent implements OnInit, OnChanges {
     ) {}
 
     ngOnChanges(changes: SimpleChanges) {
-        if (!changes["sources"].isFirstChange()) {
+        if (!changes["sources"]?.isFirstChange()) {
             const hasMtrec =
                 changes["sources"].currentValue.filter(
                     (val: LineVehiclesChartographySource) => {

@@ -1,5 +1,5 @@
 import { NzDrawerRef, NzDrawerService } from "ng-zorro-antd/drawer";
-import { AuthService } from "src/app/services/auth/auth.service";
+import { AuthService } from "src/app/services/auth.service";
 import { environment as env } from "src/environments/environment";
 
 import {

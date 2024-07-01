@@ -1,23 +1,19 @@
 <nz-spin [nzSpinning]="loading" [nzSize]="'large'">
-    @if (imageSrcs.length > 0) {
+    @if (imageUrls.length > 0) {
         <nz-image-group class="flex-container">
-            @for (src of imageSrcs; track src; let i = $index) {
+            @for (url of imageUrls; track url; let i = $index) {
                 <img
                     height="200px"
                     width="200px"
                     [attr.data-index]="i"
-                    [src]="
-                        'https://media.discordapp.net/attachments/' +
-                        src +
-                        '?format=webp&quality=lossless&width=300&height=300'
-                    "
+                    [src]="url.preview"
                     onerror="this.onerror=null; this.src='./assets/image-not-found.png'"
                     (click)="onViewImage(i)"
                     (load)="markLoaded()"
                 />
             }
         </nz-image-group>
-    } @else if (imageSrcs.length === 0 && !loading) {
+    } @else if (imageUrls.length === 0 && !loading) {
         <nz-empty nzNotFoundContent="No images. Add some?" />
     }
     @if (isMine) {

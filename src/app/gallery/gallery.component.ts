@@ -1,8 +1,12 @@
 import { QueryRef } from "apollo-angular";
+import { InViewportModule } from "ng-in-viewport";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { Subscription } from "rxjs";
 import { InputImage } from "src/app/@ui/image-grid/image-grid.component";
+import { ImageGridModule } from "src/app/@ui/image-grid/image-grid.module";
+import { getThumbnail } from "src/app/@util/imgur";
 
-import { KeyValue } from "@angular/common";
+import { CommonModule, KeyValue } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 
 import {
@@ -14,6 +18,8 @@ import {
     selector: "app-gallery",
     templateUrl: "./gallery.component.html",
     styleUrls: ["./gallery.component.scss"],
+    standalone: true,
+    imports: [CommonModule, ImageGridModule, InViewportModule, NzSpinModule],
 })
 export class GalleryComponent implements OnInit, OnDestroy {
     imageDateMaps: {
@@ -32,7 +38,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
     loading: boolean = true;
 
-    constructor(private gqlService: GetMediasService) { }
+    constructor(private gqlService: GetMediasService) {}
 
     async ngOnInit() {
         this.watchQueryOption = this.gqlService.watch(
@@ -63,12 +69,23 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
                         this.imageDateMaps[elem.dateKey].images =
                             elem.medias.map((media) => {
-                                return {
+                                const returnObj = {
                                     height: media.height,
                                     width: media.width,
-                                    src: media.discordSuffix,
+                                    url: "./assets/image-not-found.png",
+                                    thumbnailUrl:
+                                        "./assets/image-not-found.png",
                                     display: false,
                                 };
+                                if (media.file) {
+                                    returnObj.url = media.file.url;
+                                    returnObj.thumbnailUrl = getThumbnail(
+                                        media.file.url,
+                                        "m"
+                                    );
+                                }
+
+                                return returnObj;
                             });
                     });
 

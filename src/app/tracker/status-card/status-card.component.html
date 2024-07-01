@@ -1,0 +1,38 @@
+<div nz-row nzJustify="end" [class]="'row-class ' + env.sentry.environment">
+    <div nz-col nzSpan="6" class="info-panel">
+        <nz-collapse [nzBordered]="false">
+            @for (
+                panel of panelSelectionService.panels | keyvalue;
+                track panel
+            ) {
+                @if (panel.value.checkBoxes.length > 0) {
+                    <nz-collapse-panel
+                        [nzHeader]="panel.value.name"
+                        [nzActive]="panel.value.active"
+                        [nzDisabled]="panel.value.disabled"
+                    >
+                        <tracker-status-card-panel
+                            [panelKey]="panel.key"
+                            [panelData]="panel.value"
+                        />
+                    </nz-collapse-panel>
+                }
+            }
+        </nz-collapse>
+        @if (this.panelSelectionService.hasUnsavedChanges | async) {
+            <nz-card [nzBorderless]="true">
+                <div nz-flex [nzGap]="'small'" class="button-area">
+                    <button
+                        nz-button
+                        nzType="primary"
+                        [nzLoading]="applyLoading"
+                        (click)="onApply($event)"
+                    >
+                        Apply
+                    </button>
+                    <!-- <button nz-button nzType="default">Cancel</button> -->
+                </div>
+            </nz-card>
+        }
+    </div>
+</div>

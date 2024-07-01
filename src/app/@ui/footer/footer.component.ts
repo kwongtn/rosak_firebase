@@ -2,7 +2,7 @@ import { Subscription } from "rxjs";
 import {
     BackendBuildInfo,
     BuildInfoService,
-} from "src/app/services/build-info/build-info.service";
+} from "src/app/services/build-info.service";
 
 import { Component, OnDestroy } from "@angular/core";
 
@@ -12,6 +12,7 @@ import build from "../../../build";
     selector: "app-footer",
     templateUrl: "./footer.component.html",
     styleUrls: ["./footer.component.scss"],
+    standalone: true,
 })
 export class FooterComponent implements OnDestroy {
     backendBuildInfo!: BackendBuildInfo;

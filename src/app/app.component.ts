@@ -13,7 +13,7 @@ import {
 import { Analytics } from "@angular/fire/analytics";
 import { NavigationEnd, Router } from "@angular/router";
 
-import { AuthService } from "./services/auth/auth.service";
+import { AuthService } from "./services/auth.service";
 
 const genericTitle = " Malaysia Land Public Transport Fans ";
 
@@ -51,7 +51,8 @@ const initialMenuList: { [key: string]: string }[] = [
     },
 ];
 
-const noApplyPaddingRoutes: string[] = ["situasi"];
+const noApplyPaddingRoutes: string[] = ["situasi", "tracker"];
+const noApplyTopMarginRoutes: string[] = ["tracker"];
 
 @Component({
     selector: "app-root",
@@ -65,6 +66,7 @@ export class AppComponent implements OnInit, OnDestroy {
     userAvatar: string = "";
     routeKey = "";
     applyPadding = true;
+    applyTopPadding = true;
 
     constructor(
         public authService: AuthService,
@@ -163,8 +165,17 @@ export class AppComponent implements OnInit, OnDestroy {
                     style: "danger",
                     headerTitle: " - Situasi ",
                 });
+                this.addToMenu({
+                    name: "Tracker",
+                    href: "/tracker",
+                    target: "_self",
+                    tag: "Alpha",
+                    style: "danger",
+                    headerTitle: " - Tracker ",
+                });
             } else {
                 this.removeFromMenu("/situasi");
+                this.removeFromMenu("/tracker");
             }
         });
 
@@ -182,6 +193,9 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.routeKey = this.getRouteKey();
 
                 this.applyPadding = !noApplyPaddingRoutes.includes(
+                    this.routeKey
+                );
+                this.applyTopPadding = !noApplyTopMarginRoutes.includes(
                     this.routeKey
                 );
             });

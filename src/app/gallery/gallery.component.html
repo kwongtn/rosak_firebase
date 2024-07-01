@@ -1,7 +1,15 @@
 <h1>Gallery</h1>
 
 @if (loading) {
-    <nz-spin class="content spinner" nzSimple></nz-spin>
+    <nz-spin
+        class="content spinner"
+        nzTip="Due to the high number of image entries, loading will be slow. Please bear with us while we work on optimizations 🥲"
+    ></nz-spin>
+    <!-- 
+        Refer the following for implementation:
+        - https://thebhwgroup.com/blog/nginfinitescroll
+        - https://github.com/orizens/ngx-infinite-scroll
+    -->
 }
 @for (imgDate of imageDateMaps | keyvalue: compareFn; track imgDate) {
     <div
@@ -18,7 +26,7 @@
         } @else {
             <div
                 [ngStyle]="{
-                    height: (imgDate.value.images.length / 3) * 200 + 'px'
+                    height: (imgDate.value.images.length / 3) * 200 + 'px',
                 }"
             ></div>
         }
