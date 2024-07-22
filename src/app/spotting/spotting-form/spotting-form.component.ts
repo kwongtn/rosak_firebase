@@ -8,6 +8,7 @@ import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDrawerRef } from "ng-zorro-antd/drawer";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { NzGridModule } from "ng-zorro-antd/grid";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
 import { NzSelectItemInterface, NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpaceModule } from "ng-zorro-antd/space";
@@ -112,6 +113,7 @@ export interface SpottingFormReturnType {
         NzDatePickerModule,
         NzFormModule,
         NzGridModule,
+        NzIconModule,
         NzInputModule,
         NzSelectModule,
         NzSpaceModule,
