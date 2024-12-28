@@ -16,7 +16,6 @@ import { NzNotificationModule } from "ng-zorro-antd/notification";
 import { MarkdownModule, provideMarkdown } from "ngx-markdown";
 
 import { registerLocaleData } from "@angular/common";
-import { HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
 import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
 import {
@@ -51,7 +50,6 @@ const imports: any[] = [
     // Angular
     BrowserAnimationsModule,
     BrowserModule,
-    HttpClientModule,
 
     // DevUI
     DevUIModule,
