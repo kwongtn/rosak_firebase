@@ -5,7 +5,7 @@ import { galaxyTheme, infinityTheme } from "ng-devui/theme-collection";
 
 import { enableProdMode } from "@angular/core";
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
-import * as Sentry from "@sentry/angular-ivy";
+import * as Sentry from "@sentry/angular";
 
 import { AppModule } from "./app/app.module";
 import { environment } from "./environments/environment";
@@ -15,13 +15,13 @@ Sentry.init({
     tunnel: environment.sentry.tunnel,
     environment: environment.sentry.environment,
     integrations: [
-        Sentry.browserTracingIntegration({
-            tracingOrigins: environment.sentry.tracingOrigins,
-            _experiments: {
-                enableInteractions: true,
-            }
-        }),
+        Sentry.browserTracingIntegration(),
         Sentry.replayIntegration(),
+        Sentry.feedbackIntegration({
+            // Additional SDK configuration goes in here, for example:
+            colorScheme: "system",
+            autoInject: false,
+        }),
     ],
 
     // Set tracesSampleRate to 1.0 to capture 100%

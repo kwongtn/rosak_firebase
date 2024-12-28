@@ -1,5 +1,5 @@
 import { Apollo, gql } from "apollo-angular";
-import { ReCaptchaV3Service } from "ng-recaptcha";
+import { ReCaptchaV3Service } from "ng-recaptcha-2";
 import { firstValueFrom } from "rxjs";
 import { AuthService } from "src/app/services/auth.service";
 

@@ -5,7 +5,7 @@ import {
     RecaptchaFormsModule,
     RecaptchaV3Module,
     ReCaptchaV3Service,
-} from "ng-recaptcha";
+} from "ng-recaptcha-2";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzDrawerService } from "ng-zorro-antd/drawer";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
@@ -16,6 +16,7 @@ import { NzNotificationModule } from "ng-zorro-antd/notification";
 import { MarkdownModule, provideMarkdown } from "ngx-markdown";
 
 import { registerLocaleData } from "@angular/common";
+import { provideHttpClient } from "@angular/common/http";
 import en from "@angular/common/locales/en";
 import { APP_INITIALIZER, ErrorHandler, NgModule } from "@angular/core";
 import {
@@ -33,9 +34,8 @@ import { getStorage, provideStorage } from "@angular/fire/storage";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { Router } from "@angular/router";
-import * as Sentry from "@sentry/angular-ivy";
+import * as Sentry from "@sentry/angular";
 
-// import build from "../build";
 import { environment } from "../environments/environment";
 import { FooterComponent } from "./@ui/footer/footer.component";
 import { AppRoutingModule } from "./app-routing.module";
@@ -85,7 +85,7 @@ const providers: any[] = [
     },
     {
         provide: APP_INITIALIZER,
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
+         
         useFactory: () => () => {},
         deps: [Sentry.TraceService],
         multi: true,
@@ -105,6 +105,7 @@ const providers: any[] = [
     provideDatabase(() => getDatabase()),
     provideStorage(() => getStorage()),
     provideMarkdown(),
+    provideHttpClient(),
     NzModalService,
     NzImageService,
     NzDrawerService,
