@@ -243,7 +243,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
                     return !rows.includes(elem.id);
                 });
             }
-            this.showLoading = loading;
+            this.showLoading = loading ?? false;
         });
     }
 

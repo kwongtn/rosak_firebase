@@ -11,7 +11,7 @@ import {
     Output,
 } from "@angular/core";
 import { Router } from "@angular/router";
-import * as Sentry from "@sentry/angular-ivy";
+import * as Sentry from "@sentry/angular";
 
 @Component({
     selector: "d-header-menu",
@@ -29,8 +29,11 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     hadUpload: boolean = false;
 
-    constructor(public router: Router, private themeService: ThemeService, 
-        private imageUploadService: ImageUploadService) {
+    constructor(
+        public router: Router,
+        private themeService: ThemeService,
+        private imageUploadService: ImageUploadService
+    ) {
         return;
     }
 
@@ -46,13 +49,13 @@ export class MenuComponent implements OnInit, OnDestroy {
             (count) => {
                 this.countIcon = count;
 
-                if(!this.hadUpload && count > 0) {
+                if (!this.hadUpload && count > 0) {
                     this.hadUpload = true;
                 }
             }
         );
     }
-    
+
     ngOnDestroy(): void {
         this.$countIcon?.unsubscribe();
     }
@@ -72,12 +75,13 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.curLanguage = lang;
     }
 
-    reportBug(): void {
-        const feedback = Sentry.feedbackIntegration();
-        feedback.openDialog();
+    async reportBug(): Promise<void> {
+        const form = await Sentry.feedbackIntegration().createForm();
+        form.appendToDom();
+        form.open();
     }
 
-    toggleTheme(): void{
+    toggleTheme(): void {
         this.themeService.toggleTheme();
     }
 }

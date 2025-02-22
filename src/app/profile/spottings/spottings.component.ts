@@ -5,7 +5,7 @@ import {
     LoadingModule,
     TableWidthConfig,
 } from "ng-devui";
-import { ReCaptchaV3Service } from "ng-recaptcha";
+import { ReCaptchaV3Service } from "ng-recaptcha-2";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import {
