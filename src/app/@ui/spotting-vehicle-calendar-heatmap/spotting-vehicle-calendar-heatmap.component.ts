@@ -271,13 +271,9 @@ export class SpottingVehicleCalendarHeatmapComponent implements OnInit, OnChange
             )
             .then((res) => {
                 this.heatmapPlotOptions["data"] = res.data.map((val) => {
-                    const yearWeekKey = `${val.dateKey.split("-")[0]}W${
-                        val.weekOfYear
-                    }`;
-
                     return {
                         ...val,
-                        index: res.mappings.yearWeek[yearWeekKey],
+                        index: res.mappings.yearWeek[val.yearWeek],
                     };
                 });
 

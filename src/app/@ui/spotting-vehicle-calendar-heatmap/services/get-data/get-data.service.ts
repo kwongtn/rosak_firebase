@@ -9,7 +9,7 @@ export interface TVehicleSpottingTrendData {
     count: number;
     dateKey: string;
     dayOfWeek: number;
-    weekOfYear: number;
+    yearWeek: string;
     isLastDayOfMonth: boolean;
     isLastWeekOfMonth: boolean;
 }
