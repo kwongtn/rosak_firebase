@@ -95,7 +95,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
 
     setAndRenderChart() {
         const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 12);
+        startDate.setMonth(startDate.getMonth() - 6);
         startDate.setDate(1);
         const startDateString = startDate.toISOString().split("T")[0];
 
