@@ -1,3 +1,5 @@
+import { environment } from "src/environments/environment";
+
 import {
     Component,
     Input,
@@ -6,10 +8,10 @@ import {
     OnInit,
     SimpleChanges,
 } from "@angular/core";
-import { Chart } from "@antv/g2";
+import { Chart, Data } from "@antv/g2";
 import { RuntimeOptions } from "@antv/g2/lib/api/runtime";
 
-import { GetDataService } from "./get-data/get-data.service";
+const ROW_HEIGHT = 30;
 
 @Component({
     selector: "spotting-line-calendar-heatmap",
@@ -18,6 +20,7 @@ import { GetDataService } from "./get-data/get-data.service";
 })
 export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
     @Input() lineId!: string;
+    @Input() vehicleCount!: number;
 
     chart: Chart | undefined = undefined;
     loading: boolean = true;
@@ -26,6 +29,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         scrollbar: true,
         container: "container",
         type: "view",
+        autoFit: true,
         scale: {
             color: {
                 palette: "BuPu",
@@ -81,15 +85,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         ],
     };
 
-    getNewChartWidthHeight(rowCount: number): [number, number] {
-        const MULTIPLIER = 30; // 50px per unique value
-        return [1600, rowCount * MULTIPLIER];
-    }
-
-    constructor(
-        private getDataService: GetDataService,
-        private ngZone: NgZone
-    ) {
+    constructor(private ngZone: NgZone) {
         return;
     }
 
@@ -101,32 +97,27 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
 
         const endDateString = new Date().toISOString().split("T")[0];
 
-        this.getDataService
-            .getData(this.lineId, startDateString, endDateString)
-            .then((data) => {
-                const vehicleSet = new Set(data.map((item) => item.vehicle));
-                const [width, height] = this.getNewChartWidthHeight(
-                    vehicleSet.size
-                );
-
-                this.chartOptions.width = width;
-                this.chartOptions.height = height;
-                this.chartOptions.data = {
-                    value: data,
-                    type: "inline",
-                };
-
-                this.chart = this.ngZone.runOutsideAngular(() => {
-                    return new Chart(this.chartOptions);
-                });
-
-                this.chart.render();
-                this.loading = false;
+        this.chart = this.ngZone.runOutsideAngular(() => {
+            return new Chart({
+                ...this.chartOptions,
+                data: {
+                    value: `${environment.backendUrl}operation/line_vehicles_spotting_trend/${this.lineId}/${startDateString}/${endDateString}/`,
+                    type: "fetch",
+                    format: "csv",
+                } as Data,
+                height: this.vehicleCount * ROW_HEIGHT,
             });
+        });
+        this.chart.render().finally(() => {
+            this.loading = false;
+        });
     }
 
     ngOnChanges(changes: SimpleChanges) {
-        if (!changes["lineId"].firstChange) {
+        if (
+            !changes["lineId"]?.firstChange ||
+            !changes["vehicleCount"]?.firstChange
+        ) {
             this.chart?.destroy();
             this.chart = undefined;
 

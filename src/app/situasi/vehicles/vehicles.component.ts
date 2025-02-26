@@ -17,6 +17,8 @@ export class VehiclesComponent implements OnDestroy {
     lineId: string | undefined = undefined;
     sources: LineVehiclesChartographySource[] = [];
 
+    vehicleCount = -1;
+
     routeSubscription!: Subscription;
 
     constructor(
@@ -34,6 +36,7 @@ export class VehiclesComponent implements OnDestroy {
 
             firstValueFrom(dataServiceSubscription).then(({ data }) => {
                 this.sources = [...data.lines[0].chartographySources];
+                this.vehicleCount = data.lines[0].vehicles.length;
             });
         });
     }

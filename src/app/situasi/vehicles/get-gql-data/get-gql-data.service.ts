@@ -15,6 +15,9 @@ export interface GetLineVehiclesResponse {
         code: string;
         displayName: string;
         chartographySources: LineVehiclesChartographySource[];
+        vehicles: {
+            id: string;
+        }[];
     }[];
 }
 
@@ -33,6 +36,9 @@ export class GetGqlDataService extends Query<GetLineVehiclesResponse> {
                     name
                     description
                     officialSite
+                }
+                vehicles {
+                    id
                 }
             }
         }
