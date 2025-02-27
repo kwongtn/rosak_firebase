@@ -4,6 +4,8 @@
 @import "ng-devui/styles-var/devui-var.scss";
 @import "ng-devui/theme-collection/extend-theme.css";
 
+@import "tailwindcss";
+
 /* global styling for sticky footer*/
 html,
 body,
@@ -30,7 +32,8 @@ code[class*="language-"],
 pre[class*="language-"],
 pre code {
     white-space: pre;
-    font-family: "Menlo", "DejaVu Sans Mono", "Liberation Mono", "Consolas",
+    font-family:
+        "Menlo", "DejaVu Sans Mono", "Liberation Mono", "Consolas",
         "Ubuntu Mono", "Courier New", "andale mono", "lucida console", monospace;
 }
 
