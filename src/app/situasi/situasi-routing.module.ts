@@ -26,7 +26,7 @@ const routes: Routes = [
         component: LineComponent,
     },
     {
-        path: ":lineId/vehicle",
+        path: ":lineId/vehicles",
         loadChildren: async () => {
             const module = await import("./vehicles/vehicles.module");
             return module.VehiclesModule;
@@ -34,7 +34,7 @@ const routes: Routes = [
         component: VehiclesComponent,
     },
     {
-        path: ":lineId/vehicle/:tabName",
+        path: ":lineId/vehicles/:tabName",
         loadChildren: async () => {
             const module = await import("./vehicles/vehicles.module");
             return module.VehiclesModule;

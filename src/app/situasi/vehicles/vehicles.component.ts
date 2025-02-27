@@ -75,7 +75,7 @@ export class VehiclesComponent implements OnDestroy, OnInit {
             [
                 "situasi",
                 this.lineId,
-                "vehicle",
+                "vehicles",
                 this.tabItems[this.tabActiveIndex].href,
             ],
             {

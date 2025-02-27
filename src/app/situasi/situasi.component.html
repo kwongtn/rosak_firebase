@@ -27,7 +27,7 @@
                     <span>Overall</span>
                 </a>
             </li>
-            @for (line of menuData; track line; let i = $index) {
+            @for (line of menuData; track line.id; let i = $index) {
                 <li
                     nz-submenu
                     [class.ant-menu-item-selected]="
@@ -47,13 +47,13 @@
                             [nzTitle]="vehicleTitle"
                             [class.ant-menu-item-selected]="
                                 router.isActive(
-                                    '/situasi/' + line.id + '/vehicle',
+                                    '/situasi/' + line.id + '/vehicles',
                                     false
                                 )
                             "
                             [nzOpen]="
                                 router.isActive(
-                                    '/situasi/' + line.id + '/vehicle',
+                                    '/situasi/' + line.id + '/vehicles',
                                     false
                                 )
                             "
@@ -64,7 +64,7 @@
                                         '/',
                                         'situasi',
                                         line.id,
-                                        'vehicle'
+                                        'vehicles',
                                     ]"
                                 >
                                     Vehicle
@@ -83,7 +83,7 @@
                                                 'situasi',
                                                 line.id,
                                                 'vehicle',
-                                                vehicle.id
+                                                vehicle.id,
                                             ]"
                                         >
                                             {{ vehicle.displayName }}
@@ -114,7 +114,7 @@
                                         '/',
                                         'situasi',
                                         line.id,
-                                        'station'
+                                        'station',
                                     ]"
                                 >
                                     Stations
@@ -133,7 +133,7 @@
                                                 'situasi',
                                                 line.id,
                                                 'station',
-                                                station.id
+                                                station.id,
                                             ]"
                                         >
                                             {{ station.displayName }}
@@ -183,7 +183,7 @@
                                                                         [
                                                                             '/',
                                                                             'situasi',
-                                                                            lineId
+                                                                            lineId,
                                                                         ].concat(
                                                                             assetType.href
                                                                         )
