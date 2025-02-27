@@ -91,6 +91,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
 
     startDate!: Date;
     endDate!: Date;
+    allowNextMonth: boolean = false;
 
     constructor(private ngZone: NgZone) {
         this.endDate = new Date();
@@ -98,14 +99,40 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         this.startDate = new Date();
         this.startDate.setMonth(this.startDate.getMonth() - this.MAX_MONTHS);
         this.startDate.setDate(1);
+
+        this.updateAllowNextMonth();
+    }
+
+    updateAllowNextMonth(): void {
+        this.allowNextMonth =
+            this.endDate.valueOf() + 3.6e6 * 24 < new Date().valueOf();
     }
 
     moveMonths(monthDiff: number): void {
-        this.startDate.setMonth(this.startDate.getMonth() + monthDiff);
-        this.startDate.setDate(1);
+        const newStartDate = new Date(this.startDate);
+        newStartDate.setMonth(newStartDate.getMonth() + monthDiff);
+        newStartDate.setDate(1);
 
-        this.endDate.setMonth(this.endDate.getMonth() + monthDiff);
+        const newEndDate = new Date(this.endDate);
+        newEndDate.setMonth(newEndDate.getMonth() + monthDiff);
 
+        this.startDate = newStartDate;
+        this.endDate = newEndDate;
+
+        this.updateAllowNextMonth();
+        this.setAndRenderChart();
+    }
+
+    ngOnChanges(changes: SimpleChanges) {
+        if (
+            !changes["lineId"]?.firstChange ||
+            !changes["vehicleCount"]?.firstChange
+        ) {
+            this.setAndRenderChart();
+        }
+    }
+
+    ngOnInit(): void {
         this.setAndRenderChart();
     }
 
@@ -139,18 +166,5 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
             .finally(() => {
                 this.loading = false;
             });
-    }
-
-    ngOnChanges(changes: SimpleChanges) {
-        if (
-            !changes["lineId"]?.firstChange ||
-            !changes["vehicleCount"]?.firstChange
-        ) {
-            this.setAndRenderChart();
-        }
-    }
-
-    ngOnInit(): void {
-        this.setAndRenderChart();
     }
 }

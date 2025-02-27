@@ -6,7 +6,12 @@
     <button (click)="moveMonths(-3)" nz-button nzType="default">
         -3 Months
     </button>
-    <button (click)="moveMonths(3)" nz-button nzType="default">
+    <button
+        (click)="moveMonths(3)"
+        nz-button
+        nzType="default"
+        [disabled]="!allowNextMonth"
+    >
         +3 Months
     </button>
 </div>
