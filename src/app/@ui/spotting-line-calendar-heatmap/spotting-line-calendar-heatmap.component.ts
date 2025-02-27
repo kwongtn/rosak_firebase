@@ -25,6 +25,10 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
     chart: Chart | undefined = undefined;
     loading: boolean = true;
 
+    error: Error | undefined = undefined;
+
+    private readonly MAX_MONTHS = 6;
+
     chartOptions: RuntimeOptions = {
         scrollbar: true,
         container: "container",
@@ -85,17 +89,35 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         ],
     };
 
+    startDate!: Date;
+    endDate!: Date;
+
     constructor(private ngZone: NgZone) {
-        return;
+        this.endDate = new Date();
+
+        this.startDate = new Date();
+        this.startDate.setMonth(this.startDate.getMonth() - this.MAX_MONTHS);
+        this.startDate.setDate(1);
+    }
+
+    moveMonths(monthDiff: number): void {
+        this.startDate.setMonth(this.startDate.getMonth() + monthDiff);
+        this.startDate.setDate(1);
+
+        this.endDate.setMonth(this.endDate.getMonth() + monthDiff);
+
+        this.setAndRenderChart();
     }
 
     setAndRenderChart() {
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 6);
-        startDate.setDate(1);
-        const startDateString = startDate.toISOString().split("T")[0];
+        this.loading = true;
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = undefined;
+        }
 
-        const endDateString = new Date().toISOString().split("T")[0];
+        const startDateString = this.startDate.toISOString().split("T")[0];
+        const endDateString = this.endDate.toISOString().split("T")[0];
 
         this.chart = this.ngZone.runOutsideAngular(() => {
             return new Chart({
@@ -108,9 +130,15 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
                 height: this.vehicleCount * ROW_HEIGHT,
             });
         });
-        this.chart.render().finally(() => {
-            this.loading = false;
-        });
+        this.chart
+            ?.render()
+            .catch((err) => {
+                console.error(err);
+                this.error = err;
+            })
+            .finally(() => {
+                this.loading = false;
+            });
     }
 
     ngOnChanges(changes: SimpleChanges) {
@@ -118,10 +146,6 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
             !changes["lineId"]?.firstChange ||
             !changes["vehicleCount"]?.firstChange
         ) {
-            this.chart?.destroy();
-            this.chart = undefined;
-
-            this.loading = true;
             this.setAndRenderChart();
         }
     }

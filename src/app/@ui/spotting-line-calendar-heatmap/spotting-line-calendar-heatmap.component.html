@@ -1,4 +1,25 @@
+<div class="date-range-controls">
+    <span
+        >{{ startDate | date: "yyyy-MMM-dd" }} -
+        {{ endDate | date: "yyyy-MMM-dd" }}</span
+    >
+    <button (click)="moveMonths(-3)" nz-button nzType="default">
+        -3 Months
+    </button>
+    <button (click)="moveMonths(3)" nz-button nzType="default">
+        +3 Months
+    </button>
+</div>
 @if (loading) {
     <nz-spin class="spinner" nzSimple nzTip="Loading..." />
+}
+
+@if (error) {
+    <nz-alert
+        nzType="error"
+        [nzMessage]="error.name"
+        [nzDescription]="error.message"
+        nzShowIcon
+    ></nz-alert>
 }
 <div id="container"></div>
