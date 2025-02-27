@@ -9,9 +9,7 @@ import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
 
 import { FooterComponent } from "../@ui/footer/footer.component";
-import {
-    SpottingLineCalendarHeatmapModule,
-} from "../@ui/spotting-line-calendar-heatmap/spotting-line-calendar-heatmap.module";
+import { SpottingLineCalendarHeatmapComponent } from "../@ui/spotting-line-calendar-heatmap/spotting-line-calendar-heatmap.component";
 import { SituasiRoutingModule } from "./situasi-routing.module";
 import { SituasiComponent } from "./situasi.component";
 
@@ -31,7 +29,7 @@ import { SituasiComponent } from "./situasi.component";
         // Self imports
         FooterComponent,
         SituasiRoutingModule,
-        SpottingLineCalendarHeatmapModule,
+        SpottingLineCalendarHeatmapComponent,
     ],
 })
 export class SituasiModule {}

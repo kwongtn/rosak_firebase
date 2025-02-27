@@ -1,4 +1,7 @@
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { environment } from "src/environments/environment";
+
+import { CommonModule } from "@angular/common";
 
 import {
     Component,
@@ -10,11 +13,15 @@ import {
 } from "@angular/core";
 import { Chart, Data } from "@antv/g2";
 import { RuntimeOptions } from "@antv/g2/lib/api/runtime";
+import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzButtonModule } from "ng-zorro-antd/button";
 
 const ROW_HEIGHT = 30;
 
 @Component({
     selector: "spotting-line-calendar-heatmap",
+    standalone: true,
+    imports: [CommonModule, NzSpinModule, NzButtonModule, NzAlertModule],
     templateUrl: "./spotting-line-calendar-heatmap.component.html",
     styleUrls: ["./spotting-line-calendar-heatmap.component.scss"],
 })
