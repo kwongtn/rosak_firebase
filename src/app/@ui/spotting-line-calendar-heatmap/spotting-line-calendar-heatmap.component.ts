@@ -1,3 +1,4 @@
+import { ActivatedRoute, Router } from "@angular/router";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { environment } from "src/environments/environment";
 
@@ -100,19 +101,24 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
     endDate!: Date;
     allowNextMonth: boolean = false;
 
-    constructor(private ngZone: NgZone) {
-        this.endDate = new Date();
+    constructor(
+        private ngZone: NgZone,
+        private route: ActivatedRoute,
+        private router: Router
+    ) {}
 
-        this.startDate = new Date();
-        this.startDate.setMonth(this.startDate.getMonth() - this.MAX_MONTHS);
-        this.startDate.setDate(1);
-
-        this.updateAllowNextMonth();
-    }
-
-    updateAllowNextMonth(): void {
+    updateProps(): void {
         this.allowNextMonth =
             this.endDate.valueOf() + 3.6e6 * 24 < new Date().valueOf();
+
+        this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: {
+                startDate: this.startDate.toISOString().split("T")[0],
+                endDate: this.endDate.toISOString().split("T")[0],
+            },
+            queryParamsHandling: "merge",
+        });
     }
 
     moveMonths(monthDiff: number): void {
@@ -126,7 +132,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         this.startDate = newStartDate;
         this.endDate = newEndDate;
 
-        this.updateAllowNextMonth();
+        this.updateProps();
         this.setAndRenderChart();
     }
 
@@ -140,7 +146,25 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
     }
 
     ngOnInit(): void {
-        this.setAndRenderChart();
+        this.route.queryParams.subscribe((params) => {
+            const startDateString = params["startDate"];
+            const endDateString = params["endDate"];
+
+            if (startDateString && endDateString) {
+                this.startDate = new Date(startDateString);
+                this.endDate = new Date(endDateString);
+            } else {
+                this.endDate = new Date();
+                this.startDate = new Date();
+                this.startDate.setMonth(
+                    this.startDate.getMonth() - this.MAX_MONTHS
+                );
+                this.startDate.setDate(1);
+            }
+
+            this.updateProps();
+            this.setAndRenderChart();
+        });
     }
 
     setAndRenderChart() {
