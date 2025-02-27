@@ -3,13 +3,9 @@ import { RouterModule, Routes } from "@angular/router";
 
 import { LineComponent } from "./line/line.component";
 import { OverallComponent } from "./overall/overall.component";
-import {
-    StationDetailsComponent,
-} from "./station-details/station-details.component";
+import { StationDetailsComponent } from "./station-details/station-details.component";
 import { StationsComponent } from "./stations/stations.component";
-import {
-    VehicleDetailsComponent,
-} from "./vehicle-details/vehicle-details.component";
+import { VehicleDetailsComponent } from "./vehicle-details/vehicle-details.component";
 import { VehiclesComponent } from "./vehicles/vehicles.component";
 
 const routes: Routes = [
@@ -31,6 +27,14 @@ const routes: Routes = [
     },
     {
         path: ":lineId/vehicle",
+        loadChildren: async () => {
+            const module = await import("./vehicles/vehicles.module");
+            return module.VehiclesModule;
+        },
+        component: VehiclesComponent,
+    },
+    {
+        path: ":lineId/vehicle/:tabName",
         loadChildren: async () => {
             const module = await import("./vehicles/vehicles.module");
             return module.VehiclesModule;

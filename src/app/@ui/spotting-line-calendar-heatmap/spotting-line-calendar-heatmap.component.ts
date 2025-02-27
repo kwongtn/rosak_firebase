@@ -107,18 +107,20 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         private router: Router
     ) {}
 
-    updateProps(): void {
+    updateProps(navigate: boolean = true): void {
         this.allowNextMonth =
             this.endDate.valueOf() + 3.6e6 * 24 < new Date().valueOf();
 
-        this.router.navigate([], {
-            relativeTo: this.route,
-            queryParams: {
-                startDate: this.startDate.toISOString().split("T")[0],
-                endDate: this.endDate.toISOString().split("T")[0],
-            },
-            queryParamsHandling: "merge",
-        });
+        if (navigate) {
+            this.router.navigate([], {
+                relativeTo: this.route,
+                queryParams: {
+                    startDate: this.startDate.toISOString().split("T")[0],
+                    endDate: this.endDate.toISOString().split("T")[0],
+                },
+                queryParamsHandling: "merge",
+            });
+        }
     }
 
     moveMonths(monthDiff: number): void {
@@ -162,7 +164,7 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
                 this.startDate.setDate(1);
             }
 
-            this.updateProps();
+            this.updateProps(false);
             this.setAndRenderChart();
         });
     }
