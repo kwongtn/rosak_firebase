@@ -1,84 +1,194 @@
 <nz-spin [nzSpinning]="showLoading">
-    <d-category-search
-        [category]="category"
-        [selectedTags]="selectedTags"
-        [allowShowMore]="true"
-        [toggleScrollToTail]="true"
-        [showSearchCategory]="false"
-        [allowSave]="false"
-        (searchEvent)="searchEvent($event)"
-    ></d-category-search>
+    <form nz-form nzLayout="inline" class="filter-bar">
+        <nz-form-item>
+            <nz-form-label>Status</nz-form-label>
+            <nz-form-control>
+                <nz-select
+                    name="status"
+                    nzMode="multiple"
+                    nzPlaceHolder="Any"
+                    style="min-width: 180px"
+                    [(ngModel)]="filterForm.status"
+                >
+                    @for (option of statusOptions; track option.value) {
+                        <nz-option
+                            [nzLabel]="option.label"
+                            [nzValue]="option.value"
+                        ></nz-option>
+                    }
+                </nz-select>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Spotting Type</nz-form-label>
+            <nz-form-control>
+                <nz-select
+                    name="spottingType"
+                    nzMode="multiple"
+                    nzPlaceHolder="Any"
+                    style="min-width: 180px"
+                    [(ngModel)]="filterForm.spottingType"
+                >
+                    @for (option of spottingTypeOptions; track option.value) {
+                        <nz-option
+                            [nzLabel]="option.label"
+                            [nzValue]="option.value"
+                        ></nz-option>
+                    }
+                </nz-select>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Created Time</nz-form-label>
+            <nz-form-control>
+                <nz-range-picker
+                    name="createdTimeRange"
+                    [nzShowTime]="true"
+                    [(ngModel)]="filterForm.createdTimeRange"
+                ></nz-range-picker>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Spotted Date</nz-form-label>
+            <nz-form-control>
+                <nz-range-picker
+                    name="spottedDateRange"
+                    [(ngModel)]="filterForm.spottedDateRange"
+                ></nz-range-picker>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Vehicle Status Different</nz-form-label>
+            <nz-form-control>
+                <nz-radio-group
+                    name="isVehicleStatusDifferent"
+                    [(ngModel)]="filterForm.isVehicleStatusDifferent"
+                >
+                    <label nz-radio-button [nzValue]="undefined">Any</label>
+                    <label nz-radio-button [nzValue]="true">Yes</label>
+                    <label nz-radio-button [nzValue]="false">No</label>
+                </nz-radio-group>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Is Anonymous</nz-form-label>
+            <nz-form-control>
+                <nz-radio-group
+                    name="isAnonymous"
+                    [(ngModel)]="filterForm.isAnonymous"
+                >
+                    <label nz-radio-button [nzValue]="undefined">Any</label>
+                    <label nz-radio-button [nzValue]="true">Yes</label>
+                    <label nz-radio-button [nzValue]="false">No</label>
+                </nz-radio-group>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Is Read</nz-form-label>
+            <nz-form-control>
+                <nz-radio-group name="isRead" [(ngModel)]="filterForm.isRead">
+                    <label nz-radio-button [nzValue]="undefined">Any</label>
+                    <label nz-radio-button [nzValue]="true">Yes</label>
+                    <label nz-radio-button [nzValue]="false">No</label>
+                </nz-radio-group>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-label>Has Notes</nz-form-label>
+            <nz-form-control>
+                <nz-radio-group
+                    name="hasNotes"
+                    [(ngModel)]="filterForm.hasNotes"
+                >
+                    <label nz-radio-button [nzValue]="undefined">Any</label>
+                    <label nz-radio-button [nzValue]="true">Yes</label>
+                    <label nz-radio-button [nzValue]="false">No</label>
+                </nz-radio-group>
+            </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+            <nz-form-control>
+                <input
+                    nz-input
+                    name="freeSearch"
+                    placeholder="Free search"
+                    [(ngModel)]="filterForm.freeSearch"
+                />
+            </nz-form-control>
+        </nz-form-item>
+
+        <button nz-button nzType="primary" (click)="onSearch()">Search</button>
+    </form>
 
     <div class="mark-as-read-toggle">
         <div style="width: 100%"></div>
-        <d-toggle
-            dTooltip
-            [content]="'Toggle mark as read'"
-            [position]="'bottom'"
-            (change)="onToggleChange($event)"
-        ></d-toggle>
+        <span
+            nz-tooltip
+            nzTooltipTitle="Toggle mark as read"
+            nzTooltipPlacement="bottom"
+        >
+            <nz-switch
+                (ngModelChange)="onToggleChange($event)"
+                [ngModel]="showCheckbox"
+            ></nz-switch>
+        </span>
     </div>
 
     @if (showCheckbox) {
         <div class="mark-as-read-button">
             <div style="width: 100%"></div>
-            <d-button (btnClick)="markAsRead()" [bsSize]="'md'">
+            <button nz-button nzSize="default" (click)="markAsRead()">
                 Mark as Read
-            </d-button>
+            </button>
         </div>
     }
 
-    <d-data-table
-        #tableInstance
-        [dataSource]="displayData"
-        [scrollable]="true"
-        [tableOverflowType]="'overlay'"
-        [tableWidthConfig]="tableWidthConfig"
-        [lazy]="true"
-        (loadMore)="loadMore($event)"
-        [virtualScroll]="true"
-        [containFixHeaderHeight]="true"
-        [fixHeader]="true"
-        tableHeight="60vh"
+    <nz-table
+        #tableWrapper
+        [nzData]="tableRows"
+        [nzShowPagination]="false"
+        [nzFrontPagination]="false"
+        [nzScroll]="{ x: scrollX, y: '60vh' }"
+        nzTableLayout="fixed"
     >
-        <thead dTableHead [checkable]="showCheckbox">
-            <tr dTableRow>
+        <thead>
+            <tr>
+                @if (showCheckbox) {
+                    <th [nzWidth]="'50px'"></th>
+                }
                 @for (
                     colOption of dataTableOptions.columns;
                     track colOption.header
                 ) {
-                    <th dHeadCell>
+                    <th [nzWidth]="widthFor(colOption.field)">
                         {{ colOption.header }}
                     </th>
                 }
             </tr>
         </thead>
-        <tbody dTableBody>
-            <ng-template
-                let-rowItem="rowItem"
-                let-rowIndex="rowIndex"
-                let-nestedIndex="nestedIndex"
-            >
-                <tr
-                    dTableRow
-                    [ngClass]="{ 'table-row-selected': rowItem.$checked }"
-                >
+        <tbody>
+            @for (rowItem of tableWrapper.data; track rowItem) {
+                <tr [ngClass]="{ 'table-row-selected': rowItem.$checked }">
                     @if (showCheckbox) {
-                        <td dTableCell class="devui-checkable-cell">
-                            <d-checkbox
+                        <td class="devui-checkable-cell">
+                            <label
+                                nz-checkbox
                                 [ngModelOptions]="{ standalone: true }"
                                 (ngModelChange)="
-                                    onRowCheckChange(
-                                        $event,
-                                        rowIndex,
-                                        nestedIndex,
-                                        rowItem
-                                    )
+                                    onRowCheckChange($event, $index, rowItem)
                                 "
                                 [ngModel]="rowItem.$checked"
-                                [disabled]="rowItem.$checkDisabled"
+                                [nzDisabled]="rowItem.$checkDisabled"
                             >
-                            </d-checkbox>
+                            </label>
                         </td>
                     }
 
@@ -86,7 +196,7 @@
                         colOption of dataTableOptions.columns;
                         track colOption
                     ) {
-                        <td dTableCell>
+                        <td>
                             @switch (colOption.fieldType) {
                                 @case ("status") {
                                     <vehicle-status-tag
@@ -220,9 +330,9 @@
                         </td>
                     }
                 </tr>
-            </ng-template>
+            }
         </tbody>
-    </d-data-table>
+    </nz-table>
 
     <div class="total-data">
         Total data (excluding filters): {{ totalCount | number }}

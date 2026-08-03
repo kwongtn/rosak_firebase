@@ -84,4 +84,15 @@ export class MenuComponent implements OnInit, OnDestroy {
     toggleTheme(): void {
         this.themeService.toggleTheme();
     }
+
+    badgeColor(style: string): string {
+        switch (style) {
+        case "danger":
+            return "#f66f6a";
+        case "waiting":
+            return "#beccfa";
+        default:
+            return "#5e7ce0";
+        }
+    }
 }

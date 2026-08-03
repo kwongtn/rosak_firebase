@@ -1,5 +1,4 @@
 
-import { TagsModule } from "ng-devui";
 import {
     VehicleStatus,
     VehicleStatusPipe,
@@ -9,6 +8,7 @@ import {
 } from "src/app/spotting/spotting-form/spotting-form.types";
 
 import { Component, Input, OnInit } from "@angular/core";
+import { NzTagModule } from "ng-zorro-antd/tag";
 
 @Component({
     selector: "vehicle-status-tag",
@@ -16,7 +16,7 @@ import { Component, Input, OnInit } from "@angular/core";
     styleUrls: ["./vehicle-status-tag.component.scss"],
     standalone: true,
     imports: [
-        VehicleStatusPipe, TagsModule
+        VehicleStatusPipe, NzTagModule
     ]
 })
 export class VehicleStatusTagComponent implements OnInit {

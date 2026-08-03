@@ -20,37 +20,27 @@
         </div>
 
         <div class="status-icon-grid">
-            <span dTooltip [content]="'Total'" [position]="'bottom'">
-                <d-tag
-                    [tag]="'Total: ' + totalCount.toString()"
-                    [customColor]="'var(--devui-primary)'"
-                >
-                </d-tag>
+            <span nz-tooltip nzTooltipTitle="Total" nzTooltipPlacement="bottom">
+                <nz-tag [nzColor]="'var(--devui-primary)'">
+                    Total: {{ totalCount }}
+                </nz-tag>
             </span>
 
             |
 
             @for (elem of tagListDisplayConfig; track elem) {
                 <span
-                    dTooltip
-                    [content]="
+                    nz-tooltip
+                    [nzTooltipTitle]="
                         (((elem.count ?? 0) / totalCount) * 100).toPrecision(
                             3
                         ) + '%'
                     "
-                    [position]="'bottom'"
+                    nzTooltipPlacement="bottom"
                 >
-                    <d-tag
-                        [tag]="
-                            elem.displayPrefix +
-                            ': ' +
-                            (elem.count ?? 0).toString()
-                        "
-                        [labelStyle]="elem.labelStyle ?? ''"
-                        [customColor]="elem.customColor ?? ''"
-                        class="status-icon"
-                    >
-                    </d-tag>
+                    <nz-tag [nzColor]="elem.color ?? ''" class="status-icon">
+                        {{ elem.displayPrefix }}: {{ elem.count ?? 0 }}
+                    </nz-tag>
                 </span>
             }
         </div>

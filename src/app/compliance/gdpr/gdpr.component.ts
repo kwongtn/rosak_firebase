@@ -1,5 +1,3 @@
-import { PanelModule } from "ng-devui";
-
 import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
@@ -8,6 +6,7 @@ import {
     onSnapshot,
     Unsubscribe,
 } from "@angular/fire/firestore";
+import { NzCollapseModule } from "ng-zorro-antd/collapse";
 
 import {
     GdprDetailChildrenPanel,
@@ -20,7 +19,7 @@ import {
     templateUrl: "./gdpr.component.html",
     styleUrls: ["./gdpr.component.scss"],
     standalone: true,
-    imports: [CommonModule, PanelModule],
+    imports: [CommonModule, NzCollapseModule],
 })
 export class GdprComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;

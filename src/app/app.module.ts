@@ -1,5 +1,3 @@
-import { DevUIModule } from "ng-devui";
-import { DEVUI_LANG, EN_US, I18nService } from "ng-devui/i18n";
 import {
     RECAPTCHA_V3_SITE_KEY,
     RecaptchaFormsModule,
@@ -51,9 +49,6 @@ const imports: any[] = [
     BrowserAnimationsModule,
     BrowserModule,
 
-    // DevUI
-    DevUIModule,
-
     // ng-zorro
     NzAlertModule,
     NzMessageModule,
@@ -92,11 +87,6 @@ const providers: any[] = [
     },
     ReCaptchaV3Service,
     { provide: RECAPTCHA_V3_SITE_KEY, useValue: environment.captcha.key },
-    {
-        provide: DEVUI_LANG,
-        useValue: EN_US,
-    },
-    I18nService,
     { provide: NZ_I18N, useValue: en_US },
     provideFirebaseApp(() => initializeApp(environment.firebase)),
     provideAnalytics(() => getAnalytics()),

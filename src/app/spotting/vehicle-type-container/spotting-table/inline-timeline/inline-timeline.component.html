@@ -1,47 +1,66 @@
-<div dLoading [loading]="querySubscription" class="" loader></div>
+@if (showLoading) {
+    <nz-spin nzSimple class="loader"></nz-spin>
+}
 
-@if (!showLoading && timelineData.list.length > 0) {
+@if (!showLoading && timelineList.length > 0) {
     <div class="content">
         <h3>Notable Incidents</h3>
-        <div class="timeline">
-            <d-time-axis
-                [data]="timelineData"
-                [contentTemplate]="customTemplate"
-                [mode]="'alternative'"
-            ></d-time-axis>
-        </div>
-        <ng-template #customTemplate let-data="data">
-            <div style="position: relative; max-width: 500px">
-                @if (data.position === "bottom") {
-                    <div class="data-panel-bottom-line"></div>
-                }
-                <div
-                    [style.border-color]="data.color"
-                    style="
-                        border-left: 4px solid;
-                        box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
-                        padding: 12px 8px;
-                    "
-                    [style.background-color]="'var(--devui-icon-bg)'"
-                >
-                    <div
-                        style="
-                            padding-bottom: 8px;
-                            font-size: 14px;
-                            font-weight: bold;
-                        "
-                    >
-                        {{ data.title }}
+        <div class="horizontal-timeline">
+            @for (item of timelineList; track $index) {
+                <div class="timeline-item">
+                    <div class="timeline-card-slot">
+                        @if (item.data.position === "top") {
+                            <div
+                                class="timeline-card"
+                                [style.border-color]="item.data.color"
+                            >
+                                <div class="timeline-card-title">
+                                    {{ item.data.title }}
+                                </div>
+                                <div class="timeline-card-date">
+                                    {{ item.data.date }}
+                                </div>
+                                <div>{{ item.data.brief }}</div>
+                            </div>
+                            <div class="data-panel-bottom-line"></div>
+                        }
                     </div>
-                    <div style="padding-bottom: 8px">
-                        {{ data.date }}
+                    <div class="timeline-node">
+                        @if (!$last) {
+                            <span
+                                class="timeline-segment"
+                                [style.border-top-style]="
+                                    item.lineStyle.style === 'none'
+                                        ? 'none'
+                                        : item.lineStyle.style
+                                "
+                                [style.border-top-color]="item.lineStyle.color"
+                            ></span>
+                        }
+                        <span
+                            class="timeline-dot"
+                            [style.background-color]="item.dotColor"
+                        ></span>
                     </div>
-                    <div>{{ data.brief }}</div>
+                    <div class="timeline-card-slot">
+                        @if (item.data.position === "bottom") {
+                            <div class="data-panel-top-line"></div>
+                            <div
+                                class="timeline-card"
+                                [style.border-color]="item.data.color"
+                            >
+                                <div class="timeline-card-title">
+                                    {{ item.data.title }}
+                                </div>
+                                <div class="timeline-card-date">
+                                    {{ item.data.date }}
+                                </div>
+                                <div>{{ item.data.brief }}</div>
+                            </div>
+                        }
+                    </div>
                 </div>
-                @if (data.position === "top") {
-                    <div class="data-panel-top-line"></div>
-                }
-            </div>
-        </ng-template>
+            }
+        </div>
     </div>
 }

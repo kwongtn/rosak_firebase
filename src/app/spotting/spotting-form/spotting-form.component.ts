@@ -1,6 +1,4 @@
 import { Apollo, gql, MutationResult } from "apollo-angular";
-import { LoadingType } from "ng-devui/loading";
-import { AppendToBodyDirection } from "ng-devui/utils";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
@@ -123,14 +121,12 @@ export interface SpottingFormReturnType {
     ],
 })
 export class SpottingFormComponent implements OnInit, OnDestroy {
-    appendToBodyDirections: AppendToBodyDirection[] = [
-        "rightDown",
-        "centerDown",
-    ];
     submitButtonClicked: boolean = false;
     showedLocationPopout: boolean = false;
     showRunNumberInput: boolean = false;
-    submitting: LoadingType = Promise.resolve("false");
+    submitting: Promise<MutationResult<any> | undefined> = Promise.resolve(
+        undefined
+    );
     showLoading: boolean = false;
 
     statusOptions = [

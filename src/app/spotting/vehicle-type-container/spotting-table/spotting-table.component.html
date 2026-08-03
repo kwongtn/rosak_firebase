@@ -1,86 +1,28 @@
-<d-panel
-    #ghostPanel
-    [type]="'ghost'"
-    [isCollapsed]="isCollapsed"
-    [hasLeftPadding]="false"
-    (toggle)="toggle($event)"
-    class="panel"
->
-    <d-panel-header
-        dTooltip
-        [content]="!isCollapsed ? 'Click this panel to expand' : ''"
-        [mouseEnterDelay]="1000"
+<nz-collapse class="panel">
+    <nz-collapse-panel
+        [nzActive]="!isCollapsed"
+        [nzHeader]="headerTpl"
+        (nzActiveChange)="toggle(!$event)"
     >
-        <h1 class="spotting-table-title">
-            <span class="table-title-display-text">
-                {{ dataSource.displayName }}
-            </span>
-
-            @if (!isCollapsed) {
-                <span dTooltip [content]="'Total'" [position]="'bottom'">
-                    <d-tag
-                        [tag]="
-                            'Total: ' +
-                            dataSource.vehicleStatusCount.vehicleTotalCount.toString()
-                        "
-                        [customColor]="'var(--devui-primary)'"
-                    >
-                    </d-tag>
-                </span>
-                |
-                @for (elem of tagListDisplayConfig; track elem) {
-                    <span
-                        dTooltip
-                        [content]="
-                            (
-                                (dataSource.vehicleStatusCount[elem.key] /
-                                    dataSource.vehicleStatusCount
-                                        .vehicleTotalCount) *
-                                100
-                            ).toPrecision(3) + '%'
-                        "
-                        [position]="'bottom'"
-                    >
-                        <d-tag
-                            [tag]="
-                                elem.displayPrefix +
-                                ': ' +
-                                dataSource.vehicleStatusCount[
-                                    elem.key
-                                ].toString()
-                            "
-                            [labelStyle]="elem.labelStyle ?? ''"
-                            [customColor]="elem.customColor ?? ''"
-                            class="status-icon"
-                        >
-                        </d-tag>
-                    </span>
-                }
-            }
-        </h1>
-    </d-panel-header>
-    <d-panel-body>
         <div class="chips">
-            <span dTooltip [content]="'Total'" [position]="'bottom'">
-                <d-tag
-                    [tag]="
-                        'Total: ' +
-                        dataSource.vehicleStatusCount.vehicleTotalCount.toString()
-                    "
-                    [mode]="!totalChecked ? 'checkable' : 'default'"
-                    [customColor]="'var(--devui-primary)'"
-                    [(checked)]="totalChecked"
-                    (checkedChange)="changeChecked($event, 'total')"
+            <span nz-tooltip nzTooltipTitle="Total" nzTooltipPlacement="bottom">
+                <nz-tag
+                    [nzMode]="!totalChecked ? 'checkable' : 'default'"
+                    [nzColor]="'var(--devui-primary)'"
+                    [nzChecked]="totalChecked"
+                    (nzCheckedChange)="changeChecked($event, 'total')"
                 >
-                </d-tag>
+                    Total:
+                    {{ dataSource.vehicleStatusCount.vehicleTotalCount }}
+                </nz-tag>
             </span>
 
             |
 
             @for (elem of tagListDisplayConfig; track elem) {
                 <span
-                    dTooltip
-                    [content]="
+                    nz-tooltip
+                    [nzTooltipTitle]="
                         (
                             (dataSource.vehicleStatusCount[elem.key] /
                                 dataSource.vehicleStatusCount
@@ -88,50 +30,47 @@
                             100
                         ).toPrecision(3) + '%'
                     "
-                    [position]="'bottom'"
+                    nzTooltipPlacement="bottom"
                 >
-                    <d-tag
-                        [tag]="
-                            elem.displayPrefix +
-                            ': ' +
-                            dataSource.vehicleStatusCount[elem.key].toString()
-                        "
-                        [mode]="'checkable'"
-                        [labelStyle]="elem.labelStyle ?? ''"
-                        [customColor]="elem.customColor ?? ''"
+                    <nz-tag
+                        [nzMode]="'checkable'"
+                        [nzColor]="elem.color ?? ''"
                         class="status-icon"
-                        [(checked)]="elem.checked"
-                        (checkedChange)="changeChecked($event, elem.status)"
+                        [nzChecked]="elem.checked"
+                        (nzCheckedChange)="changeChecked($event, elem.status)"
                     >
-                    </d-tag>
+                        {{ elem.displayPrefix }}:
+                        {{ dataSource.vehicleStatusCount[elem.key] }}
+                    </nz-tag>
                 </span>
             }
         </div>
-        <d-data-table
-            [dataSource]="dataSource.tableData"
-            [scrollable]="true"
-            [tableOverflowType]="'overlay'"
-            [tableWidthConfig]="tableWidthConfig"
+        <nz-table
+            #vehicleTable
+            [nzData]="tableRows"
+            [nzShowPagination]="false"
+            [nzFrontPagination]="false"
+            [nzScroll]="{ x: '1330px' }"
+            nzTableLayout="fixed"
         >
-            <thead dTableHead>
-                <tr dTableRow>
-                    <th dHeadCell></th>
+            <thead>
+                <tr>
+                    <th [nzWidth]="widthFor('')"></th>
                     @for (
                         colOption of dataTableOptions.columns;
                         track colOption.header
                     ) {
-                        <th dHeadCell>
+                        <th [nzWidth]="widthFor(colOption.field)">
                             {{ colOption.header }}
                         </th>
                     }
                 </tr>
             </thead>
-            <tbody dTableBody>
-                <ng-template let-rowItem="rowItem" let-rowIndex="rowIndex">
+            <tbody>
+                @for (rowItem of vehicleTable.data; track rowItem.id) {
                     @if (totalChecked || allowedStatuses.has(rowItem.status)) {
-                        <tr dTableRow>
+                        <tr>
                             <td
-                                dTableCell
                                 [ngClass]="
                                     rowItem.$expandConfig.expandable
                                         ? 'cursor-pointer'
@@ -142,10 +81,11 @@
                                 @if (rowItem.$expandConfig.expandable) {
                                     <span class="expand-icon">
                                         <span
-                                            [class]="
-                                                rowItem.$expandConfig?.expand
-                                                    ? 'icon-chevron-down'
-                                                    : 'icon-chevron-right'
+                                            nz-icon
+                                            [nzType]="
+                                                rowItem.$expandConfig.expand
+                                                    ? 'down'
+                                                    : 'right'
                                             "
                                         ></span>
                                     </span>
@@ -155,7 +95,7 @@
                                 colOption of dataTableOptions.columns;
                                 track colOption
                             ) {
-                                <td dTableCell>
+                                <td>
                                     @switch (colOption.fieldType) {
                                         @case ("status") {
                                             <vehicle-status-tag
@@ -193,11 +133,8 @@
                         (totalChecked || allowedStatuses.has(rowItem.status)) &&
                         rowItem.$expandConfig?.expand
                     ) {
-                        <tr dTableRow class="expand-row">
-                            <td
-                                dTableCell
-                                [attr.colspan]="tableWidthConfig.length"
-                            >
+                        <tr class="expand-row">
+                            <td [attr.colspan]="tableWidthConfig.length">
                                 @if (rowItem.incidentCount > 0) {
                                     <spotting-table-inline-timeline
                                         class="inline-timeline"
@@ -213,9 +150,56 @@
                             </td>
                         </tr>
                     }
-                </ng-template>
+                }
             </tbody>
-        </d-data-table>
-    </d-panel-body>
-    <d-panel-footer></d-panel-footer>
-</d-panel>
+        </nz-table>
+    </nz-collapse-panel>
+    <ng-template #headerTpl>
+        <h1
+            class="spotting-table-title"
+            nz-tooltip
+            [nzTooltipTitle]="!isCollapsed ? 'Click this panel to expand' : ''"
+            [nzTooltipMouseEnterDelay]="1"
+        >
+            <span class="table-title-display-text">
+                {{ dataSource.displayName }}
+            </span>
+
+            @if (!isCollapsed) {
+                <span
+                    nz-tooltip
+                    nzTooltipTitle="Total"
+                    nzTooltipPlacement="bottom"
+                >
+                    <nz-tag [nzColor]="'var(--devui-primary)'">
+                        Total:
+                        {{ dataSource.vehicleStatusCount.vehicleTotalCount }}
+                    </nz-tag>
+                </span>
+                |
+                @for (elem of tagListDisplayConfig; track elem) {
+                    <span
+                        nz-tooltip
+                        [nzTooltipTitle]="
+                            (
+                                (dataSource.vehicleStatusCount[elem.key] /
+                                    dataSource.vehicleStatusCount
+                                        .vehicleTotalCount) *
+                                100
+                            ).toPrecision(3) + '%'
+                        "
+                        nzTooltipPlacement="bottom"
+                    >
+                        <nz-tag
+                            [nzColor]="elem.color ?? ''"
+                            class="status-icon"
+                        >
+                            {{ elem.displayPrefix }}:
+                            {{ dataSource.vehicleStatusCount[elem.key] }}
+                        </nz-tag>
+                    </span>
+                }
+            }
+        </h1>
+    </ng-template>
+</nz-collapse>

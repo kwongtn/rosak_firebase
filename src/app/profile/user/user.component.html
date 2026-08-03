@@ -1,33 +1,26 @@
 <nz-spin [nzSpinning]="displayData === undefined">
     <nz-row [nzGutter]="16">
         <nz-col [nzSpan]="24">
-            <d-card>
-                <d-card-header>
+            <nz-card>
+                <div class="user-card-header">
                     @if (user.photoURL) {
-                        <d-avatar
-                            dCardAvatar
-                            [imgSrc]="user.photoURL"
-                            [width]="150"
-                            [height]="150"
-                        />
+                        <nz-avatar [nzSrc]="user.photoURL" [nzSize]="150" />
                     }
-                    <d-card-title>
+                    <div class="user-card-header-text">
                         <h1>
                             {{ user.displayName }}
                         </h1>
-                    </d-card-title>
-                    <d-card-subtitle>
-                        @if (user.emailVerified) {
-                            {{ user.email }}
-                        }
-                        @if (user.phoneNumber) {
-                            ({{ user.phoneNumber }})
-                        }
-                    </d-card-subtitle>
-                </d-card-header>
-                <d-card-content> </d-card-content>
-                <d-card-actions></d-card-actions>
-            </d-card>
+                        <div class="user-card-subtitle">
+                            @if (user.emailVerified) {
+                                {{ user.email }}
+                            }
+                            @if (user.phoneNumber) {
+                                ({{ user.phoneNumber }})
+                            }
+                        </div>
+                    </div>
+                </div>
+            </nz-card>
         </nz-col>
     </nz-row>
     <nz-row [nzGutter]="[16, 16]">

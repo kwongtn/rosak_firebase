@@ -1,6 +1,5 @@
 import { Apollo, gql } from "apollo-angular";
-import { LoadingModule } from "ng-devui";
-import { TimeAxisData, TimeAxisModule } from "ng-devui/time-axis";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 import { Subscription } from "rxjs";
 import {
     GetVehicleIncidentsResponse,
@@ -8,6 +7,22 @@ import {
 } from "src/app/models/query/get-vehicles";
 
 import { Component, Input, OnDestroy, OnInit } from "@angular/core";
+
+interface TimelineItem {
+    dotColor: string;
+    lineStyle: {
+        style: "solid" | "dashed" | "none";
+        color: string;
+    };
+    data: {
+        title: string;
+        date: string;
+        status: string;
+        color: string;
+        position: "top" | "bottom";
+        brief: string | null;
+    };
+}
 
 const GET_TIMELINE_DATA = gql`
     query ($vehicleIncidentFilter: VehicleIncidentFilter) {
@@ -27,7 +42,7 @@ const GET_TIMELINE_DATA = gql`
     templateUrl: "./inline-timeline.component.html",
     styleUrls: ["./inline-timeline.component.scss"],
     standalone: true,
-    imports: [LoadingModule, TimeAxisModule],
+    imports: [NzSpinModule],
 })
 export class InlineTimelineComponent implements OnInit, OnDestroy {
     @Input() vehicleId!: string | number;
@@ -35,13 +50,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
     showLoading: boolean = true;
     querySubscription!: Subscription;
 
-    timelineData: TimeAxisData = {
-        direction: "horizontal",
-        horizontalAlign: "left",
-        widthMode: "fitContent",
-        model: "template",
-        list: [],
-    };
+    timelineList: TimelineItem[] = [];
 
     constructor(private apollo: Apollo) {
         return;
@@ -69,7 +78,7 @@ export class InlineTimelineComponent implements OnInit, OnDestroy {
             })
             .subscribe(({ data, loading }) => {
                 this.showLoading = false;
-                this.timelineData.list = [...data.vehicleIncidents]
+                this.timelineList = [...data.vehicleIncidents]
                     .sort((a, b) => {
                         return a.order - b.order;
                     })

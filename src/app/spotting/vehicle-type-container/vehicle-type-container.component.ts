@@ -1,6 +1,7 @@
 import { Apollo, gql } from "apollo-angular";
-import { TagsModule, TooltipModule } from "ng-devui";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTagModule } from "ng-zorro-antd/tag";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { Subscription } from "rxjs";
 import {
     LineStatusTagComponent,
@@ -64,8 +65,8 @@ const GET_VEHICLES = gql`
         LineStatusTagComponent,
         NzSpinModule,
         SpottingTableComponent,
-        TagsModule,
-        TooltipModule,
+        NzTagModule,
+        NzToolTipModule,
     ],
 })
 export class VehicleTypeContainerComponent

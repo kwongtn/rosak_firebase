@@ -1,8 +1,5 @@
 import "./polyfills";
 
-import { ThemeServiceInit } from "ng-devui/theme";
-import { galaxyTheme, infinityTheme } from "ng-devui/theme-collection";
-
 import { enableProdMode } from "@angular/core";
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
 import * as Sentry from "@sentry/angular";
@@ -40,17 +37,6 @@ Sentry.init({
 if (environment.production) {
     enableProdMode();
 }
-
-ThemeServiceInit(
-    {
-        infinity: infinityTheme,
-        galaxy: galaxyTheme,
-    },
-    "infinity",
-    undefined,
-    undefined,
-    true
-);
 
 platformBrowserDynamic()
     .bootstrapModule(AppModule)

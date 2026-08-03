@@ -1,19 +1,15 @@
 import { QueryRef } from "apollo-angular";
-import {
-    ButtonModule,
-    CheckBoxModule,
-    DataTableComponent,
-    DataTableModule,
-    TableWidthConfig,
-    ToggleModule,
-    TooltipModule,
-} from "ng-devui";
-import {
-    CategorySearchModule,
-    ICategorySearchTagItem,
-    SearchEvent,
-} from "ng-devui/category-search";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
+import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
+import { NzFormModule } from "ng-zorro-antd/form";
+import { NzInputModule } from "ng-zorro-antd/input";
+import { NzRadioModule } from "ng-zorro-antd/radio";
+import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzSwitchModule } from "ng-zorro-antd/switch";
+import { NzTableModule } from "ng-zorro-antd/table";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { Subscription } from "rxjs";
 import {
     SpottingTypeCellDisplayComponent,
@@ -27,13 +23,14 @@ import {
 import {
     VehicleTableCellDisplayComponent,
 } from "src/app/@ui/vehicle-table-cell-display/vehicle-table-cell-display.component";
-import { LastSpottingsTableElement } from "src/app/models/query/get-vehicles";
 import { AuthService } from "src/app/services/auth.service";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";
 import {
+    AfterViewInit,
     Component,
+    ElementRef,
     HostListener,
     OnDestroy,
     OnInit,
@@ -47,14 +44,35 @@ import {
     ConsoleEventsGqlService,
 } from "../services/events-gql.service";
 import { MarkReadService } from "../services/mark-read.service";
-import { categoryData } from "./category-search";
+import { spottingTypeOptions, statusOptions } from "./category-search";
 
 const SEARCH_LIMIT = 100;
 const SEARCH_OFFSET = 0;
 
+// How close to the bottom (px) of the scrollable table body before triggering loadMore().
+const LOAD_MORE_THRESHOLD_PX = 50;
+
 interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
     $checked?: boolean;
     $checkDisabled?: boolean;
+}
+
+interface TableWidthConfig {
+    field: string;
+    width: string;
+}
+
+// undefined means "don't filter on this field" (the "Any" radio option).
+interface FilterFormModel {
+    status: string[];
+    spottingType: string[];
+    createdTimeRange: [Date, Date] | null;
+    spottedDateRange: [Date, Date] | null;
+    isVehicleStatusDifferent: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    isRead: boolean | undefined;
+    hasNotes: boolean | undefined;
+    freeSearch: string;
 }
 
 @Component({
@@ -63,26 +81,44 @@ interface TableSourceType extends ConsoleEventsGqlResponseTableDataElement {
     styleUrls: ["./events-table.component.scss"],
     standalone: true,
     imports: [
-        ButtonModule,
-        CategorySearchModule,
-        CheckBoxModule,
         CommonModule,
-        DataTableModule,
         FormsModule,
         ImagePreviewButtonComponent,
+        NzButtonModule,
+        NzCheckboxModule,
+        NzDatePickerModule,
+        NzFormModule,
+        NzInputModule,
+        NzRadioModule,
+        NzSelectModule,
         NzSpinModule,
+        NzSwitchModule,
+        NzTableModule,
+        NzToolTipModule,
         SpottingTypeCellDisplayComponent,
-        ToggleModule,
-        TooltipModule,
         VehicleStatusTagComponent,
         VehicleTableCellDisplayComponent,
     ]
 })
-export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
-    @ViewChild(DataTableComponent, { static: true })
-        datatable!: DataTableComponent;
+export class ConsoleEventsTableComponent
+implements OnInit, AfterViewInit, OnDestroy
+{
+    @ViewChild("tableWrapper", { read: ElementRef })
+        tableWrapperRef?: ElementRef<HTMLElement>;
+    private scrollBody: HTMLElement | null = null;
+    private onScroll = (event: Event) => {
+        const el = event.target as HTMLElement;
+        if (
+            !this.showLoading &&
+            el.scrollTop + el.clientHeight >= el.scrollHeight - LOAD_MORE_THRESHOLD_PX
+        ) {
+            this.loadMore();
+        }
+    };
+
     eventGqlSubscription!: Subscription;
-    category = categoryData;
+    statusOptions = statusOptions;
+    spottingTypeOptions = spottingTypeOptions;
     filters: { [key: string]: any } = {
         isRead: false,
     };
@@ -99,22 +135,28 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
     totalCount: number | undefined = undefined;
     expandConfig: { [key: string]: boolean } = {};
 
+    // TableSourceType doesn't declare every field actually present on row data (e.g.
+    // runNumber, wheelStatus, reporter, mediaCount) - exposed as `any[]` here so the table
+    // template can read them, matching how the previous data-table's untyped row template
+    // context worked.
+    get tableRows(): any[] {
+        return this.displayData;
+    }
+
     lastSelectedRow: any = undefined;
     isShiftKeyDown: boolean = false;
 
-    selectedTags: ICategorySearchTagItem[] = [
-        {
-            label: "Is Read",
-            field: "isRead",
-            value: {
-                label: "No",
-                value: {
-                    value: false,
-                },
-            },
-        },
-    ];
-    searchKey: string = "";
+    filterForm: FilterFormModel = {
+        status: [],
+        spottingType: [],
+        createdTimeRange: null,
+        spottedDateRange: null,
+        isVehicleStatusDifferent: undefined,
+        isAnonymous: undefined,
+        isRead: false,
+        hasNotes: undefined,
+        freeSearch: "",
+    };
 
     // Pagination
     limit = SEARCH_LIMIT;
@@ -231,11 +273,30 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             );
     }
 
+    ngAfterViewInit(): void {
+        this.scrollBody =
+            this.tableWrapperRef?.nativeElement.querySelector<HTMLElement>(
+                ".ant-table-body"
+            ) ?? null;
+        this.scrollBody?.addEventListener("scroll", this.onScroll);
+    }
+
+    widthFor(field: string): string {
+        return this.tableWidthConfig.find((c) => c.field === field)?.width ?? "";
+    }
+
+    get scrollX(): string {
+        const width = this.tableWidthConfig.reduce((sum, c) => {
+            return sum + parseInt(c.width, 10);
+        }, this.showCheckbox ? 50 : 0);
+        return `${width}px`;
+    }
+
     markAsRead() {
         this.showLoading = true;
-        const rows = this.datatable.getCheckedRows().map((value) => {
-            return value.id;
-        });
+        const rows = this.displayData
+            .filter((value) => value.$checked)
+            .map((value) => value.id);
 
         this.markReadService.markAsRead(rows).then(({ data, loading }) => {
             if (data?.markAsRead.ok) {
@@ -257,12 +318,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
         this.isShiftKeyDown = false;
     }
 
-    onRowCheckChange(
-        checked: boolean,
-        rowIndex: any,
-        nestedIndex: any,
-        rowItem: any
-    ) {
+    onRowCheckChange(checked: boolean, rowIndex: any, rowItem: any) {
         rowItem.$checked = checked;
         rowItem.$halfChecked = false;
 
@@ -277,28 +333,13 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
         }
 
         this.lastSelectedRow = rowIndex;
-
-        this.datatable.setRowCheckStatus({
-            rowIndex: rowIndex,
-            nestedIndex: nestedIndex,
-            rowItem: rowItem,
-            checked: checked,
-        });
     }
 
     onToggleChange(event: boolean) {
-        if (event) {
-            this.tableWidthConfig.unshift({ field: "checkbox", width: "50px" });
-        } else {
-            this.tableWidthConfig = this.tableWidthConfig.filter((value) => {
-                return value.field !== "checkbox";
-            });
-        }
-
         this.showCheckbox = event;
     }
 
-    loadMore($event: DataTableComponent) {
+    loadMore() {
         this.showLoading = true;
 
         this.watchQueryOption
@@ -328,7 +369,7 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
 
     mapGqlResultsToExpandConfig(data: any) {
         const returnObj: { [key: string]: boolean } = {};
-        data.events.forEach((val: LastSpottingsTableElement) => {
+        data.events.forEach((val: any) => {
             returnObj[val.id] = false;
         });
         return returnObj;
@@ -360,17 +401,12 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
         });
     }
 
-    searchEvent(event: SearchEvent) {
-        console.log("search items", event);
+    onSearch() {
         this.showLoading = true;
         this.limit = SEARCH_LIMIT;
         this.offset = SEARCH_OFFSET;
 
-        this.filters = this.tagsToGqlMapper(event.selectedTags);
-
-        if (event.searchKey) {
-            this.filters["freeSearch"] = event.searchKey;
-        }
+        this.filters = this.filterFormToGqlFilters();
 
         console.log(this.filters);
 
@@ -393,63 +429,48 @@ export class ConsoleEventsTableComponent implements OnInit, OnDestroy {
             });
     }
 
-    tagsToGqlMapper(tags: ICategorySearchTagItem[]) {
+    private filterFormToGqlFilters(): { [key: string]: any } {
+        const form = this.filterForm;
         const returnObj: { [key: string]: any } = {};
-        tags.forEach((elem) => {
-            switch (elem.field) {
-            case "isVehicleStatusDifferent":
-                returnObj["differentStatusThanVehicle"] = (
-                        elem.value?.value as any
-                ).value;
-                break;
 
-            case "isAnonymous":
-                returnObj["isAnonymous"] = (elem.value?.value as any).value;
-                break;
-
-            case "isRead":
-                returnObj["isRead"] = (elem.value?.value as any).value;
-                break;
-
-            case "hasNotes":
-                returnObj["hasNotes"] = (elem.value?.value as any).value;
-                break;
-
-            case "status":
-                returnObj["statusIn"] = (elem.value?.value as any[]).map(
-                    (val) => {
-                        return val.value;
-                    }
-                );
-                break;
-
-            case "spottingType":
-                returnObj["typeIn"] = (elem.value?.value as any[]).map(
-                    (val) => {
-                        return val.value;
-                    }
-                );
-                break;
-
-            case "createdTime":
-                returnObj["created"] = {
-                    range: {
-                        start: new Date((elem.value as any).value[0]),
-                        end: new Date((elem.value as any).value[1]),
-                    },
-                };
-                break;
-
-            case "spottedDate":
-                returnObj["spotted"] = {
-                    range: {
-                        start: new Date((elem.value as any).value[0]),
-                        end: new Date((elem.value as any).value[1]),
-                    },
-                };
-                break;
-            }
-        });
+        if (form.status.length) {
+            returnObj["statusIn"] = form.status;
+        }
+        if (form.spottingType.length) {
+            returnObj["typeIn"] = form.spottingType;
+        }
+        if (form.createdTimeRange) {
+            returnObj["created"] = {
+                range: {
+                    start: form.createdTimeRange[0],
+                    end: form.createdTimeRange[1],
+                },
+            };
+        }
+        if (form.spottedDateRange) {
+            returnObj["spotted"] = {
+                range: {
+                    start: form.spottedDateRange[0],
+                    end: form.spottedDateRange[1],
+                },
+            };
+        }
+        if (form.isVehicleStatusDifferent !== undefined) {
+            returnObj["differentStatusThanVehicle"] =
+                form.isVehicleStatusDifferent;
+        }
+        if (form.isAnonymous !== undefined) {
+            returnObj["isAnonymous"] = form.isAnonymous;
+        }
+        if (form.isRead !== undefined) {
+            returnObj["isRead"] = form.isRead;
+        }
+        if (form.hasNotes !== undefined) {
+            returnObj["hasNotes"] = form.hasNotes;
+        }
+        if (form.freeSearch) {
+            returnObj["freeSearch"] = form.freeSearch;
+        }
 
         return returnObj;
     }

@@ -1,4 +1,3 @@
-import { TooltipModule } from "ng-devui";
 import {
     VehicleStatus,
 } from "src/app/pipes/vehicle-status/vehicle-status.pipe";
@@ -6,6 +5,7 @@ import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";
 import { Component, Input, OnInit } from "@angular/core";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import {
     VehicleStatusTagComponent,
@@ -31,7 +31,7 @@ interface VehicleData {
     templateUrl: "./vehicle-table-cell-display.component.html",
     styleUrls: ["./vehicle-table-cell-display.component.scss"],
     standalone: true,
-    imports: [CommonModule, TooltipModule, VehicleStatusTagComponent],
+    imports: [CommonModule, NzToolTipModule, VehicleStatusTagComponent],
 })
 export class VehicleTableCellDisplayComponent implements OnInit {
     @Input() vehicleData!: VehicleData;

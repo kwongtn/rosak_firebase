@@ -1,7 +1,7 @@
 <span>
     <a
-        dTooltip
-        [content]="lines"
+        nz-tooltip
+        [nzTooltipTitle]="lines"
         href="{{ backendUrl }}admin/operation/vehicle/{{ vehicleData.id }}"
         target="_blank"
     >
@@ -9,7 +9,11 @@
         ({{ vehicleData.vehicleType.internalName }}) <br />
     </a>
     @if (vehicleData.notes) {
-        <span dTooltip [content]="vehicleData.notes" [position]="'right'">
+        <span
+            nz-tooltip
+            [nzTooltipTitle]="vehicleData.notes"
+            nzTooltipPlacement="right"
+        >
             📝
         </span>
     }

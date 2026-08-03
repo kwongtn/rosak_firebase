@@ -1,14 +1,14 @@
 <div
     class="fixed-wapper"
     [ngClass]="{
-        'header-fixed': isFixed
+        'header-fixed': isFixed,
     }"
 >
     <div
         class="header-wapper"
         [ngClass]="{
             'header-shadow': showShadow,
-            'header-maxwidth': hasMaxWidth
+            'header-maxwidth': hasMaxWidth,
         }"
     >
         <div class="header-left">
@@ -48,17 +48,13 @@
 
             <div (click)="onLoginIconClick()" class="header-avatar">
                 @if (userAvatar) {
-                    <d-avatar
-                        [width]="40"
-                        [height]="40"
-                        [imgSrc]="userAvatar"
-                    />
+                    <nz-avatar [nzSrc]="userAvatar" [nzSize]="40" />
                 } @else {
-                    <d-avatar
-                        dTooltip
-                        [name]="''"
-                        [content]="'Click here to login'"
-                        [position]="'left'"
+                    <nz-avatar
+                        nz-tooltip
+                        nzTooltipTitle="Click here to login"
+                        nzTooltipPlacement="left"
+                        [nzSize]="40"
                     />
                 }
             </div>

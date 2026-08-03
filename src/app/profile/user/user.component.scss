@@ -1,7 +1,17 @@
-@import "ng-devui/styles-var/devui-var.scss";
+@import "styles/devui-vars.scss";
 
 nz-row {
     margin: 20px;
+}
+
+.user-card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-card-subtitle {
+    color: $devui-text-weak;
 }
 
 .nickname-button {

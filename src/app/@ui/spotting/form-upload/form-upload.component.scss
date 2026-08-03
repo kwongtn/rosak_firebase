@@ -1,4 +1,4 @@
-@import "ng-devui/styles-var/devui-var.scss";
+@import "styles/devui-vars.scss";
 
 .devui-add-images {
     cursor: pointer;
@@ -19,10 +19,6 @@
             .icon-op-add {
                 color: $devui-icon-fill-active;
             }
-        }
-
-        &.devui-upload-dropover {
-            border-color: $devui-brand;
         }
 
         .icon-op-add {

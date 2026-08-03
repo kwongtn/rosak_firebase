@@ -5,7 +5,7 @@
             (click)="onSelect(item)"
             [ngClass]="{
                 'menu-selected-item':
-                    item.href.split('/')[1] === router.url.split('/')[1]
+                    item.href.split('/')[1] === router.url.split('/')[1],
             }"
         >
             @if (item.href) {
@@ -16,13 +16,15 @@
                     [routerLink]="item.href"
                 >
                     @if (item.tag) {
-                        <d-badge
-                            [count]="item.tag"
-                            [offset]="[5, -8]"
-                            [status]="item.style"
+                        <nz-badge
+                            [nzCount]="item.tag"
+                            [nzOffset]="[5, -8]"
+                            [nzStyle]="{
+                                backgroundColor: badgeColor(item.style),
+                            }"
                         >
                             {{ item.name }}
-                        </d-badge>
+                        </nz-badge>
                     } @else {
                         {{ item.name }}
                     }
@@ -43,32 +45,38 @@
     </div>
 
     <div class="menu-item">
-        <i
-            class="icon icon-code-editor-light menu-item-theme"
+        <span
+            nz-icon
+            nzType="bulb"
+            class="menu-item-theme"
             (click)="toggleTheme()"
-        >
-        </i>
+        ></span>
     </div>
 
     <div
-        dTooltip
+        nz-tooltip
         class="menu-item"
-        [content]="'Report a bug'"
-        [position]="'left'"
+        nzTooltipTitle="Report a bug"
+        nzTooltipPlacement="left"
     >
-        <i class="icon icon-bug menu-link" (click)="reportBug()"></i>
+        <span
+            nz-icon
+            nzType="bug"
+            class="menu-link"
+            (click)="reportBug()"
+        ></span>
     </div>
 
     @if (countIcon > 0 || hadUpload) {
         <div
-            dTooltip
+            nz-tooltip
             class="menu-item"
-            [content]="
+            [nzTooltipTitle]="
                 countIcon == 0
                     ? 'All uploads complete'
                     : countIcon + ' uploads pending'
             "
-            [position]="'left'"
+            nzTooltipPlacement="left"
         >
             <nz-badge
                 nzStandalone

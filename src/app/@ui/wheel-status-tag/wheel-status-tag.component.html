@@ -1,40 +1,34 @@
 @if (wheelStatus) {
     @switch (wheelStatus) {
         @case ("FRESH") {
-            <d-tag
-                [tag]="wheelStatus.replace('_', ' ') | titlecase"
-                [labelStyle]="'green-w98'"
-            />
+            <nz-tag [nzColor]="'green'">{{
+                wheelStatus.replace("_", " ") | titlecase
+            }}</nz-tag>
         }
         @case ("NEAR_PERFECT") {
-            <d-tag
-                [tag]="wheelStatus.replace('_', ' ') | titlecase"
-                [labelStyle]="'green-w98'"
-            />
+            <nz-tag [nzColor]="'green'">{{
+                wheelStatus.replace("_", " ") | titlecase
+            }}</nz-tag>
         }
         @case ("FLAT") {
-            <d-tag
-                [tag]="wheelStatus.replace('_', ' ') | titlecase"
-                [labelStyle]="'yellow-w98'"
-            />
+            <nz-tag [nzColor]="'yellow'">{{
+                wheelStatus.replace("_", " ") | titlecase
+            }}</nz-tag>
         }
         @case ("WORN_OUT") {
-            <d-tag
-                [tag]="wheelStatus.replace('_', ' ') | titlecase"
-                [labelStyle]="'red-w98'"
-            />
+            <nz-tag [nzColor]="'red'">{{
+                wheelStatus.replace("_", " ") | titlecase
+            }}</nz-tag>
         }
         @case ("WORRYING") {
-            <d-tag
-                [tag]="wheelStatus.replace('_', ' ') | titlecase"
-                [labelStyle]="'red-w98'"
-            />
+            <nz-tag [nzColor]="'red'">{{
+                wheelStatus.replace("_", " ") | titlecase
+            }}</nz-tag>
         }
         @default {
-            <d-tag
-                [tag]="wheelStatus.replace('_', ' ') | titlecase"
-                [customColor]="'var(--devui-text-weak)'"
-            />
+            <nz-tag [nzColor]="'var(--devui-text-weak)'">{{
+                wheelStatus.replace("_", " ") | titlecase
+            }}</nz-tag>
         }
     }
 }

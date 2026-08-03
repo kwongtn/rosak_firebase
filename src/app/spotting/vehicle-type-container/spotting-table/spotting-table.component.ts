@@ -1,6 +1,8 @@
-import { PanelModule, TooltipModule } from "ng-devui";
-import { DataTableModule, TableWidthConfig } from "ng-devui/data-table";
-import { TagsModule } from "ng-devui/tags";
+import { NzCollapseModule } from "ng-zorro-antd/collapse";
+import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzTableModule } from "ng-zorro-antd/table";
+import { NzTagModule } from "ng-zorro-antd/tag";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
     VehicleStatusTagComponent,
 } from "src/app/@ui/vehicle-status-tag/vehicle-status-tag.component";
@@ -25,6 +27,11 @@ import {
     InlineTimelineComponent,
 } from "./inline-timeline/inline-timeline.component";
 
+interface TableWidthConfig {
+    field: string;
+    width: string;
+}
+
 @Component({
     selector: "app-spotting-table",
     templateUrl: "./spotting-table.component.html",
@@ -32,18 +39,26 @@ import {
     standalone: true,
     imports: [
         CommonModule,
-        DataTableModule,
         InlineHistoryComponent,
         InlineTimelineComponent,
-        PanelModule,
-        TagsModule,
-        TooltipModule,
+        NzCollapseModule,
+        NzIconModule,
+        NzTableModule,
+        NzTagModule,
+        NzToolTipModule,
         VehicleStatusTagComponent,
         WheelStatusTagComponent,
     ],
 })
 export class SpottingTableComponent implements OnInit {
     @Input() dataSource!: TableDataType;
+
+    // SourceType doesn't declare every field actually present on row data (e.g. nickname,
+    // incidentCount, wheelStatus) - exposed as `any[]` here so the table template can read
+    // them, matching how the previous data-table's untyped row template context worked.
+    get tableRows(): any[] {
+        return this.dataSource.tableData;
+    }
 
     displayData: TableDataType[] = [];
     isCollapsed: boolean = !false;
@@ -186,5 +201,9 @@ export class SpottingTableComponent implements OnInit {
 
     toggle($event: any) {
         this.isCollapsed = $event;
+    }
+
+    widthFor(field: string): string {
+        return this.tableWidthConfig.find((c) => c.field === field)?.width ?? "";
     }
 }

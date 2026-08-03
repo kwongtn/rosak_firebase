@@ -1,6 +1,3 @@
-import { AvatarModule } from "ng-devui/avatar";
-import { BadgeModule } from "ng-devui/badge";
-import { TooltipModule } from "ng-devui/tooltip";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
@@ -10,6 +7,7 @@ import { NzDrawerModule } from "ng-zorro-antd/drawer";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
+import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 
 import { CommonModule } from "@angular/common";
 import { NgModule } from "@angular/core";
@@ -38,11 +36,6 @@ import { MenuComponent } from "./menu/menu.component";
         FormsModule,
         RouterModule,
 
-        // DevUI
-        AvatarModule,
-        BadgeModule,
-        TooltipModule,
-
         // Ng-Zorro
         NzAlertModule,
         NzAvatarModule,
@@ -53,6 +46,7 @@ import { MenuComponent } from "./menu/menu.component";
         NzIconModule,
         NzSpaceModule,
         NzSwitchModule,
+        NzToolTipModule,
 
         // Self Imports
         VerificationCodeCardModule,

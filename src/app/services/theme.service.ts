@@ -1,29 +1,25 @@
-import { Theme, ThemeService as NgThemeService } from "ng-devui/theme";
-import { BehaviorSubject, Subscription } from "rxjs";
+import { BehaviorSubject } from "rxjs";
 
 import { Injectable } from "@angular/core";
+
+const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 @Injectable({
     providedIn: "root",
 })
 export class ThemeService {
-    themeService!: NgThemeService;
-    themes: { [key: string]: Theme } = {};
-    themeFollowSystemColorScheme!: BehaviorSubject<boolean>;
+    themeFollowSystemColorScheme: BehaviorSubject<boolean>;
     colorScheme!: BehaviorSubject<"light" | "dark">;
 
-    sub: Subscription | undefined;
+    mediaQuery = window.matchMedia(DARK_MEDIA_QUERY);
+    mediaQueryListener = (event: MediaQueryListEvent) => {
+        this.themeChange(event.matches ? "galaxy" : "infinity");
+    };
+
     advancedThemeList = ["infinity", "galaxy"];
     currentTheme = "infinity";
 
     constructor() {
-        if (window) {
-            this.themeService = (window as { [key: string]: any })[
-                "devuiThemeService"
-            ] as NgThemeService;
-            this.themes = (window as { [key: string]: any })["devuiThemes"];
-        }
-
         this.themeFollowSystemColorScheme = new BehaviorSubject<boolean>(
             localStorage.getItem("devuiThemeFollowSystemColorScheme") === "on"
         );
@@ -62,7 +58,12 @@ export class ThemeService {
 
     themeChange(theme: string) {
         this.currentTheme = theme;
-        this.themeService.applyTheme(this.themes[theme]);
+        localStorage.setItem("user-custom-theme", theme);
+        document.documentElement.setAttribute(
+            "data-theme",
+            theme === "infinity" ? "light" : "dark"
+        );
+
         if (this.colorScheme) {
             this.colorScheme.next(theme === "infinity" ? "light" : "dark");
         } else {
@@ -72,38 +73,15 @@ export class ThemeService {
         }
     }
 
-    ThemeServiceFollowSystemOn(): Subscription {
-        this.themeService.registerMediaQuery();
-        return this.themeService.mediaQuery.prefersColorSchemeChange.subscribe(
-            (value) => {
-                if (value === "dark") {
-                    this.themeChange("galaxy");
-                } else {
-                    this.themeChange("infinity");
-                }
-            }
-        );
-    }
-
-    ThemeServiceFollowSystemOff(sub?: Subscription) {
-        if (sub) {
-            sub.unsubscribe();
-        }
-        this.themeService.unregisterMediaQuery();
-    }
-
     followSystemColorScheme(toggleValue: boolean) {
+        this.mediaQuery.removeEventListener("change", this.mediaQueryListener);
+
         if (toggleValue) {
-            if (this.sub) {
-                this.ThemeServiceFollowSystemOff(this.sub);
-            }
-            this.sub = this.ThemeServiceFollowSystemOn();
+            this.mediaQuery.addEventListener("change", this.mediaQueryListener);
+            this.themeChange(this.mediaQuery.matches ? "galaxy" : "infinity");
 
             this.setThemeFollowSystemColorScheme("on");
         } else {
-            this.ThemeServiceFollowSystemOff(this.sub);
-            this.sub = undefined;
-
             this.setThemeFollowSystemColorScheme("off");
         }
 
@@ -111,9 +89,7 @@ export class ThemeService {
     }
 
     ngOnDestroy(): void {
-        if (this.themeFollowSystemColorScheme) {
-            this.ThemeServiceFollowSystemOff(this.sub);
-        }
+        this.mediaQuery.removeEventListener("change", this.mediaQueryListener);
     }
 
     setThemeFollowSystemColorScheme(value: "on" | "off") {

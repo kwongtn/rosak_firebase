@@ -19,20 +19,14 @@
         <span class="filename"> {{ file.value.displayFilename }}</span>
     </div>
 }
-<div
-    dUpload
-    #dUpload="dUpload"
-    class="devui-add-images devui-upload {{
-        isDropOver ? 'devui-upload-dropover' : ''
-    }}"
+<nz-upload
+    nzType="drag"
+    class="devui-add-images devui-upload"
     [ngStyle]="{ width: imageWidth, height: imageHeight }"
-    [enableDrop]="true"
-    [fileOptions]="fileOptions"
-    [uploadOptions]="uploadOptions"
-    [beforeUpload]="beforeUpload"
-    (alertMsgEvent)="alertMsgEvent($event)"
-    (fileSelect)="onAddFile($event)"
-    (fileOver)="fileOver($event)"
+    [nzMultiple]="true"
+    [nzAccept]="acceptedTypes"
+    [nzShowUploadList]="false"
+    [nzBeforeUpload]="beforeUpload"
 >
-    <span class="icon-op-add"></span>
-</div>
+    <span class="icon-op-add" nz-icon nzType="plus"></span>
+</nz-upload>

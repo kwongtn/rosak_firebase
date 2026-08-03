@@ -1,10 +1,6 @@
 import { QueryRef } from "apollo-angular";
-import {
-    DataTableComponent,
-    DataTableModule,
-    LoadingModule,
-    TableWidthConfig,
-} from "ng-devui";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTableModule } from "ng-zorro-antd/table";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { Subscription } from "rxjs";
 import {
@@ -25,7 +21,23 @@ import {
 } from "src/app/spotting/services/get-spotting-history.service";
 
 import { CommonModule } from "@angular/common";
-import { Component, Input, OnDestroy, OnInit } from "@angular/core";
+import {
+    AfterViewInit,
+    Component,
+    ElementRef,
+    Input,
+    OnDestroy,
+    OnInit,
+    ViewChild,
+} from "@angular/core";
+
+interface TableWidthConfig {
+    field: string;
+    width: string;
+}
+
+// How close to the bottom (px) of the scrollable table body before triggering loadMore().
+const LOAD_MORE_THRESHOLD_PX = 50;
 
 @Component({
     selector: "spotting-table-inline-history",
@@ -34,16 +46,31 @@ import { Component, Input, OnDestroy, OnInit } from "@angular/core";
     standalone: true,
     imports: [
         CommonModule,
-        DataTableModule,
         ImagePreviewButtonComponent,
-        LoadingModule,
+        NzSpinModule,
+        NzTableModule,
         NzToolTipModule,
         SpottingTypeCellDisplayComponent,
         VehicleStatusTagComponent,
     ],
 })
-export class InlineHistoryComponent implements OnInit, OnDestroy {
+export class InlineHistoryComponent
+implements OnInit, AfterViewInit, OnDestroy
+{
     @Input() vehicleId!: string | number;
+
+    @ViewChild("tableWrapper", { read: ElementRef })
+        tableWrapperRef?: ElementRef<HTMLElement>;
+    private scrollBody: HTMLElement | null = null;
+    private onScroll = (event: Event) => {
+        const el = event.target as HTMLElement;
+        if (
+            !this.loading &&
+            el.scrollTop + el.clientHeight >= el.scrollHeight - LOAD_MORE_THRESHOLD_PX
+        ) {
+            this.loadMore();
+        }
+    };
 
     // Pagination
     limit = 30;
@@ -55,6 +82,14 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
 
     dataSource: LastSpottingsTableElement[] = [];
     expandConfig: { [key: string]: boolean } = {};
+
+    // LastSpottingsTableElement doesn't declare every field actually present on row data
+    // (e.g. runNumber, wheelStatus, mediaCount) - exposed as `any[]` here so the table
+    // template can read them, matching how the previous data-table's untyped row template
+    // context worked.
+    get tableRows(): any[] {
+        return this.dataSource;
+    }
 
     dataTableOptions = {
         columns: [
@@ -126,7 +161,19 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
         );
     }
 
-    loadMore($event: DataTableComponent) {
+    ngAfterViewInit(): void {
+        this.scrollBody =
+            this.tableWrapperRef?.nativeElement.querySelector<HTMLElement>(
+                ".ant-table-body"
+            ) ?? null;
+        this.scrollBody?.addEventListener("scroll", this.onScroll);
+    }
+
+    widthFor(field: string): string {
+        return this.tableWidthConfig.find((c) => c.field === field)?.width ?? "";
+    }
+
+    loadMore() {
         this.loading = true;
 
         this.watchQueryOption
@@ -184,5 +231,6 @@ export class InlineHistoryComponent implements OnInit, OnDestroy {
 
     ngOnDestroy() {
         this.querySubscription.unsubscribe();
+        this.scrollBody?.removeEventListener("scroll", this.onScroll);
     }
 }

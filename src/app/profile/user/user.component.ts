@@ -1,4 +1,4 @@
-import { AvatarModule, CardModule } from "ng-devui";
+import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzIconModule } from "ng-zorro-antd/icon";
@@ -33,8 +33,7 @@ import { UpdateUserService } from "../services/update-user.service";
     styleUrls: ["./user.component.scss"],
     standalone: true,
     imports: [
-        AvatarModule,
-        CardModule,
+        NzAvatarModule,
         CommonModule,
         FormsModule,
         NzCardModule,

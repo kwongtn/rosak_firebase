@@ -1,11 +1,9 @@
 import { QueryRef } from "apollo-angular";
-import {
-    DataTableComponent,
-    DataTableModule,
-    LoadingModule,
-    TableWidthConfig,
-} from "ng-devui";
 import { ReCaptchaV3Service } from "ng-recaptcha-2";
+import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzTableModule } from "ng-zorro-antd/table";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { firstValueFrom, lastValueFrom, Subscription } from "rxjs";
 import {
@@ -29,13 +27,28 @@ import { ToastService } from "src/app/services/toast.service";
 import { environment } from "src/environments/environment";
 
 import { CommonModule } from "@angular/common";
-import { AfterViewInit, Component, OnDestroy, OnInit } from "@angular/core";
+import {
+    AfterViewInit,
+    Component,
+    ElementRef,
+    OnDestroy,
+    OnInit,
+    ViewChild,
+} from "@angular/core";
 
 import { DeleteEventService } from "../services/delete-event.service";
 import {
     GetEventsGqlResponse,
     GetEventsService,
 } from "../services/get-events.service";
+
+interface TableWidthConfig {
+    field: string;
+    width: string;
+}
+
+// How close to the bottom (px) of the scrollable table body before triggering loadMore().
+const LOAD_MORE_THRESHOLD_PX = 50;
 
 @Component({
     selector: "profile-spottings",
@@ -44,9 +57,11 @@ import {
     standalone: true,
     imports: [
         CommonModule,
-        DataTableModule,
         ImagePreviewButtonComponent,
-        LoadingModule,
+        NzIconModule,
+        NzPopconfirmModule,
+        NzSpinModule,
+        NzTableModule,
         NzToolTipModule,
         SpottingTypeCellDisplayComponent,
         VehicleStatusTagComponent,
@@ -56,7 +71,19 @@ import {
 export class ProfileSpottingsComponent
 implements OnInit, OnDestroy, AfterViewInit
 {
-    // @ViewChild("tableInstance") tableInstance!: DataTableComponent;
+    @ViewChild("tableWrapper", { read: ElementRef })
+        tableWrapperRef?: ElementRef<HTMLElement>;
+    private scrollBody: HTMLElement | null = null;
+    private onScroll = (event: Event) => {
+        const el = event.target as HTMLElement;
+        if (
+            !this.loading &&
+            el.scrollTop + el.clientHeight >= el.scrollHeight - LOAD_MORE_THRESHOLD_PX
+        ) {
+            this.loadMore();
+        }
+    };
+
     private mainQuerySubscription!: Subscription;
     loading = true;
 
@@ -66,6 +93,14 @@ implements OnInit, OnDestroy, AfterViewInit
 
     displayData: ConsoleEventsGqlResponseTableDataElement[] = [];
     expandConfig: { [key: string]: boolean } = {};
+
+    // ConsoleEventsGqlResponseTableDataElement doesn't declare every field actually present
+    // on row data (e.g. runNumber, canDelete, mediaCount) - exposed as `any[]` here so the
+    // table template can read them, matching how the previous data-table's untyped row
+    // template context worked.
+    get tableRows(): any[] {
+        return this.displayData;
+    }
 
     dataTableOptions = {
         columns: [
@@ -179,7 +214,19 @@ implements OnInit, OnDestroy, AfterViewInit
             );
     }
 
-    loadMore($event: DataTableComponent) {
+    ngAfterViewInit(): void {
+        this.scrollBody =
+            this.tableWrapperRef?.nativeElement.querySelector<HTMLElement>(
+                ".ant-table-body"
+            ) ?? null;
+        this.scrollBody?.addEventListener("scroll", this.onScroll);
+    }
+
+    widthFor(field: string): string {
+        return this.tableWidthConfig.find((c) => c.field === field)?.width ?? "";
+    }
+
+    loadMore() {
         this.loading = true;
 
         this.watchQueryOption
@@ -298,10 +345,6 @@ implements OnInit, OnDestroy, AfterViewInit
 
     ngOnDestroy(): void {
         this.mainQuerySubscription?.unsubscribe();
-    }
-
-    ngAfterViewInit(): void {
-        // Maintain scroll position on new data load
-        // this.tableInstance.normalScrollElement.nativeElement.scrollTop = 0;
+        this.scrollBody?.removeEventListener("scroll", this.onScroll);
     }
 }

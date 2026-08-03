@@ -1,25 +1,25 @@
 @switch (lineStatus) {
     @case ("TESTING") {
-        <d-tag [tag]="'Testing'" [labelStyle]="'blue-w98'" />
+        <nz-tag [nzColor]="'blue'">Testing</nz-tag>
     }
     @case ("DEFUNCT") {
-        <d-tag [tag]="'Defunct'" />
+        <nz-tag>Defunct</nz-tag>
     }
     @case ("ACTIVE") {
-        <d-tag [tag]="'Active'" [labelStyle]="'green-w98'" />
+        <nz-tag [nzColor]="'green'">Active</nz-tag>
     }
     @case ("PARTIAL_ACTIVE") {
-        <d-tag [tag]="'Partially Active'" [labelStyle]="'aqua-w98'" />
+        <nz-tag [nzColor]="'cyan'">Partially Active</nz-tag>
     }
     @case ("PARTIAL_DISRUPTION") {
-        <d-tag [tag]="'Partial Disruption'" [labelStyle]="'yellow-w98'" />
+        <nz-tag [nzColor]="'yellow'">Partial Disruption</nz-tag>
     }
     @case ("TOTAL_DISRUPTION") {
-        <d-tag [tag]="'Total Disruption'" [labelStyle]="'red-w98'" />
+        <nz-tag [nzColor]="'red'">Total Disruption</nz-tag>
     }
     @default {
-        <d-tag>
+        <nz-tag>
             {{ lineStatus | titlecase }}
-        </d-tag>
+        </nz-tag>
     }
 }

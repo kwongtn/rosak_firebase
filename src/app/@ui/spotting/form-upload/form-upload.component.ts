@@ -1,7 +1,7 @@
-import { Message } from "ng-devui";
-import { IFileOptions, IUploadOptions, UploadModule } from "ng-devui/upload";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzSpinModule } from "ng-zorro-antd/spin";
+import { NzUploadFile, NzUploadModule } from "ng-zorro-antd/upload";
 import {
     ImageCompressionService,
 } from "src/app/services/image-compression.service";
@@ -85,7 +85,13 @@ export class ImageFile {
     templateUrl: "./form-upload.component.html",
     styleUrls: ["./form-upload.component.scss"],
     standalone: true,
-    imports: [CommonModule, NzPopconfirmModule, NzSpinModule, UploadModule],
+    imports: [
+        CommonModule,
+        NzIconModule,
+        NzPopconfirmModule,
+        NzSpinModule,
+        NzUploadModule,
+    ],
 })
 export class FormUploadComponent {
     @Input() imageWidth: string = "100px";
@@ -93,16 +99,7 @@ export class FormUploadComponent {
     @Output() newImageEvent = new EventEmitter<{ [key: string]: ImageFile }>();
 
     files: { [key: string]: ImageFile } = {};
-    isDropOver = false;
-    uploadOptions: IUploadOptions = {
-        uri: "/upload",
-        maximumSize: undefined,
-        checkSameName: true,
-    };
-    fileOptions: IFileOptions = {
-        multiple: true,
-        accept: VALID_TYPES.join(","),
-    };
+    acceptedTypes = VALID_TYPES.join(",");
 
     constructor(
         private imageCompress: ImageCompressionService,
@@ -111,20 +108,22 @@ export class FormUploadComponent {
         return;
     }
 
-    beforeUpload(file: any) {
+    // Always intercepts the upload: files are processed client-side only, never actually
+    // POSTed anywhere, so any non-false return here is unused.
+    beforeUpload = (file: NzUploadFile): boolean => {
+        const rawFile = file.originFileObj as unknown as File;
+
+        if (!VALID_TYPES.includes(rawFile.type)) {
+            this.toastService.addMessage(
+                `You can only upload images of type ${VALID_TYPES.join(", ")}`,
+                "error"
+            );
+            return false;
+        }
+
+        this.onAddFile([rawFile]);
         return false;
-    }
-
-    alertMsgEvent(messages: Message[]) {
-        this.toastService.addMessage(
-            `You can only upload images of type ${VALID_TYPES.join(", ")}`,
-            "error"
-        );
-    }
-
-    fileOver(event: boolean) {
-        this.isDropOver = event;
-    }
+    };
 
     onAddFile(files: File[]) {
         // File array is array of all existing files

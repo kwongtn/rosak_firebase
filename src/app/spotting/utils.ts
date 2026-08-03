@@ -136,8 +136,7 @@ export interface TagListDisplayConfig {
     displayPrefix: string;
     checked: boolean;
     status: VehicleStatus;
-    labelStyle?: string;
-    customColor?: string;
+    color?: string;
     count?: number;
 }
 
@@ -147,48 +146,48 @@ export const tagListDisplayConfig: TagListDisplayConfig[] = [
         checked: false,
         displayPrefix: "In Service",
         status: "IN_SERVICE",
-        labelStyle: "green-w98",
+        color: "green",
     },
     {
         key: "vehicleStatusNotSpottedCount",
         checked: false,
         displayPrefix: "Not Spotted",
         status: "NOT_SPOTTED",
-        labelStyle: "yellow-w98",
+        color: "yellow",
     },
     {
         key: "vehicleStatusOutOfServiceCount",
         checked: false,
         displayPrefix: "Out of Service",
         status: "OUT_OF_SERVICE",
-        labelStyle: "red-w98",
+        color: "red",
     },
     {
         key: "vehicleStatusTestingCount",
         checked: false,
         displayPrefix: "Testing",
         status: "TESTING",
-        labelStyle: "blue-w98",
+        color: "blue",
     },
     {
         key: "vehicleStatusUnknownCount",
         checked: false,
         displayPrefix: "Unknown",
         status: "UNKNOWN",
-        labelStyle: "red-w98",
+        color: "red",
     },
     {
         key: "vehicleStatusDecommissionedCount",
         checked: false,
         displayPrefix: "Decommissioned",
         status: "DECOMMISSIONED",
-        customColor: "var(--devui-text-weak)",
+        color: "var(--devui-text-weak)",
     },
     {
         key: "vehicleStatusMarriedCount",
         checked: false,
         displayPrefix: "Married",
         status: "MARRIED",
-        customColor: "var(--devui-text-weak)",
+        color: "var(--devui-text-weak)",
     },
 ];

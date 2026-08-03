@@ -6,21 +6,12 @@
     <div>
         <h2>{{ elem.title }}</h2>
         @for (child of elem.children; track child) {
-            <d-panel
-                [type]="'primary'"
-                [isCollapsed]="child.isCollapsed"
-                [showAnimation]="true"
-                (toggle)="toggle($event, child)"
-                #panel
-            >
-                <d-panel-header>
-                    <em
-                        class="icon icon-select-arrow"
-                        [ngClass]="child.isCollapsed ? 'open' : ''"
-                    ></em>
-                    {{ child.title }} {{ child.adhered ? "✅" : "❌" }}
-                </d-panel-header>
-                <d-panel-body>
+            <nz-collapse>
+                <nz-collapse-panel
+                    [nzActive]="!child.isCollapsed"
+                    [nzHeader]="headerTpl"
+                    (nzActiveChange)="toggle(!$event, child)"
+                >
                     <div [innerHTML]="child.details"></div>
                     @if (!(child.notes === "" || child.notes === undefined)) {
                         <div>
@@ -28,9 +19,11 @@
                             <div [innerHTML]="child.notes"></div>
                         </div>
                     }
-                </d-panel-body>
-                <d-panel-footer />
-            </d-panel>
+                </nz-collapse-panel>
+                <ng-template #headerTpl>
+                    {{ child.title }} {{ child.adhered ? "✅" : "❌" }}
+                </ng-template>
+            </nz-collapse>
         }
     </div>
 }

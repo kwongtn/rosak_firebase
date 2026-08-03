@@ -34,7 +34,7 @@
 }
 
 // DevUi
-@import "ng-devui/styles-var/devui-var.scss";
+@import "styles/devui-vars.scss";
 
 @mixin font-title($font-size: $devui-font-size-page-title) {
     font-size: $font-size;
@@ -374,7 +374,8 @@
     }
 
     cursor: pointer;
-    transition: box-shadow $devui-animation-duration-slow
+    transition:
+        box-shadow $devui-animation-duration-slow
             $devui-animation-ease-in-out-smooth,
         transform $devui-animation-duration-slow
             $devui-animation-ease-in-out-smooth;

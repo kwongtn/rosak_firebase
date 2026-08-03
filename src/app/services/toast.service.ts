@@ -1,4 +1,3 @@
-import { Message } from "ng-devui";
 import { NzMessageDataOptions, NzMessageService } from "ng-zorro-antd/message";
 import { NzNotificationService } from "ng-zorro-antd/notification";
 import {
@@ -18,8 +17,6 @@ class MessageTypeNotFoundError extends Error {}
     providedIn: "root",
 })
 export class ToastService {
-    store: Message[] = [];
-
     constructor(
         private toastService: NzNotificationService,
         private messageService: NzMessageService
