@@ -1,4 +1,7 @@
-<nz-tabset>
+<nz-tabset
+    [nzSelectedIndex]="tabActiveIndex"
+    (nzSelectedIndexChange)="activeTabChange($event)"
+>
     <nz-tab nzTitle="Vehicle Status History">
         <ng-template nz-tab>
             @if (lineId) {
@@ -11,8 +14,11 @@
     </nz-tab>
     <nz-tab nzTitle="Spotting Line Calendar Heatmap">
         <ng-template nz-tab>
-            @if (lineId) {
-                <spotting-line-calendar-heatmap [lineId]="lineId" />
+            @if (lineId && vehicleCount !== -1) {
+                <spotting-line-calendar-heatmap
+                    [lineId]="lineId"
+                    [vehicleCount]="vehicleCount"
+                />
             }
         </ng-template>
     </nz-tab>

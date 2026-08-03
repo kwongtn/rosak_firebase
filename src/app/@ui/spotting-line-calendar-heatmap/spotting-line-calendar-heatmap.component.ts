@@ -1,3 +1,9 @@
+import { ActivatedRoute, Router } from "@angular/router";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { environment } from "src/environments/environment";
+
+import { CommonModule } from "@angular/common";
+
 import {
     Component,
     Input,
@@ -6,26 +12,36 @@ import {
     OnInit,
     SimpleChanges,
 } from "@angular/core";
-import { Chart } from "@antv/g2";
+import { Chart, Data } from "@antv/g2";
 import { RuntimeOptions } from "@antv/g2/lib/api/runtime";
+import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzButtonModule } from "ng-zorro-antd/button";
 
-import { GetDataService } from "./get-data/get-data.service";
+const ROW_HEIGHT = 30;
 
 @Component({
     selector: "spotting-line-calendar-heatmap",
+    standalone: true,
+    imports: [CommonModule, NzSpinModule, NzButtonModule, NzAlertModule],
     templateUrl: "./spotting-line-calendar-heatmap.component.html",
     styleUrls: ["./spotting-line-calendar-heatmap.component.scss"],
 })
 export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
     @Input() lineId!: string;
+    @Input() vehicleCount!: number;
 
     chart: Chart | undefined = undefined;
     loading: boolean = true;
+
+    error: Error | undefined = undefined;
+
+    private readonly MAX_MONTHS = 6;
 
     chartOptions: RuntimeOptions = {
         scrollbar: true,
         container: "container",
         type: "view",
+        autoFit: true,
         scale: {
             color: {
                 palette: "BuPu",
@@ -81,61 +97,107 @@ export class SpottingLineCalendarHeatmapComponent implements OnInit, OnChanges {
         ],
     };
 
-    getNewChartWidthHeight(rowCount: number): [number, number] {
-        const MULTIPLIER = 30; // 50px per unique value
-        return [1600, rowCount * MULTIPLIER];
-    }
+    startDate!: Date;
+    endDate!: Date;
+    allowNextMonth: boolean = false;
 
     constructor(
-        private getDataService: GetDataService,
-        private ngZone: NgZone
-    ) {
-        return;
+        private ngZone: NgZone,
+        private route: ActivatedRoute,
+        private router: Router
+    ) {}
+
+    updateProps(navigate: boolean = true): void {
+        this.allowNextMonth =
+            this.endDate.valueOf() + 3.6e6 * 24 < new Date().valueOf();
+
+        if (navigate) {
+            this.router.navigate([], {
+                relativeTo: this.route,
+                queryParams: {
+                    startDate: this.startDate.toISOString().split("T")[0],
+                    endDate: this.endDate.toISOString().split("T")[0],
+                },
+                queryParamsHandling: "merge",
+            });
+        }
     }
 
-    setAndRenderChart() {
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 6);
-        startDate.setDate(1);
-        const startDateString = startDate.toISOString().split("T")[0];
+    moveMonths(monthDiff: number): void {
+        const newStartDate = new Date(this.startDate);
+        newStartDate.setMonth(newStartDate.getMonth() + monthDiff);
+        newStartDate.setDate(1);
 
-        const endDateString = new Date().toISOString().split("T")[0];
+        const newEndDate = new Date(this.endDate);
+        newEndDate.setMonth(newEndDate.getMonth() + monthDiff);
 
-        this.getDataService
-            .getData(this.lineId, startDateString, endDateString)
-            .then((data) => {
-                const vehicleSet = new Set(data.map((item) => item.vehicle));
-                const [width, height] = this.getNewChartWidthHeight(
-                    vehicleSet.size
-                );
+        this.startDate = newStartDate;
+        this.endDate = newEndDate;
 
-                this.chartOptions.width = width;
-                this.chartOptions.height = height;
-                this.chartOptions.data = {
-                    value: data,
-                    type: "inline",
-                };
-
-                this.chart = this.ngZone.runOutsideAngular(() => {
-                    return new Chart(this.chartOptions);
-                });
-
-                this.chart.render();
-                this.loading = false;
-            });
+        this.updateProps();
+        this.setAndRenderChart();
     }
 
     ngOnChanges(changes: SimpleChanges) {
-        if (!changes["lineId"].firstChange) {
-            this.chart?.destroy();
-            this.chart = undefined;
-
-            this.loading = true;
+        if (
+            !changes["lineId"]?.firstChange ||
+            !changes["vehicleCount"]?.firstChange
+        ) {
             this.setAndRenderChart();
         }
     }
 
     ngOnInit(): void {
-        this.setAndRenderChart();
+        this.route.queryParams.subscribe((params) => {
+            const startDateString = params["startDate"];
+            const endDateString = params["endDate"];
+
+            if (startDateString && endDateString) {
+                this.startDate = new Date(startDateString);
+                this.endDate = new Date(endDateString);
+            } else {
+                this.endDate = new Date();
+                this.startDate = new Date();
+                this.startDate.setMonth(
+                    this.startDate.getMonth() - this.MAX_MONTHS
+                );
+                this.startDate.setDate(1);
+            }
+
+            this.updateProps(false);
+            this.setAndRenderChart();
+        });
+    }
+
+    setAndRenderChart() {
+        this.loading = true;
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = undefined;
+        }
+
+        const startDateString = this.startDate.toISOString().split("T")[0];
+        const endDateString = this.endDate.toISOString().split("T")[0];
+
+        this.chart = this.ngZone.runOutsideAngular(() => {
+            return new Chart({
+                ...this.chartOptions,
+                data: {
+                    value: `${environment.backendUrl}operation/line_vehicles_spotting_trend/${this.lineId}/${startDateString}/${endDateString}/`,
+                    type: "fetch",
+                    format: "csv",
+                } as Data,
+                height: this.vehicleCount * ROW_HEIGHT,
+            });
+        });
+        this.chart
+            ?.render()
+            .catch((err) => {
+                console.error(err);
+                this.error = err;
+            })
+            .finally(() => {
+                this.loading = false;
+            });
     }
 }
