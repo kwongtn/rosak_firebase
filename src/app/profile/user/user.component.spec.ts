@@ -8,7 +8,7 @@ describe("ProfileUserComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [ProfileUserComponent],
+            imports: [ProfileUserComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(ProfileUserComponent);

@@ -10,11 +10,19 @@ describe("VehicleTableCellDisplayComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [VehicleTableCellDisplayComponent],
+            imports: [VehicleTableCellDisplayComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(VehicleTableCellDisplayComponent);
         component = fixture.componentInstance;
+        component.vehicleData = {
+            id: "1",
+            status: "IN_SERVICE",
+            identificationNo: "TEST-1",
+            notes: "",
+            vehicleType: { internalName: "Test" },
+            lines: [{ code: "T1" }],
+        };
         fixture.detectChanges();
     });
 

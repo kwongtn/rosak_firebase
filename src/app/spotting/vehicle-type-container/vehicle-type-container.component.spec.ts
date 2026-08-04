@@ -10,7 +10,7 @@ describe("VehicleTypeContainerComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [VehicleTypeContainerComponent],
+            imports: [VehicleTypeContainerComponent],
         }).compileComponents();
     });
 

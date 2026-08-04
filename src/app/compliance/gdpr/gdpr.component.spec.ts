@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
+import { provideNoopAnimations } from "@angular/platform-browser/animations";
+
 import { GdprComponent } from "./gdpr.component";
 
 describe("GdprComponent", () => {
@@ -8,7 +10,8 @@ describe("GdprComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [GdprComponent],
+            imports: [GdprComponent],
+            providers: [provideNoopAnimations()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(GdprComponent);

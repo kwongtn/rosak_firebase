@@ -8,7 +8,7 @@ describe("InlineTimelineComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [InlineTimelineComponent],
+            imports: [InlineTimelineComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(InlineTimelineComponent);

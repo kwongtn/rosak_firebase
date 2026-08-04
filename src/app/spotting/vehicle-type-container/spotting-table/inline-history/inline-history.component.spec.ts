@@ -8,7 +8,7 @@ describe("InlineHistoryComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [InlineHistoryComponent],
+            imports: [InlineHistoryComponent],
         }).compileComponents();
     });
 

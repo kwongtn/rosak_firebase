@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { SpottingTypeTagComponent } from "./spotting-type-tag.component";
+import { SpottingTypeTagModule } from "./spotting-type-tag.module";
 
 describe("SpottingTypeTagComponent", () => {
     let component: SpottingTypeTagComponent;
@@ -8,7 +9,7 @@ describe("SpottingTypeTagComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [SpottingTypeTagComponent],
+            imports: [SpottingTypeTagModule],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SpottingTypeTagComponent);

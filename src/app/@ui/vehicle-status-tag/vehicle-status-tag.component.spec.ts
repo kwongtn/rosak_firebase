@@ -8,7 +8,7 @@ describe("VehicleStatusTagComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [VehicleStatusTagComponent],
+            imports: [VehicleStatusTagComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(VehicleStatusTagComponent);

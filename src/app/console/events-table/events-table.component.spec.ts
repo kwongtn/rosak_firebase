@@ -8,7 +8,7 @@ describe("ConsoleEventsTableComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [ConsoleEventsTableComponent],
+            imports: [ConsoleEventsTableComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(ConsoleEventsTableComponent);

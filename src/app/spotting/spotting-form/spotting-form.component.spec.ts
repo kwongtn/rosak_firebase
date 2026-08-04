@@ -8,7 +8,7 @@ describe("SpottingFormComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [SpottingFormComponent],
+            imports: [SpottingFormComponent],
         }).compileComponents();
     });
 

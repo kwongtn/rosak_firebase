@@ -8,7 +8,7 @@ describe("LineStatusTagComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [LineStatusTagComponent],
+            imports: [LineStatusTagComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(LineStatusTagComponent);

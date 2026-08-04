@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideHttpClientTesting } from "@angular/common/http/testing";
+
+import { provideHttpClient } from "@angular/common/http";
 
 import { FormUploadComponent } from "./form-upload.component";
 
@@ -8,7 +11,8 @@ describe("FormUploadComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [FormUploadComponent],
+            imports: [FormUploadComponent],
+            providers: [provideHttpClient(), provideHttpClientTesting()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(FormUploadComponent);

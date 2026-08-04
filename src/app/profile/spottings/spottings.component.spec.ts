@@ -8,7 +8,7 @@ describe("ProfileSpottingsComponent", () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            declarations: [ProfileSpottingsComponent],
+            imports: [ProfileSpottingsComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(ProfileSpottingsComponent);
