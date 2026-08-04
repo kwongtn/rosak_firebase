@@ -21,6 +21,25 @@
                 color: $devui-list-item-hover-text;
             }
         }
+
+        .menu-link-tag-wrapper {
+            position: relative;
+        }
+
+        // nz-badge only positions its count as a floating pill when nzCount is a
+        // number; text tags like "Alpha"/"Beta" need to be hand-rolled instead.
+        .menu-link-tag {
+            position: absolute;
+            top: -12px;
+            right: -5px;
+            transform: translateX(100%);
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            line-height: 16px;
+            color: #fff;
+            white-space: nowrap;
+        }
     }
 
     .menu-selected-item {

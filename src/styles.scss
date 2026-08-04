@@ -94,6 +94,18 @@ app-root {
     background: $devui-global-bg;
 }
 
+/* ng-devui's bundled CSS used to set this base sans-serif stack; removing that package
+   dropped it entirely, leaving plain text (headings, table cells, etc. outside ng-zorro's
+   own component classes) to fall back to the browser's serif default. This is antd's own
+   default font stack, so it also matches what the ng-zorro components already render in. */
+html,
+body {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+        "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 body {
     margin-bottom: 0;
     margin-top: 0;
