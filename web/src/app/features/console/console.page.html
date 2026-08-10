@@ -1,0 +1,264 @@
+<app-nav />
+<div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+  <main class="flex flex-1 flex-col gap-6">
+    <h1 class="text-2xl font-bold">Console</h1>
+
+    <div hlmCard class="gap-4 p-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="flex flex-col gap-1.5 text-sm">
+          Status
+          <div class="flex flex-wrap gap-1.5">
+            @for (option of statusOptions; track option.value) {
+              <button
+                type="button"
+                hlmBadge
+                [variant]="filterForm().status.includes(option.value) ? 'default' : 'outline'"
+                (click)="toggleStatus(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          Spotting Type
+          <div class="flex flex-wrap gap-1.5">
+            @for (option of spottingTypeOptions; track option.value) {
+              <button
+                type="button"
+                hlmBadge
+                [variant]="filterForm().spottingType.includes(option.value) ? 'default' : 'outline'"
+                (click)="toggleSpottingType(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          Created between
+          <div class="flex items-center gap-1.5">
+            <input
+              hlmInput
+              type="date"
+              [value]="filterForm().createdFrom"
+              (input)="filterForm.update((f) => ({ ...f, createdFrom: $any($event.target).value }))"
+            />
+            <input
+              hlmInput
+              type="date"
+              [value]="filterForm().createdTo"
+              (input)="filterForm.update((f) => ({ ...f, createdTo: $any($event.target).value }))"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          Spotted between
+          <div class="flex items-center gap-1.5">
+            <input
+              hlmInput
+              type="date"
+              [value]="filterForm().spottedFrom"
+              (input)="filterForm.update((f) => ({ ...f, spottedFrom: $any($event.target).value }))"
+            />
+            <input
+              hlmInput
+              type="date"
+              [value]="filterForm().spottedTo"
+              (input)="filterForm.update((f) => ({ ...f, spottedTo: $any($event.target).value }))"
+            />
+          </div>
+        </div>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Vehicle status different from report
+          <select
+            hlmSelect
+            [value]="triState(filterForm().isVehicleStatusDifferent)"
+            (change)="onTriStateChange('isVehicleStatusDifferent', $event)"
+          >
+            <option value="any">Any</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Anonymous
+          <select
+            hlmSelect
+            [value]="triState(filterForm().isAnonymous)"
+            (change)="onTriStateChange('isAnonymous', $event)"
+          >
+            <option value="any">Any</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Read
+          <select
+            hlmSelect
+            [value]="triState(filterForm().isRead)"
+            (change)="onTriStateChange('isRead', $event)"
+          >
+            <option value="any">Any</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Has notes
+          <select
+            hlmSelect
+            [value]="triState(filterForm().hasNotes)"
+            (change)="onTriStateChange('hasNotes', $event)"
+          >
+            <option value="any">Any</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-sm sm:col-span-2 lg:col-span-4">
+          Free search (notes, station, vehicle ID/nickname)
+          <input
+            hlmInput
+            type="text"
+            [value]="filterForm().freeSearch"
+            (input)="filterForm.update((f) => ({ ...f, freeSearch: $any($event.target).value }))"
+          />
+        </label>
+      </div>
+
+      <button hlmBtn class="self-start" [disabled]="isLoading()" (click)="search()">Search</button>
+    </div>
+
+    <div class="flex items-center justify-between gap-3">
+      <label class="flex items-center gap-2.5 text-sm">
+        <hlm-checkbox [checked]="selectMode()" (checkedChange)="toggleSelectMode()" />
+        Select rows to mark as read
+      </label>
+      @if (selectMode() && checkedCount() > 0) {
+        <button hlmBtn size="sm" [disabled]="isLoading()" (click)="markAsRead()">
+          Mark {{ checkedCount() }} as read
+        </button>
+      }
+    </div>
+
+    <div hlmTableContainer>
+      <table hlmTable class="min-w-[900px]">
+        <thead hlmTHead>
+          <tr hlmTr>
+            @if (selectMode()) {
+              <th hlmTh class="w-10"></th>
+            }
+            <th hlmTh>Event</th>
+            <th hlmTh>Reporter</th>
+            <th hlmTh>Created</th>
+            <th hlmTh>Status</th>
+            <th hlmTh>Spotted</th>
+            <th hlmTh>Type</th>
+            <th hlmTh>Vehicle</th>
+            <th hlmTh>Notes</th>
+          </tr>
+        </thead>
+        <tbody hlmTBody>
+          @for (event of events(); track event.id) {
+            <tr hlmTr [class.bg-muted]="checkedIds().has(event.id)">
+              @if (selectMode()) {
+                <td hlmTd>
+                  <hlm-checkbox
+                    [checked]="checkedIds().has(event.id)"
+                    (checkedChange)="toggleChecked(event.id)"
+                  />
+                </td>
+              }
+              <td hlmTd class="py-3">
+                <a
+                  [href]="backendUrl + 'admin/spotting/event/' + event.id"
+                  target="_blank"
+                  class="hover:underline"
+                >
+                  {{ event.id }}
+                </a>
+              </td>
+              <td hlmTd class="py-3">
+                @if (event.reporter) {
+                  <a
+                    [href]="backendUrl + 'admin/common/user/?q=' + event.reporter.shortId"
+                    target="_blank"
+                    class="hover:underline"
+                  >
+                    {{ event.reporter.nickname || event.reporter.shortId }}
+                  </a>
+                } @else {
+                  —
+                }
+              </td>
+              <td hlmTd class="py-3 whitespace-nowrap">
+                {{ event.created | date: 'MMM d, y HH:mm' }}
+              </td>
+              <td hlmTd class="py-3">
+                <vehicle-status-badge [status]="event.status" />
+                @if (event.runNumber) {
+                  <div class="text-muted-foreground text-xs">Run {{ event.runNumber }}</div>
+                }
+                @if (event.wheelStatus) {
+                  <div class="text-muted-foreground text-xs">{{ event.wheelStatus }}</div>
+                }
+              </td>
+              <td hlmTd class="py-3 whitespace-nowrap">{{ event.spottingDate | date }}</td>
+              <td hlmTd class="py-3"><spotting-type-badge [type]="event.type" /></td>
+              <td hlmTd class="py-3">
+                @if (event.vehicle.lines[0]; as firstLine) {
+                  <a
+                    [routerLink]="['/spotting', firstLine.id, 'vehicle', event.vehicle.id]"
+                    class="hover:underline"
+                  >
+                    {{ event.vehicle.identificationNo }}
+                  </a>
+                } @else {
+                  {{ event.vehicle.identificationNo }}
+                }
+                <div class="text-muted-foreground text-xs">
+                  {{ event.vehicle.vehicleType.internalName }} ·
+                  {{ event.vehicle.lines.map((l) => l.code).join(", ") }}
+                </div>
+              </td>
+              <td hlmTd class="max-w-64 py-3">
+                @if (event.mediaCount > 0) {
+                  <span class="text-muted-foreground text-xs">📷 {{ event.mediaCount }}</span>
+                }
+                <p class="line-clamp-3">{{ event.notes || '—' }}</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (hasMore()) {
+      <button
+        hlmBtn
+        variant="outline"
+        class="self-start"
+        [disabled]="isLoading()"
+        (click)="loadMore()"
+      >
+        {{ isLoading() ? 'Loading…' : 'Load more' }}
+      </button>
+    }
+
+    <p class="text-muted-foreground text-xs">
+      Total events (excluding filters): {{ totalCount() }}
+    </p>
+  </main>
+
+  <app-footer />
+</div>

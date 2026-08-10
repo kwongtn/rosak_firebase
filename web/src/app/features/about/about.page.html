@@ -1,0 +1,143 @@
+<app-nav />
+<div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+  <main class="flex flex-1 flex-col gap-10">
+    <div class="flex items-center justify-between gap-3">
+      <h1 class="text-2xl font-bold">About the project</h1>
+      <a
+        hlmBtn
+        variant="outline"
+        size="sm"
+        href="https://github.com/kwongtn/rosak_firebase"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        View source on GitHub
+      </a>
+    </div>
+
+    @if (isLoading()) {
+      <div class="flex flex-col gap-3">
+        <div hlmSkeleton class="h-24 w-full"></div>
+        <div hlmSkeleton class="h-24 w-full"></div>
+      </div>
+    } @else {
+      <section class="flex flex-col gap-4">
+        @if (aboutProject()) {
+          <p class="whitespace-pre-wrap text-sm">{{ aboutProject() }}</p>
+        }
+
+        @if (projects().length > 0) {
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @for (project of projects(); track project.name) {
+              <div hlmCard>
+                <div hlmCardHeader class="flex-row items-center justify-between">
+                  <h3 hlmCardTitle>{{ project.name }}</h3>
+                  <span hlmBadge [variant]="statusVariant(project.status)">{{
+                    project.status
+                  }}</span>
+                </div>
+                <div hlmCardContent>
+                  <p class="text-muted-foreground text-sm">{{ project.description }}</p>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="bg-muted flex flex-col gap-2 rounded-lg p-4">
+          <h2 class="text-base font-semibold">
+            Like our projects? Buy us a coffee, a beer, or whatever you like
+          </h2>
+          <p class="text-muted-foreground text-sm">
+            While the projects don't currently require funding, it's a nice way to say thanks.
+          </p>
+          <a
+            href="https://opencollective.com/mlptf/projects/community-site"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="self-start"
+          >
+            <img
+              src="https://opencollective.com/mlptf/contribute/button@2x.png?color=blue"
+              alt="Donate on Open Collective"
+              class="h-10"
+            />
+          </a>
+        </div>
+      </section>
+
+      @if (personnel().length > 0) {
+        <section class="flex flex-col gap-4">
+          <h1 class="text-2xl font-bold">About the team</h1>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @for (person of personnel(); track person.name) {
+              <div hlmCard>
+                <div hlmCardContent class="flex-row items-center gap-3">
+                  @if (person.avatar) {
+                    <img
+                      [src]="person.avatar"
+                      [alt]="person.name"
+                      class="size-12 rounded-full object-cover"
+                    />
+                  }
+                  <div class="flex flex-col">
+                    <span class="font-medium">{{ person.name }}</span>
+                    <span class="text-muted-foreground text-xs">{{ person.title }}</span>
+                  </div>
+                </div>
+                @if (person.description) {
+                  <div hlmCardContent>
+                    <p class="text-muted-foreground text-sm">{{ person.description }}</p>
+                  </div>
+                }
+                @if (person.socials.length > 0) {
+                  <div hlmCardContent class="flex-row gap-3">
+                    @for (social of person.socials; track social.link) {
+                      <a
+                        [href]="social.link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-muted-foreground hover:text-foreground text-xs underline"
+                      >
+                        {{ social.name }}
+                      </a>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      @if (techStacks().length > 0) {
+        <section class="flex flex-col gap-4">
+          <h1 class="text-2xl font-bold">Tech Stack &amp; Open Source</h1>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @for (stack of techStacks(); track stack.name) {
+              <a
+                [href]="stack.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                hlmCard
+                class="gap-3 hover:bg-muted/50"
+              >
+                <div class="flex items-center gap-3">
+                  @if (stack.iconUrl) {
+                    <img [src]="stack.iconUrl" [alt]="stack.name" class="size-8 object-contain" />
+                  }
+                  <span class="font-medium">{{ stack.name }}</span>
+                </div>
+                @if (stack.description) {
+                  <p class="text-muted-foreground text-sm">{{ stack.description }}</p>
+                }
+              </a>
+            }
+          </div>
+        </section>
+      }
+    }
+  </main>
+
+  <app-footer />
+</div>

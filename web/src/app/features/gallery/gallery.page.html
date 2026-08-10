@@ -1,0 +1,58 @@
+<app-nav />
+<div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+  <main class="flex flex-1 flex-col gap-6">
+    <h1 class="text-2xl font-bold">Gallery</h1>
+
+    <div class="flex flex-col gap-6 sm:flex-row">
+      <div class="flex flex-1 flex-col gap-8">
+        @if (edges().length === 0 && isLoading()) {
+          <div class="flex flex-col gap-1.5">
+            @for (row of skeletonRows; track $index) {
+              <div class="flex gap-1.5" [style.height.px]="skeletonRowHeight">
+                @for (weight of row; track $index) {
+                  <div hlmSkeleton class="h-full" [style.flex]="weight + ' 0 0'"></div>
+                }
+              </div>
+            }
+          </div>
+        } @else if (edges().length === 0) {
+          <p class="text-muted-foreground text-sm">No photos yet.</p>
+        } @else {
+          @for (group of yearGroups(); track group.year) {
+            <section [id]="'gallery-year-' + group.year" class="flex flex-col gap-3">
+              <h2 class="text-lg font-semibold">{{ group.year }}</h2>
+              <app-justified-grid [items]="group.items" (imageClick)="onOpenMedia($event)" />
+            </section>
+          }
+
+          @if (hasMore()) {
+            <button
+              hlmBtn
+              variant="outline"
+              class="self-start"
+              [disabled]="isLoading()"
+              (click)="loadMore()"
+            >
+              {{ isLoading() ? 'Loading…' : 'Load more' }}
+            </button>
+          }
+        }
+      </div>
+
+      <aside>
+        <app-gallery-year-slider
+          [years]="yearCounts()"
+          [activeYear]="jumpTargetYear()"
+          [isBusy]="isJumping()"
+          (yearSelected)="jumpToYear($event)"
+        />
+      </aside>
+    </div>
+  </main>
+
+  <app-footer />
+</div>
+
+@if (selectedMedia(); as media) {
+  <app-media-viewer [media]="media" (close)="onCloseMedia()" />
+}
