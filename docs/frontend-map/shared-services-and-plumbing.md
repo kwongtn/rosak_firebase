@@ -44,11 +44,11 @@ single source of truth for "who is logged in and what can they do."
 
 ```ts
 export interface UserAuthData {
-    permissions?: { admin?: boolean };
+  permissions?: { admin?: boolean };
 }
 export interface CustomClaims {
-    admin?: boolean;
-    betaTester?: boolean;
+  admin?: boolean;
+  betaTester?: boolean;
 }
 ```
 
@@ -58,9 +58,9 @@ export interface CustomClaims {
 
 1. Subscribes to `authState$`: whenever Firebase reports a non-null `user`, pushes it into `userData` and calls `user.getIdTokenResult()` to populate `customClaims` from the decoded token.
 2. Subscribes to `userData` itself (not `authState$`) to drive two side effects on every change:
-    - `sentrySetUser(user)`.
-    - If `user` is truthy: opens a live Firestore `onSnapshot` listener on `doc(firestore, "users", user.uid)`. On every snapshot: pushes `doc.data()` into `userAuth`, and calls `isUserAllowed(data, this.router.url)` — if it returns `false`, force-navigates to `""` (root, which redirects to `/spotting` — see `app-routing.module.ts`).
-    - If `user === null` (explicitly logged out, not just "not yet resolved" `undefined`): pushes `undefined` into `userAuth`, unsubscribes the Firestore listener if one exists, and re-runs `isUserAllowed(undefined, this.router.url)` — same forced-redirect behavior.
+   - `sentrySetUser(user)`.
+   - If `user` is truthy: opens a live Firestore `onSnapshot` listener on `doc(firestore, "users", user.uid)`. On every snapshot: pushes `doc.data()` into `userAuth`, and calls `isUserAllowed(data, this.router.url)` — if it returns `false`, force-navigates to `""` (root, which redirects to `/spotting` — see `app-routing.module.ts`).
+   - If `user === null` (explicitly logged out, not just "not yet resolved" `undefined`): pushes `undefined` into `userAuth`, unsubscribes the Firestore listener if one exists, and re-runs `isUserAllowed(undefined, this.router.url)` — same forced-redirect behavior.
 3. **This means every login/logout and every Firestore-doc-write to `users/{uid}` re-evaluates `isUserAllowed` against the _current_ route and can silently redirect the user away** — it is not just an initial route guard, it is a live watchdog for as long as the app is open.
 
 Depends on: `@angular/fire/auth` (`Auth`, `authState`, `GoogleAuthProvider`, `signInWithPopup`, `signOut`), `@angular/fire/firestore` (`Firestore`, `doc`, `onSnapshot`), `@angular/router` (`Router`), `@sentry/browser`, `ToastService`, `auth-permissions.ts`.
@@ -75,12 +75,9 @@ Depends on: `@angular/fire/auth` (`Auth`, `authState`, `GoogleAuthProvider`, `si
 
 ```ts
 export const permissions: { [key in PermissionKey]?: PermissionElement } = {
-    admin: { explicitlyAllowedPaths: ["/console"] },
+  admin: { explicitlyAllowedPaths: ["/console"] },
 };
-export function isUserAllowed(
-    permissionObj: UserAuthData | undefined,
-    path: string
-): boolean;
+export function isUserAllowed(permissionObj: UserAuthData | undefined, path: string): boolean;
 ```
 
 - `PermissionKey = string | "admin" | "editor"` — a widened union that is effectively just `string` (the `"admin"`/`"editor"` literals add no narrowing since `string` already includes them); today only the `admin` key is actually defined in the `permissions` map, `"editor"` is aspirational/unused.
@@ -207,7 +204,7 @@ Depends on: `ng-zorro-antd/message`'s `NzMessageService`, `ng-zorro-antd/notific
 
 ```ts
 export interface GenericMutationReturn {
-    [key: string]: { ok: boolean };
+  [key: string]: { ok: boolean };
 }
 ```
 
@@ -233,23 +230,23 @@ Depends on (imports): `SpottingType` (from `pipes/spotting-type/spotting-type.pi
 
 ```ts
 interface ExpandConfig {
-    expandable: boolean;
-    expand: boolean;
+  expandable: boolean;
+  expand: boolean;
 }
 export interface SourceType {
-    id: string | number;
-    identificationNo: string;
-    status: string;
-    inServiceSince: string | null;
-    lastSpotted: string;
-    timesSpotted: number;
-    notes: string;
-    $expandConfig: ExpandConfig;
+  id: string | number;
+  identificationNo: string;
+  status: string;
+  inServiceSince: string | null;
+  lastSpotted: string;
+  timesSpotted: number;
+  notes: string;
+  $expandConfig: ExpandConfig;
 }
 export interface TableDataType {
-    displayName: string;
-    vehicleStatusCount: VehicleStatusCountType;
-    tableData: SourceType[];
+  displayName: string;
+  vehicleStatusCount: VehicleStatusCountType;
+  tableData: SourceType[];
 }
 ```
 
@@ -318,10 +315,7 @@ Dictionary lookup with an extra `NOT_IN_SERVICE: "Not in Service"` entry that ex
 `/home/kwongtn/rosak_firebase/src/app/@util/imgur.ts` — the sole file under `@util/`. One private helper (`getFilename`) plus one exported function:
 
 ```ts
-export function getThumbnail(
-    url: string,
-    size: "s" | "b" | "t" | "m" | "l" | "h"
-): string;
+export function getThumbnail(url: string, size: "s" | "b" | "t" | "m" | "l" | "h"): string;
 ```
 
 Implements Imgur's "thumbnail trick" (documented in the file's own doc-comment, linking to `https://thomas.vanhoutte.be/miniblog/imgur-thumbnail-trick/`): given a full Imgur image URL, splices a one-letter size suffix onto the filename before the extension (`s`=90×90, `b`/`t`=160×160, `m`=320×320, `l`=640×640, `h`=1024×1024) to fetch a pre-generated thumbnail instead of the full-size original. **Assumes the URL is an Imgur URL** with the standard `https://i.imgur.com/{id}.{ext}` shape — no validation or fallback for non-Imgur media URLs; if the app's media storage were ever migrated off Imgur (plausible for the rewrite, given `common/views.py`'s S3-backed `GenericUpload` in the current backend — see Known Quirks), every call site of this function would break silently (wrong/missing thumbnails, not an error). **Consumers:** `@ui/spotting-image-list/spotting-image-list.component.ts`, `gallery/gallery.component.ts`, `insiden/event-list/event-card/image-drawer/image-drawer.component.ts` — all three request the `"m"` (320×320) size specifically.
@@ -333,13 +327,11 @@ Implements Imgur's "thumbnail trick" (documented in the file's own doc-comment, 
 ```ts
 const uri = environment.backendGraphqlUrl;
 export function createApollo(httpLink: HttpLink): ApolloClientOptions<any> {
-    return { link: httpLink.create({ uri }), cache: new InMemoryCache() };
+  return { link: httpLink.create({ uri }), cache: new InMemoryCache() };
 }
 @NgModule({
-    exports: [ApolloModule],
-    providers: [
-        { provide: APOLLO_OPTIONS, useFactory: createApollo, deps: [HttpLink] },
-    ],
+  exports: [ApolloModule],
+  providers: [{ provide: APOLLO_OPTIONS, useFactory: createApollo, deps: [HttpLink] }],
 })
 export class GraphQLModule {}
 ```
@@ -348,26 +340,26 @@ export class GraphQLModule {}
 - **Cache:** a bare `new InMemoryCache()` — no custom `typePolicies`, no `possibleTypes`, no cache persistence (nothing survives a page reload; every navigation re-fetches).
 - **No auth link, no error link, no batch link, no retry link of any kind.** `HttpLink` is apollo-angular's default single-operation-per-HTTP-request transport with no middleware chain at all.
 - **How auth actually reaches the backend:** since there is no global auth link, **every individual call site that needs authentication has to fetch the Firebase ID token itself (via `AuthService.getIdToken()`) and pass it as a per-call HTTP header through Apollo's per-operation `context` option**, which apollo-angular's `HttpLink` merges directly into the outgoing HTTP request's headers:
-    ```ts
-    this.apollo.mutate({
-        mutation: MARK_AS_READ,
-        variables: { input: { eventIds } },
-        context: {
-            headers: {
-                "firebase-auth-key": await this.authService.getIdToken(),
-            },
-        },
-    });
-    ```
-    (verbatim pattern from `console/services/mark-read.service.ts:42-49`; the same pattern — with varying header-name casing, `"Firebase-Auth-Key"` vs `"firebase-auth-key"`, HTTP headers being case-insensitive so this has no functional effect — appears in `@ui/verification-code-card/verification-code-card.component.ts`, `spotting/spotting-form/spotting-form.component.ts`, `profile/profile.component.ts`, `profile/spottings/spottings.component.ts`, `profile/user/user.component.ts`, `console/events-table/events-table.component.ts`).
-    - Repo-wide, **22 files** use a `gql` tagged template; only **7 of them** attach this header. The other 15 (e.g. lines/vehicles lookups, calendar-incident listings, media galleries) send fully anonymous GraphQL requests with no auth context at all — which is fine only insofar as the corresponding backend resolvers don't require `IsLoggedIn`/`IsAdmin`.
-    - Some mutations (e.g. `mark-read.service.ts`) additionally attach a `g-recaptcha-response` header (from `ReCaptchaV3Service.execute(...)`) alongside the Firebase header, for backend `IsRecaptchaChallengePassed` checks.
+  ```ts
+  this.apollo.mutate({
+    mutation: MARK_AS_READ,
+    variables: { input: { eventIds } },
+    context: {
+      headers: {
+        "firebase-auth-key": await this.authService.getIdToken(),
+      },
+    },
+  });
+  ```
+  (verbatim pattern from `console/services/mark-read.service.ts:42-49`; the same pattern — with varying header-name casing, `"Firebase-Auth-Key"` vs `"firebase-auth-key"`, HTTP headers being case-insensitive so this has no functional effect — appears in `@ui/verification-code-card/verification-code-card.component.ts`, `spotting/spotting-form/spotting-form.component.ts`, `profile/profile.component.ts`, `profile/spottings/spottings.component.ts`, `profile/user/user.component.ts`, `console/events-table/events-table.component.ts`).
+  - Repo-wide, **22 files** use a `gql` tagged template; only **7 of them** attach this header. The other 15 (e.g. lines/vehicles lookups, calendar-incident listings, media galleries) send fully anonymous GraphQL requests with no auth context at all — which is fine only insofar as the corresponding backend resolvers don't require `IsLoggedIn`/`IsAdmin`.
+  - Some mutations (e.g. `mark-read.service.ts`) additionally attach a `g-recaptcha-response` header (from `ReCaptchaV3Service.execute(...)`) alongside the Firebase header, for backend `IsRecaptchaChallengePassed` checks.
 - **Backend-side verification** (`/home/kwongtn/rosak_backend`): the Django `CustomGraphQLView.get_context()` (`rosak/context.py:22-31`) builds the per-request GraphQL context as a `DotMap` containing `user: await FirebaseUser(request).get_current_user()`. `FirebaseUser.get_current_user()` (`common/utils.py:22-40`) reads the raw `Firebase-Auth-Key` request header, and if present, calls `firebase_admin.auth.verify_id_token(auth_key)` (validates the JWT's signature/expiry against the Firebase project directly — no network round-trip to Firestore needed for this step), then `User.objects.get_or_create(firebase_id=key_contents["uid"])` — **so the very first authenticated GraphQL/REST call from a brand-new Firebase user silently provisions a corresponding backend `common.User` row**, there is no separate "register" step. If the header is absent, `info.context.user` is `None`.
 - **Backend permission classes** built on top of that context (`rosak/permissions.py`):
-    - `IsLoggedIn` — `bool(info.context.user)`.
-    - `IsAdmin` — re-fetches the _live_ Firebase user record via `firebase_admin.auth.get_user(firebase_id)` (a fresh Admin SDK call, not trusting any claim baked into the already-decoded token) and checks `user.custom_claims.get("admin", False)`. **This is the same `admin` custom claim the frontend route guard and `AppComponent`'s nav-menu gating check** — the three are consistent with each other (see Permissions section).
-    - `IsRecaptchaChallengePassed` — reads the raw `G-Recaptcha-Response` header and calls Google's `siteverify` REST API server-side, checking both `success` and `score >= settings.RECAPTCHA_MIN_SCORE`.
-    - Both `Firebase-Auth-Key` and `g-recaptcha-response` are in the backend's `CORS_ALLOW_HEADERS` allow-list (`rosak/settings.py:196-199`), and the frontend's own origins (`localhost:4200`, `*.web.app`, `*.kwongtn.xyz`, `community.mlptf.org.my`, `staging-community.mlptf.org.my`) are in `CORS_ALLOWED_ORIGINS`/`CORS_ALLOWED_ORIGIN_REGEXES` (`rosak/settings.py:183-194`).
+  - `IsLoggedIn` — `bool(info.context.user)`.
+  - `IsAdmin` — re-fetches the _live_ Firebase user record via `firebase_admin.auth.get_user(firebase_id)` (a fresh Admin SDK call, not trusting any claim baked into the already-decoded token) and checks `user.custom_claims.get("admin", False)`. **This is the same `admin` custom claim the frontend route guard and `AppComponent`'s nav-menu gating check** — the three are consistent with each other (see Permissions section).
+  - `IsRecaptchaChallengePassed` — reads the raw `G-Recaptcha-Response` header and calls Google's `siteverify` REST API server-side, checking both `success` and `score >= settings.RECAPTCHA_MIN_SCORE`.
+  - Both `Firebase-Auth-Key` and `g-recaptcha-response` are in the backend's `CORS_ALLOW_HEADERS` allow-list (`rosak/settings.py:196-199`), and the frontend's own origins (`localhost:4200`, `*.web.app`, `*.kwongtn.xyz`, `community.mlptf.org.my`, `staging-community.mlptf.org.my`) are in `CORS_ALLOWED_ORIGINS`/`CORS_ALLOWED_ORIGIN_REGEXES` (`rosak/settings.py:183-194`).
 - **CSRF:** not relevant here — the Django GraphQL view is `AsyncGraphQLView`/`csrf_exempt`-style REST-ish POST endpoint authenticated purely by the bearer-style `Firebase-Auth-Key` header, not Django session cookies.
 
 ### AppModule (`app.module.ts`)
@@ -390,8 +382,8 @@ Depends on: everything above plus `@angular/fire/*`, `@sentry/angular`, `ng-reca
 - **GraphQL transport:** Apollo Client via apollo-angular, endpoint `environment.backendGraphqlUrl` (see `GraphQLModule` above for the exact URI per environment). No global auth/error/batch link — auth is opt-in per call site via `context.headers["firebase-auth-key"]`. Backend: Strawberry + strawberry-django schema at `/home/kwongtn/rosak_backend/rosak/schema.py`, served by `rosak/context.py`'s `CustomGraphQLView`.
 - **Firebase-Auth-Key verification (backend):** `common/utils.py:FirebaseUser.get_current_user()` → `firebase_admin.auth.verify_id_token(...)` → `common.models.User.objects.get_or_create(firebase_id=uid)`. No separate signup/registration endpoint exists — any valid Firebase ID token auto-provisions a backend `User` row on first authenticated request.
 - **REST (non-GraphQL) endpoints consumed by services in this scope:**
-    - `GET {backendUrl}version/` (`BuildInfoService`) → backend `rosak/custom_view.py:git_version` (`rosak/urls.py:46`) → `{ hash: os.environ["GIT_COMMIT_HASH"], datetime: os.environ["GIT_COMMIT_TIME"] }`, unauthenticated, no request body.
-    - `POST {backendUrl}upload/` with `multipart/form-data` (`related_id`, `upload_type`, `image`) and header `Firebase-Auth-Key` (`ImageUploadService`) → backend `common/views.py:GenericUpload` (`rosak/urls.py:44`), a DRF `APIView`. Validates `upload_type` against `common.enums.TemporaryMediaType` (`SPOTTING_EVENT` | `INCIDENT_CALENDAR_INCIDENT`, exact match with the frontend's `PendingUploadType`) → `400` if unrecognized. Requires a resolved Firebase user → `401` if the header is missing/invalid. For `SPOTTING_EVENT`: loads the `Event` by `related_id` and checks `user.id == event.reporter_id` → `403` if the uploader isn't the event's own reporter (**note:** an admin cannot upload media to someone else's spotting event via this endpoint — ownership is the only check, custom claims are irrelevant here). Writes a `common.models.TemporaryMedia` row (`status: PENDING`) — actual media only lands in permanent storage after some further out-of-band moderation/promotion step not present in this endpoint (see the `TemporaryMediaStatus` choices `CLEARED`/`TRUSTED_CLEARED`/`OVERRIDE_CLEARED` for the states a pending upload can graduate to). Returns bare `201`/no body on success.
+  - `GET {backendUrl}version/` (`BuildInfoService`) → backend `rosak/custom_view.py:git_version` (`rosak/urls.py:46`) → `{ hash: os.environ["GIT_COMMIT_HASH"], datetime: os.environ["GIT_COMMIT_TIME"] }`, unauthenticated, no request body.
+  - `POST {backendUrl}upload/` with `multipart/form-data` (`related_id`, `upload_type`, `image`) and header `Firebase-Auth-Key` (`ImageUploadService`) → backend `common/views.py:GenericUpload` (`rosak/urls.py:44`), a DRF `APIView`. Validates `upload_type` against `common.enums.TemporaryMediaType` (`SPOTTING_EVENT` | `INCIDENT_CALENDAR_INCIDENT`, exact match with the frontend's `PendingUploadType`) → `400` if unrecognized. Requires a resolved Firebase user → `401` if the header is missing/invalid. For `SPOTTING_EVENT`: loads the `Event` by `related_id` and checks `user.id == event.reporter_id` → `403` if the uploader isn't the event's own reporter (**note:** an admin cannot upload media to someone else's spotting event via this endpoint — ownership is the only check, custom claims are irrelevant here). Writes a `common.models.TemporaryMedia` row (`status: PENDING`) — actual media only lands in permanent storage after some further out-of-band moderation/promotion step not present in this endpoint (see the `TemporaryMediaStatus` choices `CLEARED`/`TRUSTED_CLEARED`/`OVERRIDE_CLEARED` for the states a pending upload can graduate to). Returns bare `201`/no body on success.
 - **`GenericMutationReturn`-shaped mutations** (backend `common/schema/scalars.py:197-198`, `{ ok: bool }`): e.g. `deleteEvent(input: DeleteEventInput!): GenericMutationReturn` (`spotting/schema/schema.py:43-57`, permissions `IsLoggedIn + IsRecaptchaChallengePassed`; business rule: only the event's own `reporter_id`, and only within 3 days of `created`, can delete it — anything else returns `{ ok: false }`, not an error) and `markAsRead(input: MarkEventAsReadInput!): GenericMutationReturn` (`spotting/schema/schema.py:167-183`, permissions `IsLoggedIn + IsRecaptchaChallengePassed + IsAdmin`, i.e. only admins can mark events as read).
 - **`models/query/get-vehicles.ts` response shapes** cross-checked against backend types: `VehicleType`/`VehicleStatusCountType` ⇄ `operation/schema/scalars.py`'s `VehicleType` (dataloader-batched per-status counts); `LastSpottings` ⇄ `spotting/schema/scalars.py`'s `EventScalar` (dataloader-computed `mediaCount`/`isMine`); `events` root query ⇄ `spotting/schema/schema.py`'s `SpottingScalars.events` (`strawberry_django.field` with `EventFilter`/pagination/`EventOrder` — full filter/order/pagination contract lives in the spotting feature's own query-building code, out of scope here).
 - **Firebase Firestore:** `AuthService` opens a live `onSnapshot` listener on `users/{uid}` (read-only from this scope's code — nothing here writes to it; the `permissions.admin` field must be set out-of-band, e.g. via the Firebase console or a separate admin tool not present in this repo).
@@ -416,17 +408,17 @@ set should link here rather than re-deriving it.**
 There are **two independent Firebase-Auth-derived signals** and **one Firestore-derived signal**, and they are checked in three different places that do not all agree with each other:
 
 1. **Firebase custom claims** — `admin: boolean` and `betaTester: boolean`, baked into the user's Firebase ID token server-side (set via the Firebase Admin SDK, presumably by some out-of-band admin tooling not present in this repo — no code in `rosak_firebase` or `rosak_backend` ever calls `auth.set_custom_user_claims`/`setCustomUserClaims`, so provisioning an admin/beta-tester today is a fully manual, out-of-repo operation). Read from the frontend via `AuthService.customClaims` (populated from `user.getIdTokenResult().claims`, `auth.service.ts:64-66`).
-    - **Route guards** (`app-routing.module.ts`, using `@angular/fire/auth-guard`'s `hasCustomClaim`):
-        - `/console` → `canActivate(adminOnly)` = `hasCustomClaim("admin")` (`:60-61,199`). If the claim is falsy, the `AuthPipe` resolves to `false` and — since it is **not** piped through `redirectUnauthorizedTo(...)` — the router simply cancels the navigation (the user is left wherever they were; no redirect page is shown).
-        - `/situasi` → `canActivate(betaTesterOnly)` = `hasCustomClaim("betaTester")` (`:64-65,149`), same cancel-not-redirect behavior on failure.
-        - `/tracker` → the equivalent `...canActivate(betaTesterOnly)` line is **commented out** (`app-routing.module.ts:165`) — `/tracker` is reachable by anyone with a direct link today, unlike `/situasi`, despite `AppComponent` gating the _nav menu entry_ for both identically on `betaTester` (see below). This is a real route-guard vs. nav-menu inconsistency, not just a doc gap.
-        - `/profile` → `canActivate(redirectUnauthorizedToSpotting)` = `redirectUnauthorizedTo(["spotting"])` (`:56-58,215`) — any logged-out user hitting `/profile` is redirected to `/spotting` (the only route in this table that actually redirects rather than just blocking).
-        - `/spotting`, `/spotting/:id`, `/insiden`, `/gallery`, `/about`, `/compliance` — **no guard at all**, fully public.
-    - **Nav menu gating** (`app.component.ts:141-178`, subscribing to `AuthService.customClaims`): adds/removes menu entries for "Console" (`admin`) and "Situasi"+"Tracker" (`betaTester`) purely as UX — this is presentation-only and enforces nothing; the actual enforcement (where it exists) is the route guards above. A user who somehow knows a gated URL and passes its guard could always navigate there directly regardless of what's in the menu.
-    - **Backend GraphQL `IsAdmin` permission class** (`rosak/permissions.py:43-52`) independently re-verifies the **same** `admin` custom claim (via a fresh `firebase_admin.auth.get_user(...)` call, not trusting the client-supplied ID token's cached claims) before allowing e.g. the `markAsRead` mutation. There is no backend equivalent permission class checking `betaTester` anywhere in `rosak_backend` — the beta-tester gate is **frontend-route-only**; any GraphQL operations that a beta-tester-only page happens to call are not further restricted server-side by that claim (only by whatever `IsLoggedIn`/`IsAdmin`/recaptcha checks the specific resolver itself declares).
+   - **Route guards** (`app-routing.module.ts`, using `@angular/fire/auth-guard`'s `hasCustomClaim`):
+     - `/console` → `canActivate(adminOnly)` = `hasCustomClaim("admin")` (`:60-61,199`). If the claim is falsy, the `AuthPipe` resolves to `false` and — since it is **not** piped through `redirectUnauthorizedTo(...)` — the router simply cancels the navigation (the user is left wherever they were; no redirect page is shown).
+     - `/situasi` → `canActivate(betaTesterOnly)` = `hasCustomClaim("betaTester")` (`:64-65,149`), same cancel-not-redirect behavior on failure.
+     - `/tracker` → the equivalent `...canActivate(betaTesterOnly)` line is **commented out** (`app-routing.module.ts:165`) — `/tracker` is reachable by anyone with a direct link today, unlike `/situasi`, despite `AppComponent` gating the _nav menu entry_ for both identically on `betaTester` (see below). This is a real route-guard vs. nav-menu inconsistency, not just a doc gap.
+     - `/profile` → `canActivate(redirectUnauthorizedToSpotting)` = `redirectUnauthorizedTo(["spotting"])` (`:56-58,215`) — any logged-out user hitting `/profile` is redirected to `/spotting` (the only route in this table that actually redirects rather than just blocking).
+     - `/spotting`, `/spotting/:id`, `/insiden`, `/gallery`, `/about`, `/compliance` — **no guard at all**, fully public.
+   - **Nav menu gating** (`app.component.ts:141-178`, subscribing to `AuthService.customClaims`): adds/removes menu entries for "Console" (`admin`) and "Situasi"+"Tracker" (`betaTester`) purely as UX — this is presentation-only and enforces nothing; the actual enforcement (where it exists) is the route guards above. A user who somehow knows a gated URL and passes its guard could always navigate there directly regardless of what's in the menu.
+   - **Backend GraphQL `IsAdmin` permission class** (`rosak/permissions.py:43-52`) independently re-verifies the **same** `admin` custom claim (via a fresh `firebase_admin.auth.get_user(...)` call, not trusting the client-supplied ID token's cached claims) before allowing e.g. the `markAsRead` mutation. There is no backend equivalent permission class checking `betaTester` anywhere in `rosak_backend` — the beta-tester gate is **frontend-route-only**; any GraphQL operations that a beta-tester-only page happens to call are not further restricted server-side by that claim (only by whatever `IsLoggedIn`/`IsAdmin`/recaptcha checks the specific resolver itself declares).
 2. **`AuthService.isAdmin()`** (`auth.service.ts:189-191`) — a convenience method reading the **same** custom-claims subject as the route guard above; consistent with it by construction.
 3. **Firestore `users/{uid}.permissions.admin`** — a **completely separate** admin signal, read live by `AuthService`'s constructor-time Firestore watchdog and checked by `auth-permissions.ts`'s `isUserAllowed()` against a hardcoded `explicitlyAllowedPaths` map (today, only `"/console"`). This is **not** the same data as the Firebase custom claim used by the route guard and `isAdmin()` — a user could in principle have the Firestore `permissions.admin` flag set without the Firebase custom claim (or vice versa), and the two mechanisms would disagree (see Known Quirks for why this matters in practice).
-    - Concretely, on **every** Firestore `users/{uid}` snapshot (including the very first one after login) and on **every** logout, `isUserAllowed(data, router.url)` is re-evaluated against the _current_ URL; if the current path is `"/console"` and the Firestore-based check fails, `AuthService` force-navigates to `""` — this runs independently of, and in addition to, the Firebase-custom-claim-based `adminOnly` route guard already gating entry to `/console` in the first place. In practice this means `/console` is effectively double-gated by two unrelated data sources that must **both** currently be satisfied (the route guard to enter, and this watchdog to _stay_) — except that nothing in this repo ever writes `permissions.admin` into Firestore, so in the app's current real-world operation the Firestore gate can only ever fail-closed for `/console` (see Known Quirks: this may mean `/console` is unreachable for anyone in practice, or that the Firestore doc is provisioned by tooling not in this repo — verify against live site/ops tooling).
+   - Concretely, on **every** Firestore `users/{uid}` snapshot (including the very first one after login) and on **every** logout, `isUserAllowed(data, router.url)` is re-evaluated against the _current_ URL; if the current path is `"/console"` and the Firestore-based check fails, `AuthService` force-navigates to `""` — this runs independently of, and in addition to, the Firebase-custom-claim-based `adminOnly` route guard already gating entry to `/console` in the first place. In practice this means `/console` is effectively double-gated by two unrelated data sources that must **both** currently be satisfied (the route guard to enter, and this watchdog to _stay_) — except that nothing in this repo ever writes `permissions.admin` into Firestore, so in the app's current real-world operation the Firestore gate can only ever fail-closed for `/console` (see Known Quirks: this may mean `/console` is unreachable for anyone in practice, or that the Firestore doc is provisioned by tooling not in this repo — verify against live site/ops tooling).
 4. **reCAPTCHA v3** — not a role/claim at all, but a per-action bot-defense gate: some mutations (e.g. `markAsRead`, `deleteEvent`'s backend permission list) require a passing `IsRecaptchaChallengePassed` check server-side, fed by a token the frontend obtains via `ReCaptchaV3Service.execute(actionName)` and attaches as a `G-Recaptcha-Response`/`g-recaptcha-response` header per call.
 5. **No page/feature in this scope's own files is admin/beta-tester-gated in its template via `*ngIf`** — the pipes, `@util`, and most services are role-agnostic; the only in-scope permission logic lives in `AuthService`/`auth-permissions.ts`/`app-routing.module.ts`/`app.component.ts` as described above.
 

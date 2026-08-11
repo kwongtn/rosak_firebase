@@ -18,14 +18,14 @@ A public, read-only photo/media gallery that displays all images (`Media` record
 ## Component Tree
 
 - **`GalleryComponent`** (`src/app/gallery/gallery.component.ts`, selector `app-gallery`) — the entire page. Standalone component; owns the query, the date→images map, and the intersection-based lazy-render logic. Imports `CommonModule`, `ImageGridModule`, `InViewportModule`, `NzSpinModule`.
-    - Injects **`GetMediasService`** (`src/app/gallery/services/get-medias.service.ts`) — an `apollo-angular` `Query<MediaRelayResponse>` subclass, this feature's sole data source.
-    - Renders, per date bucket, either:
-        - a placeholder `<div>` sized by an estimated height (while the bucket is out of viewport), or
-        - **`ImageGridComponent`** (`src/app/@ui/image-grid/image-grid.component.ts`, selector `image-grid`), passed `[images]="imgDate.value.images"` (type `InputImage[]`). `ImageGridComponent` is a shared `@ui` component (also used independently by the `insiden` feature's `image-drawer` component — not gallery-specific) that lays out a masonry-style flex grid, lazily marks each image element visible via `ng-in-viewport`, shows an `nz-spin` spinner per-tile until the `<img>` fires `load`, and opens `NzImageService`'s full-screen preview/lightbox (`nz-image-group`) on click, cycling through all images in the current date bucket.
-    - Uses directive **`inViewport`** (from `ng-in-viewport`, applied to `.date-image-container` and again inside `ImageGridComponent` on `nz-image-group`) for two independent layers of viewport-driven lazy rendering (see Functionality section).
-    - Uses **`NzSpinModule`**'s `<nz-spin>` for a full-page loading indicator while the initial query is in flight.
-    - **Does not** use `src/app/@ui/spotting-image-list` at all — that component (and its own, differently-shaped `GetMediasService` querying `events { isMine, medias { file { url } } }`) is used only by `src/app/@ui/spotting/image-preview-button/image-preview-button.component.ts`, unrelated to gallery. The two `GetMediasService` classes (`gallery/services/get-medias.service.ts` vs `@ui/spotting-image-list/services/get-medias.service.ts`) are distinct classes with the same name in different files/DI scopes; do not conflate them.
-    - Utility function **`getThumbnail`** (`src/app/@util/imgur.ts`) — pure function, no component, used by `GalleryComponent.ngOnInit` to rewrite each image's Imgur URL into a "medium" (`m`, 320×320) thumbnail URL for the grid tile; the original untouched URL is kept for the full-size lightbox view.
+  - Injects **`GetMediasService`** (`src/app/gallery/services/get-medias.service.ts`) — an `apollo-angular` `Query<MediaRelayResponse>` subclass, this feature's sole data source.
+  - Renders, per date bucket, either:
+    - a placeholder `<div>` sized by an estimated height (while the bucket is out of viewport), or
+    - **`ImageGridComponent`** (`src/app/@ui/image-grid/image-grid.component.ts`, selector `image-grid`), passed `[images]="imgDate.value.images"` (type `InputImage[]`). `ImageGridComponent` is a shared `@ui` component (also used independently by the `insiden` feature's `image-drawer` component — not gallery-specific) that lays out a masonry-style flex grid, lazily marks each image element visible via `ng-in-viewport`, shows an `nz-spin` spinner per-tile until the `<img>` fires `load`, and opens `NzImageService`'s full-screen preview/lightbox (`nz-image-group`) on click, cycling through all images in the current date bucket.
+  - Uses directive **`inViewport`** (from `ng-in-viewport`, applied to `.date-image-container` and again inside `ImageGridComponent` on `nz-image-group`) for two independent layers of viewport-driven lazy rendering (see Functionality section).
+  - Uses **`NzSpinModule`**'s `<nz-spin>` for a full-page loading indicator while the initial query is in flight.
+  - **Does not** use `src/app/@ui/spotting-image-list` at all — that component (and its own, differently-shaped `GetMediasService` querying `events { isMine, medias { file { url } } }`) is used only by `src/app/@ui/spotting/image-preview-button/image-preview-button.component.ts`, unrelated to gallery. The two `GetMediasService` classes (`gallery/services/get-medias.service.ts` vs `@ui/spotting-image-list/services/get-medias.service.ts`) are distinct classes with the same name in different files/DI scopes; do not conflate them.
+  - Utility function **`getThumbnail`** (`src/app/@util/imgur.ts`) — pure function, no component, used by `GalleryComponent.ngOnInit` to rewrite each image's Imgur URL into a "medium" (`m`, 320×320) thumbnail URL for the grid tile; the original untouched URL is kept for the full-size lightbox view.
 
 No `@Input`/`@Output` communication beyond the one `[images]` binding into `image-grid`; no router params are consumed (the route has no `:id` or query params); no cross-component shared service beyond the Apollo `GetMediasService` singleton.
 
@@ -33,14 +33,14 @@ No `@Input`/`@Output` communication beyond the one `[images]` binding into `imag
 
 1. **Initial load** (`gallery.component.ts:43-95`, `ngOnInit`):
 
-    - Fires a `GetMediasService.watch({ type: "DAY" }, { fetchPolicy: "network-only" })` — always a fresh network request, no cache reuse, and no re-fetch/refresh mechanism is offered afterward (no polling, no manual "refresh" button, no `refetch()` call anywhere in the file).
-    - `type: "DAY"` is hardcoded — the UI has no control to switch grouping to `MONTH`/`WEEK`/`YEAR` even though the backend enum (`DateGroupings`) supports all four.
-    - The subscription callback (`gallery.component.ts:53-94`) iterates `data.mediasGroupByPeriod` and, for each day bucket (`dateKey`):
-        - Creates the bucket in `imageDateMaps` on first sight with `{ images: [], displayImages: false }` (`displayImages` starts `false`, i.e. every new bucket starts collapsed/placeholder-rendered).
-        - **Rebuilds `images` from scratch every emission** — `elem.medias.map(...)` fully replaces `imageDateMaps[dateKey].images` rather than appending, so if the query re-emits (e.g. Apollo cache update), any bucket present in the new payload has its image list fully replaced, not merged.
-        - Per media item, builds an `InputImage`: `{ height, width, url, thumbnailUrl, display: false }`. If `media.file` is falsy (null — no uploaded file, or upload failed), both `url` and `thumbnailUrl` fall back to `./assets/image-not-found.png` (a bundled static asset, confirmed present at `src/assets/image-not-found.png`). Otherwise `url = media.file.url` (original Imgur URL) and `thumbnailUrl = getThumbnail(media.file.url, "m")` (rewritten to Imgur's medium/320×320 thumbnail convention — see `@util/imgur.ts:9-30`).
-        - Sets `this.loading = loading` from the Apollo emission's own loading flag every time (not just once), so the spinner ties directly to Apollo's watch-query loading state.
-    - Note: the whole payload for **all** day-buckets and **all** media in them is fetched in a single round trip — there is no pagination, `first`/`after` cursor usage, or incremental loading at the GraphQL level. (The unused `firstCursor`/`lastCursor` fields at `gallery.component.ts:36-37` and the commented-out TODO in the template referencing `ngInfiniteScroll`/relay-style pagination (`gallery.component.html:8-12`) confirm cursor/relay-style infinite-scroll pagination was planned but never implemented — see Known Quirks.)
+   - Fires a `GetMediasService.watch({ type: "DAY" }, { fetchPolicy: "network-only" })` — always a fresh network request, no cache reuse, and no re-fetch/refresh mechanism is offered afterward (no polling, no manual "refresh" button, no `refetch()` call anywhere in the file).
+   - `type: "DAY"` is hardcoded — the UI has no control to switch grouping to `MONTH`/`WEEK`/`YEAR` even though the backend enum (`DateGroupings`) supports all four.
+   - The subscription callback (`gallery.component.ts:53-94`) iterates `data.mediasGroupByPeriod` and, for each day bucket (`dateKey`):
+     - Creates the bucket in `imageDateMaps` on first sight with `{ images: [], displayImages: false }` (`displayImages` starts `false`, i.e. every new bucket starts collapsed/placeholder-rendered).
+     - **Rebuilds `images` from scratch every emission** — `elem.medias.map(...)` fully replaces `imageDateMaps[dateKey].images` rather than appending, so if the query re-emits (e.g. Apollo cache update), any bucket present in the new payload has its image list fully replaced, not merged.
+     - Per media item, builds an `InputImage`: `{ height, width, url, thumbnailUrl, display: false }`. If `media.file` is falsy (null — no uploaded file, or upload failed), both `url` and `thumbnailUrl` fall back to `./assets/image-not-found.png` (a bundled static asset, confirmed present at `src/assets/image-not-found.png`). Otherwise `url = media.file.url` (original Imgur URL) and `thumbnailUrl = getThumbnail(media.file.url, "m")` (rewritten to Imgur's medium/320×320 thumbnail convention — see `@util/imgur.ts:9-30`).
+     - Sets `this.loading = loading` from the Apollo emission's own loading flag every time (not just once), so the spinner ties directly to Apollo's watch-query loading state.
+   - Note: the whole payload for **all** day-buckets and **all** media in them is fetched in a single round trip — there is no pagination, `first`/`after` cursor usage, or incremental loading at the GraphQL level. (The unused `firstCursor`/`lastCursor` fields at `gallery.component.ts:36-37` and the commented-out TODO in the template referencing `ngInfiniteScroll`/relay-style pagination (`gallery.component.html:8-12`) confirm cursor/relay-style infinite-scroll pagination was planned but never implemented — see Known Quirks.)
 
 2. **Sorting** (`gallery.component.html:14`, `compareFn` at `gallery.component.ts:114-120`): the template iterates `imageDateMaps | keyvalue: compareFn`. `compareFn` returns `1` if `a.key < b.key` else `-1`, which is a **descending** sort by `dateKey` string (e.g. `"2026-08-05"` sorts before `"2026-08-04"`) — i.e., most recent day first. Because `dateKey` is a zero-padded `YYYY-MM-DD` string (see backend `get_date_key`, below), lexicographic sort is equivalent to chronological sort.
 
@@ -48,9 +48,9 @@ No `@Input`/`@Output` communication beyond the one `[images]` binding into `imag
 
 4. **Two-tier lazy rendering / virtualization**, both keyed off `ng-in-viewport`'s `inViewport` directive with `rootMargin: '200px 0px'` (i.e., trigger 200px before entering/leaving the actual viewport):
 
-    - **Tier 1 — per day-bucket** (`gallery.component.html:15-33`): each `.date-image-container` (one per day) is wrapped in `inViewport`. `onIntersection()` (`gallery.component.ts:97-112`) sets `imageDateMaps[target.id].displayImages = visible`. While a bucket is off-screen, instead of `<image-grid>` a plain placeholder `<div>` is rendered with `height: (images.length / 3) * 200 + 'px'` — a rough estimate assuming ~3 images per row at ~200px row height, used purely to keep scroll height/position stable so the page doesn't jump as buckets mount/unmount their real content. When the bucket scrolls into range, the real `<image-grid>` mounts and the images actually load.
-    - **Tier 2 — per image tile**, inside `ImageGridComponent` itself (`image-grid.component.html:9-13`, `image-grid.component.ts:70-78`): each `nz-image-group` tile also carries `inViewport`, feeding `displayImage[target.id]`, though `displayImage` is tracked but not actually read anywhere in that component's template (the `[src]` binding on `<img>` is unconditional) — this second tier's `displayImage` map currently has no visible effect on rendering; the actual perf mechanism doing real work is Tier 1 plus the browser's native lazy image loading via a plain `<img src>`.
-    - Both intersection handlers currently `console.log(target.id, "✅"/"❌")` on every viewport transition (`gallery.component.ts:106-110`) — debug logging left in production code (see Known Quirks).
+   - **Tier 1 — per day-bucket** (`gallery.component.html:15-33`): each `.date-image-container` (one per day) is wrapped in `inViewport`. `onIntersection()` (`gallery.component.ts:97-112`) sets `imageDateMaps[target.id].displayImages = visible`. While a bucket is off-screen, instead of `<image-grid>` a plain placeholder `<div>` is rendered with `height: (images.length / 3) * 200 + 'px'` — a rough estimate assuming ~3 images per row at ~200px row height, used purely to keep scroll height/position stable so the page doesn't jump as buckets mount/unmount their real content. When the bucket scrolls into range, the real `<image-grid>` mounts and the images actually load.
+   - **Tier 2 — per image tile**, inside `ImageGridComponent` itself (`image-grid.component.html:9-13`, `image-grid.component.ts:70-78`): each `nz-image-group` tile also carries `inViewport`, feeding `displayImage[target.id]`, though `displayImage` is tracked but not actually read anywhere in that component's template (the `[src]` binding on `<img>` is unconditional) — this second tier's `displayImage` map currently has no visible effect on rendering; the actual perf mechanism doing real work is Tier 1 plus the browser's native lazy image loading via a plain `<img src>`.
+   - Both intersection handlers currently `console.log(target.id, "✅"/"❌")` on every viewport transition (`gallery.component.ts:106-110`) — debug logging left in production code (see Known Quirks).
 
 5. **Loading state**: while the initial (and only) `watch()` emission is loading (`loading === true`), an `<nz-spin>` banner is shown above the list with `nzTip`: _"Due to the high number of image entries, loading will be slow. Please bear with us while we work on optimizations 🥲"_ (`gallery.component.html:3-7`) — an explicit, user-facing acknowledgment that this page is slow because everything loads in one shot with no pagination.
 
@@ -67,33 +67,33 @@ No `@Input`/`@Output` communication beyond the one `[images]` binding into `imag
 ### `mediasGroupByPeriod` query
 
 - **Frontend definition:** `src/app/gallery/services/get-medias.service.ts:26-41`, unnamed (anonymous) `gql` query:
-    ```graphql
-    query ($type: DateGroupings!) {
-        mediasGroupByPeriod(type: $type) {
-            type
-            dateKey
-            count
-            medias {
-                width
-                height
-                file {
-                    url
-                }
-            }
+  ```graphql
+  query ($type: DateGroupings!) {
+    mediasGroupByPeriod(type: $type) {
+      type
+      dateKey
+      count
+      medias {
+        width
+        height
+        file {
+          url
         }
+      }
     }
-    ```
-    Invoked once in `GalleryComponent.ngOnInit` with `{ type: "DAY" }` and `fetchPolicy: "network-only"`.
+  }
+  ```
+  Invoked once in `GalleryComponent.ngOnInit` with `{ type: "DAY" }` and `fetchPolicy: "network-only"`.
 - **Backend resolver:** `common/schema/schema.py:36-77`, `CommonScalars.medias_group_by_period(self, info, type: DateGroupings) -> List[MediasGroupByPeriodScalar]`, exposed on the root `Query` type via `rosak/schema.py` (`Query` composes `CommonScalars` among others).
-    - **No `permission_classes`** on this field (contrast with the sibling `user` field on the same `CommonScalars` type, which requires `IsLoggedIn` — `common/schema/schema.py:27-34`) — **this query is public; no authentication is required to call it.** This matches the frontend route having no guard.
-    - **Grouping logic:** builds a Django `annotate()` on `common.models.Media` keyed by `created__year` always, plus `created__month` when `type` is `MONTH` or `DAY`, plus `created__day` when `type` is `DAY` (`common/schema/schema.py:40-46`). So requesting `DAY` (as the frontend always does) groups strictly by calendar day of `Media.created` (a `TimeStampedModel` auto-`created` timestamp, not a user-supplied date).
-    - **Row filter:** `Media.objects.filter(~Q(file=""))` (`common/schema/schema.py:49`) — excludes `Media` rows whose (legacy) `file` field is an empty string. Note this filters on the Imgur `file` field specifically, not on the Discord `file_id`/`file_name` fields, so a `Media` row with only Discord-CDN data and no Imgur `file` could theoretically be excluded here even though it has a usable `url` via the model's `url` property — this filter is not exercised by the frontend's field selection either way, since the frontend only ever requests `file { url }`, not `url`.
-    - **`count`** and **`medias`** are computed by a single aggregate query using `Count("id")` and `ArrayAgg(F("id"), distinct=True, default=[])` (`common/schema/schema.py:52-54`), then each bucket's media IDs are resolved to full objects via `info.context.loaders["common"]["media_from_id_loader"]`, a batched `DataLoader` (`common/schema/loaders.py:23-25,30`) — this avoids N+1 queries when the same request touches many buckets, but does **not** batch/limit the _number_ of buckets or images returned; every matching bucket and every one of its media rows is loaded and returned in one response.
-    - **`date_key`** is built by `common/utils.py:43-55`, `get_date_key(year, month=None, week=None, day=None)` → zero-padded `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` depending on which of `month`/`day`/`week` are present. For `type=DAY` (the only value the frontend ever sends) this always yields a full `YYYY-MM-DD` string.
-    - **`MediasGroupByPeriodScalar`** (`common/schema/scalars.py:36-44`): `type: DateGroupings`, `date_key: str`, `year: int`, `month: Optional[int]`, `day: Optional[int]`, `count: int`, `medias: List[MediaScalar]`.
-    - **`MediaScalar`** (`common/schema/scalars.py:25-33`, `strawberry_django.type(models.Media, pagination=True)`): `id: strawberry.ID`, `uploader: UserScalar`, `file: Optional[strawberry_django.DjangoImageType]` (auto-derived from the model's `ImgurField file`; its `.url` resolves through Django's storage API, which for the `ImgurField`/`ImgurStorage` combination (`common/models.py:19`, `common/imgur_field.py`) yields an `i.imgur.com` URL, not a locally-hosted asset), `width: int`, `height: int`, `url: Optional[str]` (a **separate** model property, `common/models.py:58-63`, that builds a `cdn.discordapp.com` URL from `file_id`/`file_name`/`message_id` — **not requested by this frontend query**), `discord_suffix: str`.
-        - **Nullability in practice:** `media.file` can be `null` (frontend explicitly branches on `if (media.file)` — `gallery.component.ts:80-86`), meaning a `Media` row can exist with no Imgur file at all; the frontend's fallback-to-`image-not-found.png` behavior exists specifically to cover this.
-    - **`DateGroupings` enum** (`generic/schema/enums.py:6-11`): `YEAR`, `MONTH`, `WEEK`, `DAY` — all four are valid GraphQL enum values the frontend could send, but the gallery UI only ever sends `DAY`.
+  - **No `permission_classes`** on this field (contrast with the sibling `user` field on the same `CommonScalars` type, which requires `IsLoggedIn` — `common/schema/schema.py:27-34`) — **this query is public; no authentication is required to call it.** This matches the frontend route having no guard.
+  - **Grouping logic:** builds a Django `annotate()` on `common.models.Media` keyed by `created__year` always, plus `created__month` when `type` is `MONTH` or `DAY`, plus `created__day` when `type` is `DAY` (`common/schema/schema.py:40-46`). So requesting `DAY` (as the frontend always does) groups strictly by calendar day of `Media.created` (a `TimeStampedModel` auto-`created` timestamp, not a user-supplied date).
+  - **Row filter:** `Media.objects.filter(~Q(file=""))` (`common/schema/schema.py:49`) — excludes `Media` rows whose (legacy) `file` field is an empty string. Note this filters on the Imgur `file` field specifically, not on the Discord `file_id`/`file_name` fields, so a `Media` row with only Discord-CDN data and no Imgur `file` could theoretically be excluded here even though it has a usable `url` via the model's `url` property — this filter is not exercised by the frontend's field selection either way, since the frontend only ever requests `file { url }`, not `url`.
+  - **`count`** and **`medias`** are computed by a single aggregate query using `Count("id")` and `ArrayAgg(F("id"), distinct=True, default=[])` (`common/schema/schema.py:52-54`), then each bucket's media IDs are resolved to full objects via `info.context.loaders["common"]["media_from_id_loader"]`, a batched `DataLoader` (`common/schema/loaders.py:23-25,30`) — this avoids N+1 queries when the same request touches many buckets, but does **not** batch/limit the _number_ of buckets or images returned; every matching bucket and every one of its media rows is loaded and returned in one response.
+  - **`date_key`** is built by `common/utils.py:43-55`, `get_date_key(year, month=None, week=None, day=None)` → zero-padded `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` depending on which of `month`/`day`/`week` are present. For `type=DAY` (the only value the frontend ever sends) this always yields a full `YYYY-MM-DD` string.
+  - **`MediasGroupByPeriodScalar`** (`common/schema/scalars.py:36-44`): `type: DateGroupings`, `date_key: str`, `year: int`, `month: Optional[int]`, `day: Optional[int]`, `count: int`, `medias: List[MediaScalar]`.
+  - **`MediaScalar`** (`common/schema/scalars.py:25-33`, `strawberry_django.type(models.Media, pagination=True)`): `id: strawberry.ID`, `uploader: UserScalar`, `file: Optional[strawberry_django.DjangoImageType]` (auto-derived from the model's `ImgurField file`; its `.url` resolves through Django's storage API, which for the `ImgurField`/`ImgurStorage` combination (`common/models.py:19`, `common/imgur_field.py`) yields an `i.imgur.com` URL, not a locally-hosted asset), `width: int`, `height: int`, `url: Optional[str]` (a **separate** model property, `common/models.py:58-63`, that builds a `cdn.discordapp.com` URL from `file_id`/`file_name`/`message_id` — **not requested by this frontend query**), `discord_suffix: str`.
+    - **Nullability in practice:** `media.file` can be `null` (frontend explicitly branches on `if (media.file)` — `gallery.component.ts:80-86`), meaning a `Media` row can exist with no Imgur file at all; the frontend's fallback-to-`image-not-found.png` behavior exists specifically to cover this.
+  - **`DateGroupings` enum** (`generic/schema/enums.py:6-11`): `YEAR`, `MONTH`, `WEEK`, `DAY` — all four are valid GraphQL enum values the frontend could send, but the gallery UI only ever sends `DAY`.
 - **Underlying data source of `Media` rows:** the `common.Media` Django model (`common/models.py:22-63`) — `file` (deprecated per an inline `# TODO: Deprecate in future version` comment, `common/models.py:23`), `width`/`height` (nullable ints), `uploader` (FK to `common.User`, `on_delete=PROTECT`), plus Discord-bot ingestion fields `message_id`, `file_id`, `file_name`, `content_type`. This indicates media are ingested from a bot pipeline (e.g. Telegram/Discord — see `telegram_provider` app and `discord_suffix`) rather than uploaded directly through this frontend; there is no "upload image" UI anywhere under `src/app/gallery/**`.
 
 ### No mutations

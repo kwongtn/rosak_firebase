@@ -195,11 +195,11 @@ The compact "📷 N" pill button shown in event tables/cards that both shows an 
 
 - Button variant (html:4-22): `nzType="primary"` **unless** `count === 0 && isMine` (then `nzType="text"`, a ghost button) — a not-yet-photographed event you own gets a subtle text button with just a `+`; every other state gets a solid primary pill. When `count > 0`, shows a camera icon + count, plus a literal `+` glyph appended if `isMine` (hinting "click to add more").
 - **Responsive drawer width**, recomputed from `document.body.clientWidth` on construction and every `window:resize` (`@HostListener`, ts:58-69) — four fixed JS breakpoints, chosen (per an in-code comment, ts:41-46) to exactly fit N 200px-square tiles side by side:
-    - `< 500px` → `280px` (~1 image wide)
-    - `500–1023px` → `480px` (~2 images)
-    - `1024–1299px` → `700px` (~3 images)
-    - `≥ 1300px` → `905px` (~4 images)
-      This is a deliberate JS-computed responsive rule (not CSS media queries) a rewrite must reproduce with equivalent logic, or visually match at these exact breakpoints if moving to CSS.
+  - `< 500px` → `280px` (~1 image wide)
+  - `500–1023px` → `480px` (~2 images)
+  - `1024–1299px` → `700px` (~3 images)
+  - `≥ 1300px` → `905px` (~4 images)
+    This is a deliberate JS-computed responsive rule (not CSS media queries) a rewrite must reproduce with equivalent logic, or visually match at these exact breakpoints if moving to CSS.
 - Drawer chrome (slide-in-from-right, backdrop, `nzTitle: "Image Preview"`) is entirely ng-zorro's `NzDrawerService` — no custom animation in this component.
 - On "Upload" (`isMine` only): reads `pendingUploads` directly off the live drawer content-component instance (`drawerRef.getContentComponent()?.pendingUploads`, ts:94-95 — a cross-component reach-through, not an `@Output()`), queues each file via `ImageUploadService.addToQueue`, shows an info toast ("Image upload queued. Please wait for uploads to complete before closing this tab."), then **closes the drawer immediately** — upload is fire-and-forget from this component's perspective; closing does not wait for the queue to flush.
 - `.picture-icon { padding-right: 5px; }` is the only custom CSS.
@@ -239,14 +239,14 @@ The "view this event's photos, and optionally add more" panel `ImagePreviewButto
 
 ```graphql
 query ($filters: EventFilter) {
-    events(filters: $filters) {
-        isMine
-        medias {
-            file {
-                url
-            }
-        }
+  events(filters: $filters) {
+    isMine
+    medias {
+      file {
+        url
+      }
     }
+  }
 }
 ```
 

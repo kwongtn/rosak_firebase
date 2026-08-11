@@ -4,33 +4,33 @@
 
 - **URL path:** `/about`
 - **Route definition:** `/home/kwongtn/rosak_firebase/src/app/app-routing.module.ts:167-175`
-    ```ts
-    {
-        path: "about",
-        title: "MLPTF | About",
-        loadComponent: () => {
-            return import("./about/about.component").then(
-                (m) => m.AboutComponent
-            );
-        },
-    },
-    ```
+  ```ts
+  {
+      path: "about",
+      title: "MLPTF | About",
+      loadComponent: () => {
+          return import("./about/about.component").then(
+              (m) => m.AboutComponent
+          );
+      },
+  },
+  ```
 - **Page `<title>`:** `MLPTF | About` (set declaratively via the Angular Router `title` property; Angular's default `TitleStrategy` is used — no custom `TitleStrategy` provider was found in the app, so this string is set verbatim as `document.title` on navigation).
 - **Lazy-loaded component:** standalone component, `loadComponent()` (no NgModule) — `AboutComponent` at `/home/kwongtn/rosak_firebase/src/app/about/about.component.ts`.
 - **Route guards:** **none.** Unlike `situasi` (`canActivate(betaTesterOnly)`), `console` (`canActivate(adminOnly)`), and `profile` (`canActivate(redirectUnauthorizedToSpotting)`), the `about` route object has no `canActivate`/`canLoad` entry at all. It is fully public, reachable while logged out.
 - **Maintenance-mode switch:** none. The `about` route is not a key in the `PageType` union or the `maintenance: MaintananceDocument` map (`app-routing.module.ts:19-54`), so there is no construction/placeholder fallback for this page — it cannot be toggled into `ConstructionComponent`.
 - **Redirect rules:** none targeting or originating from `/about`. (The unrelated top-level `""` route redirects to `/spotting`, not `/about`.)
 - **Primary nav entry:** `/about` is one of four hard-coded items in `AppComponent`'s `initialMenuList` (`/home/kwongtn/rosak_firebase/src/app/app.component.ts:18-50`):
-    ```ts
-    {
-        name: "About",
-        href: "/about",
-        headerTitle: " - About the Project ",
-        // tag: "Prelim",
-        // style: "default",
-    },
-    ```
-    It renders in the header menu (`d-header-menu` / `/home/kwongtn/rosak_firebase/src/app/header/menu/menu.component.ts`) with no badge/tag (the commented-out `tag: "Prelim"` / `style: "default"` lines show a badge was once planned but is currently disabled). On narrow viewports (`window.innerWidth < 1024`), `AppComponent.getHeader()` shows `" - About the Project "` next to the generic site title.
+  ```ts
+  {
+      name: "About",
+      href: "/about",
+      headerTitle: " - About the Project ",
+      // tag: "Prelim",
+      // style: "default",
+  },
+  ```
+  It renders in the header menu (`d-header-menu` / `/home/kwongtn/rosak_firebase/src/app/header/menu/menu.component.ts`) with no badge/tag (the commented-out `tag: "Prelim"` / `style: "default"` lines show a badge was once planned but is currently disabled). On narrow viewports (`window.innerWidth < 1024`), `AppComponent.getHeader()` shows `" - About the Project "` next to the generic site title.
 
 ## Purpose
 
@@ -57,32 +57,32 @@ AboutComponent                 (about.component.ts)      selector: app-about
 ## Functionality & Behavior
 
 1. **Loading state.** The whole page body is wrapped in `<nz-spin [nzSpinning]="showLoading">` (`about.component.html:1`). `showLoading` starts `true` (`about.component.ts:39`) and is flipped to `false` only inside the Firestore `onSnapshot` callback, and only once `doc.exists()` is true (`about.component.ts:47-57`). Until the first snapshot arrives, the whole page (including headings) is dimmed/covered by the ng-zorro spinner overlay — there's no skeleton/placeholder content, and the headings and static copy still render underneath the spinner overlay because they're plain static HTML, not conditionally rendered.
-    - **Edge case:** if the Firestore document `public/about` does not exist, `doc.exists()` is false forever, the callback body's `if` never executes, `showLoading` stays `true` permanently, and the page spins forever with no timeout, retry, or error UI.
-    - **Edge case:** if the `onSnapshot` listener itself errors (permission-denied, offline, etc.), there is no error callback registered (`onSnapshot` is called with only a success callback, no error handler) — an error would be silently swallowed by the Firebase SDK's default behavior and the page would spin forever with no visible error state.
+   - **Edge case:** if the Firestore document `public/about` does not exist, `doc.exists()` is false forever, the callback body's `if` never executes, `showLoading` stays `true` permanently, and the page spins forever with no timeout, retry, or error UI.
+   - **Edge case:** if the `onSnapshot` listener itself errors (permission-denied, offline, etc.), there is no error callback registered (`onSnapshot` is called with only a success callback, no error handler) — an error would be silently swallowed by the Firebase SDK's default behavior and the page would spin forever with no visible error state.
 2. **Live updates, not one-shot fetch.** `onSnapshot` (not `getDoc`) is used, so the page is reactive: any write to the `public/about` Firestore document (e.g. an admin editing team bios) is pushed to any currently-open `/about` tab in real time without a page refresh.
 3. **Cleanup.** `ngOnDestroy` calls the stored `Unsubscribe` function to detach the Firestore listener when the component is destroyed (route navigated away) — `about.component.ts:64-68`. Prevents listener leaks across navigations.
 4. **Section 1 — "About the project"** (`about.component.html:2-73`):
-    - `<h1>About the project</h1>` static heading.
-    - A commented-out block (`about.component.html:5-30`) would have shown two CI/CD build-status badge images (Semaphore CI backend build badge and a GitHub Actions frontend build badge), both driven by `branchName` (`build.git.branch` from the generated `src/build.ts`) and `semaphoreBadgeKey` (`environment.semaphore.badgeKey`). **This is currently dead/disabled markup** — the badges do not render on the live page today (see Known Quirks).
-    - `{{ items?.aboutProject }}` — a free-text string from Firestore rendered directly as page copy, no sanitization/markdown parsing beyond Angular's default HTML-escaping interpolation (so any HTML in the field is shown as literal text, not rendered as markup).
-    - **Projects grid:** `items?.projects` iterated with `@for` (track by the item object itself, not an id field — see Known Quirks) into an `nz-list nzGrid` responsive grid. Each item is wrapped in a column (`nzXs=24` full width / `nzMd=12` half width / `nzXl=8` third width) and only rendered `@if (item.display)` — a `Project.display` flag lets Firestore-side data be authored but hidden from the public page without deleting it. Each visible item renders `<about-projects [data]="item" />`.
-    - **Donation call-to-action:** static heading "Like our projects? Buy us a coffee ☕ / beer 🍺 / whatever you like ✨", an OpenCollective "Contribute" button image linking to `https://opencollective.com/mlptf/projects/community-site` (opens in a new tab, `target="_blank"`, no `rel="noopener"` on this particular link — see Known Quirks), and a static paragraph of copy about funding being optional but transparent/auditable via the OpenCollective public ledger.
+   - `<h1>About the project</h1>` static heading.
+   - A commented-out block (`about.component.html:5-30`) would have shown two CI/CD build-status badge images (Semaphore CI backend build badge and a GitHub Actions frontend build badge), both driven by `branchName` (`build.git.branch` from the generated `src/build.ts`) and `semaphoreBadgeKey` (`environment.semaphore.badgeKey`). **This is currently dead/disabled markup** — the badges do not render on the live page today (see Known Quirks).
+   - `{{ items?.aboutProject }}` — a free-text string from Firestore rendered directly as page copy, no sanitization/markdown parsing beyond Angular's default HTML-escaping interpolation (so any HTML in the field is shown as literal text, not rendered as markup).
+   - **Projects grid:** `items?.projects` iterated with `@for` (track by the item object itself, not an id field — see Known Quirks) into an `nz-list nzGrid` responsive grid. Each item is wrapped in a column (`nzXs=24` full width / `nzMd=12` half width / `nzXl=8` third width) and only rendered `@if (item.display)` — a `Project.display` flag lets Firestore-side data be authored but hidden from the public page without deleting it. Each visible item renders `<about-projects [data]="item" />`.
+   - **Donation call-to-action:** static heading "Like our projects? Buy us a coffee ☕ / beer 🍺 / whatever you like ✨", an OpenCollective "Contribute" button image linking to `https://opencollective.com/mlptf/projects/community-site` (opens in a new tab, `target="_blank"`, no `rel="noopener"` on this particular link — see Known Quirks), and a static paragraph of copy about funding being optional but transparent/auditable via the OpenCollective public ledger.
 5. **Section 2 — "About the team"** (`about.component.html:75-98`): `items?.personnel` iterated the same way into an `nz-list nzGrid` (columns: `nzXs=24`/`nzSm=12`/`nzMd=8`/`nzXl=6`, i.e. up to 4 per row on extra-large screens), gated per-item on `item.display`, rendering `<about-avatar [data]="item" />` for each visible member.
 6. **Section 3 — "Special Mentions"** (`about.component.html:100-102`): entirely commented out — a heading-only section stub that was never built out. Currently invisible/non-existent on the rendered page.
 7. **Section 4 — "Tech Stacks & Open Source"** (`about.component.html:104-119`): `items?.techStacks` iterated into an `nz-list nzGrid` (columns: `nzXs=12`/`nzMd=8`/`nzXl=6`). **Note:** unlike the other two lists, tech-stack items are rendered unconditionally — there is no `@if (item.display)` check here even though nothing in the `TechStack` interface has a `display` field to begin with, so every tech-stack document entry always shows.
 8. **`AvatarCardComponent` rendering** (`avatar-card.component.html`):
-    - `nz-card` with a cover template showing an `nz-avatar` (100px, `[nzSrc]="data.avatar"`, with a fallback `nzIcon="user"` glyph shown if the image URL is missing/broken).
-    - Card title template shows `data.name`, underlined and bold via `.name` CSS class.
-    - Card body shows `data.title` (role/position) then `data.description` (free text bio), each in its own `<p>`.
-    - **Social icons row:** `data.socials` (array of `{link, name, type}`) iterated (`track social`, i.e. by object identity) into a row of icon links, laid out `flex-direction: row-reverse` (so icons visually read left-to-right in reverse array order — i.e., the _last_ social in the array appears leftmost). Each icon is wrapped in an `nz-tooltip` showing `social.name` on hover (placement: bottom), and is a clickable `<a [href]="social.link" target="_blank">` (no `rel="noopener"` here either). The actual icon glyph is an inline SVG path pulled from the local `Icon` map (`avatar-card.icons.ts`) keyed by `social.type`, which supports exactly three values: `"github"`, `"linkedin"`, `"instagram"` (typed as a union in `PersonnelSocial.type` — any other string would fail to type-check when authoring Firestore-adjacent code, but since Firestore data is untyped JSON at runtime, an unexpected `type` value from Firestore would simply fail to match any icon and likely render blank/broken via `nz-icon`'s `[nzType]` binding).
+   - `nz-card` with a cover template showing an `nz-avatar` (100px, `[nzSrc]="data.avatar"`, with a fallback `nzIcon="user"` glyph shown if the image URL is missing/broken).
+   - Card title template shows `data.name`, underlined and bold via `.name` CSS class.
+   - Card body shows `data.title` (role/position) then `data.description` (free text bio), each in its own `<p>`.
+   - **Social icons row:** `data.socials` (array of `{link, name, type}`) iterated (`track social`, i.e. by object identity) into a row of icon links, laid out `flex-direction: row-reverse` (so icons visually read left-to-right in reverse array order — i.e., the _last_ social in the array appears leftmost). Each icon is wrapped in an `nz-tooltip` showing `social.name` on hover (placement: bottom), and is a clickable `<a [href]="social.link" target="_blank">` (no `rel="noopener"` here either). The actual icon glyph is an inline SVG path pulled from the local `Icon` map (`avatar-card.icons.ts`) keyed by `social.type`, which supports exactly three values: `"github"`, `"linkedin"`, `"instagram"` (typed as a union in `PersonnelSocial.type` — any other string would fail to type-check when authoring Firestore-adjacent code, but since Firestore data is untyped JSON at runtime, an unexpected `type` value from Firestore would simply fail to match any icon and likely render blank/broken via `nz-icon`'s `[nzType]` binding).
 9. **`ProjectsCardComponent` rendering** (`projects-card.component.html`):
-    - `nz-card` titled with `data.name`, body showing `data.description`.
-    - `nzExtra` slot (top-right of the card) shows a color-coded `nz-tag` status badge via a `@switch` on `data.status`:
-        - `"alpha"` → tag color `volcano` (red/orange), label "Alpha"
-        - `"beta"` → tag color `gold`, label "Beta"
-        - `"stable"` → tag color `blue`, label "Stable"
-        - anything else (including the typed `"planned"` value, and any unrecognized value) → `@default` branch, tag color `lime`, label "Planned"
-    - Note: `data.startDate` (typed as `Date` in the `Project` interface) is **never rendered anywhere in the template** — it's fetched/typed but unused in the UI.
+   - `nz-card` titled with `data.name`, body showing `data.description`.
+   - `nzExtra` slot (top-right of the card) shows a color-coded `nz-tag` status badge via a `@switch` on `data.status`:
+     - `"alpha"` → tag color `volcano` (red/orange), label "Alpha"
+     - `"beta"` → tag color `gold`, label "Beta"
+     - `"stable"` → tag color `blue`, label "Stable"
+     - anything else (including the typed `"planned"` value, and any unrecognized value) → `@default` branch, tag color `lime`, label "Planned"
+   - Note: `data.startDate` (typed as `Date` in the `Project` interface) is **never rendered anywhere in the template** — it's fetched/typed but unused in the UI.
 10. **`TechstackCardComponent` rendering** (`techstack-card.component.html`): the entire card is wrapped in an `<a [href]="data.url" target="_blank" rel="noopener noreferrer">` (this one _does_ have `rel="noopener noreferrer"`, inconsistent with the other two link types above) making the whole card clickable through to the tech's homepage/repo. Inside: an `<img [src]="data.iconUrl">` logo (CSS-capped to `max-height:10vh; max-width:10vw; object-fit:contain` — no fallback/alt-error handling if the icon URL 404s beyond the static `alt="logo"` attribute), then `data.name` (bold) and `data.description`.
 11. **Responsive grid breakpoints** are ng-zorro's standard `nz-col` breakpoint props (`nzXs`/`nzSm`/`nzMd`/`nzXl`), using ng-zorro/Ant Design's default breakpoint pixel widths (not custom breakpoints defined in this feature) — an important detail for the Tailwind rewrite since these will need to be reimplemented as Tailwind responsive grid classes.
 12. **No pagination, filtering, or sorting UI exists anywhere in this feature.** Whatever order the arrays are stored in Firestore is the order rendered, aside from the per-item `display` boolean gate on `projects` and `personnel` (not on `techStacks`). The `Personnel.order` and a generic `sortOrder()` utility exist in the codebase (see Component Tree) but are **not wired up** to any of the three `@for` loops — so despite `order` being modeled as a field, nothing in this feature actually sorts by it today.
@@ -93,46 +93,46 @@ AboutComponent                 (about.component.ts)      selector: app-about
 **This feature uses no GraphQL at all** — a full read of every file under `about/` confirms there is no ``gql` `` tagged template, no Apollo `query`/`mutate` call, and no import from `src/app/models/query` or `src/app/models/mutation.ts` anywhere in this directory. The `/about` page is the one major exception in the app that talks directly to Firestore instead of the Django/GraphQL backend. Nothing here needs tracing into the `rosak_backend` schema.
 
 - **Firebase Firestore (read-only, real-time):**
-    - **Provider setup:** `/home/kwongtn/rosak_firebase/src/app/app.module.ts:91,93` — `provideFirebaseApp(() => initializeApp(environment.firebase))` and `provideFirestore(() => getFirestore())`, using the Firebase project credentials in `environment.firebase` (project `rosak-7223b`; see `/home/kwongtn/rosak_firebase/src/environments/environment.ts:9-17`). No Firestore emulator is configured, so this connects to the **live production Firestore project** even when the app is run locally (`ng serve`).
-    - **Read:** `onSnapshot(doc(firestore, "public", "about"), callback)` — `about.component.ts:47-57`. Subscribes to document path `public/about`. Live-updates on every remote write. No `getDoc()`/one-shot fetch is used anywhere in this feature.
-    - **Document shape** (frontend-assumed, from `/home/kwongtn/rosak_firebase/src/app/about/models/firestore.ts`, cast via `as PublicAboutDocument` — Firestore does not enforce this at the database level):
-        ```ts
-        interface PublicAboutDocument {
-            personnel: Personnel[];
-            techStacks: TechStack[];
-            projects: Project[];
-            aboutProject: string;
-        }
-        interface Personnel {
-            name: string;
-            avatar: string;
-            title: string;
-            description: string;
-            display: boolean;
-            order: number;
-            socials: {
-                link: string;
-                name: string;
-                type: "github" | "linkedin" | "instagram";
-            }[];
-        }
-        interface Project {
-            description: string;
-            name: string;
-            startDate: Date; // never rendered in the UI
-            display: boolean;
-            status: "alpha" | "beta" | "stable" | "planned";
-        }
-        interface TechStack {
-            description: string;
-            name: string;
-            iconUrl: string;
-            url: string;
-            // no `display` field
-        }
-        ```
-    - **Write:** none. This feature performs zero writes to Firestore (or anywhere else). The `public/about` document must be populated/maintained by some other mechanism (Firebase console, a script, or an admin tool not present in `rosak_firebase`).
-    - **Security rules:** no `firestore.rules` file exists anywhere in this repo, so read/write access rules for the `public/about` document cannot be confirmed from this codebase — they live either in the Firebase console directly or in a separate infrastructure repo not available here (see Open Questions).
+  - **Provider setup:** `/home/kwongtn/rosak_firebase/src/app/app.module.ts:91,93` — `provideFirebaseApp(() => initializeApp(environment.firebase))` and `provideFirestore(() => getFirestore())`, using the Firebase project credentials in `environment.firebase` (project `rosak-7223b`; see `/home/kwongtn/rosak_firebase/src/environments/environment.ts:9-17`). No Firestore emulator is configured, so this connects to the **live production Firestore project** even when the app is run locally (`ng serve`).
+  - **Read:** `onSnapshot(doc(firestore, "public", "about"), callback)` — `about.component.ts:47-57`. Subscribes to document path `public/about`. Live-updates on every remote write. No `getDoc()`/one-shot fetch is used anywhere in this feature.
+  - **Document shape** (frontend-assumed, from `/home/kwongtn/rosak_firebase/src/app/about/models/firestore.ts`, cast via `as PublicAboutDocument` — Firestore does not enforce this at the database level):
+    ```ts
+    interface PublicAboutDocument {
+      personnel: Personnel[];
+      techStacks: TechStack[];
+      projects: Project[];
+      aboutProject: string;
+    }
+    interface Personnel {
+      name: string;
+      avatar: string;
+      title: string;
+      description: string;
+      display: boolean;
+      order: number;
+      socials: {
+        link: string;
+        name: string;
+        type: "github" | "linkedin" | "instagram";
+      }[];
+    }
+    interface Project {
+      description: string;
+      name: string;
+      startDate: Date; // never rendered in the UI
+      display: boolean;
+      status: "alpha" | "beta" | "stable" | "planned";
+    }
+    interface TechStack {
+      description: string;
+      name: string;
+      iconUrl: string;
+      url: string;
+      // no `display` field
+    }
+    ```
+  - **Write:** none. This feature performs zero writes to Firestore (or anywhere else). The `public/about` document must be populated/maintained by some other mechanism (Firebase console, a script, or an admin tool not present in `rosak_firebase`).
+  - **Security rules:** no `firestore.rules` file exists anywhere in this repo, so read/write access rules for the `public/about` document cannot be confirmed from this codebase — they live either in the Firebase console directly or in a separate infrastructure repo not available here (see Open Questions).
 - **REST:** none used in this feature.
 - **Firebase Auth:** not used directly by any file under `about/` (no guard, no `AuthService` injection, no `*ngIf` on auth state anywhere in this feature's templates).
 - **Firebase Analytics:** not used directly by any file under `about/` (the app-wide `Analytics` provider is injected in `AppComponent`, not here).

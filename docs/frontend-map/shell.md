@@ -24,13 +24,13 @@ lazy route is fetched on first navigation to it, not preloaded in the background
 
 ```ts
 function redirectUnauthorizedToSpotting(): AuthPipe {
-    return redirectUnauthorizedTo(["spotting"]);
+  return redirectUnauthorizedTo(["spotting"]);
 }
 function adminOnly(): AuthPipe {
-    return hasCustomClaim("admin");
+  return hasCustomClaim("admin");
 }
 function betaTesterOnly(): AuthPipe {
-    return hasCustomClaim("betaTester");
+  return hasCustomClaim("betaTester");
 }
 ```
 
@@ -78,36 +78,32 @@ consequences (see Known Quirks):
 
 - **`loadComponent`-style** (gallery, spotting, spotting/:id, tracker, console, profile): the
   maintenance check lives _inside_ the dynamic `import().then(...)` callback, e.g.
-    ```ts
-    loadComponent: () => {
-        if (maintenance.gallery.curentlyInMaintenance) {
-            return import("./construction/construction.component").then(
-                (m) => m.ConstructionComponent
-            );
-        } else {
-            return import("./gallery/gallery.component").then(
-                (m) => m.GalleryComponent
-            );
-        }
-    };
-    ```
-    Both branches are genuinely lazy/code-split; nothing from either branch loads until the user
-    navigates to that specific route.
+  ```ts
+  loadComponent: () => {
+    if (maintenance.gallery.curentlyInMaintenance) {
+      return import("./construction/construction.component").then((m) => m.ConstructionComponent);
+    } else {
+      return import("./gallery/gallery.component").then((m) => m.GalleryComponent);
+    }
+  };
+  ```
+  Both branches are genuinely lazy/code-split; nothing from either branch loads until the user
+  navigates to that specific route.
 - **`loadChildren` + eager `component`-style** (insiden, situasi): the maintenance check runs
   **synchronously at route-table construction time** (i.e. at app bootstrap) to pick between two
   **already-statically-imported** classes for the `component:` property, e.g.
-    ```ts
-    component: maintenance.spotting.curentlyInMaintenance   // <- bug, see Known Quirks
-        ? ConstructionComponent
-        : InsidenMainComponent,
-    ```
-    `ConstructionComponent`, `InsidenMainComponent`, and `SituasiComponent` are all imported via
-    plain top-of-file `import` statements (app-routing.module.ts:10-12), because a `Route.component`
-    must be a synchronous class reference — Angular's `Route` type has no async form for it. The
-    `loadChildren` callback alongside it does still dynamically `import()` the real feature module
-    (or `ConstructionModule`), but for these two routes that module registers **no** child routes
-    of its own (see Component Tree) — the actually-rendered component is whichever class the
-    `component:` ternary already resolved to at bootstrap.
+  ```ts
+  component: maintenance.spotting.curentlyInMaintenance   // <- bug, see Known Quirks
+      ? ConstructionComponent
+      : InsidenMainComponent,
+  ```
+  `ConstructionComponent`, `InsidenMainComponent`, and `SituasiComponent` are all imported via
+  plain top-of-file `import` statements (app-routing.module.ts:10-12), because a `Route.component`
+  must be a synchronous class reference — Angular's `Route` type has no async form for it. The
+  `loadChildren` callback alongside it does still dynamically `import()` the real feature module
+  (or `ConstructionModule`), but for these two routes that module registers **no** child routes
+  of its own (see Component Tree) — the actually-rendered component is whichever class the
+  `component:` ternary already resolved to at bootstrap.
 
 ### Canonical route table
 
@@ -214,20 +210,20 @@ Communication notes:
   title `" Malaysia Land Public Transport Fans "` (app.component.ts:16). This string is what's
   bound into `<d-header-logo [name]="header">`.
 - **`ngOnInit`**:
-    - Subscribes to `authService.userData` (`BehaviorSubject<User|null|undefined>`): sets
-      `userAvatar` from `user.photoURL` (or `""`); adds an `"@Me" → /profile` menu item when
-      logged in, or removes both `/profile` and `/console` when logged out
-      (app.component.ts:122-139). Logs the raw `user` object to the console on every emission —
-      shipped debug logging (app.component.ts:124).
-    - Subscribes to `authService.customClaims` (`BehaviorSubject<ParsedToken|undefined>`): adds
-      `"Console"` (tag `"Admin"`, style `"danger"`) when the `admin` claim is present, else
-      removes it; adds `"Situasi"` **and** `"Tracker"` (both tag `"Alpha"`, style `"danger"`) when
-      `betaTester` is present, else removes both (app.component.ts:141-178). Also logs the raw
-      claims object on every emission (app.component.ts:142).
-    - Subscribes to `router.events` filtered to `NavigationEnd`: recomputes `header`, `routeKey`
-      (`router.url.split("/")[1]`), and two layout flags —
-      `applyPadding = !["situasi","tracker"].includes(routeKey)` and
-      `applyTopPadding = !["tracker"].includes(routeKey)` (app.component.ts:52-53,180-196).
+  - Subscribes to `authService.userData` (`BehaviorSubject<User|null|undefined>`): sets
+    `userAvatar` from `user.photoURL` (or `""`); adds an `"@Me" → /profile` menu item when
+    logged in, or removes both `/profile` and `/console` when logged out
+    (app.component.ts:122-139). Logs the raw `user` object to the console on every emission —
+    shipped debug logging (app.component.ts:124).
+  - Subscribes to `authService.customClaims` (`BehaviorSubject<ParsedToken|undefined>`): adds
+    `"Console"` (tag `"Admin"`, style `"danger"`) when the `admin` claim is present, else
+    removes it; adds `"Situasi"` **and** `"Tracker"` (both tag `"Alpha"`, style `"danger"`) when
+    `betaTester` is present, else removes both (app.component.ts:141-178). Also logs the raw
+    claims object on every emission (app.component.ts:142).
+  - Subscribes to `router.events` filtered to `NavigationEnd`: recomputes `header`, `routeKey`
+    (`router.url.split("/")[1]`), and two layout flags —
+    `applyPadding = !["situasi","tracker"].includes(routeKey)` and
+    `applyTopPadding = !["tracker"].includes(routeKey)` (app.component.ts:52-53,180-196).
 - **`ngOnDestroy`** calls `this.authService.userData.unsubscribe()` (app.component.ts:200) — see
   Known Quirks; this is almost certainly a latent bug rather than intentional cleanup.
 - **Template layout** (app.component.html): `<d-common-header>` wraps `<d-header-logo>` +
@@ -375,9 +371,9 @@ depth elsewhere):
 
 ```graphql
 mutation {
-    requestVerificationCode {
-        code
-    }
+  requestVerificationCode {
+    code
+  }
 }
 ```
 
@@ -484,20 +480,20 @@ singleton services plus `Router` events:
 
 1. **`ErrorHandler` provider likely never wires up the custom handler.**
    `app.module.ts:70-76`:
-    ```ts
-    {
-        provide: ErrorHandler,
-        useClass: GlobalErrorHandler,
-        useValue: Sentry.createErrorHandler({ showDialog: true }),
-    },
-    ```
-    specifies **both** `useClass` and `useValue` on one provider object. Angular's DI resolves
-    `useValue` before ever checking `useClass` (Angular core's provider-to-factory logic checks
-    `isValueProvider` — `useValue !== undefined` — first), so `Sentry.createErrorHandler(...)`
-    almost certainly wins and `GlobalErrorHandler` (`error-handler.ts` — which auto-reloads the
-    page 3 seconds after detecting a failed lazy-chunk load, i.e.
-    `/Loading chunk [\d]+ failed/`) is likely **dead code, never actually instantiated**. Not
-    confirmed by running the app; see Open Questions.
+   ```ts
+   {
+       provide: ErrorHandler,
+       useClass: GlobalErrorHandler,
+       useValue: Sentry.createErrorHandler({ showDialog: true }),
+   },
+   ```
+   specifies **both** `useClass` and `useValue` on one provider object. Angular's DI resolves
+   `useValue` before ever checking `useClass` (Angular core's provider-to-factory logic checks
+   `isValueProvider` — `useValue !== undefined` — first), so `Sentry.createErrorHandler(...)`
+   almost certainly wins and `GlobalErrorHandler` (`error-handler.ts` — which auto-reloads the
+   page 3 seconds after detecting a failed lazy-chunk load, i.e.
+   `/Loading chunk [\d]+ failed/`) is likely **dead code, never actually instantiated**. Not
+   confirmed by running the app; see Open Questions.
 2. **Copy-paste bug in the `insiden` maintenance switch.** `app-routing.module.ts:83-85`
    checks `maintenance.spotting.curentlyInMaintenance` for the `insiden` route's `component:`
    ternary, instead of `maintenance.insiden.curentlyInMaintenance` (which the `loadChildren`

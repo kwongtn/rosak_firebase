@@ -45,27 +45,27 @@
   `/home/kwongtn/rosak_firebase/src/app/situasi/situasi-routing.module.ts`, all rendered inside
   `SituasiComponent`'s `<router-outlet>`:
 
-    | Path (relative to `/situasi`) | Lazy module                                                          | Component                 |
-    | ----------------------------- | -------------------------------------------------------------------- | ------------------------- |
-    | `""`                          | `overall/overall.module.ts` → `OverallModule`                        | `OverallComponent`        |
-    | `:lineId`                     | `line/line.module.ts` → `LineModule`                                 | `LineComponent`           |
-    | `:lineId/vehicles`            | `vehicles/vehicles.module.ts` → `VehiclesModule`                     | `VehiclesComponent`       |
-    | `:lineId/vehicles/:tabName`   | `vehicles/vehicles.module.ts` → `VehiclesModule`                     | `VehiclesComponent`       |
-    | `:lineId/station`             | `stations/stations.module.ts` → `StationsModule`                     | `StationsComponent`       |
-    | `:lineId/vehicle/:assetId`    | `vehicle-details/vehicle-details.module.ts` → `VehicleDetailsModule` | `VehicleDetailsComponent` |
-    | `:lineId/station/:assetId`    | `station-details/station-details.module.ts` → `StationDetailsModule` | `StationDetailsComponent` |
+  | Path (relative to `/situasi`) | Lazy module                                                          | Component                 |
+  | ----------------------------- | -------------------------------------------------------------------- | ------------------------- |
+  | `""`                          | `overall/overall.module.ts` → `OverallModule`                        | `OverallComponent`        |
+  | `:lineId`                     | `line/line.module.ts` → `LineModule`                                 | `LineComponent`           |
+  | `:lineId/vehicles`            | `vehicles/vehicles.module.ts` → `VehiclesModule`                     | `VehiclesComponent`       |
+  | `:lineId/vehicles/:tabName`   | `vehicles/vehicles.module.ts` → `VehiclesModule`                     | `VehiclesComponent`       |
+  | `:lineId/station`             | `stations/stations.module.ts` → `StationsModule`                     | `StationsComponent`       |
+  | `:lineId/vehicle/:assetId`    | `vehicle-details/vehicle-details.module.ts` → `VehicleDetailsModule` | `VehicleDetailsComponent` |
+  | `:lineId/station/:assetId`    | `station-details/station-details.module.ts` → `StationDetailsModule` | `StationDetailsComponent` |
 
-    Both `loadChildren` **and** an eagerly-imported `component` are set on every route entry
-    (an unusual but functional Angular pattern — `component` renders immediately while
-    `loadChildren` lazy-loads that component's own feeding module for `providedIn`/pipe
-    registration purposes; since every child component here is declared with no routable
-    grandchildren of its own, in practice this just means the components are not really
-    "lazy" at the bytecode level, they're already referenced eagerly by
-    `situasi-routing.module.ts`'s top-level imports at lines 4-9).
+  Both `loadChildren` **and** an eagerly-imported `component` are set on every route entry
+  (an unusual but functional Angular pattern — `component` renders immediately while
+  `loadChildren` lazy-loads that component's own feeding module for `providedIn`/pipe
+  registration purposes; since every child component here is declared with no routable
+  grandchildren of its own, in practice this just means the components are not really
+  "lazy" at the bytecode level, they're already referenced eagerly by
+  `situasi-routing.module.ts`'s top-level imports at lines 4-9).
 
-    No route has a `redirectTo`; there is no explicit 404/child-not-found route inside
-    `situasi-routing.module.ts` (an unknown `:lineId` simply renders `LineComponent`/`OverallComponent`
-    with no data validation — see Functionality & Behavior).
+  No route has a `redirectTo`; there is no explicit 404/child-not-found route inside
+  `situasi-routing.module.ts` (an unknown `:lineId` simply renders `LineComponent`/`OverallComponent`
+  with no data validation — see Functionality & Behavior).
 
 ### Full path reference (with param meaning)
 
@@ -212,8 +212,8 @@ This is the most fully-built route in the feature.
 
 - **Tabs:** an `nz-tabset` with two tabs defined in `tabItems`
   (`vehicles/vehicles.component.ts:27-36`):
-    1. `statusHistory` → "Vehicle Status History" → renders `<ui-vehicle-status-history>`.
-    2. `spottingHeatmap` → "Spotting Line Calendar Heatmap" → renders `<spotting-line-calendar-heatmap>`.
+  1. `statusHistory` → "Vehicle Status History" → renders `<ui-vehicle-status-history>`.
+  2. `spottingHeatmap` → "Spotting Line Calendar Heatmap" → renders `<spotting-line-calendar-heatmap>`.
 - On `ngOnInit`, subscribes to `ActivatedRoute.params`; reads `lineId` from the route, and
   sets `tabActiveIndex` by looking up `params["tabName"]` against `tabItems[].href`
   (`vehicles.component.ts:47-65`). If `tabName` is absent or doesn't match either href,
@@ -392,49 +392,49 @@ This is the most fully-built route in the feature.
    Defined in `/home/kwongtn/rosak_firebase/src/app/situasi/vehicles/get-gql-data/get-gql-data.service.ts:28-45`
    (`GetGqlDataService extends Query<GetLineVehiclesResponse>`, used by `VehiclesComponent`).
 
-    ```graphql
-    query GetLinesAndVehicles($lineFilter: LineFilter) {
-        lines(filters: $lineFilter) {
-            id
-            code
-            displayName
-            chartographySources {
-                id
-                name
-                description
-                officialSite
-            }
-            vehicles {
-                id
-            }
-        }
-    }
-    ```
+   ```graphql
+   query GetLinesAndVehicles($lineFilter: LineFilter) {
+     lines(filters: $lineFilter) {
+       id
+       code
+       displayName
+       chartographySources {
+         id
+         name
+         description
+         officialSite
+       }
+       vehicles {
+         id
+       }
+     }
+   }
+   ```
 
-    - Backend field: `OperationScalars.lines` — `/home/kwongtn/rosak_backend/operation/schema/schema.py:28`
-      (`strawberry_django.field(filters=LineFilter)`), resolving to the
-      `operation.schema.scalars.Line` type (`operation/schema/scalars.py:40-151`).
-    - `LineFilter` (`/home/kwongtn/rosak_backend/operation/schema/filters.py:19-25`) supports
-      filtering by `id`, `code`, `display_name` (lookup), `display_color` (lookup). The
-      frontend only ever sends `{id: lineId}`.
-    - `Line.chartographySources` is a custom async resolver
-      (`operation/schema/scalars.py:129-151`) — it does **not** simply return a
-      `chartography_sources` relation; it derives the list by looking up every distinct
-      `chartography.LineVehicleStatusCountHistory` row for this line (matching either directly
-      by `line_id` or indirectly via `custom_line__mapped_lines`), collecting their
-      `Snapshot.source_id`s, and returning those `chartography.Source` rows. In other words:
-      "which data sources have ever produced a status snapshot for this line" — this is how
-      the frontend knows whether to enable the "MTREC" toggle in `ui-vehicle-status-history`.
-    - `Line.vehicles` is a custom async resolver using a DataLoader
-      (`vehicle_from_line_loader`, `operation/schema/scalars.py:64-72`) keyed on
-      `(line_id, spotted_today)`; the frontend passes no `spotted_today` arg, so it gets every
-      vehicle on the line. The frontend only reads `.length` off the result (to get
-      `vehicleCount`), discarding the rest of each `Vehicle` object (it only requests the `id`
-      field).
-    - No `permission_classes` / auth check on `lines` or on the `chartographySources`/`vehicles`
-      resolvers — **the GraphQL API for this data is not gated by the `betaTester` claim at
-      all**; the beta restriction exists only as a client-side Angular route guard (see
-      Permissions section).
+   - Backend field: `OperationScalars.lines` — `/home/kwongtn/rosak_backend/operation/schema/schema.py:28`
+     (`strawberry_django.field(filters=LineFilter)`), resolving to the
+     `operation.schema.scalars.Line` type (`operation/schema/scalars.py:40-151`).
+   - `LineFilter` (`/home/kwongtn/rosak_backend/operation/schema/filters.py:19-25`) supports
+     filtering by `id`, `code`, `display_name` (lookup), `display_color` (lookup). The
+     frontend only ever sends `{id: lineId}`.
+   - `Line.chartographySources` is a custom async resolver
+     (`operation/schema/scalars.py:129-151`) — it does **not** simply return a
+     `chartography_sources` relation; it derives the list by looking up every distinct
+     `chartography.LineVehicleStatusCountHistory` row for this line (matching either directly
+     by `line_id` or indirectly via `custom_line__mapped_lines`), collecting their
+     `Snapshot.source_id`s, and returning those `chartography.Source` rows. In other words:
+     "which data sources have ever produced a status snapshot for this line" — this is how
+     the frontend knows whether to enable the "MTREC" toggle in `ui-vehicle-status-history`.
+   - `Line.vehicles` is a custom async resolver using a DataLoader
+     (`vehicle_from_line_loader`, `operation/schema/scalars.py:64-72`) keyed on
+     `(line_id, spotted_today)`; the frontend passes no `spotted_today` arg, so it gets every
+     vehicle on the line. The frontend only reads `.length` off the result (to get
+     `vehicleCount`), discarding the rest of each `Vehicle` object (it only requests the `id`
+     field).
+   - No `permission_classes` / auth check on `lines` or on the `chartographySources`/`vehicles`
+     resolvers — **the GraphQL API for this data is not gated by the `betaTester` claim at
+     all**; the beta restriction exists only as a client-side Angular route guard (see
+     Permissions section).
 
 2. **`vehicles(filters: $vehicleFilter) { id identificationNo nickname }`** — dead/unused
    query defined in
@@ -459,48 +459,48 @@ Angular route. Routes declared in `/home/kwongtn/rosak_backend/operation/urls.py
    — used by `spotting-line-calendar-heatmap` (`@ui/spotting-line-calendar-heatmap/spotting-line-calendar-heatmap.component.ts:186`)
    as a raw CSV fetch (not via Angular `HttpClient`).
 
-    - View: `LineVehiclesSpottingTrend.get` (`operation/views.py:18-56`). Looks up every
-      `Vehicle` on the line (`operation_models.Vehicle.objects.filter(lines=line_id).in_bulk()`),
-      computes weekly spotting-event trend counts via `common.utils.get_trends` grouped by
-      `spotting_date` and `vehicle_id`, with `add_zero=True` (fills weeks with zero spottings
-      rather than omitting them). Returns a CSV (via `polars`) with columns `vehicle`
-      (the vehicle's `identification_no`, not its numeric id), `count`, `dateKey`, sorted by
-      `(vehicle, dateKey)`. Response `content_type: text/csv`, HTTP 200.
-    - No pagination; no error handling for an invalid `line_id` (would return an empty/short
-      CSV rather than a 404).
+   - View: `LineVehiclesSpottingTrend.get` (`operation/views.py:18-56`). Looks up every
+     `Vehicle` on the line (`operation_models.Vehicle.objects.filter(lines=line_id).in_bulk()`),
+     computes weekly spotting-event trend counts via `common.utils.get_trends` grouped by
+     `spotting_date` and `vehicle_id`, with `add_zero=True` (fills weeks with zero spottings
+     rather than omitting them). Returns a CSV (via `polars`) with columns `vehicle`
+     (the vehicle's `identification_no`, not its numeric id), `count`, `dateKey`, sorted by
+     `(vehicle, dateKey)`. Response `content_type: text/csv`, HTTP 200.
+   - No pagination; no error handling for an invalid `line_id` (would return an empty/short
+     CSV rather than a 404).
 
 2. **`GET operation/line_vehicles_status_trend_count/<int:line_id>/<slug:source_str>/<start_date>/<end_date>/`**
    — used by `ui-vehicle-status-history` via `GetDataService.getData`
    (`@ui/vehicle-status-history/services/get-data.service.ts:19-30`), JSON, through Angular `HttpClient`.
 
-    - View: `LineVehiclesStatusTrendCount.get` (`operation/views.py:59-99`).
-      `source_str` is looked up case-insensitively (`name__iexact`) against
-      `chartography.models.Source` — 404 if not found (`get_object_or_404`); same for
-      `line_id` against `operation.models.Line`. Queries
-      `chartography.models.LineVehicleStatusCountHistory` filtered by
-      `snapshot__source_id=source.id` and `snapshot.date` within `[start_date, end_date]`, and
-      matching the line either directly (`line_id=line.id`) or via a mapped custom line
-      (`custom_line__mapped_lines=line`) — i.e. some chartography snapshots are recorded
-      against a "custom line" grouping that maps onto one or more canonical `operation.Line`s.
-      Returns JSON array of `{status, count, date}` sorted by `f"{date}__{status}"` (lexical,
-      via Python `sorted`), HTTP 200.
-    - This is the endpoint whose `source_str` param is driven by the frontend's `MLPTF`/`MTREC`/`Prasarana`
-      segmented control (only `MLPTF`/`MTREC` are ever actually requestable since `Prasarana`
-      is permanently disabled client-side).
+   - View: `LineVehiclesStatusTrendCount.get` (`operation/views.py:59-99`).
+     `source_str` is looked up case-insensitively (`name__iexact`) against
+     `chartography.models.Source` — 404 if not found (`get_object_or_404`); same for
+     `line_id` against `operation.models.Line`. Queries
+     `chartography.models.LineVehicleStatusCountHistory` filtered by
+     `snapshot__source_id=source.id` and `snapshot.date` within `[start_date, end_date]`, and
+     matching the line either directly (`line_id=line.id`) or via a mapped custom line
+     (`custom_line__mapped_lines=line`) — i.e. some chartography snapshots are recorded
+     against a "custom line" grouping that maps onto one or more canonical `operation.Line`s.
+     Returns JSON array of `{status, count, date}` sorted by `f"{date}__{status}"` (lexical,
+     via Python `sorted`), HTTP 200.
+   - This is the endpoint whose `source_str` param is driven by the frontend's `MLPTF`/`MTREC`/`Prasarana`
+     segmented control (only `MLPTF`/`MTREC` are ever actually requestable since `Prasarana`
+     is permanently disabled client-side).
 
 3. **`GET operation/vehicle_spotting_trend/<int:vehicle_id>/<start_date>/<end_date>/`**
    — used by `spotting-vehicle-calendar-heatmap` via `GetDataService.getData`
    (`@ui/spotting-vehicle-calendar-heatmap/services/get-data/get-data.service.ts:19-42`), JSON.
-    - View: `VehicleSpottingTrend.get` (`operation/views.py:102-155`). Computes **daily**
-      (`DateGroupings.DAY`) spotting-event trend counts for the single vehicle via
-      `common.utils.get_trends` (`filters=Q(vehicle_id=vehicle_id)`, `add_zero=True`,
-      `free_range=False`), returning per-day `count`, `dateKey`, `dayOfWeek`, `yearWeek`,
-      `isLastDayOfMonth`, `isLastWeekOfMonth`. Additionally builds a `mappings.yearWeek`
-      dict — a dense 0-based index assigned to each distinct ISO `(year, week)` pair present in
-      the result set, sorted chronologically (`operation/views.py:128-145`) — this is the
-      index the frontend heatmap uses directly as its X-axis category, so gaps in weeks with
-      zero data still get compact/contiguous X positions.
-    - No 404 handling for an unknown `vehicle_id` — would just return an all-zero/empty trend.
+   - View: `VehicleSpottingTrend.get` (`operation/views.py:102-155`). Computes **daily**
+     (`DateGroupings.DAY`) spotting-event trend counts for the single vehicle via
+     `common.utils.get_trends` (`filters=Q(vehicle_id=vehicle_id)`, `add_zero=True`,
+     `free_range=False`), returning per-day `count`, `dateKey`, `dayOfWeek`, `yearWeek`,
+     `isLastDayOfMonth`, `isLastWeekOfMonth`. Additionally builds a `mappings.yearWeek`
+     dict — a dense 0-based index assigned to each distinct ISO `(year, week)` pair present in
+     the result set, sorted chronologically (`operation/views.py:128-145`) — this is the
+     index the frontend heatmap uses directly as its X-axis category, so gaps in weeks with
+     zero data still get compact/contiguous X positions.
+   - No 404 handling for an unknown `vehicle_id` — would just return an all-zero/empty trend.
 
 ### Firebase / browser storage
 

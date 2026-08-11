@@ -1,0 +1,23 @@
+# Firebase App Hosting config for the rewritten frontend.
+# This file only configures the build/runtime — it does not itself create or deploy the App
+# Hosting backend. See docs/frontend-map/00-overview.md for the wider rewrite context.
+runConfig:
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: BACKEND_URL
+    value: https://api-community.mlptf.org.my/
+    availability: [BUILD, RUNTIME]
+  - variable: BACKEND_GRAPHQL_URL
+    value: https://api-community.mlptf.org.my/graphql/
+    availability: [BUILD, RUNTIME]
+  # Auto-populated by App Hosting with the linked Firebase Web App's SDK config, once one is
+  # linked (Console/CLI: App Hosting → this backend → linked web app). Consumed at build time by
+  # scripts/generate-firebase-config.mjs; falls back to hardcoded values when unset (local dev,
+  # or before a web app is linked).
+  - variable: FIREBASE_WEBAPP_CONFIG
+    availability: [BUILD]

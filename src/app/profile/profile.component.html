@@ -1,9 +1,0 @@
-<profile-user [user]="user" [loading]="loading" [displayData]="data" />
-
-<div class="historical-spottings">
-    <h2>Historical Spottings</h2>
-    @if (!loading) {
-        <profile-spotting-trends [data]="data ? data.spottingTrends : []" />
-    }
-    <profile-spottings />
-</div>
