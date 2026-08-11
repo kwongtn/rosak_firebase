@@ -26,7 +26,10 @@ function resolveConfig() {
     return FALLBACK;
   }
   try {
-    return JSON.parse(raw);
+    // Spread over FALLBACK rather than returning the parsed value as-is: App Hosting's
+    // auto-populated config omits fields the linked Web App doesn't have set (e.g.
+    // measurementId when Analytics isn't enabled), but Environment['firebase'] requires them.
+    return { ...FALLBACK, ...JSON.parse(raw) };
   } catch {
     console.warn(
       "[generate-firebase-config] FIREBASE_WEBAPP_CONFIG is set but isn't valid JSON — using fallback.",
