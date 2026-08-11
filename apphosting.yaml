@@ -15,9 +15,7 @@ env:
   - variable: BACKEND_GRAPHQL_URL
     value: https://api-community.mlptf.org.my/graphql/
     availability: [BUILD, RUNTIME]
-  # Auto-populated by App Hosting with the linked Firebase Web App's SDK config, once one is
-  # linked (Console/CLI: App Hosting → this backend → linked web app). Consumed at build time by
-  # scripts/generate-firebase-config.mjs; falls back to hardcoded values when unset (local dev,
-  # or before a web app is linked).
-  - variable: FIREBASE_WEBAPP_CONFIG
-    availability: [BUILD]
+  # FIREBASE_WEBAPP_CONFIG is not declared here: App Hosting auto-populates it at build time
+  # with the linked Firebase Web App's SDK config (Console/CLI: App Hosting → this backend →
+  # linked web app), consumed by scripts/generate-firebase-config.mjs. An env entry for it is
+  # only needed to override that default with an explicit value/secret.
