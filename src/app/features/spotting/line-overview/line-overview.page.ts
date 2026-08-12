@@ -121,37 +121,39 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
         </div>
       </div>
 
-      @if (vehicleTypesResource.isLoading()) {
-        <div class="flex flex-col gap-3">
-          <div hlmSkeleton class="h-24 w-full"></div>
-          <div hlmSkeleton class="h-24 w-full"></div>
-        </div>
-      } @else if (vehicleTypesResource.hasError()) {
+      @if (vehicleTypesResource.hasError()) {
         <app-retry-banner
           [resource]="vehicleTypesResource"
           message="Couldn't load this line's fleet."
         />
       } @else {
-        <app-line-status-board [vehicleTypes]="_vehicleTypes()" />
-
-        <app-fleet-summary
-          #fleetSummaryAnchor
-          class="fleet-summary-merge-anchor"
+        <app-line-status-board
           [vehicleTypes]="_vehicleTypes()"
-          [activeStatus]="statusFilter()"
-          (statusSelected)="statusFilter.set($event)"
+          [isLoading]="vehicleTypesResource.isLoading()"
         />
 
-        <div class="flex flex-col gap-6">
-          @for (vehicleType of _vehicleTypes(); track vehicleType.id) {
-            <app-vehicle-list
-              [vehicleType]="vehicleType"
-              [statusFilter]="statusFilter()"
-              [stickyOffset]="vehicleListStickyTop()"
-              (statusSelected)="statusFilter.set($event)"
-            />
-          }
-        </div>
+        @if (vehicleTypesResource.isLoading()) {
+          <div hlmSkeleton class="h-24 w-full"></div>
+        } @else {
+          <app-fleet-summary
+            #fleetSummaryAnchor
+            class="fleet-summary-merge-anchor"
+            [vehicleTypes]="_vehicleTypes()"
+            [activeStatus]="statusFilter()"
+            (statusSelected)="statusFilter.set($event)"
+          />
+
+          <div class="flex flex-col gap-6">
+            @for (vehicleType of _vehicleTypes(); track vehicleType.id) {
+              <app-vehicle-list
+                [vehicleType]="vehicleType"
+                [statusFilter]="statusFilter()"
+                [stickyOffset]="vehicleListStickyTop()"
+                (statusSelected)="statusFilter.set($event)"
+              />
+            }
+          </div>
+        }
       }
     </div>
   `,

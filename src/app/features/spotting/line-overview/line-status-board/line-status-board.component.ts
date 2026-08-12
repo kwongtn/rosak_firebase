@@ -1,6 +1,7 @@
 import { Component, computed, input } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { HlmCardImports } from "../../../../ui/card/card";
+import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { VehicleType, VehicleRow } from "../../data/spotting.queries";
 
 interface BoardStat {
@@ -9,40 +10,59 @@ interface BoardStat {
   hint?: string;
 }
 
+/** Matches the up-to-4 real cards (3 stats + an optional "Most Recently Spotted") so the
+ * skeleton occupies the same grid shape the loaded board settles into, rather than a
+ * differently-sized placeholder that reflows once real data arrives. */
+const SKELETON_CARD_COUNT = 4;
+
 /**
  * At-a-glance line health stats — fleet composition and spotting-coverage signals, distinct from
  * the status chips below it (which are per-status counts, not coverage/engagement metrics).
  */
 @Component({
   selector: "app-line-status-board",
-  imports: [DatePipe, ...HlmCardImports],
+  imports: [DatePipe, HlmSkeleton, ...HlmCardImports],
   template: `
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      @for (stat of _stats(); track stat.label) {
-        <div hlmCard>
-          <div hlmCardContent>
-            <p class="text-muted-foreground text-xs">{{ stat.label }}</p>
-            <p class="text-lg font-semibold">{{ stat.value }}</p>
-            @if (stat.hint) {
-              <p class="text-muted-foreground text-xs">{{ stat.hint }}</p>
-            }
+      @if (isLoading()) {
+        @for (_ of skeletonCards; track $index) {
+          <div hlmCard>
+            <div hlmCardContent class="flex flex-col gap-2">
+              <div hlmSkeleton class="h-3 w-20"></div>
+              <div hlmSkeleton class="h-5 w-14"></div>
+            </div>
           </div>
-        </div>
-      }
-      @if (_mostRecent(); as vehicle) {
-        <div hlmCard>
-          <div hlmCardContent>
-            <p class="text-muted-foreground text-xs">Most Recently Spotted</p>
-            <p class="text-lg font-semibold">{{ vehicle.identificationNo }}</p>
-            <p class="text-muted-foreground text-xs">{{ vehicle.lastSpottingDate | date }}</p>
+        }
+      } @else {
+        @for (stat of _stats(); track stat.label) {
+          <div hlmCard>
+            <div hlmCardContent>
+              <p class="text-muted-foreground text-xs">{{ stat.label }}</p>
+              <p class="text-lg font-semibold">{{ stat.value }}</p>
+              @if (stat.hint) {
+                <p class="text-muted-foreground text-xs">{{ stat.hint }}</p>
+              }
+            </div>
           </div>
-        </div>
+        }
+        @if (_mostRecent(); as vehicle) {
+          <div hlmCard>
+            <div hlmCardContent>
+              <p class="text-muted-foreground text-xs">Most Recently Spotted</p>
+              <p class="text-lg font-semibold">{{ vehicle.identificationNo }}</p>
+              <p class="text-muted-foreground text-xs">{{ vehicle.lastSpottingDate | date }}</p>
+            </div>
+          </div>
+        }
       }
     </div>
   `,
 })
 export class LineStatusBoardComponent {
   readonly vehicleTypes = input.required<VehicleType[]>();
+  readonly isLoading = input(false);
+
+  protected readonly skeletonCards = Array.from({ length: SKELETON_CARD_COUNT });
 
   private readonly _vehicles = computed(() => this.vehicleTypes().flatMap((t) => t.vehicles));
 
