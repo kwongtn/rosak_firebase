@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "prestart": "node scripts/generate-build-info.mjs && node scripts/generate-firebase-config.mjs",
+    "prestart": "node scripts/generate-build-info.mjs && node scripts/generate-firebase-config.mjs && node scripts/generate-runtime-config.mjs",
     "start": "ng serve",
-    "prebuild": "node scripts/generate-build-info.mjs && node scripts/generate-firebase-config.mjs",
+    "prebuild": "node scripts/generate-build-info.mjs && node scripts/generate-firebase-config.mjs && node scripts/generate-runtime-config.mjs",
     "build": "ng build",
     "postbuild": "node scripts/sentry-sourcemaps.mjs",
     "watch": "ng build --watch --configuration development",

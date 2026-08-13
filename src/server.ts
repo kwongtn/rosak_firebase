@@ -7,6 +7,7 @@ import {
 } from "@angular/ssr/node";
 import express from "express";
 import { join } from "node:path";
+import { environment } from "./environments/environment";
 import { sentrySharedOptions } from "./sentry-options";
 
 // As early as possible, before anything below it that could throw — this is the SSR-side
@@ -18,7 +19,7 @@ import { sentrySharedOptions } from "./sentry-options";
 Sentry.init({
   ...sentrySharedOptions,
   integrations: [Sentry.httpIntegration()],
-  tracesSampleRate: sentrySharedOptions.environment === "production" ? 0.2 : 1.0,
+  tracesSampleRate: environment.production ? 0.2 : 1.0,
 });
 
 const browserDistFolder = join(import.meta.dirname, "../browser");

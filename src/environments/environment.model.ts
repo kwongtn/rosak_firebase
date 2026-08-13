@@ -1,5 +1,9 @@
 export interface Environment {
   production: boolean;
+  /** Label for the Sentry `environment` tag (see sentry-options.ts) — "production" | "staging" |
+   * "development". Kept separate from `production` above: staging is `production: true` (it's
+   * an optimized, non-dev build) but still needs to be distinguishable from prod in Sentry. */
+  environmentName: string;
   backendUrl: string;
   backendGraphqlUrl: string;
   firebase: {

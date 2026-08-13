@@ -1,6 +1,12 @@
 # Firebase App Hosting config for the rewritten frontend.
 # This file only configures the build/runtime — it does not itself create or deploy the App
 # Hosting backend. See docs/frontend-map/00-overview.md for the wider rewrite context.
+#
+# This is the base/production config. A backend picks it up directly unless it has its own
+# "Environment name" set (Console: backend → Settings → Environment) pointing at an
+# apphosting.<name>.yaml override — see apphosting.staging.yaml, used by the "rosak-staging"
+# backend. Values below are merged with, and take priority over, an environment-specific file's
+# omissions. See scripts/generate-runtime-config.mjs for how these env vars reach the app.
 runConfig:
   minInstances: 0
   maxInstances: 4
@@ -15,6 +21,18 @@ env:
   - variable: BACKEND_GRAPHQL_URL
     value: https://api-community.mlptf.org.my/graphql/
     availability: [BUILD, RUNTIME]
+  - variable: MAPBOX_TOKEN
+    value: pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbHd3eGIxazEwd2tsMm5yM3NyYmt4b2s4In0.l1ThIQzGXxoPDY3VyMtC-Q
+    availability: [BUILD]
+  - variable: CAPTCHA_SITE_KEY
+    value: 6Le4ekQhAAAAAKu_C7LTyylJfe8Q8Gv5fiNFx_kj
+    availability: [BUILD]
+  - variable: ENVIRONMENT_NAME
+    value: production
+    availability: [BUILD]
+  - variable: UPLOAD_CONCURRENCY
+    value: "5"
+    availability: [BUILD]
   # FIREBASE_WEBAPP_CONFIG is not declared here: App Hosting auto-populates it at build time
   # with the linked Firebase Web App's SDK config (Console/CLI: App Hosting → this backend →
   # linked web app), consumed by scripts/generate-firebase-config.mjs. An env entry for it is

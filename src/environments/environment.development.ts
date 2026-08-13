@@ -3,6 +3,7 @@ import { firebaseConfig } from "./firebase-config.generated";
 
 export const environment: Environment = {
   production: false,
+  environmentName: "development",
   backendUrl: "http://localhost:8000/",
   backendGraphqlUrl: "http://localhost:8000/graphql/",
   firebase: firebaseConfig,

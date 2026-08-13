@@ -12,7 +12,7 @@ import { environment } from "./environments/environment";
  */
 export const sentrySharedOptions = {
   dsn: environment.sentry.dsn,
-  environment: environment.production ? "production" : "development",
+  environment: environment.environmentName,
   /** The current deploy's short git hash (see scripts/generate-build-info.mjs) — ties every
    * error report to exactly the build that produced it, the same identifier already shown in
    * the page footer. */

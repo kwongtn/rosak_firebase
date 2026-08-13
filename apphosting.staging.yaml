@@ -1,0 +1,21 @@
+# Environment-specific override for backends whose "Environment name" (Console: backend →
+# Settings → Environment) is set to "staging" — currently the "rosak-staging" backend. Merged
+# over apphosting.yaml, taking priority; any variable not listed here (e.g. CAPTCHA_SITE_KEY,
+# runConfig) falls back to the base file's value. See apphosting.yaml's own header comment and
+# scripts/generate-runtime-config.mjs.
+env:
+  - variable: BACKEND_URL
+    value: https://rosak-staging.kwongtn.xyz/
+    availability: [BUILD, RUNTIME]
+  - variable: BACKEND_GRAPHQL_URL
+    value: https://rosak-staging.kwongtn.xyz/graphql/
+    availability: [BUILD, RUNTIME]
+  - variable: MAPBOX_TOKEN
+    value: pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbHd3eDlibHUxMGV0MmxzN2E0eG04MGl0In0.LVf9Nq5laopxg5y4hy8i_w
+    availability: [BUILD]
+  - variable: ENVIRONMENT_NAME
+    value: staging
+    availability: [BUILD]
+  - variable: UPLOAD_CONCURRENCY
+    value: "10"
+    availability: [BUILD]
