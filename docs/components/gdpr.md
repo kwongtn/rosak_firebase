@@ -82,6 +82,33 @@
   payload later, matching the comment's note that there is "no SSR benefit" today only because the
   content changes by hand, not by request.
 
+## 💡 Potential Feature Opportunities
+
+- **Distinguish "still loading" from "failed to load":** Ready now — the Extension Points section
+  already names this exact gap: the `onSnapshot` error callback only clears `isLoading`, so a read
+  failure renders identically to an empty document. Adding a small `isError` signal set from that
+  same error callback, plus a distinct error branch in `gdpr.page.html`, is a self-contained,
+  additive change.
+- **Filter by adherence status ("show only not-adhered"):** Ready now — every `GdprDetailChild`
+  already carries the `adhered` boolean the badge renders from, and the template already tracks
+  each child by `child.title`. A `computed()` filter layered on top of the existing `details()`
+  signal (driven by a new small filter-state signal) needs no Firestore schema change.
+- **Deep-link directly to one compliance item:** Ready now — `group.title` / `child.title` are
+  already used as the `@for` `track` keys, so they're effectively stable identifiers. Slugifying
+  them into element `id`s and reading a URL fragment inside the existing `isPlatformBrowser` guard
+  would let a shared link auto-scroll to (and expand) one specific item.
+- **Bulk expand/collapse all:** Not ready today. Each item is a native `<details open>` element
+  that owns its own open/closed state in the DOM (a deliberate simplification noted in the file's
+  header comment) — there is no component-managed signal to toggle en masse. Context for future
+  LLMs: this requires replacing the native-`<details>` approach with a signal-backed open/closed
+  set (e.g. `WritableSignal<Set<string>>` keyed by title) before "Expand all" / "Collapse all"
+  controls become possible.
+- **Surface a "last reviewed" date per item:** Not ready today. The Extension Points section
+  flags a last-reviewed date as a natural schema addition, but `GdprDetail` / `GdprDetailChild`
+  (`src/app/features/gdpr/data/gdpr.model.ts`) currently has no timestamp field at all. Context for
+  future LLMs: this needs a CMS/Firestore field added to the `public/gdpr` document (and whatever
+  admin tool authors it) before any model or template change is possible.
+
 ## 💡 Potential AI Feature Opportunities
 
 - **Compliance drafting/review assistant:** Since each checklist item already carries a

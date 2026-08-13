@@ -68,6 +68,37 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
   the interface, add a computed signal, add a template block; no breaking change to existing
   consumers of the doc.
 
+## 💡 Potential Feature Opportunities
+
+- **Client-side search/filter across personnel and projects:** `personnel` and `projects` are
+  already `computed()` signals derived from `_data` after a `display` filter (and, for
+  `personnel`, a sort by `order`) — folding a `searchTerm` signal into those same `computed()`s
+  to match against `name`/`title`/`description` is a small additive change on an existing seam.
+  Ready now.
+- **Explicit connection-error state:** the `onSnapshot` error callback in `about.page.ts` today
+  only does `() => this.isLoading.set(false)` — a failed subscription renders identically to an
+  empty doc, with no user-visible distinction or retry. Not ready as-is: needs a new `hasError`
+  signal set inside that error callback plus an `@if` branch in `about.page.html` (with a retry
+  action that re-invokes the existing `onSnapshot` subscription logic in the constructor).
+  Context for future LLMs: no error signal or error UI currently exists on this page at all.
+- **Chronological project timeline:** `Project` already carries a `startDate: string` field in
+  `about.model.ts`, but the `projects` computed signal only filters by `display` — it is never
+  sorted. Ready now: add a `.sort()` by parsed `startDate` in the same `computed()` (mirroring
+  the existing `order`-based sort already used for `personnel`) to render projects oldest/newest
+  first without any model or Firestore change.
+- **Share/copy-link buttons on personnel and project cards:** `PersonnelSocial` already types a
+  closed set of platforms (`"github" | "linkedin" | "instagram"`) rendered per person, and the
+  page already gates all browser-only work behind `isPlatformBrowser(inject(PLATFORM_ID))` for
+  the Firestore subscription. Ready now: a "copy profile link" or native share button per card
+  can reuse that same browser guard and the existing `HlmButton` directive — no new service
+  needed.
+- **Deep-linkable sections (e.g. `/about#personnel`):** `AboutPage` currently takes no route
+  params and never injects `ActivatedRoute` — the three sections (projects, personnel, tech
+  stack) have no addressable anchors. Not ready yet: would need `ActivatedRoute`/`fragment`
+  injected in the constructor (a new dependency for this component) and stable `id` attributes
+  added to each section in `about.page.html`; worth doing since the content is already segmented
+  into exactly these three blocks, but the wiring doesn't exist today.
+
 ## 💡 Potential AI Feature Opportunities
 
 - **AI-assisted CMS editing:** since `public/about` is hand-edited with no in-app UI, an

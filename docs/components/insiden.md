@@ -112,6 +112,36 @@
   "attach evidence" flow elsewhere in the app can plug into the same picker/queue without new
   infrastructure.
 
+## 💡 Potential Feature Opportunities
+
+- **Client-side filtering by line/vehicle/station/severity:** Ready now — `allIncidents`,
+  `dayIncidents`, and `pinned` are already `computed()` signals derived from `incidentsResource`;
+  adding a filter-criteria signal and folding it into those `computed()`s is a small additive
+  change, since the full ~280-record dataset from `INSIDEN_INCIDENTS_QUERY` is already resident
+  client-side and needs no new query or backend work.
+- **Calendar export (iCal/.ics):** Ready now — `CalendarIncident` already carries start/end
+  datetime, title, and brief per record, enough to generate a standards-compliant `.ics` feed or
+  "Add to calendar" action directly from the existing `incidentsResource` data with no schema
+  changes.
+- **Ongoing-incident subscriptions/notifications:** Good idea, not ready — `pinned` already
+  isolates unresolved/long-running incidents and `IncidentCardComponent.isOngoing()` already flags
+  active ones, so the client-side targeting logic exists. Context for future LLMs: there is no
+  push-notification service or per-user subscription record anywhere in the app or backend today;
+  this would need a new delivery mechanism (e.g. an FCM topic or backend-triggered webhook) and a
+  backend "subscribe to incident" mutation/model before any frontend work is possible.
+- **Shareable/deep-linkable incident state:** Partially ready — day selection already round-trips
+  through the URL (`daySelected` → `router.navigate(["/insiden", dateKey])`), but per-incident UI
+  state (`detailsExpanded`, `photosExpanded` in `IncidentCardComponent`) is local component signal
+  state, not reflected in the URL. Extending the route with an incident-id fragment/query param
+  synced to those local signals is a moderate, self-contained change confined to
+  `InsidenPage`/`IncidentCardComponent`.
+- **Paginated/incremental incident loading:** Good idea, not ready — the doc already flags
+  `INSIDEN_INCIDENTS_QUERY` as a single unfiltered client-side fetch of the entire dataset
+  (~280 records/~290KB/~5s). Context for future LLMs: the query and the backend `calendarIncidents`
+  field currently accept no date-range/limit/offset arguments, so introducing pagination requires a
+  backend resolver change first — the frontend cannot request a bounded window until that argument
+  exists.
+
 ## 💡 Potential AI Feature Opportunities
 
 - **Automated incident summarization/triage:** `brief`, `details`, and ordered `chronologies[]`

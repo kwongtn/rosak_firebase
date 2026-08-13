@@ -122,6 +122,39 @@ input<string | null>(null)`.
   behavior (retry caps, jitter, circuit-breaking) can be tuned or extended without touching the
   map or UI layers that merely observe its signals.
 
+## 💡 Potential Feature Opportunities
+
+- **Shareable/deep-linkable map views:** `LayerSelectionService`'s applied signals
+  (`appliedRealtimeChecked`/`appliedStopsChecked`/`appliedRailway`) already represent the single
+  source of truth for what's live on the map, so serializing them to query params (and reading
+  them back on load to seed the draft before `apply()`) is a small additive change — no new state
+  model needed, just a sync point between the existing signals and the router.
+- **In-panel vehicle/stop search or filter:** `TrackerInfoPanelComponent` already freezes a
+  `snapshotVehicles` array and renders it as a sortable table; adding a text filter or column
+  search is additive on top of that existing snapshot rather than a new data path, and wouldn't
+  disturb the deliberate live/snapshot decoupling (`isStale`) design.
+- **Center-on-me / geolocation follow:** `TrackerMapComponent` owns the single `Scene` instance
+  created in `afterNextRender`, which is exactly the SSR-safe boundary the codebase's conventions
+  require for browser-only APIs — calling `navigator.geolocation` behind the existing
+  `isPlatformBrowser` guard and panning/zooming the scene to the result is structurally ready
+  today.
+- **Saved/favorite layer presets:** the draft/applied/undo signal triplet in
+  `LayerSelectionService` is the natural seam for "save this checkbox combination as a preset,"
+  but there's currently no persistence layer (no localStorage, user profile, or Firestore doc)
+  backing any tracker state — everything resets to `layer-config.ts` defaults on reload. Context
+  for future LLMs: this needs a new small persistence service (localStorage is the lowest-lift
+  option; a Firestore CMS doc keyed by user would match patterns used elsewhere in the app) before
+  presets can survive a page reload; the checkbox/apply/undo logic itself needs no changes.
+- **Vehicle-type filtering (train vs. bus vs. other):** `VehicleIconMode`'s `iconModeForSourceKey`
+  already hardcodes a train/bus split per source `value`, so a checklist filter to show/hide
+  vehicle types feels like an obvious next step — but it isn't ready: real filtering needs
+  GTFS-static `route_type` data, and `GtfsStaticService` currently only parses `stops.txt`, not
+  `routes.txt`/`trips.txt`. Context for future LLMs: wiring `route_type` through means extending
+  `GtfsStaticService`'s unzip/parse step to also read `routes.txt` (and `trips.txt` to join
+  `route_id` → `route_type` per vehicle), then threading that value alongside `feedEntities` so
+  `iconModeForSourceKey` (and a new filter control) can key off it instead of the source-name
+  heuristic.
+
 ## 💡 Potential AI Feature Opportunities
 
 - **Natural-language feed/layer queries:** since every source already exposes structured, typed
