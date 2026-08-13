@@ -1,0 +1,67 @@
+# Component: spotting
+
+## 📌 Purpose & Scope
+
+- **Core Responsibility:** TranSPOT — the app's public, crowd-sourced train/rolling-stock spotting log. It lets anyone browse, per rail line, every vehicle's current status, spotting history, and incident timeline, and lets logged-in users submit a new "I saw this vehicle" report (status, location, wheel condition, photos). It is the flagship feature and the default landing route of the app.
+- **Domain/Layer:** Angular Presentation (standalone components, signals-based reactive state, route-lazy-loaded feature module). Talks to a Django/Strawberry GraphQL backend (`operation`, `spotting`, `incident` apps) plus one legacy REST endpoint for a historical trend chart.
+- **Subcomponent breakdown** (one coherent feature, several route/leaf components):
+  - `spotting-shell/` — route shell: hosts nav/footer, `<router-outlet>`, and the single cross-page "Add a Spotting Entry" sheet.
+  - `spotting-redirect.page.ts` / `spotting.routes.ts` — bare `/spotting` redirects to the first line.
+  - `line-overview/` — `/spotting/:lineId`: fleet roster (`vehicle-list`, `vehicle-heatmap-preview`), `fleet-summary` chip row, `line-status-board`, `line-switcher` (mobile line picker).
+  - `line-details/` — `/spotting/:lineId/details`: line analytics (`vehicle-spotting-grid` heatmap-grid, `vehicle-status-trend` legacy chart, `station-assets-section`).
+  - `vehicle-detail/` — `/spotting/:lineId/vehicle/:vehicleId`: one vehicle's full record (`vehicle-status-board`, `spotting-history`, `incident-timeline`).
+  - `report-form/` + `report-spotting-button/` — the submission form (with `photo-picker`) and its page-level trigger buttons, decoupled via `ReportSheetService`.
+  - `data/` — route-scoped store, GraphQL query/mutation documents, and pure domain-logic utilities (no components).
+
+## 🔌 Interface & Data Flow
+
+- **Route params (Inputs):** `lineId` (route param, required on `line-overview`, `line-details`, `vehicle-detail`), `vehicleId` (required on `vehicle-detail`). Bound via Angular's `input.required<string>()` from the router (`withComponentInputBinding` implied).
+- **Component `input()`/`input.required()` signals** (selected): `VehicleListComponent.vehicleType/statusFilter/stickyOffset`, `VehicleSpottingGridComponent.lineId/vehicleTypes/months/statusFilter/stickyOffset`, `FleetSummaryComponent.vehicleTypes/activeStatus/compact`, `StationAssetsSectionComponent.lineId/stickyOffset`, `VehicleStatusTrendComponent.lineId`, `LineSwitcherComponent.lines/currentLine`, `ReportSpottingButtonComponent.userClass` (aliased `class`). Most sticky-header components take a measured `stickyOffset` number (default varies, e.g. `0` or `117`) passed down from a parent that observes its own rendered height via `ResizeObserver`/`observeHeight`.
+- **Outputs (signals `output()`):** `FleetSummaryComponent.statusSelected`, `VehicleListComponent.statusSelected`, `LineSwitcherComponent.lineSelected`, `ReportFormComponent.submitted` (fired on successful submit, consumed by `spotting-shell` to close the sheet). `PhotoPickerComponent.files` is a two-way `model<ImageFile[]>()`.
+- **GraphQL queries/mutations** (`data/spotting.queries.ts`, all POSTed via `graphqlResource`/`GraphQLClient` to one endpoint):
+  - `LINES_QUERY` — line list (id/code/displayName/status), backs redirect + tab nav.
+  - `VEHICLE_TYPES_QUERY` — per-line fleet table (status counts + vehicle rows); requires `DISTINCT: true` filter to avoid backend join-duplication (documented backend quirk).
+  - `LINES_AND_VEHICLES_QUERY` — lightweight lines+vehicles for the report form's dropdowns.
+  - `STATION_LINES_QUERY` — per-line station options for `AT_STATION`/`BETWEEN_STATIONS`.
+  - `VEHICLE_EVENTS_QUERY` — paginated (`limit`/`offset`) spotting history for one vehicle.
+  - `VEHICLE_SPOTTING_HISTORY_QUERY` — raw per-event date+type list, bucketed client-side into heatmap points (deliberately avoids a backend-hanging aggregate field).
+  - `VEHICLE_INCIDENTS_QUERY` — per-vehicle incident timeline.
+  - `LINE_SPOTTING_GRID_QUERY` / `LINE_SPOTTING_BOUNDS_QUERY` — bounded-date-range vehicle×day spotting counts for the details-page grid, and a wide monthly-bucketed variant for month-nav bounds.
+  - `LINE_STATION_ASSETS_QUERY` — per-station asset (lift/escalator) listing, read-only today.
+  - `ADD_SPOTTING_EVENT_MUTATION` (`addEvent`) — submits a new report; returns `{ id }` only, used to enqueue photo uploads.
+  - Legacy REST: `GET {backendUrl}operation/line_vehicles_status_trend_count/:lineId/:source/:start/:end/` via `httpResource`, for `VehicleStatusTrendComponent` (no GraphQL equivalent exists).
+- **Dependencies (shared services/state consumed):**
+  - `core/graphql/graphql-client.ts` — `graphqlResource()` (reactive query wrapper over `httpResource`, auto-retry with backoff, SSR-safe) and `GraphQLClient` (imperative `request()` for mutations).
+  - `core/graphql/types.ts` — shared enums: `LineStatus`, `VehicleStatus`, `SpottingVehicleStatus`, `WheelStatus`, `SpottingType`, `IncidentSeverity`.
+  - `core/auth/auth.service.ts` — `AuthService` (`isLoggedIn`, `login()`, `idToken()`) gates form submission.
+  - `core/upload/image-upload.service.ts`, `image-compression.service.ts`, `image-file.ts` — app-wide photo upload queue (IndexedDB-persisted, PromisePool-bounded concurrency) and client-side JPEG resize used by `PhotoPickerComponent`/`ReportFormComponent`.
+  - `domain-ui/*` — presentational badges/charts reused across the feature: `line-status-badge`, `vehicle-status-badge`, `wheel-status-badge`, `spotting-type-badge`, `spotting-activity-heatmap` (+ `spotting-count-tooltip`, `dateKeyOf`, `toSpottingActivityPoints`, `spottingIntensityClass` helpers).
+  - `ui/*` (spartan/Hlm primitives) — `button`, `input`, `checkbox`, `native-select`, `combobox`, `sheet`, `skeleton`, `badge`, `card`, `table`, `retry-banner`, `toast.service`.
+  - `core/dom/observe-height.ts` — measures a sticky bar's real rendered height for stacked-sticky-header offset math.
+  - `@angular/forms/signals` (`form`, `schema`, `required`, `validateTree`, `submit`, `FormField`) — the new Signal Forms API backing `ReportFormComponent`.
+  - `@spartan-ng/brain/hover-card` — desktop vehicle-name hover preview in `VehicleListComponent`.
+
+## ⚙️ Internal State & Logic
+
+- **Route-scoped store:** `SpottingLinesStore` (`data/spotting-lines.store.ts`) is `@Injectable()` (not root — provided on the `/spotting` route in `spotting.routes.ts`) wrapping a single `graphqlResource(LINES_QUERY)`; exposes `lines` (sorted by code), `firstLineId`, `lineById()`. Shared by the redirect page, line-overview, line-details, vehicle-detail, and the report form's line dropdown — one fetch for the whole feature.
+- **Cross-page trigger decoupling:** `ReportSheetService` (`data/report-sheet.service.ts`, root-provided) is a single boolean `signal` (`isOpen`) with `open()`/`setOpen()`. The sheet itself lives once in `SpottingShellPage`; trigger buttons (`ReportSpottingButtonComponent`) on `line-overview`/`vehicle-detail` call `.open()` without any direct reference to the sheet or form.
+- **Form state:** `ReportFormComponent` uses Angular Signal Forms (`createForm`/`schema`) over a plain `signal(emptyReportFormModel())`, with `reportFormSchema` (`report-form.schema.ts`) declaring `required()` field rules plus one `validateTree()` cross-field validator (station requirements for `BETWEEN_STATIONS`/`AT_STATION`, and an "abnormal vehicle status" sanity-test gate) — ported 1:1 from the old Reactive-Forms validators. Several `effect()`s keep derived model fields in sync (clearing vehicle on line change, mirroring `selectedVehicleStatus`, resetting the whole draft when the sheet closes).
+- **Per-component local signals:** most page/leaf components hold their own `signal`/`computed` state — status filters (`statusFilter`), expand/collapse (`isExpanded`, `collapsedTypes`), sort column/direction (`VehicleListComponent`), pagination cursors (`SpottingHistoryComponent._eventsByVehicle` keyed by vehicle id), and hover/tooltip position state (`VehicleSpottingGridComponent.hoveredCell`).
+- **Sticky-layout coordination:** several components (`line-overview.page.ts`, `line-details.page.ts`, `VehicleListComponent`, `VehicleSpottingGridComponent`) measure their own or a sibling's rendered height via `ResizeObserver`/`IntersectionObserver`/manual scroll listeners rather than hardcoding pixel offsets, since sticky headers stack (nav → line bar → section header → column header). This is intricate but purely presentational, not domain state.
+- **No app-wide client cache:** every `graphqlResource` is scoped to the component/store that declares it — no shared Apollo-style normalized cache; re-navigating re-fetches (aside from the route-scoped `SpottingLinesStore`).
+
+## 🧩 Extension Points & Hooks
+
+- **`ReportSheetService`** is the intended seam for adding new triggers into the sheet (any future page just injects the service and calls `.open()` — no new wiring in `spotting-shell`).
+- **`report-form.schema.ts`** centralizes validation as a declarative schema — new field rules or cross-field constraints are additive `required()`/`validateTree()` calls, not new component logic.
+- **`spotting.queries.ts`** is the single seam for all GraphQL contracts in this feature — new fields/queries are added there with paired TS interfaces, keeping query strings out of components.
+- **`vehicle-search.util.ts` (`numberSeenToSetNumbers`, `allowRunNumber`)** is an isolated, line-keyed lookup table for "run number painted on the train" → internal vehicle ID heuristics — new lines/classes are added as new table entries without touching the form component.
+- **`StationAssetsSectionComponent`** is explicitly scoped to read-only asset listing today; its own doc comment flags it as step one of a larger "volunteers report station asset breakages" feature — the backend model already has an unused `status` field and no reporting mutation yet.
+- **`VehicleStatusTrendComponent`**'s `DATA_SOURCES` list already reserves a disabled `"prasarana"` source alongside the two live ones (`MLPTF`, `MTREC`) — enabling a third data source is a config-table change plus a real backend endpoint, not a UI rewrite.
+- **`graphqlResource()`** is a generic, reusable wrapper (auto-retry, SSR TransferState, loading/error semantics) — any new query in this or other features plugs into the same seam.
+
+## 💡 Potential AI Feature Opportunities
+
+- **Smarter vehicle identification from photos/run-numbers:** `numberSeenToSetNumbers` is already a hand-maintained heuristic mapping a photographed run number to a probable vehicle ID; an image-recognition or LLM-assisted OCR step on `PhotoPickerComponent`'s uploaded photos could pre-fill the vehicle combobox directly from a photo of the train's painted number, reducing manual lookup.
+- **Anomaly/incident triage on spotting reports:** `IncidentTimelineComponent` and `VehicleStatusTrendComponent` already expose structured per-vehicle status-change and incident history; an AI model could flag unusual status transitions (e.g. a vehicle repeatedly reported `OUT_OF_SERVICE` then `IN_SERVICE` in a short window) or auto-draft an incident `title`/`brief` from a cluster of recent free-text `notes`.
+- **Natural-language / conversational report submission:** the report form's progressive-disclosure structure (line → vehicle → type → conditional station/location fields) and its schema-driven validation (`report-form.schema.ts`) map cleanly onto a conversational assistant that fills the same `ReportFormModel` from a free-text or voice description ("saw train 4123 at KLCC heading to Gombak, wheels look worn"), with the existing validators still enforcing correctness before submit.
