@@ -22,7 +22,7 @@ import { VehicleType } from "../../data/spotting.queries";
 import { FleetSummaryComponent } from "../fleet-summary/fleet-summary.component";
 import { VehicleHeatmapPreviewComponent } from "./vehicle-heatmap-preview/vehicle-heatmap-preview.component";
 
-type SortColumn =
+export type SortColumn =
   | "identificationNo"
   | "status"
   | "wheelStatus"
@@ -30,14 +30,19 @@ type SortColumn =
   | "inServiceSince"
   | "spottingCount"
   | "notes";
-type SortDirection = "asc" | "desc";
+export type SortDirection = "asc" | "desc";
+
+export interface SortChange {
+  column: SortColumn;
+  direction: SortDirection;
+}
 
 interface ColumnDef {
   key: SortColumn;
   label: string;
 }
 
-const COLUMNS: ColumnDef[] = [
+export const COLUMNS: ColumnDef[] = [
   { key: "identificationNo", label: "Vehicle" },
   { key: "status", label: "Status" },
   { key: "wheelStatus", label: "Wheel" },
@@ -46,6 +51,11 @@ const COLUMNS: ColumnDef[] = [
   { key: "spottingCount", label: "Times Spotted" },
   { key: "notes", label: "Notes" },
 ];
+
+/** Every table on line-overview shares one sort state (see LineOverviewPage) — this is the
+ * state a fresh page load, or the currently-active line's own nav chip, resets back to. */
+export const DEFAULT_SORT_COLUMN: SortColumn = "identificationNo";
+export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
 
 /**
  * A vehicle type's fleet roster. Renders a table on wider viewports and a card list below the
@@ -270,6 +280,12 @@ export class VehicleListComponent {
   readonly vehicleType = input.required<VehicleType>();
   readonly statusFilter = input<VehicleStatus | null>(null);
   readonly statusSelected = output<VehicleStatus | null>();
+  /** Sort state lives one level up (LineOverviewPage), shared — and URL-synced — across every
+   * vehicle-type table on the page rather than each owning its own; see that page's own doc
+   * comment on why. */
+  readonly sortColumn = input(DEFAULT_SORT_COLUMN);
+  readonly sortDirection = input(DEFAULT_SORT_DIRECTION);
+  readonly sortChanged = output<SortChange>();
   /** Where this card's own header should stick — the parent (line-overview.page.ts) measures
    * its own sticky bars' real height and passes the total down, rather than this guessing a
    * constant that drifts out of sync whenever those bars grow (see line-overview's own
@@ -277,8 +293,6 @@ export class VehicleListComponent {
   readonly stickyOffset = input(117);
 
   protected readonly columns = COLUMNS;
-  protected readonly sortColumn = signal<SortColumn>("identificationNo");
-  protected readonly sortDirection = signal<SortDirection>("asc");
   /** Lets a mobile user opt into the desktop table (horizontally scrollable) instead of cards,
    * when they want every column at once rather than the at-a-glance summary. */
   protected readonly showFullTable = signal(false);
@@ -337,10 +351,12 @@ export class VehicleListComponent {
 
   protected toggleSort(column: SortColumn): void {
     if (this.sortColumn() === column) {
-      this.sortDirection.update((d) => (d === "asc" ? "desc" : "asc"));
+      this.sortChanged.emit({
+        column,
+        direction: this.sortDirection() === "asc" ? "desc" : "asc",
+      });
     } else {
-      this.sortColumn.set(column);
-      this.sortDirection.set("asc");
+      this.sortChanged.emit({ column, direction: "asc" });
     }
   }
 }

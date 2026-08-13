@@ -11,7 +11,8 @@ import {
   viewChild,
 } from "@angular/core";
 import { isPlatformBrowser } from "@angular/common";
-import { Router, RouterLink } from "@angular/router";
+import { toSignal } from "@angular/core/rxjs-interop";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -29,8 +30,20 @@ import {
 import { FleetSummaryComponent } from "./fleet-summary/fleet-summary.component";
 import { LineStatusBoardComponent } from "./line-status-board/line-status-board.component";
 import { LineSwitcherComponent } from "./line-switcher/line-switcher.component";
-import { VehicleListComponent } from "./vehicle-list/vehicle-list.component";
+import {
+  COLUMNS,
+  DEFAULT_SORT_COLUMN,
+  DEFAULT_SORT_DIRECTION,
+  SortChange,
+  SortColumn,
+  SortDirection,
+  VehicleListComponent,
+} from "./vehicle-list/vehicle-list.component";
 import { ReportSpottingButtonComponent } from "../report-spotting-button/report-spotting-button.component";
+
+function isSortColumn(value: string | null): value is SortColumn {
+  return COLUMNS.some((column) => column.key === value);
+}
 
 /**
  * /spotting/:lineId — a rail line's fleet, replacing the old app's in-component tab bar with a
@@ -66,6 +79,7 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
         @for (line of linesStore.lines(); track line.id) {
           <a
             [routerLink]="['/spotting', line.id]"
+            [queryParamsHandling]="line.id === lineId() ? null : 'preserve'"
             hlmBadge
             [variant]="line.id === lineId() ? 'default' : 'outline'"
             [title]="line.displayName"
@@ -148,8 +162,11 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
               <app-vehicle-list
                 [vehicleType]="vehicleType"
                 [statusFilter]="statusFilter()"
+                [sortColumn]="sortColumn()"
+                [sortDirection]="sortDirection()"
                 [stickyOffset]="vehicleListStickyTop()"
                 (statusSelected)="statusFilter.set($event)"
+                (sortChanged)="onSortChanged($event)"
               />
             }
           </div>
@@ -163,12 +180,24 @@ export class LineOverviewPage {
 
   protected readonly linesStore = inject(SpottingLinesStore);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly _line = computed(() => this.linesStore.lineById(this.lineId()));
   protected readonly statusFilter = signal<VehicleStatus | null>(null);
+
+  /** Sort state for every vehicle-type table on this line, all kept in lockstep — see
+   * VehicleListComponent's own doc comment on `sortColumn`/`sortDirection`. URL-synced (`sort`/
+   * `dir` query params) so a sorted view is deep-linkable and survives a reload, but the params
+   * only ever appear once the user actually changes the sort away from the default; see the two
+   * effects below for the read (URL → signal) and write (signal → URL) halves of that sync. */
+  protected readonly sortColumn = signal<SortColumn>(DEFAULT_SORT_COLUMN);
+  protected readonly sortDirection = signal<SortDirection>(DEFAULT_SORT_DIRECTION);
+  private readonly queryParamMap = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
 
   protected readonly vehicleTypesResource = graphqlResource<
     VehicleTypesQueryData,
@@ -208,6 +237,42 @@ export class LineOverviewPage {
     effect(() => {
       this.lineId();
       this.statusFilter.set(null);
+    });
+
+    // URL → signal: read `sort`/`dir` out of the query params on every navigation (initial
+    // load, a deep link, browser back/forward, or the desktop nav chips' own `preserve`/reset
+    // handling below) rather than just once — an unrecognized/missing value on either falls
+    // back to the shared default, which is what makes "no query params" and "the default sort"
+    // the same state. SSR-safe (pure param parsing, no browser APIs), unlike the write-back
+    // effect below.
+    effect(() => {
+      const params = this.queryParamMap();
+      const sort = params.get("sort");
+      this.sortColumn.set(isSortColumn(sort) ? sort : DEFAULT_SORT_COLUMN);
+      this.sortDirection.set(params.get("dir") === "desc" ? "desc" : DEFAULT_SORT_DIRECTION);
+    });
+
+    // Signal → URL: mirrors a user-driven sort change into `sort`/`dir` query params, omitting
+    // whichever half already matches the default so a still-default sort never shows up in the
+    // URL at all. `replaceUrl` keeps every column click from piling up its own back-button stop.
+    // Browser-only — see the existing not-found redirect below for why a *reactive* navigate()
+    // during SSR is a known hang, not just an unnecessary one; this would otherwise fire on the
+    // very first render pass too.
+    effect(() => {
+      const column = this.sortColumn();
+      const direction = this.sortDirection();
+      if (!this.isBrowser) {
+        return;
+      }
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {
+          sort: column === DEFAULT_SORT_COLUMN ? null : column,
+          dir: direction === DEFAULT_SORT_DIRECTION ? null : direction,
+        },
+        queryParamsHandling: "merge",
+        replaceUrl: true,
+      });
     });
 
     // Top rootMargin = vehicle-list's own sticky offset (nav + this page's sticky row,
@@ -295,7 +360,20 @@ export class LineOverviewPage {
     });
   }
 
+  protected onSortChanged(change: SortChange): void {
+    this.sortColumn.set(change.column);
+    this.sortDirection.set(change.direction);
+  }
+
   protected onSwitchLine(lineId: string): void {
-    this.router.navigate(["/spotting", lineId]);
+    // Re-selecting the line already showing resets the sort back to default (see the desktop
+    // nav chips' own `queryParamsHandling` for the same rule) — dropping the query params here
+    // is what makes that happen, same as the mobile switcher's own not-preserving-by-default
+    // navigate. Switching to a genuinely different line preserves them instead, so the sort
+    // carries over rather than silently reverting.
+    this.router.navigate(
+      ["/spotting", lineId],
+      lineId === this.lineId() ? {} : { queryParamsHandling: "preserve" },
+    );
   }
 }
