@@ -34,6 +34,12 @@ export const serverRoutes: ServerRoute[] = [
     path: "about",
     renderMode: RenderMode.Client,
   },
+  // /gdpr is Firestore-driven compliance text that only ever changes by hand — same reasoning
+  // as /about; render client-only.
+  {
+    path: "gdpr",
+    renderMode: RenderMode.Client,
+  },
   // /gallery is fully public with real, request-independent GraphQL data (same reasoning as
   // /spotting) — good for shareable/indexable links.
   {
@@ -47,6 +53,11 @@ export const serverRoutes: ServerRoute[] = [
   {
     path: "insiden/**",
     renderMode: RenderMode.Server,
+  },
+  // /console is admin-only, auth-gated routes — SSR cannot authenticate the session, so render client-only.
+  {
+    path: "console/**",
+    renderMode: RenderMode.Client,
   },
   // Was RenderMode.Prerender, but Angular's SSR route analysis can't statically enumerate a
   // matcher-based route (see /gallery, /insiden above) for prerendering purposes, and errors on
