@@ -1,6 +1,7 @@
-import { Component } from "@angular/core";
+import { Component, inject } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
 import { BrnSonnerToaster } from "@spartan-ng/brain/sonner";
+import { ThemeService } from "./core/theme/theme.service";
 
 @Component({
   selector: "app-root",
@@ -8,4 +9,6 @@ import { BrnSonnerToaster } from "@spartan-ng/brain/sonner";
   templateUrl: "./app.html",
   styleUrl: "./app.css",
 })
-export class App {}
+export class App {
+  protected readonly theme = inject(ThemeService);
+}
