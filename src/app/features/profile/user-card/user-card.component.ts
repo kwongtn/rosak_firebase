@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, output, signal } from "@angular/core";
 import { DecimalPipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { RouterLink } from "@angular/router";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { HlmButton } from "../../../ui/button/button";
@@ -23,7 +24,7 @@ import {
  */
 @Component({
   selector: "app-profile-user-card",
-  imports: [FormsModule, DecimalPipe, HlmButton, HlmInput, ...HlmCardImports],
+  imports: [FormsModule, DecimalPipe, HlmButton, HlmInput, RouterLink, ...HlmCardImports],
   template: `
     <div class="flex flex-col gap-6">
       <div class="flex items-center gap-4">
@@ -61,9 +62,11 @@ import {
               <p class="text-muted-foreground text-xs">Nickname</p>
               <p class="font-medium">{{ _displayedNickname() || "N/A" }}</p>
             </div>
-            <button hlmBtn size="sm" variant="outline" (click)="startEdit()">
-              {{ _displayedNickname() ? "Edit" : "Add" }}
-            </button>
+            @if (isOwnProfile()) {
+              <button hlmBtn size="sm" variant="outline" (click)="startEdit()">
+                {{ _displayedNickname() ? "Edit" : "Add" }}
+              </button>
+            }
           }
         </div>
       </div>
@@ -109,10 +112,32 @@ import {
           </div>
         }
       </div>
+
+      @if (isOwnProfile()) {
+        <div class="mt-4">
+          <a
+            hlmBtn
+            variant="outline"
+            size="sm"
+            [routerLink]="['/profile', auth.user()?.uid, 'settings']"
+          >
+            <svg class="mr-2 size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            Privacy Settings
+          </a>
+        </div>
+      }
     </div>
   `,
 })
 export class UserCardComponent {
+  readonly isOwnProfile = input<boolean>(true);
   readonly user = input.required<UserData>();
   readonly nicknameSaved = output<string>();
 

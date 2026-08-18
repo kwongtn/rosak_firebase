@@ -1,10 +1,9 @@
-import { Component, afterNextRender, computed, inject, signal } from "@angular/core";
+import { Component, afterNextRender, computed, inject, input, signal } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
 import { HlmButton } from "../../../ui/button/button";
-import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { HlmCardImports } from "../../../ui/card/card";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -15,13 +14,9 @@ import {
   DELETE_WINDOW_MS,
   DeleteEventData,
   DeleteEventVars,
-  GET_MY_EVENTS_QUERY,
-  GetMyEventsData,
-  GetMyEventsVars,
   MyEvent,
+  PublicUserData,
 } from "../data/profile.queries";
-
-const PAGE_SIZE = 30;
 
 interface EventDayGroup {
   date: string;
@@ -48,7 +43,6 @@ interface EventDayGroup {
   imports: [
     DatePipe,
     HlmButton,
-    HlmSkeleton,
     ...HlmCardImports,
     HlmSheet,
     HlmSheetHeader,
@@ -60,97 +54,103 @@ interface EventDayGroup {
     <div hlmCard>
       <div hlmCardHeader><h2 hlmCardTitle>Historical Spottings</h2></div>
       <div hlmCardContent>
-        @if (_events().length === 0 && _isLoading()) {
-          <div class="flex flex-col gap-2">
-            <div hlmSkeleton class="h-12 w-full"></div>
-            <div hlmSkeleton class="h-12 w-full"></div>
-          </div>
-        } @else if (_events().length === 0) {
-          <p class="text-muted-foreground text-sm">No spottings logged yet.</p>
-        } @else {
-          <div class="flex flex-col divide-y">
-            @for (group of _groups(); track group.date) {
-              <div class="flex flex-col gap-1.5 py-3">
-                <span class="text-sm font-medium">{{ group.date | date }}</span>
-                <ul class="flex flex-col gap-1.5">
-                  @for (event of group.events; track event.id) {
-                    <li class="flex items-center justify-between gap-2">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <spotting-type-badge [type]="event.type" />
-                        <span class="text-muted-foreground text-xs">
-                          {{ event.vehicle.identificationNo }} ({{
-                            event.vehicle.vehicleType.internalName
-                          }}) — {{ event.vehicle.lines.map((l) => l.code).join(", ") }}
-                        </span>
-                        @if (event.notes) {
-                          <span
-                            class="relative inline-flex"
-                            (mouseenter)="_tooltipEventId.set(event.id)"
-                            (mouseleave)="_tooltipEventId.set(null)"
-                          >
-                            <button
-                              type="button"
-                              class="text-muted-foreground hover:text-foreground inline-flex size-5 items-center justify-center rounded outline-none focus-visible:ring-2"
-                              aria-label="View notes"
-                              (focus)="_tooltipEventId.set(event.id)"
-                              (blur)="_tooltipEventId.set(null)"
-                              (click)="onNotesClick(event)"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                class="size-4"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                aria-hidden="true"
-                              >
-                                <rect x="4.5" y="3.5" width="15" height="17" rx="1.5" />
-                                <path stroke-linecap="round" d="M8 8h8M8 12h8M8 16h5" />
-                              </svg>
-                            </button>
-                            @if (_hoverCapable() && _tooltipEventId() === event.id) {
-                              <div
-                                class="bg-popover text-popover-foreground border-border absolute top-full left-0 z-20 mt-1.5 w-64 rounded-lg border p-2 text-left text-xs font-normal whitespace-normal shadow-md"
-                              >
-                                {{ event.notes }}
-                              </div>
-                            }
-                          </span>
-                        }
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <vehicle-status-badge [status]="event.status" />
-                        @if (_canDelete(event)) {
-                          <button
-                            hlmBtn
-                            size="icon-sm"
-                            variant="ghost"
-                            [disabled]="_deletingId() === event.id"
-                            (click)="deleteEvent(event.id)"
-                            title="Delete"
-                          >
-                            🗑
-                          </button>
-                        }
-                      </div>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
-          </div>
-
-          @if (_hasMore()) {
-            <button
-              hlmBtn
-              variant="outline"
-              size="sm"
-              class="mt-3 self-start"
-              [disabled]="_isLoading()"
-              (click)="loadMore()"
+        @if (showPrivacyMessage()) {
+          <div
+            class="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/30 p-8 text-center"
+          >
+            <svg
+              class="size-12 text-muted-foreground"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              {{ _isLoading() ? "Loading…" : "Load more" }}
-            </button>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            <h3 class="text-sm font-semibold">Private Spotting History</h3>
+            <p class="max-w-sm text-xs text-muted-foreground">
+              This user has opted to hide their historical spotting data.
+            </p>
+          </div>
+        } @else if (canViewSpottings()) {
+          @if (_events().length === 0) {
+            <p class="text-muted-foreground text-sm">No spottings logged yet.</p>
+          } @else {
+            <div class="flex flex-col divide-y">
+              @for (group of _groups(); track group.date) {
+                <div class="flex flex-col gap-1.5 py-3">
+                  <span class="text-sm font-medium">{{ group.date | date }}</span>
+                  <ul class="flex flex-col gap-1.5">
+                    @for (event of group.events; track event.id) {
+                      <li class="flex items-center justify-between gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <spotting-type-badge [type]="event.type" />
+                          <span class="text-muted-foreground text-xs">
+                            {{ event.vehicle.identificationNo }} ({{
+                              event.vehicle.vehicleType.internalName
+                            }}) — {{ event.vehicle.lines.map((l) => l.code).join(", ") }}
+                          </span>
+                          @if (event.notes) {
+                            <span
+                              class="relative inline-flex"
+                              (mouseenter)="_tooltipEventId.set(event.id)"
+                              (mouseleave)="_tooltipEventId.set(null)"
+                            >
+                              <button
+                                type="button"
+                                class="text-muted-foreground hover:text-foreground inline-flex size-5 items-center justify-center rounded outline-none focus-visible:ring-2"
+                                aria-label="View notes"
+                                (focus)="_tooltipEventId.set(event.id)"
+                                (blur)="_tooltipEventId.set(null)"
+                                (click)="onNotesClick(event)"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  class="size-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  aria-hidden="true"
+                                >
+                                  <rect x="4.5" y="3.5" width="15" height="17" rx="1.5" />
+                                  <path stroke-linecap="round" d="M8 8h8M8 12h8M8 16h5" />
+                                </svg>
+                              </button>
+                              @if (_hoverCapable() && _tooltipEventId() === event.id) {
+                                <div
+                                  class="bg-popover text-popover-foreground border-border absolute top-full left-0 z-20 mt-1.5 w-64 rounded-lg border p-2 text-left text-xs font-normal whitespace-normal shadow-md"
+                                >
+                                  {{ event.notes }}
+                                </div>
+                              }
+                            </span>
+                          }
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <vehicle-status-badge [status]="event.status" />
+                          @if (_canDelete(event)) {
+                            <button
+                              hlmBtn
+                              size="icon-sm"
+                              variant="ghost"
+                              [disabled]="_deletingId() === event.id"
+                              (click)="deleteEvent(event.id)"
+                              title="Delete"
+                            >
+                              🗑
+                            </button>
+                          }
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+            </div>
           }
         }
       </div>
@@ -173,20 +173,35 @@ interface EventDayGroup {
   `,
 })
 export class MySpottingsComponent {
+  readonly user = input.required<PublicUserData>();
+  readonly isOwnProfile = input.required<boolean>();
+
+  protected readonly showPrivacyMessage = computed(
+    () => !this.isOwnProfile() && this.user().spottings === null,
+  );
+
+  protected readonly canViewSpottings = computed(
+    () => this.isOwnProfile() || this.user().spottings !== null,
+  );
+
+  protected readonly spottingsData = computed<MyEvent[]>(() => {
+    if (this.canViewSpottings() && this.user().spottings) {
+      return this.user().spottings!;
+    }
+    return [];
+  });
+
   private readonly graphql = inject(GraphQLClient);
   private readonly auth = inject(AuthService);
   private readonly recaptcha = inject(RecaptchaService);
   private readonly toast = inject(ToastService);
 
-  private readonly _eventsSignal = signal<MyEvent[]>([]);
-  protected readonly _events = computed(() => this._eventsSignal());
-  protected readonly _isLoading = signal(false);
-  protected readonly _hasMore = signal(true);
+  protected readonly _events = computed(() => this.spottingsData());
   protected readonly _deletingId = signal<string | null>(null);
 
   protected readonly _groups = computed<EventDayGroup[]>(() => {
     const groups = new Map<string, MyEvent[]>();
-    for (const event of this._events()) {
+    for (const event of this._events() ?? []) {
       const existing = groups.get(event.spottingDate);
       if (existing) {
         existing.push(event);
@@ -212,7 +227,6 @@ export class MySpottingsComponent {
     afterNextRender(() => {
       this._hoverCapable.set(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
     });
-    this.loadMore();
   }
 
   protected _canDelete(event: MyEvent): boolean {
@@ -230,27 +244,6 @@ export class MySpottingsComponent {
   protected onModalOpenChange(isOpen: boolean): void {
     if (!isOpen) {
       this._modalEvent.set(null);
-    }
-  }
-
-  async loadMore(): Promise<void> {
-    this._isLoading.set(true);
-    try {
-      const idToken = await this.auth.idToken();
-      const data = await this.graphql.request<GetMyEventsData, GetMyEventsVars>(
-        GET_MY_EVENTS_QUERY,
-        { limit: PAGE_SIZE, offset: this._eventsSignal().length },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      this._hasMore.set(data.events.length === PAGE_SIZE);
-      this._eventsSignal.update((list) => [...list, ...data.events]);
-    } catch (err) {
-      this.toast.error(
-        "Couldn't load your spottings",
-        err instanceof Error ? err.message : "Unknown error",
-      );
-    } finally {
-      this._isLoading.set(false);
     }
   }
 
@@ -273,7 +266,6 @@ export class MySpottingsComponent {
         },
       );
       if (data.deleteEvent.ok) {
-        this._eventsSignal.update((list) => list.filter((e) => e.id !== eventId));
         this.toast.success(`Deletion of spotting entry #${eventId} successful.`);
       } else {
         this.toast.error("Unknown error on deletion", "Please refresh the page and try again.");

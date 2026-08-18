@@ -60,11 +60,46 @@ Directory map:
 
 ## 💡 Potential Feature Opportunities
 
-- **Public profile view for other users**: `ProfilePage` already computes `isOwnProfile` and has the non-owner branch wired up as a placeholder (see Extension Points above) — turning this into a real "view someone else's stats" page is a query/guard swap, not a restructure. **Not ready today**: the backend's `user` field always resolves the caller from the auth token (no by-id lookup). _Context for future LLMs_: needs a new Strawberry GraphQL field/argument (e.g. `user(id: ID)`) returning the same `UserData` shape for an arbitrary uid, plus a decision on what's safe to expose to non-owners (e.g. should `favouriteVehicles`/heatmap data be public) before `GET_USER_DATA_QUERY` can target someone else's id.
+- **Public profile view for other users**: `ProfilePage` already computes `isOwnProfile` and has the non-owner branch wired up as a placeholder (see Extension Points above) — turning this into a real "view someone else's stats" page is a query/guard swap, not a restructure. **Status: ✅ IMPLEMENTED**: see [Public Profile Implementation](#public-profile-implementation) below.
 - **Bulk-select and delete spotting entries**: `MySpottingsComponent` already gates deletability per row via `_canDelete(event)` (the 3-day `DELETE_WINDOW_MS` check) before firing `DELETE_EVENT_MUTATION`. **Structurally ready now** — a checkbox-selection UI can reuse the same per-row `_canDelete` gate and loop the existing mutation over the selected ids with no query/type changes; a real batch mutation on the backend would just be a nice follow-up for atomicity/performance.
 - **Export historical spottings (CSV/JSON download)**: `_eventsSignal` already accumulates the user's full paginated history client-side (id, spottingDate, notes, type, vehicle, etc. from `GET_MY_EVENTS_QUERY`). **Ready now** — a "download my spottings" action can serialize the already-fetched signal value directly, with zero backend or query changes; only needs a small client-side CSV/JSON-writing utility.
 - **New aggregate stat cards** (e.g., current spotting streak, most-visited station): the stat-card grid in `UserCardComponent` is explicitly an additive list of `@if` blocks reading `UserData` fields (per Extension Points). **Frontend pattern is ready**, but **not ready end-to-end** — today's `UserData` has no streak/station-frequency field. _Context for future LLMs_: the metric would need to be computed server-side and added to the `user` query in `data/profile.queries.ts` (and the `UserData` interface) before a matching `@if` card can be wired up; this is the same one-file-touch extension the doc already calls out.
 - **Per-profile settings sub-page** (e.g., notification or privacy preferences): `PROFILE_ROUTES` is a plain `Routes` array built for additive `loadComponent` entries (e.g. `/profile/:id/settings`), so the routing shell is ready today with no changes to `ProfilePage` itself. **Not ready on the data side**: there's no settings/preferences query or mutation in `data/profile.queries.ts` yet. _Context for future LLMs_: needs a new GraphQL type + query/mutation pair (modeled on the existing `UPDATE_USER_MUTATION`/`UserInput` pattern) before the route can hold real content beyond a placeholder.
+
+## Public Profile Implementation
+
+**Status**: ✅ **IMPLEMENTED** (as of 2026-08-19)
+
+### Backend GraphQL
+
+- **Query**: `publicUser(id: ID!)` returns user profile by Firebase UID
+- **Privacy Logic**:
+  - Public stats (nickname, counts, heatmap, favorite vehicle) always visible
+  - Historical spottings (`spottings` field) returns `null` when `spotting_data_public=false` for non-owners
+  - Owner always sees own spottings regardless of privacy flag
+
+### Frontend Components
+
+- **ProfilePage**: Conditionally uses `GET_PUBLIC_USER_QUERY` vs `GET_USER_DATA_QUERY` based on `isOwnProfile()`
+- **MySpottingsComponent**: Shows privacy message when `user().spottings === null`
+- **UserCardComponent**: Hides edit button for non-owner views
+- **SettingsComponent** (NEW): Privacy toggle at `/profile/:id/settings`
+  - Ionic toggle with confirmation dialog on enable
+  - Instant disable (no friction for privacy restoration)
+  - Persists via `UPDATE_USER_MUTATION`
+
+### Privacy Contract
+
+- **Default**: `spotting_data_public = false` (strictly opt-in)
+- **Public data** (always visible): nickname, spottingsCount, mediaCount, heatmap, withMostEntries*, favouriteVehicles
+- **Private data** (opt-in only): historical spottings list with full details
+- **Email**: Never exposed in any query
+
+### Routes
+
+- `/profile` → redirects to `/profile/{own-uid}`
+- `/profile/:id` → public profile view (respects privacy)
+- `/profile/:id/settings` → privacy settings (lazy-loaded, own profile only)
 
 ## 💡 Potential AI Feature Opportunities
 

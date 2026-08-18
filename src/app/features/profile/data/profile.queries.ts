@@ -11,6 +11,7 @@ export const GET_USER_DATA_QUERY = /* GraphQL */ `
       nickname
       spottingsCount
       mediaCount
+      spottingDataPublic
       spottingTrends(typeGroup: $typeGroup, freeRange: $freeRange) {
         dateKey
         year
@@ -46,7 +47,77 @@ export const GET_USER_DATA_QUERY = /* GraphQL */ `
   }
 `;
 
+export const GET_PUBLIC_USER_QUERY = /* GraphQL */ `
+  query GetPublicUser($id: ID!, $typeGroup: Boolean, $freeRange: Boolean) {
+    publicUser(id: $id) {
+      nickname
+      spottingsCount
+      mediaCount
+      spottingDataPublic
+      spottingTrends(typeGroup: $typeGroup, freeRange: $freeRange) {
+        dateKey
+        year
+        month
+        day
+        eventType
+        count
+      }
+      withMostEntriesMonth: withMostEntries(type: MONTH) {
+        dateKey
+        year
+        month
+        day
+        count
+      }
+      withMostEntriesDay: withMostEntries(type: DAY) {
+        dateKey
+        year
+        month
+        day
+        count
+      }
+      favouriteVehicles {
+        vehicle {
+          identificationNo
+          lines {
+            code
+          }
+        }
+        count
+      }
+      spottings {
+        id
+        spottingDate
+        notes
+        created
+        status
+        type
+        runNumber
+        mediaCount
+        isMine
+        vehicle {
+          id
+          status
+          identificationNo
+          vehicleType {
+            internalName
+          }
+          lines {
+            code
+          }
+        }
+      }
+    }
+  }
+`;
+
 export interface GetUserDataVars {
+  typeGroup: boolean;
+  freeRange: boolean;
+}
+
+export interface GetPublicUserVars {
+  id: string;
   typeGroup: boolean;
   freeRange: boolean;
 }
@@ -79,10 +150,19 @@ export interface UserData {
   withMostEntriesMonth: DateTrend | null;
   withMostEntriesDay: DateTrend | null;
   favouriteVehicles: FavouriteVehicle[];
+  spottingDataPublic: boolean;
 }
 
 export interface GetUserDataData {
   user: UserData;
+}
+
+export interface PublicUserData extends UserData {
+  spottings: MyEvent[] | null; // Can be null if private
+}
+
+export interface GetPublicUserData {
+  publicUser: PublicUserData | null; // Can be null if user not found
 }
 
 /* ---------------------------------------------------------------------- *
@@ -93,12 +173,16 @@ export const UPDATE_USER_MUTATION = /* GraphQL */ `
   mutation UpdateUser($data: UserInput!) {
     updateUser(input: $data) {
       nickname
+      spottingDataPublic
     }
   }
 `;
 
 export interface UpdateUserVars {
-  data: { nickname: string };
+  data: {
+    nickname: string;
+    spottingDataPublic?: boolean;
+  };
 }
 
 export interface UpdateUserData {

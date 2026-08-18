@@ -44,6 +44,7 @@ import { hlm } from "../utils/hlm";
 export class HlmCheckbox implements ControlValueAccessor {
   readonly userClass = input<string>("", { alias: "class" });
   readonly checkedInput = input<boolean>(false, { alias: "checked" });
+  readonly disabledInput = input<boolean>(false, { alias: "disabled" });
   readonly checkedChange = output<boolean>();
 
   protected readonly _computedClass = computed(() =>
@@ -62,6 +63,9 @@ export class HlmCheckbox implements ControlValueAccessor {
   constructor() {
     effect(() => {
       this.checked = this.checkedInput();
+    });
+    effect(() => {
+      this.disabled = this.disabledInput();
     });
   }
 

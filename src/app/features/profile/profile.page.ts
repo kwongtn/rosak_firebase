@@ -1,7 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from "@angular/core";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
 import { AuthService } from "../../core/auth/auth.service";
-import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
@@ -10,9 +9,13 @@ import { SpottingActivityHeatmap } from "../../domain-ui/spotting-activity-heatm
 import { MySpottingsComponent } from "./my-spottings/my-spottings.component";
 import {
   GET_USER_DATA_QUERY,
+  GET_PUBLIC_USER_QUERY,
   GetUserDataData,
   GetUserDataVars,
+  GetPublicUserData,
+  GetPublicUserVars,
   UserData,
+  PublicUserData,
 } from "./data/profile.queries";
 
 /**
@@ -30,7 +33,6 @@ import {
 @Component({
   selector: "app-profile",
   imports: [
-    HlmButton,
     HlmSkeleton,
     AppNavComponent,
     AppFooterComponent,
@@ -59,27 +61,28 @@ import {
               [data]="user.spottingTrends"
               [totalAllTime]="user.spottingsCount"
             />
-            <app-my-spottings />
+            <app-my-spottings [user]="user" [isOwnProfile]="true" />
           } @else {
             <p class="text-destructive text-sm">
               Couldn't load your profile. Please try again shortly.
             </p>
           }
         } @else {
-          <div
-            class="border-border flex flex-col items-center gap-2 rounded-lg border p-8 text-center"
-          >
-            <h1 class="text-lg font-semibold">Public profiles aren't available yet</h1>
-            <p class="text-muted-foreground max-w-sm text-sm">
-              There's no way to look up another member's profile by id yet — that needs a small
-              backend change we haven't made.
-            </p>
-            @if (!auth.isLoggedIn()) {
-              <button hlmBtn size="sm" class="mt-2" (click)="auth.login()">
-                Log in to view your profile
-              </button>
-            }
-          </div>
+          @if (_isLoading()) {
+            <div class="flex flex-col gap-3">
+              <div hlmSkeleton class="h-24 w-full"></div>
+              <div hlmSkeleton class="h-72 w-full"></div>
+            </div>
+          } @else if (_user(); as user) {
+            <app-profile-user-card [user]="user" [isOwnProfile]="false" />
+            <spotting-activity-heatmap
+              [data]="user.spottingTrends"
+              [totalAllTime]="user.spottingsCount"
+            />
+            <app-my-spottings [user]="user" [isOwnProfile]="false" />
+          } @else {
+            <p class="text-destructive text-sm">User not found or profile unavailable.</p>
+          }
         }
       </main>
 
@@ -97,7 +100,7 @@ export class ProfilePage {
   protected readonly isOwnProfile = computed(() => this.auth.user()?.uid === this.id());
 
   protected readonly _isLoading = signal(true);
-  protected readonly _user = signal<UserData | undefined>(undefined);
+  protected readonly _user = signal<PublicUserData | undefined>(undefined);
 
   constructor() {
     this.auth.whenReady.then(() => this.isAuthReady.set(true));
@@ -106,12 +109,7 @@ export class ProfilePage {
       if (!this.isAuthReady()) {
         return;
       }
-      if (this.isOwnProfile()) {
-        this.load();
-      } else {
-        this._isLoading.set(false);
-        this._user.set(undefined);
-      }
+      this.load();
     });
   }
 
@@ -119,12 +117,22 @@ export class ProfilePage {
     this._isLoading.set(true);
     try {
       const idToken = await this.auth.idToken();
-      const data = await this.graphql.request<GetUserDataData, GetUserDataVars>(
-        GET_USER_DATA_QUERY,
-        { typeGroup: true, freeRange: true },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      this._user.set(data.user);
+
+      if (this.isOwnProfile()) {
+        const data = await this.graphql.request<GetUserDataData, GetUserDataVars>(
+          GET_USER_DATA_QUERY,
+          { typeGroup: true, freeRange: true },
+          idToken ? { "firebase-auth-key": idToken } : {},
+        );
+        this._user.set({ ...data.user, spottings: null });
+      } else {
+        const data = await this.graphql.request<GetPublicUserData, GetPublicUserVars>(
+          GET_PUBLIC_USER_QUERY,
+          { id: this.id(), typeGroup: true, freeRange: true },
+          idToken ? { "firebase-auth-key": idToken } : {},
+        );
+        this._user.set(data.publicUser ?? undefined);
+      }
     } catch {
       this._user.set(undefined);
     } finally {
