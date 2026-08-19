@@ -11,8 +11,10 @@ import {
 } from "@angular/core";
 import { httpResource } from "@angular/common/http";
 import { firstValueFrom } from "rxjs";
+import * as Sentry from "@sentry/angular";
 
 import { environment } from "../../../environments/environment";
+import { ToastService } from "../../ui/toast/toast.service";
 import { GraphQLError, GraphQLResponse } from "./types";
 
 interface GraphQLRequestBody {
@@ -169,6 +171,8 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
 @Injectable({ providedIn: "root" })
 export class GraphQLClient {
   private readonly http = inject(HttpClient);
+  private readonly toast = inject(ToastService);
+  private readonly platformId = inject(PLATFORM_ID);
 
   async request<TData, TVars = Record<string, unknown>>(
     query: string,
@@ -181,14 +185,25 @@ export class GraphQLClient {
         headers: extraHeaders,
       }),
     );
-    // GraphQL allows partial success: a resolver error on one nested field (e.g. the
-    // zero-spotting `withMostEntries` IndexError documented in profile.md) can come back
-    // alongside otherwise-usable `data` for every other field. Only throw when there's
-    // truly nothing to work with — prefer handing back partial data over failing the whole
-    // call for one broken field a caller may not even care about.
+    // Check errors FIRST before returning data. If GraphQL returned any errors,
+    // throw GraphQLRequestError so callers (mutations/imperative requests) properly catch
+    // failures even if partial or null data was returned alongside errors.
+    if (response.errors && response.errors.length > 0) {
+      const error = new GraphQLRequestError(response.errors);
+      if (isPlatformBrowser(this.platformId)) {
+        this.toast.error("GraphQL Error", error.message);
+        Sentry.captureException(error);
+      }
+      throw error;
+    }
     if (response.data !== undefined) {
       return response.data;
     }
-    throw new GraphQLRequestError(response.errors ?? [{ message: "GraphQL response had no data" }]);
+    const error = new GraphQLRequestError([{ message: "GraphQL response had no data" }]);
+    if (isPlatformBrowser(this.platformId)) {
+      this.toast.error("GraphQL Error", error.message);
+      Sentry.captureException(error);
+    }
+    throw error;
   }
 }

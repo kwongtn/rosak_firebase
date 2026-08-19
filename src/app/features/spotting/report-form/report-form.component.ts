@@ -1,6 +1,10 @@
 import { Component, computed, effect, inject, output, signal, viewChild } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
-import { graphqlResource, GraphQLClient } from "../../../core/graphql/graphql-client";
+import {
+  graphqlResource,
+  GraphQLClient,
+  GraphQLRequestError,
+} from "../../../core/graphql/graphql-client";
 import { SpottingType, VehicleStatus, WheelStatus } from "../../../core/graphql/types";
 import { AuthService } from "../../../core/auth/auth.service";
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
@@ -294,7 +298,10 @@ export class ReportFormComponent {
         this.submitted.emit();
       }
     } catch (err) {
-      this.toast.error("Couldn't submit", err instanceof Error ? err.message : "Unknown error");
+      if (err instanceof GraphQLRequestError) {
+        return;
+      }
+      throw err;
     } finally {
       this.isSubmitting.set(false);
     }
