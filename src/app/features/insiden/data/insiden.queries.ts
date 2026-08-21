@@ -12,6 +12,15 @@ export type ChronologyIndicator = "GREEN" | "RED" | "BLUE" | "GRAY";
  * (separate list/details/medias services, lazy-loaded per interaction).
  * ---------------------------------------------------------------------- */
 
+export const GET_INCIDENTS = /* GraphQL */ `
+  query GetIncidents {
+    calendarIncidents {
+      id
+      title
+    }
+  }
+`;
+
 export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
   query CalendarIncidents {
     calendarIncidents {
