@@ -150,11 +150,12 @@ export interface MarkLinkCompletedData {
 export const CONSOLE_CATEGORIES_QUERY = /* GraphQL */ `
   query ConsoleCategories {
     calendarIncidentCategories {
+      id
       name
     }
   }
 `;
 
 export interface ConsoleCategoriesQueryData {
-  calendarIncidentCategories: { name: string }[];
+  calendarIncidentCategories: { id: string; name: string }[];
 }

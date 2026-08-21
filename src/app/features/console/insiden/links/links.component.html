@@ -1,0 +1,119 @@
+<main class="flex flex-1 flex-col gap-6">
+  <h1 class="text-2xl font-bold">Social Media Links</h1>
+
+  <div hlmCard class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+      Search (URL, title)
+      <input
+        hlmInput
+        type="text"
+        placeholder="e.g. twitter.com, LRT"
+        [value]="searchTerm()"
+        (input)="onSearchInput($any($event.target).value)"
+      />
+    </label>
+
+    <label class="flex flex-col gap-1.5 text-sm">
+      Category
+      <select
+        hlmSelect
+        [value]="categoryId()"
+        (change)="onCategoryChange($any($event.target).value)"
+      >
+        <option value="">All categories</option>
+        @for (category of categories(); track category.id) {
+          <option [value]="category.id">{{ category.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="flex flex-col gap-1.5 text-sm">
+      Status
+      <select
+        hlmSelect
+        [value]="completedFilter()"
+        (change)="onCompletedFilterChange($any($event.target).value)"
+      >
+        <option value="any">{{ completedFilterLabel.any }}</option>
+        <option value="pending">{{ completedFilterLabel.pending }}</option>
+        <option value="completed">{{ completedFilterLabel.completed }}</option>
+      </select>
+    </label>
+  </div>
+
+  <div hlmTableContainer>
+    <table hlmTable class="min-w-[900px]">
+      <thead hlmTHead>
+        <tr hlmTr>
+          <th hlmTh>URL</th>
+          <th hlmTh>Title</th>
+          <th hlmTh>Submitter</th>
+          <th hlmTh>Categories</th>
+          <th hlmTh>Status</th>
+          <th hlmTh>Submitted</th>
+          <th hlmTh>Actions</th>
+        </tr>
+      </thead>
+      <tbody hlmTBody>
+        @for (link of links(); track link.id) {
+          <tr hlmTr>
+            <td hlmTd class="max-w-72 py-3">
+              <a
+                [href]="link.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:underline"
+              >
+                {{ link.url }}
+              </a>
+            </td>
+            <td hlmTd class="max-w-64 py-3">
+              {{ link.title || "—" }}
+            </td>
+            <td hlmTd class="py-3">
+              @if (link.user; as submitter) {
+                {{ submitter.nickname || submitter.shortId }}
+              } @else {
+                —
+              }
+            </td>
+            <td hlmTd class="py-3">
+              @if (link.categories.length > 0) {
+                <div class="flex flex-wrap gap-1">
+                  @for (category of link.categories; track category.name) {
+                    <span hlmBadge variant="outline">{{ category.name }}</span>
+                  }
+                </div>
+              } @else {
+                —
+              }
+            </td>
+            <td hlmTd class="py-3">
+              @if (link.completed) {
+                <span hlmBadge>Completed</span>
+              } @else {
+                <span hlmBadge variant="warning">Pending</span>
+              }
+            </td>
+            <td hlmTd class="py-3 whitespace-nowrap">
+              {{ link.created | date: "MMM d, y HH:mm" }}
+            </td>
+            <td hlmTd class="py-3">
+              @if (!link.completed) {
+                <button hlmBtn size="sm" [disabled]="isLoading()" (click)="markCompleted(link)">
+                  Mark completed
+                </button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr hlmTr>
+            <td hlmTd colspan="7" class="text-muted-foreground py-8 text-center">
+              No social media links match the current filters.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</main>
