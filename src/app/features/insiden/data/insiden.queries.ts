@@ -104,3 +104,32 @@ export interface CalendarIncident {
 export interface InsidenIncidentsQueryData {
   calendarIncidents: CalendarIncident[];
 }
+
+export const CREATE_CALENDAR_INCIDENT_MUTATION = /* GraphQL */ `
+  mutation CreateCalendarIncident($data: CalendarIncidentInput!) {
+    createCalendarIncident(input: $data)
+  }
+`;
+
+export interface CreateCalendarIncidentData {
+  createCalendarIncident: { ok: boolean };
+}
+
+export interface CreateCalendarIncidentVars {
+  data: {
+    title: string;
+    brief: string;
+    details?: string | null;
+    startDatetime: string;
+    endDatetime?: string | null;
+    severity: CalendarIncidentSeverity;
+    longTerm?: boolean | null;
+    inaccurate?: boolean | null;
+    chronologies?: {
+      indicator: ChronologyIndicator;
+      datetime?: string | null;
+      sourceUrl?: string | null;
+      content?: string | null;
+    }[];
+  };
+}

@@ -13,4 +13,8 @@ export class IncidentSheetService {
   close() {
     this.isOpen.set(false);
   }
+
+  setOpen(open: boolean) {
+    this.isOpen.set(open);
+  }
 }

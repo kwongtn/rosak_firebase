@@ -1,0 +1,240 @@
+<hlm-sheet [open]="sheet.isOpen()" (openChange)="sheet.setOpen($event)" side="right">
+  <div hlmSheetHeader>
+    <h2 class="text-base font-semibold">Report an Incident</h2>
+  </div>
+  <div hlmSheetBody>
+    <form class="flex flex-col gap-5" (submit)="$event.preventDefault(); submit()">
+      @if (!auth.isLoggedIn()) {
+        <div class="bg-muted flex flex-col gap-2 rounded-lg p-3 text-sm">
+          You'll need to log in before submitting, but feel free to fill in the details first.
+          <button hlmBtn size="sm" variant="outline" class="self-start" (click)="auth.login()">
+            Log in
+          </button>
+        </div>
+      }
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Title
+        <input
+          hlmInput
+          type="text"
+          placeholder="e.g. LRT line disruption at KL Sentral"
+          [formField]="incidentForm.title"
+        />
+        @if (incidentForm.title().invalid() && incidentForm.title().touched()) {
+          <p class="text-destructive text-xs">{{ incidentForm.title().errors()[0]?.message }}</p>
+        }
+      </label>
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Summary
+        <textarea
+          hlmInput
+          rows="2"
+          placeholder="One or two sentences on what happened"
+          [formField]="incidentForm.brief"
+        ></textarea>
+        @if (incidentForm.brief().invalid() && incidentForm.brief().touched()) {
+          <p class="text-destructive text-xs">{{ incidentForm.brief().errors()[0]?.message }}</p>
+        }
+      </label>
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Severity
+        <select hlmInput [formField]="incidentForm.severity">
+          <option value="" disabled>Select severity</option>
+          @for (severity of severities; track severity) {
+            <option [value]="severity">{{ severity }}</option>
+          }
+        </select>
+        @if (incidentForm.severity().invalid() && incidentForm.severity().touched()) {
+          <p class="text-destructive text-xs">{{ incidentForm.severity().errors()[0]?.message }}</p>
+        }
+      </label>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="flex flex-col gap-1.5 text-sm">
+          Start
+          <input hlmInput type="datetime-local" [formField]="incidentForm.startDatetime" />
+          @if (incidentForm.startDatetime().invalid() && incidentForm.startDatetime().touched()) {
+            <p class="text-destructive text-xs">
+              {{ incidentForm.startDatetime().errors()[0]?.message }}
+            </p>
+          }
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm">
+          End <span class="text-muted-foreground text-xs">(optional)</span>
+          <input hlmInput type="datetime-local" [formField]="incidentForm.endDatetime" />
+          @if (incidentForm.endDatetime().invalid() && incidentForm.endDatetime().touched()) {
+            <p class="text-destructive text-xs">
+              {{ incidentForm.endDatetime().errors()[0]?.message }}
+            </p>
+          }
+        </label>
+      </div>
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Details <span class="text-muted-foreground text-xs">(optional)</span>
+        <textarea hlmInput rows="4" [formField]="incidentForm.details"></textarea>
+      </label>
+
+      <div class="flex flex-col gap-2 text-sm">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" [formField]="incidentForm.longTerm" />
+          Long-term disruption (start date only in the month view)
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" [formField]="incidentForm.inaccurate" />
+          Mark as inaccurate
+        </label>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Chronology</h3>
+          <button hlmBtn size="sm" variant="outline" type="button" (click)="addChronology()">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              class="size-4"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Add entry
+          </button>
+        </div>
+
+        @for (chronology of chronologies(); track chronology.key; let i = $index) {
+          <div class="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-medium">{{ i + 1 }}.</span>
+              <div class="flex items-center gap-1">
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label="Move up"
+                  [disabled]="!canMove(i, 'up')"
+                  (click)="moveChronologyBy(i, -1)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="size-4"
+                    aria-hidden="true"
+                  >
+                    <path d="m18 15-6-6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label="Move down"
+                  [disabled]="!canMove(i, 'down')"
+                  (click)="moveChronologyBy(i, 1)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="size-4"
+                    aria-hidden="true"
+                  >
+                    <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  [attr.aria-expanded]="!chronology.collapsed"
+                  (click)="toggleChronologyCollapsed(chronology.key)"
+                >
+                  {{ chronology.collapsed ? "Expand" : "Collapse" }}
+                </button>
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label="Remove entry"
+                  (click)="removeChronology(chronology.key)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="size-4"
+                    aria-hidden="true"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            @if (!chronology.collapsed) {
+              <div class="flex flex-col gap-2">
+                <select
+                  hlmInput
+                  class="text-sm"
+                  [value]="chronology.indicator"
+                  (change)="chronology.indicator = $any($event.target).value"
+                >
+                  @for (indicator of indicators; track indicator) {
+                    <option [value]="indicator">{{ indicator }}</option>
+                  }
+                </select>
+                <input
+                  hlmInput
+                  type="datetime-local"
+                  class="text-sm"
+                  [value]="chronology.datetime"
+                  (change)="chronology.datetime = $any($event.target).value"
+                />
+                <input
+                  hlmInput
+                  type="url"
+                  class="text-sm"
+                  placeholder="Source URL (optional)"
+                  [value]="chronology.sourceUrl"
+                  (change)="chronology.sourceUrl = $any($event.target).value"
+                />
+                <textarea
+                  hlmInput
+                  rows="2"
+                  class="text-sm"
+                  placeholder="What happened at this point"
+                  [value]="chronology.content"
+                  (change)="chronology.content = $any($event.target).value"
+                ></textarea>
+              </div>
+            }
+          </div>
+        } @empty {
+          <p class="text-muted-foreground text-xs">
+            No chronology entries yet — add the sequence of events as they unfolded.
+          </p>
+        }
+      </div>
+
+      <button hlmBtn type="submit" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? "Submitting…" : "Submit" }}
+      </button>
+    </form>
+  </div>
+  <div hlmSheetFooter>
+    <button hlmBtn variant="outline" (click)="sheet.close()">Cancel</button>
+  </div>
+</hlm-sheet>
