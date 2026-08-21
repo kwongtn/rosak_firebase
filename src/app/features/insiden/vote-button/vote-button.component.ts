@@ -1,0 +1,149 @@
+import { Component, computed, inject, input, signal } from "@angular/core";
+import { AuthService } from "../../../core/auth/auth.service";
+import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { ToastService } from "../../../ui/toast/toast.service";
+import {
+  DOWNVOTE_MUTATION,
+  REMOVE_VOTE_MUTATION,
+  UPVOTE_MUTATION,
+  VoteMutationData,
+  VoteMutationVars,
+} from "../data/insiden.queries";
+import {
+  formatBreakdown,
+  formatNetScore,
+  nextVoteState,
+  type VoteState,
+  type VoteValue,
+} from "./vote-state.util";
+
+/**
+ * Upvote/downvote control showing the net score with a hover breakdown tooltip.
+ * Clicks apply an optimistic projection (vote-state.util.ts) immediately and fire
+ * the matching mutation; a failed request rolls the display back to the previous
+ * state and surfaces a toast. Switching votes sends the new-direction mutation —
+ * the backend's update_or_create makes that idempotent.
+ */
+@Component({
+  selector: "app-vote-button",
+  imports: [],
+  template: `
+    <div class="group/vote flex items-center gap-0.5" aria-label="Vote on this incident">
+      <button
+        hlmBtn
+        variant="ghost"
+        size="sm"
+        type="button"
+        aria-label="Upvote"
+        [attr.aria-pressed]="state().userVote === 1"
+        [class.text-green-600]="state().userVote === 1"
+        [disabled]="!auth.isLoggedIn() || isVoting()"
+        (click)="onVoteClick(1)"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="size-4"
+          aria-hidden="true"
+        >
+          <path d="m18 15-6-6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+
+      <span class="relative min-w-8 text-center text-sm font-semibold tabular-nums">
+        {{ formatNetScore(state().netScore) }}
+        <span
+          role="tooltip"
+          class="bg-popover text-popover-foreground pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-md border px-2 py-1 text-xs font-normal whitespace-nowrap opacity-0 shadow-md transition-opacity group-hover/vote:opacity-100"
+        >
+          {{ breakdown() }}
+        </span>
+      </span>
+
+      <button
+        hlmBtn
+        variant="ghost"
+        size="sm"
+        type="button"
+        aria-label="Downvote"
+        [attr.aria-pressed]="state().userVote === -1"
+        [class.text-red-600]="state().userVote === -1"
+        [disabled]="!auth.isLoggedIn() || isVoting()"
+        (click)="onVoteClick(-1)"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="size-4"
+          aria-hidden="true"
+        >
+          <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </div>
+  `,
+})
+export class VoteButtonComponent {
+  readonly auth = inject(AuthService);
+  private readonly graphql = inject(GraphQLClient);
+  private readonly toast = inject(ToastService);
+
+  /** Backend object id this button votes on. */
+  readonly incidentId = input.required<string>();
+  readonly netScore = input(0);
+  readonly upvotes = input(0);
+  readonly downvotes = input(0);
+  /** 1 upvoted, -1 downvoted, 0 no vote. */
+  readonly userVote = input<VoteValue>(0);
+
+  protected readonly state = signal<VoteState>({
+    netScore: this.netScore(),
+    upvotes: this.upvotes(),
+    downvotes: this.downvotes(),
+    userVote: this.userVote(),
+  });
+
+  protected readonly isVoting = signal(false);
+
+  protected readonly formatNetScore = formatNetScore;
+  protected readonly breakdown = computed(() =>
+    formatBreakdown(this.state().upvotes, this.state().downvotes),
+  );
+
+  protected async onVoteClick(target: Exclude<VoteValue, 0>): Promise<void> {
+    const previous = this.state();
+    const nextTarget: VoteValue = previous.userVote === target ? 0 : target;
+
+    // Optimistic: show the projected numbers before the server confirms.
+    this.state.set(nextVoteState(previous, nextTarget));
+    this.isVoting.set(true);
+    try {
+      await this.requestVote(nextTarget);
+    } catch {
+      this.state.set(previous);
+      this.toast.error("Vote not recorded", "Please try again in a moment.");
+    } finally {
+      this.isVoting.set(false);
+    }
+  }
+
+  private async requestVote(target: VoteValue): Promise<void> {
+    const idToken = await this.auth.idToken();
+    const headers: Record<string, string> = idToken
+      ? { "firebase-auth-key": idToken }
+      : {};
+    const mutation =
+      target === 1 ? UPVOTE_MUTATION : target === -1 ? DOWNVOTE_MUTATION : REMOVE_VOTE_MUTATION;
+    await this.graphql.request<VoteMutationData, VoteMutationVars>(
+      mutation,
+      {
+        incidentId: this.incidentId(),
+      },
+      headers,
+    );
+  }
+}

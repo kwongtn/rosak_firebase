@@ -133,3 +133,31 @@ export interface CreateCalendarIncidentVars {
     }[];
   };
 }
+
+export const UPVOTE_MUTATION = /* GraphQL */ `
+  mutation Upvote($incidentId: ID!) {
+    upvote(calendarIncidentId: $incidentId)
+  }
+`;
+
+export const DOWNVOTE_MUTATION = /* GraphQL */ `
+  mutation Downvote($incidentId: ID!) {
+    downvote(calendarIncidentId: $incidentId)
+  }
+`;
+
+export const REMOVE_VOTE_MUTATION = /* GraphQL */ `
+  mutation RemoveVote($incidentId: ID!) {
+    removeVote(calendarIncidentId: $incidentId)
+  }
+`;
+
+export interface VoteMutationData {
+  upvote?: { ok: boolean };
+  downvote?: { ok: boolean };
+  removeVote?: { ok: boolean };
+}
+
+export interface VoteMutationVars {
+  incidentId: string;
+}
