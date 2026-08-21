@@ -133,9 +133,7 @@ export class VoteButtonComponent {
 
   private async requestVote(target: VoteValue): Promise<void> {
     const idToken = await this.auth.idToken();
-    const headers: Record<string, string> = idToken
-      ? { "firebase-auth-key": idToken }
-      : {};
+    const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
     const mutation =
       target === 1 ? UPVOTE_MUTATION : target === -1 ? DOWNVOTE_MUTATION : REMOVE_VOTE_MUTATION;
     await this.graphql.request<VoteMutationData, VoteMutationVars>(
