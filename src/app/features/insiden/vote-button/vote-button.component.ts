@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from "@angular/core";
+import { Component, computed, inject, input, linkedSignal, signal } from "@angular/core";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -100,12 +100,16 @@ export class VoteButtonComponent {
   /** 1 upvoted, -1 downvoted, 0 no vote. */
   readonly userVote = input<VoteValue>(0);
 
-  protected readonly state = signal<VoteState>({
+  /** linkedSignal, not a plain signal seeded in a field initializer: input
+   * signals only carry their bound values after construction, so a plain seed
+   * would lock the display at 0 until the first click. linkedSignal tracks the
+   * inputs (server truth on refetch) while .set() applies optimistic updates. */
+  protected readonly state = linkedSignal<VoteState>(() => ({
     netScore: this.netScore(),
     upvotes: this.upvotes(),
     downvotes: this.downvotes(),
     userVote: this.userVote(),
-  });
+  }));
 
   protected readonly isVoting = signal(false);
 
