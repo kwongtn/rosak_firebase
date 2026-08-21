@@ -22,6 +22,9 @@ function createMockIncident(
     vehicles: [],
     stations: [],
     chronologies: [],
+    voteScore: 0,
+    voteBreakdown: { upvotes: 0, downvotes: 0 },
+    userVote: 0,
     medias: [],
   };
 }

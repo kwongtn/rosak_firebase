@@ -1,34 +1,43 @@
-import { Component, computed, inject, input } from "@angular/core";
+import { Component, computed, inject, input, viewChild } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { graphqlResource } from "../../core/graphql/graphql-client";
+import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
+import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
 import { IncidentCalendarComponent } from "./calendar/calendar.component";
+import { IncidentFormComponent } from "./incident-form/incident-form.component";
+import { IncidentSheetService } from "./data/incident-sheet.service";
 import { INSIDEN_INCIDENTS_QUERY, InsidenIncidentsQueryData } from "./data/insiden.queries";
 import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
 
 /**
  * /insiden — line/vehicle/station-level service disruptions (signal failures, breakdowns, train
- * crashes...), authored by admins via Django admin. Fully public/read-only except attaching a
- * photo to an existing incident. Ported from src/app/insiden/: a month calendar (dots per
- * severity present each day) drives a day-scoped incident list, same shape as the old app's
- * ng-zorro calendar + event-list pairing — plus an always-visible "ongoing/long-running" section,
- * since those matter regardless of which day happens to be selected.
+ * crashes...). A month calendar (dots per severity present each day) drives a day-scoped incident
+ * list, plus an always-visible "ongoing/long-running" section. Community members report new
+ * incidents through the right-side sheet (same idiom as the spotting shell): the sheet is opened
+ * by the header button and hosted here, with its footer driving the form like spotting does.
  */
 @Component({
   selector: "app-insiden",
   imports: [
     DatePipe,
+    HlmButton,
     HlmSkeleton,
+    HlmSheet,
+    HlmSheetHeader,
+    HlmSheetBody,
+    HlmSheetFooter,
     RetryBannerComponent,
     AppNavComponent,
     AppFooterComponent,
     IncidentCardComponent,
     IncidentCalendarComponent,
+    IncidentFormComponent,
   ],
   templateUrl: "./insiden.page.html",
 })
@@ -39,6 +48,9 @@ export class InsidenPage {
   readonly dateParam = input<string | undefined>(undefined, { alias: "date" });
 
   private readonly router = inject(Router);
+
+  protected readonly incidentSheet = inject(IncidentSheetService);
+  protected readonly formRef = viewChild(IncidentFormComponent);
 
   protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
@@ -82,5 +94,13 @@ export class InsidenPage {
    * real, shareable/bookmarkable URL (and Back/Forward walks through previously viewed days). */
   protected onDaySelected(dateKey: string): void {
     this.router.navigate(["/insiden", dateKey]);
+  }
+
+  protected openReportSheet(): void {
+    this.incidentSheet.open();
+  }
+
+  protected closeReportSheet(): void {
+    this.incidentSheet.setOpen(false);
   }
 }

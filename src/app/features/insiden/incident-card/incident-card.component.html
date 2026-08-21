@@ -84,15 +84,29 @@
     }
   </div>
 
-  <div class="flex items-center gap-2">
-    @if (incident().hasDetails) {
-      <button hlmBtn variant="outline" size="sm" (click)="detailsExpanded.set(!detailsExpanded())">
-        {{ detailsExpanded() ? "Hide details" : "Show details" }}
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      @if (incident().hasDetails) {
+        <button
+          hlmBtn
+          variant="outline"
+          size="sm"
+          (click)="detailsExpanded.set(!detailsExpanded())"
+        >
+          {{ detailsExpanded() ? "Hide details" : "Show details" }}
+        </button>
+      }
+      <button hlmBtn variant="outline" size="sm" (click)="photosExpanded.set(!photosExpanded())">
+        Photos ({{ incident().medias.length }})
       </button>
-    }
-    <button hlmBtn variant="outline" size="sm" (click)="photosExpanded.set(!photosExpanded())">
-      Photos ({{ incident().medias.length }})
-    </button>
+    </div>
+    <app-vote-button
+      [incidentId]="incident().id"
+      [netScore]="incident().voteScore"
+      [upvotes]="incident().voteBreakdown.upvotes"
+      [downvotes]="incident().voteBreakdown.downvotes"
+      [userVote]="incident().userVote"
+    />
   </div>
 
   @if (detailsExpanded()) {

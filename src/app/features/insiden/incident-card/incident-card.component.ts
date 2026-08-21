@@ -18,6 +18,7 @@ import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import { ImageFile } from "../../../core/upload/image-file";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { PhotoPickerComponent } from "../../spotting/report-form/photo-picker/photo-picker.component";
+import { VoteButtonComponent } from "../vote-button/vote-button.component";
 import {
   CalendarIncident,
   CalendarIncidentSeverity,
@@ -84,6 +85,7 @@ function defaultChronology(incident: CalendarIncident): CalendarIncident["chrono
     HlmBadge,
     ...HlmCardImports,
     PhotoPickerComponent,
+    VoteButtonComponent,
   ],
   templateUrl: "./incident-card.component.html",
 })

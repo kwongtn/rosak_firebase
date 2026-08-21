@@ -56,6 +56,12 @@ export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
         content
         sourceUrl
       }
+      voteScore
+      voteBreakdown {
+        upvotes
+        downvotes
+      }
+      userVote
       medias {
         file {
           url
@@ -98,6 +104,10 @@ export interface CalendarIncident {
   vehicles: { id: string; identificationNo: string }[];
   stations: { id: string; displayName: string }[];
   chronologies: CalendarIncidentChronology[];
+  voteScore: number;
+  voteBreakdown: { upvotes: number; downvotes: number };
+  /** 1 upvoted, -1 downvoted, 0 no vote (matches VoteButtonComponent's VoteValue). */
+  userVote: -1 | 0 | 1;
   medias: CalendarIncidentMedia[];
 }
 
