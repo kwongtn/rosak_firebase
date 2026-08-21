@@ -1,5 +1,6 @@
 import { type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -62,6 +63,7 @@ describe("PendingIncidentsComponent", () => {
       imports: [PendingIncidentsComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: AuthService, useValue: { idToken: async () => "token" } },
         {
