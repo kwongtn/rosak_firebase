@@ -15,6 +15,7 @@ import { HlmCardImports } from "../../ui/card/card";
 import { HlmTableImports } from "../../ui/table/table";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
+import { ConsoleNavComponent } from "./console-nav.component";
 import { VehicleStatusBadge } from "../../domain-ui/vehicle-status-badge/vehicle-status-badge";
 import { SpottingTypeBadge } from "../../domain-ui/spotting-type-badge/spotting-type-badge";
 import { SpottingType, SpottingVehicleStatus } from "../../core/graphql/types";
@@ -105,6 +106,7 @@ function emptyFilterForm(): FilterFormModel {
     ...HlmTableImports,
     AppNavComponent,
     AppFooterComponent,
+    ConsoleNavComponent,
     VehicleStatusBadge,
     SpottingTypeBadge,
   ],

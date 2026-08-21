@@ -9,6 +9,7 @@ import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmNativeSelect } from "../../../../ui/select/native-select";
 import { HlmTableImports } from "../../../../ui/table/table";
+import { ConsoleNavComponent } from "../../console-nav.component";
 import {
   CONSOLE_CATEGORIES_QUERY,
   ConsoleCategoriesQueryData,
@@ -51,6 +52,7 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
     HlmNativeSelect,
     ...HlmCardImports,
     ...HlmTableImports,
+    ConsoleNavComponent,
   ],
   templateUrl: "./links.component.html",
 })

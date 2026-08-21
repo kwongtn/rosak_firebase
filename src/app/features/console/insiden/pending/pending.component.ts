@@ -9,6 +9,7 @@ import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../../ui/sheet/sheet";
 import { HlmTableImports } from "../../../../ui/table/table";
+import { ConsoleNavComponent } from "../../console-nav.component";
 import {
   APPROVE_INCIDENT_MUTATION,
   ApproveIncidentVars,
@@ -59,6 +60,7 @@ const SEVERITY_LABEL: Record<PendingIncident["severity"], string> = {
     HlmSheetHeader,
     HlmSheetBody,
     HlmSheetFooter,
+    ConsoleNavComponent,
   ],
   templateUrl: "./pending.component.html",
 })
