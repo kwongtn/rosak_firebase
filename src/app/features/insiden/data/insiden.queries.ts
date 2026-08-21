@@ -107,12 +107,15 @@ export interface InsidenIncidentsQueryData {
 
 export const CREATE_CALENDAR_INCIDENT_MUTATION = /* GraphQL */ `
   mutation CreateCalendarIncident($data: CalendarIncidentInput!) {
-    createCalendarIncident(input: $data)
+    createCalendarIncident(input: $data) {
+      ok
+      id
+    }
   }
 `;
 
 export interface CreateCalendarIncidentData {
-  createCalendarIncident: { ok: boolean };
+  createCalendarIncident: { ok: boolean; id: number | null };
 }
 
 export interface CreateCalendarIncidentVars {
@@ -132,6 +135,22 @@ export interface CreateCalendarIncidentVars {
       content?: string | null;
     }[];
   };
+}
+
+export const SUBMIT_CALENDAR_INCIDENT_MUTATION = /* GraphQL */ `
+  mutation SubmitCalendarIncident($calendarIncidentId: ID!) {
+    submitCalendarIncident(calendarIncidentId: $calendarIncidentId) {
+      ok
+    }
+  }
+`;
+
+export interface SubmitCalendarIncidentData {
+  submitCalendarIncident: { ok: boolean };
+}
+
+export interface SubmitCalendarIncidentVars {
+  calendarIncidentId: string;
 }
 
 export const UPVOTE_MUTATION = /* GraphQL */ `

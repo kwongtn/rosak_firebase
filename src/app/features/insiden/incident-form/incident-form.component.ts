@@ -12,6 +12,9 @@ import {
   CREATE_CALENDAR_INCIDENT_MUTATION,
   CreateCalendarIncidentData,
   CreateCalendarIncidentVars,
+  SUBMIT_CALENDAR_INCIDENT_MUTATION,
+  SubmitCalendarIncidentData,
+  SubmitCalendarIncidentVars,
 } from "../data/insiden.queries";
 import { IncidentSheetService } from "../data/incident-sheet.service";
 import {
@@ -126,7 +129,11 @@ export class IncidentFormComponent {
       const ok = await submit(this.incidentForm, async () => {
         const m = this.model();
         const idToken = await this.auth.idToken();
-        await this.graphql.request<CreateCalendarIncidentData, CreateCalendarIncidentVars>(
+        const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
+        const created = await this.graphql.request<
+          CreateCalendarIncidentData,
+          CreateCalendarIncidentVars
+        >(
           CREATE_CALENDAR_INCIDENT_MUTATION,
           {
             data: {
@@ -146,8 +153,16 @@ export class IncidentFormComponent {
               })),
             },
           },
-          idToken ? { "firebase-auth-key": idToken } : {},
+          headers,
         );
+        // Admin creates land LIVE directly; only non-admin drafts need the approval queue.
+        if (!this.auth.isAdmin() && created.createCalendarIncident.id !== null) {
+          await this.graphql.request<SubmitCalendarIncidentData, SubmitCalendarIncidentVars>(
+            SUBMIT_CALENDAR_INCIDENT_MUTATION,
+            { calendarIncidentId: String(created.createCalendarIncident.id) },
+            headers,
+          );
+        }
         return [];
       });
 
