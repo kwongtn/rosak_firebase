@@ -10,10 +10,5 @@ export const adminOnlyGuard: CanActivateFn = async () => {
   const router = inject(Router);
 
   await auth.whenReady;
-  // TEMPORARY: the `admin` custom claim isn't reliably granted yet (see conversation/PR notes),
-  // so the guard is disabled to unblock manual testing of /console. Restore the commented
-  // check below once claim-granting is sorted out — do not ship this open.
-  void router;
-  return true;
-  // return auth.isAdmin() ? true : router.createUrlTree(["/spotting"]);
+  return auth.isAdmin() ? true : router.createUrlTree(["/spotting"]);
 };
