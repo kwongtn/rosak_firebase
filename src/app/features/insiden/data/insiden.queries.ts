@@ -165,19 +165,25 @@ export interface SubmitCalendarIncidentVars {
 
 export const UPVOTE_MUTATION = /* GraphQL */ `
   mutation Upvote($incidentId: ID!) {
-    upvote(calendarIncidentId: $incidentId)
+    upvote(calendarIncidentId: $incidentId) {
+      ok
+    }
   }
 `;
 
 export const DOWNVOTE_MUTATION = /* GraphQL */ `
   mutation Downvote($incidentId: ID!) {
-    downvote(calendarIncidentId: $incidentId)
+    downvote(calendarIncidentId: $incidentId) {
+      ok
+    }
   }
 `;
 
 export const REMOVE_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveVote($incidentId: ID!) {
-    removeVote(calendarIncidentId: $incidentId)
+    removeVote(calendarIncidentId: $incidentId) {
+      ok
+    }
   }
 `;
 
