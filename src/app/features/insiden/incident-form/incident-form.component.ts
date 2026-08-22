@@ -3,7 +3,7 @@ import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
-import { HlmInput } from "../../../ui/input/input";
+import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
@@ -60,7 +60,15 @@ const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
  */
 @Component({
   selector: "app-incident-form",
-  imports: [FormField, HlmButton, HlmInput, HlmSheet, HlmSheetHeader, HlmSheetBody, HlmSheetFooter],
+  imports: [
+    FormField,
+    HlmButton,
+    HlmNativeSelect,
+    HlmSheet,
+    HlmSheetHeader,
+    HlmSheetBody,
+    HlmSheetFooter,
+  ],
   templateUrl: "./incident-form.component.html",
 })
 export class IncidentFormComponent {

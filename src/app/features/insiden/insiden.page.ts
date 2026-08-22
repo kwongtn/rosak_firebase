@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, viewChild } from "@angular/core";
+import { Component, computed, inject, input } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { graphqlResource } from "../../core/graphql/graphql-client";
@@ -50,7 +50,6 @@ export class InsidenPage {
   private readonly router = inject(Router);
 
   protected readonly incidentSheet = inject(IncidentSheetService);
-  protected readonly formRef = viewChild(IncidentFormComponent);
 
   protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
@@ -98,9 +97,5 @@ export class InsidenPage {
 
   protected openReportSheet(): void {
     this.incidentSheet.open();
-  }
-
-  protected closeReportSheet(): void {
-    this.incidentSheet.setOpen(false);
   }
 }

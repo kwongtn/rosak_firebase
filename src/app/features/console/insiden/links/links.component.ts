@@ -9,6 +9,8 @@ import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmNativeSelect } from "../../../../ui/select/native-select";
 import { HlmTableImports } from "../../../../ui/table/table";
+import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
+import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { ConsoleNavComponent } from "../../console-nav.component";
 import {
   CONSOLE_CATEGORIES_QUERY,
@@ -45,6 +47,8 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
 @Component({
   selector: "app-console-social-media-links",
   imports: [
+    AppNavComponent,
+    AppFooterComponent,
     DatePipe,
     HlmBadge,
     HlmButton,

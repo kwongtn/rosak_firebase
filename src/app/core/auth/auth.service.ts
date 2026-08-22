@@ -19,6 +19,13 @@ function firebaseApp() {
   return getApps().length ? getApps()[0] : initializeApp(environment.firebase);
 }
 
+/** Installed by the Playwright E2E suite (see e2e/helpers/auth.ts) so specs can
+ * run guarded routes without a live Firebase project. Never set in production. */
+export interface E2EAuthOverride {
+  email: string;
+  admin: boolean;
+}
+
 /** Keyed by uid (not a single flat key) so a browser that's ever signed into more than one
  * account doesn't show a stale given_name left over from a previous one. */
 const firstNameStorageKey = (uid: string) => `auth:given-name:${uid}`;
@@ -57,6 +64,13 @@ export class AuthService {
   constructor() {
     this.whenReady = new Promise((resolve) => (this.resolveReady = resolve));
     if (!this.isBrowser) {
+      this.resolveReady();
+      return;
+    }
+    const override = (globalThis as { __e2eAuthOverride__?: E2EAuthOverride }).__e2eAuthOverride__;
+    if (override) {
+      this.isLoggedIn.set(true);
+      this.isAdmin.set(override.admin);
       this.resolveReady();
       return;
     }

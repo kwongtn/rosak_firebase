@@ -1,4 +1,4 @@
-import { type WritableSignal } from "@angular/core";
+import { Component, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { provideZonelessChangeDetection } from "@angular/core";
@@ -13,7 +13,17 @@ import {
   REJECT_INCIDENT_MUTATION,
   type PendingIncident,
 } from "../data/insiden-console.queries";
+import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
+import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { PendingIncidentsComponent } from "./pending.component";
+/* The real app-nav/footer pull in browser-only services (ThemeService needs
+ * matchMedia); the shell chrome is irrelevant to these specs, so swap in
+ * empty stand-ins. */
+@Component({ selector: "app-nav", template: "" })
+class StubNav {}
+
+@Component({ selector: "app-footer", template: "" })
+class StubFooter {}
 
 function makeRow(overrides: Partial<PendingIncident> = {}): PendingIncident {
   return {
@@ -73,6 +83,10 @@ describe("PendingIncidentsComponent", () => {
       ],
     }).compileComponents();
 
+    TestBed.overrideComponent(PendingIncidentsComponent, {
+      remove: { imports: [AppNavComponent, AppFooterComponent] },
+      add: { imports: [StubNav, StubFooter] },
+    });
     fixture = TestBed.createComponent(PendingIncidentsComponent);
   });
 

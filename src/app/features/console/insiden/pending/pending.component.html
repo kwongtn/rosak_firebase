@@ -1,130 +1,135 @@
-<main class="flex flex-1 flex-col gap-6">
-  <h1 class="text-2xl font-bold">Incident Approval</h1>
+<app-nav />
+<div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+  <main class="flex flex-1 flex-col gap-6">
+    <h1 class="text-2xl font-bold">Incident Approval</h1>
 
-  <app-console-nav />
+    <app-console-nav />
 
-  <div hlmCard class="gap-4 p-4">
-    <label class="flex flex-col gap-1.5 text-sm">
-      Search (title, brief, details, source URLs)
-      <input
-        hlmInput
-        type="text"
-        placeholder="e.g. LRT, KL Sentral, twitter.com/…"
-        [value]="searchTerm()"
-        (input)="onSearchInput($any($event.target).value)"
-      />
-    </label>
-  </div>
-
-  <div hlmTableContainer>
-    <table hlmTable class="min-w-[900px]">
-      <thead hlmTHead>
-        <tr hlmTr>
-          <th hlmTh>Title</th>
-          <th hlmTh>Brief</th>
-          <th hlmTh>Severity</th>
-          <th hlmTh>Starts</th>
-          <th hlmTh>Lines</th>
-          <th hlmTh>Chronologies</th>
-          <th hlmTh>Submitted</th>
-          <th hlmTh>Actions</th>
-        </tr>
-      </thead>
-      <tbody hlmTBody>
-        @for (row of rows(); track row.id) {
-          <tr hlmTr>
-            <td hlmTd class="py-3 font-medium">{{ row.title }}</td>
-            <td hlmTd class="max-w-72 py-3">
-              <p class="line-clamp-2">{{ row.brief }}</p>
-            </td>
-            <td hlmTd class="py-3">
-              <span hlmBadge [variant]="severityVariant(row.severity)">
-                {{ severityLabel(row.severity) }}
-              </span>
-            </td>
-            <td hlmTd class="py-3 whitespace-nowrap">
-              {{ row.startDatetime | date: "MMM d, y HH:mm" }}
-            </td>
-            <td hlmTd class="py-3">
-              {{ row.lines.map((l) => l.code).join(", ") || "—" }}
-            </td>
-            <td hlmTd class="py-3">{{ row.chronologies.length }}</td>
-            <td hlmTd class="py-3 whitespace-nowrap">
-              {{ row.created | date: "MMM d, y HH:mm" }}
-            </td>
-            <td hlmTd class="py-3">
-              <div class="flex items-center gap-2">
-                <button hlmBtn size="sm" [disabled]="isMutating()" (click)="approve(row)">
-                  Approve
-                </button>
-                <button
-                  hlmBtn
-                  size="sm"
-                  variant="destructive"
-                  [disabled]="isMutating()"
-                  (click)="openReject(row)"
-                >
-                  Reject
-                </button>
-              </div>
-            </td>
-          </tr>
-        } @empty {
-          <tr hlmTr>
-            <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">
-              No incidents waiting for approval.
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
-
-  <hlm-sheet [open]="rejectTarget() !== null" (openChange)="cancelReject()" side="full">
-    <div hlmSheetHeader class="flex items-center justify-between gap-2">
-      <h2 class="text-base font-semibold">Reject "{{ rejectTarget()?.title }}"</h2>
-      <button
-        type="button"
-        class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
-        aria-label="Close"
-        title="Close"
-        (click)="cancelReject()"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          class="size-4"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <path d="M18 6 6 18M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-    <div hlmSheetBody class="flex flex-col gap-4">
+    <div hlmCard class="gap-4 p-4">
       <label class="flex flex-col gap-1.5 text-sm">
-        Rejection reason (required — shown to the submitter)
-        <textarea
+        Search (title, brief, details, source URLs)
+        <input
           hlmInput
-          rows="4"
-          placeholder="e.g. Duplicate of an existing incident"
-          [value]="rejectReason()"
-          (input)="rejectReason.set($any($event.target).value)"
-        ></textarea>
+          type="text"
+          placeholder="e.g. LRT, KL Sentral, twitter.com/…"
+          [value]="searchTerm()"
+          (input)="onSearchInput($any($event.target).value)"
+        />
       </label>
     </div>
-    <div hlmSheetFooter class="flex justify-end gap-2">
-      <button hlmBtn variant="outline" (click)="cancelReject()">Cancel</button>
-      <button
-        hlmBtn
-        variant="destructive"
-        [disabled]="isMutating() || !rejectReason().trim()"
-        (click)="confirmReject()"
-      >
-        Reject incident
-      </button>
+
+    <div hlmTableContainer>
+      <table hlmTable class="min-w-[900px]">
+        <thead hlmTHead>
+          <tr hlmTr>
+            <th hlmTh>Title</th>
+            <th hlmTh>Brief</th>
+            <th hlmTh>Severity</th>
+            <th hlmTh>Starts</th>
+            <th hlmTh>Lines</th>
+            <th hlmTh>Chronologies</th>
+            <th hlmTh>Submitted</th>
+            <th hlmTh>Actions</th>
+          </tr>
+        </thead>
+        <tbody hlmTBody>
+          @for (row of rows(); track row.id) {
+            <tr hlmTr>
+              <td hlmTd class="py-3 font-medium">{{ row.title }}</td>
+              <td hlmTd class="max-w-72 py-3">
+                <p class="line-clamp-2">{{ row.brief }}</p>
+              </td>
+              <td hlmTd class="py-3">
+                <span hlmBadge [variant]="severityVariant(row.severity)">
+                  {{ severityLabel(row.severity) }}
+                </span>
+              </td>
+              <td hlmTd class="py-3 whitespace-nowrap">
+                {{ row.startDatetime | date: "MMM d, y HH:mm" }}
+              </td>
+              <td hlmTd class="py-3">
+                {{ row.lines.map((l) => l.code).join(", ") || "—" }}
+              </td>
+              <td hlmTd class="py-3">{{ row.chronologies.length }}</td>
+              <td hlmTd class="py-3 whitespace-nowrap">
+                {{ row.created | date: "MMM d, y HH:mm" }}
+              </td>
+              <td hlmTd class="py-3">
+                <div class="flex items-center gap-2">
+                  <button hlmBtn size="sm" [disabled]="isMutating()" (click)="approve(row)">
+                    Approve
+                  </button>
+                  <button
+                    hlmBtn
+                    size="sm"
+                    variant="destructive"
+                    [disabled]="isMutating()"
+                    (click)="openReject(row)"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr hlmTr>
+              <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">
+                No incidents waiting for approval.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
     </div>
-  </hlm-sheet>
-</main>
+
+    <hlm-sheet [open]="rejectTarget() !== null" (openChange)="cancelReject()" side="full">
+      <div hlmSheetHeader class="flex items-center justify-between gap-2">
+        <h2 class="text-base font-semibold">Reject "{{ rejectTarget()?.title }}"</h2>
+        <button
+          type="button"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+          aria-label="Close"
+          title="Close"
+          (click)="cancelReject()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="size-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div hlmSheetBody class="flex flex-col gap-4">
+        <label class="flex flex-col gap-1.5 text-sm">
+          Rejection reason (required — shown to the submitter)
+          <textarea
+            hlmInput
+            rows="4"
+            placeholder="e.g. Duplicate of an existing incident"
+            [value]="rejectReason()"
+            (input)="rejectReason.set($any($event.target).value)"
+          ></textarea>
+        </label>
+      </div>
+      <div hlmSheetFooter class="flex justify-end gap-2">
+        <button hlmBtn variant="outline" (click)="cancelReject()">Cancel</button>
+        <button
+          hlmBtn
+          variant="destructive"
+          [disabled]="isMutating() || !rejectReason().trim()"
+          (click)="confirmReject()"
+        >
+          Reject incident
+        </button>
+      </div>
+    </hlm-sheet>
+  </main>
+
+  <app-footer />
+</div>

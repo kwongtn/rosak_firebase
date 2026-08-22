@@ -41,7 +41,7 @@
 
       <label class="flex flex-col gap-1.5 text-sm">
         Severity
-        <select hlmInput [formField]="incidentForm.severity">
+        <select hlmSelect [formField]="incidentForm.severity">
           <option value="" disabled>Select severity</option>
           @for (severity of severities; track severity) {
             <option [value]="severity">{{ severity }}</option>
@@ -187,7 +187,7 @@
             @if (!chronology.collapsed) {
               <div class="flex flex-col gap-2">
                 <select
-                  hlmInput
+                  hlmSelect
                   class="text-sm"
                   [value]="chronology.indicator"
                   (change)="chronology.indicator = $any($event.target).value"

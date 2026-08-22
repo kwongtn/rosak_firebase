@@ -63,33 +63,4 @@
   <app-footer />
 </div>
 
-<hlm-sheet [open]="incidentSheet.isOpen()" (openChange)="closeReportSheet()" side="right">
-  <div hlmSheetHeader>
-    <h2 class="text-base font-semibold">Report an Incident</h2>
-  </div>
-  <div hlmSheetBody>
-    <app-incident-form />
-  </div>
-  <div hlmSheetFooter>
-    <button
-      hlmBtn
-      variant="ghost"
-      size="sm"
-      [disabled]="formRef()?.isSubmitting() ?? false"
-      (click)="formRef()?.clear()"
-    >
-      Clear form
-    </button>
-    <div class="flex items-center gap-2">
-      <button hlmBtn variant="outline" (click)="closeReportSheet()">Cancel</button>
-      <button
-        hlmBtn
-        data-testid="submit-incident"
-        [disabled]="formRef()?.isSubmitting() ?? false"
-        (click)="formRef()?.submit()"
-      >
-        {{ formRef()?.isSubmitting() ? "Submitting…" : "Submit" }}
-      </button>
-    </div>
-  </div>
-</hlm-sheet>
+<app-incident-form />
