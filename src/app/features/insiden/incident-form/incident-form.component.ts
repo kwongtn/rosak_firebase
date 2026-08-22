@@ -1,9 +1,14 @@
 import { Component, computed, effect, inject, signal } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
+import {
+  graphqlResource,
+  GraphQLClient,
+  GraphQLRequestError,
+} from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
+import { HlmInput } from "../../../ui/input/input";
 import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -13,10 +18,13 @@ import {
   CREATE_CALENDAR_INCIDENT_MUTATION,
   CreateCalendarIncidentData,
   CreateCalendarIncidentVars,
+  INSIDEN_REFERENCE_QUERY,
+  InsidenReferenceQueryData,
   SUBMIT_CALENDAR_INCIDENT_MUTATION,
   SubmitCalendarIncidentData,
   SubmitCalendarIncidentVars,
 } from "../data/insiden.queries";
+import { IncidentAiService } from "../data/incident-ai.service";
 import { IncidentSheetService } from "../data/incident-sheet.service";
 import {
   canMoveDown,
@@ -31,6 +39,11 @@ import { emptyIncidentFormModel, incidentFormSchema } from "./incident-form.sche
 
 const SEVERITIES: CalendarIncidentSeverity[] = ["MAJOR", "MINOR", "OTHERS"];
 const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
+
+interface AssetOption {
+  id: string;
+  label: string;
+}
 
 /**
  * "Report an Incident" sheet — right-side sidebar hosting the calendar-incident form.
@@ -65,6 +78,7 @@ const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
     FormField,
     HlmButton,
     HlmCheckbox,
+    HlmInput,
     HlmNativeSelect,
     HlmSheet,
     HlmSheetHeader,
@@ -78,6 +92,7 @@ export class IncidentFormComponent {
   protected readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
+  private readonly ai = inject(IncidentAiService);
 
   protected readonly model = signal(emptyIncidentFormModel());
   protected readonly incidentForm = createForm(this.model, incidentFormSchema);
@@ -89,6 +104,57 @@ export class IncidentFormComponent {
   protected readonly indicators = INDICATORS;
 
   readonly isSubmitting = signal(false);
+  protected readonly isSummarizing = signal(false);
+
+  /** Affected-asset multi-selects live outside the flat form model (like chronologies):
+   * they're arrays, and Signal Forms' flat fields don't model list selections. */
+  protected readonly selectedLineIds = signal<string[]>([]);
+  protected readonly selectedVehicleIds = signal<string[]>([]);
+  protected readonly selectedStationIds = signal<string[]>([]);
+
+  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
+    query: INSIDEN_REFERENCE_QUERY,
+  }));
+
+  protected readonly lineOptions = computed<AssetOption[]>(() =>
+    (this.referenceResource.data()?.lines ?? []).map((line) => ({
+      id: line.id,
+      label: `${line.code} — ${line.displayName}`,
+    })),
+  );
+
+  private readonly _linesById = computed(() => {
+    const lines = this.referenceResource.data()?.lines ?? [];
+    return new Map(lines.map((line) => [line.id, line]));
+  });
+
+  protected readonly vehicleOptions = computed<AssetOption[]>(() => {
+    const selected = this.selectedLineIds();
+    const lines =
+      selected.length > 0
+        ? selected.map((id) => this._linesById().get(id))
+        : [...this._linesById().values()];
+    const seen = new Set<string>();
+    const options: AssetOption[] = [];
+    for (const line of lines) {
+      if (!line) continue;
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          if (seen.has(vehicle.id)) continue;
+          seen.add(vehicle.id);
+          options.push({ id: vehicle.id, label: vehicle.identificationNo });
+        }
+      }
+    }
+    return options;
+  });
+
+  protected readonly stationOptions = computed<AssetOption[]>(() =>
+    (this.referenceResource.data()?.stations ?? []).map((station) => ({
+      id: station.id,
+      label: station.displayName,
+    })),
+  );
 
   private _wasSheetOpen = false;
 
@@ -102,6 +168,14 @@ export class IncidentFormComponent {
       }
       this._wasSheetOpen = isOpen;
     });
+  }
+
+  protected toggleSelection(selection: ReturnType<typeof signal<string[]>>, id: string): void {
+    selection.update((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
+  protected isSelected(selection: ReturnType<typeof signal<string[]>>, id: string): boolean {
+    return selection().includes(id);
   }
 
   protected canMove(index: number, direction: "up" | "down"): boolean {
@@ -125,6 +199,46 @@ export class IncidentFormComponent {
 
   protected moveChronologyBy(index: number, offset: -1 | 1): void {
     this.chronologies.update((list) => moveChronology(list, index, index + offset));
+  }
+
+  /** "Summarize Incident" — asks the Gemini-backed summarizeIncident callable to condense
+   * the drafted chronology entries into the title/brief/details fields. */
+  protected async summarize(): Promise<void> {
+    if (!this.auth.isLoggedIn()) {
+      this.toast.error("Please log in", "You need an account to use AI summarization.");
+      return;
+    }
+    const entries = this.chronologies()
+      .map((c) => ({
+        indicator: c.indicator,
+        datetime: c.datetime,
+        content: c.content,
+        sourceUrl: c.sourceUrl,
+      }))
+      .filter((c) => c.content?.trim());
+    if (entries.length === 0) {
+      this.toast.error(
+        "Nothing to summarize",
+        "Add at least one chronology entry with content first.",
+      );
+      return;
+    }
+    this.isSummarizing.set(true);
+    try {
+      const result = await this.ai.summarize(entries);
+      if (!result) {
+        return;
+      }
+      this.model.update((m) => ({
+        ...m,
+        title: result.title,
+        brief: result.brief,
+        details: result.details,
+      }));
+      this.toast.success("Summary ready", "Title, brief and details were filled in.");
+    } finally {
+      this.isSummarizing.set(false);
+    }
   }
 
   /** Public so a hosting shell's footer can drive Submit/Clear like the spotting sheet does. */
@@ -155,6 +269,9 @@ export class IncidentFormComponent {
               severity: m.severity as CalendarIncidentSeverity,
               longTerm: m.longTerm,
               inaccurate: m.inaccurate,
+              lineIds: this.selectedLineIds(),
+              vehicleIds: this.selectedVehicleIds(),
+              stationIds: this.selectedStationIds(),
               chronologies: this.chronologies().map((c) => ({
                 indicator: c.indicator,
                 datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
@@ -194,6 +311,9 @@ export class IncidentFormComponent {
   clear(): void {
     this.model.set(emptyIncidentFormModel());
     this.chronologies.set([]);
+    this.selectedLineIds.set([]);
+    this.selectedVehicleIds.set([]);
+    this.selectedStationIds.set([]);
     this.incidentForm().reset();
   }
 }

@@ -138,6 +138,9 @@ export interface CreateCalendarIncidentVars {
     severity: CalendarIncidentSeverity;
     longTerm?: boolean | null;
     inaccurate?: boolean | null;
+    lineIds?: string[];
+    vehicleIds?: string[];
+    stationIds?: string[];
     chronologies?: {
       indicator: ChronologyIndicator;
       datetime?: string | null;
@@ -195,4 +198,86 @@ export interface VoteMutationData {
 
 export interface VoteMutationVars {
   incidentId: string;
+}
+
+/* ---------------------------------------------------------------------- *
+ * Reference data for the report form / link form: lines (with their vehicle
+ * rosters) and stations, so users can tag an incident or a submitted link
+ * with the assets it affects. Both fields are public on the backend.
+ * ---------------------------------------------------------------------- */
+
+export const INSIDEN_REFERENCE_QUERY = /* GraphQL */ `
+  query InsidenReferenceData {
+    lines {
+      id
+      code
+      displayName
+      vehicleTypes {
+        id
+        displayName
+        vehicles {
+          id
+          identificationNo
+        }
+      }
+    }
+    stations {
+      id
+      displayName
+    }
+    calendarIncidentCategories {
+      id
+      name
+    }
+  }
+`;
+
+export interface InsidenReferenceLine {
+  id: string;
+  code: string;
+  displayName: string;
+  vehicleTypes: {
+    id: string;
+    displayName: string;
+    vehicles: { id: string; identificationNo: string }[];
+  }[];
+}
+
+export interface InsidenReferenceStation {
+  id: string;
+  displayName: string;
+}
+
+export interface InsidenReferenceCategory {
+  id: string;
+  name: string;
+}
+
+export interface InsidenReferenceQueryData {
+  lines: InsidenReferenceLine[];
+  stations: InsidenReferenceStation[];
+  calendarIncidentCategories: InsidenReferenceCategory[];
+}
+
+export const SUBMIT_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
+  mutation SubmitSocialMediaLink($input: SocialMediaLinkInput!) {
+    submitSocialMediaLink(input: $input) {
+      ok
+    }
+  }
+`;
+
+export interface SubmitSocialMediaLinkData {
+  submitSocialMediaLink: { ok: boolean };
+}
+
+export interface SubmitSocialMediaLinkVars {
+  input: {
+    url: string;
+    title?: string | null;
+    categoryIds?: string[];
+    lineIds?: string[];
+    vehicleIds?: string[];
+    stationIds?: string[];
+  };
 }

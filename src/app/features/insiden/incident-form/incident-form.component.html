@@ -3,7 +3,7 @@
     <h2 class="text-base font-semibold">Report an Incident</h2>
   </div>
   <div hlmSheetBody>
-    <form class="flex flex-col gap-5" (submit)="$event.preventDefault(); submit()">
+    <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
       @if (!auth.isLoggedIn()) {
         <div class="bg-muted flex flex-col gap-2 rounded-lg p-3 text-sm">
           You'll need to log in before submitting, but feel free to fill in the details first.
@@ -13,85 +13,176 @@
         </div>
       }
 
-      <label class="flex flex-col gap-1.5 text-sm">
-        Title
-        <input
-          hlmInput
-          type="text"
-          placeholder="e.g. LRT line disruption at KL Sentral"
-          [formField]="incidentForm.title"
-        />
-        @if (incidentForm.title().invalid() && incidentForm.title().touched()) {
-          <p class="text-destructive text-xs">{{ incidentForm.title().errors()[0]?.message }}</p>
-        }
-      </label>
+      <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
+        <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          What happened
+        </h3>
 
-      <label class="flex flex-col gap-1.5 text-sm">
-        Summary
-        <textarea
-          hlmInput
-          rows="2"
-          placeholder="One or two sentences on what happened"
-          [formField]="incidentForm.brief"
-        ></textarea>
-        @if (incidentForm.brief().invalid() && incidentForm.brief().touched()) {
-          <p class="text-destructive text-xs">{{ incidentForm.brief().errors()[0]?.message }}</p>
-        }
-      </label>
-
-      <label class="flex flex-col gap-1.5 text-sm">
-        Severity
-        <select hlmSelect [formField]="incidentForm.severity">
-          <option value="" disabled>Select severity</option>
-          @for (severity of severities; track severity) {
-            <option [value]="severity">{{ severity }}</option>
-          }
-        </select>
-        @if (incidentForm.severity().invalid() && incidentForm.severity().touched()) {
-          <p class="text-destructive text-xs">{{ incidentForm.severity().errors()[0]?.message }}</p>
-        }
-      </label>
-
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label class="flex flex-col gap-1.5 text-sm">
-          Start
-          <input hlmInput type="datetime-local" [formField]="incidentForm.startDatetime" />
-          @if (incidentForm.startDatetime().invalid() && incidentForm.startDatetime().touched()) {
+          Title
+          <input
+            hlmInput
+            type="text"
+            placeholder="e.g. LRT line disruption at KL Sentral"
+            [formField]="incidentForm.title"
+          />
+          @if (incidentForm.title().invalid() && incidentForm.title().touched()) {
+            <p class="text-destructive text-xs">{{ incidentForm.title().errors()[0]?.message }}</p>
+          }
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Summary
+          <textarea
+            hlmInput
+            rows="2"
+            placeholder="One or two sentences on what happened"
+            [formField]="incidentForm.brief"
+          ></textarea>
+          @if (incidentForm.brief().invalid() && incidentForm.brief().touched()) {
+            <p class="text-destructive text-xs">{{ incidentForm.brief().errors()[0]?.message }}</p>
+          }
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Details <span class="text-muted-foreground text-xs">(optional)</span>
+          <textarea hlmInput rows="4" [formField]="incidentForm.details"></textarea>
+        </label>
+      </section>
+
+      <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
+        <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          When &amp; severity
+        </h3>
+
+        <label class="flex flex-col gap-1.5 text-sm">
+          Severity
+          <select hlmSelect [formField]="incidentForm.severity">
+            <option value="" disabled>Select severity</option>
+            @for (severity of severities; track severity) {
+              <option [value]="severity">{{ severity }}</option>
+            }
+          </select>
+          @if (incidentForm.severity().invalid() && incidentForm.severity().touched()) {
             <p class="text-destructive text-xs">
-              {{ incidentForm.startDatetime().errors()[0]?.message }}
+              {{ incidentForm.severity().errors()[0]?.message }}
             </p>
           }
         </label>
-        <label class="flex flex-col gap-1.5 text-sm">
-          End <span class="text-muted-foreground text-xs">(optional)</span>
-          <input hlmInput type="datetime-local" [formField]="incidentForm.endDatetime" />
-          @if (incidentForm.endDatetime().invalid() && incidentForm.endDatetime().touched()) {
-            <p class="text-destructive text-xs">
-              {{ incidentForm.endDatetime().errors()[0]?.message }}
-            </p>
-          }
-        </label>
-      </div>
 
-      <label class="flex flex-col gap-1.5 text-sm">
-        Details <span class="text-muted-foreground text-xs">(optional)</span>
-        <textarea hlmInput rows="4" [formField]="incidentForm.details"></textarea>
-      </label>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-1.5 text-sm">
+            Start
+            <input hlmInput type="datetime-local" [formField]="incidentForm.startDatetime" />
+            @if (incidentForm.startDatetime().invalid() && incidentForm.startDatetime().touched()) {
+              <p class="text-destructive text-xs">
+                {{ incidentForm.startDatetime().errors()[0]?.message }}
+              </p>
+            }
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm">
+            End <span class="text-muted-foreground text-xs">(optional)</span>
+            <input hlmInput type="datetime-local" [formField]="incidentForm.endDatetime" />
+            @if (incidentForm.endDatetime().invalid() && incidentForm.endDatetime().touched()) {
+              <p class="text-destructive text-xs">
+                {{ incidentForm.endDatetime().errors()[0]?.message }}
+              </p>
+            }
+          </label>
+        </div>
 
-      <div class="flex flex-col gap-2 text-sm">
-        <label class="flex items-center gap-2">
-          <hlm-checkbox [formField]="incidentForm.longTerm" />
-          Long-term disruption (start date only in the month view)
-        </label>
-        <label class="flex items-center gap-2">
-          <hlm-checkbox [formField]="incidentForm.inaccurate" />
-          Mark as inaccurate
-        </label>
-      </div>
+        <div class="flex flex-col gap-2 text-sm">
+          <label class="flex items-center gap-2">
+            <hlm-checkbox [formField]="incidentForm.longTerm" />
+            Long-term disruption (start date only in the month view)
+          </label>
+          <label class="flex items-center gap-2">
+            <hlm-checkbox [formField]="incidentForm.inaccurate" />
+            Mark as inaccurate
+          </label>
+        </div>
+      </section>
 
-      <div class="flex flex-col gap-3">
+      <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
+        <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          Affected
+        </h3>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          <span>Lines</span>
+          <div
+            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+          >
+            @for (line of lineOptions(); track line.id) {
+              <label
+                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  class="size-4 accent-primary"
+                  [checked]="isSelected(selectedLineIds, line.id)"
+                  (change)="toggleSelection(selectedLineIds, line.id)"
+                />
+                {{ line.label }}
+              </label>
+            } @empty {
+              <p class="text-muted-foreground text-xs">Loading lines…</p>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          <span>Vehicles <span class="text-muted-foreground text-xs">(optional)</span></span>
+          <div
+            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+          >
+            @for (vehicle of vehicleOptions(); track vehicle.id) {
+              <label
+                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  class="size-4 accent-primary"
+                  [checked]="isSelected(selectedVehicleIds, vehicle.id)"
+                  (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
+                />
+                {{ vehicle.label }}
+              </label>
+            } @empty {
+              <p class="text-muted-foreground text-xs">No vehicles listed.</p>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 text-sm">
+          <span>Stations <span class="text-muted-foreground text-xs">(optional)</span></span>
+          <div
+            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+          >
+            @for (station of stationOptions(); track station.id) {
+              <label
+                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  class="size-4 accent-primary"
+                  [checked]="isSelected(selectedStationIds, station.id)"
+                  (change)="toggleSelection(selectedStationIds, station.id)"
+                />
+                {{ station.label }}
+              </label>
+            } @empty {
+              <p class="text-muted-foreground text-xs">Loading stations…</p>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-semibold">Chronology</h3>
+          <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            Chronology
+          </h3>
           <button hlmBtn size="sm" variant="outline" type="button" (click)="addChronology()">
             <svg
               viewBox="0 0 24 24"
@@ -227,7 +318,21 @@
             No chronology entries yet — add the sequence of events as they unfolded.
           </p>
         }
-      </div>
+
+        <button
+          hlmBtn
+          type="button"
+          variant="outline"
+          [disabled]="isSummarizing() || chronologies().length === 0"
+          (click)="summarize()"
+        >
+          @if (isSummarizing()) {
+            Summarizing…
+          } @else {
+            Summarize Incident
+          }
+        </button>
+      </section>
 
       <button hlmBtn type="submit" [disabled]="isSubmitting()">
         {{ isSubmitting() ? "Submitting…" : "Submit" }}

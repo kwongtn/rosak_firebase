@@ -1,6 +1,7 @@
 import { type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideZonelessChangeDetection } from "@angular/core";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
@@ -48,6 +49,7 @@ describe("IncidentFormComponent", () => {
   let authMocks: { isLoggedIn: ReturnType<typeof vi.fn>; isAdmin: ReturnType<typeof vi.fn> };
   let sheet: InstanceType<typeof IncidentSheetService>;
   let fixture: ComponentFixture<IncidentFormComponent>;
+  let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     requestMock = vi.fn().mockResolvedValue({ createCalendarIncident: { ok: true, id: 42 } });
@@ -58,6 +60,7 @@ describe("IncidentFormComponent", () => {
       imports: [IncidentFormComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
         {
           provide: AuthService,
           useValue: { ...authMocks, idToken: async () => "token" },
@@ -68,8 +71,18 @@ describe("IncidentFormComponent", () => {
     }).compileComponents();
 
     sheet = TestBed.inject(IncidentSheetService);
+    httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(IncidentFormComponent);
+    fixture.detectChanges();
+    const referenceRequest = httpMock.expectOne((r) => r.method === "POST");
+    referenceRequest.flush({
+      data: { lines: [], stations: [], calendarIncidentCategories: [] },
+    });
     await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
   });
 
   it("refuses to submit for logged-out users without any GraphQL call", async () => {
