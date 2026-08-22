@@ -3,6 +3,7 @@ import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
+import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
 import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -63,6 +64,7 @@ const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
   imports: [
     FormField,
     HlmButton,
+    HlmCheckbox,
     HlmNativeSelect,
     HlmSheet,
     HlmSheetHeader,
