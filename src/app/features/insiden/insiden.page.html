@@ -10,16 +10,36 @@
             incidents.
           </p>
         </div>
-        <button hlmBtn data-testid="new-incident" (click)="openReportSheet()">
-          Report an incident
-        </button>
+        <div class="flex items-center gap-2">
+          @if (auth.isLoggedIn()) {
+            <button hlmBtn variant="outline" data-testid="new-link" (click)="openLinkSheet()">
+              Submit link
+            </button>
+          }
+          <button hlmBtn data-testid="new-incident" (click)="openReportSheet()">
+            Report an incident
+          </button>
+        </div>
       </div>
     </div>
 
     @if (isLoading()) {
-      <div class="flex flex-col gap-3">
-        <div hlmSkeleton class="h-80 w-full"></div>
-        <div hlmSkeleton class="h-40 w-full"></div>
+      <div class="flex flex-col gap-6 lg:flex-row">
+        <div class="flex flex-col gap-3 lg:w-96">
+          <div class="flex items-center justify-between">
+            <div hlmSkeleton class="h-7 w-40"></div>
+            <div hlmSkeleton class="h-8 w-24"></div>
+          </div>
+          <div hlmSkeleton class="h-80 w-full"></div>
+        </div>
+        <div class="flex flex-1 flex-col gap-4">
+          <div hlmSkeleton class="h-5 w-44"></div>
+          <div hlmSkeleton class="h-24 w-full"></div>
+          <div hlmSkeleton class="h-24 w-full"></div>
+          <div hlmSkeleton class="h-5 w-44"></div>
+          <div hlmSkeleton class="h-24 w-full"></div>
+          <div hlmSkeleton class="h-24 w-full"></div>
+        </div>
       </div>
     } @else if (hasError()) {
       <app-retry-banner [resource]="incidentsResource" message="Couldn't load incidents." />
@@ -64,3 +84,34 @@
 </div>
 
 <app-incident-form />
+
+<hlm-sheet [open]="linkSheet.isOpen()" (openChange)="linkSheet.setOpen($event)" side="right">
+  <div hlmSheetHeader>
+    <h2 class="text-base font-semibold">Submit a link</h2>
+  </div>
+  <div hlmSheetBody>
+    <app-link-form />
+  </div>
+  <div hlmSheetFooter>
+    <button
+      hlmBtn
+      variant="ghost"
+      size="sm"
+      [disabled]="linkFormRef()?.isSubmitting() ?? false"
+      (click)="linkFormRef()?.clear()"
+    >
+      Clear form
+    </button>
+    <div class="flex items-center gap-2">
+      <button hlmBtn variant="outline" (click)="linkSheet.close()">Cancel</button>
+      <button
+        hlmBtn
+        data-testid="submit-link"
+        [disabled]="linkFormRef()?.isSubmitting() ?? false"
+        (click)="linkFormRef()?.submit()"
+      >
+        {{ linkFormRef()?.isSubmitting() ? "Submitting…" : "Submit" }}
+      </button>
+    </div>
+  </div>
+</hlm-sheet>

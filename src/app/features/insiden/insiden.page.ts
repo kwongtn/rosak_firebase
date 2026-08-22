@@ -1,6 +1,7 @@
-import { Component, computed, inject, input } from "@angular/core";
+import { Component, computed, inject, input, viewChild } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
+import { AuthService } from "../../core/auth/auth.service";
 import { graphqlResource } from "../../core/graphql/graphql-client";
 import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
@@ -11,7 +12,9 @@ import { AppFooterComponent } from "../../shell/app-footer/app-footer.component"
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
 import { IncidentCalendarComponent } from "./calendar/calendar.component";
 import { IncidentFormComponent } from "./incident-form/incident-form.component";
+import { LinkFormComponent } from "./link-form/link-form.component";
 import { IncidentSheetService } from "./data/incident-sheet.service";
+import { LinkSheetService } from "./data/link-sheet.service";
 import { INSIDEN_INCIDENTS_QUERY, InsidenIncidentsQueryData } from "./data/insiden.queries";
 import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
 
@@ -38,6 +41,7 @@ import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
     IncidentCardComponent,
     IncidentCalendarComponent,
     IncidentFormComponent,
+    LinkFormComponent,
   ],
   templateUrl: "./insiden.page.html",
 })
@@ -49,7 +53,11 @@ export class InsidenPage {
 
   private readonly router = inject(Router);
 
+  protected readonly auth = inject(AuthService);
   protected readonly incidentSheet = inject(IncidentSheetService);
+  protected readonly linkSheet = inject(LinkSheetService);
+
+  protected readonly linkFormRef = viewChild(LinkFormComponent);
 
   protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
@@ -97,5 +105,9 @@ export class InsidenPage {
 
   protected openReportSheet(): void {
     this.incidentSheet.open();
+  }
+
+  protected openLinkSheet(): void {
+    this.linkSheet.open();
   }
 }
