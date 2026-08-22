@@ -35,14 +35,29 @@ import {
   toggleCollapsed,
   type ChronologyDraft,
 } from "./chronology-list.util";
+import { applyExtractionToChronology } from "./extract-data.util";
 import { emptyIncidentFormModel, incidentFormSchema } from "./incident-form.schema";
+import { ExtractedIncidentData } from "../data/incident-ai.service";
 
 const SEVERITIES: CalendarIncidentSeverity[] = ["MAJOR", "MINOR", "OTHERS"];
 const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
+/** Client-side ceiling on an Extract Data call; the firebase function itself
+ * runs with a 20s timeout, so a 15s front-end cap means a slow extraction is
+ * surfaced to the user (and offered as a late result) rather than hanging. */
+const EXTRACT_TIMEOUT_MS = 15_000;
 
 interface AssetOption {
   id: string;
   label: string;
+}
+
+/** Per-chronology state for the Extract Data flow. Late results (responses that
+ * arrive after the 15s cap) are held here until the user opts to apply them. */
+interface ChronologyExtractState {
+  extracting: boolean;
+  lateResult: ExtractedIncidentData | null;
+  preReplaceSnapshot: { datetime: string; content: string } | null;
+  replaced: boolean;
 }
 
 /**
@@ -156,6 +171,8 @@ export class IncidentFormComponent {
     })),
   );
 
+  private readonly extractStates = signal(new Map<number, ChronologyExtractState>());
+
   private _wasSheetOpen = false;
 
   constructor() {
@@ -178,6 +195,18 @@ export class IncidentFormComponent {
     return selection().includes(id);
   }
 
+  protected isExtracting(key: number): boolean {
+    return this.extractStates().get(key)?.extracting ?? false;
+  }
+
+  protected hasLateResult(key: number): boolean {
+    return (this.extractStates().get(key)?.lateResult ?? null) !== null;
+  }
+
+  protected isReplaced(key: number): boolean {
+    return this.extractStates().get(key)?.replaced ?? false;
+  }
+
   protected canMove(index: number, direction: "up" | "down"): boolean {
     return direction === "up"
       ? canMoveUp(this.chronologies(), index)
@@ -191,6 +220,138 @@ export class IncidentFormComponent {
 
   protected removeChronology(key: number): void {
     this.chronologies.update((list) => removeChronology(list, key));
+    this.extractStates.update((map) => {
+      const next = new Map(map);
+      next.delete(key);
+      return next;
+    });
+  }
+
+  /** "Extract Data" — asks the Gemini-backed extractIncidentData callable to fill
+   * this chronology entry from its source URL. Results within the 15s cap are
+   * applied directly; anything later is offered through a replace/undo box. */
+  protected async extractChronology(key: number): Promise<void> {
+    const row = this.chronologies().find((c) => c.key === key);
+    if (!row || this.isExtracting(key)) {
+      return;
+    }
+    if (!this.auth.isLoggedIn()) {
+      this.toast.error("Please log in", "You need an account to use AI extraction.");
+      return;
+    }
+    const url = row.sourceUrl.trim();
+    if (!url) {
+      this.toast.error("Enter a source URL", "Paste a link before extracting data.");
+      return;
+    }
+
+    const requestId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${key}-${Math.random().toString(36).slice(2)}`;
+
+    this.setExtractState(key, {
+      extracting: true,
+      lateResult: null,
+      preReplaceSnapshot: null,
+      replaced: false,
+    });
+
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      this.setExtractState(key, {
+        extracting: false,
+        lateResult: null,
+        preReplaceSnapshot: null,
+        replaced: false,
+      });
+      this.toast.error("Data extraction failed", "Please fill in manually.");
+    }, EXTRACT_TIMEOUT_MS);
+
+    try {
+      const result = await this.ai.extract(url, requestId);
+      clearTimeout(timer);
+      if (this.extractStates().get(key) === undefined) {
+        return;
+      }
+      if (timedOut) {
+        this.setExtractState(key, {
+          extracting: false,
+          lateResult: result?.data ?? null,
+          preReplaceSnapshot: null,
+          replaced: false,
+        });
+        return;
+      }
+      if (result) {
+        this.applyExtraction(key, result.data);
+      }
+    } catch {
+      clearTimeout(timer);
+      if (!timedOut) {
+        this.setExtractState(key, {
+          extracting: false,
+          lateResult: null,
+          preReplaceSnapshot: null,
+          replaced: false,
+        });
+      }
+    }
+  }
+
+  /** Applies a late extraction result, snapshotting the entry first so Undo can
+   * restore the user's pre-replace values. */
+  protected replaceWithExtraction(key: number): void {
+    const state = this.extractStates().get(key);
+    const row = this.chronologies().find((c) => c.key === key);
+    if (!state?.lateResult || !row) {
+      return;
+    }
+    this.extractStates.update((map) => {
+      const next = new Map(map);
+      next.set(key, {
+        ...state,
+        preReplaceSnapshot: { datetime: row.datetime, content: row.content },
+        replaced: true,
+      });
+      return next;
+    });
+    this.applyExtraction(key, state.lateResult);
+  }
+
+  protected undoExtraction(key: number): void {
+    const state = this.extractStates().get(key);
+    if (!state?.preReplaceSnapshot || !state.replaced) {
+      return;
+    }
+    this.chronologies.update((list) =>
+      list.map((c) => (c.key === key ? { ...c, ...state.preReplaceSnapshot! } : c)),
+    );
+    this.extractStates.update((map) => {
+      const next = new Map(map);
+      next.set(key, {
+        ...state,
+        replaced: false,
+        lateResult: null,
+        preReplaceSnapshot: null,
+      });
+      return next;
+    });
+  }
+
+  private setExtractState(key: number, state: ChronologyExtractState): void {
+    this.extractStates.update((map) => {
+      const next = new Map(map);
+      next.set(key, state);
+      return next;
+    });
+  }
+
+  private applyExtraction(key: number, data: ExtractedIncidentData): void {
+    this.chronologies.update((list) =>
+      list.map((c) => (c.key === key ? applyExtractionToChronology(c, data) : c)),
+    );
   }
 
   protected toggleChronologyCollapsed(key: number): void {
@@ -311,6 +472,7 @@ export class IncidentFormComponent {
   clear(): void {
     this.model.set(emptyIncidentFormModel());
     this.chronologies.set([]);
+    this.extractStates.set(new Map());
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);

@@ -19,6 +19,24 @@ export interface SummarizeResult {
   details: string;
 }
 
+/** Shape of the extraction data returned by the extractIncidentData callable —
+ * matches the parser in functions/src/utils/extractionParser.ts. */
+export interface ExtractedIncidentData {
+  title: string | null;
+  datetime: string | null;
+  content: string | null;
+  source_url: string;
+  indicator: "delay" | "disruption" | "accident" | "maintenance" | "other";
+  severity: "minor" | "moderate" | "major" | "critical" | null;
+  affected_lines: string[];
+  affected_stations: string[];
+}
+
+export interface ExtractIncidentResult {
+  requestId: string;
+  data: ExtractedIncidentData;
+}
+
 const FUNCTIONS_REGION = "asia-southeast1";
 
 function firebaseApp() {
@@ -68,6 +86,29 @@ export class IncidentAiService {
           ? String(err.message)
           : "Unknown error";
       this.toast.error("Summarization failed", message);
+      throw err;
+    }
+  }
+
+  /** Extracts incident data from a source URL. Callers pass their own requestId so
+   * late responses can be matched (and ignored) after a row has been deleted. The
+   * callable result echoes it back; throws (after toasting) on failure. Returns null
+   * on the server or when the callable is unavailable. */
+  async extract(url: string, requestId: string): Promise<ExtractIncidentResult | null> {
+    const callable = this.callable<{ url: string; requestId: string }, ExtractIncidentResult>(
+      "extractIncidentData",
+    );
+    if (!callable) {
+      return null;
+    }
+    try {
+      return await callable({ url, requestId });
+    } catch (err) {
+      const message =
+        typeof err === "object" && err !== null && "message" in err
+          ? String(err.message)
+          : "Unknown error";
+      this.toast.error("Data extraction failed", message);
       throw err;
     }
   }

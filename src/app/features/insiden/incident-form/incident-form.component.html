@@ -280,6 +280,7 @@
                 <select
                   hlmSelect
                   class="text-sm"
+                  [disabled]="isExtracting(chronology.key)"
                   [value]="chronology.indicator"
                   (change)="chronology.indicator = $any($event.target).value"
                 >
@@ -291,25 +292,99 @@
                   hlmInput
                   type="datetime-local"
                   class="text-sm"
+                  [disabled]="isExtracting(chronology.key)"
                   [value]="chronology.datetime"
                   (change)="chronology.datetime = $any($event.target).value"
                 />
-                <input
-                  hlmInput
-                  type="url"
-                  class="text-sm"
-                  placeholder="Source URL (optional)"
-                  [value]="chronology.sourceUrl"
-                  (change)="chronology.sourceUrl = $any($event.target).value"
-                />
+                <div class="flex items-center gap-2">
+                  <input
+                    hlmInput
+                    type="url"
+                    class="min-w-0 flex-1 text-sm"
+                    [disabled]="isExtracting(chronology.key)"
+                    placeholder="Source URL (optional)"
+                    [value]="chronology.sourceUrl"
+                    (change)="chronology.sourceUrl = $any($event.target).value"
+                  />
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    class="shrink-0"
+                    [disabled]="isExtracting(chronology.key)"
+                    (click)="extractChronology(chronology.key)"
+                  >
+                    @if (isExtracting(chronology.key)) {
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="size-3.5 animate-spin"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="9" class="opacity-25" />
+                        <path d="M12 3a9 9 0 0 1 9 9" stroke-linecap="round" />
+                      </svg>
+                      Extracting…
+                    } @else {
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="size-3.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.5-6.5-2 2m-7 7-2 2m0-11 2 2m7 7 2 2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                      Extract
+                    }
+                  </button>
+                </div>
                 <textarea
                   hlmInput
                   rows="2"
                   class="text-sm"
+                  [disabled]="isExtracting(chronology.key)"
                   placeholder="What happened at this point"
                   [value]="chronology.content"
                   (change)="chronology.content = $any($event.target).value"
                 ></textarea>
+                @if (hasLateResult(chronology.key)) {
+                  <div
+                    class="bg-muted/60 flex items-center justify-between gap-2 rounded-lg border p-2"
+                  >
+                    @if (isReplaced(chronology.key)) {
+                      <span class="text-xs">Extracted data applied.</span>
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        (click)="undoExtraction(chronology.key)"
+                      >
+                        Undo
+                      </button>
+                    } @else {
+                      <span class="text-xs">Gemini results in — click to replace data.</span>
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        (click)="replaceWithExtraction(chronology.key)"
+                      >
+                        Replace
+                      </button>
+                    }
+                  </div>
+                }
               </div>
             }
           </div>
