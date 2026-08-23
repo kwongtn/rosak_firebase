@@ -7,7 +7,9 @@ import {
   GraphQLRequestError,
 } from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
+import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
+import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   INSIDEN_REFERENCE_QUERY,
@@ -38,7 +40,7 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
  */
 @Component({
   selector: "app-link-form",
-  imports: [FormField, HlmButton, HlmInput],
+  imports: [FormField, ErrorBoxComponent, HlmButton, HlmInput, HlmSkeleton],
   template: `
     <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
       @if (!auth.isLoggedIn()) {
@@ -82,97 +84,126 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
           Tags <span class="normal-case">(optional)</span>
         </h3>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Lines</span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (line of lineOptions(); track line.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedLineIds, line.id)"
-                  (change)="toggleSelection(selectedLineIds, line.id)"
-                />
-                {{ line.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">Loading lines…</p>
-            }
+        @if (referenceResource.hasError()) {
+          <app-error-box
+            title="Couldn't load tag options"
+            message="Lines, vehicles, stations and categories are unavailable right now. You can retry, or submit the link without them."
+            [showRetry]="true"
+            (retry)="referenceResource.reload()"
+          />
+        } @else {
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Lines</span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+              } @else {
+                @for (line of lineOptions(); track line.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedLineIds, line.id)"
+                      (change)="toggleSelection(selectedLineIds, line.id)"
+                    />
+                    {{ line.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No lines available.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Vehicles</span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (vehicle of vehicleOptions(); track vehicle.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedVehicleIds, vehicle.id)"
-                  (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
-                />
-                {{ vehicle.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">No vehicles listed.</p>
-            }
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Vehicles</span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+              } @else {
+                @for (vehicle of vehicleOptions(); track vehicle.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedVehicleIds, vehicle.id)"
+                      (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
+                    />
+                    {{ vehicle.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No vehicles listed.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Stations</span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (station of stationOptions(); track station.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedStationIds, station.id)"
-                  (change)="toggleSelection(selectedStationIds, station.id)"
-                />
-                {{ station.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">Loading stations…</p>
-            }
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Stations</span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+              } @else {
+                @for (station of stationOptions(); track station.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedStationIds, station.id)"
+                      (change)="toggleSelection(selectedStationIds, station.id)"
+                    />
+                    {{ station.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No stations available.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Categories</span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (category of categoryOptions(); track category.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedCategoryIds, category.id)"
-                  (change)="toggleSelection(selectedCategoryIds, category.id)"
-                />
-                {{ category.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">No categories available.</p>
-            }
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Categories</span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+              } @else {
+                @for (category of categoryOptions(); track category.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedCategoryIds, category.id)"
+                      (change)="toggleSelection(selectedCategoryIds, category.id)"
+                    />
+                    {{ category.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No categories available.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
+        }
       </section>
     </form>
   `,

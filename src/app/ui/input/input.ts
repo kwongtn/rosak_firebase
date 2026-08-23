@@ -11,7 +11,12 @@ import { hlm } from "../utils/hlm";
 })
 export class HlmInput {
   readonly invalid = input(false);
+  /** Set by the signal-forms FormField directive alongside `invalid`; error styling
+   * is only applied once the field has actually been interacted with. */
+  readonly touched = input(false);
   readonly userClass = input<string>("", { alias: "class" });
+
+  protected readonly _errorState = computed(() => this.invalid() && this.touched());
 
   protected readonly _computedClass = computed(() =>
     hlm(

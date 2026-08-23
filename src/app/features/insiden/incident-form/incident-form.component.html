@@ -70,8 +70,8 @@
           }
         </label>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="flex flex-col gap-1.5 text-sm">
+        <div class="grid grid-cols-2 gap-3">
+          <label class="flex min-w-0 flex-col gap-1.5 text-sm">
             Start
             <input hlmInput type="datetime-local" [formField]="incidentForm.startDatetime" />
             @if (incidentForm.startDatetime().invalid() && incidentForm.startDatetime().touched()) {
@@ -80,8 +80,11 @@
               </p>
             }
           </label>
-          <label class="flex flex-col gap-1.5 text-sm">
-            End <span class="text-muted-foreground text-xs">(optional)</span>
+          <label class="flex min-w-0 flex-col gap-1.5 text-sm">
+            <span class="flex items-baseline gap-1">
+              End
+              <span class="text-muted-foreground text-xs whitespace-nowrap">(optional)</span>
+            </span>
             <input hlmInput type="datetime-local" [formField]="incidentForm.endDatetime" />
             @if (incidentForm.endDatetime().invalid() && incidentForm.endDatetime().touched()) {
               <p class="text-destructive text-xs">
@@ -108,74 +111,100 @@
           Affected
         </h3>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Lines</span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (line of lineOptions(); track line.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedLineIds, line.id)"
-                  (change)="toggleSelection(selectedLineIds, line.id)"
-                />
-                {{ line.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">Loading lines…</p>
-            }
+        @if (referenceResource.hasError()) {
+          <app-error-box
+            title="Couldn't load reference data"
+            message="Lines, vehicles and stations are unavailable right now. You can retry, or continue filling in the form without them."
+            [showRetry]="true"
+            (retry)="referenceResource.reload()"
+          />
+        } @else {
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Lines</span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+                <div hlmSkeleton class="h-4 w-3/5"></div>
+              } @else {
+                @for (line of lineOptions(); track line.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedLineIds, line.id)"
+                      (change)="toggleSelection(selectedLineIds, line.id)"
+                    />
+                    {{ line.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No lines available.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Vehicles <span class="text-muted-foreground text-xs">(optional)</span></span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (vehicle of vehicleOptions(); track vehicle.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedVehicleIds, vehicle.id)"
-                  (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
-                />
-                {{ vehicle.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">No vehicles listed.</p>
-            }
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Vehicles <span class="text-muted-foreground text-xs">(optional)</span></span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+              } @else {
+                @for (vehicle of vehicleOptions(); track vehicle.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedVehicleIds, vehicle.id)"
+                      (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
+                    />
+                    {{ vehicle.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No vehicles listed.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="flex flex-col gap-1.5 text-sm">
-          <span>Stations <span class="text-muted-foreground text-xs">(optional)</span></span>
-          <div
-            class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-          >
-            @for (station of stationOptions(); track station.id) {
-              <label
-                class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-primary"
-                  [checked]="isSelected(selectedStationIds, station.id)"
-                  (change)="toggleSelection(selectedStationIds, station.id)"
-                />
-                {{ station.label }}
-              </label>
-            } @empty {
-              <p class="text-muted-foreground text-xs">Loading stations…</p>
-            }
+          <div class="flex flex-col gap-1.5 text-sm">
+            <span>Stations <span class="text-muted-foreground text-xs">(optional)</span></span>
+            <div
+              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+            >
+              @if (referenceResource.isLoading()) {
+                <div hlmSkeleton class="h-4 w-full"></div>
+                <div hlmSkeleton class="h-4 w-4/5"></div>
+                <div hlmSkeleton class="h-4 w-3/5"></div>
+              } @else {
+                @for (station of stationOptions(); track station.id) {
+                  <label
+                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-primary"
+                      [checked]="isSelected(selectedStationIds, station.id)"
+                      (change)="toggleSelection(selectedStationIds, station.id)"
+                    />
+                    {{ station.label }}
+                  </label>
+                } @empty {
+                  <p class="text-muted-foreground text-xs">No stations available.</p>
+                }
+              }
+            </div>
           </div>
-        </div>
+        }
       </section>
 
       <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
@@ -200,9 +229,26 @@
 
         @for (chronology of chronologies(); track chronology.key; let i = $index) {
           <div class="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-medium">{{ i + 1 }}.</span>
-              <div class="flex items-center gap-1">
+            <div
+              class="flex cursor-pointer items-center justify-between gap-2"
+              [attr.aria-expanded]="!chronology.collapsed"
+              (click)="toggleChronologyCollapsed(chronology.key)"
+            >
+              <span class="flex items-center gap-1.5 text-xs font-medium">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  class="text-muted-foreground size-3.5 transition-transform"
+                  [class.rotate-180]="!chronology.collapsed"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                {{ i + 1 }}.
+              </span>
+              <div class="flex items-center gap-1" (click)="$event.stopPropagation()">
                 <button
                   hlmBtn
                   variant="ghost"
@@ -242,16 +288,6 @@
                   >
                     <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
-                </button>
-                <button
-                  hlmBtn
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  [attr.aria-expanded]="!chronology.collapsed"
-                  (click)="toggleChronologyCollapsed(chronology.key)"
-                >
-                  {{ chronology.collapsed ? "Expand" : "Collapse" }}
                 </button>
                 <button
                   hlmBtn
@@ -349,7 +385,7 @@
                 </div>
                 <textarea
                   hlmInput
-                  rows="2"
+                  rows="3"
                   class="text-sm"
                   [disabled]="isExtracting(chronology.key)"
                   placeholder="What happened at this point"
@@ -409,12 +445,39 @@
         </button>
       </section>
 
-      <button hlmBtn type="submit" [disabled]="isSubmitting()">
-        {{ isSubmitting() ? "Submitting…" : "Submit" }}
-      </button>
+      <button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
     </form>
   </div>
   <div hlmSheetFooter>
-    <button hlmBtn variant="outline" (click)="sheet.close()">Cancel</button>
+    <button
+      hlmBtn
+      variant="ghost"
+      size="sm"
+      type="button"
+      [disabled]="isSubmitting()"
+      (click)="clear()"
+    >
+      Clear form
+    </button>
+    <div class="flex items-center gap-2">
+      <button
+        hlmBtn
+        variant="outline"
+        type="button"
+        [disabled]="isSubmitting()"
+        (click)="sheet.close()"
+      >
+        Cancel
+      </button>
+      <button
+        hlmBtn
+        data-testid="submit-incident"
+        type="button"
+        [disabled]="isSubmitting()"
+        (click)="submit()"
+      >
+        {{ isSubmitting() ? "Submitting…" : "Submit" }}
+      </button>
+    </div>
   </div>
 </hlm-sheet>

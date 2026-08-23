@@ -69,7 +69,7 @@ const TYPE_ICON_CLASS: Record<ToastVisualType, string> = {
       </div>
 
       <div
-        class="absolute top-1/2 -right-0.5 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/toast:opacity-100"
+        class="absolute -top-3 -right-3 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/toast:opacity-100"
       >
         <button
           type="button"

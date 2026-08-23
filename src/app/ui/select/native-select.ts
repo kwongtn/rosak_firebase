@@ -13,10 +13,17 @@ import { hlm } from "../utils/hlm";
   host: {
     "data-slot": "select",
     "[class]": "_computedClass()",
+    "[attr.aria-invalid]": "_errorState() || null",
   },
 })
 export class HlmNativeSelect {
+  readonly invalid = input(false);
+  /** Set by the signal-forms FormField directive alongside `invalid`; error styling
+   * is only applied once the field has actually been interacted with. */
+  readonly touched = input(false);
   readonly userClass = input<string>("", { alias: "class" });
+
+  protected readonly _errorState = computed(() => this.invalid() && this.touched());
 
   protected readonly _computedClass = computed(() =>
     hlm(
@@ -24,7 +31,7 @@ export class HlmNativeSelect {
       // own look: some browsers base the *dropdown popup's* rendering on the select's
       // resolved background-color, and fall back to a plain light popup when that resolves
       // to transparent — even with `color-scheme: dark` set correctly (see styles.css).
-      "border-input focus-visible:border-ring focus-visible:ring-ring/50 bg-background h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50",
+      "border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 bg-background h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50",
       this.userClass(),
     ),
   );
