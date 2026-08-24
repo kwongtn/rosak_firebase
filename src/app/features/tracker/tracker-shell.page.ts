@@ -1,6 +1,7 @@
 import { Component, OnDestroy, effect, inject, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import * as Sentry from "@sentry/angular";
+import { AuthService } from "../../core/auth/auth.service";
 import { ThemeService } from "../../core/theme/theme.service";
 import { GtfsRealtimeService } from "./data/gtfs-realtime.service";
 import { TrackerMapComponent } from "./map/tracker-map.component";
@@ -98,11 +99,23 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
             </svg>
           </button>
 
-          <!-- Desktop: every link inline, as before. -->
+          <!-- Desktop: every link inline, as before. Same link set + permission gates as the
+                      global <app-nav> (its NAV_LINKS plus auth-gated Profile/Console) — the pill is
+                      deliberately a compact *rendering* of the same nav, not a different one. -->
           <a
             routerLink="/spotting"
             class="text-muted-foreground hover:text-foreground hidden sm:inline"
             >TranSPOT</a
+          >
+          <a
+            routerLink="/tracker"
+            class="text-muted-foreground hover:text-foreground hidden sm:inline"
+            >Tracker</a
+          >
+          <a
+            routerLink="/gallery"
+            class="text-muted-foreground hover:text-foreground hidden sm:inline"
+            >Gallery</a
           >
           <a
             routerLink="/insiden"
@@ -110,15 +123,24 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
             >Insiden</a
           >
           <a
-            routerLink="/profile"
-            class="text-muted-foreground hover:text-foreground hidden sm:inline"
-            >Profile</a
-          >
-          <a
             routerLink="/about"
             class="text-muted-foreground hover:text-foreground hidden sm:inline"
             >About</a
           >
+          @if (auth.isLoggedIn()) {
+            <a
+              routerLink="/profile"
+              class="text-muted-foreground hover:text-foreground hidden sm:inline"
+              >Profile</a
+            >
+          }
+          @if (auth.isAdmin()) {
+            <a
+              routerLink="/console"
+              class="text-destructive hover:text-destructive/80 hidden sm:inline"
+              >Console</a
+            >
+          }
 
           <!-- Same createForm()-based Sentry feedback widget as the global <app-nav> (see
                          its own doc comment for why this uses a plain (click) binding rather than
@@ -168,16 +190,22 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
               >TranSPOT</a
             >
             <a
+              routerLink="/tracker"
+              class="text-muted-foreground hover:text-foreground"
+              (click)="navExpanded.set(false)"
+              >Tracker</a
+            >
+            <a
+              routerLink="/gallery"
+              class="text-muted-foreground hover:text-foreground"
+              (click)="navExpanded.set(false)"
+              >Gallery</a
+            >
+            <a
               routerLink="/insiden"
               class="text-muted-foreground hover:text-foreground"
               (click)="navExpanded.set(false)"
               >Insiden</a
-            >
-            <a
-              routerLink="/profile"
-              class="text-muted-foreground hover:text-foreground"
-              (click)="navExpanded.set(false)"
-              >Profile</a
             >
             <a
               routerLink="/about"
@@ -185,6 +213,22 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
               (click)="navExpanded.set(false)"
               >About</a
             >
+            @if (auth.isLoggedIn()) {
+              <a
+                routerLink="/profile"
+                class="text-muted-foreground hover:text-foreground"
+                (click)="navExpanded.set(false)"
+                >Profile</a
+              >
+            }
+            @if (auth.isAdmin()) {
+              <a
+                routerLink="/console"
+                class="text-destructive hover:text-destructive/80"
+                (click)="navExpanded.set(false)"
+                >Console</a
+              >
+            }
           </div>
         }
       </div>
@@ -199,9 +243,11 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
 export class TrackerShellPage implements OnDestroy {
   private readonly gtfsRealtime = inject(GtfsRealtimeService);
   private readonly theme = inject(ThemeService);
+  protected readonly auth = inject(AuthService);
 
-  /** Below the sm breakpoint, whether the collapsed nav pill's other links (TranSPOT, Insiden,
-   * Profile, About) are currently shown as a vertical list under the top row. */
+  /** Below the sm breakpoint, whether the collapsed nav pill's other links (TranSPOT, Gallery,
+   * Insiden, About, plus the auth-gated Profile/Console) are currently shown as a vertical list
+   * under the top row. */
   protected readonly navExpanded = signal(false);
 
   /** Created once, on first use, then reused on every later click — same pattern as
