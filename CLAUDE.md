@@ -120,6 +120,10 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 4. **Context hygiene**: `/clear` between unrelated features. Feature areas here are deeply
    documented but largely independent — stale context from another feature causes wrong assumptions.
 5. **Git**: never commit or push unless asked. Pre-commit runs `lint-staged` → Prettier.
+   Any AI-assisted commit must append a `Co-authored-by:` trailer naming the agent **and**
+   the model used, e.g. `Co-authored-by: opencode (opencode-go/deepseek-v4-flash)
+<noreply@opencode.ai>` or `Co-authored-by: Claude Code (claude-sonnet-4-5)
+<noreply@anthropic.com>`. Never attribute AI work to a human co-author.
 6. **Known trap**: `adminOnlyGuard` currently `return true`s unconditionally (marked `TEMPORARY`) —
    `/console` is effectively unguarded today. Don't reason as if it's protected, and don't silently
    "fix" it as a side effect of unrelated work.
