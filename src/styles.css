@@ -35,6 +35,71 @@
       box-shadow: 0 0 6px 3px color-mix(in oklch, currentColor 35%, transparent);
     }
   }
+
+  /* Gentle breathing for the nav's new-version-available pill — softer than icon-glow's
+     box-shadow pulse. Combines opacity and subtle scale (kept under 1.04 to avoid layout shift)
+     for a calm, persistent reminder without the harsh throb of a pure shadow flicker. */
+  --animate-breathe: breathe 3.5s ease-in-out infinite;
+
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 0.85;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.03);
+    }
+  }
+
+  /* One-shot reveal for app-nav's mobile->desktop widen: plays whenever the inline link row or
+     the collapsed dropdown trigger is (re)inserted by @if/@else, so the swap between them reads
+     as a soft fade/slide instead of an instant DOM replacement. */
+  --animate-nav-reveal: nav-reveal 300ms ease-out;
+
+  @keyframes nav-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Left-to-right wipe for app-nav's full wordmark — plays on every mount (the @if that renders
+     it removes/recreates the node, so this replays each time desktop width is regained) as a
+     typing-like reveal without animating per-letter markup. */
+  --animate-wordmark-wipe: wordmark-wipe 550ms ease-out;
+
+  @keyframes wordmark-wipe {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0% 0 0);
+    }
+  }
+
+  /* Indeterminate sweep for the top nav-progress bar (see nav-progress.component.ts) — a
+     narrow highlight repeatedly sliding left-to-right across the bar's full width. There's no
+     real "percent complete" to report for a route navigation, so this deliberately reads as
+     "something is happening" rather than a real progress fraction — the same honesty
+     YouTube's/GitHub's own top bars go for. 1.4s is brisk enough to feel alive without looking
+     frantic; infinite is fine since the bar itself is only ever mounted while visible (see the
+     component's `visible` signal and its own opacity fade). */
+  --animate-nav-progress-sweep: nav-progress-sweep 1.4s ease-in-out infinite;
+
+  @keyframes nav-progress-sweep {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
 }
 
 /* Dark mode is toggled by ThemeService adding/removing `.dark` on <html> — not by

@@ -33,6 +33,23 @@ const NAV_LINKS = [
   { path: "/about", label: "About" },
 ];
 
+interface ConsoleLink {
+  path: string;
+  label: string;
+  /** "/console" is a prefix of every other console route, so it alone needs an exact match —
+   * see console-nav.component.ts, which this mirrors. */
+  exact: boolean;
+}
+
+/** Single source of truth for the console's sub-sections — read by the hover dropdown, the
+ * expanded inline nested menu, and the mobile sheet's sub-group, so adding a new console
+ * section here makes it show up in all three automatically. */
+const CONSOLE_LINKS: ConsoleLink[] = [
+  { path: "/console", label: "Spotting Queue", exact: true },
+  { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
+  { path: "/console/insiden/links", label: "Social Media Links", exact: false },
+];
+
 /** How long a hover-close waits before actually collapsing the menu — long enough that moving
  * the mouse from the trigger down into the panel (briefly leaving both) doesn't read as "left". */
 const HOVER_CLOSE_DELAY_MS = 300;
@@ -92,17 +109,19 @@ let hasShownAvatarHintThisPageLoad = false;
   // is correct with no offset math at all. `sticky` (not `relative`) anchors it to the viewport
   // top once scrolled.
   //
-  // z-40, not the z-30 its own dropdown uses internally: `position: sticky` plus *any* explicit
-  // z-index makes an element a stacking-context root, which means this bar's z-index is what
-  // decides its (and everything inside it, e.g. that z-30 dropdown's) rank against *other* page
-  // content's own stacking contexts — the dropdown's z-30 only ever settles ties *within* this
-  // bar. Page content includes other z-20 sticky bars (e.g. line-overview's line-name row) that
-  // come later in the DOM, and same-z-index ties resolve by DOM order — so without this bar
+  // z-[100], not the z-30 its own dropdown uses internally: `position: sticky` plus *any*
+  // explicit z-index makes an element a stacking-context root, which means this bar's z-index is
+  // what decides its (and everything inside it, e.g. that z-30 dropdown's) rank against *other*
+  // page content's own stacking contexts — the dropdown's z-30 only ever settles ties *within*
+  // this bar. Page content includes other z-20 sticky bars (e.g. line-overview's line-name row)
+  // that come later in the DOM, and same-z-index ties resolve by DOM order — so without this bar
   // outranking them outright, later-DOM same-or-higher-z content would paint over this bar's
-  // dropdown regardless of the dropdown's own z-index. 40 clears the highest z-index used
-  // anywhere else in page content (30, e.g. the line-switcher's own dropdown).
+  // dropdown regardless of the dropdown's own z-index. z-[100] is deliberately far above every
+  // z-index used anywhere else in page content (the highest today is 30, e.g. the
+  // line-switcher's own dropdown) so this bar stays above every other stacking context in the
+  // app, not just the ones known about today.
   host: {
-    class: "sticky top-0 z-40 block w-full border-b bg-background transition-shadow",
+    class: "sticky top-0 z-[100] block w-full border-b bg-background transition-shadow",
     "[class.shadow-lg]": "_scrolled()",
   },
   template: `
@@ -138,7 +157,9 @@ let hasShownAvatarHintThisPageLoad = false;
             />
           </svg>
           @if (showFullBrand()) {
-            <span class="text-lg font-semibold whitespace-nowrap">{{ GENERIC_TITLE }}</span>
+            <span class="animate-wordmark-wipe text-lg font-semibold whitespace-nowrap">{{
+              GENERIC_TITLE
+            }}</span>
           }
         </a>
 
@@ -160,37 +181,74 @@ let hasShownAvatarHintThisPageLoad = false;
           (mouseleave)="onModuleMenuLeave()"
         >
           @if (_navLinksFit()) {
-            @for (link of navLinks; track link.path) {
-              <a
-                [routerLink]="link.path"
-                routerLinkActive="text-foreground font-medium"
-                class="hover:text-foreground shrink-0 whitespace-nowrap"
-              >
-                {{ link.label }}
-              </a>
-            }
-            @if (auth.isLoggedIn()) {
-              <a
-                routerLink="/profile"
-                routerLinkActive="text-foreground font-medium"
-                class="hover:text-foreground shrink-0 whitespace-nowrap"
-              >
-                Profile
-              </a>
-            }
-            @if (auth.isAdmin()) {
-              <a
-                routerLink="/console"
-                routerLinkActive="font-medium"
-                class="text-destructive hover:text-destructive/80 shrink-0 whitespace-nowrap"
-              >
-                Console
-              </a>
-            }
+            <div class="animate-nav-reveal flex min-w-0 items-center gap-4">
+              @for (link of navLinks; track link.path) {
+                <a
+                  [routerLink]="link.path"
+                  routerLinkActive="text-foreground font-medium"
+                  class="hover:text-foreground shrink-0 whitespace-nowrap"
+                >
+                  {{ link.label }}
+                </a>
+              }
+              @if (auth.isLoggedIn()) {
+                <a
+                  routerLink="/profile"
+                  routerLinkActive="text-foreground font-medium"
+                  class="hover:text-foreground shrink-0 whitespace-nowrap"
+                >
+                  Profile
+                </a>
+              }
+              @if (auth.isAdmin()) {
+                <div
+                  class="relative shrink-0"
+                  (mouseenter)="onConsoleMenuEnter()"
+                  (mouseleave)="onConsoleMenuLeave()"
+                >
+                  <a
+                    routerLink="/console"
+                    routerLinkActive="font-medium"
+                    [routerLinkActiveOptions]="{ exact: true }"
+                    class="text-destructive hover:text-destructive/80 flex items-center gap-1 whitespace-nowrap"
+                  >
+                    Console
+                    <svg
+                      viewBox="0 0 24 24"
+                      class="size-3 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
+                    </svg>
+                  </a>
+                  @if (_hoverCapable() && consoleMenuOpen()) {
+                    <div
+                      class="bg-popover text-popover-foreground border-border absolute top-full right-0 z-30 mt-2 flex min-w-56 flex-col rounded-lg border py-2 text-base shadow-md"
+                      (keydown.escape)="consoleMenuOpen.set(false)"
+                    >
+                      @for (link of consoleLinks; track link.path) {
+                        <a
+                          [routerLink]="link.path"
+                          routerLinkActive="text-foreground font-medium bg-muted"
+                          [routerLinkActiveOptions]="{ exact: link.exact }"
+                          class="hover:bg-muted px-5 py-3"
+                          (click)="consoleMenuOpen.set(false)"
+                        >
+                          {{ link.label }}
+                        </a>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
           } @else {
             <button
               type="button"
-              class="hover:text-foreground flex min-w-0 items-center gap-1 text-lg font-semibold outline-none"
+              class="animate-nav-reveal hover:text-foreground flex min-w-0 items-center gap-1 text-lg font-semibold outline-none"
               [attr.aria-expanded]="moduleMenuOpen()"
               (click)="onModuleMenuTriggerClick()"
             >
@@ -244,11 +302,23 @@ let hasShownAvatarHintThisPageLoad = false;
                     <a
                       routerLink="/console"
                       routerLinkActive="font-medium bg-muted"
+                      [routerLinkActiveOptions]="{ exact: true }"
                       class="text-destructive hover:bg-muted px-5 py-3"
                       (click)="moduleMenuOpen.set(false)"
                     >
                       Console
                     </a>
+                    @for (link of consoleLinks; track link.path) {
+                      <a
+                        [routerLink]="link.path"
+                        routerLinkActive="text-foreground font-medium bg-muted"
+                        [routerLinkActiveOptions]="{ exact: link.exact }"
+                        class="hover:bg-muted py-2 pl-9 pr-5 text-sm"
+                        (click)="moduleMenuOpen.set(false)"
+                      >
+                        {{ link.label }}
+                      </a>
+                    }
                   }
                 </div>
               }
@@ -310,11 +380,27 @@ let hasShownAvatarHintThisPageLoad = false;
                       <a
                         routerLink="/console"
                         routerLinkActive="font-medium bg-muted"
+                        [routerLinkActiveOptions]="{ exact: true }"
                         class="text-destructive hover:bg-muted rounded-lg px-3 py-2"
                         (click)="moduleMenuOpen.set(false)"
                       >
                         Console
                       </a>
+                      <div
+                        class="text-muted-foreground flex flex-col gap-1 pl-4 text-xs font-medium"
+                      >
+                        @for (link of consoleLinks; track link.path) {
+                          <a
+                            [routerLink]="link.path"
+                            routerLinkActive="text-foreground font-medium bg-muted"
+                            [routerLinkActiveOptions]="{ exact: link.exact }"
+                            class="hover:bg-muted rounded-lg px-3 py-2 text-sm font-normal"
+                            (click)="moduleMenuOpen.set(false)"
+                          >
+                            {{ link.label }}
+                          </a>
+                        }
+                      </div>
                     }
                   </div>
                 </div>
@@ -363,7 +449,7 @@ let hasShownAvatarHintThisPageLoad = false;
                          to it, and there's no reason this one should be the exception. -->
           <button
             type="button"
-            class="border-primary/40 text-primary hover:bg-primary/10 animate-icon-glow flex h-8 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl border outline-none transition-[width,padding] duration-500"
+            class="border-primary/40 text-primary hover:bg-primary/10 animate-breathe flex h-8 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl border outline-none transition-[width,padding] duration-500"
             [class]="newVersionButtonClass()"
             aria-label="A new version of this site is available — click to reload"
             title="A new version of this site is available — click to reload"
@@ -533,6 +619,7 @@ export class AppNavComponent {
   private readonly theme = inject(ThemeService);
   protected readonly GENERIC_TITLE = GENERIC_TITLE;
   protected readonly navLinks = NAV_LINKS;
+  protected readonly consoleLinks = CONSOLE_LINKS;
 
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -641,7 +728,7 @@ export class AppNavComponent {
    * the point of the page." An outline keeps the same "look, something changed" affordance
    * without that visual weight. */
   protected readonly avatarButtonClass = computed(() =>
-    this.expanded() ? "border-primary text-primary" : "bg-muted",
+    this.expanded() ? "border-primary text-primary" : "",
   );
 
   protected readonly accountPanelOpen = signal(false);
@@ -652,12 +739,18 @@ export class AppNavComponent {
   protected readonly _scrolled = signal(false);
 
   protected readonly moduleMenuOpen = signal(false);
+  /** Separate from `moduleMenuOpen`: the Console item's own hover dropdown only exists in the
+   * expanded inline link list (where Console renders as a plain `<a>`, not inside the compact
+   * trigger's own dropdown), so it needs its own open/close state rather than sharing the
+   * module menu's. Reuses the same hover-intent-delay pattern via `hoverCloseTimeout` below. */
+  protected readonly consoleMenuOpen = signal(false);
   /** Real input capability, not a screen-size guess — matches the same `(hover: hover)` check
    * used elsewhere in this app (e.g. the profile notes tooltip/modal split). A hover-incapable
    * device gets a tap-to-toggle trigger with no hover-close timer to fight; a hover-capable one
    * gets the delayed-close behavior so moving from trigger to panel doesn't collapse it. */
   protected readonly _hoverCapable = signal(false);
   private hoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
+  private consoleHoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // Fires once, on the pending→0 edge, regardless of which page actually queued the
@@ -799,6 +892,24 @@ export class AppNavComponent {
       return;
     }
     this.moduleMenuOpen.set(!this.moduleMenuOpen());
+  }
+
+  protected onConsoleMenuEnter(): void {
+    if (!this._hoverCapable()) {
+      return;
+    }
+    clearTimeout(this.consoleHoverCloseTimeout);
+    this.consoleMenuOpen.set(true);
+  }
+
+  protected onConsoleMenuLeave(): void {
+    if (!this._hoverCapable()) {
+      return;
+    }
+    this.consoleHoverCloseTimeout = setTimeout(
+      () => this.consoleMenuOpen.set(false),
+      HOVER_CLOSE_DELAY_MS,
+    );
   }
 
   /** Logged out, there's nothing an account panel could show yet — the click should do what
