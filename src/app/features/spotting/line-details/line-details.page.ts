@@ -87,7 +87,7 @@ const WINDOW_SIZE = 3;
                  the sticky background doesn't show the page's own side padding as gaps. -->
       <div
         #titleBar
-        class="bg-background sticky top-[61px] z-20 -mx-4 flex flex-col gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
+        class="bg-background sticky top-[61px] z-40 -mx-4 flex flex-col gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
       >
         @if (_line(); as line) {
           <a
@@ -137,7 +137,7 @@ const WINDOW_SIZE = 3;
         <section class="flex flex-col gap-3">
           <div
             #activityControls
-            class="bg-background sticky z-[15] -mx-4 flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
+            class="bg-background sticky z-30 -mx-4 flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
             [style.top.px]="NAV_HEIGHT + titleBarHeight()"
           >
             <h2 class="text-lg font-semibold">Spotting Activity</h2>
