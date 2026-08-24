@@ -6,7 +6,12 @@ import {
   provideBrowserGlobalErrorListeners,
   inject,
 } from "@angular/core";
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from "@angular/router";
+import {
+  provideRouter,
+  withComponentInputBinding,
+  withInMemoryScrolling,
+  withPreloading,
+} from "@angular/router";
 import { HttpErrorResponse, provideHttpClient } from "@angular/common/http";
 import { RECAPTCHA_V3_SITE_KEY, ReCaptchaV3Service, RecaptchaLoaderService } from "ng-recaptcha-2";
 import { provideMarkdown } from "ngx-markdown";
@@ -17,6 +22,7 @@ import { provideClientHydration, withHttpTransferCacheOptions } from "@angular/p
 import { environment } from "../environments/environment";
 import { AnalyticsService } from "./core/analytics/analytics.service";
 import { NewVersionService } from "./core/version/new-version.service";
+import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
 
 /**
  * Checks if an error represents an HTTP 404 / Not Found error that should be ignored
@@ -102,6 +108,7 @@ export const appConfig: ApplicationConfig = {
       routes,
       withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: "enabled", anchorScrolling: "enabled" }),
+      withPreloading(HoverPreloadStrategy),
     ),
     // GraphQL-over-HTTP sends reads as POST too — without includePostRequests, Angular's
     // transfer cache (GET-only by default) would refetch every query again after hydration.

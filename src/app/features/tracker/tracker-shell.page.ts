@@ -6,9 +6,11 @@ import { ThemeService } from "../../core/theme/theme.service";
 import { CONSOLE_LINKS } from "../../shell/nav-config";
 import { GtfsRealtimeService } from "./data/gtfs-realtime.service";
 import { TrackerMapComponent } from "./map/tracker-map.component";
+import { TrackerMapSkeletonComponent } from "./map/tracker-map-skeleton.component";
 import { StatusCardComponent } from "./status-card/status-card.component";
 import { MobileLayerSheetComponent } from "./status-card/mobile-layer-sheet.component";
 import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.component";
+import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy";
 
 /**
  * /tracker — full-bleed live vehicle map. Ported from tracker.component.ts, but with a real
@@ -25,6 +27,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
     RouterLink,
     RouterLinkActive,
     TrackerMapComponent,
+    TrackerMapSkeletonComponent,
     StatusCardComponent,
     MobileLayerSheetComponent,
     ThemeToggleComponent,
@@ -112,6 +115,8 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
           <a
             routerLink="/tracker"
             class="text-muted-foreground hover:text-foreground hidden sm:inline"
+            (mouseenter)="preloadTracker()"
+            (focus)="preloadTracker()"
             >Tracker</a
           >
           <a
@@ -221,6 +226,8 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
               routerLink="/tracker"
               class="text-muted-foreground hover:text-foreground"
               (click)="navExpanded.set(false)"
+              (mouseenter)="preloadTracker()"
+              (focus)="preloadTracker()"
               >Tracker</a
             >
             <a
@@ -275,7 +282,11 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
           </div>
         }
       </div>
-      <app-tracker-map class="absolute inset-0" />
+      @if (mapReady()) {
+        <app-tracker-map class="absolute inset-0" (mapReady)="mapReady.set(true)" />
+      } @else {
+        <app-tracker-map-skeleton class="absolute inset-0" />
+      }
       <div class="absolute top-3 right-3 z-10">
         <app-status-card />
       </div>
@@ -299,11 +310,22 @@ export class TrackerShellPage implements OnDestroy {
   protected readonly consoleMenuOpen = signal(false);
   private consoleHoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
 
+  /** Tracks whether the map has finished initializing (L7 scene + Mapbox + first data fetch).
+   * Used to show a skeleton placeholder during initial load for better perceived performance. */
+  protected readonly mapReady = signal(false);
+
   /** Created once, on first use, then reused on every later click — same pattern as
    * AppNavComponent.onReportBug(), see its doc comment for why createForm() over attachTo(). */
   private feedbackDialog: Awaited<
     ReturnType<Exclude<ReturnType<typeof Sentry.getFeedback>, undefined>["createForm"]>
   > | null = null;
+
+  private readonly hoverPreload = inject(HoverPreloadStrategy);
+
+  /** Triggers preloading of the tracker route module on hover/focus (for nav links outside tracker). */
+  protected preloadTracker(): void {
+    this.hoverPreload.preloadRoute("tracker");
+  }
 
   /** GtfsRealtimeService is root-provided — it (and its RtSources) outlive this component
    * across navigations. Resuming here (a no-op the very first time, since nothing's applied

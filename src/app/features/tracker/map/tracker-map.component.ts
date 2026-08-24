@@ -1,4 +1,13 @@
-import { Component, Injector, OnDestroy, afterNextRender, effect, inject } from "@angular/core";
+import {
+  Component,
+  EventEmitter,
+  Injector,
+  OnDestroy,
+  Output,
+  afterNextRender,
+  effect,
+  inject,
+} from "@angular/core";
 import { ILayer, LineLayer, Mapbox, PointLayer, Scene } from "@antv/l7";
 import { environment } from "../../../../environments/environment";
 import { ThemeService } from "../../../core/theme/theme.service";
@@ -30,6 +39,8 @@ const RAIL_LINE_FILE = "malaysia_railway.geo.json";
   template: '<div id="map" class="h-full w-full"></div>',
 })
 export class TrackerMapComponent implements OnDestroy {
+  /** Emits true once the L7 scene, Mapbox, and initial data fetches have started. */
+  @Output() readonly mapReady = new EventEmitter<void>();
   private readonly injector = inject(Injector);
   private readonly geojsonStorage = inject(GeojsonStorageService);
   private readonly gtfsRealtime = inject(GtfsRealtimeService);
@@ -62,6 +73,9 @@ export class TrackerMapComponent implements OnDestroy {
         token: environment.mapbox.token,
       }),
     });
+
+    // Scene created - map is now interactive, emit ready event so shell can swap skeleton
+    queueMicrotask(() => this.mapReady.emit());
 
     this.scene.addImage(
       "marker",

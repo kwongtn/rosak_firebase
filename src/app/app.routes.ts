@@ -1,5 +1,6 @@
 import { Routes } from "@angular/router";
 import { pathWithOptionalParamMatcher } from "./core/routing/optional-param-matcher";
+import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
 
 export const routes: Routes = [
   {
@@ -22,6 +23,7 @@ export const routes: Routes = [
     path: "tracker",
     title: "MLPTF | Tracker",
     loadChildren: () => import("./features/tracker/tracker.routes").then((m) => m.TRACKER_ROUTES),
+    data: { preload: "hover" },
   },
   {
     path: "about",

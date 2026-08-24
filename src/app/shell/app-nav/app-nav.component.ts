@@ -23,6 +23,7 @@ import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.component";
 import { ToastService } from "../../ui/toast/toast.service";
 import { AccountPanelComponent } from "../account-panel/account-panel.component";
+import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy";
 
 const GENERIC_TITLE = "Malaysia Land Public Transport Fans";
 
@@ -190,6 +191,8 @@ let hasRevealedNavLinksThisPageLoad = false;
                   [routerLink]="link.path"
                   routerLinkActive="text-foreground font-medium"
                   class="hover:text-foreground shrink-0 whitespace-nowrap"
+                  (mouseenter)="link.path === '/tracker' && preloadTracker()"
+                  (focus)="link.path === '/tracker' && preloadTracker()"
                 >
                   {{ link.label }}
                 </a>
@@ -288,6 +291,8 @@ let hasRevealedNavLinksThisPageLoad = false;
                       routerLinkActive="text-foreground font-medium bg-muted"
                       class="hover:bg-muted px-5 py-3"
                       (click)="moduleMenuOpen.set(false)"
+                      (mouseenter)="link.path === '/tracker' && preloadTracker()"
+                      (focus)="link.path === '/tracker' && preloadTracker()"
                     >
                       {{ link.label }}
                     </a>
@@ -366,6 +371,8 @@ let hasRevealedNavLinksThisPageLoad = false;
                         routerLinkActive="text-foreground font-medium bg-muted"
                         class="hover:bg-muted rounded-lg px-3 py-2"
                         (click)="moduleMenuOpen.set(false)"
+                        (mouseenter)="link.path === '/tracker' && preloadTracker()"
+                        (focus)="link.path === '/tracker' && preloadTracker()"
                       >
                         {{ link.label }}
                       </a>
@@ -624,6 +631,12 @@ export class AppNavComponent {
   protected readonly GENERIC_TITLE = GENERIC_TITLE;
   protected readonly navLinks = NAV_LINKS;
   protected readonly consoleLinks = CONSOLE_LINKS;
+  private readonly hoverPreload = inject(HoverPreloadStrategy);
+
+  /** Triggers preloading of the tracker route module on hover/focus. */
+  protected preloadTracker(): void {
+    this.hoverPreload.preloadRoute("tracker");
+  }
 
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
