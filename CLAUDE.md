@@ -119,7 +119,7 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
    spec in the repo), so don't invent a harness unasked.
 4. **Context hygiene**: `/clear` between unrelated features. Feature areas here are deeply
    documented but largely independent — stale context from another feature causes wrong assumptions.
-5. **Git**: never commit or push unless asked. Pre-commit runs `lint-staged` → Prettier.
+5. **Git**: commit at logical checkpoints — one concern per commit — so the history reads chronologically and the working tree is never left full of uncommitted changes; push only when asked. Pre-commit runs `lint-staged` → Prettier.
    Any AI-assisted commit must append a `Co-authored-by:` trailer naming the agent **and**
    the model used, e.g. `Co-authored-by: opencode (opencode-go/deepseek-v4-flash)
 <noreply@opencode.ai>` or `Co-authored-by: Claude Code (claude-sonnet-4-5)
