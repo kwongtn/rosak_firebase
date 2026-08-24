@@ -116,7 +116,7 @@ function isSortColumn(value: string | null): value is SortColumn {
               <h1 class="text-xl font-semibold">{{ line.displayName }}</h1>
               <line-status-badge [status]="line.status" />
             </div>
-            @if (_scrolled() && !vehicleTypesResource.isLoading()) {
+            @if (_scrolled() && !_isAwaitingCurrentView()) {
               <app-fleet-summary
                 [vehicleTypes]="_vehicleTypes()"
                 [compact]="true"
@@ -143,10 +143,10 @@ function isSortColumn(value: string | null): value is SortColumn {
       } @else {
         <app-line-status-board
           [vehicleTypes]="_vehicleTypes()"
-          [isLoading]="vehicleTypesResource.isLoading()"
+          [isLoading]="_isAwaitingCurrentView()"
         />
 
-        @if (vehicleTypesResource.isLoading()) {
+        @if (_isAwaitingCurrentView()) {
           <div hlmSkeleton class="h-24 w-full"></div>
         } @else {
           <app-fleet-summary
@@ -209,6 +209,21 @@ export class LineOverviewPage {
 
   protected readonly _vehicleTypes = computed(
     () => this.vehicleTypesResource.data()?.vehicleTypes ?? [],
+  );
+
+  /** Whether the stat cards / Total chip row should show skeletons instead of real (or
+   * zeroed-out) values — deliberately *not* `vehicleTypesResource.isLoading()`: that only
+   * ever reports `true` for this resource's very first fetch (see `graphqlResource`'s own
+   * doc comment), so it stays `false` on every later fetch too, e.g. this page re-mounting
+   * for a different `lineId`. Gating on that left the stat cards briefly rendering `0`/`—`
+   * (computed from an empty `_vehicleTypes()`) rather than skeletons whenever the resource
+   * hadn't ever-loaded-before but also wasn't in its very first fetch. `resource.data()`
+   * itself is cleared back to `undefined` synchronously the moment the request's variables
+   * actually change, so checking for its absence — same pattern as the vehicle-spotting
+   * grid's `isAwaitingCurrentView` — is what actually tracks "no data for what's currently
+   * asked for yet", not just "has this resource ever loaded before". */
+  protected readonly _isAwaitingCurrentView = computed(
+    () => !this.vehicleTypesResource.data() && !this.vehicleTypesResource.hasError(),
   );
 
   /** Drives the desktop fleet-summary merge into the sticky line-name row (see the template) —
