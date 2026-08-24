@@ -1,5 +1,16 @@
-import { Component, afterNextRender, computed, inject, input, signal } from "@angular/core";
-import { DatePipe } from "@angular/common";
+import {
+  Component,
+  DestroyRef,
+  PLATFORM_ID,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from "@angular/core";
+import { DatePipe, isPlatformBrowser } from "@angular/common";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
@@ -14,9 +25,14 @@ import {
   DELETE_WINDOW_MS,
   DeleteEventData,
   DeleteEventVars,
+  GET_MY_EVENTS_QUERY,
+  GetMyEventsData,
+  GetMyEventsVars,
   MyEvent,
   PublicUserData,
 } from "../data/profile.queries";
+
+const PAGE_SIZE = 30;
 
 interface EventDayGroup {
   date: string;
@@ -77,7 +93,9 @@ interface EventDayGroup {
             </p>
           </div>
         } @else if (canViewSpottings()) {
-          @if (_events().length === 0) {
+          @if (_events().length === 0 && _isLoading()) {
+            <p class="text-muted-foreground text-sm">Loading your spottings…</p>
+          } @else if (_events().length === 0) {
             <p class="text-muted-foreground text-sm">No spottings logged yet.</p>
           } @else {
             <div class="flex flex-col divide-y">
@@ -151,6 +169,19 @@ interface EventDayGroup {
                 </div>
               }
             </div>
+
+            @if (isOwnProfile() && _hasMore()) {
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                class="mt-4"
+                [disabled]="_isLoading()"
+                (click)="loadMore()"
+              >
+                {{ _isLoading() ? "Loading…" : "Load more" }}
+              </button>
+            }
           }
         }
       </div>
@@ -191,12 +222,25 @@ export class MySpottingsComponent {
     return [];
   });
 
+  /** The owner's history, fetched here page by page. The parent deliberately passes
+   * `spottings: null` for the owner (GET_USER_DATA_QUERY doesn't return them), so unlike the
+   * public path below there is nothing to inherit — this component is the fetcher. */
+  private readonly _ownEvents = signal<MyEvent[]>([]);
+  protected readonly _isLoading = signal(false);
+  protected readonly _hasMore = signal(false);
+
   private readonly graphql = inject(GraphQLClient);
   private readonly auth = inject(AuthService);
   private readonly recaptcha = inject(RecaptchaService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
+  /** Firebase-id-token requests only exist in the browser; on the server `auth.idToken()`
+   * resolves null and an unauthenticated `onlyMine` query would just fail. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  protected readonly _events = computed(() => this.spottingsData());
+  protected readonly _events = computed<MyEvent[]>(() =>
+    this.isOwnProfile() ? this._ownEvents() : this.spottingsData(),
+  );
   protected readonly _deletingId = signal<string | null>(null);
 
   protected readonly _groups = computed<EventDayGroup[]>(() => {
@@ -216,6 +260,8 @@ export class MySpottingsComponent {
    * mobile modal's trigger, though only one of the two ever actually renders per `_hoverCapable`. */
   protected readonly _tooltipEventId = signal<string | null>(null);
   protected readonly _modalEvent = signal<MyEvent | null>(null);
+  /** Set on destroy so an in-flight loadMore() doesn't write into a dead component. */
+  private isDestroyed = false;
   /** Real input capability, not a screen-size guess — a `(hover: hover)` device gets a hover
    * tooltip; anything else (touch, with no reliable hover) gets a tap-to-open modal instead.
    * Defaults to `false` (modal) until measured client-side: that's the safe default, since a
@@ -227,6 +273,47 @@ export class MySpottingsComponent {
     afterNextRender(() => {
       this._hoverCapable.set(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
     });
+    this.destroyRef.onDestroy(() => (this.isDestroyed = true));
+
+    // Own profiles self-fetch their history here. The effect's only dependency is
+    // isOwnProfile(), so loadMore() runs untracked — reading/writing _ownEvents reactively
+    // would re-trigger this effect on every appended page (same trap as the vehicle-detail
+    // spotting history).
+    effect(() => {
+      if (this.isOwnProfile()) {
+        untracked(() => void this.loadMore());
+      }
+    });
+  }
+
+  async loadMore(): Promise<void> {
+    if (!this.isBrowser || this._isLoading()) {
+      return;
+    }
+    this._isLoading.set(true);
+    try {
+      const idToken = await this.auth.idToken();
+      if (this.isDestroyed) {
+        return;
+      }
+      const data = await this.graphql.request<GetMyEventsData, GetMyEventsVars>(
+        GET_MY_EVENTS_QUERY,
+        { limit: PAGE_SIZE, offset: untracked(() => this._ownEvents().length) },
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      if (this.isDestroyed) {
+        return;
+      }
+      this._hasMore.set(data.events.length === PAGE_SIZE);
+      this._ownEvents.update((list) => [...list, ...data.events]);
+    } catch (err) {
+      this.toast.error(
+        "Couldn't load spottings",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+    } finally {
+      this._isLoading.set(false);
+    }
   }
 
   protected _canDelete(event: MyEvent): boolean {

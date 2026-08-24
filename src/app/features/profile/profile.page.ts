@@ -124,6 +124,9 @@ export class ProfilePage {
           { typeGroup: true, freeRange: true },
           idToken ? { "firebase-auth-key": idToken } : {},
         );
+        // `spottings` stays null on the owner branch: GET_USER_DATA_QUERY doesn't return them,
+        // and the owner's history is fetched by <app-my-spottings> itself (GET_MY_EVENTS_QUERY,
+        // paginated) — only public profiles inherit a ready-made list here.
         this._user.set({ ...data.user, spottings: null });
       } else {
         const data = await this.graphql.request<GetPublicUserData, GetPublicUserVars>(
