@@ -20,6 +20,11 @@
         <div hlmSkeleton class="h-24 w-full"></div>
         <div hlmSkeleton class="h-24 w-full"></div>
       </div>
+    } @else if (isError()) {
+      <div class="flex flex-col items-start gap-3 rounded-lg border border-destructive p-4">
+        <p class="text-sm font-medium">Couldn't load the about page. Please try again.</p>
+        <button hlmBtn variant="outline" size="sm" (click)="retry()">Retry</button>
+      </div>
     } @else {
       <section class="flex flex-col gap-4">
         @if (aboutProject()) {

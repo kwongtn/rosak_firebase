@@ -4,6 +4,7 @@ import { getApps, initializeApp } from "firebase/app";
 import { Unsubscribe, doc as firestoreDoc, getFirestore, onSnapshot } from "firebase/firestore";
 import { environment } from "../../../environments/environment";
 import { HlmBadge } from "../../ui/badge/badge";
+import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -26,13 +27,14 @@ function firebaseApp() {
  */
 @Component({
   selector: "app-gdpr",
-  imports: [HlmBadge, HlmSkeleton, AppNavComponent, AppFooterComponent],
+  imports: [HlmBadge, HlmButton, HlmSkeleton, AppNavComponent, AppFooterComponent],
   templateUrl: "./gdpr.page.html",
 })
 export class GdprPage implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly isLoading = signal(true);
+  protected readonly isError = signal(false);
   private readonly _data = signal<PublicGdprDocument | undefined>(undefined);
   private unsubscribe: Unsubscribe | undefined;
 
@@ -44,6 +46,10 @@ export class GdprPage implements OnDestroy {
     if (!this.isBrowser) {
       return;
     }
+    this.subscribe();
+  }
+
+  private subscribe(): void {
     const firestore = getFirestore(firebaseApp());
     this.unsubscribe = onSnapshot(
       firestoreDoc(firestore, "public", "gdpr"),
@@ -51,8 +57,18 @@ export class GdprPage implements OnDestroy {
         this._data.set(snap.data() as PublicGdprDocument | undefined);
         this.isLoading.set(false);
       },
-      () => this.isLoading.set(false),
+      () => {
+        this.isError.set(true);
+        this.isLoading.set(false);
+      },
     );
+  }
+
+  protected retry(): void {
+    this.isError.set(false);
+    this.isLoading.set(true);
+    this.unsubscribe?.();
+    this.subscribe();
   }
 
   ngOnDestroy(): void {

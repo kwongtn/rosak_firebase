@@ -44,6 +44,7 @@ export class AboutPage implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly isLoading = signal(true);
+  protected readonly isError = signal(false);
   private readonly _data = signal<PublicAboutDocument | undefined>(undefined);
   private unsubscribe: Unsubscribe | undefined;
 
@@ -65,6 +66,10 @@ export class AboutPage implements OnDestroy {
     if (!this.isBrowser) {
       return;
     }
+    this.subscribe();
+  }
+
+  private subscribe(): void {
     const firestore = getFirestore(firebaseApp());
     this.unsubscribe = onSnapshot(
       firestoreDoc(firestore, "public", "about"),
@@ -72,8 +77,18 @@ export class AboutPage implements OnDestroy {
         this._data.set(snap.data() as PublicAboutDocument | undefined);
         this.isLoading.set(false);
       },
-      () => this.isLoading.set(false),
+      () => {
+        this.isError.set(true);
+        this.isLoading.set(false);
+      },
     );
+  }
+
+  protected retry(): void {
+    this.isError.set(false);
+    this.isLoading.set(true);
+    this.unsubscribe?.();
+    this.subscribe();
   }
 
   ngOnDestroy(): void {

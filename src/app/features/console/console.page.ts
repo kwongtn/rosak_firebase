@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from "@angular/core";
+import { Component, inject, signal } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { firstValueFrom } from "rxjs";
@@ -20,6 +20,7 @@ import { VehicleStatusBadge } from "../../domain-ui/vehicle-status-badge/vehicle
 import { SpottingTypeBadge } from "../../domain-ui/spotting-type-badge/spotting-type-badge";
 import { SpottingType, SpottingVehicleStatus } from "../../core/graphql/types";
 import { environment } from "../../../environments/environment";
+import { useBulkActions } from "../../core/composables/use-bulk-actions";
 import {
   CONSOLE_EVENTS_QUERY,
   ConsoleEvent,
@@ -129,10 +130,13 @@ export class ConsolePage {
   protected readonly isLoading = signal(false);
   protected readonly hasMore = signal(true);
 
-  protected readonly selectMode = signal(false);
-  protected readonly checkedIds = signal<Set<string>>(new Set());
-  protected readonly checkedCount = computed(() => this.checkedIds().size);
-
+  private readonly bulkActions = useBulkActions();
+  protected readonly selectMode = this.bulkActions.selectMode;
+  protected readonly checkedIds = this.bulkActions.checkedIds;
+  protected readonly checkedCount = this.bulkActions.checkedCount;
+  protected readonly toggleSelectMode = this.bulkActions.toggleSelectMode;
+  protected readonly toggleChecked = this.bulkActions.toggleChecked;
+  protected readonly clearSelection = this.bulkActions.clearSelection;
   /** The filters actually in effect — only replaced on Search, so editing the form doesn't
    * refetch until the admin explicitly asks for it (matches the old app's onSearch button). */
   private appliedFilters: ConsoleEventFilters = { isRead: false };
@@ -176,29 +180,12 @@ export class ConsolePage {
     this.appliedFilters = this.buildFilters();
     this.events.set([]);
     this.hasMore.set(true);
-    this.checkedIds.set(new Set());
+    this.clearSelection();
     this.load();
   }
 
   protected loadMore(): void {
     this.load();
-  }
-
-  protected toggleSelectMode(): void {
-    this.selectMode.update((v) => !v);
-    this.checkedIds.set(new Set());
-  }
-
-  protected toggleChecked(id: string): void {
-    this.checkedIds.update((set) => {
-      const next = new Set(set);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
   }
 
   protected async markAsRead(): Promise<void> {
@@ -222,7 +209,7 @@ export class ConsolePage {
       );
       if (data.markAsRead.ok) {
         this.events.update((list) => list.filter((e) => !ids.includes(e.id)));
-        this.checkedIds.set(new Set());
+        this.clearSelection();
         this.toast.success(
           "Marked as read",
           `${ids.length} event${ids.length === 1 ? "" : "s"} marked as read.`,
