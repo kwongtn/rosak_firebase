@@ -14,8 +14,4 @@ export const PROFILE_ROUTES: Routes = [
     path: ":id",
     loadComponent: () => import("./profile.page").then((m) => m.ProfilePage),
   },
-  {
-    path: ":id/settings",
-    loadComponent: () => import("./settings/settings.component").then((m) => m.SettingsComponent),
-  },
 ];

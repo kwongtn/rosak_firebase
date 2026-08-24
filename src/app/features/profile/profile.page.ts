@@ -56,7 +56,11 @@ import {
               <div hlmSkeleton class="h-72 w-full"></div>
             </div>
           } @else if (_user(); as user) {
-            <app-profile-user-card [user]="user" (nicknameSaved)="onNicknameSaved($event)" />
+            <app-profile-user-card
+              [user]="user"
+              (nicknameSaved)="onNicknameSaved($event)"
+              (privacySaved)="onPrivacySaved($event)"
+            />
             <spotting-activity-heatmap
               [data]="user.spottingTrends"
               [totalAllTime]="user.spottingsCount"
@@ -147,6 +151,13 @@ export class ProfilePage {
     const current = this._user();
     if (current) {
       this._user.set({ ...current, nickname });
+    }
+  }
+
+  protected onPrivacySaved(spottingDataPublic: boolean): void {
+    const current = this._user();
+    if (current) {
+      this._user.set({ ...current, spottingDataPublic });
     }
   }
 }

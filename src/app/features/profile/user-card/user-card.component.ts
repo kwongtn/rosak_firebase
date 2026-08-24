@@ -1,12 +1,13 @@
-import { Component, computed, inject, input, output, signal } from "@angular/core";
+import { Component, afterNextRender, computed, inject, input, output, signal } from "@angular/core";
 import { DecimalPipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { RouterLink } from "@angular/router";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmInput } from "../../../ui/input/input";
 import { HlmCardImports } from "../../../ui/card/card";
+import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
+import { HlmSheet, HlmSheetHeader, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   UPDATE_USER_MUTATION,
@@ -24,7 +25,17 @@ import {
  */
 @Component({
   selector: "app-profile-user-card",
-  imports: [FormsModule, DecimalPipe, HlmButton, HlmInput, RouterLink, ...HlmCardImports],
+  imports: [
+    FormsModule,
+    DecimalPipe,
+    HlmButton,
+    HlmInput,
+    HlmCheckbox,
+    HlmSheet,
+    HlmSheetHeader,
+    HlmSheetBody,
+    ...HlmCardImports,
+  ],
   template: `
     <div class="flex flex-col gap-6">
       <div class="flex items-center gap-4">
@@ -115,12 +126,7 @@ import {
 
       @if (isOwnProfile()) {
         <div class="mt-4">
-          <a
-            hlmBtn
-            variant="outline"
-            size="sm"
-            [routerLink]="['/profile', auth.user()?.uid, 'settings']"
-          >
+          <button hlmBtn variant="outline" size="sm" (click)="openPrivacySheet()">
             <svg class="mr-2 size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 stroke-linecap="round"
@@ -130,16 +136,63 @@ import {
               />
             </svg>
             Privacy Settings
-          </a>
+          </button>
         </div>
       }
     </div>
+
+    <hlm-sheet
+      [open]="_sheetOpen()"
+      (openChange)="_sheetOpen.set($event)"
+      [side]="_hoverCapable() ? 'full' : 'bottom'"
+    >
+      <div hlmSheetHeader>
+        <h2 class="text-lg font-semibold">Privacy Settings</h2>
+        <p class="mt-1 text-sm text-muted-foreground">
+          Control what information is visible on your public profile.
+        </p>
+      </div>
+      <div hlmSheetBody>
+        <div class="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1">
+              <label for="privacy-toggle" class="cursor-pointer text-sm font-medium leading-none">
+                Share Historical Spotting Data
+              </label>
+              <p class="text-xs text-muted-foreground">
+                Allow others to view your detailed spotting history. Your stats (counts, heatmap,
+                favorite trains) are always visible.
+              </p>
+            </div>
+            <hlm-checkbox
+              id="privacy-toggle"
+              [checked]="_spottingDataPublicDraft()"
+              (checkedChange)="onPrivacyToggle($event)"
+              [disabled]="_isSavingPrivacy()"
+            />
+          </div>
+        </div>
+
+        <div class="mt-6 rounded-lg border border-border bg-muted/30 p-4">
+          <h3 class="mb-2 text-sm font-semibold">What's Always Public:</h3>
+          <ul class="list-inside list-disc space-y-1 text-xs text-muted-foreground">
+            <li>Nickname</li>
+            <li>Total spottings count</li>
+            <li>Media uploaded count</li>
+            <li>Best month and day</li>
+            <li>Favorite train</li>
+            <li>Activity heatmap</li>
+          </ul>
+        </div>
+      </div>
+    </hlm-sheet>
   `,
 })
 export class UserCardComponent {
   readonly isOwnProfile = input<boolean>(true);
   readonly user = input.required<UserData>();
   readonly nicknameSaved = output<string>();
+  readonly privacySaved = output<boolean>();
 
   protected readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
@@ -161,6 +214,17 @@ export class UserCardComponent {
       ?.vehicle.lines.map((l) => l.code)
       .join(", "),
   );
+
+  protected readonly _sheetOpen = signal(false);
+  protected readonly _hoverCapable = signal(false);
+  protected readonly _spottingDataPublicDraft = signal(false);
+  protected readonly _isSavingPrivacy = signal(false);
+
+  constructor() {
+    afterNextRender(() => {
+      this._hoverCapable.set(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+    });
+  }
 
   protected startEdit(): void {
     this.nicknameDraft = this._displayedNickname();
@@ -187,6 +251,47 @@ export class UserCardComponent {
       this.toast.error("Save failed", err instanceof Error ? err.message : "Unknown error");
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  protected openPrivacySheet(): void {
+    this._spottingDataPublicDraft.set(this.user().spottingDataPublic);
+    this._sheetOpen.set(true);
+  }
+
+  protected async onPrivacyToggle(desiredState: boolean): Promise<void> {
+    if (desiredState) {
+      const confirmed = window.confirm(
+        "Make Spotting History Public?\n\nThis will allow anyone to view your detailed spotting records. You can change this back anytime.",
+      );
+      if (!confirmed) {
+        this._spottingDataPublicDraft.set(false);
+        return;
+      }
+    }
+    await this.savePrivacySetting(desiredState);
+  }
+
+  private async savePrivacySetting(value: boolean): Promise<void> {
+    this._isSavingPrivacy.set(true);
+    try {
+      const idToken = await this.auth.idToken();
+      const data = await this.graphql.request<UpdateUserData, UpdateUserVars>(
+        UPDATE_USER_MUTATION,
+        { data: { nickname: this.auth.user()?.displayName || "User", spottingDataPublic: value } },
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      this._spottingDataPublicDraft.set(value);
+      this.privacySaved.emit(value);
+      this._sheetOpen.set(false);
+      this.toast.success(
+        value ? "Spotting history is now public" : "Spotting history is now private",
+      );
+    } catch (err) {
+      this.toast.error("Save failed", err instanceof Error ? err.message : "Unknown error");
+      this._spottingDataPublicDraft.set(!value);
+    } finally {
+      this._isSavingPrivacy.set(false);
     }
   }
 }
