@@ -1,8 +1,9 @@
 import { Component, OnDestroy, effect, inject, signal } from "@angular/core";
-import { RouterLink } from "@angular/router";
+import { RouterLink, RouterLinkActive } from "@angular/router";
 import * as Sentry from "@sentry/angular";
 import { AuthService } from "../../core/auth/auth.service";
 import { ThemeService } from "../../core/theme/theme.service";
+import { CONSOLE_LINKS } from "../../shell/nav-config";
 import { GtfsRealtimeService } from "./data/gtfs-realtime.service";
 import { TrackerMapComponent } from "./map/tracker-map.component";
 import { StatusCardComponent } from "./status-card/status-card.component";
@@ -22,6 +23,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
   selector: "app-tracker-shell",
   imports: [
     RouterLink,
+    RouterLinkActive,
     TrackerMapComponent,
     StatusCardComponent,
     MobileLayerSheetComponent,
@@ -135,11 +137,37 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
             >
           }
           @if (auth.isAdmin()) {
-            <a
-              routerLink="/console"
-              class="text-destructive hover:text-destructive/80 hidden sm:inline"
-              >Console</a
+            <div
+              class="relative hidden shrink-0 sm:block"
+              (mouseenter)="onConsoleMenuEnter()"
+              (mouseleave)="onConsoleMenuLeave()"
             >
+              <a
+                routerLink="/console"
+                routerLinkActive="font-medium"
+                [routerLinkActiveOptions]="{ exact: true }"
+                class="text-destructive hover:text-destructive/80"
+                >Console</a
+              >
+              @if (consoleMenuOpen()) {
+                <div
+                  class="bg-popover text-popover-foreground border-border absolute top-full right-0 z-30 mt-2 flex min-w-56 flex-col rounded-lg border py-2 text-sm shadow-md"
+                  (keydown.escape)="consoleMenuOpen.set(false)"
+                >
+                  @for (link of consoleLinks; track link.path) {
+                    <a
+                      [routerLink]="link.path"
+                      routerLinkActive="text-foreground font-medium bg-muted"
+                      [routerLinkActiveOptions]="{ exact: link.exact }"
+                      class="hover:bg-muted px-5 py-3"
+                      (click)="consoleMenuOpen.set(false)"
+                    >
+                      {{ link.label }}
+                    </a>
+                  }
+                </div>
+              }
+            </div>
           }
 
           <!-- Same createForm()-based Sentry feedback widget as the global <app-nav> (see
@@ -224,10 +252,25 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
             @if (auth.isAdmin()) {
               <a
                 routerLink="/console"
+                routerLinkActive="font-medium"
+                [routerLinkActiveOptions]="{ exact: true }"
                 class="text-destructive hover:text-destructive/80"
                 (click)="navExpanded.set(false)"
                 >Console</a
               >
+              <div class="text-muted-foreground flex flex-col gap-1 pl-4 text-sm font-medium">
+                @for (link of consoleLinks; track link.path) {
+                  <a
+                    [routerLink]="link.path"
+                    routerLinkActive="text-foreground font-medium"
+                    [routerLinkActiveOptions]="{ exact: link.exact }"
+                    class="hover:text-foreground text-sm font-normal"
+                    (click)="navExpanded.set(false)"
+                  >
+                    {{ link.label }}
+                  </a>
+                }
+              </div>
             }
           </div>
         }
@@ -244,11 +287,17 @@ export class TrackerShellPage implements OnDestroy {
   private readonly gtfsRealtime = inject(GtfsRealtimeService);
   private readonly theme = inject(ThemeService);
   protected readonly auth = inject(AuthService);
+  protected readonly consoleLinks = CONSOLE_LINKS;
 
   /** Below the sm breakpoint, whether the collapsed nav pill's other links (TranSPOT, Gallery,
    * Insiden, About, plus the auth-gated Profile/Console) are currently shown as a vertical list
    * under the top row. */
   protected readonly navExpanded = signal(false);
+
+  /** Console sub-menu open state — desktop hover dropdown only (mobile renders the sub-links
+   * inline in the expanded list without needing a separate open/close state). */
+  protected readonly consoleMenuOpen = signal(false);
+  private consoleHoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
 
   /** Created once, on first use, then reused on every later click — same pattern as
    * AppNavComponent.onReportBug(), see its doc comment for why createForm() over attachTo(). */
@@ -278,5 +327,14 @@ export class TrackerShellPage implements OnDestroy {
     }
     this.feedbackDialog?.appendToDom();
     this.feedbackDialog?.open();
+  }
+
+  protected onConsoleMenuEnter(): void {
+    clearTimeout(this.consoleHoverCloseTimeout);
+    this.consoleMenuOpen.set(true);
+  }
+
+  protected onConsoleMenuLeave(): void {
+    this.consoleHoverCloseTimeout = setTimeout(() => this.consoleMenuOpen.set(false), 300);
   }
 }

@@ -18,6 +18,7 @@ import { ImageUploadService } from "../../core/upload/image-upload.service";
 import { NewVersionService } from "../../core/version/new-version.service";
 import { ThemeService } from "../../core/theme/theme.service";
 import { NavIconHoverGroupService } from "./nav-icon-hover-group.service";
+import { CONSOLE_LINKS } from "../nav-config";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.component";
 import { ToastService } from "../../ui/toast/toast.service";
@@ -31,23 +32,6 @@ const NAV_LINKS = [
   { path: "/gallery", label: "Gallery" },
   { path: "/insiden", label: "Insiden" },
   { path: "/about", label: "About" },
-];
-
-interface ConsoleLink {
-  path: string;
-  label: string;
-  /** "/console" is a prefix of every other console route, so it alone needs an exact match —
-   * see console-nav.component.ts, which this mirrors. */
-  exact: boolean;
-}
-
-/** Single source of truth for the console's sub-sections — read by the hover dropdown, the
- * expanded inline nested menu, and the mobile sheet's sub-group, so adding a new console
- * section here makes it show up in all three automatically. */
-const CONSOLE_LINKS: ConsoleLink[] = [
-  { path: "/console", label: "Spotting Queue", exact: true },
-  { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
-  { path: "/console/insiden/links", label: "Social Media Links", exact: false },
 ];
 
 /** How long a hover-close waits before actually collapsing the menu — long enough that moving
@@ -68,6 +52,22 @@ const AVATAR_HINT_DURATION_MS = 4000;
  * actual browser refresh (a fresh evaluation of this module) — matching "only on full page
  * refresh, not when navigating through modules". */
 let hasShownAvatarHintThisPageLoad = false;
+
+/** Same module-scope reasoning as `hasShownAvatarHintThisPageLoad` above, applied to the
+ * wordmark's wipe-in animation: `showFullBrand()` can flip true→false→true many times across a
+ * single page load (window narrowing and widening back past the measured breakpoint), and
+ * `<app-nav>` itself is recreated on every top-level navigation — without this, the wordmark
+ * would replay its wipe-in on every one of those, rather than just the first time it's ever
+ * shown since the last real page refresh. */
+let hasRevealedWordmarkThisPageLoad = false;
+
+/** Same reasoning as `hasRevealedWordmarkThisPageLoad`, for the nav-link row's reveal-in
+ * animation — covers both the places `animate-nav-reveal` is used (the full inline link list
+ * once `_navLinksFit()` is true, and the collapsed dropdown trigger while it's false): whichever
+ * of the two is on screen the first time this module is evaluated (i.e. the first real page
+ * load) plays the reveal once; neither replays it again, on a route change or on later
+ * narrow/widen transitions, for the rest of that page load. */
+let hasRevealedNavLinksThisPageLoad = false;
 
 /**
  * Full-width top bar for /spotting, /profile and /about — logo, cross-feature nav, theme toggle
@@ -109,19 +109,21 @@ let hasShownAvatarHintThisPageLoad = false;
   // is correct with no offset math at all. `sticky` (not `relative`) anchors it to the viewport
   // top once scrolled.
   //
-  // z-[100], not the z-30 its own dropdown uses internally: `position: sticky` plus *any*
+  // z-[45], not the z-30 its own dropdown uses internally: `position: sticky` plus *any*
   // explicit z-index makes an element a stacking-context root, which means this bar's z-index is
   // what decides its (and everything inside it, e.g. that z-30 dropdown's) rank against *other*
   // page content's own stacking contexts — the dropdown's z-30 only ever settles ties *within*
-  // this bar. Page content includes other z-20 sticky bars (e.g. line-overview's line-name row)
-  // that come later in the DOM, and same-z-index ties resolve by DOM order — so without this bar
-  // outranking them outright, later-DOM same-or-higher-z content would paint over this bar's
-  // dropdown regardless of the dropdown's own z-index. z-[100] is deliberately far above every
-  // z-index used anywhere else in page content (the highest today is 30, e.g. the
-  // line-switcher's own dropdown) so this bar stays above every other stacking context in the
-  // app, not just the ones known about today.
+  // this bar. Page content includes other z-20/z-40 sticky bars (e.g. line-overview's line-name
+  // row, line-details' sticky header) that come later in the DOM, and same-z-index ties resolve
+  // by DOM order — so without this bar outranking them outright, later-DOM same-or-higher-z
+  // content would paint over this bar's dropdown regardless of the dropdown's own z-index.
+  // z-[45] sits above every sticky-bar z-index used anywhere else in page content (the highest
+  // today is z-40) while staying *below* the app's own overlay layer — sheet/dialog content and
+  // the combobox popover are all z-50 — so this bar never paints over a sheet or dialog that's
+  // open at the same time (sheets in this app render inline, not portaled, so this bar's
+  // z-index has to actually lose that fight, not just avoid it by coincidence).
   host: {
-    class: "sticky top-0 z-[100] block w-full border-b bg-background transition-shadow",
+    class: "sticky top-0 z-[45] block w-full border-b bg-background transition-shadow",
     "[class.shadow-lg]": "_scrolled()",
   },
   template: `
@@ -157,9 +159,7 @@ let hasShownAvatarHintThisPageLoad = false;
             />
           </svg>
           @if (showFullBrand()) {
-            <span class="animate-wordmark-wipe text-lg font-semibold whitespace-nowrap">{{
-              GENERIC_TITLE
-            }}</span>
+            <span [class]="wordmarkClass()">{{ GENERIC_TITLE }}</span>
           }
         </a>
 
@@ -181,7 +181,10 @@ let hasShownAvatarHintThisPageLoad = false;
           (mouseleave)="onModuleMenuLeave()"
         >
           @if (_navLinksFit()) {
-            <div class="animate-nav-reveal flex min-w-0 items-center gap-4">
+            <div
+              class="flex min-w-0 items-center gap-4"
+              [class.animate-nav-reveal]="navLinksReveal()"
+            >
               @for (link of navLinks; track link.path) {
                 <a
                   [routerLink]="link.path"
@@ -226,7 +229,7 @@ let hasShownAvatarHintThisPageLoad = false;
                   </a>
                   @if (_hoverCapable() && consoleMenuOpen()) {
                     <div
-                      class="bg-popover text-popover-foreground border-border absolute top-full right-0 z-30 mt-2 flex min-w-56 flex-col rounded-lg border py-2 text-base shadow-md"
+                      class="bg-popover text-popover-foreground border-border absolute top-full right-0 z-30 mt-2 flex min-w-56 flex-col rounded-lg border py-2 text-sm shadow-md"
                       (keydown.escape)="consoleMenuOpen.set(false)"
                     >
                       @for (link of consoleLinks; track link.path) {
@@ -248,7 +251,8 @@ let hasShownAvatarHintThisPageLoad = false;
           } @else {
             <button
               type="button"
-              class="animate-nav-reveal hover:text-foreground flex min-w-0 items-center gap-1 text-lg font-semibold outline-none"
+              class="hover:text-foreground flex min-w-0 items-center gap-1 text-lg font-semibold outline-none"
+              [class.animate-nav-reveal]="navLinksReveal()"
               [attr.aria-expanded]="moduleMenuOpen()"
               (click)="onModuleMenuTriggerClick()"
             >
@@ -275,7 +279,7 @@ let hasShownAvatarHintThisPageLoad = false;
                                  stays a lightweight popover rather than taking over the screen. -->
               @if (moduleMenuOpen()) {
                 <div
-                  class="bg-popover text-popover-foreground border-border absolute top-full right-0 z-30 mt-2 flex min-w-56 flex-col rounded-lg border py-2 text-base shadow-md"
+                  class="bg-popover text-popover-foreground border-border absolute top-full right-0 z-30 mt-2 flex min-w-56 flex-col rounded-lg border py-2 text-sm shadow-md"
                   (keydown.escape)="moduleMenuOpen.set(false)"
                 >
                   @for (link of navLinks; track link.path) {
@@ -387,7 +391,7 @@ let hasShownAvatarHintThisPageLoad = false;
                         Console
                       </a>
                       <div
-                        class="text-muted-foreground flex flex-col gap-1 pl-4 text-xs font-medium"
+                        class="text-muted-foreground flex flex-col gap-1 pl-4 text-sm font-medium"
                       >
                         @for (link of consoleLinks; track link.path) {
                           <a
@@ -670,6 +674,23 @@ export class AppNavComponent {
    * width band where the wordmark alone has room but the wordmark *and* the full link row
    * together don't, and the two measurements — each individually correct — visibly disagree. */
   protected readonly showFullBrand = computed(() => this._brandFits() && this._navLinksFit());
+
+  protected readonly wordmarkClass = computed(() => {
+    const base = "text-lg font-semibold whitespace-nowrap";
+    if (this.showFullBrand() && !hasRevealedWordmarkThisPageLoad) {
+      hasRevealedWordmarkThisPageLoad = true;
+      return `${base} animate-wordmark-wipe`;
+    }
+    return base;
+  });
+
+  protected readonly navLinksReveal = computed(() => {
+    if (!hasRevealedNavLinksThisPageLoad) {
+      hasRevealedNavLinksThisPageLoad = true;
+      return true;
+    }
+    return false;
+  });
 
   /** Firebase's `photoURL`, separated out so a broken image URL can fall back to the generic
    * icon instead of a broken-image glyph — same pattern as the account panel's own avatar. */
