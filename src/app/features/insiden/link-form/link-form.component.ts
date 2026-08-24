@@ -9,8 +9,11 @@ import {
 import { HlmButton } from "../../../ui/button/button";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
-import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { ToastService } from "../../../ui/toast/toast.service";
+import {
+  AssetMultiSelectComponent,
+  AssetMultiSelectOption,
+} from "../asset-multi-select/asset-multi-select.component";
 import {
   INSIDEN_REFERENCE_QUERY,
   InsidenReferenceQueryData,
@@ -40,7 +43,7 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
  */
 @Component({
   selector: "app-link-form",
-  imports: [FormField, ErrorBoxComponent, HlmButton, HlmInput, HlmSkeleton],
+  imports: [FormField, ErrorBoxComponent, HlmButton, HlmInput, AssetMultiSelectComponent],
   template: `
     <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
       @if (!auth.isLoggedIn()) {
@@ -69,7 +72,10 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
         </label>
 
         <label class="flex flex-col gap-1.5 text-sm">
-          Title <span class="text-muted-foreground text-xs">(optional)</span>
+          <span class="flex items-baseline gap-1">
+            Title
+            <span class="text-muted-foreground text-xs whitespace-nowrap">(optional)</span>
+          </span>
           <input
             hlmInput
             type="text"
@@ -92,117 +98,41 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             (retry)="referenceResource.reload()"
           />
         } @else {
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Lines</span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-              } @else {
-                @for (line of lineOptions(); track line.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedLineIds, line.id)"
-                      (change)="toggleSelection(selectedLineIds, line.id)"
-                    />
-                    {{ line.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No lines available.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Lines"
+            [options]="lineOptions()"
+            [(selectedIds)]="selectedLineIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No lines available."
+            searchPlaceholder="Search lines"
+          />
 
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Vehicles</span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-              } @else {
-                @for (vehicle of vehicleOptions(); track vehicle.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedVehicleIds, vehicle.id)"
-                      (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
-                    />
-                    {{ vehicle.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No vehicles listed.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Vehicles"
+            [options]="vehicleOptions()"
+            [(selectedIds)]="selectedVehicleIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No vehicles listed."
+            searchPlaceholder="Search vehicles"
+          />
 
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Stations</span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-              } @else {
-                @for (station of stationOptions(); track station.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedStationIds, station.id)"
-                      (change)="toggleSelection(selectedStationIds, station.id)"
-                    />
-                    {{ station.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No stations available.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Stations"
+            [options]="stationOptions()"
+            [(selectedIds)]="selectedStationIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No stations available."
+            searchPlaceholder="Search stations"
+          />
 
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Categories</span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-              } @else {
-                @for (category of categoryOptions(); track category.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedCategoryIds, category.id)"
-                      (change)="toggleSelection(selectedCategoryIds, category.id)"
-                    />
-                    {{ category.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No categories available.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Categories"
+            [options]="categoryOptions()"
+            [(selectedIds)]="selectedCategoryIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No categories available."
+            searchPlaceholder="Search categories"
+          />
         }
       </section>
     </form>
@@ -228,7 +158,7 @@ export class LinkFormComponent {
     query: INSIDEN_REFERENCE_QUERY,
   }));
 
-  protected readonly lineOptions = computed(() =>
+  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
     (this.referenceResource.data()?.lines ?? []).map((line) => ({
       id: line.id,
       label: `${line.code} — ${line.displayName}`,
@@ -240,35 +170,59 @@ export class LinkFormComponent {
     return new Map(lines.map((line) => [line.id, line]));
   });
 
-  protected readonly vehicleOptions = computed(() => {
+  /** vehicle id -> deduped parent line codes, computed over ALL lines (not the selected-filtered view). */
+  private readonly _vehicleParentCodes = computed(() => {
+    const lines = [...this._linesById().values()];
+    const map = new Map<string, string[]>();
+    for (const line of lines) {
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          const codes = map.get(vehicle.id);
+          if (codes) {
+            if (!codes.includes(line.code)) codes.push(line.code);
+          } else {
+            map.set(vehicle.id, [line.code]);
+          }
+        }
+      }
+    }
+    return map;
+  });
+
+  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
     const selected = this.selectedLineIds();
     const lines =
       selected.length > 0
         ? selected.map((id) => this._linesById().get(id))
         : [...this._linesById().values()];
     const seen = new Set<string>();
-    const options: { id: string; label: string }[] = [];
+    const options: AssetMultiSelectOption[] = [];
     for (const line of lines) {
       if (!line) continue;
       for (const vehicleType of line.vehicleTypes) {
         for (const vehicle of vehicleType.vehicles) {
           if (seen.has(vehicle.id)) continue;
           seen.add(vehicle.id);
-          options.push({ id: vehicle.id, label: vehicle.identificationNo });
+          options.push({
+            id: vehicle.id,
+            label: vehicle.identificationNo,
+            parentCodes: this._vehicleParentCodes().get(vehicle.id),
+          });
         }
       }
     }
     return options;
   });
 
-  protected readonly stationOptions = computed(() =>
+  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
     (this.referenceResource.data()?.stations ?? []).map((station) => ({
       id: station.id,
       label: station.displayName,
+      parentCodes: (station.lines ?? []).map((l) => l.code),
     })),
   );
 
-  protected readonly categoryOptions = computed(() =>
+  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
     (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
       id: category.id,
       label: category.name,
@@ -285,14 +239,6 @@ export class LinkFormComponent {
       }
       this._wasSheetOpen = isOpen;
     });
-  }
-
-  protected toggleSelection(selection: ReturnType<typeof signal<string[]>>, id: string): void {
-    selection.update((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-  }
-
-  protected isSelected(selection: ReturnType<typeof signal<string[]>>, id: string): boolean {
-    return selection().includes(id);
   }
 
   async submit(): Promise<void> {

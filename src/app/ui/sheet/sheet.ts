@@ -8,6 +8,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   model,
   signal,
 } from "@angular/core";
@@ -57,6 +58,8 @@ import {
 export class HlmSheet implements OnDestroy {
   readonly open = model(false);
   readonly side = model<"right" | "bottom" | "full">("right");
+  // Opt-in so hosts with dense multi-column forms can widen without changing every consumer.
+  readonly wide = input(false);
 
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly _everOpened = signal(false);
@@ -78,7 +81,8 @@ export class HlmSheet implements OnDestroy {
     }
     // Full-bleed on small screens (no width cap, no border) — a real side panel only once
     // there's enough width for it to look like one rather than just a squeezed page.
-    return `inset-y-0 right-0 h-full w-full sm:max-w-lg sm:border-l ${this.open() ? "translate-x-0" : "translate-x-full"}`;
+    const widthCap = this.wide() ? "sm:max-w-xl lg:max-w-2xl" : "sm:max-w-lg";
+    return `inset-y-0 right-0 h-full w-full ${widthCap} sm:border-l ${this.open() ? "translate-x-0" : "translate-x-full"}`;
   });
 
   constructor() {

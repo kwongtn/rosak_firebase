@@ -224,6 +224,10 @@ export const INSIDEN_REFERENCE_QUERY = /* GraphQL */ `
     stations {
       id
       displayName
+      lines {
+        id
+        code
+      }
     }
     calendarIncidentCategories {
       id
@@ -246,6 +250,7 @@ export interface InsidenReferenceLine {
 export interface InsidenReferenceStation {
   id: string;
   displayName: string;
+  lines: { id: string; code: string }[];
 }
 
 export interface InsidenReferenceCategory {

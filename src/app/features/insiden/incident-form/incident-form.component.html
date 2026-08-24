@@ -1,4 +1,4 @@
-<hlm-sheet [open]="sheet.isOpen()" (openChange)="sheet.setOpen($event)" side="right">
+<hlm-sheet [open]="sheet.isOpen()" (openChange)="sheet.setOpen($event)" side="right" [wide]="true">
   <div hlmSheetHeader>
     <h2 class="text-base font-semibold">Report an Incident</h2>
   </div>
@@ -45,7 +45,10 @@
         </label>
 
         <label class="flex flex-col gap-1.5 text-sm">
-          Details <span class="text-muted-foreground text-xs">(optional)</span>
+          <span class="flex items-baseline gap-1">
+            Details
+            <span class="text-muted-foreground text-xs whitespace-nowrap">(optional)</span>
+          </span>
           <textarea hlmInput rows="4" [formField]="incidentForm.details"></textarea>
         </label>
       </section>
@@ -60,7 +63,7 @@
           <select hlmSelect [formField]="incidentForm.severity">
             <option value="" disabled>Select severity</option>
             @for (severity of severities; track severity) {
-              <option [value]="severity">{{ severity }}</option>
+              <option [value]="severity">{{ severityLabel(severity) }}</option>
             }
           </select>
           @if (incidentForm.severity().invalid() && incidentForm.severity().touched()) {
@@ -119,91 +122,34 @@
             (retry)="referenceResource.reload()"
           />
         } @else {
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Lines</span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-                <div hlmSkeleton class="h-4 w-3/5"></div>
-              } @else {
-                @for (line of lineOptions(); track line.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedLineIds, line.id)"
-                      (change)="toggleSelection(selectedLineIds, line.id)"
-                    />
-                    {{ line.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No lines available.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Lines"
+            [options]="lineOptions()"
+            [(selectedIds)]="selectedLineIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No lines available."
+            searchPlaceholder="Search lines"
+          />
 
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Vehicles <span class="text-muted-foreground text-xs">(optional)</span></span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-              } @else {
-                @for (vehicle of vehicleOptions(); track vehicle.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedVehicleIds, vehicle.id)"
-                      (change)="toggleSelection(selectedVehicleIds, vehicle.id)"
-                    />
-                    {{ vehicle.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No vehicles listed.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Vehicles"
+            [optional]="true"
+            [options]="vehicleOptions()"
+            [(selectedIds)]="selectedVehicleIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No vehicles listed."
+            searchPlaceholder="Search vehicles"
+          />
 
-          <div class="flex flex-col gap-1.5 text-sm">
-            <span>Stations <span class="text-muted-foreground text-xs">(optional)</span></span>
-            <div
-              class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
-            >
-              @if (referenceResource.isLoading()) {
-                <div hlmSkeleton class="h-4 w-full"></div>
-                <div hlmSkeleton class="h-4 w-4/5"></div>
-                <div hlmSkeleton class="h-4 w-3/5"></div>
-              } @else {
-                @for (station of stationOptions(); track station.id) {
-                  <label
-                    class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      class="size-4 accent-primary"
-                      [checked]="isSelected(selectedStationIds, station.id)"
-                      (change)="toggleSelection(selectedStationIds, station.id)"
-                    />
-                    {{ station.label }}
-                  </label>
-                } @empty {
-                  <p class="text-muted-foreground text-xs">No stations available.</p>
-                }
-              }
-            </div>
-          </div>
+          <app-asset-multi-select
+            heading="Stations"
+            [optional]="true"
+            [options]="stationOptions()"
+            [(selectedIds)]="selectedStationIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No stations available."
+            searchPlaceholder="Search stations"
+          />
         }
       </section>
 

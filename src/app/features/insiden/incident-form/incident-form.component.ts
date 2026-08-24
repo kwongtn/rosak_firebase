@@ -6,13 +6,16 @@ import {
   GraphQLClient,
   GraphQLRequestError,
 } from "../../../core/graphql/graphql-client";
+import {
+  AssetMultiSelectComponent,
+  type AssetMultiSelectOption,
+} from "../asset-multi-select/asset-multi-select.component";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
 import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
-import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   CalendarIncidentSeverity,
@@ -47,11 +50,6 @@ const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
  * runs with a 20s timeout, so a 15s front-end cap means a slow extraction is
  * surfaced to the user (and offered as a late result) rather than hanging. */
 const EXTRACT_TIMEOUT_MS = 15_000;
-
-interface AssetOption {
-  id: string;
-  label: string;
-}
 
 /** Per-chronology state for the Extract Data flow. Late results (responses that
  * arrive after the 15s cap) are held here until the user opts to apply them. */
@@ -92,6 +90,7 @@ interface ChronologyExtractState {
 @Component({
   selector: "app-incident-form",
   imports: [
+    AssetMultiSelectComponent,
     FormField,
     ErrorBoxComponent,
     HlmButton,
@@ -102,7 +101,6 @@ interface ChronologyExtractState {
     HlmSheetHeader,
     HlmSheetBody,
     HlmSheetFooter,
-    HlmSkeleton,
   ],
   templateUrl: "./incident-form.component.html",
 })
@@ -135,7 +133,7 @@ export class IncidentFormComponent {
     query: INSIDEN_REFERENCE_QUERY,
   }));
 
-  protected readonly lineOptions = computed<AssetOption[]>(() =>
+  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
     (this.referenceResource.data()?.lines ?? []).map((line) => ({
       id: line.id,
       label: `${line.code} — ${line.displayName}`,
@@ -147,31 +145,59 @@ export class IncidentFormComponent {
     return new Map(lines.map((line) => [line.id, line]));
   });
 
-  protected readonly vehicleOptions = computed<AssetOption[]>(() => {
+  /** A vehicle's true line memberships, built over ALL lines (not just the
+   * selected-filtered view vehicleOptions() uses) — a vehicle's parent codes
+   * shouldn't disappear just because its line got unchecked. */
+  private readonly _vehicleParentCodes = computed(() => {
+    const lines = this.referenceResource.data()?.lines ?? [];
+    const map = new Map<string, string[]>();
+    for (const line of lines) {
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          const codes = map.get(vehicle.id);
+          if (codes) {
+            if (!codes.includes(line.code)) {
+              codes.push(line.code);
+            }
+          } else {
+            map.set(vehicle.id, [line.code]);
+          }
+        }
+      }
+    }
+    return map;
+  });
+
+  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
     const selected = this.selectedLineIds();
     const lines =
       selected.length > 0
         ? selected.map((id) => this._linesById().get(id))
         : [...this._linesById().values()];
     const seen = new Set<string>();
-    const options: AssetOption[] = [];
+    const options: AssetMultiSelectOption[] = [];
     for (const line of lines) {
       if (!line) continue;
       for (const vehicleType of line.vehicleTypes) {
         for (const vehicle of vehicleType.vehicles) {
           if (seen.has(vehicle.id)) continue;
           seen.add(vehicle.id);
-          options.push({ id: vehicle.id, label: vehicle.identificationNo });
+          options.push({
+            id: vehicle.id,
+            label: vehicle.identificationNo,
+            parentCodes: this._vehicleParentCodes().get(vehicle.id),
+          });
         }
       }
     }
     return options;
   });
 
-  protected readonly stationOptions = computed<AssetOption[]>(() =>
+  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
     (this.referenceResource.data()?.stations ?? []).map((station) => ({
       id: station.id,
       label: station.displayName,
+      parentCodes: (station.lines ?? []).map((l) => l.code),
     })),
   );
 
@@ -191,14 +217,6 @@ export class IncidentFormComponent {
     });
   }
 
-  protected toggleSelection(selection: ReturnType<typeof signal<string[]>>, id: string): void {
-    selection.update((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-  }
-
-  protected isSelected(selection: ReturnType<typeof signal<string[]>>, id: string): boolean {
-    return selection().includes(id);
-  }
-
   protected isExtracting(key: number): boolean {
     return this.extractStates().get(key)?.extracting ?? false;
   }
@@ -209,6 +227,10 @@ export class IncidentFormComponent {
 
   protected isReplaced(key: number): boolean {
     return this.extractStates().get(key)?.replaced ?? false;
+  }
+
+  protected severityLabel(severity: CalendarIncidentSeverity): string {
+    return severity.charAt(0) + severity.slice(1).toLowerCase();
   }
 
   protected canMove(index: number, direction: "up" | "down"): boolean {

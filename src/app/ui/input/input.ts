@@ -1,4 +1,4 @@
-import { Directive, computed, input } from "@angular/core";
+import { Directive, ElementRef, computed, inject, input } from "@angular/core";
 import { hlm } from "../utils/hlm";
 
 @Directive({
@@ -6,21 +6,27 @@ import { hlm } from "../utils/hlm";
   host: {
     "data-slot": "input",
     "[class]": "_computedClass()",
-    "[attr.aria-invalid]": "invalid() || null",
+    "[attr.aria-invalid]": "_errorState() || null",
   },
 })
 export class HlmInput {
   readonly invalid = input(false);
-  /** Set by the signal-forms FormField directive alongside `invalid`; error styling
-   * is only applied once the field has actually been interacted with. */
+  /** Set by the signal-forms FormField directive alongside `invalid`; `aria-invalid`
+   * (and the destructive border/ring it triggers) is only applied once the field has
+   * actually been interacted with. */
   readonly touched = input(false);
   readonly userClass = input<string>("", { alias: "class" });
+
+  private readonly _elementRef = inject(ElementRef<HTMLInputElement | HTMLTextAreaElement>);
 
   protected readonly _errorState = computed(() => this.invalid() && this.touched());
 
   protected readonly _computedClass = computed(() =>
     hlm(
-      "border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 h-8 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-muted-foreground",
+      "border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-muted-foreground",
+      // A fixed h-8 would squash textareas to a single line regardless of their `rows`
+      // attribute; textareas size naturally from `rows` with a min-h-8 floor instead.
+      this._elementRef.nativeElement.tagName === "TEXTAREA" ? "min-h-8" : "h-8",
       this.userClass(),
     ),
   );

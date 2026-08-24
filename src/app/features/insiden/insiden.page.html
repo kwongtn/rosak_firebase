@@ -85,7 +85,12 @@
 
 <app-incident-form />
 
-<hlm-sheet [open]="linkSheet.isOpen()" (openChange)="linkSheet.setOpen($event)" side="right">
+<hlm-sheet
+  [open]="linkSheet.isOpen()"
+  (openChange)="linkSheet.setOpen($event)"
+  side="right"
+  [wide]="true"
+>
   <div hlmSheetHeader>
     <h2 class="text-base font-semibold">Submit a link</h2>
   </div>
