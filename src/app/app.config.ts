@@ -16,6 +16,7 @@ import { routes } from "./app.routes";
 import { provideClientHydration, withHttpTransferCacheOptions } from "@angular/platform-browser";
 import { environment } from "../environments/environment";
 import { AnalyticsService } from "./core/analytics/analytics.service";
+import { NewVersionService } from "./core/version/new-version.service";
 
 /**
  * Checks if an error represents an HTTP 404 / Not Found error that should be ignored
@@ -86,6 +87,13 @@ export const appConfig: ApplicationConfig = {
     // calls (see its own doc comment).
     provideAppInitializer(() => {
       inject(AnalyticsService);
+    }),
+    // Same shape again for NewVersionService: its constructor starts the /version.json poll AND
+    // registers the stale-chunk failure listeners, and anchoring it here (not relying on the nav
+    // component's injection) means both run for the app's whole lifetime regardless of which
+    // chrome happens to render. SSR-safe — everything browser-only is guarded inside.
+    provideAppInitializer(() => {
+      inject(NewVersionService);
     }),
     // 'enabled' scrolls new navigations to the top (the bug this fixes — e.g. landing mid-page on
     // a vehicle-detail route after scrolling far down a long vehicle list) while still restoring
