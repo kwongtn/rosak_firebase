@@ -19,11 +19,32 @@ declare global {
 }
 
 /**
+ * Fill lifecycle of an AdSense unit, derived from the `data-ad-status` attribute that the
+ * AdSense library writes onto the mounted `<ins>` element (`"filled"` / `"unfilled"`).
+ */
+export type AdFillState = "pending" | "filled" | "unfilled";
+
+/**
  * True when the given query string (e.g. `window.location.search`) opts into the ad-preview
  * placeholder. Exported as a pure predicate so it is unit-testable without a component harness.
  */
 export function isAdPreviewEnabled(search: string): boolean {
   return new URLSearchParams(search).has("adpreview");
+}
+
+/**
+ * Maps a raw `data-ad-status` attribute value to the fill lifecycle. Exported as a pure helper
+ * so it is unit-testable without a component harness. Only the exact `"filled"` / `"unfilled"`
+ * values map to their states; anything else (including null/undefined) maps to `"pending"`.
+ */
+export function mapAdStatus(status: string | null | undefined): AdFillState {
+  if (status === "filled") {
+    return "filled";
+  }
+  if (status === "unfilled") {
+    return "unfilled";
+  }
+  return "pending";
 }
 
 /**
@@ -55,6 +76,24 @@ export function isAdPreviewEnabled(search: string): boolean {
  * platform is active, a real (non-placeholder) slot id is set, and the element first scrolls into
  * view (a one-shot `IntersectionObserver`), so no fill is requested for off-screen units.
  *
+ * ## Fill lifecycle (visibility)
+ * The wrapper reserves EXACTLY `minHeightPx` — a fixed height with `overflow-hidden`, so a taller
+ * creative can never grow or spill out of the reserved block, while shorter creatives sit
+ * centered in it. Visibility follows the three-state lifecycle derived from the `data-ad-status`
+ * attribute AdSense sets on the `<ins>` (see `mapAdStatus()`):
+ * - `"pending"` (no status yet): the block still reserves its exact space (CLS protection) but is
+ *   fully invisible — no border, background, or label. QA placeholder mode is exempt: with no real
+ *   `<ins>` there is never a status, so the dashed box always shows.
+ * - `"filled"`: the optional label caption and the bordered/background chrome are revealed around
+ *   the creative.
+ * - `"unfilled"`: the whole unit collapses (`display:none`) so an unfilled slot leaves no empty
+ *   box.
+ * A browser-only `MutationObserver` on the host element (`attributeFilter: ["data-ad-status"]`,
+ * created in `afterNextRender` alongside the IntersectionObserver) mirrors every status change
+ * into the `fillState` signal; BOTH observers are disconnected in `ngOnDestroy`. Server output
+ * remains zero ad DOM (the `render` signal mechanism is untouched) — the fill-state logic only
+ * affects the already-client-mounted box.
+ *
  * ## Caps
  * Per the plan, no more than **2 ad units per page** — enforce that at the page level; this
  * component renders exactly one unit per instance.
@@ -65,10 +104,13 @@ export function isAdPreviewEnabled(search: string): boolean {
   template: `
     @if (shouldRender()) {
       <div
-        class="border-border/60 bg-background flex flex-col justify-center gap-1 rounded-lg border p-3"
-        [style.min-height.px]="minHeightPx()"
+        class="flex flex-col justify-center gap-1 overflow-hidden rounded-lg p-3"
+        [class]="chromeClasses()"
+        [style.height.px]="minHeightPx()"
+        [class.invisible]="fillState() === 'pending' && !isPlaceholder()"
+        [class.hidden]="fillState() === 'unfilled' && !isPlaceholder()"
       >
-        @if (label()) {
+        @if (label() && (isPlaceholder() || fillState() === "filled")) {
           <span class="text-muted-foreground text-center text-[10px] tracking-wider uppercase">
             {{ label() }}
           </span>
@@ -98,7 +140,10 @@ export class AdSlotComponent implements OnDestroy {
   readonly slotId = input<string | undefined>();
   /** The `data-ad-format` value handed to AdSense. Defaults to the responsive `"auto"`. */
   readonly format = input<string>("auto");
-  /** Reserved minimum height (px) so the unit's box is laid out before the ad fills — CLS guard. */
+  /**
+   * Fixed reserved height (px) of the unit's block — laid out before the ad fills (CLS guard)
+   * and never grown beyond: `overflow-hidden` clips any taller creative.
+   */
   readonly minHeightPx = input.required<number>();
   /** Optional disclosure caption rendered above the unit (typically `"Advertisement"`). */
   readonly label = input<string | undefined>();
@@ -108,15 +153,23 @@ export class AdSlotComponent implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly elementRef = inject(ElementRef<HTMLElement>);
   private observer: IntersectionObserver | undefined;
+  private fillObserver: MutationObserver | undefined;
 
   private readonly adPreviewParam = this.isBrowser && isAdPreviewEnabled(window.location.search);
 
   protected readonly adClient = ADS_CONFIG.client;
   protected readonly render = signal(false);
+  protected readonly fillState = signal<AdFillState>("pending");
   protected readonly isPlaceholder = computed(() => this.placeholder() || this.adPreviewParam);
   protected readonly placeholderText = computed(() => this.slotId() ?? "unconfigured");
   protected readonly shouldRender = computed(
     () => this.render() && (this.isPlaceholder() || !!this.slotId()),
+  );
+  /** Border/background chrome only for the QA placeholder or once a creative has filled. */
+  protected readonly chromeClasses = computed(() =>
+    this.isPlaceholder() || this.fillState() === "filled"
+      ? "border-border/60 bg-background border"
+      : "",
   );
 
   constructor() {
@@ -142,11 +195,39 @@ export class AdSlotComponent implements OnDestroy {
         { threshold: 0 },
       );
       this.observer.observe(this.elementRef.nativeElement);
+      this.observeFillStatus();
     });
   }
 
   ngOnDestroy(): void {
     this.observer?.disconnect();
+    this.fillObserver?.disconnect();
+  }
+
+  /**
+   * Mirrors AdSense's `data-ad-status` writes on the `<ins>` into `fillState`. Browser-only
+   * (called from `afterNextRender`); disconnected in `ngOnDestroy`. Defensive: a mutation
+   * without a readable attribute never throws and leaves the state untouched.
+   */
+  private observeFillStatus(): void {
+    this.fillObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        const mutated = mutation.target instanceof Element ? mutation.target : null;
+        const status =
+          mutated?.getAttribute("data-ad-status") ??
+          this.elementRef.nativeElement
+            .querySelector("ins[data-ad-status]")
+            ?.getAttribute("data-ad-status");
+        if (status !== null && status !== undefined) {
+          this.fillState.set(mapAdStatus(status));
+        }
+      }
+    });
+    this.fillObserver.observe(this.elementRef.nativeElement, {
+      attributes: true,
+      attributeFilter: ["data-ad-status"],
+      subtree: true,
+    });
   }
 
   private pushAd(): void {
