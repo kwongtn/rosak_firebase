@@ -59,7 +59,10 @@
                 Ongoing &amp; Long-Running
               </h2>
               @for (incident of pinned(); track incident.id) {
-                <app-incident-card [incident]="incident" />
+                <app-incident-card
+                  [incident]="incident"
+                  (detailsExpandedChange)="onDetailsExpandedChange($event)"
+                />
               }
             </section>
           }
@@ -72,13 +75,28 @@
               <p class="text-muted-foreground text-sm">No incidents on this day.</p>
             }
             @for (incident of dayIncidents(); track incident.id) {
-              <app-incident-card [incident]="incident" />
+              <app-incident-card
+                [incident]="incident"
+                (detailsExpandedChange)="onDetailsExpandedChange($event)"
+              />
+              <!-- Feed unit: after the 3rd card only, once per section. Hidden while any card is
+                   expanded (2-ad-per-page cap — see expandedDetailsCount in insiden.page.ts). No
+                   between-sections unit: it would exceed the cap together with footerEnd. -->
+              @if ($index === 2) {
+                <app-ad-slot
+                  [slotId]="insidenFeedSlotId()"
+                  [minHeightPx]="250"
+                  [label]="'Advertisement'"
+                />
+              }
             }
           </section>
         </div>
       </div>
     }
   </main>
+
+  <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
 
   <app-footer />
 </div>

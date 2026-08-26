@@ -1,12 +1,14 @@
-import { Component, computed, inject, input, viewChild } from "@angular/core";
+import { Component, computed, inject, input, signal, viewChild } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
 import { graphqlResource } from "../../core/graphql/graphql-client";
+import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
+import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
@@ -36,6 +38,7 @@ import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
     HlmSheetBody,
     HlmSheetFooter,
     RetryBannerComponent,
+    AdSlotComponent,
     AppNavComponent,
     AppFooterComponent,
     IncidentCardComponent,
@@ -58,6 +61,22 @@ export class InsidenPage {
   protected readonly linkSheet = inject(LinkSheetService);
 
   protected readonly linkFormRef = viewChild(LinkFormComponent);
+
+  protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+
+  /**
+   * 2-ad-per-page cap coordination. Every incident card reports its details-toggle state through
+   * the `detailsExpandedChange` output; while ANY card is expanded, `insidenFeedSlotId` resolves
+   * to `undefined` so the feed slot renders nothing — footerEnd + (feed OR expanded-details)
+   * never exceeds two visible units at once. The optional between-sections unit was skipped for
+   * the same reason: together with footerEnd it would exceed the cap.
+   */
+  private readonly expandedDetailsCount = signal(0);
+
+  /** `undefined` → AdSlotComponent renders zero DOM, so suppression costs no reserved space. */
+  protected readonly insidenFeedSlotId = computed(() =>
+    this.expandedDetailsCount() === 0 ? resolveAdSlot("insidenFeed") : undefined,
+  );
 
   protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
@@ -101,6 +120,11 @@ export class InsidenPage {
    * real, shareable/bookmarkable URL (and Back/Forward walks through previously viewed days). */
   protected onDaySelected(dateKey: string): void {
     this.router.navigate(["/insiden", dateKey]);
+  }
+
+  /** Clamped at 0 so an unbalanced collapse can never drive the count negative. */
+  protected onDetailsExpandedChange(expanded: boolean): void {
+    this.expandedDetailsCount.update((count) => Math.max(0, count + (expanded ? 1 : -1)));
   }
 
   protected openReportSheet(): void {

@@ -1,7 +1,9 @@
 import { Component, PLATFORM_ID, computed, effect, inject, input } from "@angular/core";
 import { isPlatformBrowser } from "@angular/common";
 import { Router, RouterLink } from "@angular/router";
+import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
+import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
 import { HlmCardImports } from "../../../ui/card/card";
@@ -39,6 +41,7 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
   imports: [
     RouterLink,
     HlmSkeleton,
+    AdSlotComponent,
     RetryBannerComponent,
     HlmCombobox,
     ...HlmCardImports,
@@ -127,6 +130,13 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
           </div>
         </div>
 
+        <!-- Density cap: see vehicleDetailBetweenCardsSlotId — footerEnd + this = 2 (max). -->
+        <app-ad-slot
+          [slotId]="vehicleDetailBetweenCardsSlotId"
+          [minHeightPx]="250"
+          [label]="'Advertisement'"
+        />
+
         <div hlmCard>
           <div hlmCardHeader><h2 hlmCardTitle>Spotting History</h2></div>
           <div hlmCardContent>
@@ -145,6 +155,10 @@ export class VehicleDetailPage {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  // Density cap: this page state already gets `footerEnd` from spotting-shell (it wraps every
+  // /spotting/** child route) — with this between-cards unit that's 2, the per-page maximum.
+  protected readonly vehicleDetailBetweenCardsSlotId = resolveAdSlot("vehicleDetailBetweenCards");
 
   protected readonly _lineCode = computed(
     () => this.linesStore.lineById(this.lineId())?.code ?? this.lineId(),

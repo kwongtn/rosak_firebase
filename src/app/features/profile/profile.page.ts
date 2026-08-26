@@ -1,7 +1,9 @@
 import { Component, computed, effect, inject, input, signal } from "@angular/core";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
+import { resolveAdSlot } from "../../core/ads/ads.config";
 import { AuthService } from "../../core/auth/auth.service";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
+import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { UserCardComponent } from "./user-card/user-card.component";
@@ -34,6 +36,7 @@ import {
   selector: "app-profile",
   imports: [
     HlmSkeleton,
+    AdSlotComponent,
     AppNavComponent,
     AppFooterComponent,
     UserCardComponent,
@@ -65,6 +68,14 @@ import {
               [data]="user.spottingTrends"
               [totalAllTime]="user.spottingsCount"
             />
+
+            <!-- Density cap: see profileBetweenCardsSlotId — footerEnd + this = 2 (max). -->
+            <app-ad-slot
+              [slotId]="profileBetweenCardsSlotId"
+              [minHeightPx]="250"
+              [label]="'Advertisement'"
+            />
+
             <app-my-spottings [user]="user" [isOwnProfile]="true" />
           } @else {
             <p class="text-destructive text-sm">
@@ -83,12 +94,22 @@ import {
               [data]="user.spottingTrends"
               [totalAllTime]="user.spottingsCount"
             />
+
+            <!-- Density cap: see profileBetweenCardsSlotId — footerEnd + this = 2 (max). -->
+            <app-ad-slot
+              [slotId]="profileBetweenCardsSlotId"
+              [minHeightPx]="250"
+              [label]="'Advertisement'"
+            />
+
             <app-my-spottings [user]="user" [isOwnProfile]="false" />
           } @else {
             <p class="text-destructive text-sm">User not found or profile unavailable.</p>
           }
         }
       </main>
+
+      <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
 
       <app-footer />
     </div>
@@ -99,6 +120,11 @@ export class ProfilePage {
 
   private readonly graphql = inject(GraphQLClient);
   protected readonly auth = inject(AuthService);
+
+  protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+
+  // Density cap: footerEnd + this between-cards unit = 2, the per-page maximum.
+  protected readonly profileBetweenCardsSlotId = resolveAdSlot("profileBetweenCards");
 
   protected readonly isAuthReady = signal(false);
   protected readonly isOwnProfile = computed(() => this.auth.user()?.uid === this.id());

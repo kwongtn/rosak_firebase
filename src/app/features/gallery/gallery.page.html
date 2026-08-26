@@ -23,6 +23,18 @@
               <h2 class="text-lg font-semibold">{{ group.year }}</h2>
               <app-justified-grid [items]="group.items" (imageClick)="onOpenMedia($event)" />
             </section>
+            @if ($index === 0) {
+              <!-- Density cap: below lg this unit + footerEnd = the page's full 2-unit cap;
+                   on lg+ it is hidden and the aside's desktop sidebar unit takes its place —
+                   never more than 2 visible in any breakpoint state. -->
+              <div class="lg:hidden">
+                <app-ad-slot
+                  [slotId]="galleryBetweenYearsSlotId"
+                  [minHeightPx]="250"
+                  [label]="'Advertisement'"
+                />
+              </div>
+            }
           }
 
           @if (hasMore()) {
@@ -46,9 +58,22 @@
           [isBusy]="isJumping()"
           (yearSelected)="jumpToYear($event)"
         />
+        <!-- Desktop-only half of the page's 2-unit density cap: on lg+ this + footerEnd = 2
+             (the between-years unit is lg:hidden); below lg this stays hidden so mobile/tablet
+             keeps betweenYears + footerEnd = 2. The aside itself merely stacks under the grid
+             on small screens rather than disappearing — hence the explicit hidden/lg:block. -->
+        <div class="hidden lg:block">
+          <app-ad-slot
+            [slotId]="gallerySidebarSlotId"
+            [minHeightPx]="600"
+            [label]="'Advertisement'"
+          />
+        </div>
       </aside>
     </div>
   </main>
+
+  <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
 
   <app-footer />
 </div>

@@ -87,12 +87,7 @@
   <div class="flex items-center justify-between gap-2">
     <div class="flex items-center gap-2">
       @if (incident().hasDetails) {
-        <button
-          hlmBtn
-          variant="outline"
-          size="sm"
-          (click)="detailsExpanded.set(!detailsExpanded())"
-        >
+        <button hlmBtn variant="outline" size="sm" (click)="toggleDetails()">
           {{ detailsExpanded() ? "Hide details" : "Show details" }}
         </button>
       }
@@ -113,6 +108,14 @@
     <markdown
       [data]="incident().details"
       class="prose prose-sm dark:prose-invert max-w-none text-sm"
+    />
+    <!-- In-content ad unit, rendered only while the card is expanded (min-height reserved so
+         expansion doesn't shift layout). 2-per-page cap: the feed slot (insidenFeed, T4) is
+         hidden while any card is expanded via detailsExpandedChange. -->
+    <app-ad-slot
+      [slotId]="insidenDetailsInlineSlotId"
+      [minHeightPx]="250"
+      [label]="'Advertisement'"
     />
   }
 

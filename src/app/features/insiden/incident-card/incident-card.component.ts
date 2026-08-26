@@ -7,10 +7,13 @@ import {
   computed,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from "@angular/core";
 import { MarkdownComponent } from "ngx-markdown";
+import { resolveAdSlot } from "../../../core/ads/ads.config";
+import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmBadge, type BadgeVariants } from "../../../ui/badge/badge";
 import { HlmCardImports } from "../../../ui/card/card";
@@ -82,6 +85,7 @@ function defaultChronology(incident: CalendarIncident): CalendarIncident["chrono
     DatePipe,
     MarkdownComponent,
     HlmButton,
+    AdSlotComponent,
     HlmBadge,
     ...HlmCardImports,
     PhotoPickerComponent,
@@ -98,6 +102,11 @@ export class IncidentCardComponent implements OnDestroy {
 
   protected readonly detailsExpanded = signal(false);
   protected readonly photosExpanded = signal(false);
+  /** Emits the new expanded state whenever the details toggle is clicked. Coordination hook for
+   * the 2-ad-per-page cap: the feed slot (`insidenFeed`, added by T4 in insiden.page.html) is
+   * hidden while any card is expanded, so this page never shows more than two units at once. */
+  readonly detailsExpandedChange = output<boolean>();
+  protected readonly insidenDetailsInlineSlotId = resolveAdSlot("insidenDetailsInline");
   protected readonly pendingPhotos = signal<ImageFile[]>([]);
   private readonly photoPickerRef = viewChild(PhotoPickerComponent);
   /** See PhotoPickerComponent.isCompressing's doc comment — submitting a photo that's still
@@ -160,6 +169,12 @@ export class IncidentCardComponent implements OnDestroy {
 
   protected dotClass(indicator: ChronologyIndicator): string {
     return CHRONOLOGY_DOT[indicator];
+  }
+
+  protected toggleDetails(): void {
+    const next = !this.detailsExpanded();
+    this.detailsExpanded.set(next);
+    this.detailsExpandedChange.emit(next);
   }
 
   protected uploadPhotos(): void {

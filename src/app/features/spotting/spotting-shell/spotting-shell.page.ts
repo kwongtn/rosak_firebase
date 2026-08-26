@@ -4,6 +4,8 @@ import { HlmButton } from "../../../ui/button/button";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { AppNavComponent } from "../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../shell/app-footer/app-footer.component";
+import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
+import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { ReportFormComponent } from "../report-form/report-form.component";
 import { ReportSheetService } from "../data/report-sheet.service";
 
@@ -24,6 +26,7 @@ import { ReportSheetService } from "../data/report-sheet.service";
     HlmSheetFooter,
     AppNavComponent,
     AppFooterComponent,
+    AdSlotComponent,
     ReportFormComponent,
   ],
   template: `
@@ -32,6 +35,8 @@ import { ReportSheetService } from "../data/report-sheet.service";
       <main class="flex flex-1 flex-col gap-6">
         <router-outlet />
       </main>
+
+      <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
 
       <app-footer />
     </div>
@@ -78,5 +83,7 @@ import { ReportSheetService } from "../data/report-sheet.service";
   `,
 })
 export class SpottingShellPage {
+  protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+
   protected readonly reportSheet = inject(ReportSheetService);
 }

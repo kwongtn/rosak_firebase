@@ -3,10 +3,12 @@ import { Component, OnDestroy, PLATFORM_ID, computed, inject, signal } from "@an
 import { getApps, initializeApp } from "firebase/app";
 import { Unsubscribe, doc as firestoreDoc, getFirestore, onSnapshot } from "firebase/firestore";
 import { environment } from "../../../environments/environment";
+import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmBadge } from "../../ui/badge/badge";
 import { HlmButton } from "../../ui/button/button";
 import { HlmCardImports } from "../../ui/card/card";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
+import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { PublicAboutDocument } from "./data/about.model";
@@ -34,6 +36,7 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
     HlmBadge,
     HlmButton,
     HlmSkeleton,
+    AdSlotComponent,
     AppNavComponent,
     AppFooterComponent,
     ...HlmCardImports,
@@ -42,6 +45,9 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
 })
 export class AboutPage implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  protected readonly aboutBetweenSectionsSlotId = resolveAdSlot("aboutBetweenSections");
 
   protected readonly isLoading = signal(true);
   protected readonly isError = signal(false);

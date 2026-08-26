@@ -14,10 +14,12 @@ import { isPlatformBrowser } from "@angular/common";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
+import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
+import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { VehicleStatus } from "../../../core/graphql/types";
@@ -65,6 +67,7 @@ function isSortColumn(value: string | null): value is SortColumn {
     VehicleListComponent,
     ReportSpottingButtonComponent,
     RetryBannerComponent,
+    AdSlotComponent,
   ],
   template: `
     <div class="flex flex-col gap-6">
@@ -168,6 +171,13 @@ function isSortColumn(value: string | null): value is SortColumn {
                 (statusSelected)="statusFilter.set($event)"
                 (sortChanged)="onSortChanged($event)"
               />
+              @if ($index === 0) {
+                <app-ad-slot
+                  [slotId]="lineOverviewBetweenTypesSlotId"
+                  [minHeightPx]="250"
+                  [label]="'Advertisement'"
+                />
+              }
             }
           </div>
         }
@@ -177,6 +187,10 @@ function isSortColumn(value: string | null): value is SortColumn {
 })
 export class LineOverviewPage {
   readonly lineId = input.required<string>();
+
+  /** Ad unit between the first and second vehicle-type cards — a section break, never a row.
+   * `undefined` (ads disabled / unconfigured) → `AdSlotComponent` renders zero DOM. */
+  protected readonly lineOverviewBetweenTypesSlotId = resolveAdSlot("lineOverviewBetweenTypes");
 
   protected readonly linesStore = inject(SpottingLinesStore);
   private readonly router = inject(Router);

@@ -11,9 +11,11 @@ import {
 } from "@angular/core";
 import { Router } from "@angular/router";
 import { GraphQLClient, graphqlResource } from "../../core/graphql/graphql-client";
+import { resolveAdSlot } from "../../core/ads/ads.config";
 import { ToastService } from "../../ui/toast/toast.service";
 import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
+import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import {
@@ -69,6 +71,7 @@ interface YearGroup {
   imports: [
     HlmButton,
     HlmSkeleton,
+    AdSlotComponent,
     AppNavComponent,
     AppFooterComponent,
     GalleryYearSliderComponent,
@@ -89,6 +92,16 @@ export class GalleryPage {
   protected readonly skeletonRows = SKELETON_ROWS;
   protected readonly skeletonRowHeight = TARGET_ROW_HEIGHT;
   protected readonly selectedMedia = signal<MediaNode | null>(null);
+
+  protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  /** Renders once, between the first and second year sections (see the @if ($index === 0)
+   * block in the template) — below lg only, where it pairs with footerEnd for the page's
+   * 2-unit density cap; on lg+ the sidebar unit replaces it (see gallerySidebarSlotId). */
+  protected readonly galleryBetweenYearsSlotId = resolveAdSlot("galleryBetweenYears");
+  /** Desktop-only (lg+) unit under the year slider in the right aside — mutually exclusive
+   * with galleryBetweenYears by breakpoint so every page state shows exactly 2 units
+   * (this + footerEnd). See the template comments for the full cap rule. */
+  protected readonly gallerySidebarSlotId = resolveAdSlot("gallerySidebar");
 
   protected readonly edges = signal<MediasFeedQueryData["medias"]["edges"]>([]);
   protected readonly hasMore = signal(true);

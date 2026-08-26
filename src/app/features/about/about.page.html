@@ -71,6 +71,13 @@
         </div>
       </section>
 
+      <!-- Density cap: about = footerEnd (T2) + this = 2 (max per page state) -->
+      <app-ad-slot
+        [slotId]="aboutBetweenSectionsSlotId"
+        [minHeightPx]="250"
+        [label]="'Advertisement'"
+      />
+
       @if (personnel().length > 0) {
         <section class="flex flex-col gap-4">
           <h1 class="text-2xl font-bold">About the team</h1>
@@ -143,6 +150,8 @@
       }
     }
   </main>
+
+  <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
 
   <app-footer />
 </div>
