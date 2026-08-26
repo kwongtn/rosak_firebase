@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for Claude Code working in `rosak_firebase`. Read this before editing.
+Guidance for agents working in `rosak_firebase`. Read this before editing.
 
 ## ⚡ Quick Commands
 
