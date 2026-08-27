@@ -127,3 +127,38 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 6. **Known trap**: `adminOnlyGuard` currently `return true`s unconditionally (marked `TEMPORARY`) —
    `/console` is effectively unguarded today. Don't reason as if it's protected, and don't silently
    "fix" it as a side effect of unrelated work.
+
+---
+
+## 📝 Documentation Maintenance Rules
+
+### MISTAKES.md
+
+- **Location**: Repo root (`MISTAKES.md`)
+- **Purpose**: Catalog of known defects, traps, and past mistakes so future agents don't repeat them
+- **Update trigger**: When you discover a new defect/trap, or when a documented trap is fixed
+- **Format**:
+  ```markdown
+  ## [YYYY-MM-DD] Component: Brief Title
+
+  **Problem**: What went wrong
+  **Root Cause**: Why it happened
+  **Fix**: What was done (commit ref if applicable)
+  **Prevention**: How to avoid in future
+  ```
+
+### Progress Documentation (docs/progress/)
+
+- **Structure**: `docs/progress/<yyyy>/<mm>/<dd>.md` + `SUMMARY.md` at month/year levels
+- **Update trigger**: When implementing features, fixing bugs, or resolving TODOs
+- **Content**: Grouped by module/feature, with commit references
+- **Cleanup**: Remove completed items from "Suggested Features", "TODO", "Potential Feature Opportunities" sections in component docs
+- **Main docs stay clean**: Component docs only show _current_ opportunities, not history
+
+### Workflow Integration
+
+1. After any verified task completion → check if it resolves a MISTAKES entry or completes a TODO
+2. If yes → append to today's `docs/progress/<yyyy>/<mm>/<dd>.md`
+3. Update monthly/yearly SUMMARY.md
+4. Remove from component doc's opportunity/TODO sections
+5. If it was a documented trap → update MISTAKES.md with fix reference

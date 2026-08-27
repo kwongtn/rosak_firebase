@@ -75,12 +75,6 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
   `personnel`, a sort by `order`) — folding a `searchTerm` signal into those same `computed()`s
   to match against `name`/`title`/`description` is a small additive change on an existing seam.
   Ready now.
-- **Explicit connection-error state:** the `onSnapshot` error callback in `about.page.ts` today
-  only does `() => this.isLoading.set(false)` — a failed subscription renders identically to an
-  empty doc, with no user-visible distinction or retry. Not ready as-is: needs a new `hasError`
-  signal set inside that error callback plus an `@if` branch in `about.page.html` (with a retry
-  action that re-invokes the existing `onSnapshot` subscription logic in the constructor).
-  Context for future LLMs: no error signal or error UI currently exists on this page at all.
 - **Chronological project timeline:** `Project` already carries a `startDate: string` field in
   `about.model.ts`, but the `projects` computed signal only filters by `display` — it is never
   sorted. Ready now: add a `.sort()` by parsed `startDate` in the same `computed()` (mirroring

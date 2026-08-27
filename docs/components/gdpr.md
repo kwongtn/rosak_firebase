@@ -84,11 +84,6 @@
 
 ## 💡 Potential Feature Opportunities
 
-- **Distinguish "still loading" from "failed to load":** Ready now — the Extension Points section
-  already names this exact gap: the `onSnapshot` error callback only clears `isLoading`, so a read
-  failure renders identically to an empty document. Adding a small `isError` signal set from that
-  same error callback, plus a distinct error branch in `gdpr.page.html`, is a self-contained,
-  additive change.
 - **Filter by adherence status ("show only not-adhered"):** Ready now — every `GdprDetailChild`
   already carries the `adhered` boolean the badge renders from, and the template already tracks
   each child by `child.title`. A `computed()` filter layered on top of the existing `details()`

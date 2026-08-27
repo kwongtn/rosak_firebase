@@ -39,7 +39,6 @@
 - Filter application is intentionally two-phase: `filterForm` (draft, edited freely by the UI) vs. `appliedFilters` (committed, sent to the server) — decoupled so typing/toggling filters never triggers a network call until **Search** is clicked. `buildFilters()` translates the flat `FilterFormModel` into the nested `ConsoleEventFilters` shape the backend's `EventFilter` GraphQL input expects, omitting any field left at its "don't filter" default (empty array / `undefined` / empty string).
 - Tri-state boolean filters (`isVehicleStatusDifferent`, `isAnonymous`, `isRead`, `hasNotes`) are modeled as `boolean | undefined` but rendered through native `<select>` elements, which only support strings — `triState()`/`onTriStateChange()` encode/decode the `"any" | "yes" | "no"` round-trip.
 - Row selection is a `Set<string>` of checked event IDs, toggled independently of `selectMode` (a separate on/off switch for whether checkboxes/bulk-action UI show at all); both reset together on `toggleSelectMode()` and on `search()`.
-- Guard note: `adminOnlyGuard` currently **always returns `true`** — the real `auth.isAdmin()` check is commented out with a `TEMPORARY` note because the Firebase `admin` custom claim isn't reliably granted yet. The route is presently reachable by any authenticated-or-not visitor who knows the URL; this is a known, explicitly flagged gap, not an oversight in this feature's own code.
 
 ## 🧩 Extension Points & Hooks
 
