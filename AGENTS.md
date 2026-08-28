@@ -114,9 +114,11 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 2. **Verify before declaring done.** Run, in order:
    `npx prettier --check . && npm test -- --no-watch && npm run build`.
    Report real output. If something fails, say so — never claim completion on an unverified change.
-3. **Tests**: always run them. Write new specs for pure utilities, services, and stores. Component
-   template tests aren't expected — there is no existing pattern (`src/app/app.spec.ts` is the only
-   spec in the repo), so don't invent a harness unasked.
+3. **Tests**: always run them. **Add a spec for every feature and bug fix where it is reasonably
+   possible** — at minimum, any new pure utility, service, store, or build-script logic must have a
+   test. Write new specs for pure utilities, services, and stores. Component template tests aren't
+   expected — there is no existing pattern (`src/app/app.spec.ts` is the only spec in the repo), so
+   don't invent a harness unasked.
 4. **Context hygiene**: `/clear` between unrelated features. Feature areas here are deeply
    documented but largely independent — stale context from another feature causes wrong assumptions.
 5. **Git**: commit at logical checkpoints — one concern per commit — so the history reads chronologically and the working tree is never left full of uncommitted changes; push only when asked. Pre-commit runs `lint-staged` → Prettier.
