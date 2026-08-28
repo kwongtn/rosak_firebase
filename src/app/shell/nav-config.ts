@@ -18,3 +18,25 @@ export const CONSOLE_LINKS: ConsoleLink[] = [
   { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
   { path: "/console/insiden/links", label: "Social Media Links", exact: false },
 ];
+
+/** A single cross-feature module link shown in the compact floating nav pill (the one
+ * `/tracker` keeps instead of the full-width `<app-nav>`). Shared between every page that
+ * reuses the pill, so adding a module here makes it appear everywhere automatically. */
+export interface ModuleNavLink {
+  path: string;
+  label: string;
+}
+
+/** The cross-feature module links, in display order. The compact nav renders these *minus*
+ * whichever module is currently active (passed to the component as `currentModulePath`), so a
+ * module never lists itself as a navigation option — the current module is already shown in the
+ * pill's brand/logo trigger, so a second entry would be redundant. Keeping this list here (rather
+ * than hardcoding it per page) means a future module that reuses the pill gets the same
+ * self-exclusion for free just by setting its own `currentModulePath`. */
+export const MODULE_NAV_LINKS: ModuleNavLink[] = [
+  { path: "/spotting", label: "TranSPOT" },
+  { path: "/tracker", label: "Tracker" },
+  { path: "/gallery", label: "Gallery" },
+  { path: "/insiden", label: "Insiden" },
+  { path: "/about", label: "About" },
+];
