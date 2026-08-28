@@ -282,15 +282,17 @@ import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy"
           </div>
         }
       </div>
-      <!-- Always render the map component so its (mapReady) event listener is attached.
-           Use [hidden] to control visibility instead of @if to avoid the deadlock where
-           the component must exist to emit the event that makes it exist. -->
-      <app-tracker-map
-        class="absolute inset-0"
-        (mapReady)="mapReady.set(true)"
-        [hidden]="!mapReady()"
-      />
-      <app-tracker-map-skeleton class="absolute inset-0" [hidden]="mapReady()" />
+      <!-- The map component is ALWAYS rendered at full size. L7/Mapbox measures its
+           container at init time, so hiding it (display:none / @if) during init leaves the
+           scene sized 0x0 — it then renders as a small box in the corner and the path
+           projection is offset. Instead we keep the map visible underneath and overlay the
+           skeleton *on top* (higher z-index, non-interactive) until the map emits ready. -->
+      <app-tracker-map class="absolute inset-0" (mapReady)="mapReady.set(true)" />
+      @if (!mapReady()) {
+        <div class="absolute inset-0 z-20 pointer-events-none">
+          <app-tracker-map-skeleton class="absolute inset-0" />
+        </div>
+      }
       <div class="absolute top-3 right-3 z-10">
         <app-status-card />
       </div>
