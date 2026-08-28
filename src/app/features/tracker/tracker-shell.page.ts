@@ -282,11 +282,15 @@ import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy"
           </div>
         }
       </div>
-      @if (mapReady()) {
-        <app-tracker-map class="absolute inset-0" (mapReady)="mapReady.set(true)" />
-      } @else {
-        <app-tracker-map-skeleton class="absolute inset-0" />
-      }
+      <!-- Always render the map component so its (mapReady) event listener is attached.
+           Use [hidden] to control visibility instead of @if to avoid the deadlock where
+           the component must exist to emit the event that makes it exist. -->
+      <app-tracker-map
+        class="absolute inset-0"
+        (mapReady)="mapReady.set(true)"
+        [hidden]="!mapReady()"
+      />
+      <app-tracker-map-skeleton class="absolute inset-0" [hidden]="mapReady()" />
       <div class="absolute top-3 right-3 z-10">
         <app-status-card />
       </div>
