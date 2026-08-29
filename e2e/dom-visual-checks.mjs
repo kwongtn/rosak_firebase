@@ -184,7 +184,7 @@ for (const vp of [
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   const selectStyled = await page.evaluate(() => {
-    const sel = document.querySelector('hlm-sheet select[hlm-select], hlm-sheet select');
+    const sel = document.querySelector("hlm-sheet select[hlm-select], hlm-sheet select");
     if (!sel) return null;
     const s = getComputedStyle(sel);
     return { borderRadius: s.borderRadius, height: Math.round(sel.getBoundingClientRect().height) };
@@ -214,7 +214,9 @@ for (const vp of [
       pass:
         navPresent > 0 &&
         footerPresent > 0 &&
-        (vp.name === "desktop" ? tableScrolls !== null : tableScrolls === true || tableScrolls === false),
+        (vp.name === "desktop"
+          ? tableScrolls !== null
+          : tableScrolls === true || tableScrolls === false),
       detail: JSON.stringify({ navPresent, footerPresent, tableScrolls }),
     });
   }

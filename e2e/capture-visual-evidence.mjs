@@ -127,7 +127,7 @@ for (const viewport of [
   });
   const page = await context.newPage();
   await page.addInitScript((admin) => {
-    (globalThis).__e2eAuthOverride__ = {
+    globalThis.__e2eAuthOverride__ = {
       email: "e2e@example.com",
       admin,
     };
