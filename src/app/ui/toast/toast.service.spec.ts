@@ -4,23 +4,22 @@ import { ToastService } from "./toast.service";
 import { ToastContentComponent } from "./toast-content.component";
 import * as sonner from "@spartan-ng/brain/sonner";
 
-vi.mock("@spartan-ng/brain/sonner", () => ({
-  toastState: {
-    create: vi.fn(),
-  },
-}));
-
 describe("ToastService", () => {
   let service: ToastService;
 
+  // Spy on the real `toastState.create` (a shared singleton object) rather than
+  // `vi.mock`-ing the whole module: `ToastService` imports `toastState` as a live
+  // binding to this same object, so the spy always intercepts regardless of which
+  // test file loaded the module first in a parallel worker. A full `vi.mock` can
+  // fail to replace the import in that scenario, leaving the real `create` called.
   beforeEach(() => {
+    vi.spyOn(sonner.toastState, "create").mockImplementation(() => "toast-id");
     TestBed.configureTestingModule({});
     service = TestBed.inject(ToastService);
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   function lastCreateCall() {
