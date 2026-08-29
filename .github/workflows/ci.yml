@@ -36,6 +36,12 @@ jobs:
 
       - run: npm ci
 
+      # Regenerate gitignored codegen files (src/build-info.ts,
+      # src/environments/*.generated.ts, public/favicon.*) that `ng test`
+      # imports but `npm run build` normally produces via its `prebuild` hook.
+      # Without this, the test build fails to resolve those modules.
+      - run: npm run prebuild
+
       - run: npm test -- --no-watch --reporters=default --reporters=junit --output-file=test-results/junit.xml
 
       - uses: actions/upload-artifact@v4
