@@ -140,7 +140,7 @@ const YEARS_COLUMN_ESTIMATE_PX = 90;
         <div class="min-w-0 flex-1">
           @if (useClassicLayout()) {
             <div class="grid gap-1" [style.grid-template-columns]="gridTemplateColumns()">
-              @for (week of weeks(); track $index) {
+              @for (week of weeks(); track week.days[0]?.date) {
                 <div class="flex flex-col gap-1">
                   @for (day of week.days; track day.date) {
                     <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: day }" />

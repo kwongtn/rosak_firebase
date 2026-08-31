@@ -53,7 +53,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
       <ul
         class="bg-popover text-popover-foreground border-border absolute z-50 mt-1 max-h-64 w-max min-w-full overflow-x-clip overflow-y-auto rounded-lg border py-1 shadow-md"
       >
-        @for (item of _filtered(); track $index) {
+        @for (item of _filtered(); track item.value) {
           <li
             class="hover:bg-muted flex cursor-pointer items-center px-2.5 py-1.5 text-sm"
             [class.bg-muted]="$index === _highlightIndex()"

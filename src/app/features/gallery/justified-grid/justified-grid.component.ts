@@ -28,7 +28,7 @@ const GAP = 6;
   selector: "app-justified-grid",
   template: `
     <div #container class="flex flex-col" [style.gap.px]="GAP">
-      @for (row of rows(); track $index) {
+      @for (row of rows(); track row.cells[0]?.item.id) {
         <div class="flex" [style.gap.px]="GAP" [style.height.px]="row.height">
           @for (cell of row.cells; track cell.item.id) {
             <button

@@ -330,7 +330,7 @@ function highlightJson(json: string): string {
               </tr>
             </thead>
             <tbody>
-              @for (row of sortedRows(); track $index) {
+              @for (row of sortedRows(); track row["id"]) {
                 <tr class="border-b">
                   @for (col of tableColumns(); track col) {
                     <td class="px-2 py-1 whitespace-nowrap">{{ formatCell(col, row[col]) }}</td>
@@ -466,6 +466,7 @@ export class TrackerInfoPanelComponent {
       return Object.entries(this.snapshotVehicles())
         .filter(([, v]) => v != null)
         .map(([id, v]) => ({
+          id: v!.vehicle?.id ?? id,
           vehicleId: v!.vehicle?.id ?? id,
           label: v!.vehicle?.label ?? "",
           tripId: v!.trip?.tripId ?? "",
@@ -477,6 +478,7 @@ export class TrackerInfoPanelComponent {
     }
     if (this.kind() === "stops") {
       return this._stops().map((f) => ({
+        id: (f.properties?.["stop_id"] as string | number | undefined) ?? f.id ?? "",
         stopId: (f.properties?.["stop_id"] as string | number | undefined) ?? f.id ?? "",
         stopName: (f.properties?.["stop_name"] as string | undefined) ?? "",
         longitude: f.geometry.coordinates[0],
