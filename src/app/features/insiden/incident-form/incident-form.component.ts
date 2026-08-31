@@ -1,11 +1,7 @@
 import { Component, computed, effect, inject, signal } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
-import {
-  graphqlResource,
-  GraphQLClient,
-  GraphQLRequestError,
-} from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import {
   AssetMultiSelectComponent,
   type AssetMultiSelectOption,
@@ -23,13 +19,12 @@ import {
   CREATE_CALENDAR_INCIDENT_MUTATION,
   CreateCalendarIncidentData,
   CreateCalendarIncidentVars,
-  INSIDEN_REFERENCE_QUERY,
-  InsidenReferenceQueryData,
   SUBMIT_CALENDAR_INCIDENT_MUTATION,
   SubmitCalendarIncidentData,
   SubmitCalendarIncidentVars,
 } from "../data/insiden.queries";
 import { IncidentAiService } from "../data/incident-ai.service";
+import { InsidenReferenceStore } from "../data/insiden-reference.store";
 import { IncidentSheetService } from "../data/incident-sheet.service";
 import {
   canMoveDown,
@@ -110,6 +105,7 @@ export class IncidentFormComponent {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
   private readonly ai = inject(IncidentAiService);
+  protected readonly referenceStore = inject(InsidenReferenceStore);
 
   protected readonly model = signal(emptyIncidentFormModel());
   protected readonly incidentForm = createForm(this.model, incidentFormSchema);
@@ -129,51 +125,20 @@ export class IncidentFormComponent {
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
 
-  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
-    query: INSIDEN_REFERENCE_QUERY,
-  }));
+  /** Reference data (lines/vehicles/stations/categories) is fetched once by the
+   * root-provided `InsidenReferenceStore`; this component only projects it. */
+  protected readonly referenceResource = this.referenceStore.resource;
 
-  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.lines ?? []).map((line) => ({
-      id: line.id,
-      label: `${line.code} — ${line.displayName}`,
-    })),
-  );
+  protected readonly lineOptions = this.referenceStore.lineOptions;
 
-  private readonly _linesById = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    return new Map(lines.map((line) => [line.id, line]));
-  });
-
-  /** A vehicle's true line memberships, built over ALL lines (not just the
-   * selected-filtered view vehicleOptions() uses) — a vehicle's parent codes
-   * shouldn't disappear just because its line got unchecked. */
-  private readonly _vehicleParentCodes = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    const map = new Map<string, string[]>();
-    for (const line of lines) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          const codes = map.get(vehicle.id);
-          if (codes) {
-            if (!codes.includes(line.code)) {
-              codes.push(line.code);
-            }
-          } else {
-            map.set(vehicle.id, [line.code]);
-          }
-        }
-      }
-    }
-    return map;
-  });
-
+  /** Vehicles filtered by the selected lines (preserves the form's prior behavior).
+   * The store's `vehicleOptions` is unfiltered (all vehicles); we re-derive the
+   * selected-filtered view here from `linesById` + `vehicleParentCodes`. */
   protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
     const selected = this.selectedLineIds();
+    const linesById = this.referenceStore.linesById();
     const lines =
-      selected.length > 0
-        ? selected.map((id) => this._linesById().get(id))
-        : [...this._linesById().values()];
+      selected.length > 0 ? selected.map((id) => linesById.get(id)) : [...linesById.values()];
     const seen = new Set<string>();
     const options: AssetMultiSelectOption[] = [];
     for (const line of lines) {
@@ -185,7 +150,7 @@ export class IncidentFormComponent {
           options.push({
             id: vehicle.id,
             label: vehicle.identificationNo,
-            parentCodes: this._vehicleParentCodes().get(vehicle.id),
+            parentCodes: this.referenceStore.vehicleParentCodes().get(vehicle.id),
           });
         }
       }
@@ -193,13 +158,7 @@ export class IncidentFormComponent {
     return options;
   });
 
-  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.stations ?? []).map((station) => ({
-      id: station.id,
-      label: station.displayName,
-      parentCodes: (station.lines ?? []).map((l) => l.code),
-    })),
-  );
+  protected readonly stationOptions = this.referenceStore.stationOptions;
 
   private readonly extractStates = signal(new Map<number, ChronologyExtractState>());
 
@@ -215,6 +174,16 @@ export class IncidentFormComponent {
       }
       this._wasSheetOpen = isOpen;
     });
+  }
+
+  /** Type-safe value extraction for change/input events. Avoids `$any()` and the
+   * inline `as` cast that Angular's template parser rejects inside event bindings. */
+  protected eventValue(event: Event): string {
+    return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+  }
+
+  protected indicatorValue(event: Event): ChronologyIndicator {
+    return (event.target as HTMLSelectElement).value as ChronologyIndicator;
   }
 
   protected isExtracting(key: number): boolean {

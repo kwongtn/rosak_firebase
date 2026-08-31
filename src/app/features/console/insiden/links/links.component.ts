@@ -84,6 +84,10 @@ export class SocialMediaLinksComponent {
     this.loadCategories();
   }
 
+  protected eventValue(event: Event): string {
+    return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+  }
+
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
     this.searchDebouncer.push(() => {
@@ -98,9 +102,9 @@ export class SocialMediaLinksComponent {
     this.load();
   }
 
-  protected onCompletedFilterChange(value: CompletedFilter): void {
-    this.completedFilter.set(value);
-    this.appliedCompleted = value;
+  protected onCompletedFilterChange(value: string): void {
+    this.completedFilter.set(value as CompletedFilter);
+    this.appliedCompleted = value as CompletedFilter;
     this.load();
   }
 

@@ -264,7 +264,7 @@
                   class="text-sm"
                   [disabled]="isExtracting(chronology.key)"
                   [value]="chronology.indicator"
-                  (change)="chronology.indicator = $any($event.target).value"
+                  (change)="chronology.indicator = indicatorValue($event)"
                 >
                   @for (indicator of indicators; track indicator) {
                     <option [value]="indicator">{{ indicator }}</option>
@@ -276,7 +276,7 @@
                   class="text-sm"
                   [disabled]="isExtracting(chronology.key)"
                   [value]="chronology.datetime"
-                  (change)="chronology.datetime = $any($event.target).value"
+                  (change)="chronology.datetime = eventValue($event)"
                 />
                 <div class="flex items-center gap-2">
                   <input
@@ -286,7 +286,7 @@
                     [disabled]="isExtracting(chronology.key)"
                     placeholder="Source URL (optional)"
                     [value]="chronology.sourceUrl"
-                    (change)="chronology.sourceUrl = $any($event.target).value"
+                    (change)="chronology.sourceUrl = eventValue($event)"
                   />
                   <button
                     hlmBtn
@@ -336,7 +336,7 @@
                   [disabled]="isExtracting(chronology.key)"
                   placeholder="What happened at this point"
                   [value]="chronology.content"
-                  (change)="chronology.content = $any($event.target).value"
+                  (change)="chronology.content = eventValue($event)"
                 ></textarea>
                 @if (hasLateResult(chronology.key)) {
                   <div

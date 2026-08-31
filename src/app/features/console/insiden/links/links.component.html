@@ -13,17 +13,13 @@
           type="text"
           placeholder="e.g. twitter.com, LRT"
           [value]="searchTerm()"
-          (input)="onSearchInput($any($event.target).value)"
+          (input)="onSearchInput(eventValue($event))"
         />
       </label>
 
       <label class="flex flex-col gap-1.5 text-sm">
         Category
-        <select
-          hlmSelect
-          [value]="categoryId()"
-          (change)="onCategoryChange($any($event.target).value)"
-        >
+        <select hlmSelect [value]="categoryId()" (change)="onCategoryChange(eventValue($event))">
           <option value="">All categories</option>
           @for (category of categories(); track category.id) {
             <option [value]="category.id">{{ category.name }}</option>
@@ -36,7 +32,7 @@
         <select
           hlmSelect
           [value]="completedFilter()"
-          (change)="onCompletedFilterChange($any($event.target).value)"
+          (change)="onCompletedFilterChange(eventValue($event))"
         >
           <option value="any">{{ completedFilterLabel.any }}</option>
           <option value="pending">{{ completedFilterLabel.pending }}</option>
