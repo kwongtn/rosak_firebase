@@ -12,6 +12,7 @@ import { ILayer, LineLayer, Mapbox, PointLayer, Scene } from "@antv/l7";
 import { environment } from "../../../../environments/environment";
 import { ThemeService } from "../../../core/theme/theme.service";
 import { GeojsonStorageService } from "../data/geojson-storage.service";
+import * as Sentry from "@sentry/angular";
 import { GtfsRealtimeService } from "../data/gtfs-realtime.service";
 import { GtfsStaticService, StaticSource } from "../data/gtfs-static.service";
 import { LayerSelectionService } from "../data/layer-selection.service";
@@ -140,7 +141,7 @@ export class TrackerMapComponent implements OnDestroy {
           { injector: this.injector },
         );
       })
-      .catch((err) => console.error("[tracker] failed to load rail line overlay", err));
+      .catch((err) => Sentry.captureException(err));
   }
 
   private watchRealtimeSources(): void {

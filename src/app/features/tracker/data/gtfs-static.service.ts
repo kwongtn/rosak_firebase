@@ -5,6 +5,7 @@ import { firstValueFrom } from "rxjs";
 import JSZip from "jszip";
 import Papa from "papaparse";
 import type { FeatureCollection, GeoJsonProperties, Point } from "geojson";
+import * as Sentry from "@sentry/angular";
 
 export interface StaticSourceConfig {
   sourceUrl: string;
@@ -57,7 +58,7 @@ export class StaticSource {
           })),
       });
     } catch (err) {
-      console.error("[tracker] failed to parse GTFS static source", this.config.sourceUrl, err);
+      Sentry.captureException(err);
     } finally {
       this.isLoading.set(false);
     }
@@ -100,7 +101,7 @@ export class GtfsStaticService {
       const zip = await JSZip.loadAsync(body);
       await source.load(zip);
     } catch (err) {
-      console.error("[tracker] failed to fetch GTFS static source", url, err);
+      Sentry.captureException(err);
       source.isLoading.set(false);
     }
   }

@@ -8,6 +8,7 @@ import { environment } from "../../../environments/environment";
 import { AuthService } from "../auth/auth.service";
 import { ImageFile } from "./image-file";
 import { deletePendingUpload, loadAllPendingUploads, savePendingUpload } from "./upload-queue-db";
+import * as Sentry from "@sentry/angular";
 
 export type PendingUploadType = "SPOTTING_EVENT" | "INCIDENT_CALENDAR_INCIDENT";
 
@@ -84,9 +85,10 @@ export class ImageUploadService {
         this.refreshCounts();
         this.startInterval();
       })
-      .catch(() => {
+      .catch((err) => {
         // IndexedDB unavailable (private browsing, quota, unsupported) — nothing to
         // resume; new uploads still queue and persist normally going forward.
+        Sentry.captureException(err);
       });
   }
 
@@ -99,8 +101,9 @@ export class ImageUploadService {
     if (this.isBrowser) {
       savePendingUpload({ relatedId, type, file: file.file })
         .then((dbId) => (entry.dbId = dbId))
-        .catch(() => {
+        .catch((err) => {
           // Not persisted, but still queued in memory — same as before this feature existed.
+          Sentry.captureException(err);
         });
     }
 
@@ -146,7 +149,7 @@ export class ImageUploadService {
           this.pendingCount.update((n) => n - 1);
           this.recomputePercent();
           if (dbId !== undefined) {
-            deletePendingUpload(dbId).catch(() => {});
+            deletePendingUpload(dbId).catch((err) => Sentry.captureException(err));
           }
         } catch (err) {
           // No retry limit/backoff — matches current production behavior.

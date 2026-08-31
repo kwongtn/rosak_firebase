@@ -5,6 +5,7 @@ import { RtSource } from "../data/gtfs-realtime.service";
 import { IFeedEntity } from "../data/types";
 import { buildVehiclePopupHtml } from "./vehicle-popup-content";
 import { VehicleIconMode, createVehicleMarkerElement } from "./vehicle-marker-icon";
+import * as Sentry from "@sentry/angular";
 
 interface PopupState {
   instance: IPopup;
@@ -95,7 +96,7 @@ export class RtMarkerLayerController {
       // for real users on old devices/browsers, not just in this dev sandbox), mapsService
       // was never set and that throws. Not fatal to us either way: the layer never had
       // markers rendered in that case, so there's nothing left to clean up.
-      console.error("[tracker] failed to tear down realtime marker layer", err);
+      Sentry.captureException(err);
     }
   }
 }
