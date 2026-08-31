@@ -882,7 +882,6 @@ export class AppNavComponent {
           AVATAR_HINT_DELAY_MS + AVATAR_HINT_DURATION_MS,
         );
         this.destroyRef.onDestroy(() => {
-          console.log("[avatar-hint-debug] destroyRef onDestroy — clearing timers");
           clearTimeout(showTimer);
           clearTimeout(hideTimer);
         });

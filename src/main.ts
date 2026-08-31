@@ -16,11 +16,6 @@ Sentry.init({
     // Pairs with TraceService (see app.config.ts) — that service is what actually feeds this
     // integration real Angular Router navigation events instead of only capturing pageloads.
     Sentry.browserTracingIntegration(),
-    // Session Replay — recorded video-like reconstructions of real sessions. Deliberately
-    // left at Sentry's own default privacy settings (maskAllText / blockAllMedia both true):
-    // this app's own pages carry a live GraphQL search combobox, a photo upload flow, and
-    // profile-editing text, none of which should ever be legible in a replay by default.
-    Sentry.replayIntegration(),
     // Captures failed HTTP requests (GraphQL POSTs included) as their own breadcrumbs/events
     // — this app leans on `httpResource`/`graphqlResource` everywhere, so a plain uncaught-
     // exception view alone would miss most real "why did this page show an error state"
@@ -45,4 +40,13 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 });
 
-bootstrapApplication(App, appConfig).catch((err) => console.error(err));
+// Session Replay — recorded video-like reconstructions of real sessions. Deliberately
+// left at Sentry's own default privacy settings (maskAllText / blockAllMedia both true):
+// this app's own pages carry a live GraphQL search combobox, a photo upload flow, and
+// profile-editing text, none of which should ever be legible in a replay by default.
+// Deferred until after bootstrap via addIntegration() so the replay bundle (and its
+// Sentry-internal dependencies) stay out of the critical initial-load path — the replay
+// integration is non-essential to first paint and only starts recording once the app is up.
+bootstrapApplication(App, appConfig)
+  .then(() => Sentry.addIntegration(Sentry.replayIntegration()))
+  .catch((err) => console.error(err));

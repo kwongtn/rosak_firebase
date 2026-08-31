@@ -13,13 +13,14 @@ import {
   withPreloading,
 } from "@angular/router";
 import { HttpErrorResponse, provideHttpClient } from "@angular/common/http";
-import { RECAPTCHA_V3_SITE_KEY, ReCaptchaV3Service, RecaptchaLoaderService } from "ng-recaptcha-2";
-import { provideMarkdown } from "ngx-markdown";
 import * as Sentry from "@sentry/angular";
 
 import { routes } from "./app.routes";
-import { provideClientHydration, withHttpTransferCacheOptions } from "@angular/platform-browser";
-import { environment } from "../environments/environment";
+import {
+  provideClientHydration,
+  withEventReplay,
+  withHttpTransferCacheOptions,
+} from "@angular/platform-browser";
 import { AnalyticsService } from "./core/analytics/analytics.service";
 import { NewVersionService } from "./core/version/new-version.service";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
@@ -112,22 +113,11 @@ export const appConfig: ApplicationConfig = {
     ),
     // GraphQL-over-HTTP sends reads as POST too — without includePostRequests, Angular's
     // transfer cache (GET-only by default) would refetch every query again after hydration.
-    provideClientHydration(withHttpTransferCacheOptions({ includePostRequests: true })),
+    provideClientHydration(
+      withEventReplay(),
+      withHttpTransferCacheOptions({ includePostRequests: true }),
+    ),
     // Angular 22's HttpClient uses the Fetch API by default — no withFetch() needed.
     provideHttpClient(),
-    // Only console's markAsRead mutation needs this today — the backend still actively enforces
-    // IsRecaptchaChallengePassed there (unlike addEvent, where it's been disabled server-side).
-    { provide: RECAPTCHA_V3_SITE_KEY, useValue: environment.captcha.siteKey },
-    // ng-recaptcha-2's own services are plain `@Injectable()` with no `providedIn` — unlike most
-    // Angular libraries, importing the class isn't enough; they need explicit registration here,
-    // or `inject(ReCaptchaV3Service)` in ConsolePage throws NG0201 (confirmed: this crashed SSR
-    // rendering entirely for /console, surfacing as a plain Express 404 rather than any visible
-    // Angular error).
-    ReCaptchaV3Service,
-    RecaptchaLoaderService,
-    // Renders CalendarIncident.details on /insiden. Mermaid/KaTeX/Prism/emoji extensions
-    // deliberately left off — no incident content uses them today, and each pulls in a sizeable
-    // extra dependency; trivial to add later if a real incident writeup needs one.
-    provideMarkdown(),
   ],
 };
