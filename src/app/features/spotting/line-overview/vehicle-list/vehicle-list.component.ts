@@ -172,12 +172,22 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
                              per-browser), which is exactly what was silently breaking the column
                              header's sticky-against-the-page behavior below. Only entering that
                              overflow state in the one case that actually needs horizontal scroll
-                             keeps the far more common desktop path sticky-safe. -->
-            <div
-              class="relative w-full"
-              [class]="showFullTable() ? 'block overflow-x-auto' : 'hidden sm:block'"
-            >
-              <table hlmTable [class]="showFullTable() ? 'min-w-[700px]' : ''">
+                             keeps the far more common desktop path sticky-safe.
+
+                             On mobile full-table mode the same trap applies: the overflow-x-auto
+                             wrapper would become the header's scroll-container and pin it *inside*
+                             the scrollable region instead of against the page. To keep the column
+                             header sticking to the page, the header row is rendered in its own
+                             table *outside* the scroll wrapper, while the body rows live inside
+                             the scrollable div. Both tables share table-layout: fixed and the
+                             same per-column widths so the headers stay aligned with the body
+                             columns underneath as the body scrolls horizontally. -->
+            @if (showFullTable()) {
+              <table
+                hlmTable
+                class="table-fixed min-w-[700px]"
+                [style.grid-template-columns]="gridTemplateColumns"
+              >
                 <thead hlmTHead>
                   <tr
                     hlmTr
@@ -185,7 +195,7 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
                     [style.top.px]="stickyOffset() + headerHeight()"
                   >
                     @for (column of columns; track column.key) {
-                      <th hlmTh>
+                      <th hlmTh [style.width]="columnWidths[column.key]">
                         <button
                           type="button"
                           class="flex items-center gap-1 hover:underline"
@@ -200,49 +210,138 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
                     }
                   </tr>
                 </thead>
-                <tbody hlmTBody>
-                  @for (vehicle of _sortedVehicles(); track vehicle.id) {
-                    <tr hlmTr>
-                      <td hlmTd class="py-3" brnHoverCard>
-                        <a
-                          [routerLink]="['vehicle', vehicle.id]"
-                          class="hover:underline"
-                          [brnHoverCardTriggerFor]="heatmapPreviewTpl"
-                          [showDelay]="2000"
-                        >
-                          {{ vehicle.identificationNo }}
-                        </a>
-                        <ng-template #heatmapPreviewTpl>
-                          <app-vehicle-heatmap-preview
-                            [vehicleId]="vehicle.id"
-                            [totalAllTime]="vehicle.spottingCount"
-                          />
-                        </ng-template>
-                        @if (vehicle.nickname) {
-                          <div class="text-muted-foreground text-xs">{{ vehicle.nickname }}</div>
-                        }
-                      </td>
-                      <td hlmTd class="py-3"><vehicle-status-badge [status]="vehicle.status" /></td>
-                      <td hlmTd class="py-3">
-                        <wheel-status-badge [status]="vehicle.wheelStatus" />
-                      </td>
-                      <td hlmTd class="py-3">
-                        {{ vehicle.lastSpottingDate ? (vehicle.lastSpottingDate | date) : "—" }}
-                      </td>
-                      <td hlmTd class="py-3">
-                        {{ vehicle.inServiceSince ? (vehicle.inServiceSince | date) : "—" }}
-                      </td>
-                      <td hlmTd class="py-3">{{ vehicle.spottingCount }}</td>
-                      <td hlmTd class="max-w-48 py-3">
-                        <span class="line-clamp-3" [title]="vehicle.notes ?? ''">{{
-                          vehicle.notes || "—"
-                        }}</span>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
               </table>
-            </div>
+              <div class="relative w-full overflow-x-auto">
+                <table
+                  hlmTable
+                  class="table-fixed min-w-[700px]"
+                  [style.grid-template-columns]="gridTemplateColumns"
+                >
+                  <tbody hlmTBody>
+                    @for (vehicle of _sortedVehicles(); track vehicle.id) {
+                      <tr hlmTr>
+                        <td
+                          hlmTd
+                          class="py-3"
+                          brnHoverCard
+                          [style.width]="columnWidths['identificationNo']"
+                        >
+                          <a
+                            [routerLink]="['vehicle', vehicle.id]"
+                            class="hover:underline"
+                            [brnHoverCardTriggerFor]="heatmapPreviewTpl"
+                            [showDelay]="2000"
+                          >
+                            {{ vehicle.identificationNo }}
+                          </a>
+                          <ng-template #heatmapPreviewTpl>
+                            <app-vehicle-heatmap-preview
+                              [vehicleId]="vehicle.id"
+                              [totalAllTime]="vehicle.spottingCount"
+                            />
+                          </ng-template>
+                          @if (vehicle.nickname) {
+                            <div class="text-muted-foreground text-xs">{{ vehicle.nickname }}</div>
+                          }
+                        </td>
+                        <td hlmTd class="py-3" [style.width]="columnWidths['status']">
+                          <vehicle-status-badge [status]="vehicle.status" />
+                        </td>
+                        <td hlmTd class="py-3" [style.width]="columnWidths['wheelStatus']">
+                          <wheel-status-badge [status]="vehicle.wheelStatus" />
+                        </td>
+                        <td hlmTd class="py-3" [style.width]="columnWidths['lastSpottingDate']">
+                          {{ vehicle.lastSpottingDate ? (vehicle.lastSpottingDate | date) : "—" }}
+                        </td>
+                        <td hlmTd class="py-3" [style.width]="columnWidths['inServiceSince']">
+                          {{ vehicle.inServiceSince ? (vehicle.inServiceSince | date) : "—" }}
+                        </td>
+                        <td hlmTd class="py-3" [style.width]="columnWidths['spottingCount']">
+                          {{ vehicle.spottingCount }}
+                        </td>
+                        <td hlmTd class="py-3" [style.width]="columnWidths['notes']">
+                          <span class="line-clamp-3" [title]="vehicle.notes ?? ''">{{
+                            vehicle.notes || "—"
+                          }}</span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="relative w-full hidden sm:block">
+                <table hlmTable>
+                  <thead hlmTHead>
+                    <tr
+                      hlmTr
+                      class="bg-card sticky z-[5]"
+                      [style.top.px]="stickyOffset() + headerHeight()"
+                    >
+                      @for (column of columns; track column.key) {
+                        <th hlmTh>
+                          <button
+                            type="button"
+                            class="flex items-center gap-1 hover:underline"
+                            (click)="toggleSort(column.key)"
+                          >
+                            {{ column.label }}
+                            @if (sortColumn() === column.key) {
+                              <span class="text-xs">{{
+                                sortDirection() === "asc" ? "▲" : "▼"
+                              }}</span>
+                            }
+                          </button>
+                        </th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody hlmTBody>
+                    @for (vehicle of _sortedVehicles(); track vehicle.id) {
+                      <tr hlmTr>
+                        <td hlmTd class="py-3" brnHoverCard>
+                          <a
+                            [routerLink]="['vehicle', vehicle.id]"
+                            class="hover:underline"
+                            [brnHoverCardTriggerFor]="heatmapPreviewTpl"
+                            [showDelay]="2000"
+                          >
+                            {{ vehicle.identificationNo }}
+                          </a>
+                          <ng-template #heatmapPreviewTpl>
+                            <app-vehicle-heatmap-preview
+                              [vehicleId]="vehicle.id"
+                              [totalAllTime]="vehicle.spottingCount"
+                            />
+                          </ng-template>
+                          @if (vehicle.nickname) {
+                            <div class="text-muted-foreground text-xs">{{ vehicle.nickname }}</div>
+                          }
+                        </td>
+                        <td hlmTd class="py-3">
+                          <vehicle-status-badge [status]="vehicle.status" />
+                        </td>
+                        <td hlmTd class="py-3">
+                          <wheel-status-badge [status]="vehicle.wheelStatus" />
+                        </td>
+                        <td hlmTd class="py-3">
+                          {{ vehicle.lastSpottingDate ? (vehicle.lastSpottingDate | date) : "—" }}
+                        </td>
+                        <td hlmTd class="py-3">
+                          {{ vehicle.inServiceSince ? (vehicle.inServiceSince | date) : "—" }}
+                        </td>
+                        <td hlmTd class="py-3">{{ vehicle.spottingCount }}</td>
+                        <td hlmTd class="max-w-48 py-3">
+                          <span class="line-clamp-3" [title]="vehicle.notes ?? ''">{{
+                            vehicle.notes || "—"
+                          }}</span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
 
             <!-- Mobile cards: vehicle, status, wheel, last spotted, notes — the fields
                              that matter at a glance; times-spotted is skipped here (still on the
@@ -306,6 +405,25 @@ export class VehicleListComponent {
   private readonly headerRow = viewChild("headerRow", { read: ElementRef });
   protected readonly headerHeight = signal(0);
   private headerObserver: ResizeObserver | undefined;
+
+  /** Per-column widths (px) for the mobile full-table layout — the header and body are two
+   * separate tables (so the header can live outside the horizontal scroll container and keep
+   * sticking to the page), so they share these explicit widths to stay aligned. */
+  protected readonly columnWidths: Record<SortColumn, string> = {
+    identificationNo: "120px",
+    status: "90px",
+    wheelStatus: "80px",
+    lastSpottingDate: "110px",
+    inServiceSince: "110px",
+    spottingCount: "80px",
+    notes: "160px",
+  };
+
+  /** grid-template-columns shorthand for the fixed-layout tables above — one width per column,
+   * in the same order as COLUMNS. */
+  protected readonly gridTemplateColumns = Object.keys(this.columnWidths)
+    .map((k) => this.columnWidths[k as SortColumn])
+    .join(" ");
 
   constructor() {
     const destroyRef = inject(DestroyRef);
