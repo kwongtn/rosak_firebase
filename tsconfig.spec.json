@@ -3,7 +3,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "noPropertyAccessFromIndexSignature": false
   },
   "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
 }

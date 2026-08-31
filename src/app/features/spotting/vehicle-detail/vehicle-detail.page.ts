@@ -18,13 +18,11 @@ import {
   toSpottingActivityPoints,
 } from "../../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
+import { SpottingLineDataStore } from "../data/spotting-line-data.store";
 import {
   VEHICLE_SPOTTING_HISTORY_QUERY,
-  VEHICLE_TYPES_QUERY,
   VehicleSpottingHistoryQueryData,
   VehicleSpottingHistoryQueryVars,
-  VehicleTypesQueryData,
-  VehicleTypesQueryVars,
 } from "../data/spotting.queries";
 import { SpottingHistoryComponent } from "./spotting-history/spotting-history.component";
 import { IncidentTimelineComponent } from "./incident-timeline/incident-timeline.component";
@@ -164,13 +162,9 @@ export class VehicleDetailPage {
     () => this.linesStore.lineById(this.lineId())?.code ?? this.lineId(),
   );
 
-  protected readonly vehicleTypesResource = graphqlResource<
-    VehicleTypesQueryData,
-    VehicleTypesQueryVars
-  >(() => ({
-    query: VEHICLE_TYPES_QUERY,
-    variables: { lineId: this.lineId() },
-  }));
+  protected readonly lineDataStore = inject(SpottingLineDataStore);
+
+  protected vehicleTypesResource!: ReturnType<SpottingLineDataStore["vehicleTypesFor"]>;
 
   private readonly _vehicleTypes = computed(
     () => this.vehicleTypesResource.data()?.vehicleTypes ?? [],
@@ -219,6 +213,10 @@ export class VehicleDetailPage {
     const today = dateKeyOf(new Date());
     return this._rawSpottings().filter((s) => s.spottingDate === today).length;
   });
+
+  ngOnInit(): void {
+    this.vehicleTypesResource = this.lineDataStore.vehicleTypesFor(this.lineId());
+  }
 
   constructor() {
     effect(() => {

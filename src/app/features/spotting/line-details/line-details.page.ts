@@ -18,13 +18,11 @@ import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.comp
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { VehicleStatus } from "../../../core/graphql/types";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
+import { SpottingLineDataStore } from "../data/spotting-line-data.store";
 import {
   LINE_SPOTTING_BOUNDS_QUERY,
   LineSpottingBoundsQueryData,
   LineSpottingBoundsQueryVars,
-  VEHICLE_TYPES_QUERY,
-  VehicleTypesQueryData,
-  VehicleTypesQueryVars,
 } from "../data/spotting.queries";
 import { FleetSummaryComponent } from "../line-overview/fleet-summary/fleet-summary.component";
 import { VehicleSpottingGridComponent } from "./vehicle-spotting-grid/vehicle-spotting-grid.component";
@@ -209,16 +207,17 @@ export class LineDetailsPage {
   protected readonly _line = computed(() => this.linesStore.lineById(this.lineId()));
   protected readonly statusFilter = signal<VehicleStatus | null>(null);
 
-  protected readonly vehicleTypesResource = graphqlResource<
-    VehicleTypesQueryData,
-    VehicleTypesQueryVars
-  >(() => ({
-    query: VEHICLE_TYPES_QUERY,
-    variables: { lineId: this.lineId() },
-  }));
+  protected readonly lineDataStore = inject(SpottingLineDataStore);
+
+  protected vehicleTypesResource!: ReturnType<SpottingLineDataStore["vehicleTypesFor"]>;
+
   protected readonly _vehicleTypes = computed(
     () => this.vehicleTypesResource.data()?.vehicleTypes ?? [],
   );
+
+  ngOnInit(): void {
+    this.vehicleTypesResource = this.lineDataStore.vehicleTypesFor(this.lineId());
+  }
 
   /** The title bar's own real height (not including NAV_HEIGHT) — the activity controls bar
    * stacked below it offsets by NAV_HEIGHT + this, measured rather than guessed for the same

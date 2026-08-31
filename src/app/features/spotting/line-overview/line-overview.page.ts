@@ -13,7 +13,6 @@ import {
 import { isPlatformBrowser } from "@angular/common";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -24,11 +23,7 @@ import { ToastService } from "../../../ui/toast/toast.service";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { VehicleStatus } from "../../../core/graphql/types";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
-import {
-  VEHICLE_TYPES_QUERY,
-  VehicleTypesQueryData,
-  VehicleTypesQueryVars,
-} from "../data/spotting.queries";
+import { SpottingLineDataStore } from "../data/spotting-line-data.store";
 import { FleetSummaryComponent } from "./fleet-summary/fleet-summary.component";
 import { LineStatusBoardComponent } from "./line-status-board/line-status-board.component";
 import { LineSwitcherComponent } from "./line-switcher/line-switcher.component";
@@ -199,6 +194,8 @@ export class LineOverviewPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
+  protected readonly lineDataStore = inject(SpottingLineDataStore);
+
   protected readonly _line = computed(() => this.linesStore.lineById(this.lineId()));
   protected readonly statusFilter = signal<VehicleStatus | null>(null);
 
@@ -213,13 +210,7 @@ export class LineOverviewPage {
     initialValue: this.route.snapshot.queryParamMap,
   });
 
-  protected readonly vehicleTypesResource = graphqlResource<
-    VehicleTypesQueryData,
-    VehicleTypesQueryVars
-  >(() => ({
-    query: VEHICLE_TYPES_QUERY,
-    variables: { lineId: this.lineId() },
-  }));
+  protected vehicleTypesResource!: ReturnType<SpottingLineDataStore["vehicleTypesFor"]>;
 
   protected readonly _vehicleTypes = computed(
     () => this.vehicleTypesResource.data()?.vehicleTypes ?? [],
@@ -239,6 +230,10 @@ export class LineOverviewPage {
   protected readonly _isAwaitingCurrentView = computed(
     () => !this.vehicleTypesResource.data() && !this.vehicleTypesResource.hasError(),
   );
+
+  ngOnInit(): void {
+    this.vehicleTypesResource = this.lineDataStore.vehicleTypesFor(this.lineId());
+  }
 
   /** Drives the desktop fleet-summary merge into the sticky line-name row (see the template) —
    * true once the *original*, full fleet-summary row (below) has scrolled up behind the sticky
