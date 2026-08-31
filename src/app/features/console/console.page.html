@@ -46,13 +46,13 @@
               hlmInput
               type="date"
               [value]="filterForm().createdFrom"
-              (input)="filterForm.update((f) => ({ ...f, createdFrom: $any($event.target).value }))"
+              (input)="filterForm.update((f) => ({ ...f, createdFrom: eventValue($event) }))"
             />
             <input
               hlmInput
               type="date"
               [value]="filterForm().createdTo"
-              (input)="filterForm.update((f) => ({ ...f, createdTo: $any($event.target).value }))"
+              (input)="filterForm.update((f) => ({ ...f, createdTo: eventValue($event) }))"
             />
           </div>
         </div>
@@ -64,13 +64,13 @@
               hlmInput
               type="date"
               [value]="filterForm().spottedFrom"
-              (input)="filterForm.update((f) => ({ ...f, spottedFrom: $any($event.target).value }))"
+              (input)="filterForm.update((f) => ({ ...f, spottedFrom: eventValue($event) }))"
             />
             <input
               hlmInput
               type="date"
               [value]="filterForm().spottedTo"
-              (input)="filterForm.update((f) => ({ ...f, spottedTo: $any($event.target).value }))"
+              (input)="filterForm.update((f) => ({ ...f, spottedTo: eventValue($event) }))"
             />
           </div>
         </div>
@@ -133,7 +133,7 @@
             hlmInput
             type="text"
             [value]="filterForm().freeSearch"
-            (input)="filterForm.update((f) => ({ ...f, freeSearch: $any($event.target).value }))"
+            (input)="filterForm.update((f) => ({ ...f, freeSearch: eventValue($event) }))"
           />
         </label>
       </div>
@@ -230,7 +230,7 @@
                 }
                 <div class="text-muted-foreground text-xs">
                   {{ event.vehicle.vehicleType.internalName }} ·
-                  {{ event.vehicle.lines.map((l) => l.code).join(", ") }}
+                  {{ vehicleLinesLabel(event.vehicle) }}
                 </div>
               </td>
               <td hlmTd class="max-w-64 py-3">

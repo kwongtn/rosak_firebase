@@ -13,7 +13,7 @@
           type="text"
           placeholder="e.g. LRT, KL Sentral, twitter.com/…"
           [value]="searchTerm()"
-          (input)="onSearchInput($any($event.target).value)"
+          (input)="onSearchInput(eventValue($event))"
         />
       </label>
     </div>
@@ -48,7 +48,7 @@
                 {{ row.startDatetime | date: "MMM d, y HH:mm" }}
               </td>
               <td hlmTd class="py-3">
-                {{ row.lines.map((l) => l.code).join(", ") || "—" }}
+                {{ linesLabel(row.lines) || "—" }}
               </td>
               <td hlmTd class="py-3">{{ row.chronologies.length }}</td>
               <td hlmTd class="py-3 whitespace-nowrap">
@@ -113,7 +113,7 @@
             rows="4"
             placeholder="e.g. Duplicate of an existing incident"
             [value]="rejectReason()"
-            (input)="rejectReason.set($any($event.target).value)"
+            (input)="rejectReason.set(eventValue($event))"
           ></textarea>
         </label>
       </div>

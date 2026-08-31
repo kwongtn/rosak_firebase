@@ -31,6 +31,7 @@ import {
   MyEvent,
   PublicUserData,
 } from "../data/profile.queries";
+import { vehicleLinesLabel } from "../../../core/util/lines-label.util";
 
 const PAGE_SIZE = 30;
 
@@ -110,7 +111,7 @@ interface EventDayGroup {
                           <span class="text-muted-foreground text-xs">
                             {{ event.vehicle.identificationNo }} ({{
                               event.vehicle.vehicleType.internalName
-                            }}) — {{ event.vehicle.lines.map((l) => l.code).join(", ") }}
+                            }}) — {{ vehicleLinesLabel(event.vehicle) }}
                           </span>
                           @if (event.notes) {
                             <span
@@ -206,6 +207,7 @@ interface EventDayGroup {
 export class MySpottingsComponent {
   readonly user = input.required<PublicUserData>();
   readonly isOwnProfile = input.required<boolean>();
+  protected readonly vehicleLinesLabel = vehicleLinesLabel;
 
   protected readonly showPrivacyMessage = computed(
     () => !this.isOwnProfile() && this.user().spottings === null,
