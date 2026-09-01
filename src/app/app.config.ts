@@ -23,6 +23,7 @@ import {
 } from "@angular/platform-browser";
 import { AnalyticsService } from "./core/analytics/analytics.service";
 import { NewVersionService } from "./core/version/new-version.service";
+import { isChunkLoadError } from "./core/version/chunk-load-error.util";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
 
 /**
@@ -58,16 +59,48 @@ export function is404Error(error: unknown): boolean {
 /**
  * Custom ErrorHandler that wraps Sentry's error handler while automatically ignoring
  * 404 (Not Found) errors so they are not captured in Firebase App Hosting error logs or Sentry.
+ *
+ * Also detects stale-chunk load failures that land here instead of as `unhandledrejection`:
+ * when a lazy route's dynamic import 404s after a deploy, Angular's router catches the
+ * rejected promise and forwards it to ErrorHandler — the `unhandledrejection` path in
+ * NewVersionService never fires. Extracting the message and matching it with the same
+ * `isChunkLoadError` heuristic surfaces the "update available" prompt consistently.
  */
 @Injectable()
 export class AppErrorHandler implements ErrorHandler {
   private readonly sentryHandler = Sentry.createErrorHandler({ logErrors: true });
+  private readonly newVersion = inject(NewVersionService);
 
   handleError(error: unknown): void {
     if (is404Error(error)) {
       return;
     }
+    const message = this.extractMessage(error);
+    if (message && isChunkLoadError(message)) {
+      this.newVersion.promptReloadForNewVersion();
+      return;
+    }
     this.sentryHandler.handleError(error);
+  }
+
+  /** Normalises the assorted shapes Angular's ErrorHandler receives into a single string. */
+  private extractMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === "string") {
+      return error;
+    }
+    if (error && typeof error === "object") {
+      const candidate = error as { message?: unknown; ngOriginalError?: unknown };
+      if (typeof candidate.message === "string") {
+        return candidate.message;
+      }
+      if (candidate.ngOriginalError) {
+        return this.extractMessage(candidate.ngOriginalError);
+      }
+    }
+    return "";
   }
 }
 

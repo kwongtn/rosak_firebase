@@ -1,11 +1,14 @@
 import { HttpErrorResponse } from "@angular/common/http";
 import { provideHttpClientTesting } from "@angular/common/http/testing";
-import { provideZonelessChangeDetection } from "@angular/core";
+import { ErrorHandler, provideZonelessChangeDetection } from "@angular/core";
 import { provideRouter } from "@angular/router";
 import { TestBed } from "@angular/core/testing";
 import { MarkdownService, provideMarkdown } from "ngx-markdown";
 import { RECAPTCHA_V3_SITE_KEY, ReCaptchaV3Service, RecaptchaLoaderService } from "ng-recaptcha-2";
-import { is404Error } from "./app.config";
+import * as Sentry from "@sentry/angular";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppErrorHandler, is404Error } from "./app.config";
+import { NewVersionService } from "./core/version/new-version.service";
 import { routes } from "./app.routes";
 import { InsidenPage } from "./features/insiden/insiden.page";
 import { environment } from "../environments/environment";
@@ -102,5 +105,53 @@ describe("deferred providers do not cause NG0201", () => {
       ],
     });
     expect(() => TestBed.createComponent(InsidenPage)).not.toThrow();
+  });
+});
+
+describe("AppErrorHandler chunk-load detection", () => {
+  let handler: AppErrorHandler;
+  let newVersionService: NewVersionService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: ErrorHandler, useClass: AppErrorHandler },
+        {
+          provide: Sentry.TraceService,
+          useValue: {},
+        },
+      ],
+    });
+    handler = TestBed.inject(ErrorHandler) as AppErrorHandler;
+    newVersionService = TestBed.inject(NewVersionService);
+  });
+
+  it("should trigger new-version prompt on Chrome's 'Failed to fetch dynamically imported module'", () => {
+    const promptSpy = vi.spyOn(newVersionService, "promptReloadForNewVersion");
+    const error = new TypeError(
+      "Failed to fetch dynamically imported module: https://example.com/chunk-DhaE6BFK.js",
+    );
+    handler.handleError(error);
+    expect(promptSpy).toHaveBeenCalled();
+  });
+
+  it("should trigger new-version prompt on webpack-style 'Loading chunk' error", () => {
+    const promptSpy = vi.spyOn(newVersionService, "promptReloadForNewVersion");
+    handler.handleError(new Error("Loading chunk 12 failed"));
+    expect(promptSpy).toHaveBeenCalled();
+  });
+
+  it("should trigger new-version prompt on error wrapped in ngOriginalError", () => {
+    const promptSpy = vi.spyOn(newVersionService, "promptReloadForNewVersion");
+    const error = { ngOriginalError: new Error("Loading chunk 5 failed") };
+    handler.handleError(error);
+    expect(promptSpy).toHaveBeenCalled();
+  });
+
+  it("should NOT trigger prompt for ordinary runtime errors", () => {
+    const promptSpy = vi.spyOn(newVersionService, "promptReloadForNewVersion");
+    handler.handleError(new Error("Cannot read properties of undefined (reading 'id')"));
+    expect(promptSpy).not.toHaveBeenCalled();
   });
 });

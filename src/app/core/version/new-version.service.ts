@@ -120,8 +120,12 @@ export class NewVersionService {
    * fires a one-time toast explaining why. Deliberately a prompt, never a silent auto-reload:
    * the user may be mid-form, and losing that work to a background reload is worse than a
    * stale page.
+   *
+   * Public so the AppErrorHandler can call it: a chunk 404 inside a lazy-loaded route reaches
+   * Angular's router first, which forwards it to ErrorHandler — never surfacing as an
+   * `unhandledrejection` (see listenForStaleChunkFailures). Both paths end up here.
    */
-  private promptReloadForNewVersion(): void {
+  promptReloadForNewVersion(): void {
     if (this.hasNewVersion()) {
       // Already surfaced — by the poll or an earlier chunk failure — so the button is lit and
       // a second toast would just nag.
