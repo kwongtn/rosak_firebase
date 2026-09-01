@@ -1,0 +1,67 @@
+# Branch-aware single-project model: one Firebase project (rosak-7223b) serves
+# both envs. Express prefix on cloudfunctions.net/api/<env>/v1/* provides
+# logical routing — this workflow deploys the same artifact for main and
+# staging. Branch prefix routing is logical, not deploy-isolated; both
+# branches deploy to rosak-7223b. Two-project option (separate staging
+# project) is parked.
+#
+# Required secrets (create via GCP Workload Identity Federation):
+#   WIF_PROVIDER        — workload_identity_provider (projects/…/locations/…/workloadIdentityPools/…/providers/…)
+#   GCP_SA_FB_FUNCTIONS — service account email with Firebase Functions deploy permissions
+name: Deploy Functions
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy-functions.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-functions-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Build
+        working-directory: functions
+        run: npm run build
+
+      # Optional gate: run function tests before deploy. Non-blocking
+      # if no tests are configured; fails the job if tests fail.
+      - name: Test (optional gate)
+        working-directory: functions
+        run: npm test --if-present
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_FB_FUNCTIONS }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Functions
+        run: npx firebase-tools deploy --only functions --project rosak-7223b --force --non-interactive
