@@ -32,51 +32,82 @@
             <th hlmTh>Actions</th>
           </tr>
         </thead>
-        <tbody hlmTBody>
-          @for (row of rows(); track row.id) {
+        <tbody hlmTBody [attr.aria-busy]="isLoading()">
+          @if (isLoading() && rows().length === 0) {
+            @for (row of skeletonRows; track row) {
+              <tr hlmTr>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-full"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-full"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-16"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-20"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-12"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-8 w-28"></div></td>
+              </tr>
+            }
             <tr hlmTr>
-              <td hlmTd class="py-3 font-medium">{{ row.title }}</td>
-              <td hlmTd class="max-w-72 py-3">
-                <p class="line-clamp-2">{{ row.brief }}</p>
-              </td>
-              <td hlmTd class="py-3">
-                <span hlmBadge [variant]="severityVariant(row.severity)">
-                  {{ severityLabel(row.severity) }}
-                </span>
-              </td>
-              <td hlmTd class="py-3 whitespace-nowrap">
-                {{ row.startDatetime | date: "MMM d, y HH:mm" }}
-              </td>
-              <td hlmTd class="py-3">
-                {{ linesLabel(row.lines) || "—" }}
-              </td>
-              <td hlmTd class="py-3">{{ row.chronologies.length }}</td>
-              <td hlmTd class="py-3 whitespace-nowrap">
-                {{ row.created | date: "MMM d, y HH:mm" }}
-              </td>
-              <td hlmTd class="py-3">
-                <div class="flex items-center gap-2">
-                  <button hlmBtn size="sm" [disabled]="isMutating()" (click)="approve(row)">
-                    Approve
-                  </button>
-                  <button
-                    hlmBtn
-                    size="sm"
-                    variant="destructive"
-                    [disabled]="isMutating()"
-                    (click)="openReject(row)"
-                  >
-                    Reject
-                  </button>
-                </div>
+              <td hlmTd colspan="8" class="sr-only py-8 text-center" role="status">
+                Loading incidents…
               </td>
             </tr>
-          } @empty {
-            <tr hlmTr>
-              <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">
-                No incidents waiting for approval.
-              </td>
-            </tr>
+          } @else {
+            @for (row of rows(); track row.id) {
+              <tr
+                hlmTr
+                class="cursor-pointer hover:bg-muted"
+                [attr.tabindex]="0"
+                (click)="openDetail(row)"
+                (keydown.enter)="openDetail(row)"
+              >
+                <td hlmTd class="py-3 font-medium">{{ row.title }}</td>
+                <td hlmTd class="max-w-72 py-3">
+                  <p class="line-clamp-2">{{ row.brief }}</p>
+                </td>
+                <td hlmTd class="py-3">
+                  <span hlmBadge [variant]="severityVariant(row.severity)">
+                    {{ severityLabel(row.severity) }}
+                  </span>
+                </td>
+                <td hlmTd class="py-3 whitespace-nowrap">
+                  {{ row.startDatetime | date: "MMM d, y HH:mm" }}
+                </td>
+                <td hlmTd class="py-3">
+                  {{ linesLabel(row.lines) || "—" }}
+                </td>
+                <td hlmTd class="py-3">{{ row.chronologies.length }}</td>
+                <td hlmTd class="py-3 whitespace-nowrap">
+                  {{ row.created | date: "MMM d, y HH:mm" }}
+                </td>
+                <td hlmTd class="py-3">
+                  <div class="flex items-center gap-2">
+                    <button
+                      hlmBtn
+                      size="sm"
+                      [disabled]="isMutating()"
+                      (click)="$event.stopPropagation(); approve(row)"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      hlmBtn
+                      size="sm"
+                      variant="destructive"
+                      [disabled]="isMutating()"
+                      (click)="$event.stopPropagation(); openReject(row)"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr hlmTr>
+                <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">
+                  No incidents waiting for approval.
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -127,6 +158,101 @@
         >
           Reject incident
         </button>
+      </div>
+    </hlm-sheet>
+
+    <hlm-sheet
+      [open]="selectedRow() !== null"
+      (openChange)="closePanel()"
+      side="right"
+      [wide]="true"
+    >
+      <div hlmSheetHeader class="flex items-center justify-between gap-2">
+        <div class="flex flex-col gap-0.5">
+          <h2 class="text-base font-semibold">Incident detail</h2>
+          @if (selectedRow(); as row) {
+            <p class="text-muted-foreground text-xs">
+              Submitted {{ row.created | date: "MMM d, y HH:mm" }} · awaiting approval
+            </p>
+          }
+        </div>
+        <button
+          type="button"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+          aria-label="Close"
+          title="Close"
+          (click)="closePanel()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="size-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div hlmSheetBody class="flex flex-col gap-4">
+        @if (panelIncident(); as incident) {
+          <app-incident-card [incident]="incident" />
+        }
+        @if (selectedRow(); as row) {
+          <div hlmCard class="gap-3 p-4">
+            <h3 class="text-sm font-semibold">Quick edit</h3>
+            <label class="flex flex-col gap-1.5 text-sm">
+              Title
+              <input
+                hlmInput
+                type="text"
+                [value]="editTitle()"
+                (input)="editTitle.set(eventValue($event))"
+              />
+            </label>
+            <label class="flex flex-col gap-1.5 text-sm">
+              Brief
+              <textarea
+                hlmInput
+                rows="3"
+                [value]="editBrief()"
+                (input)="editBrief.set(eventValue($event))"
+              ></textarea>
+            </label>
+            <div class="flex justify-end">
+              <button
+                hlmBtn
+                size="sm"
+                [disabled]="isMutating() || !editTitle().trim() || !editBrief().trim()"
+                (click)="savePanelEdit()"
+              >
+                Save changes
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+      <div hlmSheetFooter class="flex items-center justify-between gap-2">
+        <button hlmBtn variant="outline" (click)="closePanel()">Close</button>
+        <div class="flex items-center gap-2">
+          <button
+            hlmBtn
+            variant="destructive"
+            [disabled]="isMutating() || selectedRow() === null"
+            (click)="rejectFromPanel()"
+          >
+            Reject
+          </button>
+          <button
+            hlmBtn
+            [disabled]="isMutating() || selectedRow() === null"
+            (click)="approveFromPanel()"
+          >
+            Approve
+          </button>
+        </div>
       </div>
     </hlm-sheet>
   </main>

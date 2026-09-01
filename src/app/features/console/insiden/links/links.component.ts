@@ -8,6 +8,8 @@ import { HlmButton } from "../../../../ui/button/button";
 import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmNativeSelect } from "../../../../ui/select/native-select";
+import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../../ui/sheet/sheet";
+import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { HlmTableImports } from "../../../../ui/table/table";
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
@@ -54,6 +56,11 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
     HlmButton,
     HlmInput,
     HlmNativeSelect,
+    HlmSkeleton,
+    HlmSheet,
+    HlmSheetHeader,
+    HlmSheetBody,
+    HlmSheetFooter,
     ...HlmCardImports,
     ...HlmTableImports,
     ConsoleNavComponent,
@@ -70,10 +77,14 @@ export class SocialMediaLinksComponent {
   protected readonly categories = signal<{ id: string; name: string }[]>([]);
   protected readonly isLoading = signal(false);
 
+  protected readonly skeletonRows = [0, 1, 2, 3, 4];
+
   protected readonly searchTerm = signal("");
   protected readonly categoryId = signal("");
   protected readonly completedFilter = signal<CompletedFilter>("any");
   protected readonly completedFilterLabel = COMPLETED_LABEL;
+
+  protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
 
   private appliedSearch: string | undefined;
   private appliedCategoryId = "";
@@ -104,7 +115,7 @@ export class SocialMediaLinksComponent {
     this.load();
   }
 
-  protected async markCompleted(link: SocialMediaLinkRow): Promise<void> {
+  protected async markCompleted(link: SocialMediaLinkRow): Promise<boolean> {
     this.isLoading.set(true);
     try {
       const idToken = await this.auth.idToken();
@@ -115,13 +126,34 @@ export class SocialMediaLinksComponent {
       );
       this.toast.success("Link marked completed", link.url);
       await this.fetchLinks();
+      return true;
     } catch (err) {
       this.toast.error(
         "Couldn't mark completed",
         err instanceof Error ? err.message : "Unknown error",
       );
+      return false;
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  protected openLinkDetail(link: SocialMediaLinkRow): void {
+    this.selectedLink.set(link);
+  }
+
+  protected closeLinkPanel(): void {
+    this.selectedLink.set(null);
+  }
+
+  protected async markCompletedFromPanel(): Promise<void> {
+    const link = this.selectedLink();
+    if (!link) {
+      return;
+    }
+    const ok = await this.markCompleted(link);
+    if (ok) {
+      this.closeLinkPanel();
     }
   }
 

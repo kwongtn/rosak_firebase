@@ -9,6 +9,11 @@
 export type CalendarIncidentSeverity = "MAJOR" | "MINOR" | "OTHERS";
 export type ChronologyIndicator = "GREEN" | "RED" | "BLUE" | "GRAY";
 
+/** Fetches the same field set as the public `INSIDEN_INCIDENTS_QUERY` (plus `created`) so a
+ *  pending row can be passed straight into `IncidentCardComponent` — the element reused from the
+ *  /insiden source page — and so the panel's update mutation can echo the full incident state
+ *  back (the backend `updateCalendarIncident` replaces M2M/chronology rows verbatim, so omitting
+ *  any of these strips them). */
 export const PENDING_INCIDENTS_QUERY = /* GraphQL */ `
   query PendingIncidents($search: String) {
     pendingCalendarIncidents(search: $search) {
@@ -20,21 +25,56 @@ export const PENDING_INCIDENTS_QUERY = /* GraphQL */ `
       startDatetime
       endDatetime
       created
+      lastUpdated
+      hasDetails
+      impactFactor
+      longTerm
+      inaccurate
       lines {
+        id
         code
         displayName
       }
+      vehicles {
+        id
+        identificationNo
+      }
+      stations {
+        id
+        displayName
+      }
+      categories {
+        id
+        name
+      }
       chronologies {
+        order
         indicator
+        datetime
         content
         sourceUrl
+      }
+      voteScore
+      voteBreakdown {
+        upvotes
+        downvotes
+      }
+      userVote
+      medias {
+        file {
+          url
+        }
+        width
+        height
       }
     }
   }
 `;
 
 export interface PendingIncidentChronology {
+  order: number;
   indicator: ChronologyIndicator;
+  datetime: string;
   content: string;
   sourceUrl: string | null;
 }
@@ -48,8 +88,21 @@ export interface PendingIncident {
   startDatetime: string;
   endDatetime: string | null;
   created: string;
-  lines: { code: string; displayName: string }[];
+  lastUpdated: string;
+  hasDetails: boolean;
+  impactFactor: number;
+  longTerm: boolean;
+  inaccurate: boolean;
+  lines: { id: string; code: string; displayName: string }[];
+  vehicles: { id: string; identificationNo: string }[];
+  stations: { id: string; displayName: string }[];
+  categories: { id: string; name: string }[];
   chronologies: PendingIncidentChronology[];
+  voteScore: number;
+  voteBreakdown: { upvotes: number; downvotes: number };
+  /** 1 upvoted, -1 downvoted, 0 no vote (matches VoteButtonComponent's VoteValue). */
+  userVote: -1 | 0 | 1;
+  medias: { file: { url: string }; width: number; height: number }[];
 }
 
 export interface PendingIncidentsQueryData {
@@ -88,6 +141,45 @@ export interface RejectIncidentVars {
 export interface IncidentMutationData {
   approveCalendarIncident?: { ok: boolean };
   rejectCalendarIncident?: { ok: boolean };
+}
+
+/** Admin quick-edit from the row panel. The backend replaces lines/vehicles/stations/categories
+ *  and chronologies from the input verbatim, so every fetched field must be echoed back. */
+export const UPDATE_CALENDAR_INCIDENT_MUTATION = /* GraphQL */ `
+  mutation UpdateCalendarIncident($calendarIncidentId: ID!, $input: CalendarIncidentInput!) {
+    updateCalendarIncident(calendarIncidentId: $calendarIncidentId, input: $input) {
+      ok
+    }
+  }
+`;
+
+export interface UpdateCalendarIncidentVars {
+  calendarIncidentId: string;
+  input: {
+    title: string;
+    brief: string;
+    startDatetime: string;
+    severity: CalendarIncidentSeverity;
+    endDatetime?: string | null;
+    longTerm?: boolean | null;
+    inaccurate?: boolean | null;
+    impactFactor?: number | null;
+    details?: string | null;
+    lineIds?: string[];
+    vehicleIds?: string[];
+    stationIds?: string[];
+    categoryIds?: string[];
+    chronologies?: {
+      indicator: ChronologyIndicator;
+      datetime?: string | null;
+      sourceUrl?: string | null;
+      content?: string | null;
+    }[];
+  };
+}
+
+export interface UpdateCalendarIncidentData {
+  updateCalendarIncident: { ok: boolean };
 }
 
 export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `

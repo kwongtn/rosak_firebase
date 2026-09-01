@@ -58,68 +58,187 @@
             <th hlmTh>Actions</th>
           </tr>
         </thead>
-        <tbody hlmTBody>
-          @for (link of links(); track link.id) {
+        <tbody hlmTBody [attr.aria-busy]="isLoading()">
+          @if (isLoading() && links().length === 0) {
+            @for (row of skeletonRows; track row) {
+              <tr hlmTr>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-full"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-28"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-20"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-16"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-8 w-28"></div></td>
+              </tr>
+            }
             <tr hlmTr>
-              <td hlmTd class="max-w-72 py-3">
-                <a
-                  [href]="link.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:underline"
-                >
-                  {{ link.url }}
-                </a>
-              </td>
-              <td hlmTd class="max-w-64 py-3">
-                {{ link.title || "—" }}
-              </td>
-              <td hlmTd class="py-3">
-                @if (link.user; as submitter) {
-                  {{ submitter.nickname || submitter.shortId }}
-                } @else {
-                  —
-                }
-              </td>
-              <td hlmTd class="py-3">
-                @if (link.categories.length > 0) {
-                  <div class="flex flex-wrap gap-1">
-                    @for (category of link.categories; track category.name) {
-                      <span hlmBadge variant="outline">{{ category.name }}</span>
-                    }
-                  </div>
-                } @else {
-                  —
-                }
-              </td>
-              <td hlmTd class="py-3">
-                @if (link.completed) {
-                  <span hlmBadge>Completed</span>
-                } @else {
-                  <span hlmBadge variant="warning">Pending</span>
-                }
-              </td>
-              <td hlmTd class="py-3 whitespace-nowrap">
-                {{ link.created | date: "MMM d, y HH:mm" }}
-              </td>
-              <td hlmTd class="py-3">
-                @if (!link.completed) {
-                  <button hlmBtn size="sm" [disabled]="isLoading()" (click)="markCompleted(link)">
-                    Mark completed
-                  </button>
-                }
+              <td hlmTd colspan="7" class="sr-only py-8 text-center" role="status">
+                Loading links…
               </td>
             </tr>
-          } @empty {
-            <tr hlmTr>
-              <td hlmTd colspan="7" class="text-muted-foreground py-8 text-center">
-                No social media links match the current filters.
-              </td>
-            </tr>
+          } @else {
+            @for (link of links(); track link.id) {
+              <tr
+                hlmTr
+                class="cursor-pointer hover:bg-muted"
+                [attr.tabindex]="0"
+                (click)="openLinkDetail(link)"
+                (keydown.enter)="openLinkDetail(link)"
+              >
+                <td hlmTd class="max-w-72 py-3">
+                  <a
+                    [href]="link.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="hover:underline"
+                    (click)="$event.stopPropagation()"
+                  >
+                    {{ link.url }}
+                  </a>
+                </td>
+                <td hlmTd class="max-w-64 py-3">
+                  {{ link.title || "—" }}
+                </td>
+                <td hlmTd class="py-3">
+                  @if (link.user; as submitter) {
+                    {{ submitter.nickname || submitter.shortId }}
+                  } @else {
+                    —
+                  }
+                </td>
+                <td hlmTd class="py-3">
+                  @if (link.categories.length > 0) {
+                    <div class="flex flex-wrap gap-1">
+                      @for (category of link.categories; track category.name) {
+                        <span hlmBadge variant="outline">{{ category.name }}</span>
+                      }
+                    </div>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td hlmTd class="py-3">
+                  @if (link.completed) {
+                    <span hlmBadge>Completed</span>
+                  } @else {
+                    <span hlmBadge variant="warning">Pending</span>
+                  }
+                </td>
+                <td hlmTd class="py-3 whitespace-nowrap">
+                  {{ link.created | date: "MMM d, y HH:mm" }}
+                </td>
+                <td hlmTd class="py-3">
+                  @if (!link.completed) {
+                    <button
+                      hlmBtn
+                      size="sm"
+                      [disabled]="isLoading()"
+                      (click)="$event.stopPropagation(); markCompleted(link)"
+                    >
+                      Mark completed
+                    </button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr hlmTr>
+                <td hlmTd colspan="7" class="text-muted-foreground py-8 text-center">
+                  No social media links match the current filters.
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
     </div>
+
+    <hlm-sheet
+      [open]="selectedLink() !== null"
+      (openChange)="closeLinkPanel()"
+      side="right"
+      [wide]="true"
+    >
+      <div hlmSheetHeader class="flex items-center justify-between gap-2">
+        <h2 class="text-base font-semibold">Link detail</h2>
+        <button
+          type="button"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+          aria-label="Close"
+          title="Close"
+          (click)="closeLinkPanel()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="size-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div hlmSheetBody class="flex flex-col gap-4">
+        @if (selectedLink(); as link) {
+          <div hlmCard class="gap-3 p-4">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="flex flex-col gap-1.5">
+                <h3 class="text-base font-semibold">{{ link.title || "Untitled link" }}</h3>
+                <a
+                  [href]="link.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary break-all text-sm underline"
+                >
+                  {{ link.url }}
+                </a>
+              </div>
+              @if (link.completed) {
+                <span hlmBadge>Completed</span>
+              } @else {
+                <span hlmBadge variant="warning">Pending</span>
+              }
+            </div>
+            <p class="text-muted-foreground text-xs">
+              Submitted
+              @if (link.user; as submitter) {
+                by {{ submitter.nickname || submitter.shortId }}
+              }
+              on {{ link.created | date: "MMM d, y HH:mm" }}
+            </p>
+            @if (link.completedAt) {
+              <p class="text-muted-foreground text-xs">
+                Marked completed {{ link.completedAt | date: "MMM d, y HH:mm" }}
+              </p>
+            }
+            <div>
+              <p class="text-muted-foreground text-xs font-medium">Categories</p>
+              @if (link.categories.length > 0) {
+                <div class="mt-1.5 flex flex-wrap gap-1">
+                  @for (category of link.categories; track category.name) {
+                    <span hlmBadge variant="outline">{{ category.name }}</span>
+                  }
+                </div>
+              } @else {
+                <p class="text-muted-foreground mt-1 text-xs">—</p>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <div hlmSheetFooter class="flex justify-end gap-2">
+        <button hlmBtn variant="outline" (click)="closeLinkPanel()">Close</button>
+        @if (selectedLink(); as link) {
+          @if (!link.completed) {
+            <button hlmBtn [disabled]="isLoading()" (click)="markCompletedFromPanel()">
+              Mark completed
+            </button>
+          }
+        }
+      </div>
+    </hlm-sheet>
   </main>
 
   <app-footer />

@@ -28,6 +28,7 @@ import {
   ChronologyIndicator,
 } from "../data/insiden.queries";
 import { getReadableTimeDifference } from "../data/elapsed-time.util";
+import { isPendingIncidentStatus } from "../data/incident-status.util";
 
 const SEVERITY_VARIANT: Record<CalendarIncidentSeverity, BadgeVariants["variant"]> = {
   MAJOR: "destructive",
@@ -120,6 +121,11 @@ export class IncidentCardComponent implements OnDestroy {
   private timer: ReturnType<typeof setInterval> | undefined;
 
   protected readonly isOngoing = computed(() => this.incident().endDatetime === null);
+
+  /** DRAFT / PENDING_APPROVAL entries (either casing) — awaiting admin approval. `status` is
+   * optional on the payload (backend exposes it only after the scalar backport), so the badge
+   * stays hidden for LIVE entries and for backends that don't send the field yet. */
+  protected readonly isPending = computed(() => isPendingIncidentStatus(this.incident().status));
 
   /** Backend's own `inaccurate` flag, OR'd with the old app's blanket "anything from before
    * May 2023 is unreliable" heuristic — ported as-is rather than re-derived, since it reflects

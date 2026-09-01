@@ -9,6 +9,9 @@
         @if (isOngoing()) {
           <span hlmBadge variant="destructive">Ongoing</span>
         }
+        @if (isPending()) {
+          <span hlmBadge variant="warning">Pending approval</span>
+        }
       </div>
       <h3 hlmCardTitle>{{ incident().title }}</h3>
     </div>

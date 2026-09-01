@@ -45,10 +45,14 @@ interface ComponentUnderTest {
   isLoading: WritableSignal<boolean>;
   links: WritableSignal<SocialMediaLinkRow[]>;
   categories: WritableSignal<{ id: string; name: string }[]>;
+  selectedLink: WritableSignal<SocialMediaLinkRow | null>;
   onSearchInput(value: string): void;
   onCategoryChange(value: string): void;
   onCompletedFilterChange(value: "any" | "pending" | "completed"): void;
-  markCompleted(link: SocialMediaLinkRow): Promise<void>;
+  markCompleted(link: SocialMediaLinkRow): Promise<boolean>;
+  openLinkDetail(link: SocialMediaLinkRow): void;
+  closeLinkPanel(): void;
+  markCompletedFromPanel(): Promise<void>;
 }
 
 function asTestable(fixture: ComponentFixture<SocialMediaLinksComponent>): ComponentUnderTest {
@@ -206,5 +210,42 @@ describe("SocialMediaLinksComponent", () => {
     await component.markCompleted(makeLink());
 
     expect(component.links().map((l) => l.id)).toEqual(["link-1"]);
+  });
+
+  it("openLinkDetail selects the row for the panel", () => {
+    const component = asTestable(fixture);
+    const link = makeLink({ id: "link-7" });
+
+    component.openLinkDetail(link);
+
+    expect(component.selectedLink()).toEqual(link);
+  });
+
+  it("closeLinkPanel clears the selection", () => {
+    const component = asTestable(fixture);
+    component.openLinkDetail(makeLink());
+    component.closeLinkPanel();
+    expect(component.selectedLink()).toBeNull();
+  });
+
+  it("markCompletedFromPanel completes the link and closes the panel", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("markSocialMediaLinkCompleted")) {
+        return Promise.resolve({ markSocialMediaLinkCompleted: { ok: true } });
+      }
+      if (query.includes("socialMediaLinks")) {
+        return Promise.resolve({ socialMediaLinks: [makeLink({ id: "link-2", completed: true })] });
+      }
+      return Promise.resolve({ calendarIncidentCategories: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.openLinkDetail(makeLink());
+    await component.markCompletedFromPanel();
+
+    expect(callsFor("markSocialMediaLinkCompleted")).toHaveLength(1);
+    expect(component.selectedLink()).toBeNull();
   });
 });

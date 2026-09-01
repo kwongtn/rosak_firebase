@@ -1,6 +1,20 @@
 export type CalendarIncidentSeverity = "MAJOR" | "MINOR" | "OTHERS";
 export type ChronologyIndicator = "GREEN" | "RED" | "BLUE" | "GRAY";
 
+/** Approval lifecycle of a calendar incident (backend `CalendarIncidentStatus` TextChoices:
+ * `draft`, `pending_approval`, `live`, `rejected`). Both the stored (lowercase) and the GraphQL
+ * enum (SCREAMING_SNAKE) casings are represented — TextChoicesField fields serialize as an enum
+ * on the wire, but older payloads can carry the raw stored value. */
+export type CalendarIncidentStatus =
+  | "DRAFT"
+  | "PENDING_APPROVAL"
+  | "LIVE"
+  | "REJECTED"
+  | "draft"
+  | "pending_approval"
+  | "live"
+  | "rejected";
+
 /* ---------------------------------------------------------------------- *
  * calendarIncidents — line/vehicle/station-level service disruptions. A genuinely different
  * backend model from the vehicleIncidents already used on the spotting vehicle-detail page (see
@@ -35,6 +49,14 @@ export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
       impactFactor
       longTerm
       inaccurate
+      # Approval lifecycle state. DEPLOY ORDER: the backend change (expose
+      # 'status: strawberry.auto' on CalendarIncidentScalar — the model already has
+      # CalendarIncident.status TextChoicesField; same backport pattern as the 'created'
+      # field commit cdcb6e8) MUST land before this query ships: GraphQL fails the whole
+      # operation on an unknown field, which would take /insiden down. Until the backend
+      # exposes it, calendarIncidents has NO status filter, so DRAFT/PENDING_APPROVAL rows
+      # are already in the payload — once 'status' arrives the card highlights them.
+      status
       lastUpdated
       lines {
         id
@@ -99,6 +121,9 @@ export interface CalendarIncident {
   impactFactor: number;
   longTerm: boolean;
   inaccurate: boolean;
+  /** Approval lifecycle state; optional — present only once the backend scalar exposes it.
+   * Absent (old backend / older payload) → IncidentCard treats the entry as not pending. */
+  status?: CalendarIncidentStatus;
   lastUpdated: string;
   lines: { id: string; code: string; displayName: string }[];
   vehicles: { id: string; identificationNo: string }[];
