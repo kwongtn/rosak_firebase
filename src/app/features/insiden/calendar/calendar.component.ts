@@ -226,18 +226,21 @@ export class IncidentCalendarComponent implements OnDestroy {
     return gridStart;
   });
 
-  /** Long-term incidents are deliberately excluded here: they already have their own permanent
-   * home in the "Ongoing & Long-Running" section regardless of the selected day, so counting
-   * them again on every single day they happen to span would just repeat the same dot across
-   * an entire month (sometimes several) without telling the viewer anything new. */
+  /** Long-term incidents only show a dot on their first day — they already have their own
+   * permanent home in the "Ongoing & Long-Running" section regardless of the selected day, so
+   * counting them again on every single day they span would just repeat the same dot across an
+   * entire month (sometimes several) without telling the viewer anything new. The first day
+   * still gets a dot so the viewer can discover the incident from the calendar grid. */
   private readonly _countsByDate = computed(() => {
     const map = new Map<string, Map<CalendarIncidentSeverity, number>>();
     const cursor = new Date(this._gridStart());
-    const shortTermIncidents = this.incidents().filter((incident) => !incident.longTerm);
     for (let i = 0; i < 42; i++) {
       const key = dateKeyOf(cursor);
-      for (const incident of shortTermIncidents) {
+      for (const incident of this.incidents()) {
         if (!incidentCoversDate(incident, key)) {
+          continue;
+        }
+        if (incident.longTerm && incident.startDatetime.slice(0, 10) !== key) {
           continue;
         }
         const bySeverity = map.get(key) ?? new Map<CalendarIncidentSeverity, number>();
