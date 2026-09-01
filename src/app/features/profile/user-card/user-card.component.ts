@@ -278,7 +278,7 @@ export class UserCardComponent {
       const idToken = await this.auth.idToken();
       const data = await this.graphql.request<UpdateUserData, UpdateUserVars>(
         UPDATE_USER_MUTATION,
-        { data: { nickname: this.auth.user()?.displayName || "User", spottingDataPublic: value } },
+        { data: { nickname: this._displayedNickname(), spottingDataPublic: value } },
         idToken ? { "firebase-auth-key": idToken } : {},
       );
       this._spottingDataPublicDraft.set(value);
