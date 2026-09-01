@@ -183,40 +183,44 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
                              same per-column widths so the headers stay aligned with the body
                              columns underneath as the body scrolls horizontally. -->
             @if (showFullTable()) {
-              <table
-                hlmTable
-                class="table-fixed min-w-[700px]"
-                [style.grid-template-columns]="gridTemplateColumns"
+              <div
+                class="bg-card sticky z-[5] overflow-hidden"
+                [style.top.px]="stickyOffset() + headerHeight()"
               >
-                <thead hlmTHead>
-                  <tr
-                    hlmTr
-                    class="bg-card sticky z-[5]"
-                    [style.top.px]="stickyOffset() + headerHeight()"
-                  >
-                    @for (column of columns; track column.key) {
-                      <th hlmTh [style.width]="columnWidths[column.key]">
-                        <button
-                          type="button"
-                          class="flex items-center gap-1 hover:underline"
-                          (click)="toggleSort(column.key)"
-                        >
-                          {{ column.label }}
-                          @if (sortColumn() === column.key) {
-                            <span class="text-xs">{{ sortDirection() === "asc" ? "▲" : "▼" }}</span>
-                          }
-                        </button>
-                      </th>
-                    }
-                  </tr>
-                </thead>
-              </table>
-              <div class="relative w-full overflow-x-auto">
                 <table
                   hlmTable
-                  class="table-fixed min-w-[700px]"
-                  [style.grid-template-columns]="gridTemplateColumns"
+                  class="table-fixed"
+                  [style.width.px]="750"
+                  [style.transform]="'translateX(-' + headerScrollLeft() + 'px)'"
                 >
+                  <thead hlmTHead>
+                    <tr hlmTr class="bg-card border-b">
+                      @for (column of columns; track column.key) {
+                        <th hlmTh [style.width]="columnWidths[column.key]">
+                          <button
+                            type="button"
+                            class="flex items-center gap-1 hover:underline"
+                            (click)="toggleSort(column.key)"
+                          >
+                            {{ column.label }}
+                            @if (sortColumn() === column.key) {
+                              <span class="text-xs">{{
+                                sortDirection() === "asc" ? "▲" : "▼"
+                              }}</span>
+                            }
+                          </button>
+                        </th>
+                      }
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+              <div
+                #bodyScroll
+                class="relative w-full overflow-x-auto"
+                (scroll)="onBodyScroll($event)"
+              >
+                <table hlmTable class="table-fixed" [style.width.px]="750">
                   <tbody hlmTBody>
                     @for (vehicle of _sortedVehicles(); track vehicle.id) {
                       <tr hlmTr>
@@ -420,10 +424,19 @@ export class VehicleListComponent {
   };
 
   /** grid-template-columns shorthand for the fixed-layout tables above — one width per column,
-   * in the same order as COLUMNS. */
+   * in the same order as COLUMNS. Kept for backwards-compat but not used in template after
+   * switching to sticky overflow-hidden wrapper + translateX mirroring. */
   protected readonly gridTemplateColumns = Object.keys(this.columnWidths)
     .map((k) => this.columnWidths[k as SortColumn])
     .join(" ");
+
+  /** Mirrors body scrollLeft onto the header via transform — see template comment. */
+  protected readonly headerScrollLeft = signal(0);
+  private readonly bodyScroll = viewChild<ElementRef<HTMLElement>>("bodyScroll");
+
+  protected onBodyScroll(event: Event): void {
+    this.headerScrollLeft.set((event.target as HTMLElement).scrollLeft);
+  }
 
   constructor() {
     const destroyRef = inject(DestroyRef);
