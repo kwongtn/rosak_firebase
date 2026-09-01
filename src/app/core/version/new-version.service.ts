@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/angular";
 import { buildInfo } from "../../../build-info";
 import { ToastService } from "../../ui/toast/toast.service";
 import { isChunkLoadError } from "./chunk-load-error.util";
+import { isSameCommit } from "./version.util";
 
 /** Every 10 minutes — frequent enough that a deploy is noticed well within a session, not so
  * frequent it reads as polling the server aggressively for what's a genuinely rare event. */
@@ -53,7 +54,7 @@ export class NewVersionService {
         return;
       }
       const manifest = (await response.json()) as VersionManifest;
-      if (manifest.hash && manifest.hash !== buildInfo.hash) {
+      if (manifest.hash && !isSameCommit(manifest.hash, buildInfo.hash)) {
         this.hasNewVersion.set(true);
       }
     } catch (err: unknown) {

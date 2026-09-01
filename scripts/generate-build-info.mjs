@@ -16,7 +16,7 @@ function git(command, fallback) {
   }
 }
 
-const hash = git("git rev-parse --short HEAD", "unknown");
+const hash = git("git rev-parse HEAD", "unknown");
 const timestamp = new Date().toISOString();
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
