@@ -1,7 +1,11 @@
 import { Component, computed, effect, inject, signal } from "@angular/core";
 import { form as createForm, FormField, required, schema, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
+import {
+  graphqlResource,
+  GraphQLClient,
+  GraphQLRequestError,
+} from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
@@ -11,11 +15,12 @@ import {
   AssetMultiSelectOption,
 } from "../asset-multi-select/asset-multi-select.component";
 import {
+  INSIDEN_REFERENCE_QUERY,
+  InsidenReferenceQueryData,
   SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
   SubmitSocialMediaLinkData,
   SubmitSocialMediaLinkVars,
 } from "../data/insiden.queries";
-import { InsidenReferenceStore } from "../data/insiden-reference.store";
 import { LinkSheetService } from "../data/link-sheet.service";
 
 interface LinkFormModel {
@@ -138,7 +143,6 @@ export class LinkFormComponent {
   protected readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
-  private readonly referenceStore = inject(InsidenReferenceStore);
 
   protected readonly model = signal(emptyLinkFormModel());
   protected readonly linkForm = createForm(this.model, linkFormSchema);
@@ -150,20 +154,47 @@ export class LinkFormComponent {
 
   readonly isSubmitting = signal(false);
 
-  protected readonly referenceResource = this.referenceStore.resource;
-  protected readonly lineOptions = this.referenceStore.lineOptions;
-  protected readonly stationOptions = this.referenceStore.stationOptions;
-  protected readonly categoryOptions = this.referenceStore.categoryOptions;
+  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
+    query: INSIDEN_REFERENCE_QUERY,
+  }));
 
-  /**
-   * Vehicles filtered by the selected lines (preserves the form's prior behavior). The store's
-   * `vehicleOptions` is unfiltered; we re-derive the filtered view from `linesById` + `vehicleParentCodes`.
-   */
+  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.lines ?? []).map((line) => ({
+      id: line.id,
+      label: `${line.code} — ${line.displayName}`,
+    })),
+  );
+
+  private readonly _linesById = computed(() => {
+    const lines = this.referenceResource.data()?.lines ?? [];
+    return new Map(lines.map((line) => [line.id, line]));
+  });
+
+  /** vehicle id -> deduped parent line codes, computed over ALL lines (not the selected-filtered view). */
+  private readonly _vehicleParentCodes = computed(() => {
+    const lines = [...this._linesById().values()];
+    const map = new Map<string, string[]>();
+    for (const line of lines) {
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          const codes = map.get(vehicle.id);
+          if (codes) {
+            if (!codes.includes(line.code)) codes.push(line.code);
+          } else {
+            map.set(vehicle.id, [line.code]);
+          }
+        }
+      }
+    }
+    return map;
+  });
+
   protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
     const selected = this.selectedLineIds();
-    const linesById = this.referenceStore.linesById();
     const lines =
-      selected.length > 0 ? selected.map((id) => linesById.get(id)) : [...linesById.values()];
+      selected.length > 0
+        ? selected.map((id) => this._linesById().get(id))
+        : [...this._linesById().values()];
     const seen = new Set<string>();
     const options: AssetMultiSelectOption[] = [];
     for (const line of lines) {
@@ -175,13 +206,28 @@ export class LinkFormComponent {
           options.push({
             id: vehicle.id,
             label: vehicle.identificationNo,
-            parentCodes: this.referenceStore.vehicleParentCodes().get(vehicle.id),
+            parentCodes: this._vehicleParentCodes().get(vehicle.id),
           });
         }
       }
     }
     return options;
   });
+
+  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.stations ?? []).map((station) => ({
+      id: station.id,
+      label: station.displayName,
+      parentCodes: (station.lines ?? []).map((l) => l.code),
+    })),
+  );
+
+  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
+      id: category.id,
+      label: category.name,
+    })),
+  );
 
   private _wasSheetOpen = false;
 

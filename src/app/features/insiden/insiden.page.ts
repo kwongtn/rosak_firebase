@@ -2,6 +2,7 @@ import { Component, computed, inject, input, signal, viewChild } from "@angular/
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
+import { graphqlResource } from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
@@ -16,8 +17,8 @@ import { IncidentFormComponent } from "./incident-form/incident-form.component";
 import { LinkFormComponent } from "./link-form/link-form.component";
 import { IncidentSheetService } from "./data/incident-sheet.service";
 import { LinkSheetService } from "./data/link-sheet.service";
-import { InsidenStore } from "./data/insiden.store";
-import { dateKeyOf } from "./data/calendar-date.util";
+import { INSIDEN_INCIDENTS_QUERY, InsidenIncidentsQueryData } from "./data/insiden.queries";
+import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
 
 /**
  * /insiden — line/vehicle/station-level service disruptions (signal failures, breakdowns, train
@@ -80,30 +81,40 @@ export class InsidenPage {
   protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
 
-  protected readonly insidenStore = inject(InsidenStore);
+  protected readonly incidentsResource = graphqlResource<InsidenIncidentsQueryData>(() => ({
+    query: INSIDEN_INCIDENTS_QUERY,
+  }));
 
-  protected readonly incidentsResource = this.insidenStore.resource;
-  protected readonly isLoading = this.insidenStore.isLoading;
-  protected readonly hasError = this.insidenStore.hasError;
-  protected readonly allIncidents = this.insidenStore.allIncidents;
+  protected readonly isLoading = this.incidentsResource.isLoading;
+  protected readonly hasError = this.incidentsResource.hasError;
+
+  protected readonly allIncidents = computed(
+    () => this.incidentsResource.data()?.calendarIncidents ?? [],
+  );
+
+  private readonly _sorted = computed(() =>
+    [...this.allIncidents()].sort((a, b) => b.startDatetime.localeCompare(a.startDatetime)),
+  );
 
   /** Everything covering the selected day (see calendar-date.util's coverage semantics —
-   * multi-day incidents show here on every day they span, not just their start day). The store's
-   * `dayIncidents` is a date-parameterised method; wrap it so the template API `dayIncidents()`
-   * is unchanged. */
-  protected readonly dayIncidents = computed(() =>
-    this.insidenStore.dayIncidents(this.selectedDate()),
-  );
+   * multi-day incidents show here on every day they span, not just their start day). */
+  protected readonly dayIncidents = computed(() => {
+    const date = this.selectedDate();
+    return this._sorted().filter((incident) => incidentCoversDate(incident, date));
+  });
 
   /** Still-unresolved incidents NOT already covering the selected day — kept out of this list
    * once they show up in `dayIncidents()` instead, so nothing appears twice on screen. Gated on
    * `endDatetime === null` alone: `longTerm` is a separate, independent classification (an admin
    * judgment call shown as its own badge on the card, see IncidentCardComponent) rather than a
    * synonym for "unresolved" — a long-term incident that has since been given an end date is
-   * resolved and must drop out of this section like any other, not stay pinned forever. The
-   * store's `pinned` is a date-parameterised method; wrap it so the template API `pinned()` is
-   * unchanged. */
-  protected readonly pinned = computed(() => this.insidenStore.pinned(this.selectedDate()));
+   * resolved and must drop out of this section like any other, not stay pinned forever. */
+  protected readonly pinned = computed(() => {
+    const date = this.selectedDate();
+    return this._sorted().filter(
+      (incident) => incident.endDatetime === null && !incidentCoversDate(incident, date),
+    );
+  });
 
   /** Routes the selection rather than just writing to a local signal, so the viewed day is a
    * real, shareable/bookmarkable URL (and Back/Forward walks through previously viewed days). */

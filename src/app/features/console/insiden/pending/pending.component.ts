@@ -28,7 +28,6 @@ import {
   createTrailingDebounce,
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
-import { linesLabel } from "../../../../core/util/lines-label.util";
 
 const SEVERITY_VARIANT: Record<PendingIncident["severity"], BadgeVariants["variant"]> = {
   MAJOR: "destructive",
@@ -74,7 +73,6 @@ export class PendingIncidentsComponent {
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly searchDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
-  protected readonly linesLabel = linesLabel;
 
   protected readonly rows = signal<PendingIncident[]>([]);
   protected readonly isLoading = signal(false);
@@ -88,12 +86,6 @@ export class PendingIncidentsComponent {
 
   constructor() {
     this.load();
-  }
-
-  /** Type-safe value extraction for change/input events. Avoids `$any()` and the
-   * inline `as` cast that Angular's template parser rejects inside event bindings. */
-  protected eventValue(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   }
 
   protected severityVariant(severity: PendingIncident["severity"]): BadgeVariants["variant"] {

@@ -1,11 +1,10 @@
 import { Routes } from "@angular/router";
 import { SpottingLinesStore } from "./data/spotting-lines.store";
-import { SpottingLineDataStore } from "./data/spotting-line-data.store";
 
 export const SPOTTING_ROUTES: Routes = [
   {
     path: "",
-    providers: [SpottingLinesStore, SpottingLineDataStore],
+    providers: [SpottingLinesStore],
     loadComponent: () =>
       import("./spotting-shell/spotting-shell.page").then((m) => m.SpottingShellPage),
     children: [

@@ -39,7 +39,7 @@ export class HoverPreloadStrategy implements PreloadingStrategy {
   }
 
   /** Standard preloading strategy interface - used by Angular router. */
-  preload(route: Route, load: () => Observable<unknown>): Observable<unknown> {
+  preload(route: Route, load: () => Observable<any>): Observable<any> {
     // Only preload if explicitly marked with data.preload === 'hover'
     // and if we've been told to preload it via preloadRoute()
     if (route.data?.["preload"] === "hover" && this.preloadedRoutes.has(route.path ?? "")) {

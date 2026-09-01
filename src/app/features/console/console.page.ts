@@ -31,7 +31,6 @@ import {
   MarkAsReadData,
   MarkAsReadVars,
 } from "./data/console.queries";
-import { vehicleLinesLabel } from "../../core/util/lines-label.util";
 
 const PAGE_SIZE = 100;
 
@@ -119,7 +118,6 @@ export class ConsolePage {
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly recaptcha = inject(ReCaptchaV3Service);
-  protected readonly vehicleLinesLabel = vehicleLinesLabel;
 
   protected readonly backendUrl = environment.backendUrl;
   protected readonly statusOptions = STATUS_OPTIONS;
@@ -176,12 +174,6 @@ export class ConsolePage {
     const raw = (event.target as HTMLSelectElement).value;
     const value = raw === "any" ? undefined : raw === "yes";
     this.filterForm.update((f) => ({ ...f, [field]: value }));
-  }
-
-  /** Type-safe value extraction for change/input events. Avoids `$any()` and the
-   * inline `as` cast that Angular's template parser rejects inside event bindings. */
-  protected eventValue(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   }
 
   protected search(): void {
