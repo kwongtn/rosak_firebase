@@ -11,6 +11,7 @@ import {
   CONSOLE_CATEGORIES_QUERY,
   MARK_LINK_COMPLETED_MUTATION,
   SOCIAL_MEDIA_LINKS_QUERY,
+  UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
   type SocialMediaLinkRow,
 } from "../data/insiden-console.queries";
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
@@ -34,7 +35,10 @@ function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkR
     completed: false,
     completedAt: null,
     user: { nickname: "Zul", shortId: "abcd1234" },
-    categories: [{ name: "Disruption" }],
+    lines: [{ id: "l1", code: "KJL", displayName: "Kelana Jaya Line" }],
+    vehicles: [{ id: "v1", identificationNo: "V-123" }],
+    stations: [{ id: "s1", displayName: "KL Sentral" }],
+    categories: [{ id: "c1", name: "Disruption" }],
     ...overrides,
   };
 }
@@ -46,6 +50,15 @@ interface ComponentUnderTest {
   links: WritableSignal<SocialMediaLinkRow[]>;
   categories: WritableSignal<{ id: string; name: string }[]>;
   selectedLink: WritableSignal<SocialMediaLinkRow | null>;
+  editUrl: WritableSignal<string>;
+  editTitle: WritableSignal<string>;
+  urlTouched: WritableSignal<boolean>;
+  isEditing: WritableSignal<boolean>;
+  canSave: () => boolean;
+  selectedLineIds: WritableSignal<string[]>;
+  selectedVehicleIds: WritableSignal<string[]>;
+  selectedStationIds: WritableSignal<string[]>;
+  selectedCategoryIds: WritableSignal<string[]>;
   onSearchInput(value: string): void;
   onCategoryChange(value: string): void;
   onCompletedFilterChange(value: "any" | "pending" | "completed"): void;
@@ -53,6 +66,9 @@ interface ComponentUnderTest {
   openLinkDetail(link: SocialMediaLinkRow): void;
   closeLinkPanel(): void;
   markCompletedFromPanel(): Promise<void>;
+  onEditUrlInput(value: string): void;
+  onEditTitleInput(value: string): void;
+  saveLinkEdit(): Promise<void>;
 }
 
 function asTestable(fixture: ComponentFixture<SocialMediaLinksComponent>): ComponentUnderTest {
@@ -125,8 +141,8 @@ describe("SocialMediaLinksComponent", () => {
   });
 
   it("debounces typing and refetches once with the trimmed term after 300ms", async () => {
-    vi.useFakeTimers();
     await initialLoadsSettled(asTestable(fixture));
+    vi.useFakeTimers();
     requestMock.mockClear();
 
     const component = asTestable(fixture);
@@ -247,5 +263,99 @@ describe("SocialMediaLinksComponent", () => {
 
     expect(callsFor("markSocialMediaLinkCompleted")).toHaveLength(1);
     expect(component.selectedLink()).toBeNull();
+  });
+
+  it("openLinkDetail prefills the edit form from the selected row", () => {
+    const component = asTestable(fixture);
+    const link = makeLink({
+      url: "https://x.com/prasarana/status/2",
+      title: "Updated title",
+      lines: [{ id: "l9", code: "MRL", displayName: "Monorail" }],
+      vehicles: [{ id: "v9", identificationNo: "V-999" }],
+      stations: [{ id: "s9", displayName: "KLCC" }],
+      categories: [{ id: "c9", name: "Incident" }],
+    });
+
+    component.openLinkDetail(link);
+
+    expect(component.selectedLink()).toEqual(link);
+    expect(component.editUrl()).toBe("https://x.com/prasarana/status/2");
+    expect(component.editTitle()).toBe("Updated title");
+    expect(component.isEditing()).toBe(true);
+    expect(component.selectedLineIds()).toEqual(["l9"]);
+    expect(component.selectedVehicleIds()).toEqual(["v9"]);
+    expect(component.selectedStationIds()).toEqual(["s9"]);
+    expect(component.selectedCategoryIds()).toEqual(["c9"]);
+  });
+
+  it("closeLinkPanel clears the selection and resets the edit form", () => {
+    const component = asTestable(fixture);
+    component.openLinkDetail(makeLink());
+    component.onEditUrlInput("https://example.com/status/3");
+
+    component.closeLinkPanel();
+
+    expect(component.selectedLink()).toBeNull();
+    expect(component.isEditing()).toBe(false);
+    expect(component.editUrl()).toBe("");
+    expect(component.editTitle()).toBe("");
+    expect(component.selectedLineIds()).toEqual([]);
+    expect(component.selectedVehicleIds()).toEqual([]);
+    expect(component.selectedStationIds()).toEqual([]);
+    expect(component.selectedCategoryIds()).toEqual([]);
+  });
+
+  it("saveLinkEdit calls the update mutation with the complete form state", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    const link = makeLink();
+    component.links.set([link]);
+    component.openLinkDetail(link);
+    component.onEditUrlInput("https://x.com/prasarana/status/42");
+    component.onEditTitleInput("Fixed alert");
+    component.selectedLineIds.set(["l1", "l2"]);
+    component.selectedCategoryIds.set(["c1", "c2"]);
+
+    await component.saveLinkEdit();
+
+    const mutationCalls = callsFor("updateSocialMediaLink");
+    expect(mutationCalls).toHaveLength(1);
+    const [, vars] = mutationCalls[0];
+    expect(vars).toEqual({
+      socialMediaLinkId: "link-1",
+      input: {
+        url: "https://x.com/prasarana/status/42",
+        title: "Fixed alert",
+        lineIds: ["l1", "l2"],
+        vehicleIds: ["v1"],
+        stationIds: ["s1"],
+        categoryIds: ["c1", "c2"],
+      },
+    });
+    expect(component.links()[0].url).toBe("https://x.com/prasarana/status/42");
+    expect(component.selectedLink()?.title).toBe("Fixed alert");
+    expect(component.selectedLink()?.categories.map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  it("saveLinkEdit refuses to fire without a URL", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    component.openLinkDetail(makeLink());
+    component.onEditUrlInput("   ");
+
+    await component.saveLinkEdit();
+
+    expect(callsFor("updateSocialMediaLink")).toHaveLength(0);
+    expect(component.urlTouched()).toBe(true);
   });
 });

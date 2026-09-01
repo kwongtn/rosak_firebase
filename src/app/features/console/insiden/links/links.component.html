@@ -217,7 +217,7 @@
               <p class="text-muted-foreground text-xs font-medium">Categories</p>
               @if (link.categories.length > 0) {
                 <div class="mt-1.5 flex flex-wrap gap-1">
-                  @for (category of link.categories; track category.name) {
+                  @for (category of link.categories; track category.id) {
                     <span hlmBadge variant="outline">{{ category.name }}</span>
                   }
                 </div>
@@ -226,13 +226,107 @@
               }
             </div>
           </div>
+
+          <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); saveLinkEdit()">
+            <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
+              <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                Link
+              </h3>
+
+              <label class="flex flex-col gap-1.5 text-sm">
+                URL
+                <input
+                  hlmInput
+                  type="url"
+                  placeholder="https://x.com/prasarana/status/…"
+                  [value]="editUrl()"
+                  (input)="onEditUrlInput($any($event.target).value)"
+                />
+                @if (urlTouched() && !editUrl().trim()) {
+                  <p class="text-destructive text-xs">Enter a URL</p>
+                }
+              </label>
+
+              <label class="flex flex-col gap-1.5 text-sm">
+                <span class="flex items-baseline gap-1">
+                  Title
+                  <span class="text-muted-foreground text-xs whitespace-nowrap">(optional)</span>
+                </span>
+                <input
+                  hlmInput
+                  type="text"
+                  placeholder="What is this about?"
+                  [value]="editTitle()"
+                  (input)="onEditTitleInput($any($event.target).value)"
+                />
+              </label>
+            </section>
+
+            <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
+              <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                Tags <span class="normal-case">(optional)</span>
+              </h3>
+
+              @if (referenceResource.hasError()) {
+                <app-error-box
+                  title="Couldn't load tag options"
+                  message="Lines, vehicles, stations and categories are unavailable right now. You can retry, or save the link without them."
+                  [showRetry]="true"
+                  (retry)="referenceResource.reload()"
+                />
+              } @else {
+                <app-asset-multi-select
+                  heading="Lines"
+                  [options]="lineOptions()"
+                  [(selectedIds)]="selectedLineIds"
+                  [isLoading]="referenceResource.isLoading()"
+                  emptyMessage="No lines available."
+                  searchPlaceholder="Search lines"
+                />
+
+                <app-asset-multi-select
+                  heading="Vehicles"
+                  [options]="vehicleOptions()"
+                  [(selectedIds)]="selectedVehicleIds"
+                  [isLoading]="referenceResource.isLoading()"
+                  emptyMessage="No vehicles listed."
+                  searchPlaceholder="Search vehicles"
+                />
+
+                <app-asset-multi-select
+                  heading="Stations"
+                  [options]="stationOptions()"
+                  [(selectedIds)]="selectedStationIds"
+                  [isLoading]="referenceResource.isLoading()"
+                  emptyMessage="No stations available."
+                  searchPlaceholder="Search stations"
+                />
+
+                <app-asset-multi-select
+                  heading="Categories"
+                  [options]="categoryOptions()"
+                  [(selectedIds)]="selectedCategoryIds"
+                  [isLoading]="referenceResource.isLoading()"
+                  emptyMessage="No categories available."
+                  searchPlaceholder="Search categories"
+                />
+              }
+            </section>
+          </form>
         }
       </div>
       <div hlmSheetFooter class="flex justify-end gap-2">
         <button hlmBtn variant="outline" (click)="closeLinkPanel()">Close</button>
-        @if (selectedLink(); as link) {
+        @if (isEditing() && selectedLink(); as link) {
+          <button hlmBtn [disabled]="isSaving() || !canSave()" (click)="saveLinkEdit()">
+            Save changes
+          </button>
           @if (!link.completed) {
-            <button hlmBtn [disabled]="isLoading()" (click)="markCompletedFromPanel()">
+            <button
+              hlmBtn
+              [disabled]="isSaving() || isLoading()"
+              (click)="markCompletedFromPanel()"
+            >
               Mark completed
             </button>
           }

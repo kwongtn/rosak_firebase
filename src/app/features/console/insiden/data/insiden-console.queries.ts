@@ -195,7 +195,21 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
         nickname
         shortId
       }
+      lines {
+        id
+        code
+        displayName
+      }
+      vehicles {
+        id
+        identificationNo
+      }
+      stations {
+        id
+        displayName
+      }
       categories {
+        id
         name
       }
     }
@@ -210,7 +224,10 @@ export interface SocialMediaLinkRow {
   completed: boolean;
   completedAt: string | null;
   user: { nickname: string; shortId: string } | null;
-  categories: { name: string }[];
+  lines: { id: string; code: string; displayName: string }[];
+  vehicles: { id: string; identificationNo: string }[];
+  stations: { id: string; displayName: string }[];
+  categories: { id: string; name: string }[];
 }
 
 export interface SocialMediaLinksQueryData {
@@ -237,6 +254,33 @@ export interface MarkLinkCompletedVars {
 
 export interface MarkLinkCompletedData {
   markSocialMediaLinkCompleted: { ok: boolean };
+}
+
+/** Admin full edit from the row panel — the backend replaces lines/vehicles/stations/categories
+ *  from the input verbatim (mirrors submitSocialMediaLink's `.set()` semantics), so every
+ *  editable field is sent. */
+export const UPDATE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
+  mutation UpdateSocialMediaLink($socialMediaLinkId: ID!, $input: SocialMediaLinkInput!) {
+    updateSocialMediaLink(socialMediaLinkId: $socialMediaLinkId, input: $input) {
+      ok
+    }
+  }
+`;
+
+export interface UpdateSocialMediaLinkVars {
+  socialMediaLinkId: string;
+  input: {
+    url: string;
+    title?: string | null;
+    lineIds?: string[];
+    vehicleIds?: string[];
+    stationIds?: string[];
+    categoryIds?: string[];
+  };
+}
+
+export interface UpdateSocialMediaLinkData {
+  updateSocialMediaLink: { ok: boolean };
 }
 
 export const CONSOLE_CATEGORIES_QUERY = /* GraphQL */ `

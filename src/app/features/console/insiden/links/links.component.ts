@@ -1,11 +1,12 @@
 import { DatePipe } from "@angular/common";
-import { Component, inject, signal } from "@angular/core";
+import { Component, computed, inject, signal } from "@angular/core";
 import { AuthService } from "../../../../core/auth/auth.service";
-import { GraphQLClient } from "../../../../core/graphql/graphql-client";
+import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmCardImports } from "../../../../ui/card/card";
+import { ErrorBoxComponent } from "../../../../ui/error-box/error-box";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmNativeSelect } from "../../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../../ui/sheet/sheet";
@@ -14,6 +15,14 @@ import { HlmTableImports } from "../../../../ui/table/table";
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { ConsoleNavComponent } from "../../console-nav.component";
+import {
+  AssetMultiSelectComponent,
+  type AssetMultiSelectOption,
+} from "../../../insiden/asset-multi-select/asset-multi-select.component";
+import {
+  INSIDEN_REFERENCE_QUERY,
+  type InsidenReferenceQueryData,
+} from "../../../insiden/data/insiden.queries";
 import {
   CONSOLE_CATEGORIES_QUERY,
   ConsoleCategoriesQueryData,
@@ -24,6 +33,9 @@ import {
   SocialMediaLinkRow,
   SocialMediaLinksQueryData,
   SocialMediaLinksQueryVars,
+  UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+  UpdateSocialMediaLinkData,
+  UpdateSocialMediaLinkVars,
 } from "../data/insiden-console.queries";
 import {
   SEARCH_DEBOUNCE_MS,
@@ -43,15 +55,24 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
  * /console/insiden/links — triage queue for crowd-submitted social media
  * posts. Text search (URL + title, matched server-side) is debounced; the
  * category dropdown and the All/Pending/Completed status select refetch
- * immediately. Mark-completed calls the admin mutation and reloads so the
- * row's completion state and timestamp come back as server truth.
+ * immediately.
+ *
+ * Row click opens a fully editable panel: the same field set as "Submit a
+ * link" (URL required, title optional, lines/vehicles/stations/categories
+ * multi-selects) pre-filled from the selected row. Save calls the IsAdmin
+ * `updateSocialMediaLink` — the backend replaces the M2M sets verbatim, so
+ * every editable field is sent — then patches the row locally. Mark-completed
+ * calls the admin mutation and reloads so the row's completion state and
+ * timestamp come back as server truth.
  */
 @Component({
   selector: "app-console-social-media-links",
   imports: [
     AppNavComponent,
     AppFooterComponent,
+    AssetMultiSelectComponent,
     DatePipe,
+    ErrorBoxComponent,
     HlmBadge,
     HlmButton,
     HlmInput,
@@ -85,6 +106,124 @@ export class SocialMediaLinksComponent {
   protected readonly completedFilterLabel = COMPLETED_LABEL;
 
   protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
+
+  /** Edit form state — same signals as LinkFormComponent's fields, driven by
+   * the console's own sheet instead of LinkSheetService. */
+  protected readonly editUrl = signal("");
+  protected readonly editTitle = signal("");
+  protected readonly urlTouched = signal(false);
+  protected readonly isEditing = signal(false);
+  protected readonly isSaving = signal(false);
+
+  protected readonly selectedLineIds = signal<string[]>([]);
+  protected readonly selectedVehicleIds = signal<string[]>([]);
+  protected readonly selectedStationIds = signal<string[]>([]);
+  protected readonly selectedCategoryIds = signal<string[]>([]);
+
+  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
+    query: INSIDEN_REFERENCE_QUERY,
+  }));
+
+  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.lines ?? []).map((line) => ({
+      id: line.id,
+      label: `${line.code} — ${line.displayName}`,
+    })),
+  );
+
+  private readonly _linesById = computed(() => {
+    const lines = this.referenceResource.data()?.lines ?? [];
+    return new Map(lines.map((line) => [line.id, line]));
+  });
+
+  /** A vehicle's true line memberships, computed over ALL lines (not just the
+   * selected-filtered view vehicleOptions() uses) — a vehicle's parent codes
+   * shouldn't disappear just because its line got unchecked. */
+  private readonly _vehicleParentCodes = computed(() => {
+    const lines = this.referenceResource.data()?.lines ?? [];
+    const map = new Map<string, string[]>();
+    for (const line of lines) {
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          const codes = map.get(vehicle.id);
+          if (codes) {
+            if (!codes.includes(line.code)) {
+              codes.push(line.code);
+            }
+          } else {
+            map.set(vehicle.id, [line.code]);
+          }
+        }
+      }
+    }
+    return map;
+  });
+
+  private readonly _vehiclesById = computed(() => {
+    const map = new Map<string, { id: string; identificationNo: string }>();
+    for (const line of this.referenceResource.data()?.lines ?? []) {
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          map.set(vehicle.id, { id: vehicle.id, identificationNo: vehicle.identificationNo });
+        }
+      }
+    }
+    return map;
+  });
+
+  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
+    const selected = this.selectedLineIds();
+    const lines =
+      selected.length > 0
+        ? selected.map((id) => this._linesById().get(id))
+        : [...this._linesById().values()];
+    const seen = new Set<string>();
+    const options: AssetMultiSelectOption[] = [];
+    for (const line of lines) {
+      if (!line) continue;
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          if (seen.has(vehicle.id)) continue;
+          seen.add(vehicle.id);
+          options.push({
+            id: vehicle.id,
+            label: vehicle.identificationNo,
+            parentCodes: this._vehicleParentCodes().get(vehicle.id),
+          });
+        }
+      }
+    }
+    return options;
+  });
+
+  private readonly _stationsById = computed(
+    () => new Map((this.referenceResource.data()?.stations ?? []).map((s) => [s.id, s])),
+  );
+
+  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.stations ?? []).map((station) => ({
+      id: station.id,
+      label: station.displayName,
+      parentCodes: (station.lines ?? []).map((l) => l.code),
+    })),
+  );
+
+  private readonly _categoriesById = computed(
+    () =>
+      new Map(
+        (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((c) => [c.id, c]),
+      ),
+  );
+
+  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
+      id: category.id,
+      label: category.name,
+    })),
+  );
+
+  /** Mirrors link-form.schema's `required(f.url)` — Save is disabled while the URL is blank. */
+  protected readonly canSave = computed(() => this.editUrl().trim().length > 0);
 
   private appliedSearch: string | undefined;
   private appliedCategoryId = "";
@@ -140,10 +279,111 @@ export class SocialMediaLinksComponent {
 
   protected openLinkDetail(link: SocialMediaLinkRow): void {
     this.selectedLink.set(link);
+    this.isEditing.set(true);
+    this.editUrl.set(link.url);
+    this.editTitle.set(link.title);
+    this.urlTouched.set(false);
+    this.selectedLineIds.set(link.lines.map((line) => line.id));
+    this.selectedVehicleIds.set(link.vehicles.map((vehicle) => vehicle.id));
+    this.selectedStationIds.set(link.stations.map((station) => station.id));
+    this.selectedCategoryIds.set(link.categories.map((category) => category.id));
   }
 
   protected closeLinkPanel(): void {
     this.selectedLink.set(null);
+    this.isEditing.set(false);
+    this.editUrl.set("");
+    this.editTitle.set("");
+    this.urlTouched.set(false);
+    this.selectedLineIds.set([]);
+    this.selectedVehicleIds.set([]);
+    this.selectedStationIds.set([]);
+    this.selectedCategoryIds.set([]);
+  }
+
+  protected onEditUrlInput(value: string): void {
+    this.editUrl.set(value);
+    this.urlTouched.set(true);
+  }
+
+  protected onEditTitleInput(value: string): void {
+    this.editTitle.set(value);
+  }
+
+  /** Full edit — same field set as "Submit a link". The backend replaces
+   *  lines/vehicles/stations/categories from the input verbatim, so the payload
+   *  carries the complete form state, not just the edited scalars. */
+  protected async saveLinkEdit(): Promise<void> {
+    const link = this.selectedLink();
+    if (!link) {
+      return;
+    }
+    if (!this.canSave()) {
+      this.urlTouched.set(true);
+      return;
+    }
+    this.isSaving.set(true);
+    try {
+      const idToken = await this.auth.idToken();
+      await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
+        UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+        {
+          socialMediaLinkId: link.id,
+          input: {
+            url: this.editUrl(),
+            title: this.editTitle() || null,
+            lineIds: this.selectedLineIds(),
+            vehicleIds: this.selectedVehicleIds(),
+            stationIds: this.selectedStationIds(),
+            categoryIds: this.selectedCategoryIds(),
+          },
+        },
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      const updated = this.buildUpdatedLink(link);
+      this.links.update((list) =>
+        list.map((existing) => (existing.id === link.id ? updated : existing)),
+      );
+      this.selectedLink.set(updated);
+      this.toast.success("Link updated", updated.url);
+    } catch (err) {
+      this.toast.error(
+        "Couldn't save changes",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  /** Rebuilds the local row from the saved form state so the table row and the
+   *  detail card show exactly what the backend now holds. Preference goes to
+   *  reference data (it carries the display labels); anything the reference set
+   *  doesn't know yet falls back to the row's own objects. */
+  private buildUpdatedLink(link: SocialMediaLinkRow): SocialMediaLinkRow {
+    const resolve = <T extends { id: string }>(
+      ids: string[],
+      current: T[],
+      lookup: (id: string) => T | undefined,
+    ): T[] =>
+      ids
+        .map((id) => lookup(id) ?? current.find((item) => item.id === id))
+        .filter((x): x is T => x !== undefined);
+    const linesById = this._linesById();
+    const vehiclesById = this._vehiclesById();
+    const stationsById = this._stationsById();
+    const categoriesById = this._categoriesById();
+    return {
+      ...link,
+      url: this.editUrl(),
+      title: this.editTitle(),
+      lines: resolve(this.selectedLineIds(), link.lines, (id) => linesById.get(id)),
+      vehicles: resolve(this.selectedVehicleIds(), link.vehicles, (id) => vehiclesById.get(id)),
+      stations: resolve(this.selectedStationIds(), link.stations, (id) => stationsById.get(id)),
+      categories: resolve(this.selectedCategoryIds(), link.categories, (id) =>
+        categoriesById.get(id),
+      ),
+    };
   }
 
   protected async markCompletedFromPanel(): Promise<void> {
