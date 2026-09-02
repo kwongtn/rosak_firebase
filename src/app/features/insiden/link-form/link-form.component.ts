@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from "@angular/core";
+import { Component, computed, effect, inject, input, signal } from "@angular/core";
 import { form as createForm, FormField, required, schema, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import {
@@ -139,6 +139,12 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
   `,
 })
 export class LinkFormComponent {
+  /** Line ids to pre-select in the Lines multi-select when this form is opened — used by the
+   * /spotting/:lineId/details "Situasi" tab (hosts this form with `[defaultLineIds]="[lineId()]"`
+   * so a submit is tagged to the line being viewed). Optional: the /insiden usage leaves it
+   * absent and nothing is pre-selected. */
+  readonly defaultLineIds = input<string[]>([]);
+
   protected readonly sheet = inject(LinkSheetService);
   protected readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
@@ -230,6 +236,11 @@ export class LinkFormComponent {
   );
 
   private _wasSheetOpen = false;
+  /** True once `defaultLineIds` has been applied during the current open session — a late-arriving
+   * reference response must not stomp a selection the user made meanwhile, and `clear()` (footer
+   * "Clear form", successful submit) must not be immediately undone by re-applying. Reset on
+   * close so the NEXT open re-applies. */
+  private _defaultsApplied = false;
 
   constructor() {
     effect(() => {
@@ -238,6 +249,22 @@ export class LinkFormComponent {
         this.clear();
       }
       this._wasSheetOpen = isOpen;
+    });
+
+    // Pre-select defaultLineIds once per open, but only once the reference data is actually
+    // present — the ids must exist in the Lines options to be selectable at all.
+    effect(() => {
+      if (!this.sheet.isOpen()) {
+        this._defaultsApplied = false;
+        return;
+      }
+      const defaults = this.defaultLineIds();
+      if (this._defaultsApplied || defaults.length === 0 || !this.referenceResource.data()) {
+        return;
+      }
+      const knownIds = (this.referenceResource.data()?.lines ?? []).map((line) => line.id);
+      this.selectedLineIds.set(defaults.filter((id) => knownIds.includes(id)));
+      this._defaultsApplied = true;
     });
   }
 

@@ -12,6 +12,7 @@ import {
   viewChild,
   viewChildren,
 } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { VehicleStatus } from "../../../../core/graphql/types";
 import {
@@ -146,7 +147,13 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
  */
 @Component({
   selector: "app-vehicle-spotting-grid",
-  imports: [HlmSkeleton, RetryBannerComponent, VehicleStatusBadge, SpottingCountTooltipComponent],
+  imports: [
+    RouterLink,
+    HlmSkeleton,
+    RetryBannerComponent,
+    VehicleStatusBadge,
+    SpottingCountTooltipComponent,
+  ],
   template: `
     <div class="flex flex-col gap-3">
       @if (isAwaitingCurrentView()) {
@@ -248,7 +255,12 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                     <tr [style.height.px]="ROW_H">
                       <td class="bg-card border-b px-2 py-1 whitespace-nowrap">
                         <div class="flex items-center justify-between gap-2">
-                          <span>{{ row.identificationNo }}</span>
+                          <a
+                            [routerLink]="['/spotting', lineId(), 'vehicle', row.vehicleId]"
+                            class="hover:underline"
+                          >
+                            {{ row.identificationNo }}
+                          </a>
                           <vehicle-status-badge [status]="row.status" />
                         </div>
                       </td>

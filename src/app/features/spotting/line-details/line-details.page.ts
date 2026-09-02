@@ -9,9 +9,10 @@ import {
   signal,
   viewChild,
 } from "@angular/core";
-import { RouterLink } from "@angular/router";
+import { Router, RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { observeHeight } from "../../../core/dom/observe-height";
+import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
@@ -30,11 +31,29 @@ import { FleetSummaryComponent } from "../line-overview/fleet-summary/fleet-summ
 import { VehicleSpottingGridComponent } from "./vehicle-spotting-grid/vehicle-spotting-grid.component";
 import { StationAssetsSectionComponent } from "./station-assets-section/station-assets-section.component";
 import { VehicleStatusTrendComponent } from "./vehicle-status-trend/vehicle-status-trend.component";
+import { SituasiSectionComponent } from "./situasi-section/situasi-section.component";
+import { InsidenSectionComponent } from "./insiden-section/insiden-section.component";
 
 /** How far back to look for the earliest month with any real data — generous rather than exact;
  * a line whose actual history starts later than this just reports every earlier month as having
  * no data too, which still correctly greys out "back" once there's truly nothing further. */
 const BOUNDS_FLOOR = "2015-01-01";
+
+/** The four /details tabs, in display order. Ids mirror the optional `tab` URL segment
+ * (e.g. /spotting/L1/details/situasi); the "spotting" tab is the canonical bare
+ * /spotting/:lineId/details URL with NO segment — see `onTabSelected`. */
+const LINE_DETAILS_TABS = [
+  { id: "spotting", label: "Spotting" },
+  { id: "assets", label: "Assets" },
+  { id: "situasi", label: "Situasi" },
+  { id: "insiden", label: "Insiden" },
+] as const;
+
+type LineDetailsTabId = (typeof LINE_DETAILS_TABS)[number]["id"];
+
+function isLineDetailsTabId(value: string | undefined): value is LineDetailsTabId {
+  return value != null && LINE_DETAILS_TABS.some((tab) => tab.id === value);
+}
 
 function firstOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
@@ -60,16 +79,24 @@ const MONTH_ONLY_LABEL = new Intl.DateTimeFormat("en-US", { month: "long", timeZ
 const WINDOW_SIZE = 3;
 
 /**
- * /spotting/:lineId/details — a line's own analytics page: key fleet numbers, a vehicle × date
- * spotting-intensity grid showing a rolling WINDOW_SIZE-month window (3 months ending "now" by
- * default), navigable by 1 or 3 months, and a first look at station-level assets (lifts/
- * escalators) ahead of a future volunteer-reporting feature — see StationAssetsSectionComponent's
- * own doc comment for exactly what that is and isn't yet.
+ * /spotting/:lineId/details — a line's own analytics page, as four URL-reflected tabs (the `tab`
+ * route segment, optional: /details alone IS the Spotting tab). Spotting holds the key fleet
+ * numbers and the vehicle × date spotting-intensity grid (a rolling WINDOW_SIZE-month window,
+ * navigable by 1 or 3 months); Assets holds station-level assets (lifts/escalators — see
+ * StationAssetsSectionComponent's own doc comment for exactly what that is and isn't yet);
+ * Situasi holds line-tagged submitted links (with the submit-link sheet) and Insiden holds
+ * line-tagged incidents — the latter two poll for fresh data on their own cadence.
+ *
+ * Tab switching is a real route navigation (default RouteReuseStrategy keeps THIS component
+ * instance alive between /details and /details/:tab because the matcher in spotting.routes.ts
+ * makes them one route — see optional-param-matcher.ts's doc comment), so no resource is
+ * refetched or destroyed when a tab flips; the panes simply mount/unmount via @if.
  */
 @Component({
   selector: "app-line-details",
   imports: [
     RouterLink,
+    HlmBadge,
     HlmButton,
     HlmSkeleton,
     RetryBannerComponent,
@@ -78,6 +105,8 @@ const WINDOW_SIZE = 3;
     VehicleSpottingGridComponent,
     StationAssetsSectionComponent,
     VehicleStatusTrendComponent,
+    SituasiSectionComponent,
+    InsidenSectionComponent,
   ],
   template: `
     <div class="flex flex-col gap-6">
@@ -114,86 +143,108 @@ const WINDOW_SIZE = 3;
         }
       </div>
 
-      @if (vehicleTypesResource.isLoading()) {
-        <div hlmSkeleton class="h-24 w-full"></div>
-      } @else if (vehicleTypesResource.hasError()) {
-        <app-retry-banner
-          [resource]="vehicleTypesResource"
-          message="Couldn't load this line's fleet."
-        />
-      } @else {
-        <section class="flex flex-col gap-3">
-          <h2 class="text-lg font-semibold">Key Line Data</h2>
-          <app-fleet-summary
-            #fleetSummaryAnchor
-            class="line-details-fleet-summary-anchor"
-            [vehicleTypes]="_vehicleTypes()"
-            [activeStatus]="statusFilter()"
-            (statusSelected)="statusFilter.set($event)"
-          />
-          <app-vehicle-status-trend [lineId]="lineId()" />
-        </section>
-
-        <section class="flex flex-col gap-3">
-          <div
-            #activityControls
-            class="bg-background sticky z-30 -mx-4 flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
-            [style.top.px]="NAV_HEIGHT + titleBarHeight()"
+      <!-- Tab bar — deliberately NOT sticky: only the title bar sticks, this row scrolls
+                 away with the page content like any other adornment under it. -->
+      <nav class="flex flex-wrap gap-2.5">
+        @for (tab of tabs; track tab.id) {
+          <button
+            type="button"
+            hlmBadge
+            [variant]="activeTab() === tab.id ? 'default' : 'outline'"
+            class="cursor-pointer px-4 py-2 text-sm"
+            (click)="onTabSelected(tab.id)"
           >
-            <h2 class="text-lg font-semibold">Spotting Activity</h2>
-            <div class="flex items-center gap-1.5">
-              <button
-                hlmBtn
-                variant="outline"
-                size="sm"
-                [disabled]="!canGoBack(3)"
-                (click)="shiftMonths(-3)"
-              >
-                «« 3mo
-              </button>
-              <button
-                hlmBtn
-                variant="outline"
-                size="sm"
-                [disabled]="!canGoBack(1)"
-                (click)="shiftMonths(-1)"
-              >
-                « 1mo
-              </button>
-              <span class="min-w-40 text-center text-sm font-medium">{{ windowLabel() }}</span>
-              <button
-                hlmBtn
-                variant="outline"
-                size="sm"
-                [disabled]="!canGoForward(1)"
-                (click)="shiftMonths(1)"
-              >
-                1mo »
-              </button>
-              <button
-                hlmBtn
-                variant="outline"
-                size="sm"
-                [disabled]="!canGoForward(3)"
-                (click)="shiftMonths(3)"
-              >
-                3mo »»
-              </button>
-            </div>
-          </div>
-          <app-vehicle-spotting-grid
-            [lineId]="lineId()"
-            [vehicleTypes]="_vehicleTypes()"
-            [months]="windowMonths()"
-            [statusFilter]="statusFilter()"
-            [stickyOffset]="NAV_HEIGHT + titleBarHeight() + activityControlsHeight()"
-          />
-        </section>
+            {{ tab.label }}
+          </button>
+        }
+      </nav>
 
+      @if (activeTab() === "spotting") {
+        @if (vehicleTypesResource.isLoading()) {
+          <div hlmSkeleton class="h-24 w-full"></div>
+        } @else if (vehicleTypesResource.hasError()) {
+          <app-retry-banner
+            [resource]="vehicleTypesResource"
+            message="Couldn't load this line's fleet."
+          />
+        } @else {
+          <section class="flex flex-col gap-3">
+            <h2 class="text-lg font-semibold">Key Line Data</h2>
+            <app-fleet-summary
+              #fleetSummaryAnchor
+              class="line-details-fleet-summary-anchor"
+              [vehicleTypes]="_vehicleTypes()"
+              [activeStatus]="statusFilter()"
+              (statusSelected)="statusFilter.set($event)"
+            />
+            <app-vehicle-status-trend [lineId]="lineId()" />
+          </section>
+
+          <section class="flex flex-col gap-3">
+            <div
+              #activityControls
+              class="bg-background sticky z-30 -mx-4 flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
+              [style.top.px]="NAV_HEIGHT + titleBarHeight()"
+            >
+              <h2 class="text-lg font-semibold">Spotting Activity</h2>
+              <div class="flex items-center gap-1.5">
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  [disabled]="!canGoBack(3)"
+                  (click)="shiftMonths(-3)"
+                >
+                  «« 3mo
+                </button>
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  [disabled]="!canGoBack(1)"
+                  (click)="shiftMonths(-1)"
+                >
+                  « 1mo
+                </button>
+                <span class="min-w-40 text-center text-sm font-medium">{{ windowLabel() }}</span>
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  [disabled]="!canGoForward(1)"
+                  (click)="shiftMonths(1)"
+                >
+                  1mo »
+                </button>
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  [disabled]="!canGoForward(3)"
+                  (click)="shiftMonths(3)"
+                >
+                  3mo »»
+                </button>
+              </div>
+            </div>
+            <app-vehicle-spotting-grid
+              [lineId]="lineId()"
+              [vehicleTypes]="_vehicleTypes()"
+              [months]="windowMonths()"
+              [statusFilter]="statusFilter()"
+              [stickyOffset]="NAV_HEIGHT + titleBarHeight() + activityControlsHeight()"
+            />
+          </section>
+        }
+      } @else if (activeTab() === "assets") {
         <app-station-assets-section
           [lineId]="lineId()"
           [stickyOffset]="NAV_HEIGHT + titleBarHeight()"
         />
+      } @else if (activeTab() === "situasi") {
+        <app-situasi-section [lineId]="lineId()" />
+      } @else if (activeTab() === "insiden") {
+        <app-insiden-section [lineId]="lineId()" />
       }
     </div>
   `,
@@ -201,13 +252,29 @@ const WINDOW_SIZE = 3;
 export class LineDetailsPage {
   readonly lineId = input.required<string>();
 
+  /** The optional `tab` route segment — absent on /spotting/:lineId/details (which is the
+   * canonical Spotting URL), "assets" | "situasi" | "insiden" when one is chosen. Bound via
+   * withComponentInputBinding; the matcher route keeps this instance alive across changes. */
+  readonly tab = input<string | undefined>(undefined, { alias: "tab" });
+
   /** app-nav's own measured height — same constant line-overview.page.ts hardcodes as
    * `top-[61px]`. Every sticky layer on this page stacks below it. */
   protected readonly NAV_HEIGHT = 61;
 
+  protected readonly tabs = LINE_DETAILS_TABS;
+
+  /** Which tab's pane is visible. Unknown/absent values fall back to "spotting" (the canonical
+   * bare URL) rather than redirecting — an unrecognized segment still shows the default pane. */
+  protected readonly activeTab = computed<LineDetailsTabId>(() => {
+    const tab = this.tab();
+    return isLineDetailsTabId(tab) ? tab : "spotting";
+  });
+
   protected readonly linesStore = inject(SpottingLinesStore);
   protected readonly _line = computed(() => this.linesStore.lineById(this.lineId()));
   protected readonly statusFilter = signal<VehicleStatus | null>(null);
+
+  private readonly router = inject(Router);
 
   protected readonly vehicleTypesResource = graphqlResource<
     VehicleTypesQueryData,
@@ -228,7 +295,9 @@ export class LineDetailsPage {
   protected readonly titleBarHeight = signal(0);
 
   /** The "Spotting Activity" heading + month-nav controls bar's own height — the grid's own
-   * sticky header stacks directly beneath this one, at NAV_HEIGHT + titleBarHeight + this. */
+   * sticky header stacks directly beneath this one, at NAV_HEIGHT + titleBarHeight + this.
+   * Only mounted while the Spotting pane is active (observeHeight handles the absent case:
+   * it disconnects and re-observes when the element returns on tab switch back). */
   private readonly activityControls = viewChild("activityControls", { read: ElementRef });
   protected readonly activityControlsHeight = signal(0);
 
@@ -318,6 +387,17 @@ export class LineDetailsPage {
       this.summaryObserver = observer;
     });
     destroyRef.onDestroy(() => this.summaryObserver?.disconnect());
+  }
+
+  /** Routes the tab selection rather than writing a local signal, so the active tab is a real,
+   * shareable/bookmarkable URL — and the canonical Spotting URL deliberately wears NO segment
+   * (no redirect, no trailing /spotting). */
+  protected onTabSelected(tab: LineDetailsTabId): void {
+    const target =
+      tab === "spotting"
+        ? ["/spotting", this.lineId(), "details"]
+        : ["/spotting", this.lineId(), "details", tab];
+    this.router.navigate(target, { queryParamsHandling: "preserve" });
   }
 
   protected canGoBack(steps: number): boolean {
