@@ -15,24 +15,31 @@
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
         @if (isInaccurate()) {
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="size-4 shrink-0 text-amber-500"
-            role="img"
-            title="Timing/details for this entry may be inaccurate."
-            aria-label="Timing/details for this entry may be inaccurate."
-          >
-            <path
-              d="M21.73 18.35 13.7 4.4a2 2 0 0 0-3.4 0L2.27 18.35A2 2 0 0 0 4 21.35h16a2 2 0 0 0 1.73-3Z"
-            />
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-          </svg>
+          <span class="group/flag relative inline-flex shrink-0">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="size-4 text-amber-500"
+              role="img"
+              aria-label="Timing/details for this entry may be inaccurate."
+            >
+              <path
+                d="M21.73 18.35 13.7 4.4a2 2 0 0 0-3.4 0L2.27 18.35A2 2 0 0 0 4 21.35h16a2 2 0 0 0 1.73-3Z"
+              />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+            </svg>
+            <span
+              role="tooltip"
+              class="bg-popover text-popover-foreground pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-md border px-2 py-1 text-xs font-normal whitespace-nowrap opacity-0 shadow-md transition-opacity group-hover/flag:opacity-100"
+            >
+              Timing/details for this entry may be inaccurate.
+            </span>
+          </span>
         }
         <h3 hlmCardTitle>{{ incident().title }}</h3>
       </div>
