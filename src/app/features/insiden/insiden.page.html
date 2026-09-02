@@ -23,76 +23,161 @@
       </div>
     </div>
 
-    @if (isLoading()) {
-      <div class="flex flex-col gap-6 lg:flex-row">
-        <div class="flex flex-col gap-3 lg:w-96">
-          <div class="flex items-center justify-between">
-            <div hlmSkeleton class="h-7 w-40"></div>
-            <div hlmSkeleton class="h-8 w-24"></div>
-          </div>
-          <div hlmSkeleton class="h-80 w-full"></div>
-        </div>
-        <div class="flex flex-1 flex-col gap-4">
-          <div hlmSkeleton class="h-5 w-44"></div>
-          <div hlmSkeleton class="h-24 w-full"></div>
-          <div hlmSkeleton class="h-24 w-full"></div>
-          <div hlmSkeleton class="h-5 w-44"></div>
-          <div hlmSkeleton class="h-24 w-full"></div>
-          <div hlmSkeleton class="h-24 w-full"></div>
-        </div>
-      </div>
-    } @else if (hasError()) {
-      <app-retry-banner [resource]="incidentsResource" message="Couldn't load incidents." />
-    } @else {
-      <div class="flex flex-col gap-6 lg:flex-row">
-        <app-incident-calendar
-          class="lg:w-96"
-          [incidents]="allIncidents()"
-          [selectedDate]="selectedDate()"
-          (daySelected)="onDaySelected($event)"
-        />
+    <nav class="flex flex-wrap gap-2.5">
+      <button
+        hlmBadge
+        [variant]="activeTab() === 'incidents' ? 'default' : 'outline'"
+        class="cursor-pointer px-4 py-2 text-sm"
+        (click)="activeTab.set('incidents')"
+      >
+        Incidents
+      </button>
+      <button
+        hlmBadge
+        [variant]="activeTab() === 'links' ? 'default' : 'outline'"
+        class="cursor-pointer px-4 py-2 text-sm"
+        (click)="activeTab.set('links')"
+      >
+        Submitted Links
+      </button>
+    </nav>
 
-        <div class="flex flex-1 flex-col gap-6">
-          @if (pinned().length > 0) {
+    @if (activeTab() === "incidents") {
+      @if (isLoading()) {
+        <div class="flex flex-col gap-6 lg:flex-row">
+          <div class="flex flex-col gap-3 lg:w-96">
+            <div class="flex items-center justify-between">
+              <div hlmSkeleton class="h-7 w-40"></div>
+              <div hlmSkeleton class="h-8 w-24"></div>
+            </div>
+            <div hlmSkeleton class="h-80 w-full"></div>
+          </div>
+          <div class="flex flex-1 flex-col gap-4">
+            <div hlmSkeleton class="h-5 w-44"></div>
+            <div hlmSkeleton class="h-24 w-full"></div>
+            <div hlmSkeleton class="h-24 w-full"></div>
+            <div hlmSkeleton class="h-5 w-44"></div>
+            <div hlmSkeleton class="h-24 w-full"></div>
+            <div hlmSkeleton class="h-24 w-full"></div>
+          </div>
+        </div>
+      } @else if (hasError()) {
+        <app-retry-banner [resource]="incidentsResource" message="Couldn't load incidents." />
+      } @else {
+        <div class="flex flex-col gap-6 lg:flex-row">
+          <app-incident-calendar
+            class="lg:w-96"
+            [incidents]="allIncidents()"
+            [selectedDate]="selectedDate()"
+            (daySelected)="onDaySelected($event)"
+          />
+
+          <div class="flex flex-1 flex-col gap-6">
+            @if (pinned().length > 0) {
+              <section class="flex flex-col gap-3">
+                <h2 class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                  Ongoing &amp; Long-Running
+                </h2>
+                @for (incident of pinnedApproved(); track incident.id) {
+                  <app-incident-card
+                    [incident]="incident"
+                    (detailsExpandedChange)="onDetailsExpandedChange($event)"
+                  />
+                }
+                @if (pinnedPending().length > 0) {
+                  <button
+                    type="button"
+                    class="flex cursor-pointer items-center gap-1.5 self-start text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+                    [attr.aria-expanded]="pinnedPendingExpanded()"
+                    (click)="pinnedPendingExpanded.set(!pinnedPendingExpanded())"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      class="size-4 shrink-0 transition-transform"
+                      [class.rotate-180]="pinnedPendingExpanded()"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                    Pending Approval ({{ pinnedPending().length }})
+                  </button>
+                  @if (pinnedPendingExpanded()) {
+                    @for (incident of pinnedPending(); track incident.id) {
+                      <app-incident-card
+                        [incident]="incident"
+                        (detailsExpandedChange)="onDetailsExpandedChange($event)"
+                      />
+                    }
+                  }
+                }
+              </section>
+            }
+
             <section class="flex flex-col gap-3">
               <h2 class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-                Ongoing &amp; Long-Running
+                {{ selectedDateObj() | date: "MMMM d, y" : "UTC" }}
               </h2>
-              @for (incident of pinned(); track incident.id) {
+              @if (dayApproved().length === 0 && dayPending().length === 0) {
+                <p class="text-muted-foreground text-sm">No incidents on this day.</p>
+              }
+              @for (incident of dayApproved(); track incident.id) {
                 <app-incident-card
                   [incident]="incident"
                   (detailsExpandedChange)="onDetailsExpandedChange($event)"
                 />
+                <!-- Feed unit: after the 3rd card only, once per section. Hidden while any card is
+                     expanded (2-ad-per-page cap — see expandedDetailsCount in insiden.page.ts). No
+                     between-sections unit: it would exceed the cap together with footerEnd. -->
+                @if ($index === 2) {
+                  <app-ad-slot
+                    [slotId]="insidenFeedSlotId()"
+                    [minHeightPx]="250"
+                    [label]="'Advertisement'"
+                  />
+                }
+              }
+              @if (dayPending().length > 0) {
+                <button
+                  type="button"
+                  class="flex cursor-pointer items-center gap-1.5 self-start text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+                  [attr.aria-expanded]="dayPendingExpanded()"
+                  (click)="dayPendingExpanded.set(!dayPendingExpanded())"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    class="size-4 shrink-0 transition-transform"
+                    [class.rotate-180]="dayPendingExpanded()"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                  Pending Approval ({{ dayPending().length }})
+                </button>
+                @if (dayPendingExpanded()) {
+                  @for (incident of dayPending(); track incident.id) {
+                    <app-incident-card
+                      [incident]="incident"
+                      (detailsExpandedChange)="onDetailsExpandedChange($event)"
+                    />
+                  }
+                }
               }
             </section>
-          }
-
-          <section class="flex flex-col gap-3">
-            <h2 class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-              {{ selectedDateObj() | date: "MMMM d, y" : "UTC" }}
-            </h2>
-            @if (dayIncidents().length === 0) {
-              <p class="text-muted-foreground text-sm">No incidents on this day.</p>
-            }
-            @for (incident of dayIncidents(); track incident.id) {
-              <app-incident-card
-                [incident]="incident"
-                (detailsExpandedChange)="onDetailsExpandedChange($event)"
-              />
-              <!-- Feed unit: after the 3rd card only, once per section. Hidden while any card is
-                   expanded (2-ad-per-page cap — see expandedDetailsCount in insiden.page.ts). No
-                   between-sections unit: it would exceed the cap together with footerEnd. -->
-              @if ($index === 2) {
-                <app-ad-slot
-                  [slotId]="insidenFeedSlotId()"
-                  [minHeightPx]="250"
-                  [label]="'Advertisement'"
-                />
-              }
-            }
-          </section>
+          </div>
         </div>
-      </div>
+      }
+    } @else {
+      <app-links-section />
     }
   </main>
 

@@ -5,6 +5,7 @@ import { AuthService } from "../../core/auth/auth.service";
 import { graphqlResource } from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
+import { HlmBadge } from "../../ui/badge/badge";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
@@ -17,8 +18,14 @@ import { IncidentFormComponent } from "./incident-form/incident-form.component";
 import { LinkFormComponent } from "./link-form/link-form.component";
 import { IncidentSheetService } from "./data/incident-sheet.service";
 import { LinkSheetService } from "./data/link-sheet.service";
-import { INSIDEN_INCIDENTS_QUERY, InsidenIncidentsQueryData } from "./data/insiden.queries";
+import {
+  CalendarIncident,
+  INSIDEN_INCIDENTS_QUERY,
+  InsidenIncidentsQueryData,
+} from "./data/insiden.queries";
 import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
+import { isPendingIncidentStatus } from "./data/incident-status.util";
+import { LinksSectionComponent } from "./links-section/links-section.component";
 
 /**
  * /insiden — line/vehicle/station-level service disruptions (signal failures, breakdowns, train
@@ -32,6 +39,7 @@ import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
   imports: [
     DatePipe,
     HlmButton,
+    HlmBadge,
     HlmSkeleton,
     HlmSheet,
     HlmSheetHeader,
@@ -45,6 +53,7 @@ import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
     IncidentCalendarComponent,
     IncidentFormComponent,
     LinkFormComponent,
+    LinksSectionComponent,
   ],
   templateUrl: "./insiden.page.html",
 })
@@ -53,6 +62,9 @@ export class InsidenPage {
    * rather than redirecting into a dated URL, so the common case doesn't wear a date in its
    * address bar that's just restating "today". */
   readonly dateParam = input<string | undefined>(undefined, { alias: "date" });
+
+  /** Client-side tab state only — no URL/query-param sync, no tab library. */
+  protected readonly activeTab = signal<"incidents" | "links">("incidents");
 
   private readonly router = inject(Router);
 
@@ -115,6 +127,30 @@ export class InsidenPage {
       (incident) => incident.endDatetime === null && !incidentCoversDate(incident, date),
     );
   });
+
+  private readonly _isPending = (incident: CalendarIncident): boolean =>
+    isPendingIncidentStatus(incident.status);
+
+  /** Approve-then-pending splitting for both incident lists (pinned + day): approved render
+   * first, pending collapse behind a "Pending Approval (N)" toggle. "Approved" = not pending
+   * (status may be LIVE or missing entirely — see incident-status.util's graceful fallback). */
+  protected readonly pinnedApproved = computed(() =>
+    this.pinned().filter((incident) => !this._isPending(incident)),
+  );
+  protected readonly pinnedPending = computed(() =>
+    this.pinned().filter((incident) => this._isPending(incident)),
+  );
+  protected readonly dayApproved = computed(() =>
+    this.dayIncidents().filter((incident) => !this._isPending(incident)),
+  );
+  protected readonly dayPending = computed(() =>
+    this.dayIncidents().filter((incident) => this._isPending(incident)),
+  );
+
+  /** Collapsed-by-default toggle state, one per list so expanding the pinned pending approvals
+   * doesn't also expand the (date-scoped) day list's. */
+  protected readonly pinnedPendingExpanded = signal(false);
+  protected readonly dayPendingExpanded = signal(false);
 
   /** Routes the selection rather than just writing to a local signal, so the viewed day is a
    * real, shareable/bookmarkable URL (and Back/Forward walks through previously viewed days). */
