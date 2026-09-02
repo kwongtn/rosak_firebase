@@ -29,6 +29,7 @@ import {
 } from "../data/insiden.queries";
 import { getReadableTimeDifference } from "../data/elapsed-time.util";
 import { isPendingIncidentStatus } from "../data/incident-status.util";
+import { buildChronologyEntries } from "../data/incident-chronology.util";
 
 const SEVERITY_VARIANT: Record<CalendarIncidentSeverity, BadgeVariants["variant"]> = {
   MAJOR: "destructive",
@@ -48,30 +49,6 @@ const CHRONOLOGY_DOT: Record<ChronologyIndicator, string> = {
   BLUE: "bg-blue-500",
   GRAY: "bg-neutral-400",
 };
-
-/** Synthesized when the backend has no chronology entries at all — matches the old app's
- * EventCardComponent fallback, so every incident shows at least a start (and end, if resolved). */
-function defaultChronology(incident: CalendarIncident): CalendarIncident["chronologies"] {
-  const entries: CalendarIncident["chronologies"] = [
-    {
-      order: 0,
-      indicator: "BLUE",
-      datetime: incident.startDatetime,
-      content: "Start of incident",
-      sourceUrl: null,
-    },
-  ];
-  if (incident.endDatetime) {
-    entries.push({
-      order: 1,
-      indicator: "GREEN",
-      datetime: incident.endDatetime,
-      content: "Issue resolved",
-      sourceUrl: null,
-    });
-  }
-  return entries;
-}
 
 /**
  * One line/vehicle/station-level service disruption. Ported from insiden's EventCardComponent —
@@ -139,12 +116,8 @@ export class IncidentCardComponent implements OnDestroy {
     return start.getFullYear() < 2023 || (start.getFullYear() === 2023 && start.getMonth() <= 3);
   });
 
-  protected readonly chronology = computed(() => {
-    const incident = this.incident();
-    const entries =
-      incident.chronologies.length > 0 ? incident.chronologies : defaultChronology(incident);
-    return [...entries].sort((a, b) => a.order - b.order);
-  });
+  /** Sorted timeline rows; unresolved incidents gain a synthetic RED "Ongoing for X" tail entry. */
+  protected readonly chronology = computed(() => buildChronologyEntries(this.incident()));
 
   protected readonly duration = computed(() => {
     const incident = this.incident();
