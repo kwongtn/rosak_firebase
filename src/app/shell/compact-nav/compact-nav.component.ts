@@ -115,7 +115,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
             (mouseleave)="onConsoleMenuLeave()"
           >
             <a
-              routerLink="/console"
+              routerLink="/console/spotting"
               routerLinkActive="font-medium"
               [routerLinkActiveOptions]="{ exact: true }"
               class="text-destructive hover:text-destructive/80"
@@ -199,7 +199,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
           }
           @if (auth.isAdmin()) {
             <a
-              routerLink="/console"
+              routerLink="/console/spotting"
               routerLinkActive="font-medium"
               [routerLinkActiveOptions]="{ exact: true }"
               class="text-destructive hover:text-destructive/80"

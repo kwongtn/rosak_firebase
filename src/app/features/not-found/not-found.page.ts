@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import { Component, PLATFORM_ID, RESPONSE_INIT, computed, inject, signal } from "@angular/core";
 import { Location, isPlatformBrowser } from "@angular/common";
 import { Router, RouterLink } from "@angular/router";
 import { HlmButton } from "../../ui/button/button";
@@ -53,10 +53,13 @@ function hashString(value: string): number {
  * instead gives the same, stable pick on both passes for one dead link, while still varying
  * across different ones — which is the only kind of "random" that actually matters here anyway.
  *
- * `app.routes.server.ts`'s own wildcard entry sets a real HTTP 404 status for this route (SSR
- * only, naturally — a client-side navigation to a dead link can't retroactively change the
- * status of the document response that already loaded) so this doesn't just *look* like a
- * missing page to a person, it *is* one to a crawler or an uptime check too.
+ * `app.routes.server.ts`'s own wildcard entry used to set a real HTTP 404 status for this route,
+ * but that stamped 404 onto matcher-based routes (/gallery, /insiden) too — Angular SSR's route
+ * extraction gives every matcher route the path '**', so they can only ever match the wildcard
+ * server route. The status is set here instead, via RESPONSE_INIT (SSR only, naturally — a
+ * client-side navigation to a dead link can't retroactively change the status of the document
+ * response that already loaded) so this doesn't just *look* like a missing page to a person, it
+ * *is* one to a crawler or an uptime check too.
  */
 @Component({
   selector: "app-not-found",
@@ -137,6 +140,7 @@ export class NotFoundPage {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly responseInit = inject(RESPONSE_INIT);
 
   protected readonly attemptedPath = () => this.router.url;
   protected readonly message = computed(() => {
@@ -148,6 +152,12 @@ export class NotFoundPage {
   protected readonly petPicFailed = signal(false);
 
   constructor() {
+    // SSR only (RESPONSE_INIT is null in the browser): make genuinely unknown routes a real
+    // HTTP 404. See the class doc comment for why this lives here rather than on the wildcard
+    // server route.
+    if (this.responseInit) {
+      this.responseInit.status = 404;
+    }
     if (!this.isBrowser) {
       return;
     }

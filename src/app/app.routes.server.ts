@@ -64,11 +64,15 @@ export const serverRoutes: ServerRoute[] = [
   // the whole tree if any route mode still claims it can. Now that '' has its own entry above,
   // this one only ever matches a genuinely unmatched path (app.routes.ts's own wildcard renders
   // NotFoundPage for it) — not content worth prerendering in the first place — so Server is a
-  // safe, correct substitute either way. `status: 404` is what makes this an *actual* HTTP 404
-  // to a crawler or uptime check, not just a page that reads like one to a person.
+  // safe, correct substitute either way.
+  //
+  // No `status: 404` here: Angular SSR's route extraction gives every matcher-based client route
+  // (/gallery, /insiden) the path '**', so they can only ever match THIS entry in the server
+  // route tree — a `status: 404` here would stamp 404 onto those perfectly valid pages (the
+  // staging /insiden bug). NotFoundPage sets the real HTTP 404 itself via RESPONSE_INIT instead
+  // (see not-found.page.ts), so genuinely unknown paths still 404 to a crawler or uptime check.
   {
     path: "**",
     renderMode: RenderMode.Server,
-    status: 404,
   },
 ];

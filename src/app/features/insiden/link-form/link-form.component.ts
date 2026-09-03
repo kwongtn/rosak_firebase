@@ -55,6 +55,13 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
         </div>
       }
 
+      @if (sheet.context(); as context) {
+        <p class="bg-muted rounded-lg p-3 text-sm">
+          Linking to incident:
+          <span class="font-medium">{{ context.incidentTitle || context.incidentId }}</span>
+        </p>
+      }
+
       <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
         <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Link</h3>
 
@@ -278,6 +285,7 @@ export class LinkFormComponent {
       const ok = await submit(this.linkForm, async () => {
         const m = this.model();
         const idToken = await this.auth.idToken();
+        const context = this.sheet.context();
         const vars: SubmitSocialMediaLinkVars = {
           input: {
             url: m.url,
@@ -286,6 +294,8 @@ export class LinkFormComponent {
             vehicleIds: this.selectedVehicleIds(),
             stationIds: this.selectedStationIds(),
             categoryIds: this.selectedCategoryIds(),
+            // Only when a context is set — `incidentId: null` is a server-side error path.
+            ...(context ? { incidentId: context.incidentId } : {}),
           },
         };
         await this.graphql.request<SubmitSocialMediaLinkData, SubmitSocialMediaLinkVars>(
@@ -316,6 +326,8 @@ export class LinkFormComponent {
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
     this.selectedCategoryIds.set([]);
+    // No stale incident targeting survives into the next open/submission.
+    this.sheet.context.set(null);
     this.linkForm().reset();
   }
 }

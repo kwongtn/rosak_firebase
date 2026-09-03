@@ -19,7 +19,7 @@ npx prettier --write .          # autofix formatting
 
 There is **no ESLint and no `lint` script**. Type checking happens only via `npm run build`.
 
-**Backend** (`rosak_backend`, sibling repo at `/home/kwongtn/rosak_backend` — Django 4.2 +
+**Backend** (`rosak_backend`, sibling repo at `/home/kwongtn/rosak_backend` — Django 5.2 +
 Strawberry GraphQL + Celery, rye-managed). `rye`/`uv` are not on PATH; use the committed `.venv`
 or Docker:
 
@@ -29,7 +29,7 @@ docker compose up                          # full stack: postgis, redis, granian
                                            # celery worker + beat
 .venv/bin/python manage.py makemigrations <app>   # then commit the migration WITH the model change
 .venv/bin/python manage.py migrate
-.venv/bin/python manage.py test            # Django runner — note every */tests.py is empty today
+.venv/bin/python manage.py test            # Django runner — the real suite is pytest under tests/
 ruff check --fix . && ruff format .        # or: pre-commit run --all-files
 celery -A rosak.celery_app worker -l INFO -c 2
 ```
@@ -126,9 +126,10 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
    the model used, e.g. `Co-authored-by: opencode (opencode-go/deepseek-v4-flash)
 <noreply@opencode.ai>` or `Co-authored-by: Claude Code (claude-sonnet-4-5)
 <noreply@anthropic.com>`. Never attribute AI work to a human co-author.
-6. **Known trap**: `adminOnlyGuard` currently `return true`s unconditionally (marked `TEMPORARY`) —
-   `/console` is effectively unguarded today. Don't reason as if it's protected, and don't silently
-   "fix" it as a side effect of unrelated work.
+6. **Resolved trap**: `adminOnlyGuard` was previously a `return true` stub, but is **fixed** — it
+   awaits `auth.whenReady` then returns `auth.isAdmin() ? true : router.createUrlTree(["/spotting"])`
+   (`src/app/core/auth/admin-only.guard.ts:8-14`, commit 29b5d6d). `/console` is genuinely
+   admin-gated. Do not "re-fix" it.
 
 ---
 

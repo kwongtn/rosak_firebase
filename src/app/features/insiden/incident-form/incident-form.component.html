@@ -1,6 +1,8 @@
 <hlm-sheet [open]="sheet.isOpen()" (openChange)="sheet.setOpen($event)" side="right" [wide]="true">
   <div hlmSheetHeader>
-    <h2 class="text-base font-semibold">Report an Incident</h2>
+    <h2 class="text-base font-semibold">
+      {{ isEditing() ? "Edit Incident" : "Report an Incident" }}
+    </h2>
   </div>
   <div hlmSheetBody>
     <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
@@ -117,7 +119,7 @@
         @if (referenceResource.hasError()) {
           <app-error-box
             title="Couldn't load reference data"
-            message="Lines, vehicles and stations are unavailable right now. You can retry, or continue filling in the form without them."
+            message="Lines, vehicles, stations and categories are unavailable right now. You can retry, or continue filling in the form without them."
             [showRetry]="true"
             (retry)="referenceResource.reload()"
           />
@@ -150,6 +152,16 @@
             emptyMessage="No stations available."
             searchPlaceholder="Search stations"
           />
+
+          <app-asset-multi-select
+            heading="Categories"
+            [optional]="true"
+            [options]="categoryOptions()"
+            [(selectedIds)]="selectedCategoryIds"
+            [isLoading]="referenceResource.isLoading()"
+            emptyMessage="No categories available."
+            searchPlaceholder="Search categories"
+          />
         }
       </section>
 
@@ -158,19 +170,31 @@
           <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Chronology
           </h3>
-          <button hlmBtn size="sm" variant="outline" type="button" (click)="addChronology()">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              class="size-4"
-              aria-hidden="true"
+          <div class="flex items-center gap-1">
+            <button
+              hlmBtn
+              size="sm"
+              variant="outline"
+              type="button"
+              [disabled]="chronologies().length === 0"
+              (click)="toggleAllCollapsed()"
             >
-              <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            Add entry
-          </button>
+              {{ allCollapsed() ? "Expand all" : "Collapse all" }}
+            </button>
+            <button hlmBtn size="sm" variant="outline" type="button" (click)="addChronology()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="size-4"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Add entry
+            </button>
+          </div>
         </div>
 
         @for (chronology of chronologies(); track chronology.key; let i = $index) {
@@ -422,7 +446,15 @@
         [disabled]="isSubmitting()"
         (click)="submit()"
       >
-        {{ isSubmitting() ? "Submitting…" : "Submit" }}
+        {{
+          isSubmitting()
+            ? isEditing()
+              ? "Saving…"
+              : "Submitting…"
+            : isEditing()
+              ? "Save changes"
+              : "Submit"
+        }}
       </button>
     </div>
   </div>

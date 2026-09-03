@@ -223,12 +223,13 @@ export class SituasiSectionComponent {
     refreshIntervalToOptionValue(this.polling.intervalMs()),
   );
 
-  /** Newest-first by creation time — the backend returns them in that order already, but sorting
-   * defensively keeps this independent of backend ordering changes. */
+  /** Newest-first by creation time (backend order; sorted defensively). The connection's
+   * first page is what this panel loads — matching the paginated contract of the shared
+   * query (Task 16: no full-dataset link fetches). */
   private readonly _sorted = computed(() =>
-    [...(this.resource.data()?.publicSocialMediaLinks ?? [])].sort((a, b) =>
-      b.created.localeCompare(a.created),
-    ),
+    [...(this.resource.data()?.publicSocialMediaLinks.edges ?? [])]
+      .map((edge) => edge.node)
+      .sort((a, b) => b.created.localeCompare(a.created)),
   );
 
   protected readonly approved = computed(() => this._sorted().filter((link) => link.completed));

@@ -18,6 +18,7 @@ import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
+  CalendarIncident,
   CalendarIncidentSeverity,
   ChronologyIndicator,
   CREATE_CALENDAR_INCIDENT_MUTATION,
@@ -28,6 +29,9 @@ import {
   SUBMIT_CALENDAR_INCIDENT_MUTATION,
   SubmitCalendarIncidentData,
   SubmitCalendarIncidentVars,
+  UPDATE_CALENDAR_INCIDENT_MUTATION,
+  UpdateCalendarIncidentData,
+  UpdateCalendarIncidentVars,
 } from "../data/insiden.queries";
 import { IncidentAiService } from "../data/incident-ai.service";
 import { IncidentSheetService } from "../data/incident-sheet.service";
@@ -37,10 +41,12 @@ import {
   emptyChronology,
   moveChronology,
   removeChronology,
+  setAllCollapsed,
   toggleCollapsed,
   type ChronologyDraft,
 } from "./chronology-list.util";
 import { applyExtractionToChronology } from "./extract-data.util";
+import { incidentToForm } from "./incident-to-form.util";
 import { emptyIncidentFormModel, incidentFormSchema } from "./incident-form.schema";
 import { ExtractedIncidentData } from "../data/incident-ai.service";
 
@@ -128,6 +134,9 @@ export class IncidentFormComponent {
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
+  protected readonly selectedCategoryIds = signal<string[]>([]);
+
+  protected readonly isEditing = computed(() => this.sheet.editTarget() !== null);
 
   protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
     query: INSIDEN_REFERENCE_QUERY,
@@ -145,9 +154,8 @@ export class IncidentFormComponent {
     return new Map(lines.map((line) => [line.id, line]));
   });
 
-  /** A vehicle's true line memberships, built over ALL lines (not just the
-   * selected-filtered view vehicleOptions() uses) — a vehicle's parent codes
-   * shouldn't disappear just because its line got unchecked. */
+  /** vehicle id -> deduped parent line CODES for display, over ALL lines (see
+   * `_vehicleParentLineIds` for the id-based view). */
   private readonly _vehicleParentCodes = computed(() => {
     const lines = this.referenceResource.data()?.lines ?? [];
     const map = new Map<string, string[]>();
@@ -168,12 +176,45 @@ export class IncidentFormComponent {
     return map;
   });
 
+  /** vehicle id -> deduped parent line IDS, used to union preselected vehicles' parents
+   * into the option set so an edit-hydrated vehicle stays visible even when its line is
+   * not among the selected lines (AssetMultiSelect pre-selection caveat). */
+  private readonly _vehicleParentLineIds = computed(() => {
+    const lines = this.referenceResource.data()?.lines ?? [];
+    const map = new Map<string, string[]>();
+    for (const line of lines) {
+      for (const vehicleType of line.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          const ids = map.get(vehicle.id);
+          if (ids) {
+            if (!ids.includes(line.id)) {
+              ids.push(line.id);
+            }
+          } else {
+            map.set(vehicle.id, [line.id]);
+          }
+        }
+      }
+    }
+    return map;
+  });
+
   protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
     const selected = this.selectedLineIds();
-    const lines =
-      selected.length > 0
-        ? selected.map((id) => this._linesById().get(id))
-        : [...this._linesById().values()];
+    const lineFilter = selected.length > 0 ? new Set(selected) : null;
+    // Union the parent lines of currently-selected vehicles into the filter so their
+    // checkboxes stay visible/removable; an incident may tag a vehicle whose parent
+    // line isn't itself selected.
+    if (lineFilter) {
+      for (const vehicleId of this.selectedVehicleIds()) {
+        for (const parentId of this._vehicleParentLineIds().get(vehicleId) ?? []) {
+          lineFilter.add(parentId);
+        }
+      }
+    }
+    const lines = lineFilter
+      ? [...lineFilter].map((id) => this._linesById().get(id))
+      : [...this._linesById().values()];
     const seen = new Set<string>();
     const options: AssetMultiSelectOption[] = [];
     for (const line of lines) {
@@ -201,9 +242,20 @@ export class IncidentFormComponent {
     })),
   );
 
+  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
+    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
+      id: category.id,
+      label: category.name,
+    })),
+  );
+
   private readonly extractStates = signal(new Map<number, ChronologyExtractState>());
 
   private _wasSheetOpen = false;
+  /** Id of the incident already hydrated for the current open session — re-running the
+   * effect (e.g. reference data arriving) must not stomp user edits. Reset whenever the
+   * sheet closes or the target is cleared, so the next open re-hydrates. */
+  private _hydratedIncidentId: string | null = null;
 
   constructor() {
     // Reset the whole draft (including touched state) whenever the sheet closes, so the
@@ -215,6 +267,39 @@ export class IncidentFormComponent {
       }
       this._wasSheetOpen = isOpen;
     });
+
+    // Hydrate from `editTarget` once per open: `IncidentSheetService.open(incident)` is the
+    // Task 12 edit entry point (also callable as `hydrate()` directly). The reference
+    // resource arriving later does NOT re-trigger — the effect only depends on the target.
+    effect(() => {
+      const target = this.sheet.editTarget();
+      if (!this.sheet.isOpen() || !target) {
+        this._hydratedIncidentId = null;
+        return;
+      }
+      if (target.id === this._hydratedIncidentId) {
+        return;
+      }
+      this._hydratedIncidentId = target.id;
+      this.hydrate(target);
+    });
+  }
+
+  /** Public edit entry: maps an incident row onto the full form state (model, chronological
+   * drafts, and the four affected-asset id arrays) via incidentToForm(), replacing any
+   * partially-edited draft. Also adopted by IncidentSheetService.open(incident) hydration. */
+  hydrate(incident: CalendarIncident): void {
+    const mapped = incidentToForm(incident, this.nextKey);
+    this.nextKey += mapped.chronologies.length;
+    this.model.set(mapped.model);
+    this.chronologies.set(mapped.chronologies);
+    this.selectedLineIds.set(mapped.selectedLineIds);
+    this.selectedVehicleIds.set(mapped.selectedVehicleIds);
+    this.selectedStationIds.set(mapped.selectedStationIds);
+    this.selectedCategoryIds.set(mapped.selectedCategoryIds);
+    this.extractStates.set(new Map());
+    this.isSummarizing.set(false);
+    this.incidentForm().reset();
   }
 
   protected isExtracting(key: number): boolean {
@@ -384,6 +469,16 @@ export class IncidentFormComponent {
     this.chronologies.update((list) => toggleCollapsed(list, key));
   }
 
+  /** False for an empty list so the header toggle never offers "Expand all" with nothing to
+   * expand (the button is disabled anyway). */
+  protected readonly allCollapsed = computed(
+    () => this.chronologies().length > 0 && this.chronologies().every((c) => c.collapsed),
+  );
+
+  protected toggleAllCollapsed(): void {
+    this.chronologies.update((list) => setAllCollapsed(list, !this.allCollapsed()));
+  }
+
   protected moveChronologyBy(index: number, offset: -1 | 1): void {
     this.chronologies.update((list) => moveChronology(list, index, index + offset));
   }
@@ -436,11 +531,65 @@ export class IncidentFormComponent {
     }
 
     this.isSubmitting.set(true);
+    const target = this.sheet.editTarget();
+    /** True when the edit created/resumed a DRAFT revision that was chained into the
+     * approval queue (backend returned a revision id). Drives the success toast wording. */
+    let submittedForApproval = false;
     try {
       const ok = await submit(this.incidentForm, async () => {
         const m = this.model();
         const idToken = await this.auth.idToken();
         const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
+        if (target) {
+          const updated = await this.graphql.request<
+            UpdateCalendarIncidentData,
+            UpdateCalendarIncidentVars
+          >(
+            UPDATE_CALENDAR_INCIDENT_MUTATION,
+            {
+              calendarIncidentId: target.id,
+              input: {
+                title: m.title,
+                brief: m.brief,
+                details: m.details || null,
+                startDatetime: new Date(m.startDatetime).toISOString(),
+                endDatetime: m.endDatetime ? new Date(m.endDatetime).toISOString() : null,
+                severity: m.severity as CalendarIncidentSeverity,
+                longTerm: m.longTerm,
+                inaccurate: m.inaccurate,
+                // Echoed, not editable: the backend defaults an omitted impactFactor to 0,
+                // so leaving it out would silently wipe it on every public edit.
+                impactFactor: target.impactFactor ?? 0,
+                lineIds: this.selectedLineIds(),
+                vehicleIds: this.selectedVehicleIds(),
+                stationIds: this.selectedStationIds(),
+                categoryIds: this.selectedCategoryIds(),
+                chronologies: this.chronologies().map((c) => ({
+                  indicator: c.indicator,
+                  datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
+                  sourceUrl: c.sourceUrl || null,
+                  content: c.content || null,
+                })),
+                version: target.version ?? null,
+              },
+            },
+            headers,
+          );
+          // The backend returns a revision id ONLY when the update created/resumed a DRAFT
+          // revision (non-admin editing a LIVE incident, incl. same-actor draft resume).
+          // Chain the submit mutation so the revision reaches the approval queue — otherwise
+          // it sits invisible in DRAFT while the pending queue only shows PENDING_APPROVAL.
+          // Mirrors the create flow's CREATE → SUBMIT chaining for non-admins.
+          if (updated.updateCalendarIncident.id !== null) {
+            submittedForApproval = true;
+            await this.graphql.request<SubmitCalendarIncidentData, SubmitCalendarIncidentVars>(
+              SUBMIT_CALENDAR_INCIDENT_MUTATION,
+              { calendarIncidentId: updated.updateCalendarIncident.id },
+              headers,
+            );
+          }
+          return [];
+        }
         const created = await this.graphql.request<
           CreateCalendarIncidentData,
           CreateCalendarIncidentVars
@@ -459,6 +608,7 @@ export class IncidentFormComponent {
               lineIds: this.selectedLineIds(),
               vehicleIds: this.selectedVehicleIds(),
               stationIds: this.selectedStationIds(),
+              categoryIds: this.selectedCategoryIds(),
               chronologies: this.chronologies().map((c) => ({
                 indicator: c.indicator,
                 datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
@@ -481,12 +631,23 @@ export class IncidentFormComponent {
       });
 
       if (ok) {
-        this.toast.success("Incident submitted", "It will appear once approved.");
+        this.toast.success(
+          target ? "Incident updated" : "Incident submitted",
+          target
+            ? submittedForApproval
+              ? "Your changes were submitted for approval."
+              : "Your changes were saved."
+            : "It will appear once approved.",
+        );
         this.clear();
         this.sheet.close();
       }
     } catch (err) {
       if (err instanceof GraphQLRequestError) {
+        // Backend rejection — e.g. the Task 2 one-open-draft error or the version-mismatch
+        // conflict — is surfaced VERBATIM (no rewriting) and the sheet stays open with the
+        // form state intact so the user can act on what the backend said.
+        this.toast.error("Couldn't save changes", err.message);
         return;
       }
       throw err;
@@ -502,6 +663,8 @@ export class IncidentFormComponent {
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
+    this.selectedCategoryIds.set([]);
+    this.sheet.editTarget.set(null);
     this.incidentForm().reset();
   }
 }

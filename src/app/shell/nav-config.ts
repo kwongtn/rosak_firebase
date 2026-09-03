@@ -4,8 +4,9 @@
 export interface ConsoleLink {
   path: string;
   label: string;
-  /** "/console" is a prefix of every other console route, so it alone needs an exact match —
-   * see console-nav.component.ts, which this mirrors. */
+  /** Only the spotting queue's path is exact — the bare /console redirects to
+   * /console/spotting, so a link to /console would never highlight on the canonical URL.
+   * See console-nav.component.ts, which this mirrors. */
   exact: boolean;
 }
 
@@ -14,7 +15,7 @@ export interface ConsoleLink {
  * compact-nav dropdown/mobile list, so adding a new console section here makes it show up
  * everywhere automatically. */
 export const CONSOLE_LINKS: ConsoleLink[] = [
-  { path: "/console", label: "Spotting Queue", exact: true },
+  { path: "/console/spotting", label: "Spotting Queue", exact: true },
   { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
   { path: "/console/insiden/links", label: "Social Media Links", exact: false },
 ];

@@ -8,11 +8,14 @@ import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
+  APPROVE_CHRONOLOGY_DELETION_MUTATION,
   APPROVE_INCIDENT_MUTATION,
   PENDING_INCIDENTS_QUERY,
+  REJECT_CHRONOLOGY_DELETION_MUTATION,
   REJECT_INCIDENT_MUTATION,
   UPDATE_CALENDAR_INCIDENT_MUTATION,
   type PendingIncident,
+  type PendingIncidentChronology,
 } from "../data/insiden-console.queries";
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
@@ -82,6 +85,10 @@ interface ComponentUnderTest {
   approveFromPanel(): Promise<void>;
   rejectFromPanel(): void;
   savePanelEdit(): Promise<void>;
+  pendingDeletionChronologies(): PendingIncidentChronology[];
+  deletingChronologyId: WritableSignal<string | null>;
+  approveChronologyDeletion(chronology: PendingIncidentChronology): Promise<void>;
+  rejectChronologyDeletion(chronology: PendingIncidentChronology): Promise<void>;
 }
 
 function asTestable(fixture: ComponentFixture<PendingIncidentsComponent>): ComponentUnderTest {
@@ -492,5 +499,129 @@ describe("PendingIncidentsComponent", () => {
 
     expect(callsFor("updateCalendarIncident")).toHaveLength(0);
     expect(component.selectedRow()?.title).toBe("LRT line down");
+  });
+
+  it("pendingDeletionChronologies lists only flagged rows of the selected incident", () => {
+    const component = asTestable(fixture);
+    const row = makeRow({
+      status: "LIVE",
+      chronologies: [
+        {
+          id: "chr-1",
+          order: 0,
+          indicator: "BLUE",
+          datetime: "2026-08-01T08:00:00Z",
+          content: "Marked",
+          sourceUrl: null,
+          status: "pending_deletion",
+        },
+        {
+          id: "chr-2",
+          order: 1,
+          indicator: "GREEN",
+          datetime: "2026-08-01T09:00:00Z",
+          content: "Live row",
+          sourceUrl: null,
+          status: "LIVE",
+        },
+      ],
+    });
+
+    expect(component.pendingDeletionChronologies()).toHaveLength(0);
+    component.openDetail(row);
+    expect(component.pendingDeletionChronologies().map((c) => c.id)).toEqual(["chr-1"]);
+  });
+
+  it("approveChronologyDeletion fires the approve mutation, removes the row, and drops the queue entry", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockResolvedValue({ approveChronologyDeletion: { ok: true } });
+
+    const component = asTestable(fixture);
+    const row = makeRow({
+      status: "LIVE",
+      chronologies: [
+        {
+          id: "chr-1",
+          order: 0,
+          indicator: "BLUE",
+          datetime: "2026-08-01T08:00:00Z",
+          content: "Marked",
+          sourceUrl: null,
+          status: "PENDING_DELETION",
+        },
+      ],
+    });
+    component.rows.set([row]);
+    component.openDetail(row);
+    await component.approveChronologyDeletion(component.pendingDeletionChronologies()[0]);
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(APPROVE_CHRONOLOGY_DELETION_MUTATION);
+    expect(vars).toEqual({ chronologyId: "chr-1" });
+    expect(component.pendingDeletionChronologies()).toHaveLength(0);
+    expect(component.selectedRow()?.chronologies).toHaveLength(0);
+    expect(component.rows()).toHaveLength(0);
+  });
+
+  it("rejectChronologyDeletion reverts the status to LIVE and keeps a PENDING_APPROVAL row queued", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockResolvedValue({ rejectChronologyDeletion: { ok: true } });
+
+    const component = asTestable(fixture);
+    const row = makeRow({
+      status: "PENDING_APPROVAL",
+      chronologies: [
+        {
+          id: "chr-1",
+          order: 0,
+          indicator: "BLUE",
+          datetime: "2026-08-01T08:00:00Z",
+          content: "Marked",
+          sourceUrl: null,
+          status: "PENDING_DELETION",
+        },
+      ],
+    });
+    component.rows.set([row]);
+    component.openDetail(row);
+    await component.rejectChronologyDeletion(component.pendingDeletionChronologies()[0]);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(REJECT_CHRONOLOGY_DELETION_MUTATION);
+    expect(vars).toEqual({ chronologyId: "chr-1" });
+    expect(component.pendingDeletionChronologies()).toHaveLength(0);
+    expect(component.selectedRow()?.chronologies[0].status).toBe("LIVE");
+    expect(component.rows()).toHaveLength(1);
+  });
+
+  it("keeps the row untouched and toasts verbatim when the deletion decision fails", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockRejectedValueOnce(new Error("Chronology was already deleted"));
+
+    const component = asTestable(fixture);
+    const row = makeRow({
+      status: "LIVE",
+      chronologies: [
+        {
+          id: "chr-1",
+          order: 0,
+          indicator: "BLUE",
+          datetime: "2026-08-01T08:00:00Z",
+          content: "Marked",
+          sourceUrl: null,
+          status: "PENDING_DELETION",
+        },
+      ],
+    });
+    component.rows.set([row]);
+    component.openDetail(row);
+    await component.approveChronologyDeletion(component.pendingDeletionChronologies()[0]);
+
+    expect(component.pendingDeletionChronologies().map((c) => c.id)).toEqual(["chr-1"]);
+    expect(component.rows()).toHaveLength(1);
   });
 });

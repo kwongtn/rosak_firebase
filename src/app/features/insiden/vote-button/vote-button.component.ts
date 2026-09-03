@@ -3,8 +3,13 @@ import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
+  ChronologyVoteMutationData,
+  ChronologyVoteMutationVars,
+  DOWNVOTE_CHRONOLOGY_MUTATION,
   DOWNVOTE_MUTATION,
+  REMOVE_CHRONOLOGY_VOTE_MUTATION,
   REMOVE_VOTE_MUTATION,
+  UPVOTE_CHRONOLOGY_MUTATION,
   UPVOTE_MUTATION,
   VoteMutationData,
   VoteMutationVars,
@@ -23,12 +28,17 @@ import {
  * the matching mutation; a failed request rolls the display back to the previous
  * state and surfaces a toast. Switching votes sends the new-direction mutation —
  * the backend's update_or_create makes that idempotent.
+ *
+ * Two callable targets (Task 13): the default "incident" votes the calendar incident,
+ * "chronology" votes a single chronology row through the Task 8 mutations. The
+ * optimistic state, disabled-while-voting, and auth gating (logged-out users see
+ * the buttons disabled) behave identically for both.
  */
 @Component({
   selector: "app-vote-button",
   imports: [],
   template: `
-    <div class="group/vote flex items-center gap-0.5" aria-label="Vote on this incident">
+    <div class="group/vote flex items-center gap-0.5" [attr.aria-label]="ariaLabel()">
       <button
         hlmBtn
         variant="ghost"
@@ -92,7 +102,13 @@ export class VoteButtonComponent {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
 
-  /** Backend object id this button votes on. */
+  /** What this button votes on: "incident" (default) targets the calendar incident via the
+   * upvote/downvote/removeVote mutations; "chronology" targets a single chronology row via the
+   * Task 8 upvoteChronology/downvoteChronology/removeChronologyVote mutations. */
+  readonly targetType = input<"incident" | "chronology">("incident");
+
+  /** Backend object id this button votes on — the incident id for targetType "incident",
+   * the chronology row id (chronologies { id }) for targetType "chronology". */
   readonly incidentId = input.required<string>();
   readonly netScore = input(0);
   readonly upvotes = input(0);
@@ -118,6 +134,10 @@ export class VoteButtonComponent {
     formatBreakdown(this.state().upvotes, this.state().downvotes),
   );
 
+  protected readonly ariaLabel = computed(() =>
+    this.targetType() === "chronology" ? "Vote on this chronology" : "Vote on this incident",
+  );
+
   protected async onVoteClick(target: Exclude<VoteValue, 0>): Promise<void> {
     const previous = this.state();
     const nextTarget: VoteValue = previous.userVote === target ? 0 : target;
@@ -138,6 +158,20 @@ export class VoteButtonComponent {
   private async requestVote(target: VoteValue): Promise<void> {
     const idToken = await this.auth.idToken();
     const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
+    if (this.targetType() === "chronology") {
+      const mutation =
+        target === 1
+          ? UPVOTE_CHRONOLOGY_MUTATION
+          : target === -1
+            ? DOWNVOTE_CHRONOLOGY_MUTATION
+            : REMOVE_CHRONOLOGY_VOTE_MUTATION;
+      await this.graphql.request<ChronologyVoteMutationData, ChronologyVoteMutationVars>(
+        mutation,
+        { chronologyId: this.incidentId() },
+        headers,
+      );
+      return;
+    }
     const mutation =
       target === 1 ? UPVOTE_MUTATION : target === -1 ? DOWNVOTE_MUTATION : REMOVE_VOTE_MUTATION;
     await this.graphql.request<VoteMutationData, VoteMutationVars>(

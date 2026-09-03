@@ -1,4 +1,14 @@
-import { Component, afterNextRender, computed, inject, input, output, signal } from "@angular/core";
+import {
+  Component,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+} from "@angular/core";
 import { DecimalPipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
@@ -10,6 +20,8 @@ import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
 import { HlmSheet, HlmSheetHeader, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
+  GET_MY_VOTES_CAST_QUERY,
+  MyVotesCastData,
   UPDATE_USER_MUTATION,
   UpdateUserData,
   UpdateUserVars,
@@ -95,6 +107,14 @@ import {
             <p class="text-lg font-semibold">{{ user().mediaCount | number }}</p>
           </div>
         </div>
+        @if (isOwnProfile() && _votesCast() !== null) {
+          <div hlmCard>
+            <div hlmCardContent>
+              <p class="text-muted-foreground text-xs">Votes Cast</p>
+              <p class="text-lg font-semibold">{{ _votesCast() | number }}</p>
+            </div>
+          </div>
+        }
         @if (user().withMostEntriesMonth; as month) {
           <div hlmCard>
             <div hlmCardContent>
@@ -219,11 +239,38 @@ export class UserCardComponent {
   protected readonly _hoverCapable = signal(false);
   protected readonly _spottingDataPublicDraft = signal(false);
   protected readonly _isSavingPrivacy = signal(false);
+  /** Task 25 (spec AC3): the caller's aggregate votes cast. Null = not loaded/failed —
+   * the card stays hidden; what was voted on is never shown, only the total. */
+  protected readonly _votesCast = signal<number | null>(null);
 
   constructor() {
     afterNextRender(() => {
       this._hoverCapable.set(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
     });
+
+    effect(() => {
+      if (this.isOwnProfile()) {
+        untracked(() => void this.loadVotesCast());
+      }
+    });
+  }
+
+  private async loadVotesCast(): Promise<void> {
+    try {
+      const idToken = await this.auth.idToken();
+      const data = await this.graphql.request<MyVotesCastData, Record<string, never>>(
+        GET_MY_VOTES_CAST_QUERY,
+        {},
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      this._votesCast.set(data.myVotesCast);
+    } catch (err) {
+      this.toast.error(
+        "Couldn't load votes cast",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+      this._votesCast.set(null);
+    }
   }
 
   protected startEdit(): void {

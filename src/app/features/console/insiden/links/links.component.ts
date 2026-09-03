@@ -42,6 +42,7 @@ import {
   createTrailingDebounce,
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
+import { dateInputToIsoStart, dateInputToIsoEnd } from "../data/date-range.util";
 
 type CompletedFilter = "any" | "pending" | "completed";
 
@@ -55,7 +56,11 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
  * /console/insiden/links — triage queue for crowd-submitted social media
  * posts. Text search (URL + title, matched server-side) is debounced; the
  * category dropdown and the All/Pending/Completed status select refetch
- * immediately.
+ * immediately. The line/vehicle/station selects and the submitted-between
+ * date range also refetch through the same trailing debounce (they map to the
+ * backend resolver's `lineId`/`vehicleId`/`stationId`/`createdAfter`/
+ * `createdBefore` args) — and, per the spec, the queue defaults to the
+ * PENDING (not-completed) filter, with All/Completed still reachable.
  *
  * Row click opens a fully editable panel: the same field set as "Submit a
  * link" (URL required, title optional, lines/vehicles/stations/categories
@@ -63,7 +68,8 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
  * `updateSocialMediaLink` — the backend replaces the M2M sets verbatim, so
  * every editable field is sent — then patches the row locally. Mark-completed
  * calls the admin mutation and reloads so the row's completion state and
- * timestamp come back as server truth.
+ * timestamp come back as server truth. The detail card names the completing
+ * admin (`completedBy`) next to `completedAt`.
  */
 @Component({
   selector: "app-console-social-media-links",
@@ -92,7 +98,8 @@ export class SocialMediaLinksComponent {
   private readonly graphql = inject(GraphQLClient);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
-  private readonly searchDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
+  /** One trailing debounce serves search AND the filter controls — last change wins. */
+  private readonly queueDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
 
   protected readonly links = signal<SocialMediaLinkRow[]>([]);
   protected readonly categories = signal<{ id: string; name: string }[]>([]);
@@ -102,8 +109,19 @@ export class SocialMediaLinksComponent {
 
   protected readonly searchTerm = signal("");
   protected readonly categoryId = signal("");
-  protected readonly completedFilter = signal<CompletedFilter>("any");
+  /** Defaults to PENDING per the spec ("by default only view entries that are
+   * NOT completed"); All/Completed options remain available. */
+  protected readonly completedFilter = signal<CompletedFilter>("pending");
   protected readonly completedFilterLabel = COMPLETED_LABEL;
+
+  /** Server-side queue filters (Task 10 resolver args), debounced like search.
+   * Empty string = no filter on that axis; the applied snapshot is taken when
+   * the debounce fires so a slow dial of the selects sends one coherent query. */
+  protected readonly filterLineId = signal("");
+  protected readonly filterVehicleId = signal("");
+  protected readonly filterStationId = signal("");
+  protected readonly filterDateFrom = signal("");
+  protected readonly filterDateTo = signal("");
 
   protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
 
@@ -208,6 +226,46 @@ export class SocialMediaLinksComponent {
     })),
   );
 
+  /** Filter controls reuse the reference data + parent-filtering pattern, keyed
+   * on the FILTER line instead of the edit form's selectedLineIds. Selecting a
+   * line narrows the vehicle/station dropdowns to its assets; no line = all. */
+  protected readonly filterVehicleOptions = computed<AssetMultiSelectOption[]>(() => {
+    const lineId = this.filterLineId();
+    const line = lineId ? this._linesById().get(lineId) : undefined;
+    const lines = line ? [line] : [...this._linesById().values()];
+    const seen = new Set<string>();
+    const options: AssetMultiSelectOption[] = [];
+    for (const entry of lines) {
+      if (!entry) continue;
+      for (const vehicleType of entry.vehicleTypes) {
+        for (const vehicle of vehicleType.vehicles) {
+          if (seen.has(vehicle.id)) continue;
+          seen.add(vehicle.id);
+          options.push({
+            id: vehicle.id,
+            label: vehicle.identificationNo,
+            parentCodes: this._vehicleParentCodes().get(vehicle.id),
+          });
+        }
+      }
+    }
+    return options;
+  });
+
+  protected readonly filterStationOptions = computed<AssetMultiSelectOption[]>(() => {
+    const lineId = this.filterLineId();
+    const stations = lineId
+      ? (this.referenceResource.data()?.stations ?? []).filter((s) =>
+          (s.lines ?? []).some((l) => l.id === lineId),
+        )
+      : (this.referenceResource.data()?.stations ?? []);
+    return stations.map((station) => ({
+      id: station.id,
+      label: station.displayName,
+      parentCodes: (station.lines ?? []).map((l) => l.code),
+    }));
+  });
+
   private readonly _categoriesById = computed(
     () =>
       new Map(
@@ -227,7 +285,12 @@ export class SocialMediaLinksComponent {
 
   private appliedSearch: string | undefined;
   private appliedCategoryId = "";
-  private appliedCompleted: CompletedFilter = "any";
+  private appliedCompleted: CompletedFilter = "pending";
+  private appliedLineId: string | undefined;
+  private appliedVehicleId: string | undefined;
+  private appliedStationId: string | undefined;
+  private appliedDateFrom: string | undefined;
+  private appliedDateTo: string | undefined;
 
   constructor() {
     this.load();
@@ -236,7 +299,7 @@ export class SocialMediaLinksComponent {
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
-    this.searchDebouncer.push(() => {
+    this.queueDebouncer.push(() => {
       this.appliedSearch = searchTermOrUndefined(this.searchTerm());
       this.load();
     });
@@ -251,6 +314,66 @@ export class SocialMediaLinksComponent {
   protected onCompletedFilterChange(value: CompletedFilter): void {
     this.completedFilter.set(value);
     this.appliedCompleted = value;
+    this.load();
+  }
+
+  private pushFilterChange(): void {
+    this.queueDebouncer.push(() => {
+      this.appliedLineId = this.filterLineId() || undefined;
+      this.appliedVehicleId = this.filterVehicleId() || undefined;
+      this.appliedStationId = this.filterStationId() || undefined;
+      this.appliedDateFrom = this.filterDateFrom() || undefined;
+      this.appliedDateTo = this.filterDateTo() || undefined;
+      this.load();
+    });
+  }
+
+  protected onFilterLineChange(value: string): void {
+    this.filterLineId.set(value);
+    // A vehicle/station hidden by the new line must not keep narrowing the query.
+    this.filterVehicleId.set("");
+    this.filterStationId.set("");
+    this.pushFilterChange();
+  }
+
+  protected onFilterVehicleChange(value: string): void {
+    this.filterVehicleId.set(value);
+    this.pushFilterChange();
+  }
+
+  protected onFilterStationChange(value: string): void {
+    this.filterStationId.set(value);
+    this.pushFilterChange();
+  }
+
+  protected onDateFromInput(value: string): void {
+    this.filterDateFrom.set(value);
+    this.pushFilterChange();
+  }
+
+  protected onDateToInput(value: string): void {
+    this.filterDateTo.set(value);
+    this.pushFilterChange();
+  }
+
+  protected resetFilters(): void {
+    this.searchTerm.set("");
+    this.categoryId.set("");
+    this.completedFilter.set("pending");
+    this.filterLineId.set("");
+    this.filterVehicleId.set("");
+    this.filterStationId.set("");
+    this.filterDateFrom.set("");
+    this.filterDateTo.set("");
+    this.queueDebouncer.cancel();
+    this.appliedSearch = undefined;
+    this.appliedCategoryId = "";
+    this.appliedCompleted = "pending";
+    this.appliedLineId = undefined;
+    this.appliedVehicleId = undefined;
+    this.appliedStationId = undefined;
+    this.appliedDateFrom = undefined;
+    this.appliedDateTo = undefined;
     this.load();
   }
 
@@ -414,14 +537,34 @@ export class SocialMediaLinksComponent {
   private async fetchLinks(): Promise<void> {
     try {
       const idToken = await this.auth.idToken();
+      const vars: SocialMediaLinksQueryVars = {
+        search: this.appliedSearch,
+        categoryId: this.appliedCategoryId || undefined,
+        completed:
+          this.appliedCompleted === "any" ? undefined : this.appliedCompleted === "completed",
+      };
+      // Filter args are optional server-side (strawberry.Maybe) — omit unset
+      // keys entirely so the wire never carries explicit nulls.
+      if (this.appliedLineId) {
+        vars.lineId = this.appliedLineId;
+      }
+      if (this.appliedVehicleId) {
+        vars.vehicleId = this.appliedVehicleId;
+      }
+      if (this.appliedStationId) {
+        vars.stationId = this.appliedStationId;
+      }
+      const createdAfter = dateInputToIsoStart(this.appliedDateFrom ?? "");
+      if (createdAfter) {
+        vars.createdAfter = createdAfter;
+      }
+      const createdBefore = dateInputToIsoEnd(this.appliedDateTo ?? "");
+      if (createdBefore) {
+        vars.createdBefore = createdBefore;
+      }
       const data = await this.graphql.request<SocialMediaLinksQueryData, SocialMediaLinksQueryVars>(
         SOCIAL_MEDIA_LINKS_QUERY,
-        {
-          search: this.appliedSearch,
-          categoryId: this.appliedCategoryId || undefined,
-          completed:
-            this.appliedCompleted === "any" ? undefined : this.appliedCompleted === "completed",
-        },
+        vars,
         idToken ? { "firebase-auth-key": idToken } : {},
       );
       this.links.set(data.socialMediaLinks);

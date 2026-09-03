@@ -82,7 +82,7 @@ function emptyFilterForm(): FilterFormModel {
 }
 
 /**
- * /console — admin moderation queue for crowd-submitted spotting events: filter, page through,
+ * /console/spotting — admin moderation queue for crowd-submitted spotting events: filter, page through,
  * and bulk mark-as-read. Ported from src/app/console/, fixing the one thing that was actually
  * broken there rather than reproducing it: `filterFormToGqlFilters()` sent flat `statusIn`/
  * `typeIn` keys that don't exist on the real `EventFilter` (verified against rosak_backend/

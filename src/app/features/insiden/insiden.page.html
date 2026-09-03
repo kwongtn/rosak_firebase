@@ -15,10 +15,14 @@
             <button hlmBtn variant="outline" data-testid="new-link" (click)="openLinkSheet()">
               Submit link
             </button>
+            <button hlmBtn data-testid="new-incident" (click)="openReportSheet()">
+              Report an incident
+            </button>
+          } @else {
+            <button hlmBtn variant="outline" data-testid="login-cta" (click)="auth.login()">
+              Log in to report
+            </button>
           }
-          <button hlmBtn data-testid="new-incident" (click)="openReportSheet()">
-            Report an incident
-          </button>
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import {
   emptyChronology,
   moveChronology,
   removeChronology,
+  setAllCollapsed,
   toggleCollapsed,
   type ChronologyDraft,
 } from "./chronology-list.util";
@@ -69,6 +70,45 @@ describe("toggleCollapsed", () => {
   it("leaves other entries untouched when the key is absent", () => {
     const list = [draft(1)];
     expect(toggleCollapsed(list, 99)[0].collapsed).toBe(false);
+  });
+});
+
+describe("setAllCollapsed", () => {
+  it("collapses every entry without mutating the input", () => {
+    const list = [draft(1), draft(2), { ...draft(3), collapsed: true }];
+    const next = setAllCollapsed(list, true);
+
+    expect(next.map((c) => c.collapsed)).toEqual([true, true, true]);
+    expect(next).not.toBe(list);
+    expect(next[0]).not.toBe(list[0]);
+    expect(list.map((c) => c.collapsed)).toEqual([false, false, true]);
+  });
+
+  it("expands every entry", () => {
+    const list = [
+      { ...draft(1), collapsed: true },
+      { ...draft(2), collapsed: true },
+    ];
+    const next = setAllCollapsed(list, false);
+
+    expect(next.map((c) => c.collapsed)).toEqual([false, false]);
+    expect(next[0]).not.toBe(list[0]);
+  });
+
+  it("keeps the row object reference for entries whose flag already matches", () => {
+    const list = [{ ...draft(1), collapsed: true }, draft(2)];
+    const next = setAllCollapsed(list, true);
+
+    expect(next[0]).toBe(list[0]);
+    expect(next[1]).not.toBe(list[1]);
+  });
+
+  it("returns a new array for an empty list", () => {
+    const list: ChronologyDraft[] = [];
+    const next = setAllCollapsed(list, true);
+
+    expect(next).toEqual([]);
+    expect(next).not.toBe(list);
   });
 });
 

@@ -43,6 +43,72 @@
           <option value="completed">{{ completedFilterLabel.completed }}</option>
         </select>
       </label>
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Line
+        <select
+          hlmSelect
+          [value]="filterLineId()"
+          (change)="onFilterLineChange($any($event.target).value)"
+        >
+          <option value="">All lines</option>
+          @for (line of lineOptions(); track line.id) {
+            <option [value]="line.id">{{ line.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Vehicle
+        <select
+          hlmSelect
+          [value]="filterVehicleId()"
+          (change)="onFilterVehicleChange($any($event.target).value)"
+        >
+          <option value="">All vehicles</option>
+          @for (vehicle of filterVehicleOptions(); track vehicle.id) {
+            <option [value]="vehicle.id">{{ vehicle.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="flex flex-col gap-1.5 text-sm">
+        Station
+        <select
+          hlmSelect
+          [value]="filterStationId()"
+          (change)="onFilterStationChange($any($event.target).value)"
+        >
+          <option value="">All stations</option>
+          @for (station of filterStationOptions(); track station.id) {
+            <option [value]="station.id">{{ station.label }}</option>
+          }
+        </select>
+      </label>
+
+      <button hlmBtn type="button" variant="outline" class="self-end" (click)="resetFilters()">
+        Reset
+      </button>
+
+      <div class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+        Submitted between
+        <div class="flex flex-wrap items-center gap-1.5">
+          <input
+            hlmInput
+            type="date"
+            aria-label="Submitted from date"
+            [value]="filterDateFrom()"
+            (input)="onDateFromInput($any($event.target).value)"
+          />
+          <input
+            hlmInput
+            type="date"
+            aria-label="Submitted to date"
+            [value]="filterDateTo()"
+            (input)="onDateToInput($any($event.target).value)"
+          />
+        </div>
+      </div>
     </div>
 
     <div hlmTableContainer>
@@ -210,7 +276,11 @@
             </p>
             @if (link.completedAt) {
               <p class="text-muted-foreground text-xs">
-                Marked completed {{ link.completedAt | date: "MMM d, y HH:mm" }}
+                Marked completed
+                @if (link.completedBy) {
+                  by {{ link.completedBy }}
+                }
+                on {{ link.completedAt | date: "MMM d, y HH:mm" }}
               </p>
             }
             <div>

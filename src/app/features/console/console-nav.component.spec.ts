@@ -41,13 +41,13 @@ function activeLabels(el: HTMLElement): (string | undefined)[] {
 
 describe("ConsoleNavComponent", () => {
   it("renders the three console sections", async () => {
-    const el = await renderAt("/console");
+    const el = await renderAt("/console/spotting");
     const labels = [...el.querySelectorAll("nav a")].map((a) => a.textContent?.trim());
     expect(labels).toEqual(["Spotting Queue", "Incident Approval", "Social Media Links"]);
   });
 
-  it("highlights only Spotting Queue on /console", async () => {
-    const el = await renderAt("/console");
+  it("highlights only Spotting Queue on /console/spotting", async () => {
+    const el = await renderAt("/console/spotting");
     expect(activeLabels(el)).toEqual(["Spotting Queue"]);
   });
 

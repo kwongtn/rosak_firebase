@@ -51,13 +51,18 @@ import {
   incidentFormSchema,
 } from "../../../insiden/incident-form/incident-form.schema";
 import {
+  APPROVE_CHRONOLOGY_DELETION_MUTATION,
   APPROVE_INCIDENT_MUTATION,
   ApproveIncidentVars,
+  ChronologyDeletionDecisionData,
+  ChronologyDeletionDecisionVars,
   IncidentMutationData,
   PENDING_INCIDENTS_QUERY,
   PendingIncident,
+  PendingIncidentChronology,
   PendingIncidentsQueryData,
   PendingIncidentsQueryVars,
+  REJECT_CHRONOLOGY_DELETION_MUTATION,
   REJECT_INCIDENT_MUTATION,
   RejectIncidentVars,
   UPDATE_CALENDAR_INCIDENT_MUTATION,
@@ -70,6 +75,11 @@ import {
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
 import { linesLabel } from "../../../../core/util/lines-label.util";
+import { isPendingIncidentStatus } from "../../../insiden/data/incident-status.util";
+import {
+  chronologyStatusLabel,
+  isChronologyPendingDeletion,
+} from "../../../insiden/data/chronology-status.util";
 
 const SEVERITY_VARIANT: Record<PendingIncident["severity"], BadgeVariants["variant"]> = {
   MAJOR: "destructive",
@@ -114,6 +124,7 @@ function asCalendarIncident(row: PendingIncident): CalendarIncident {
     impactFactor: row.impactFactor,
     longTerm: row.longTerm,
     inaccurate: row.inaccurate,
+    status: row.status,
     lastUpdated: row.lastUpdated,
     lines: row.lines,
     vehicles: row.vehicles,
@@ -193,6 +204,24 @@ export class PendingIncidentsComponent {
     const row = this.selectedRow();
     return row ? asCalendarIncident(row) : null;
   });
+
+  protected readonly chronologyStatusLabel = chronologyStatusLabel;
+  protected readonly isPendingIncidentStatus = isPendingIncidentStatus;
+
+  /** Chronologies of the selected row awaiting admin deletion review (spec E1). The queue now
+   * surfaces LIVE incidents with PENDING_DELETION chronologies (Task 17 queue extension), so
+   * the detail panel lists them with Approve/Reject deletion actions. */
+  protected readonly pendingDeletionChronologies = computed<PendingIncidentChronology[]>(() => {
+    const row = this.selectedRow();
+    if (!row) {
+      return [];
+    }
+    return row.chronologies.filter((chronology) => isChronologyPendingDeletion(chronology.status));
+  });
+
+  /** Id of the chronology whose deletion decision is in flight — disables the two action
+   * buttons for that row only (mirrors the per-row isMutating pattern). */
+  protected readonly deletingChronologyId = signal<string | null>(null);
 
   /* --------------------------------------------------------------------- *
    * Full edit form state — mirrors IncidentFormComponent's field set so the
@@ -472,6 +501,85 @@ export class PendingIncidentsComponent {
     }
     this.closePanel();
     this.openReject(row);
+  }
+
+  /** Admin decision on a pending-deletion chronology (spec E1): approve soft-deletes it (row
+   * removed locally); reject reverts it to LIVE (tag clears). */
+  protected async approveChronologyDeletion(chronology: PendingIncidentChronology): Promise<void> {
+    if (!chronology.id) {
+      return;
+    }
+    const ok = await this.runChronologyDeletionDecision(
+      APPROVE_CHRONOLOGY_DELETION_MUTATION,
+      { chronologyId: chronology.id },
+      (row) => ({
+        ...row,
+        chronologies: row.chronologies.filter((c) => c.id !== chronology.id),
+      }),
+    );
+    if (ok) {
+      this.toast.success("Chronology deleted", "The chronology entry was removed.");
+    }
+  }
+
+  protected async rejectChronologyDeletion(chronology: PendingIncidentChronology): Promise<void> {
+    if (!chronology.id) {
+      return;
+    }
+    const ok = await this.runChronologyDeletionDecision(
+      REJECT_CHRONOLOGY_DELETION_MUTATION,
+      { chronologyId: chronology.id },
+      (row) => ({
+        ...row,
+        chronologies: row.chronologies.map((c) =>
+          c.id === chronology.id ? { ...c, status: "LIVE" as const } : c,
+        ),
+      }),
+    );
+    if (ok) {
+      this.toast.success("Deletion rejected", "The chronology stays live.");
+    }
+  }
+
+  /** Fires the admin mutation with the admin token, patches the selected row and the queue
+   * row, then drops the queue row once a LIVE incident has no PENDING_DELETION chronology
+   * left (PENDING_APPROVAL incidents always stay). */
+  private async runChronologyDeletionDecision(
+    mutation: string,
+    variables: ChronologyDeletionDecisionVars,
+    patchRow: (row: PendingIncident) => PendingIncident,
+  ): Promise<boolean> {
+    if (this.isMutating() || this.deletingChronologyId() !== null) {
+      return false;
+    }
+    this.isMutating.set(true);
+    this.deletingChronologyId.set(variables.chronologyId);
+    try {
+      const idToken = await this.auth.idToken();
+      await this.graphql.request<ChronologyDeletionDecisionData, ChronologyDeletionDecisionVars>(
+        mutation,
+        variables,
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      const selectedId = this.selectedRow()?.id ?? null;
+      this.selectedRow.update((row) => (row ? patchRow(row) : row));
+      this.rows.update((rows) =>
+        rows
+          .map((row) => (row.id === selectedId ? patchRow(row) : row))
+          .filter((row) =>
+            isPendingIncidentStatus(row.status)
+              ? true
+              : row.chronologies.some((c) => isChronologyPendingDeletion(c.status)),
+          ),
+      );
+      return true;
+    } catch (err) {
+      this.toast.error("Action failed", err instanceof Error ? err.message : "Unknown error");
+      return false;
+    } finally {
+      this.isMutating.set(false);
+      this.deletingChronologyId.set(null);
+    }
   }
 
   /* ----------------------------------------------------------------- *

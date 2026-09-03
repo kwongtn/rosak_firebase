@@ -17,6 +17,7 @@ import {
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { SocialMediaLinksComponent } from "./links.component";
+import { dateInputToIsoStart, dateInputToIsoEnd } from "../data/date-range.util";
 /* The real app-nav/footer pull in browser-only services (ThemeService needs
  * matchMedia); the shell chrome is irrelevant to these specs, so swap in
  * empty stand-ins. */
@@ -34,6 +35,7 @@ function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkR
     created: "2026-08-01T09:00:00Z",
     completed: false,
     completedAt: null,
+    completedBy: null,
     user: { nickname: "Zul", shortId: "abcd1234" },
     lines: [{ id: "l1", code: "KJL", displayName: "Kelana Jaya Line" }],
     vehicles: [{ id: "v1", identificationNo: "V-123" }],
@@ -62,6 +64,18 @@ interface ComponentUnderTest {
   onSearchInput(value: string): void;
   onCategoryChange(value: string): void;
   onCompletedFilterChange(value: "any" | "pending" | "completed"): void;
+  onFilterLineChange(value: string): void;
+  onFilterVehicleChange(value: string): void;
+  onFilterStationChange(value: string): void;
+  onDateFromInput(value: string): void;
+  onDateToInput(value: string): void;
+  resetFilters(): void;
+  completedFilter: WritableSignal<"any" | "pending" | "completed">;
+  filterLineId: WritableSignal<string>;
+  filterVehicleId: WritableSignal<string>;
+  filterStationId: WritableSignal<string>;
+  filterDateFrom: WritableSignal<string>;
+  filterDateTo: WritableSignal<string>;
   markCompleted(link: SocialMediaLinkRow): Promise<boolean>;
   openLinkDetail(link: SocialMediaLinkRow): void;
   closeLinkPanel(): void;
@@ -127,15 +141,24 @@ describe("SocialMediaLinksComponent", () => {
     ][];
   }
 
-  it("loads links and categories on init without filters", async () => {
+  it("loads links and categories on init with the pending default filter", async () => {
     await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    expect(component.completedFilter()).toBe("pending");
 
     const [, linkVars] = callsFor("socialMediaLinks")[0];
     expect(linkVars).toEqual({
       search: undefined,
       categoryId: undefined,
-      completed: undefined,
+      completed: false,
     });
+    // Optional filter args stay absent from the wire until set (no nulls).
+    expect("lineId" in linkVars).toBe(false);
+    expect("vehicleId" in linkVars).toBe(false);
+    expect("stationId" in linkVars).toBe(false);
+    expect("createdAfter" in linkVars).toBe(false);
+    expect("createdBefore" in linkVars).toBe(false);
     const [, categoryVars] = callsFor("calendarIncidentCategories")[0];
     expect(categoryVars).toBeUndefined();
   });
@@ -154,7 +177,7 @@ describe("SocialMediaLinksComponent", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(callsFor("socialMediaLinks")).toHaveLength(1);
     const [, vars] = callsFor("socialMediaLinks")[0];
-    expect(vars).toEqual({ search: "twitter lrt", categoryId: undefined, completed: undefined });
+    expect(vars).toEqual({ search: "twitter lrt", categoryId: undefined, completed: false });
   });
 
   it("category select refetches immediately with the chosen id", async () => {
@@ -166,7 +189,7 @@ describe("SocialMediaLinksComponent", () => {
 
     await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
     const [, vars] = callsFor("socialMediaLinks")[0];
-    expect(vars).toEqual({ search: undefined, categoryId: "7", completed: undefined });
+    expect(vars).toEqual({ search: undefined, categoryId: "7", completed: false });
   });
 
   it("status toggle maps pending/completed to false/true and any to undefined", async () => {
@@ -189,6 +212,127 @@ describe("SocialMediaLinksComponent", () => {
     await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(3));
     [, vars] = callsFor("socialMediaLinks")[2];
     expect(vars).toEqual({ search: undefined, categoryId: undefined, completed: undefined });
+  });
+
+  it("debounces line/vehicle/station filters into one query carrying the resolver args", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    vi.useFakeTimers();
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    component.onFilterLineChange("l1");
+    component.onFilterVehicleChange("v9");
+    component.onFilterStationChange("s3");
+    await vi.advanceTimersByTimeAsync(299);
+    expect(callsFor("socialMediaLinks")).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(callsFor("socialMediaLinks")).toHaveLength(1);
+    const [, vars] = callsFor("socialMediaLinks")[0];
+    expect(vars).toEqual({
+      search: undefined,
+      categoryId: undefined,
+      completed: false,
+      lineId: "l1",
+      vehicleId: "v9",
+      stationId: "s3",
+    });
+    expect("createdAfter" in vars).toBe(false);
+  });
+
+  it("changing the line filter clears dependent vehicle/station selections", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    component.filterVehicleId.set("v9");
+    component.filterStationId.set("s3");
+
+    component.onFilterLineChange("l2");
+
+    expect(component.filterVehicleId()).toBe("");
+    expect(component.filterStationId()).toBe("");
+  });
+
+  it("converts the date range to ISO instants and omits them when cleared", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    vi.useFakeTimers();
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    component.onDateFromInput("2026-08-01");
+    component.onDateToInput("2026-08-03");
+    await vi.advanceTimersByTimeAsync(300);
+
+    let [, vars] = callsFor("socialMediaLinks")[0];
+    expect(vars).toEqual({
+      search: undefined,
+      categoryId: undefined,
+      completed: false,
+      createdAfter: dateInputToIsoStart("2026-08-01"),
+      createdBefore: dateInputToIsoEnd("2026-08-03"),
+    });
+
+    requestMock.mockClear();
+    component.onDateFromInput("");
+    component.onDateToInput("");
+    await vi.advanceTimersByTimeAsync(300);
+    [, vars] = callsFor("socialMediaLinks")[0];
+    expect("createdAfter" in vars).toBe(false);
+    expect("createdBefore" in vars).toBe(false);
+  });
+
+  it("resetFilters clears every control and returns to the pending default", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    component.filterLineId.set("l1");
+    component.filterVehicleId.set("v9");
+    component.filterStationId.set("s3");
+    component.filterDateFrom.set("2026-08-01");
+    component.filterDateTo.set("2026-08-03");
+    component.completedFilter.set("completed");
+
+    component.resetFilters();
+
+    expect(component.completedFilter()).toBe("pending");
+    expect(component.filterLineId()).toBe("");
+    expect(component.filterVehicleId()).toBe("");
+    expect(component.filterStationId()).toBe("");
+    expect(component.filterDateFrom()).toBe("");
+    expect(component.filterDateTo()).toBe("");
+
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
+    const [, vars] = callsFor("socialMediaLinks")[0];
+    expect(vars).toEqual({ search: undefined, categoryId: undefined, completed: false });
+    expect("lineId" in vars).toBe(false);
+    expect("vehicleId" in vars).toBe(false);
+    expect("stationId" in vars).toBe(false);
+    expect("createdAfter" in vars).toBe(false);
+    expect("createdBefore" in vars).toBe(false);
+  });
+
+  it("detail panel shows the completing admin and completion timestamp", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    const link = makeLink({
+      completed: true,
+      completedAt: "2026-08-02T12:00:00Z",
+      completedBy: "Zul",
+    });
+    component.openLinkDetail(link);
+    expect(component.selectedLink()?.completedBy).toBe("Zul");
+    expect(component.selectedLink()?.completedAt).toBe("2026-08-02T12:00:00Z");
+
+    // The sheet panel body is only mounted one effect-tick after open() flips
+    // true — poll CD so the assertion sees the rendered markup, not default.
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent as string;
+      expect(text).toContain("Marked completed");
+      expect(text).toContain("by Zul");
+    });
   });
 
   it("markCompleted calls the mutation and reloads the list", async () => {

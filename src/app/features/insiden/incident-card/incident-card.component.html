@@ -92,20 +92,132 @@
         @if (entry.synthetic) {
           <span class="font-medium">Ongoing for {{ elapsedTime() }}</span>
         } @else {
-          <span class="text-muted-foreground">{{ entry.datetime | date: "MMM d, HH:mm" }}</span>
-          — <span class="whitespace-pre-line">{{ entry.content }}</span>
-          @if (entry.sourceUrl) {
-            <a
-              [href]="entry.sourceUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-muted-foreground hover:text-foreground ml-0.5 inline-flex align-text-bottom"
-              aria-label="View source"
-              title="View source"
+          <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <span class="text-muted-foreground">{{ entry.datetime | date: "MMM d, HH:mm" }}</span>
+            <span aria-hidden="true">—</span>
+            <span class="whitespace-pre-line">{{ entry.content }}</span>
+            @if (entry.sourceUrl) {
+              <a
+                [href]="entry.sourceUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-muted-foreground hover:text-foreground inline-flex align-text-bottom"
+                aria-label="View source"
+                title="View source"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  class="size-3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M14 5h5v5M19 5 10 14M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"
+                  />
+                </svg>
+              </a>
+            }
+            @if (chronologyStatusLabel(entry.status); as statusLabel) {
+              <span hlmBadge [variant]="chronologyStatusVariant(entry.status)">
+                {{ statusLabel }}
+              </span>
+            }
+            @if (entry.id) {
+              <app-vote-button
+                targetType="chronology"
+                [incidentId]="entry.id"
+                [netScore]="entry.voteScore ?? 0"
+                [upvotes]="entry.voteBreakdown?.upvotes ?? 0"
+                [downvotes]="entry.voteBreakdown?.downvotes ?? 0"
+                [userVote]="entry.userVote ?? 0"
+              />
+            }
+            @if (entry.id && canEdit() && isChronologyDeletionRequestable(entry.status)) {
+              <button
+                hlmBtn
+                variant="ghost"
+                size="sm"
+                class="h-6 px-2 text-xs"
+                data-testid="request-chronology-deletion"
+                [disabled]="deletionRequestingId() === entry.id"
+                (click)="requestChronologyDeletion(entry)"
+                aria-label="Request deletion of this chronology entry"
+                title="Request deletion of this chronology entry"
+              >
+                {{ deletionRequestingId() === entry.id ? "Requesting…" : "Request deletion" }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (incident().links) {
+    <div class="flex flex-col gap-2 border-t pt-3">
+      <div class="flex items-center justify-between gap-2">
+        <h4 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Links</h4>
+        @if (canAddLink()) {
+          <button
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            class="h-6 px-2 text-xs"
+            data-testid="add-incident-link"
+            (click)="addLink()"
+            aria-label="Add a link to this incident"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="size-3.5"
+              aria-hidden="true"
             >
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            Add link
+          </button>
+        }
+      </div>
+      @if (linkEdges().length === 0) {
+        <p class="text-muted-foreground text-xs">No links yet.</p>
+      }
+      <div class="flex flex-col gap-1.5">
+        @for (row of linkRows(); track row.id) {
+          <a
+            [href]="row.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex min-w-0 items-center gap-1.5 text-xs"
+            data-testid="incident-link-line"
+          >
+            @if (row.datetimeLabel) {
+              <span class="text-muted-foreground shrink-0 whitespace-nowrap">
+                [{{ row.datetimeLabel }}]
+              </span>
+            }
+            @if (row.faviconUrl) {
+              <img
+                [src]="row.faviconUrl"
+                width="16"
+                height="16"
+                class="bg-muted size-4 shrink-0 rounded-sm"
+                alt=""
+                loading="lazy"
+              />
+            } @else {
               <svg
                 viewBox="0 0 24 24"
-                class="size-3"
+                class="text-muted-foreground size-3.5 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -117,26 +229,107 @@
                   d="M14 5h5v5M19 5 10 14M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"
                 />
               </svg>
-            </a>
-          }
+            }
+            <span class="min-w-0 truncate">
+              @if (row.domain) {
+                <span class="font-semibold">{{ row.domain }}</span
+                ><span class="text-muted-foreground">{{ row.restPath }}</span>
+              } @else {
+                {{ row.displayText }}
+              }
+            </span>
+            @if (row.isPending) {
+              <span class="group/pending relative inline-flex shrink-0">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="text-amber-500 size-3.5"
+                  role="img"
+                  aria-label="Pending approval"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span
+                  role="tooltip"
+                  class="bg-popover text-popover-foreground pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-md border px-2 py-1 text-xs font-normal whitespace-nowrap opacity-0 shadow-md transition-opacity group-hover/pending:opacity-100"
+                >
+                  Pending approval
+                </span>
+              </span>
+            }
+          </a>
         }
       </div>
-    }
-  </div>
+      @if (linksHasNext()) {
+        @if (linkLoadError()) {
+          <button
+            type="button"
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            class="self-start text-xs"
+            data-testid="retry-card-links"
+            (click)="loadMoreLinks()"
+          >
+            Couldn't load more links — retry
+          </button>
+        } @else {
+          <div
+            appInfiniteScroll
+            [appInfiniteScrollLoading]="linksLoading()"
+            (loadMore)="loadMoreLinks()"
+            class="h-px"
+            aria-hidden="true"
+          ></div>
+        }
+      }
+    </div>
+  }
 
   <div class="flex items-center justify-between gap-2">
     <div class="flex items-center gap-2">
+      @if (canEdit()) {
+        <button
+          hlmBtn
+          variant="outline"
+          size="sm"
+          data-testid="edit-incident"
+          (click)="editIncident()"
+          aria-label="Edit incident"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="size-4"
+            aria-hidden="true"
+          >
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+          </svg>
+          Edit
+        </button>
+      }
       @if (incident().hasDetails) {
         <button hlmBtn variant="outline" size="sm" (click)="toggleDetails()">
           {{ detailsExpanded() ? "Hide details" : "Show details" }}
         </button>
       }
-      <button hlmBtn variant="outline" size="sm" (click)="photosExpanded.set(!photosExpanded())">
-        @if (incident().medias.length === 0) {
-          Add Photo
-        } @else {
-          Photos ({{ incident().medias.length }})
-        }
+      <button
+        hlmBtn
+        variant="outline"
+        size="sm"
+        (click)="photosExpanded.set(!photosExpanded())"
+        [attr.aria-expanded]="photosExpanded()"
+      >
+        Photos ({{ incident().medias.length }})
       </button>
     </div>
     <app-vote-button
@@ -149,6 +342,14 @@
   </div>
 
   @if (detailsExpanded()) {
+    @if (historyLine(); as line) {
+      <!-- Task 18: the latest history entry only (spec) — one muted line at the top of
+           the details area; hidden for logged-out viewers / failed loads (not fetched yet).
+           Produced by incident-history-line.util. -->
+      <p class="text-muted-foreground border-t pt-3 text-xs" data-testid="incident-history-line">
+        {{ line }}
+      </p>
+    }
     <markdown
       [data]="incident().details"
       class="prose prose-sm dark:prose-invert max-w-none text-sm"
@@ -165,16 +366,25 @@
 
   @if (photosExpanded()) {
     <div class="flex flex-col gap-2 border-t pt-3">
-      @if (incident().medias.length > 0) {
-        <div class="flex flex-wrap gap-2">
-          @for (media of incident().medias; track media.file.url) {
-            <a [href]="media.file.url" target="_blank" rel="noopener noreferrer">
-              <img [src]="media.file.url" class="bg-muted size-20 rounded-lg object-cover" alt="" />
-            </a>
-          }
-        </div>
-      }
-      <app-photo-picker [(files)]="pendingPhotos" />
+      <!-- One grid flow: photo thumbnails (+ the picker's pending-photo + Add Photo cells,
+           all size-20) share the same left-to-right / top-to-bottom wrap. The Add Photo cell
+           is a photo cell here, not a separate section (spec: same flow -- left to right and
+           top to bottom). -->
+      <div data-testid="incident-photo-grid" class="flex flex-wrap gap-2">
+        @for (media of incident().medias; track media.id) {
+          <button
+            type="button"
+            data-testid="incident-photo-thumbnail"
+            class="size-20 shrink-0 overflow-hidden rounded-lg border"
+            (click)="openPhoto(media)"
+            aria-label="View photo"
+            title="View photo"
+          >
+            <img [src]="media.file.url" class="bg-muted size-full object-cover" alt="" />
+          </button>
+        }
+        <app-photo-picker [(files)]="pendingPhotos" />
+      </div>
       @if (pendingPhotos().length > 0) {
         <button
           hlmBtn
@@ -194,5 +404,11 @@
         </button>
       }
     </div>
+  }
+
+  @if (viewerMedia(); as media) {
+    <!-- Same mechanism as gallery.page.html:82 — MediaViewerComponent renders itself as a
+         full-screen overlay in-place (host class `fixed inset-0 z-50`), not a new tab. -->
+    <app-media-viewer [media]="media" (close)="closeViewer()" />
   }
 </div>

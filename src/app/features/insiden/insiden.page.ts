@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal, viewChild } from "@angular/core";
+import { Component, computed, effect, inject, input, signal, viewChild } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
@@ -96,6 +96,25 @@ export class InsidenPage {
   protected readonly incidentsResource = graphqlResource<InsidenIncidentsQueryData>(() => ({
     query: INSIDEN_INCIDENTS_QUERY,
   }));
+
+  /** Previous sheet state, so the effect below can detect the open→closed edge. */
+  private readonly sheetWasOpen = signal(false);
+
+  /** Refresh seam: the incident form is the only success-knower (it toasts + closes the sheet),
+   * and the form itself is out of scope — so a sheet open→closed transition is the tightest
+   * available signal. Success AND cancel both close the sheet (a reload on cancel is harmless);
+   * a failed submit keeps it open → no reload → lists untouched. Bonus: also fixes a stale list
+   * after create, whose close flows through the same transition. */
+  constructor() {
+    effect(() => {
+      const open = this.incidentSheet.isOpen();
+      const wasOpen = this.sheetWasOpen();
+      this.sheetWasOpen.set(open);
+      if (wasOpen && !open) {
+        this.incidentsResource.reload();
+      }
+    });
+  }
 
   protected readonly isLoading = this.incidentsResource.isLoading;
   protected readonly hasError = this.incidentsResource.hasError;

@@ -7,6 +7,11 @@ import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { DOWNVOTE_MUTATION, REMOVE_VOTE_MUTATION, UPVOTE_MUTATION } from "../data/insiden.queries";
+import {
+  DOWNVOTE_CHRONOLOGY_MUTATION,
+  REMOVE_CHRONOLOGY_VOTE_MUTATION,
+  UPVOTE_CHRONOLOGY_MUTATION,
+} from "../data/insiden.queries";
 import { VoteButtonComponent } from "./vote-button.component";
 
 interface ComponentUnderTest {
@@ -118,5 +123,45 @@ describe("VoteButtonComponent", () => {
       // BrnButton applies disabled via [attr.disabled], not the DOM property.
       expect(button.getAttribute("disabled")).not.toBeNull();
     }
+  });
+
+  it("sends the upvoteChronology mutation with the chronology id when targetType is chronology", async () => {
+    fixture.componentRef.setInput("targetType", "chronology");
+    await fixture.whenStable();
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    await component.onVoteClick(1);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(UPVOTE_CHRONOLOGY_MUTATION);
+    expect(vars).toEqual({ chronologyId: "inc-7" });
+    expect(component.state().userVote).toBe(1);
+  });
+
+  it("sends removeChronologyVote when unvoting a previously-upvoted chronology", async () => {
+    fixture.componentRef.setInput("targetType", "chronology");
+    await fixture.whenStable();
+    await asTestable(fixture).onVoteClick(1);
+    requestMock.mockClear();
+
+    await asTestable(fixture).onVoteClick(1);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(REMOVE_CHRONOLOGY_VOTE_MUTATION);
+    expect(vars).toEqual({ chronologyId: "inc-7" });
+  });
+
+  it("sends downvoteChronology when switching a chronology vote down", async () => {
+    fixture.componentRef.setInput("targetType", "chronology");
+    await fixture.whenStable();
+    await asTestable(fixture).onVoteClick(1);
+    requestMock.mockClear();
+
+    await asTestable(fixture).onVoteClick(-1);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(DOWNVOTE_CHRONOLOGY_MUTATION);
+    expect(vars).toEqual({ chronologyId: "inc-7" });
   });
 });

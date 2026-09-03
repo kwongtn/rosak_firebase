@@ -253,6 +253,23 @@ export interface GetMyEventsData {
 }
 
 /* ---------------------------------------------------------------------- *
+ * myVotesCast — the caller's aggregate votes cast (Task 25, spec AC3).
+ * Root-level query (NOT on `user`): spec shows only the total — what was
+ * voted on stays private, so no per-content-type fields exist or are wanted.
+ * Requires the firebase-auth-key header (IsLoggedIn).
+ * ---------------------------------------------------------------------- */
+
+export const GET_MY_VOTES_CAST_QUERY = /* GraphQL */ `
+  query GetMyVotesCast {
+    myVotesCast
+  }
+`;
+
+export interface MyVotesCastData {
+  myVotesCast: number;
+}
+
+/* ---------------------------------------------------------------------- *
  * deleteEvent — server enforces both ownership and a 3-day window
  * (spotting/schema/schema.py) regardless of what the client thinks
  * `canDelete` should be — see docs/frontend-map/profile.md Known Quirks

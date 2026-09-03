@@ -80,25 +80,29 @@
                   {{ row.created | date: "MMM d, y HH:mm" }}
                 </td>
                 <td hlmTd class="py-3">
-                  <div class="flex items-center gap-2">
-                    <button
-                      hlmBtn
-                      size="sm"
-                      [disabled]="isMutating()"
-                      (click)="$event.stopPropagation(); approve(row)"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      hlmBtn
-                      size="sm"
-                      variant="destructive"
-                      [disabled]="isMutating()"
-                      (click)="$event.stopPropagation(); openReject(row)"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                  @if (row.status && !isPendingIncidentStatus(row.status)) {
+                    <span hlmBadge variant="destructive">Pending deletion</span>
+                  } @else {
+                    <div class="flex items-center gap-2">
+                      <button
+                        hlmBtn
+                        size="sm"
+                        [disabled]="isMutating()"
+                        (click)="$event.stopPropagation(); approve(row)"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="destructive"
+                        [disabled]="isMutating()"
+                        (click)="$event.stopPropagation(); openReject(row)"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  }
                 </td>
               </tr>
             } @empty {
@@ -172,7 +176,11 @@
           <h2 class="text-base font-semibold">Incident detail</h2>
           @if (selectedRow(); as row) {
             <p class="text-muted-foreground text-xs">
-              Submitted {{ row.created | date: "MMM d, y HH:mm" }} · awaiting approval
+              @if (isPendingIncidentStatus(row.status)) {
+                Submitted {{ row.created | date: "MMM d, y HH:mm" }} · awaiting approval
+              } @else {
+                Live · pending chronology deletion review
+              }
             </p>
           }
         </div>
@@ -198,7 +206,53 @@
       </div>
       <div hlmSheetBody class="flex flex-col gap-4">
         @if (panelIncident(); as incident) {
-          <app-incident-card [incident]="incident" />
+          <app-incident-card [incident]="incident" [editActionEnabled]="false" />
+        }
+        @if (pendingDeletionChronologies().length > 0) {
+          <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
+            <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              Chronology deletion requests
+            </h3>
+            @for (chronology of pendingDeletionChronologies(); track chronology.id) {
+              <div class="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="text-muted-foreground text-xs whitespace-nowrap">
+                    {{ chronology.datetime | date: "MMM d, HH:mm" }}
+                  </span>
+                  <span class="text-xs">{{ chronology.content || "—" }}</span>
+                  @if (chronologyStatusLabel(chronology.status); as statusLabel) {
+                    <span hlmBadge variant="destructive">{{ statusLabel }}</span>
+                  }
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    hlmBtn
+                    size="sm"
+                    variant="destructive"
+                    class="shrink-0"
+                    [disabled]="isMutating() || deletingChronologyId() !== null"
+                    (click)="approveChronologyDeletion(chronology)"
+                  >
+                    {{
+                      deletingChronologyId() === chronology.id ? "Approving…" : "Approve deletion"
+                    }}
+                  </button>
+                  <button
+                    hlmBtn
+                    size="sm"
+                    variant="outline"
+                    class="shrink-0"
+                    [disabled]="isMutating() || deletingChronologyId() !== null"
+                    (click)="rejectChronologyDeletion(chronology)"
+                  >
+                    {{
+                      deletingChronologyId() === chronology.id ? "Rejecting…" : "Reject deletion"
+                    }}
+                  </button>
+                </div>
+              </div>
+            }
+          </section>
         }
         @if (selectedRow(); as row) {
           <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); savePanelEdit()">

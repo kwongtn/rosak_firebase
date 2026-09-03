@@ -4,12 +4,13 @@ import { RouterLink, RouterLinkActive } from "@angular/router";
 interface ConsoleNavItem {
   path: string;
   label: string;
-  /** "/" is a prefix of every other console route, so it alone must match exactly. */
+  /** The spotting queue's own path must match exactly — the bare /console now redirects to
+   * /console/spotting, so a link to /console would never highlight on the canonical URL. */
   exact: boolean;
 }
 
 const ITEMS: ConsoleNavItem[] = [
-  { path: "/console", label: "Spotting Queue", exact: true },
+  { path: "/console/spotting", label: "Spotting Queue", exact: true },
   { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
   { path: "/console/insiden/links", label: "Social Media Links", exact: false },
 ];

@@ -213,7 +213,7 @@ let hasRevealedNavLinksThisPageLoad = false;
                   (mouseleave)="onConsoleMenuLeave()"
                 >
                   <a
-                    routerLink="/console"
+                    routerLink="/console/spotting"
                     routerLinkActive="font-medium"
                     [routerLinkActiveOptions]="{ exact: true }"
                     class="text-destructive hover:text-destructive/80 flex items-center gap-1 whitespace-nowrap"
@@ -309,7 +309,7 @@ let hasRevealedNavLinksThisPageLoad = false;
                   }
                   @if (auth.isAdmin()) {
                     <a
-                      routerLink="/console"
+                      routerLink="/console/spotting"
                       routerLinkActive="font-medium bg-muted"
                       [routerLinkActiveOptions]="{ exact: true }"
                       class="text-destructive hover:bg-muted px-5 py-3"
@@ -389,7 +389,7 @@ let hasRevealedNavLinksThisPageLoad = false;
                     }
                     @if (auth.isAdmin()) {
                       <a
-                        routerLink="/console"
+                        routerLink="/console/spotting"
                         routerLinkActive="font-medium bg-muted"
                         [routerLinkActiveOptions]="{ exact: true }"
                         class="text-destructive hover:bg-muted rounded-lg px-3 py-2"

@@ -9,6 +9,7 @@ import { AppFooterComponent } from "../../shell/app-footer/app-footer.component"
 import { UserCardComponent } from "./user-card/user-card.component";
 import { SpottingActivityHeatmap } from "../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { MySpottingsComponent } from "./my-spottings/my-spottings.component";
+import { MyLinksComponent } from "./my-links/my-links.component";
 import {
   GET_USER_DATA_QUERY,
   GET_PUBLIC_USER_QUERY,
@@ -42,6 +43,7 @@ import {
     UserCardComponent,
     SpottingActivityHeatmap,
     MySpottingsComponent,
+    MyLinksComponent,
   ],
   template: `
     <app-nav />
@@ -77,6 +79,7 @@ import {
             />
 
             <app-my-spottings [user]="user" [isOwnProfile]="true" />
+            <app-my-links [isOwnProfile]="true" />
           } @else {
             <p class="text-destructive text-sm">
               Couldn't load your profile. Please try again shortly.
