@@ -25,6 +25,8 @@ import cors from "cors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getPageContentFetcher, type FetcherStrategy } from "./utils/pageContentFetcher";
 import { asStringOrNull, parseExtraction, type ExtractedIncident } from "./utils/extractionParser";
+import { EXTRACT_RESPONSE_SCHEMA, SUMMARIZE_RESPONSE_SCHEMA } from "./utils/geminiSchemas";
+import { formatHourKey } from "./utils/hourKey";
 
 // ---------------------------------------------------------------------------
 // Error types
@@ -75,7 +77,7 @@ export class UnavailableError extends ApiError {
 // ---------------------------------------------------------------------------
 
 const RATE_LIMIT_PER_HOUR = 20;
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-pro";
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 
 // ---------------------------------------------------------------------------
 // Shared state
@@ -202,7 +204,7 @@ export async function verifyAuth(req: express.Request): Promise<string> {
 }
 
 export async function rateLimit(uid: string, env: "staging" | "main"): Promise<void> {
-  const hourKey = new Date().toISOString().slice(0, 13);
+  const hourKey = formatHourKey(new Date());
   const collection = env === "staging" ? "rate_limits_staging" : "rate_limits";
   const rateLimitDoc = db.collection(collection).doc(`${uid}_${hourKey}`);
 
@@ -266,7 +268,10 @@ export async function handleExtract(body: Record<string, unknown>): Promise<{
 
   const model = getGenAI().getGenerativeModel({
     model: GEMINI_MODEL,
-    generationConfig: { responseMimeType: "application/json" },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: EXTRACT_RESPONSE_SCHEMA,
+    },
   });
 
   try {
@@ -298,7 +303,10 @@ export async function handleSummarize(body: Record<string, unknown>): Promise<{
 
   const model = getGenAI().getGenerativeModel({
     model: GEMINI_MODEL,
-    generationConfig: { responseMimeType: "application/json" },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: SUMMARIZE_RESPONSE_SCHEMA,
+    },
   });
 
   try {
