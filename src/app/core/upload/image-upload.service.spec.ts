@@ -1,20 +1,18 @@
-import * as Sentry from "@sentry/angular";
 import { TestBed } from "@angular/core/testing";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { PLATFORM_ID } from "@angular/core";
 import { of } from "rxjs";
-import { ImageUploadService } from "./image-upload.service";
+import { ImageUploadService, UPLOAD_ERROR_REPORTER } from "./image-upload.service";
 import { AuthService } from "../auth/auth.service";
-
-vi.mock("@sentry/angular", () => ({
-  captureException: vi.fn(),
-}));
 
 /**
  * jsdom has no IndexedDB, so the real `deletePendingUpload` rejects when its
  * transaction errors. The fake below lets `loadAllPendingUploads` (readonly)
  * succeed but makes `deletePendingUpload` (readwrite) fail. A relative `vi.mock`
  * cannot be used here — the Angular unit-test builder throws on relative mocks.
+ *
+ * `deleteDatabase` is stubbed too: other specs in the same bundle import
+ * firebase/app+auth, whose persistence calls it on the shared globalThis mock.
  */
 function installIndexedDbMock(): void {
   let nextId = 1;
@@ -85,12 +83,22 @@ function installIndexedDbMock(): void {
       });
       return openRequest;
     },
+    deleteDatabase: () => {
+      const request = {
+        onsuccess: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+      };
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
   };
 }
 
 describe("ImageUploadService", () => {
+  let reportError: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    vi.mocked(Sentry.captureException).mockClear();
+    reportError = vi.fn();
     installIndexedDbMock();
     TestBed.configureTestingModule({
       providers: [
@@ -103,11 +111,12 @@ describe("ImageUploadService", () => {
           },
         },
         { provide: AuthService, useValue: { idToken: vi.fn().mockResolvedValue("token") } },
+        { provide: UPLOAD_ERROR_REPORTER, useValue: reportError },
       ],
     });
   });
 
-  it("routes deletePendingUpload failure to Sentry.captureException", async () => {
+  it("routes deletePendingUpload failure to the error reporter", async () => {
     const service = TestBed.inject(ImageUploadService);
     (service as unknown as { pendingUploads: unknown[] }).pendingUploads = [
       {
@@ -118,8 +127,8 @@ describe("ImageUploadService", () => {
       },
     ];
     await (service as unknown as { triggerUpload: () => Promise<void> }).triggerUpload();
-    // The delete's .catch runs on a microtask after the pool resolves.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(Sentry.captureException).toHaveBeenCalled();
+    // triggerUpload() awaits the IndexedDB cleanup, so the failure report has
+    // fired by the time it resolves — no polling needed.
+    expect(reportError).toHaveBeenCalled();
   });
 });

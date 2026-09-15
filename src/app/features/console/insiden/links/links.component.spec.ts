@@ -1,5 +1,6 @@
 import { Component, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { provideRouter } from "@angular/router";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -92,6 +93,7 @@ function asTestable(fixture: ComponentFixture<SocialMediaLinksComponent>): Compo
 describe("SocialMediaLinksComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
   let fixture: ComponentFixture<SocialMediaLinksComponent>;
+  let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     requestMock = vi.fn().mockImplementation((query: string) => {
@@ -105,6 +107,7 @@ describe("SocialMediaLinksComponent", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
+        provideHttpClientTesting(),
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: AuthService, useValue: { idToken: async () => "token" } },
         {
@@ -118,10 +121,19 @@ describe("SocialMediaLinksComponent", () => {
       remove: { imports: [AppNavComponent, AppFooterComponent] },
       add: { imports: [StubNav, StubFooter] },
     });
+    httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SocialMediaLinksComponent);
+    fixture.detectChanges();
+    // The reference dropdown data goes through graphqlResource's own HttpClient
+    // (not the GraphQLClient mock) — flush it so no real request leaves the suite.
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({ data: { lines: [], stations: [], calendarIncidentCategories: [] } });
+    await fixture.whenStable();
   });
 
   afterEach(() => {
+    httpMock.verify();
     vi.useRealTimers();
   });
 

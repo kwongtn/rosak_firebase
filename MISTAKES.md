@@ -10,7 +10,35 @@
 
 ---
 
+### [2026-09-15] deploy-functions: `npm ci` lockfile drift + Node 18 EOL + missing `functions` codebase
+
+**Problem**: `Deploy Functions` workflow failed at `npm ci` — lockfile's `@types/express` tree did not satisfy `package.json`, and the job ran Node 18 while `cheerio`/`vite`/`vitest`/`undici` require ≥20. `firebase.json` also had no `functions` section, so `deploy --only functions` would have found no codebase even past install.
+**Root Cause**: `functions/package-lock.json` was never regenerated after a dependency bump; `engines.node` stayed on EOL Node 18; the App Hosting rewrite dropped the old hosting config from `firebase.json` without adding a functions codebase.
+**Fix**: Regenerated the lockfile (`npm install` in `functions/`), bumped `engines` and the workflow to Node 20, added a minimal `functions` codebase (`source: functions`) to `firebase.json`.
+**Prevention**: Run `npm ci` in `functions/` locally after any dependency change; keep `engines` and the workflow's `node-version` in sync; any workflow touching `firebase deploy --only <target>` needs that target present in `firebase.json`.
+
 ## Fixed
+
+### [2026-09-15] CI: `vi.mock` identity diverges across specs (`isolate: false` shared registry)
+
+**Problem**: `image-upload.service.spec` failed only in CI (`expected "vi.fn()" to be called at least once`) while passing locally — repeatedly, across unrelated fixes (polling, awaiting). The service genuinely called `captureException`, but on the REAL `@sentry/angular` module, not the spec's mock.
+**Root Cause**: The Angular unit-test builder runs Vitest with `isolate: false`, so spec files in a worker share one module registry and execute in timing-dependent order. If any earlier file (e.g. `incident-card.component.spec`, which imports the service without a Sentry mock) evaluates `image-upload.service` first, the service binds the real Sentry while the spec's own import resolves to its mock — the assertion can never pass. Which files share a worker depends on CPU count, so it passes on some machines and fails on others.
+**Fix**: Report through an injectable `UPLOAD_ERROR_REPORTER` token (root factory defaults to `Sentry.captureException`); specs provide a spy via TestBed DI, which is per-test and immune to registry sharing. Test and service import the token from the same (cached) module instance, so identity always matches.
+**Prevention**: Never assert on a module-mock (`vi.mock`) binding for code under test in this repo — any spec asserting a mock must own the seam through TestBed DI. Suspect order-dependent flakes first when CI fails but local passes: check `isolate` in the builder executor.
+
+### [2026-09-15] deploy-functions: job-level `if:` on `secrets` rejected by GitHub validator
+
+**Problem**: Adding `if: ${{ secrets.WIF_PROVIDER != '' ... }}` to gate the deploy job produced a 0s startup failure ("This run likely failed because of a workflow file issue", run named by file path, no jobs).
+**Root Cause**: GitHub's workflow validator rejects `secrets` in a job-level `if:` condition.
+**Fix**: Expose presence as job `env` (`HAS_WIF_SECRETS`) and gate only the auth/deploy steps with `if: env.HAS_WIF_SECRETS == 'true'` — install/build/test still validate on every push; run `actionlint` (installed) on workflow edits before pushing.
+**Prevention**: Never use `secrets` in job-level `if:`; use the env+step-gate pattern. Run `actionlint .github/workflows/` locally for every workflow change.
+
+### [2026-09-15] CI: console specs hit the real GraphQL backend (unmocked `graphqlResource` HttpClient)
+
+**Problem**: `CI` test job failed on every run — 14/18 `links.component.spec` tests and `pending.component.spec` `savePanelEdit` failed with `Http failure response for http://localhost:8000/graphql/` (`ECONNREFUSED`), plus timeouts from the helper's backoff retry keeping `whenStable()` from settling.
+**Root Cause**: Both components load dropdown reference data through `graphqlResource()` (its own `HttpClient`/`httpResource`), but the specs only mocked `GraphQLClient.request` — the pattern that works for components without `graphqlResource`. The unmocked `httpResource` hit the real backend, errored, and (a) threw during change detection wherever the template read `referenceResource.data()`, and (b) scheduled retry `setInterval`s that hung `fixture.whenStable()`. `savePanelEdit` failed the same way: `buildUpdatedRow()` reads the reference lookups, threw, and the row was never patched. Same family: `pending` spec instantiated the real `IncidentAiService` (pulls in `firebase/app+auth`, whose persistence calls `indexedDB.deleteDatabase` — absent from the shared jsdom mock), producing the `self.indexedDB.deleteDatabase is not a function` unhandled error.
+**Fix**: Follow the existing `link-form`/`incident-form` spec pattern — `provideHttpClientTesting()` + flush the single reference POST with empty `{ lines, stations, calendarIncidentCategories }` + `httpMock.verify()`; stub `IncidentAiService` in the pending spec; add `deleteDatabase` to the IndexedDB mock and poll `Sentry.captureException` via `vi.waitFor` in the image-upload spec.
+**Prevention**: Any spec for a component using `graphqlResource()` must include `provideHttpClientTesting()` and flush its reference query — the `GraphQLClient` mock alone is never sufficient. Never instantiate services that import `firebase/*` in specs; stub them.
 
 ### [2026-08-24] console: `adminOnlyGuard` Always Returned True (Unprotected Admin Route)
 

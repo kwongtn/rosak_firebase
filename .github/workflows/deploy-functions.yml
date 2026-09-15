@@ -32,12 +32,19 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Secret presence as env (never printed): the auth/deploy steps below skip
+    # when the one-time GCP WIF setup isn't done yet, while install/build/test
+    # still validate the functions code on every push. A present-but-wrong
+    # value still fails loudly at the auth step. (A job-level `if:` on
+    # `secrets` is rejected by GitHub's workflow validator — hence step gates.)
+    env:
+      HAS_WIF_SECRETS: ${{ secrets.WIF_PROVIDER != '' && secrets.GCP_SA_FB_FUNCTIONS != '' }}
     steps:
       - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 18
+          node-version: 20
           cache: "npm"
           cache-dependency-path: functions/package-lock.json
 
@@ -56,12 +63,15 @@ jobs:
         run: npm test --if-present
 
       - name: Authenticate to Google Cloud (WIF)
+        if: env.HAS_WIF_SECRETS == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_FB_FUNCTIONS }}
 
       - uses: google-github-actions/setup-gcloud@v2
+        if: env.HAS_WIF_SECRETS == 'true'
 
       - name: Deploy Functions
+        if: env.HAS_WIF_SECRETS == 'true'
         run: npx firebase-tools deploy --only functions --project rosak-7223b --force --non-interactive

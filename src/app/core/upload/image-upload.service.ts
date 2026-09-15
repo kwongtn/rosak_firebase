@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { isPlatformBrowser } from "@angular/common";
-import { Injectable, PLATFORM_ID, inject, signal } from "@angular/core";
+import { Injectable, InjectionToken, PLATFORM_ID, inject, signal } from "@angular/core";
 import { PromisePool } from "@supercharge/promise-pool";
 import { firstValueFrom } from "rxjs";
 
@@ -11,6 +11,17 @@ import { deletePendingUpload, loadAllPendingUploads, savePendingUpload } from ".
 import * as Sentry from "@sentry/angular";
 
 export type PendingUploadType = "SPOTTING_EVENT" | "INCIDENT_CALENDAR_INCIDENT";
+
+/** Where background queue failures get reported. Tests provide a spy; production
+ * sends to Sentry. Injected (not imported) so specs stay hermetic even though
+ * the unit-test builder shares one module registry across all spec files. */
+export const UPLOAD_ERROR_REPORTER = new InjectionToken<(error: unknown) => void>(
+  "UploadErrorReporter",
+  {
+    providedIn: "root",
+    factory: () => (error: unknown) => Sentry.captureException(error),
+  },
+);
 
 interface PendingUpload {
   /** IndexedDB key for this item, once persisted — see upload-queue-db.ts. Undefined only in
@@ -54,6 +65,7 @@ interface PendingUpload {
 export class ImageUploadService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly reportError = inject(UPLOAD_ERROR_REPORTER);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   private pendingUploads: PendingUpload[] = [];
@@ -88,7 +100,7 @@ export class ImageUploadService {
       .catch((err) => {
         // IndexedDB unavailable (private browsing, quota, unsupported) — nothing to
         // resume; new uploads still queue and persist normally going forward.
-        Sentry.captureException(err);
+        this.reportError(err);
       });
   }
 
@@ -103,7 +115,7 @@ export class ImageUploadService {
         .then((dbId) => (entry.dbId = dbId))
         .catch((err) => {
           // Not persisted, but still queued in memory — same as before this feature existed.
-          Sentry.captureException(err);
+          this.reportError(err);
         });
     }
 
@@ -149,7 +161,9 @@ export class ImageUploadService {
           this.pendingCount.update((n) => n - 1);
           this.recomputePercent();
           if (dbId !== undefined) {
-            deletePendingUpload(dbId).catch((err) => Sentry.captureException(err));
+            // Awaited (not floating): callers awaiting triggerUpload() observe
+            // the cleanup outcome, so delete-failure reporting is deterministic.
+            await deletePendingUpload(dbId).catch((err) => this.reportError(err));
           }
         } catch (err) {
           // No retry limit/backoff — matches current production behavior.
