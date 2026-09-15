@@ -1,14 +1,9 @@
-import * as Sentry from "@sentry/angular";
 import { TestBed } from "@angular/core/testing";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { PLATFORM_ID } from "@angular/core";
 import { of } from "rxjs";
-import { ImageUploadService } from "./image-upload.service";
+import { ImageUploadService, UPLOAD_ERROR_REPORTER } from "./image-upload.service";
 import { AuthService } from "../auth/auth.service";
-
-vi.mock("@sentry/angular", () => ({
-  captureException: vi.fn(),
-}));
 
 /**
  * jsdom has no IndexedDB, so the real `deletePendingUpload` rejects when its
@@ -100,8 +95,10 @@ function installIndexedDbMock(): void {
 }
 
 describe("ImageUploadService", () => {
+  let reportError: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    vi.mocked(Sentry.captureException).mockClear();
+    reportError = vi.fn();
     installIndexedDbMock();
     TestBed.configureTestingModule({
       providers: [
@@ -114,11 +111,12 @@ describe("ImageUploadService", () => {
           },
         },
         { provide: AuthService, useValue: { idToken: vi.fn().mockResolvedValue("token") } },
+        { provide: UPLOAD_ERROR_REPORTER, useValue: reportError },
       ],
     });
   });
 
-  it("routes deletePendingUpload failure to Sentry.captureException", async () => {
+  it("routes deletePendingUpload failure to the error reporter", async () => {
     const service = TestBed.inject(ImageUploadService);
     (service as unknown as { pendingUploads: unknown[] }).pendingUploads = [
       {
@@ -131,6 +129,6 @@ describe("ImageUploadService", () => {
     await (service as unknown as { triggerUpload: () => Promise<void> }).triggerUpload();
     // triggerUpload() awaits the IndexedDB cleanup, so the failure report has
     // fired by the time it resolves — no polling needed.
-    expect(Sentry.captureException).toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalled();
   });
 });

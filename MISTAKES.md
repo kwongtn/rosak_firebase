@@ -19,6 +19,20 @@
 
 ## Fixed
 
+### [2026-09-15] CI: `vi.mock` identity diverges across specs (`isolate: false` shared registry)
+
+**Problem**: `image-upload.service.spec` failed only in CI (`expected "vi.fn()" to be called at least once`) while passing locally — repeatedly, across unrelated fixes (polling, awaiting). The service genuinely called `captureException`, but on the REAL `@sentry/angular` module, not the spec's mock.
+**Root Cause**: The Angular unit-test builder runs Vitest with `isolate: false`, so spec files in a worker share one module registry and execute in timing-dependent order. If any earlier file (e.g. `incident-card.component.spec`, which imports the service without a Sentry mock) evaluates `image-upload.service` first, the service binds the real Sentry while the spec's own import resolves to its mock — the assertion can never pass. Which files share a worker depends on CPU count, so it passes on some machines and fails on others.
+**Fix**: Report through an injectable `UPLOAD_ERROR_REPORTER` token (root factory defaults to `Sentry.captureException`); specs provide a spy via TestBed DI, which is per-test and immune to registry sharing. Test and service import the token from the same (cached) module instance, so identity always matches.
+**Prevention**: Never assert on a module-mock (`vi.mock`) binding for code under test in this repo — any spec asserting a mock must own the seam through TestBed DI. Suspect order-dependent flakes first when CI fails but local passes: check `isolate` in the builder executor.
+
+### [2026-09-15] deploy-functions: job-level `if:` on `secrets` rejected by GitHub validator
+
+**Problem**: Adding `if: ${{ secrets.WIF_PROVIDER != '' ... }}` to gate the deploy job produced a 0s startup failure ("This run likely failed because of a workflow file issue", run named by file path, no jobs).
+**Root Cause**: GitHub's workflow validator rejects `secrets` in a job-level `if:` condition.
+**Fix**: Expose presence as job `env` (`HAS_WIF_SECRETS`) and gate only the auth/deploy steps with `if: env.HAS_WIF_SECRETS == 'true'` — install/build/test still validate on every push; run `actionlint` (installed) on workflow edits before pushing.
+**Prevention**: Never use `secrets` in job-level `if:`; use the env+step-gate pattern. Run `actionlint .github/workflows/` locally for every workflow change.
+
 ### [2026-09-15] CI: console specs hit the real GraphQL backend (unmocked `graphqlResource` HttpClient)
 
 **Problem**: `CI` test job failed on every run — 14/18 `links.component.spec` tests and `pending.component.spec` `savePanelEdit` failed with `Http failure response for http://localhost:8000/graphql/` (`ECONNREFUSED`), plus timeouts from the helper's backoff retry keeping `whenStable()` from settling.
