@@ -128,11 +128,18 @@
       (`setAllCollapsed()`), up/down reorder arrows, and the Gemini extract/summarize flows.
   - `LinksSectionComponent`: first page through `graphqlResource` (retry banner kept), continuation
     pages via `GraphQLClient.request` + the infinite-scroll sentinel; edges append, approved/pending
-    split + collapsible preserved.
+    split + collapsible preserved. Approved links render under UTC day-group headers
+    (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and browser agree on the
+    buckets. Cards are compact and expose an edit pencil gated by the pure `canEditLink()` util
+    (author shortId match or admin); the pencil opens the shared link sheet in edit mode via
+    `LinkSheetService.openEdit()`, and an effect on sheet close (open→closed edge) drops appended
+    pages and refetches page 1 so an edit lands without a manual refresh.
 - Pure helper modules carry the non-trivial domain logic outside the components:
   `calendar-date.util.ts` (`dateKeyOf`, `incidentCoversDate`), `elapsed-time.util.ts`
   (`getReadableTimeDifference`), `incident-to-form.util.ts` (edit hydration), `can-edit.incident.util.ts`
-  (edit-button gate matrix), `chronology-status.util.ts` (status labels + deletion predicates),
+  (incident edit-button gate matrix), `can-edit.link.util.ts` (link edit-button gate matrix),
+  `link-day-group.util.ts` (`linkDateKey`, `linkDayLabel`, `groupLinksByDay` — the link day
+  buckets), `chronology-status.util.ts` (status labels + deletion predicates),
   `incident-link-line.util.ts` (spec link-line formatting), `incident-media-viewer.util.ts`
   (photo → viewer node), `social-link.util.ts`, `incident-status.util.ts`, `incident-chronology.util.ts`.
 
@@ -152,9 +159,10 @@
   fetched fields (e.g. adding a new backend field) is a local, additive edit to `insiden.queries.ts`
   with a matching `CalendarIncident` interface change — no query-building abstraction to route
   around. New fields follow the optional-field + DEPLOY-ORDER comment pattern.
-- Pure utils are the gate/label/format seams: `canEditIncident()`, `chronologyStatusLabel()`,
-  `incidentLinkLine()`, `incidentToForm()`, `incidentMediaToViewerNode()` — each is a tested,
-  isolated function a future feature can reuse or extend without touching component markup.
+- Pure utils are the gate/label/format seams: `canEditIncident()`, `canEditLink()`,
+  `chronologyStatusLabel()`, `incidentLinkLine()`, `incidentToForm()`, `groupLinksByDay()`,
+  `incidentMediaToViewerNode()` — each is a tested, isolated function a future feature can reuse
+  or extend without touching component markup.
 - Details/photos use an in-place expand/collapse idiom (matching `vehicle-list.component.ts`
   elsewhere in the app) rather than a modal/drawer — consistent with how new expandable sections
   elsewhere in the app should be built.

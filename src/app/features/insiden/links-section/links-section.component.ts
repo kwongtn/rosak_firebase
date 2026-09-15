@@ -1,12 +1,18 @@
-import { Component, computed, inject, signal } from "@angular/core";
+import { Component, computed, effect, inject, signal } from "@angular/core";
+import { DatePipe } from "@angular/common";
+import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, graphqlResource } from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
 import { InfiniteScrollDirective } from "../../../ui/infinite-scroll/infinite-scroll.directive";
 import { LinkCardComponent } from "../link-card/link-card.component";
+import { canEditLink } from "../data/can-edit.link.util";
+import { groupLinksByDay, linkDateKey } from "../data/link-day-group.util";
+import { LinkSheetService } from "../data/link-sheet.service";
 import {
   PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
+  PublicSocialMediaLink,
   PublicSocialMediaLinkEdge,
   PublicSocialMediaLinksQueryData,
   PublicSocialMediaLinksVars,
@@ -28,6 +34,7 @@ const PAGE_SIZE = 20;
 @Component({
   selector: "app-links-section",
   imports: [
+    DatePipe,
     HlmSkeleton,
     HlmButton,
     RetryBannerComponent,
@@ -48,8 +55,23 @@ const PAGE_SIZE = 20;
         <p class="text-muted-foreground text-sm">No submitted links yet.</p>
       }
       <div class="flex flex-col gap-4">
-        @for (link of approved(); track link.id) {
-          <app-link-card [link]="link" />
+        @for (group of approvedGroups(); track group.key) {
+          <div class="flex flex-col gap-2">
+            @if (group.label) {
+              <h2 class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                {{ group.label }}
+              </h2>
+            } @else if (group.key) {
+              <h2 class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                {{ group.key | date: "MMMM d, y" : "UTC" }}
+              </h2>
+            }
+            <div class="flex flex-col gap-2">
+              @for (link of group.items; track link.id) {
+                <app-link-card [link]="link" [editable]="canEdit(link)" (edit)="openEdit($event)" />
+              }
+            </div>
+          </div>
         }
         @if (pending().length > 0) {
           <div class="flex flex-col gap-4">
@@ -75,9 +97,15 @@ const PAGE_SIZE = 20;
               Pending ({{ pending().length }})
             </button>
             @if (pendingExpanded()) {
-              @for (link of pending(); track link.id) {
-                <app-link-card [link]="link" />
-              }
+              <div class="flex flex-col gap-2">
+                @for (link of pending(); track link.id) {
+                  <app-link-card
+                    [link]="link"
+                    [editable]="canEdit(link)"
+                    (edit)="openEdit($event)"
+                  />
+                }
+              </div>
             }
           </div>
         }
@@ -113,6 +141,8 @@ const PAGE_SIZE = 20;
 })
 export class LinksSectionComponent {
   private readonly graphql = inject(GraphQLClient);
+  private readonly auth = inject(AuthService);
+  private readonly linkSheet = inject(LinkSheetService);
 
   protected readonly linksResource = graphqlResource<PublicSocialMediaLinksQueryData>(() => ({
     query: PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
@@ -140,6 +170,13 @@ export class LinksSectionComponent {
   protected readonly approved = computed(() => this.links().filter((link) => link.completed));
   protected readonly pending = computed(() => this.links().filter((link) => !link.completed));
 
+  /** Approved links bucketed by UTC day (created-DESC preserved within each day). The
+   * Today/Yesterday/date headers give the flood of incoming links a scannable rhythm; UTC so
+   * SSR (server) and browser (viewer tz) agree on the buckets. */
+  protected readonly approvedGroups = computed(() =>
+    groupLinksByDay(this.approved(), linkDateKey(new Date().toISOString())),
+  );
+
   protected readonly hasNextPage = computed(
     () =>
       this.appendedHasNext() ??
@@ -156,6 +193,38 @@ export class LinksSectionComponent {
 
   /** Collapsed by default — pending links stay out of the way until explicitly requested. */
   protected readonly pendingExpanded = signal(false);
+
+  /** Author-or-admin gate for the card's edit pencil (see can-edit.link.util). */
+  protected canEdit(link: PublicSocialMediaLink): boolean {
+    return canEditLink(link, {
+      isLoggedIn: this.auth.isLoggedIn(),
+      isAdmin: this.auth.isAdmin(),
+      userId: this.auth.user()?.uid ?? null,
+    });
+  }
+
+  /** Opens the sheet in edit mode for the clicked link. */
+  protected openEdit(link: PublicSocialMediaLink): void {
+    this.linkSheet.openEdit(link);
+  }
+
+  private _wasSheetOpen = false;
+
+  constructor() {
+    // Reload when the link sheet closes (edit submit or cancel): the edited link changed
+    // server-side, so the first page must be refetched and appended continuation pages
+    // dropped (they belong to the stale dataset).
+    effect(() => {
+      const isOpen = this.linkSheet.isOpen();
+      if (!isOpen && this._wasSheetOpen) {
+        this.appendedEdges.set([]);
+        this.appendedHasNext.set(null);
+        this.nextCursor.set(null);
+        this.linksResource.reload();
+      }
+      this._wasSheetOpen = isOpen;
+    });
+  }
 
   /** Loads the next page through the same query with the last page's cursor. Coalesced
    * by `loadingMore`; a failure swaps the sentinel for an inline retry. */

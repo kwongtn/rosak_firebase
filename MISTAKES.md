@@ -17,6 +17,25 @@
 **Fix**: Regenerated the lockfile (`npm install` in `functions/`), bumped `engines` and the workflow to Node 20, added a minimal `functions` codebase (`source: functions`) to `firebase.json`.
 **Prevention**: Run `npm ci` in `functions/` locally after any dependency change; keep `engines` and the workflow's `node-version` in sync; any workflow touching `firebase deploy --only <target>` needs that target present in `firebase.json`.
 
+### [2026-09-16] ui/card: `hlmCard` host classes win over element-class overrides — `class="gap-3 p-4"` was dead code
+
+**Problem**: `LinkCardComponent` wrapped its card in `hlmCard class="gap-3 p-4"` expecting the
+element classes to tighten the layout — but the card always rendered `gap-4 p-5`. Empirically
+verified against the compiled `dist/web/browser/styles-*.css`: Tailwind v4 emits spacing
+utilities in ascending order (`p-4` rules come after `p-5`), so the `[hlmCard]` host-class rules
+in `ui/card/card.ts` (`gap-4 p-5`) always beat any element-class override regardless of the
+`class` attribute value.
+**Root Cause**: The `hlm()` class-merge helper can't help either — both class sets end up on the
+same element, and cascade order (not specificity or source-of-binding) decides. Custom
+directives with host-class styling are not overridable from the template.
+**Fix**: The compact link card dropped `hlmCard` entirely and carries explicit classes
+(`bg-card text-card-foreground border-border flex flex-col gap-1.5 rounded-xl border p-2.5
+shadow-sm` — hlmCard's own tokens minus its spacing) with a comment explaining why.
+**Prevention**: Never override a helmet/directive host class from the template. If a card needs
+different padding/gap, either parameterize the directive or use plain element classes for that
+instance. Grep for other `hlmCard class="gap-` / `class="p-` instances before "tightening" a
+layout the same way.
+
 ## Fixed
 
 ### [2026-09-15] CI: `vi.mock` identity diverges across specs (`isolate: false` shared registry)

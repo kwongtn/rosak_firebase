@@ -12,9 +12,11 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | ------ | -------------------------------------------------------------------------------------------------- |
 | Sep 15 | Fixed `CI`: mocked `graphqlResource` HTTP in console specs, stubbed Firebase-touching test doubles |
 | Sep 15 | Fixed `Deploy Functions`: resynced lockfile, Node 18→20, added `firebase.json` functions codebase  |
+| Sep 16 | Pre-paint theme init for dark-mode ads; links tab edit flow + compact cards + day grouping         |
 
 ---
 
 ## Daily Logs
 
 - [15.md](./15.md)
+- [16.md](./16.md)

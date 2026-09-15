@@ -22,6 +22,11 @@ import {
   SubmitSocialMediaLinkVars,
 } from "../data/insiden.queries";
 import { LinkSheetService } from "../data/link-sheet.service";
+import {
+  UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+  UpdateSocialMediaLinkData,
+  UpdateSocialMediaLinkVars,
+} from "../data/social-links.queries";
 
 interface LinkFormModel {
   url: string;
@@ -167,6 +172,10 @@ export class LinkFormComponent {
 
   readonly isSubmitting = signal(false);
 
+  /** True while the sheet is in edit mode (a link is being edited rather than created).
+   * Public so the host page can re-label its sheet header/submit button. */
+  readonly isEditing = computed(() => this.sheet.editTarget() !== null);
+
   protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
     query: INSIDEN_REFERENCE_QUERY,
   }));
@@ -249,6 +258,11 @@ export class LinkFormComponent {
    * close so the NEXT open re-applies. */
   private _defaultsApplied = false;
 
+  /** Link id the edit form is currently hydrated to — guards the hydration effect against
+   * re-running (same id) and against hydrating a closed sheet. Mirrors the incident form's
+   * `_hydratedIncidentId` guard so `clear()`/close can't be undone by a stale effect. */
+  private _hydratedLinkId: string | null = null;
+
   constructor() {
     effect(() => {
       const isOpen = this.sheet.isOpen();
@@ -256,6 +270,28 @@ export class LinkFormComponent {
         this.clear();
       }
       this._wasSheetOpen = isOpen;
+    });
+
+    // Hydrate the form from the link being edited, once per open. The id guard handles both
+    // imperatives: no re-hydration while the same link is targeted (mid-session reference
+    // arrivals must not stomp user edits), and no hydration when the sheet closed (clear()
+    // nulls the target; the guard resets with it).
+    effect(() => {
+      const target = this.sheet.editTarget();
+      if (!target) {
+        this._hydratedLinkId = null;
+        return;
+      }
+      if (this._hydratedLinkId === target.id) {
+        return;
+      }
+      this._hydratedLinkId = target.id;
+      this.model.set({ url: target.url, title: target.title });
+      this.selectedLineIds.set(target.lines.map((line) => line.id));
+      this.selectedVehicleIds.set(target.vehicles.map((vehicle) => vehicle.id));
+      this.selectedStationIds.set(target.stations.map((station) => station.id));
+      this.selectedCategoryIds.set(target.categories?.map((category) => category.id) ?? []);
+      this.linkForm().reset();
     });
 
     // Pre-select defaultLineIds once per open, but only once the reference data is actually
@@ -280,33 +316,60 @@ export class LinkFormComponent {
       this.toast.error("Please log in", "You need an account to submit a link.");
       return;
     }
+    const target = this.sheet.editTarget();
     this.isSubmitting.set(true);
     try {
       const ok = await submit(this.linkForm, async () => {
         const m = this.model();
         const idToken = await this.auth.idToken();
-        const context = this.sheet.context();
-        const vars: SubmitSocialMediaLinkVars = {
-          input: {
-            url: m.url,
-            title: m.title || null,
-            lineIds: this.selectedLineIds(),
-            vehicleIds: this.selectedVehicleIds(),
-            stationIds: this.selectedStationIds(),
-            categoryIds: this.selectedCategoryIds(),
-            // Only when a context is set — `incidentId: null` is a server-side error path.
-            ...(context ? { incidentId: context.incidentId } : {}),
-          },
-        };
-        await this.graphql.request<SubmitSocialMediaLinkData, SubmitSocialMediaLinkVars>(
-          SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
-          vars,
-          idToken ? { "firebase-auth-key": idToken } : {},
-        );
+        if (target) {
+          const vars: UpdateSocialMediaLinkVars = {
+            socialMediaLinkId: target.id,
+            input: {
+              url: m.url,
+              title: m.title || null,
+              lineIds: this.selectedLineIds(),
+              vehicleIds: this.selectedVehicleIds(),
+              stationIds: this.selectedStationIds(),
+              categoryIds: this.selectedCategoryIds(),
+            },
+          };
+          await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
+            UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+            vars,
+            idToken ? { "firebase-auth-key": idToken } : {},
+          );
+        } else {
+          const context = this.sheet.context();
+          const vars: SubmitSocialMediaLinkVars = {
+            input: {
+              url: m.url,
+              title: m.title || null,
+              lineIds: this.selectedLineIds(),
+              vehicleIds: this.selectedVehicleIds(),
+              stationIds: this.selectedStationIds(),
+              categoryIds: this.selectedCategoryIds(),
+              // Only when a context is set — `incidentId: null` is a server-side error path.
+              ...(context ? { incidentId: context.incidentId } : {}),
+            },
+          };
+          await this.graphql.request<SubmitSocialMediaLinkData, SubmitSocialMediaLinkVars>(
+            SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
+            vars,
+            idToken ? { "firebase-auth-key": idToken } : {},
+          );
+        }
         return [];
       });
       if (ok) {
-        this.toast.success("Link submitted", "An admin will review it shortly.");
+        if (target) {
+          this.toast.success(
+            "Link updated",
+            this.auth.isAdmin() ? "Your changes are live." : "An admin will review the changes.",
+          );
+        } else {
+          this.toast.success("Link submitted", "An admin will review it shortly.");
+        }
         this.clear();
         this.sheet.close();
       }
@@ -326,8 +389,10 @@ export class LinkFormComponent {
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
     this.selectedCategoryIds.set([]);
-    // No stale incident targeting survives into the next open/submission.
+    // No stale incident targeting or edit target survives into the next open/submission.
     this.sheet.context.set(null);
+    this.sheet.editTarget.set(null);
+    this._hydratedLinkId = null;
     this.linkForm().reset();
   }
 }
