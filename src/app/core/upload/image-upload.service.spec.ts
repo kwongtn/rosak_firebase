@@ -129,8 +129,8 @@ describe("ImageUploadService", () => {
       },
     ];
     await (service as unknown as { triggerUpload: () => Promise<void> }).triggerUpload();
-    // The delete's .catch runs on microtasks after the pool resolves — poll so a
-    // slow chain still reports instead of flaking on a fixed sleep.
-    await vi.waitFor(() => expect(Sentry.captureException).toHaveBeenCalled());
+    // triggerUpload() awaits the IndexedDB cleanup, so the failure report has
+    // fired by the time it resolves — no polling needed.
+    expect(Sentry.captureException).toHaveBeenCalled();
   });
 });

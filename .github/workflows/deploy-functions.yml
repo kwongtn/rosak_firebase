@@ -31,6 +31,10 @@ concurrency:
 
 jobs:
   deploy:
+    # Skip (don't fail) when the WIF secrets aren't configured — e.g. forks
+    # or before the one-time GCP setup below is done. Once the secrets exist
+    # the job runs and a bad value still fails loudly at the auth step.
+    if: ${{ secrets.WIF_PROVIDER != '' && secrets.GCP_SA_FB_FUNCTIONS != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

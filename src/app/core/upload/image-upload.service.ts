@@ -149,7 +149,9 @@ export class ImageUploadService {
           this.pendingCount.update((n) => n - 1);
           this.recomputePercent();
           if (dbId !== undefined) {
-            deletePendingUpload(dbId).catch((err) => Sentry.captureException(err));
+            // Awaited (not floating): callers awaiting triggerUpload() observe
+            // the cleanup outcome, so delete-failure reporting is deterministic.
+            await deletePendingUpload(dbId).catch((err) => Sentry.captureException(err));
           }
         } catch (err) {
           // No retry limit/backoff — matches current production behavior.
