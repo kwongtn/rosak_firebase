@@ -1,0 +1,13 @@
+# robots.txt — MLPTF/LRT Community Platform web app.
+#
+# Public content (/spotting, /tracker, /gallery, /insiden, /about, /gdpr) stays
+# crawlable; authenticated/private areas stay out of search indexes.
+#
+# This static file is served identically by every Firebase App Hosting backend,
+# including staging (rosak-staging). Staging hosts are not publicly linked; if
+# they ever need to be excluded from indexing entirely, replace this file with
+# an environment-aware SSR route keyed on ENVIRONMENT_NAME.
+
+User-agent: *
+Disallow: /console
+Disallow: /profile

@@ -1,0 +1,188 @@
+<div class="flex flex-col gap-5">
+  @if (!auth.isLoggedIn()) {
+    <div class="bg-muted flex flex-col gap-2 rounded-lg p-3 text-sm">
+      You'll need to log in before submitting, but feel free to fill in the details first.
+      <button hlmBtn size="sm" variant="outline" class="self-start" (click)="auth.login()">
+        Log in
+      </button>
+    </div>
+  }
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Line
+    <hlm-combobox
+      [formField]="reportForm.lineId"
+      [items]="lineItems()"
+      [itemTemplate]="lineOptionTpl"
+      placeholder="Search by code or name"
+      emptyMessage="No matching lines"
+    />
+    <ng-template #lineOptionTpl let-item>
+      <span class="flex w-full items-center justify-between gap-2">
+        <span>{{ item.label }}</span>
+        <line-status-badge [status]="item.meta.status" />
+      </span>
+    </ng-template>
+    @if (reportForm.lineId().invalid() && reportForm.lineId().touched()) {
+      <p class="text-destructive text-xs">{{ reportForm.lineId().errors()[0]?.message }}</p>
+    }
+  </label>
+
+  @if (reportForm.lineId().value()) {
+    <label class="flex flex-col gap-1.5 text-sm">
+      Vehicle
+      <hlm-combobox
+        [formField]="reportForm.vehicleId"
+        [items]="vehicleItems()"
+        [filterFn]="vehicleFilterFn()"
+        [itemTemplate]="vehicleOptionTpl"
+        placeholder="Search by ID or the number seen on the train"
+        emptyMessage="No matching vehicles"
+      />
+      <ng-template #vehicleOptionTpl let-item>
+        <span class="flex w-full items-center justify-between gap-2">
+          <span>{{ item.label }}</span>
+          <vehicle-status-badge [status]="item.meta.status" />
+        </span>
+      </ng-template>
+      @if (reportForm.vehicleId().invalid() && reportForm.vehicleId().touched()) {
+        <p class="text-destructive text-xs">{{ reportForm.vehicleId().errors()[0]?.message }}</p>
+      }
+    </label>
+    @if (selectedVehicleStatusValue(); as status) {
+      <vehicle-status-badge [status]="status" class="self-start" />
+    }
+  }
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Date
+    <input hlmInput type="date" [formField]="reportForm.spottingDate" />
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Status
+    <select hlmSelect [formField]="reportForm.status">
+      <option value="IN_SERVICE">In Service</option>
+      <option value="NOT_IN_SERVICE">Not in Service</option>
+      <option value="DECOMMISSIONED">Decommissioned</option>
+      <option value="TESTING">Testing</option>
+    </select>
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Where did you spot it?
+    <select hlmSelect [formField]="reportForm.type" (change)="onTypeChanged()">
+      <option value="JUST_SPOTTING">Just Spotting</option>
+      <option value="DEPOT">Depot</option>
+      <option value="LOCATION">Location (GPS)</option>
+      <option value="AT_STATION">At Station</option>
+      <option value="BETWEEN_STATIONS">Between Stations</option>
+    </select>
+  </label>
+
+  @if (model().type === "AT_STATION") {
+    <label class="flex flex-col gap-1.5 text-sm">
+      Station
+      <select hlmSelect [formField]="reportForm.atStation">
+        <option value="" disabled>Select a station</option>
+        @for (station of stationOptions(); track station.id) {
+          <option [value]="station.id">{{ station.displayName }}</option>
+        }
+      </select>
+      @if (reportForm.atStation().invalid() && reportForm.atStation().touched()) {
+        <p class="text-destructive text-xs">{{ reportForm.atStation().errors()[0]?.message }}</p>
+      }
+    </label>
+  }
+
+  @if (model().type === "BETWEEN_STATIONS") {
+    <label class="flex flex-col gap-1.5 text-sm">
+      Origin station
+      <select hlmSelect [formField]="reportForm.originStation">
+        <option value="" disabled>Select a station</option>
+        @for (station of stationOptions(); track station.id) {
+          <option [value]="station.id">{{ station.displayName }}</option>
+        }
+      </select>
+      @if (reportForm.originStation().invalid() && reportForm.originStation().touched()) {
+        <p class="text-destructive text-xs">
+          {{ reportForm.originStation().errors()[0]?.message }}
+        </p>
+      }
+    </label>
+    <label class="flex flex-col gap-1.5 text-sm">
+      Destination station
+      <select hlmSelect [formField]="reportForm.destinationStation">
+        <option value="" disabled>Select a station</option>
+        @for (station of stationOptions(); track station.id) {
+          <option [value]="station.id">{{ station.displayName }}</option>
+        }
+      </select>
+      @if (reportForm.destinationStation().invalid() && reportForm.destinationStation().touched()) {
+        <p class="text-destructive text-xs">
+          {{ reportForm.destinationStation().errors()[0]?.message }}
+        </p>
+      }
+    </label>
+  }
+
+  @if (model().type === "LOCATION") {
+    @if (capturedLocation(); as loc) {
+      <p class="text-muted-foreground text-xs">
+        Location captured (±{{ loc.accuracy }}m). We won't know your exact location until you
+        submit.
+      </p>
+    } @else {
+      <p class="text-muted-foreground text-xs">Waiting for location access…</p>
+    }
+  }
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Wheel condition (optional)
+    <select hlmSelect [formField]="reportForm.wheelStatus">
+      <option value="">—</option>
+      <option value="FRESH">Fresh</option>
+      <option value="NEAR_PERFECT">Near Perfect</option>
+      <option value="FLAT">Flat</option>
+      <option value="WORN_OUT">Worn Out</option>
+      <option value="WORRYING">Worrying</option>
+    </select>
+  </label>
+
+  @if (allowRunNumber()) {
+    <label class="flex flex-col gap-1.5 text-sm">
+      Run number (optional)
+      <input hlmInput type="text" [formField]="reportForm.runNumber" />
+    </label>
+  }
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Notes (optional)
+    <textarea hlmInput rows="5" [formField]="reportForm.notes"></textarea>
+  </label>
+
+  <label class="flex items-center gap-2.5 text-sm">
+    <hlm-checkbox [formField]="reportForm.isAnonymous" />
+    Submit anonymously
+  </label>
+
+  @if (isAbnormalVehicle()) {
+    <div class="bg-muted flex flex-col gap-2.5 rounded-lg p-3 text-sm">
+      <p>
+        This vehicle's current status suggests it may not normally be spottable. Please confirm.
+      </p>
+      <label class="flex items-center gap-2.5">
+        <hlm-checkbox [formField]="reportForm.sanityTest" />
+        Yes, I know what I'm doing
+      </label>
+      @if (reportForm.sanityTest().invalid() && reportForm.sanityTest().touched()) {
+        <p class="text-destructive text-xs">{{ reportForm.sanityTest().errors()[0]?.message }}</p>
+      }
+    </div>
+  }
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Photos (optional)
+    <app-photo-picker [(files)]="photos" />
+  </label>
+</div>

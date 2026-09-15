@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/current/bin:$PATH\"; exec npx -y chrome-devtools-mcp@latest"
+      ]
+    }
+  }
+}

@@ -1,0 +1,83 @@
+<app-nav />
+<div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+  <main class="flex flex-1 flex-col gap-6">
+    <h1 class="text-2xl font-bold">Gallery</h1>
+
+    <div class="flex flex-col gap-6 sm:flex-row">
+      <div class="flex flex-1 flex-col gap-8">
+        @if (edges().length === 0 && isLoading()) {
+          <div class="flex flex-col gap-1.5">
+            @for (row of skeletonRows; track $index) {
+              <div class="flex gap-1.5" [style.height.px]="skeletonRowHeight">
+                @for (weight of row; track $index) {
+                  <div hlmSkeleton class="h-full" [style.flex]="weight + ' 0 0'"></div>
+                }
+              </div>
+            }
+          </div>
+        } @else if (edges().length === 0) {
+          <p class="text-muted-foreground text-sm">No photos yet.</p>
+        } @else {
+          @for (group of yearGroups(); track group.year) {
+            <section [id]="'gallery-year-' + group.year" class="flex flex-col gap-3">
+              <h2 class="text-lg font-semibold">{{ group.year }}</h2>
+              <app-justified-grid [items]="group.items" (imageClick)="onOpenMedia($event)" />
+            </section>
+            @if ($index === 0) {
+              <!-- Density cap: below lg this unit + footerEnd = the page's full 2-unit cap;
+                   on lg+ it is hidden and the aside's desktop sidebar unit takes its place —
+                   never more than 2 visible in any breakpoint state. -->
+              <div class="lg:hidden">
+                <app-ad-slot
+                  [slotId]="galleryBetweenYearsSlotId"
+                  [minHeightPx]="250"
+                  [label]="'Advertisement'"
+                />
+              </div>
+            }
+          }
+
+          @if (hasMore()) {
+            <button
+              hlmBtn
+              variant="outline"
+              class="self-start"
+              [disabled]="isLoading()"
+              (click)="loadMore()"
+            >
+              {{ isLoading() ? "Loading…" : "Load more" }}
+            </button>
+          }
+        }
+      </div>
+
+      <aside>
+        <app-gallery-year-slider
+          [years]="yearCounts()"
+          [activeYear]="jumpTargetYear()"
+          [isBusy]="isJumping()"
+          (yearSelected)="jumpToYear($event)"
+        />
+        <!-- Desktop-only half of the page's 2-unit density cap: on lg+ this + footerEnd = 2
+             (the between-years unit is lg:hidden); below lg this stays hidden so mobile/tablet
+             keeps betweenYears + footerEnd = 2. The aside itself merely stacks under the grid
+             on small screens rather than disappearing — hence the explicit hidden/lg:block. -->
+        <div class="hidden lg:block">
+          <app-ad-slot
+            [slotId]="gallerySidebarSlotId"
+            [minHeightPx]="600"
+            [label]="'Advertisement'"
+          />
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
+
+  <app-footer />
+</div>
+
+@if (selectedMedia(); as media) {
+  <app-media-viewer [media]="media" (close)="onCloseMedia()" />
+}
