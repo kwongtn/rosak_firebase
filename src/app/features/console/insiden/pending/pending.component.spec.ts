@@ -1,5 +1,6 @@
 import { Component, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { provideRouter } from "@angular/router";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +23,7 @@ import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.comp
 import { type IncidentFormModel } from "../../../insiden/incident-form/incident-form.schema";
 import { type ChronologyDraft } from "../../../insiden/incident-form/chronology-list.util";
 import { isoToDateTimeLocal } from "../../../insiden/incident-form/extract-data.util";
+import { IncidentAiService } from "../../../insiden/data/incident-ai.service";
 import { PendingIncidentsComponent } from "./pending.component";
 /* The real app-nav/footer pull in browser-only services (ThemeService needs
  * matchMedia); the shell chrome is irrelevant to these specs, so swap in
@@ -98,6 +100,7 @@ function asTestable(fixture: ComponentFixture<PendingIncidentsComponent>): Compo
 describe("PendingIncidentsComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
   let fixture: ComponentFixture<PendingIncidentsComponent>;
+  let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     requestMock = vi.fn().mockImplementation((query: string) => {
@@ -115,6 +118,7 @@ describe("PendingIncidentsComponent", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
+        provideHttpClientTesting(),
         { provide: GraphQLClient, useValue: { request: requestMock } },
         {
           provide: AuthService,
@@ -124,6 +128,8 @@ describe("PendingIncidentsComponent", () => {
           provide: ToastService,
           useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
         },
+        // No extract/summarize test here — the real service pulls in firebase/app+auth.
+        { provide: IncidentAiService, useValue: {} },
       ],
     }).compileComponents();
 
@@ -131,17 +137,23 @@ describe("PendingIncidentsComponent", () => {
       remove: { imports: [AppNavComponent, AppFooterComponent] },
       add: { imports: [StubNav, StubFooter] },
     });
+    httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(PendingIncidentsComponent);
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({ data: { lines: [], stations: [], calendarIncidentCategories: [] } });
+    await fixture.whenStable();
   });
 
   afterEach(() => {
+    httpMock.verify();
     vi.useRealTimers();
   });
 
   /** Zoneless whenStable() does not track the constructor's fire-and-forget
    * load promise — wait for the queue query (and the loading flag to drop).
-   * The panel's reference data goes through graphqlResource's own HttpClient,
-   * which is not part of requestMock (same as the links suite). */
+   * The panel's reference data is already flushed through httpMock in beforeEach. */
   async function initialLoadsSettled(component: ComponentUnderTest): Promise<void> {
     await fixture.whenStable();
     await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(1));

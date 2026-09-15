@@ -15,6 +15,9 @@ vi.mock("@sentry/angular", () => ({
  * transaction errors. The fake below lets `loadAllPendingUploads` (readonly)
  * succeed but makes `deletePendingUpload` (readwrite) fail. A relative `vi.mock`
  * cannot be used here — the Angular unit-test builder throws on relative mocks.
+ *
+ * `deleteDatabase` is stubbed too: other specs in the same bundle import
+ * firebase/app+auth, whose persistence calls it on the shared globalThis mock.
  */
 function installIndexedDbMock(): void {
   let nextId = 1;
@@ -85,6 +88,14 @@ function installIndexedDbMock(): void {
       });
       return openRequest;
     },
+    deleteDatabase: () => {
+      const request = {
+        onsuccess: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+      };
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
   };
 }
 
@@ -118,8 +129,8 @@ describe("ImageUploadService", () => {
       },
     ];
     await (service as unknown as { triggerUpload: () => Promise<void> }).triggerUpload();
-    // The delete's .catch runs on a microtask after the pool resolves.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(Sentry.captureException).toHaveBeenCalled();
+    // The delete's .catch runs on microtasks after the pool resolves — poll so a
+    // slow chain still reports instead of flaking on a fixed sleep.
+    await vi.waitFor(() => expect(Sentry.captureException).toHaveBeenCalled());
   });
 });
