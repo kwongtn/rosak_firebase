@@ -29,6 +29,12 @@
 | Aug 22–24 | **console platform**: Approval queue, social media triage, admin claim enforcement                   |
 | Aug 26    | **ads platform**: AdSense integration, app-ad-slot, robots.txt                                       |
 
+### Q3: Reliability (Sep)
+
+| Week   | Milestone                                                                         |
+| ------ | --------------------------------------------------------------------------------- |
+| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20 |
+
 ---
 
 ## Module Evolution 2026
