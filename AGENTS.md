@@ -2,6 +2,12 @@
 
 Guidance for agents working in `rosak_firebase`. Read this before editing.
 
+This project has an OKF knowledge bundle at ./okf_bundle/.
+
+- Use `okf lookup <Name>` for full concept context.
+- Use `okf lookup --type <Type>` to filter by type.
+- Read `SUMMARY.md` for the full knowledge map.
+
 ## ⚡ Quick Commands
 
 **Frontend** (this repo, `/home/kwongtn/rosak_firebase`) — npm 11, Node 24:
