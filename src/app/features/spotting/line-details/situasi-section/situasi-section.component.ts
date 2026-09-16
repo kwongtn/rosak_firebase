@@ -1,26 +1,13 @@
-import {
-  Component,
-  DestroyRef,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-  viewChild,
-} from "@angular/core";
+import { Component, DestroyRef, computed, inject, input } from "@angular/core";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
-import { AuthService } from "../../../../core/auth/auth.service";
 import { PollingSource } from "../../../../core/polling/polling-source";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
-import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../../ui/sheet/sheet";
-import { LinkCardComponent } from "../../../insiden/link-card/link-card.component";
-import { LinkFormComponent } from "../../../insiden/link-form/link-form.component";
-import { canEditLink } from "../../../insiden/data/can-edit.link.util";
+import { LinkListComponent } from "../../../insiden/link-list/link-list.component";
+import { LinkSheetComponent } from "../../../insiden/link-sheet/link-sheet.component";
 import {
   PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
-  PublicSocialMediaLink,
   PublicSocialMediaLinksQueryData,
 } from "../../../insiden/data/social-links.queries";
 import { LinkSheetService } from "../../../insiden/data/link-sheet.service";
@@ -49,26 +36,16 @@ function optionValueToRefreshInterval(value: string): number | null {
 
 /**
  * The "Situasi" tab of /spotting/:lineId/details — social-media links tagged to this line,
- * fetched by the shared `publicSocialMediaLinks(lineId)` query, submitted through the same
- * LinkFormComponent the /insiden page uses. Refresh behavior is a PollingSource wired to the
- * resource's reload() (the interval select and countdown mirror tracker's layer-checklist);
- * approved links render first, then a collapsed "Pending (N)" collapsible — same pattern as
- * LinksSectionComponent on /insiden. The submit sheet is hosted HERE (Pattern B): the parent
- * hosts the HlmSheet and the form component stays sheet-agnostic.
+ * fetched by the shared `publicSocialMediaLinks(lineId)` query, submitted through the shared
+ * LinkSheetComponent (line-prefilled via `defaultLineIds`). Refresh behavior is a PollingSource
+ * wired to the resource's reload() (the interval select and countdown mirror tracker's
+ * layer-checklist). List rendering (day grouping, pending collapsible, edit pencils) and the
+ * sheet are both shared components from the insiden feature — this host owns only polling,
+ * the header row, and reload-on-sheet-close.
  */
 @Component({
   selector: "app-situasi-section",
-  imports: [
-    HlmButton,
-    HlmSkeleton,
-    RetryBannerComponent,
-    LinkCardComponent,
-    LinkFormComponent,
-    HlmSheet,
-    HlmSheetHeader,
-    HlmSheetBody,
-    HlmSheetFooter,
-  ],
+  imports: [HlmButton, HlmSkeleton, RetryBannerComponent, LinkListComponent, LinkSheetComponent],
   template: `
     <div class="flex flex-col gap-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
@@ -136,101 +113,21 @@ function optionValueToRefreshInterval(value: string): number | null {
           message="Couldn't load submitted links for this line."
         />
       } @else {
-        @if (approved().length === 0 && pending().length === 0) {
-          <p class="text-muted-foreground text-sm">No submitted links for this line yet.</p>
-        }
-        <div class="flex flex-col gap-4">
-          @for (link of approved(); track link.id) {
-            <app-link-card [link]="link" [editable]="canEdit(link)" (edit)="openEdit($event)" />
-          }
-          @if (pending().length > 0) {
-            <div class="flex flex-col gap-4">
-              <button
-                type="button"
-                class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1.5 self-start text-sm font-semibold tracking-wide uppercase"
-                [attr.aria-expanded]="pendingExpanded()"
-                (click)="pendingExpanded.set(!pendingExpanded())"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  class="size-4 shrink-0 transition-transform"
-                  [class.rotate-180]="pendingExpanded()"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-                Pending ({{ pending().length }})
-              </button>
-              @if (pendingExpanded()) {
-                @for (link of pending(); track link.id) {
-                  <app-link-card
-                    [link]="link"
-                    [editable]="canEdit(link)"
-                    (edit)="openEdit($event)"
-                  />
-                }
-              }
-            </div>
-          }
-        </div>
+        <app-link-list
+          [links]="sorted()"
+          emptyMessage="No submitted links for this line yet."
+          (sheetClosed)="resource.reload()"
+        />
       }
     </div>
 
-    <hlm-sheet
-      [open]="linkSheet.isOpen()"
-      (openChange)="linkSheet.setOpen($event)"
-      side="right"
-      [wide]="true"
-    >
-      <div hlmSheetHeader>
-        <h2 class="text-base font-semibold">
-          {{ linkFormRef()?.isEditing() ? "Edit link" : "Submit a link" }}
-        </h2>
-      </div>
-      <div hlmSheetBody>
-        <app-link-form [defaultLineIds]="[lineId()]" />
-      </div>
-      <div hlmSheetFooter>
-        <button
-          hlmBtn
-          variant="ghost"
-          size="sm"
-          [disabled]="linkFormRef()?.isSubmitting() ?? false"
-          (click)="linkFormRef()?.clear()"
-        >
-          Clear form
-        </button>
-        <div class="flex items-center gap-2">
-          <button hlmBtn variant="outline" (click)="linkSheet.close()">Cancel</button>
-          <button
-            hlmBtn
-            [disabled]="linkFormRef()?.isSubmitting() ?? false"
-            (click)="linkFormRef()?.submit()"
-          >
-            {{
-              linkFormRef()?.isSubmitting()
-                ? "Saving…"
-                : linkFormRef()?.isEditing()
-                  ? "Save"
-                  : "Submit"
-            }}
-          </button>
-        </div>
-      </div>
-    </hlm-sheet>
+    <app-link-sheet [defaultLineIds]="[lineId()]" />
   `,
 })
 export class SituasiSectionComponent {
   readonly lineId = input.required<string>();
 
   protected readonly linkSheet = inject(LinkSheetService);
-  protected readonly linkFormRef = viewChild(LinkFormComponent);
-  private readonly auth = inject(AuthService);
 
   protected readonly REFRESH_INTERVAL_OPTIONS = REFRESH_INTERVAL_OPTIONS;
 
@@ -251,45 +148,15 @@ export class SituasiSectionComponent {
   /** Newest-first by creation time (backend order; sorted defensively). The connection's
    * first page is what this panel loads — matching the paginated contract of the shared
    * query (Task 16: no full-dataset link fetches). */
-  private readonly _sorted = computed(() =>
+  protected readonly sorted = computed(() =>
     [...(this.resource.data()?.publicSocialMediaLinks.edges ?? [])]
       .map((edge) => edge.node)
       .sort((a, b) => b.created.localeCompare(a.created)),
   );
 
-  protected readonly approved = computed(() => this._sorted().filter((link) => link.completed));
-  protected readonly pending = computed(() => this._sorted().filter((link) => !link.completed));
-
-  protected readonly pendingExpanded = signal(false);
-
-  private _wasSheetOpen = false;
-
   constructor() {
+    // Don't leave the sheet open for the next route's section.
     inject(DestroyRef).onDestroy(() => this.linkSheet.close());
-
-    // Reload when the link sheet closes (edit submit or cancel): the edited link changed
-    // server-side, so the list must refetch to reflect it. Same seam as LinksSectionComponent.
-    effect(() => {
-      const isOpen = this.linkSheet.isOpen();
-      if (!isOpen && this._wasSheetOpen) {
-        this.resource.reload();
-      }
-      this._wasSheetOpen = isOpen;
-    });
-  }
-
-  /** Author-or-admin gate for the card's edit pencil (see can-edit.link.util). */
-  protected canEdit(link: PublicSocialMediaLink): boolean {
-    return canEditLink(link, {
-      isLoggedIn: this.auth.isLoggedIn(),
-      isAdmin: this.auth.isAdmin(),
-      userId: this.auth.user()?.uid ?? null,
-    });
-  }
-
-  /** Opens the sheet in edit mode for the clicked link. */
-  protected openEdit(link: PublicSocialMediaLink): void {
-    this.linkSheet.openEdit(link);
   }
 
   protected onRefreshIntervalChange(event: Event): void {
