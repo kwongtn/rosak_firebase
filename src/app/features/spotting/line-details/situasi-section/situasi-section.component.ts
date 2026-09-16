@@ -1,5 +1,15 @@
-import { Component, DestroyRef, computed, inject, input, signal, viewChild } from "@angular/core";
+import {
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from "@angular/core";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
+import { AuthService } from "../../../../core/auth/auth.service";
 import { PollingSource } from "../../../../core/polling/polling-source";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
@@ -7,8 +17,10 @@ import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.c
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../../ui/sheet/sheet";
 import { LinkCardComponent } from "../../../insiden/link-card/link-card.component";
 import { LinkFormComponent } from "../../../insiden/link-form/link-form.component";
+import { canEditLink } from "../../../insiden/data/can-edit.link.util";
 import {
   PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
+  PublicSocialMediaLink,
   PublicSocialMediaLinksQueryData,
 } from "../../../insiden/data/social-links.queries";
 import { LinkSheetService } from "../../../insiden/data/link-sheet.service";
@@ -129,7 +141,7 @@ function optionValueToRefreshInterval(value: string): number | null {
         }
         <div class="flex flex-col gap-4">
           @for (link of approved(); track link.id) {
-            <app-link-card [link]="link" />
+            <app-link-card [link]="link" [editable]="canEdit(link)" (edit)="openEdit($event)" />
           }
           @if (pending().length > 0) {
             <div class="flex flex-col gap-4">
@@ -156,7 +168,11 @@ function optionValueToRefreshInterval(value: string): number | null {
               </button>
               @if (pendingExpanded()) {
                 @for (link of pending(); track link.id) {
-                  <app-link-card [link]="link" />
+                  <app-link-card
+                    [link]="link"
+                    [editable]="canEdit(link)"
+                    (edit)="openEdit($event)"
+                  />
                 }
               }
             </div>
@@ -172,7 +188,9 @@ function optionValueToRefreshInterval(value: string): number | null {
       [wide]="true"
     >
       <div hlmSheetHeader>
-        <h2 class="text-base font-semibold">Submit a link</h2>
+        <h2 class="text-base font-semibold">
+          {{ linkFormRef()?.isEditing() ? "Edit link" : "Submit a link" }}
+        </h2>
       </div>
       <div hlmSheetBody>
         <app-link-form [defaultLineIds]="[lineId()]" />
@@ -194,7 +212,13 @@ function optionValueToRefreshInterval(value: string): number | null {
             [disabled]="linkFormRef()?.isSubmitting() ?? false"
             (click)="linkFormRef()?.submit()"
           >
-            {{ linkFormRef()?.isSubmitting() ? "Submitting…" : "Submit" }}
+            {{
+              linkFormRef()?.isSubmitting()
+                ? "Saving…"
+                : linkFormRef()?.isEditing()
+                  ? "Save"
+                  : "Submit"
+            }}
           </button>
         </div>
       </div>
@@ -206,6 +230,7 @@ export class SituasiSectionComponent {
 
   protected readonly linkSheet = inject(LinkSheetService);
   protected readonly linkFormRef = viewChild(LinkFormComponent);
+  private readonly auth = inject(AuthService);
 
   protected readonly REFRESH_INTERVAL_OPTIONS = REFRESH_INTERVAL_OPTIONS;
 
@@ -237,8 +262,34 @@ export class SituasiSectionComponent {
 
   protected readonly pendingExpanded = signal(false);
 
+  private _wasSheetOpen = false;
+
   constructor() {
     inject(DestroyRef).onDestroy(() => this.linkSheet.close());
+
+    // Reload when the link sheet closes (edit submit or cancel): the edited link changed
+    // server-side, so the list must refetch to reflect it. Same seam as LinksSectionComponent.
+    effect(() => {
+      const isOpen = this.linkSheet.isOpen();
+      if (!isOpen && this._wasSheetOpen) {
+        this.resource.reload();
+      }
+      this._wasSheetOpen = isOpen;
+    });
+  }
+
+  /** Author-or-admin gate for the card's edit pencil (see can-edit.link.util). */
+  protected canEdit(link: PublicSocialMediaLink): boolean {
+    return canEditLink(link, {
+      isLoggedIn: this.auth.isLoggedIn(),
+      isAdmin: this.auth.isAdmin(),
+      userId: this.auth.user()?.uid ?? null,
+    });
+  }
+
+  /** Opens the sheet in edit mode for the clicked link. */
+  protected openEdit(link: PublicSocialMediaLink): void {
+    this.linkSheet.openEdit(link);
   }
 
   protected onRefreshIntervalChange(event: Event): void {
