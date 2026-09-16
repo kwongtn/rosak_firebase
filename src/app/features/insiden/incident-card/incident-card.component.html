@@ -92,7 +92,7 @@
         @if (entry.synthetic) {
           <span class="font-medium">Ongoing for {{ elapsedTime() }}</span>
         } @else {
-          <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <div class="flex flex-wrap items-start gap-x-1.5 gap-y-1">
             <span class="text-muted-foreground">{{ entry.datetime | date: "MMM d, HH:mm" }}</span>
             <span aria-hidden="true">—</span>
             <span class="whitespace-pre-line">{{ entry.content }}</span>
@@ -128,6 +128,7 @@
             }
             @if (entry.id) {
               <app-vote-button
+                class="ml-auto"
                 targetType="chronology"
                 [incidentId]="entry.id"
                 [netScore]="entry.voteScore ?? 0"
