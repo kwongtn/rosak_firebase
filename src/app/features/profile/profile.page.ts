@@ -112,7 +112,14 @@ import {
         }
       </main>
 
-      <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
+      <div class="grid gap-3 sm:grid-cols-2">
+        <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
+        <app-ad-slot
+          [slotId]="footerEndRightSlotId"
+          [minHeightPx]="250"
+          [label]="'Advertisement'"
+        />
+      </div>
 
       <app-footer />
     </div>
@@ -125,6 +132,7 @@ export class ProfilePage {
   protected readonly auth = inject(AuthService);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
 
   // Density cap: footerEnd + this between-cards unit = 2, the per-page maximum.
   protected readonly profileBetweenCardsSlotId = resolveAdSlot("profileBetweenCards");

@@ -36,6 +36,7 @@ describe("resolveAdSlot", () => {
   it("returns the unit id for a known slot key when enabled", () => {
     config.enabled = true;
     expect(resolveAdSlot("footerEnd")).toBe("3724291191");
+    expect(resolveAdSlot("footerEndRight")).toBe("3724291191");
     expect(resolveAdSlot("gallerySidebar")).toBe("3724291191");
   });
 
