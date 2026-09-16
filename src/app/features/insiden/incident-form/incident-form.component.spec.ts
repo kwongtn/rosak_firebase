@@ -30,6 +30,7 @@ interface ComponentUnderTest {
   isSubmitting: WritableSignal<boolean>;
   submit(): Promise<void>;
   clear(): void;
+  undoAll(): void;
   hydrate(incident: CalendarIncident): void;
 }
 
@@ -406,5 +407,30 @@ describe("IncidentFormComponent", () => {
     expect(sheet.editTarget()).toBeNull();
     expect(component.model()).toEqual(emptyIncidentFormModel());
     expect(component.chronologies()).toEqual([]);
+  });
+
+  it("undoes all edits by re-hydrating from the edit target", async () => {
+    sheet.open(incidentFixture());
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+    component.model.update((m) => ({ ...m, title: "Edited title", brief: "Edited brief" }));
+    component.chronologies.update((list) => [...list, emptyChronology(99)]);
+
+    component.undoAll();
+
+    expect(sheet.editTarget()).not.toBeNull();
+    expect(component.model().title).toBe("KL Sentral flood");
+    expect(component.model().brief).toBe("Platform 3 underwater");
+    expect(component.chronologies().map((c) => c.content)).toEqual(["Started", "Clearing"]);
+  });
+
+  it("falls back to clearing when undoAll runs outside an edit session", () => {
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    component.undoAll();
+
+    expect(component.model()).toEqual(emptyIncidentFormModel());
   });
 });

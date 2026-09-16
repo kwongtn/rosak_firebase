@@ -67,3 +67,21 @@ export function setAllCollapsed(
 export function removeChronology(list: readonly ChronologyDraft[], key: number): ChronologyDraft[] {
   return list.filter((c) => c.key !== key);
 }
+
+/** Display label for a chronology indicator: only the first letter capitalized
+ * ("Green"), matching the severity label convention. */
+export function indicatorLabel(indicator: ChronologyIndicator): string {
+  return indicator.charAt(0) + indicator.slice(1).toLowerCase();
+}
+
+/** Tailwind background class for a chronology indicator's status dot/icon. Exact
+ * same palette the incident card's timeline dot uses, so form and card agree. */
+export function indicatorDotClass(indicator: ChronologyIndicator): string {
+  const dots: Record<ChronologyIndicator, string> = {
+    GREEN: "bg-emerald-500",
+    RED: "bg-red-500",
+    BLUE: "bg-blue-500",
+    GRAY: "bg-neutral-400",
+  };
+  return dots[indicator] ?? "bg-neutral-400";
+}
