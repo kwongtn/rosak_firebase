@@ -127,13 +127,21 @@
       The chronology section has per-row collapse plus a "Collapse all / Expand all" helper
       (`setAllCollapsed()`), up/down reorder arrows, and the Gemini extract/summarize flows.
   - `LinksSectionComponent`: first page through `graphqlResource` (retry banner kept), continuation
-    pages via `GraphQLClient.request` + the infinite-scroll sentinel; edges append, approved/pending
-    split + collapsible preserved. Approved links render under UTC day-group headers
-    (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and browser agree on the
-    buckets. Cards are compact and expose an edit pencil gated by the pure `canEditLink()` util
-    (author shortId match or admin); the pencil opens the shared link sheet in edit mode via
-    `LinkSheetService.openEdit()`, and an effect on sheet close (open→closed edge) drops appended
-    pages and refetches page 1 so an edit lands without a manual refresh.
+    pages via `GraphQLClient.request` + the infinite-scroll sentinel. Rendering is delegated to the
+    shared `LinkListComponent` (see insiden shared components); this host only owns pagination and
+    reload-on-sheet-close (dropping appended continuation pages of the stale dataset).
+  - `LinkListComponent` (shared, `app-link-list`): host-agnostic link list taking an ordered
+    `links` input + host-specific `emptyMessage`. Owns the approved/pending split, the UTC day-group
+    headers (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and browser agree on
+    the buckets — the pending collapsible, and the edit pencil gated by the pure `canEditLink()`
+    util (author shortId match or admin); the pencil opens the shared link sheet in edit mode via
+    `LinkSheetService.openEdit()`. Emits `sheetClosed` on the sheet's open→closed edge so the host
+    reloads its resource (an edit submit or cancel changed the data server-side).
+  - `LinkSheetComponent` (shared, `app-link-sheet`): hosts the HlmSheet + LinkFormComponent pair
+    (previously inlined in both `insiden.page.html` and the situasi section) with edit-aware
+    header/footer labels ("Edit link"/"Save" vs "Submit a link"/"Submit"), an optional
+    `defaultLineIds` input (line-prefilled submissions on the situasi tab) and
+    `data-testid="submit-link"` on the submit button.
 - Pure helper modules carry the non-trivial domain logic outside the components:
   `calendar-date.util.ts` (`dateKeyOf`, `incidentCoversDate`), `elapsed-time.util.ts`
   (`getReadableTimeDifference`), `incident-to-form.util.ts` (edit hydration), `can-edit.incident.util.ts`
