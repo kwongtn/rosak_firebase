@@ -65,7 +65,11 @@ describe("LinkFormComponent", () => {
     fixture.detectChanges();
     const referenceRequest = httpMock.expectOne((r) => r.method === "POST");
     referenceRequest.flush({
-      data: { lines: [], stations: [], calendarIncidentCategories: [] },
+      data: {
+        lines: [],
+        stations: [],
+        calendarIncidentCategories: [{ id: "C1", name: "Just Reporting" }],
+      },
     });
     await fixture.whenStable();
   });
@@ -115,6 +119,18 @@ describe("LinkFormComponent", () => {
 
     const [, vars] = requestMock.mock.calls[0];
     expect(vars.input).not.toHaveProperty("incidentId");
+  });
+
+  it("pre-fills the mandatory 'Just Reporting' category on a new submission", async () => {
+    sheet.open();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    await component.submit();
+
+    const [, vars] = requestMock.mock.calls[0];
+    expect(vars.input.categoryIds).toEqual(["C1"]);
   });
 
   it("resets the context on clear so a stale incident cannot leak into the next submission", async () => {

@@ -9,6 +9,7 @@ import {
 import { HlmButton } from "../../../ui/button/button";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
+import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   AssetMultiSelectComponent,
@@ -43,12 +44,20 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
 
 /**
  * "Submit a link" — the just-dumping path for social media posts, blog articles
- * and other sources. Only the URL is required; title and asset/category tags
- * are optional. Submissions land in the admin triage queue (/console/insiden/links).
+ * and other sources. Only the URL is required; title and asset tags are optional,
+ * while the category dropdown is mandatory and pre-fills "Just Reporting".
+ * Submissions land in the admin triage queue (/console/insiden/links).
  */
 @Component({
   selector: "app-link-form",
-  imports: [FormField, ErrorBoxComponent, HlmButton, HlmInput, AssetMultiSelectComponent],
+  imports: [
+    FormField,
+    ErrorBoxComponent,
+    HlmButton,
+    HlmInput,
+    HlmNativeSelect,
+    AssetMultiSelectComponent,
+  ],
   template: `
     <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
       @if (!auth.isLoggedIn()) {
@@ -114,6 +123,7 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             heading="Lines"
             [options]="lineOptions()"
             [(selectedIds)]="selectedLineIds"
+            [pinnedSelected]="true"
             [isLoading]="referenceResource.isLoading()"
             emptyMessage="No lines available."
             searchPlaceholder="Search lines"
@@ -123,6 +133,8 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             heading="Vehicles"
             [options]="vehicleOptions()"
             [(selectedIds)]="selectedVehicleIds"
+            [pinnedSelected]="true"
+            [chipParentCodes]="true"
             [isLoading]="referenceResource.isLoading()"
             emptyMessage="No vehicles listed."
             searchPlaceholder="Search vehicles"
@@ -132,19 +144,31 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             heading="Stations"
             [options]="stationOptions()"
             [(selectedIds)]="selectedStationIds"
+            [pinnedSelected]="true"
+            [chipParentCodes]="true"
             [isLoading]="referenceResource.isLoading()"
             emptyMessage="No stations available."
             searchPlaceholder="Search stations"
           />
 
-          <app-asset-multi-select
-            heading="Categories"
-            [options]="categoryOptions()"
-            [(selectedIds)]="selectedCategoryIds"
-            [isLoading]="referenceResource.isLoading()"
-            emptyMessage="No categories available."
-            searchPlaceholder="Search categories"
-          />
+          <label class="flex flex-col gap-1.5 text-sm">
+            Categories
+            <select
+              hlmSelect
+              [value]="selectedCategoryId() ?? ''"
+              (change)="_onCategoryChange($event)"
+            >
+              @if (referenceResource.isLoading()) {
+                <option value="" disabled>Loading…</option>
+              } @else if (categoryOptions().length === 0) {
+                <option value="" disabled>No categories available.</option>
+              } @else {
+                @for (category of categoryOptions(); track category.id) {
+                  <option [value]="category.id">{{ category.label }}</option>
+                }
+              }
+            </select>
+          </label>
         }
       </section>
     </form>
@@ -168,7 +192,13 @@ export class LinkFormComponent {
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
-  protected readonly selectedCategoryIds = signal<string[]>([]);
+  /** Category is a single mandatory dropdown value (default "Just Reporting"); the mutation
+   * contract still takes an array, derived in `selectedCategoryIds`. */
+  protected readonly selectedCategoryId = signal<string | null>(null);
+  protected readonly selectedCategoryIds = computed<string[]>(() => {
+    const id = this.selectedCategoryId();
+    return id ? [id] : [];
+  });
 
   readonly isSubmitting = signal(false);
 
@@ -251,6 +281,11 @@ export class LinkFormComponent {
     })),
   );
 
+  protected _onCategoryChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.selectedCategoryId.set(value || null);
+  }
+
   private _wasSheetOpen = false;
   /** True once `defaultLineIds` has been applied during the current open session — a late-arriving
    * reference response must not stomp a selection the user made meanwhile, and `clear()` (footer
@@ -290,8 +325,23 @@ export class LinkFormComponent {
       this.selectedLineIds.set(target.lines.map((line) => line.id));
       this.selectedVehicleIds.set(target.vehicles.map((vehicle) => vehicle.id));
       this.selectedStationIds.set(target.stations.map((station) => station.id));
-      this.selectedCategoryIds.set(target.categories?.map((category) => category.id) ?? []);
+      this.selectedCategoryId.set(target.categories?.[0]?.id ?? null);
       this.linkForm().reset();
+    });
+
+    // Categories is a mandatory single-select — pre-fill "Just Reporting" whenever the sheet
+    // opens for a new submission (no edit target) once the reference data has loaded. Edit
+    // hydration and explicit user choices win; this only fills the empty slot.
+    effect(() => {
+      if (!this.sheet.isOpen() || this.sheet.editTarget() || this.selectedCategoryId()) {
+        return;
+      }
+      const justReporting = (this.referenceResource.data()?.calendarIncidentCategories ?? []).find(
+        (category) => category.name === "Just Reporting",
+      );
+      if (justReporting) {
+        this.selectedCategoryId.set(justReporting.id);
+      }
     });
 
     // Pre-select defaultLineIds once per open, but only once the reference data is actually
@@ -388,7 +438,7 @@ export class LinkFormComponent {
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
-    this.selectedCategoryIds.set([]);
+    this.selectedCategoryId.set(null);
     // No stale incident targeting or edit target survives into the next open/submission.
     this.sheet.context.set(null);
     this.sheet.editTarget.set(null);
