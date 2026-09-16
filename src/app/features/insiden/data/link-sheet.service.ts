@@ -1,4 +1,5 @@
 import { Injectable, signal } from "@angular/core";
+import type { PublicSocialMediaLink } from "./social-links.queries";
 
 /** Per-incident targeting context for a link submission (Task 14): set when the sheet is
  * opened from an incident card; `null` means the plain "just-dumping" flow. */
@@ -19,11 +20,25 @@ export class LinkSheetService {
    * context survives. */
   readonly context = signal<LinkSheetContext | null>(null);
 
-  /** Opens the sheet. Call with a per-incident context to target an incident, or with no
-   * argument to keep the just-dumping flow (backward compatible with all existing `open()`
-   * call sites). */
+  /** Link being edited — `null` means the sheet is in create mode. The form hydrates from
+   * this on open and resets it on clear/close so no stale edit survives. */
+  readonly editTarget = signal<PublicSocialMediaLink | null>(null);
+
+  /** Opens the sheet in create mode. Call with a per-incident context to target an
+   * incident, or with no argument to keep the just-dumping flow (backward compatible with
+   * all existing `open()` call sites). */
   open(context?: LinkSheetContext): void {
     this.context.set(context ?? null);
+    this.editTarget.set(null);
+    this.isOpen.set(true);
+  }
+
+  /** Opens the sheet in edit mode for an existing link (author-or-admin gated by the
+   * caller via canEditLink). Mutually exclusive with `open()`: sets the edit target and
+   * clears any incident targeting. */
+  openEdit(link: PublicSocialMediaLink): void {
+    this.context.set(null);
+    this.editTarget.set(link);
     this.isOpen.set(true);
   }
 

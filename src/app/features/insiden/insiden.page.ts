@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal, viewChild } from "@angular/core";
+import { Component, computed, effect, inject, input, signal } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
@@ -7,7 +7,6 @@ import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
 import { HlmBadge } from "../../ui/badge/badge";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
-import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -15,7 +14,7 @@ import { AppFooterComponent } from "../../shell/app-footer/app-footer.component"
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
 import { IncidentCalendarComponent } from "./calendar/calendar.component";
 import { IncidentFormComponent } from "./incident-form/incident-form.component";
-import { LinkFormComponent } from "./link-form/link-form.component";
+import { LinkSheetComponent } from "./link-sheet/link-sheet.component";
 import { IncidentSheetService } from "./data/incident-sheet.service";
 import { LinkSheetService } from "./data/link-sheet.service";
 import {
@@ -41,10 +40,6 @@ import { LinksSectionComponent } from "./links-section/links-section.component";
     HlmButton,
     HlmBadge,
     HlmSkeleton,
-    HlmSheet,
-    HlmSheetHeader,
-    HlmSheetBody,
-    HlmSheetFooter,
     RetryBannerComponent,
     AdSlotComponent,
     AppNavComponent,
@@ -52,7 +47,7 @@ import { LinksSectionComponent } from "./links-section/links-section.component";
     IncidentCardComponent,
     IncidentCalendarComponent,
     IncidentFormComponent,
-    LinkFormComponent,
+    LinkSheetComponent,
     LinksSectionComponent,
   ],
   templateUrl: "./insiden.page.html",
@@ -71,8 +66,6 @@ export class InsidenPage {
   protected readonly auth = inject(AuthService);
   protected readonly incidentSheet = inject(IncidentSheetService);
   protected readonly linkSheet = inject(LinkSheetService);
-
-  protected readonly linkFormRef = viewChild(LinkFormComponent);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
 

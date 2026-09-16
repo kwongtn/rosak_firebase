@@ -13,7 +13,9 @@ export interface PublicSocialMediaLinkStation {
 }
 /** One submitted link (the connection's `node`). `status` carries the approval
  * state (PENDING_APPROVAL for user submissions, LIVE for admin ones — Task 10);
- * `completed` keeps the pre-status contract the console uses. */
+ * `completed` keeps the pre-status contract the console uses. `user`/`categories`
+ * are additive (Task 24 edit flow): `user.shortId` proves authorship for the edit
+ * affordance, `categories` lets the edit form re-send the current tags. */
 export interface PublicSocialMediaLink {
   id: string;
   url: string;
@@ -24,6 +26,8 @@ export interface PublicSocialMediaLink {
   lines: PublicSocialMediaLinkLine[];
   vehicles: PublicSocialMediaLinkVehicle[];
   stations: PublicSocialMediaLinkStation[];
+  user?: { shortId: string } | null;
+  categories?: { id: string; name: string }[];
 }
 export interface PublicSocialMediaLinkEdge {
   node: PublicSocialMediaLink;
@@ -75,9 +79,11 @@ export const PUBLIC_SOCIAL_MEDIA_LINKS_QUERY = `
           created
           status
           completed
+          user { shortId }
           lines { id code displayName }
           vehicles { id identificationNo }
           stations { id displayName }
+          categories { id name }
         }
         cursor
       }
@@ -95,4 +101,32 @@ export interface PublicSocialMediaLinksVars {
   lineId?: string | null;
   incidentId?: string | null;
   mine?: boolean | null;
+}
+
+/** Single source of truth for the link edit mutation — re-exported from the console file so
+ * public-edit and console-edit never carry divergent copies (mirrors the
+ * UPDATE_CALENDAR_INCIDENT_MUTATION pattern). Backend role rule: admin edits land live; a
+ * submitter's edit goes back into the approval queue (PENDING_APPROVAL). */
+export const UPDATE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
+  mutation UpdateSocialMediaLink($socialMediaLinkId: ID!, $input: SocialMediaLinkInput!) {
+    updateSocialMediaLink(socialMediaLinkId: $socialMediaLinkId, input: $input) {
+      ok
+    }
+  }
+`;
+
+export interface UpdateSocialMediaLinkVars {
+  socialMediaLinkId: string;
+  input: {
+    url: string;
+    title?: string | null;
+    lineIds?: string[];
+    vehicleIds?: string[];
+    stationIds?: string[];
+    categoryIds?: string[];
+  };
+}
+
+export interface UpdateSocialMediaLinkData {
+  updateSocialMediaLink: { ok: boolean };
 }

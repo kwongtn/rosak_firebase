@@ -11,6 +11,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!-- Pre-paint theme init: until Angular hydrates, SSR HTML is light, so a dark-mode user would
+       both flash light and (since styles.css keys `color-scheme: dark` off the .dark class — the
+       signal the ads loader below reads for dark creatives) get light ads. Mirror ThemeService:
+       stored mode "light"|"dark"|"system"; "system" follows the OS. It re-applies on bootstrap. -->
+    <script>
+      try {
+        const theme = localStorage.getItem("theme") || "system";
+        if (
+          theme === "dark" ||
+          (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          document.documentElement.classList.add("dark");
+        }
+      } catch {
+        // localStorage unavailable (e.g. private mode): stay light; ThemeService re-resolves anyway.
+      }
+    </script>
     <!-- Same AdSense client as the old app (ca-pub-3632544969292535, see its own index.html) —
        reused rather than a fresh ID, since this is the same site/publisher account, not a new
        one to provision. Auto ads: Google's own algorithm places ads based on the account's

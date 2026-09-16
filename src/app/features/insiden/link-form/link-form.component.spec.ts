@@ -9,6 +9,7 @@ import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { SUBMIT_SOCIAL_MEDIA_LINK_MUTATION } from "../data/insiden.queries";
 import { LinkSheetService } from "../data/link-sheet.service";
+import { UPDATE_SOCIAL_MEDIA_LINK_MUTATION } from "../data/social-links.queries";
 import { LinkFormComponent } from "./link-form.component";
 
 interface LinkFormModel {
@@ -64,7 +65,11 @@ describe("LinkFormComponent", () => {
     fixture.detectChanges();
     const referenceRequest = httpMock.expectOne((r) => r.method === "POST");
     referenceRequest.flush({
-      data: { lines: [], stations: [], calendarIncidentCategories: [] },
+      data: {
+        lines: [],
+        stations: [],
+        calendarIncidentCategories: [{ id: "C1", name: "Just Reporting" }],
+      },
     });
     await fixture.whenStable();
   });
@@ -116,6 +121,18 @@ describe("LinkFormComponent", () => {
     expect(vars.input).not.toHaveProperty("incidentId");
   });
 
+  it("pre-fills the mandatory 'Just Reporting' category on a new submission", async () => {
+    sheet.open();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    await component.submit();
+
+    const [, vars] = requestMock.mock.calls[0];
+    expect(vars.input.categoryIds).toEqual(["C1"]);
+  });
+
   it("resets the context on clear so a stale incident cannot leak into the next submission", async () => {
     sheet.open({ incidentId: "7", incidentTitle: "KL Sentral flood" });
     const component = asTestable(fixture);
@@ -142,4 +159,94 @@ describe("LinkFormComponent", () => {
 
     expect(sheet.context()).toBeNull();
   });
+
+  it("hydrates the form and flags edit mode when opened for an existing link", async () => {
+    const link = makeLink();
+    sheet.openEdit(link);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.isEditing()).toBe(true);
+    const component = asTestable(fixture);
+    expect(component.model()).toEqual({ url: link.url, title: link.title });
+  });
+
+  it("sends the UPDATE mutation with the link id for edits", async () => {
+    const link = makeLink();
+    sheet.openEdit(link);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+
+    await component.submit();
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(UPDATE_SOCIAL_MEDIA_LINK_MUTATION);
+    expect(vars.socialMediaLinkId).toBe(link.id);
+    expect(vars.input).toEqual({
+      url: link.url,
+      title: link.title,
+      lineIds: ["4"],
+      vehicleIds: ["5"],
+      stationIds: ["6"],
+      categoryIds: ["9"],
+    });
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(sheet.isOpen()).toBe(false);
+  });
+
+  it("closes the edit with the admin toast when an admin saves", async () => {
+    authMocks.isAdmin.mockReturnValue(true);
+    sheet.openEdit(makeLink());
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+
+    await component.submit();
+
+    expect(toastMocks.success).toHaveBeenCalledWith("Link updated", "Your changes are live.");
+    expect(sheet.editTarget()).toBeNull();
+  });
+
+  it("closes the edit with the review toast when a submitter saves", async () => {
+    sheet.openEdit(makeLink());
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+
+    await component.submit();
+
+    expect(toastMocks.success).toHaveBeenCalledWith(
+      "Link updated",
+      "An admin will review the changes.",
+    );
+    expect(sheet.editTarget()).toBeNull();
+  });
+
+  it("resets the edit target on clear so a stale link cannot be re-saved", () => {
+    sheet.openEdit(makeLink());
+    const component = asTestable(fixture);
+
+    component.clear();
+
+    expect(sheet.editTarget()).toBeNull();
+    expect(component.model()).toEqual({ url: "", title: "" });
+    expect(fixture.componentInstance.isEditing()).toBe(false);
+  });
+
+  function makeLink() {
+    return {
+      id: "link-1",
+      url: "https://x.com/prasarana/status/2",
+      title: "Delays on KTM",
+      created: "2026-08-01T08:00:00Z",
+      completed: true,
+      status: "LIVE" as const,
+      lines: [{ id: "4", code: "KTM1", displayName: "KTM Komuter Line 1" }],
+      vehicles: [{ id: "5", identificationNo: "TR-102" }],
+      stations: [{ id: "6", displayName: "KL Sentral" }],
+      user: { shortId: "abc12345" },
+      categories: [{ id: "9", name: "Signal" }],
+    };
+  }
 });

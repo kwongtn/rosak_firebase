@@ -292,32 +292,15 @@ export interface MarkLinkCompletedData {
   markSocialMediaLinkCompleted: { ok: boolean };
 }
 
-/** Admin full edit from the row panel — the backend replaces lines/vehicles/stations/categories
- *  from the input verbatim (mirrors submitSocialMediaLink's `.set()` semantics), so every
- *  editable field is sent. */
-export const UPDATE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
-  mutation UpdateSocialMediaLink($socialMediaLinkId: ID!, $input: SocialMediaLinkInput!) {
-    updateSocialMediaLink(socialMediaLinkId: $socialMediaLinkId, input: $input) {
-      ok
-    }
-  }
-`;
-
-export interface UpdateSocialMediaLinkVars {
-  socialMediaLinkId: string;
-  input: {
-    url: string;
-    title?: string | null;
-    lineIds?: string[];
-    vehicleIds?: string[];
-    stationIds?: string[];
-    categoryIds?: string[];
-  };
-}
-
-export interface UpdateSocialMediaLinkData {
-  updateSocialMediaLink: { ok: boolean };
-}
+/** Single source of truth for the link edit mutation — re-exported from the public insiden
+ * queries so public-edit and console-edit never carry divergent copies. Backend role rule:
+ * admin edits land live; a submitter's edit goes back into the approval queue
+ * (update_social_media_link in incident/services/social_links.py). */
+export { UPDATE_SOCIAL_MEDIA_LINK_MUTATION } from "../../../insiden/data/social-links.queries";
+export type {
+  UpdateSocialMediaLinkData,
+  UpdateSocialMediaLinkVars,
+} from "../../../insiden/data/social-links.queries";
 
 export const CONSOLE_CATEGORIES_QUERY = /* GraphQL */ `
   query ConsoleCategories {

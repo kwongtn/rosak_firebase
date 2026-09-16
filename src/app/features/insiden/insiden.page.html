@@ -192,38 +192,4 @@
 
 <app-incident-form />
 
-<hlm-sheet
-  [open]="linkSheet.isOpen()"
-  (openChange)="linkSheet.setOpen($event)"
-  side="right"
-  [wide]="true"
->
-  <div hlmSheetHeader>
-    <h2 class="text-base font-semibold">Submit a link</h2>
-  </div>
-  <div hlmSheetBody>
-    <app-link-form />
-  </div>
-  <div hlmSheetFooter>
-    <button
-      hlmBtn
-      variant="ghost"
-      size="sm"
-      [disabled]="linkFormRef()?.isSubmitting() ?? false"
-      (click)="linkFormRef()?.clear()"
-    >
-      Clear form
-    </button>
-    <div class="flex items-center gap-2">
-      <button hlmBtn variant="outline" (click)="linkSheet.close()">Cancel</button>
-      <button
-        hlmBtn
-        data-testid="submit-link"
-        [disabled]="linkFormRef()?.isSubmitting() ?? false"
-        (click)="linkFormRef()?.submit()"
-      >
-        {{ linkFormRef()?.isSubmitting() ? "Submitting…" : "Submit" }}
-      </button>
-    </div>
-  </div>
-</hlm-sheet>
+<app-link-sheet />

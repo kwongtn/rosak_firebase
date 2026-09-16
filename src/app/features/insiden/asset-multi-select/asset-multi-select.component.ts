@@ -9,6 +9,13 @@ export interface AssetMultiSelectOption {
   parentCodes?: string[];
 }
 
+/** Chip label for a parent line code: its last segment, e.g. "KTMK-PKL" → "PKL" and
+ * "KTM ETS" → "ETS". The full code stays available via the chip's `title` (hover). */
+export function parentCodeChipText(code: string): string {
+  const segments = code.split(/[^a-zA-Z0-9]+/).filter((segment) => segment.length > 0);
+  return segments[segments.length - 1] ?? code;
+}
+
 /**
  * Shared searchable checkbox list for tagging an incident/link with the lines, vehicles or
  * stations it affects. Both incident-form and link-form used to copy-paste this exact
@@ -61,12 +68,25 @@ export interface AssetMultiSelectOption {
                 {{ option.label }}
               </span>
               @if (option.parentCodes && option.parentCodes.length > 0) {
-                <span
-                  class="text-muted-foreground min-w-0 max-w-24 shrink-0 truncate text-xs"
-                  [title]="_codesText(option)"
-                >
-                  ({{ _codesText(option) }})
-                </span>
+                @if (chipParentCodes()) {
+                  <span class="flex shrink-0 flex-wrap gap-1">
+                    @for (code of option.parentCodes; track code) {
+                      <span
+                        class="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] leading-none"
+                        [title]="code"
+                      >
+                        {{ parentCodeChipText(code) }}
+                      </span>
+                    }
+                  </span>
+                } @else {
+                  <span
+                    class="text-muted-foreground min-w-0 max-w-24 shrink-0 truncate text-xs"
+                    [title]="_codesText(option)"
+                  >
+                    ({{ _codesText(option) }})
+                  </span>
+                }
               }
             </label>
           } @empty {
@@ -91,20 +111,34 @@ export class AssetMultiSelectComponent {
   readonly isLoading = input(false);
   readonly emptyMessage = input("No options available.");
   readonly searchPlaceholder = input("Search");
+  /** Selected options float to the top of the list, keeping their original order within
+   * each group; deselecting drops them back to their default position. */
+  readonly pinnedSelected = input(false);
+  /** Render `parentCodes` as caret chips showing only each code's last segment, with the
+   * full code on hover (via `title`) — replaces the muted "(…)" bracket text. */
+  readonly chipParentCodes = input(false);
 
   protected readonly searchText = signal("");
+
+  protected readonly parentCodeChipText = parentCodeChipText;
 
   protected readonly filteredOptions = computed(() => {
     const query = this.searchText().trim().toLowerCase();
     const all = this.options();
-    if (!query) {
-      return all;
+    const matched = query
+      ? all.filter(
+          (option) =>
+            option.label.toLowerCase().includes(query) ||
+            (option.parentCodes ?? []).some((code) => code.toLowerCase().includes(query)),
+        )
+      : all;
+    if (!this.pinnedSelected()) {
+      return matched;
     }
-    return all.filter(
-      (option) =>
-        option.label.toLowerCase().includes(query) ||
-        (option.parentCodes ?? []).some((code) => code.toLowerCase().includes(query)),
-    );
+    return [
+      ...matched.filter((option) => this.isSelected(option.id)),
+      ...matched.filter((option) => !this.isSelected(option.id)),
+    ];
   });
 
   protected _onSearchInput(event: Event): void {

@@ -9,6 +9,7 @@ import {
 import { HlmButton } from "../../../ui/button/button";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
+import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   AssetMultiSelectComponent,
@@ -22,6 +23,11 @@ import {
   SubmitSocialMediaLinkVars,
 } from "../data/insiden.queries";
 import { LinkSheetService } from "../data/link-sheet.service";
+import {
+  UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+  UpdateSocialMediaLinkData,
+  UpdateSocialMediaLinkVars,
+} from "../data/social-links.queries";
 
 interface LinkFormModel {
   url: string;
@@ -38,12 +44,20 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
 
 /**
  * "Submit a link" — the just-dumping path for social media posts, blog articles
- * and other sources. Only the URL is required; title and asset/category tags
- * are optional. Submissions land in the admin triage queue (/console/insiden/links).
+ * and other sources. Only the URL is required; title and asset tags are optional,
+ * while the category dropdown is mandatory and pre-fills "Just Reporting".
+ * Submissions land in the admin triage queue (/console/insiden/links).
  */
 @Component({
   selector: "app-link-form",
-  imports: [FormField, ErrorBoxComponent, HlmButton, HlmInput, AssetMultiSelectComponent],
+  imports: [
+    FormField,
+    ErrorBoxComponent,
+    HlmButton,
+    HlmInput,
+    HlmNativeSelect,
+    AssetMultiSelectComponent,
+  ],
   template: `
     <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
       @if (!auth.isLoggedIn()) {
@@ -109,6 +123,7 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             heading="Lines"
             [options]="lineOptions()"
             [(selectedIds)]="selectedLineIds"
+            [pinnedSelected]="true"
             [isLoading]="referenceResource.isLoading()"
             emptyMessage="No lines available."
             searchPlaceholder="Search lines"
@@ -118,6 +133,8 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             heading="Vehicles"
             [options]="vehicleOptions()"
             [(selectedIds)]="selectedVehicleIds"
+            [pinnedSelected]="true"
+            [chipParentCodes]="true"
             [isLoading]="referenceResource.isLoading()"
             emptyMessage="No vehicles listed."
             searchPlaceholder="Search vehicles"
@@ -127,19 +144,31 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             heading="Stations"
             [options]="stationOptions()"
             [(selectedIds)]="selectedStationIds"
+            [pinnedSelected]="true"
+            [chipParentCodes]="true"
             [isLoading]="referenceResource.isLoading()"
             emptyMessage="No stations available."
             searchPlaceholder="Search stations"
           />
 
-          <app-asset-multi-select
-            heading="Categories"
-            [options]="categoryOptions()"
-            [(selectedIds)]="selectedCategoryIds"
-            [isLoading]="referenceResource.isLoading()"
-            emptyMessage="No categories available."
-            searchPlaceholder="Search categories"
-          />
+          <label class="flex flex-col gap-1.5 text-sm">
+            Categories
+            <select
+              hlmSelect
+              [value]="selectedCategoryId() ?? ''"
+              (change)="_onCategoryChange($event)"
+            >
+              @if (referenceResource.isLoading()) {
+                <option value="" disabled>Loading…</option>
+              } @else if (categoryOptions().length === 0) {
+                <option value="" disabled>No categories available.</option>
+              } @else {
+                @for (category of categoryOptions(); track category.id) {
+                  <option [value]="category.id">{{ category.label }}</option>
+                }
+              }
+            </select>
+          </label>
         }
       </section>
     </form>
@@ -163,9 +192,19 @@ export class LinkFormComponent {
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
-  protected readonly selectedCategoryIds = signal<string[]>([]);
+  /** Category is a single mandatory dropdown value (default "Just Reporting"); the mutation
+   * contract still takes an array, derived in `selectedCategoryIds`. */
+  protected readonly selectedCategoryId = signal<string | null>(null);
+  protected readonly selectedCategoryIds = computed<string[]>(() => {
+    const id = this.selectedCategoryId();
+    return id ? [id] : [];
+  });
 
   readonly isSubmitting = signal(false);
+
+  /** True while the sheet is in edit mode (a link is being edited rather than created).
+   * Public so the host page can re-label its sheet header/submit button. */
+  readonly isEditing = computed(() => this.sheet.editTarget() !== null);
 
   protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
     query: INSIDEN_REFERENCE_QUERY,
@@ -242,12 +281,22 @@ export class LinkFormComponent {
     })),
   );
 
+  protected _onCategoryChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.selectedCategoryId.set(value || null);
+  }
+
   private _wasSheetOpen = false;
   /** True once `defaultLineIds` has been applied during the current open session — a late-arriving
    * reference response must not stomp a selection the user made meanwhile, and `clear()` (footer
    * "Clear form", successful submit) must not be immediately undone by re-applying. Reset on
    * close so the NEXT open re-applies. */
   private _defaultsApplied = false;
+
+  /** Link id the edit form is currently hydrated to — guards the hydration effect against
+   * re-running (same id) and against hydrating a closed sheet. Mirrors the incident form's
+   * `_hydratedIncidentId` guard so `clear()`/close can't be undone by a stale effect. */
+  private _hydratedLinkId: string | null = null;
 
   constructor() {
     effect(() => {
@@ -256,6 +305,43 @@ export class LinkFormComponent {
         this.clear();
       }
       this._wasSheetOpen = isOpen;
+    });
+
+    // Hydrate the form from the link being edited, once per open. The id guard handles both
+    // imperatives: no re-hydration while the same link is targeted (mid-session reference
+    // arrivals must not stomp user edits), and no hydration when the sheet closed (clear()
+    // nulls the target; the guard resets with it).
+    effect(() => {
+      const target = this.sheet.editTarget();
+      if (!target) {
+        this._hydratedLinkId = null;
+        return;
+      }
+      if (this._hydratedLinkId === target.id) {
+        return;
+      }
+      this._hydratedLinkId = target.id;
+      this.model.set({ url: target.url, title: target.title });
+      this.selectedLineIds.set(target.lines.map((line) => line.id));
+      this.selectedVehicleIds.set(target.vehicles.map((vehicle) => vehicle.id));
+      this.selectedStationIds.set(target.stations.map((station) => station.id));
+      this.selectedCategoryId.set(target.categories?.[0]?.id ?? null);
+      this.linkForm().reset();
+    });
+
+    // Categories is a mandatory single-select — pre-fill "Just Reporting" whenever the sheet
+    // opens for a new submission (no edit target) once the reference data has loaded. Edit
+    // hydration and explicit user choices win; this only fills the empty slot.
+    effect(() => {
+      if (!this.sheet.isOpen() || this.sheet.editTarget() || this.selectedCategoryId()) {
+        return;
+      }
+      const justReporting = (this.referenceResource.data()?.calendarIncidentCategories ?? []).find(
+        (category) => category.name === "Just Reporting",
+      );
+      if (justReporting) {
+        this.selectedCategoryId.set(justReporting.id);
+      }
     });
 
     // Pre-select defaultLineIds once per open, but only once the reference data is actually
@@ -280,33 +366,60 @@ export class LinkFormComponent {
       this.toast.error("Please log in", "You need an account to submit a link.");
       return;
     }
+    const target = this.sheet.editTarget();
     this.isSubmitting.set(true);
     try {
       const ok = await submit(this.linkForm, async () => {
         const m = this.model();
         const idToken = await this.auth.idToken();
-        const context = this.sheet.context();
-        const vars: SubmitSocialMediaLinkVars = {
-          input: {
-            url: m.url,
-            title: m.title || null,
-            lineIds: this.selectedLineIds(),
-            vehicleIds: this.selectedVehicleIds(),
-            stationIds: this.selectedStationIds(),
-            categoryIds: this.selectedCategoryIds(),
-            // Only when a context is set — `incidentId: null` is a server-side error path.
-            ...(context ? { incidentId: context.incidentId } : {}),
-          },
-        };
-        await this.graphql.request<SubmitSocialMediaLinkData, SubmitSocialMediaLinkVars>(
-          SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
-          vars,
-          idToken ? { "firebase-auth-key": idToken } : {},
-        );
+        if (target) {
+          const vars: UpdateSocialMediaLinkVars = {
+            socialMediaLinkId: target.id,
+            input: {
+              url: m.url,
+              title: m.title || null,
+              lineIds: this.selectedLineIds(),
+              vehicleIds: this.selectedVehicleIds(),
+              stationIds: this.selectedStationIds(),
+              categoryIds: this.selectedCategoryIds(),
+            },
+          };
+          await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
+            UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+            vars,
+            idToken ? { "firebase-auth-key": idToken } : {},
+          );
+        } else {
+          const context = this.sheet.context();
+          const vars: SubmitSocialMediaLinkVars = {
+            input: {
+              url: m.url,
+              title: m.title || null,
+              lineIds: this.selectedLineIds(),
+              vehicleIds: this.selectedVehicleIds(),
+              stationIds: this.selectedStationIds(),
+              categoryIds: this.selectedCategoryIds(),
+              // Only when a context is set — `incidentId: null` is a server-side error path.
+              ...(context ? { incidentId: context.incidentId } : {}),
+            },
+          };
+          await this.graphql.request<SubmitSocialMediaLinkData, SubmitSocialMediaLinkVars>(
+            SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
+            vars,
+            idToken ? { "firebase-auth-key": idToken } : {},
+          );
+        }
         return [];
       });
       if (ok) {
-        this.toast.success("Link submitted", "An admin will review it shortly.");
+        if (target) {
+          this.toast.success(
+            "Link updated",
+            this.auth.isAdmin() ? "Your changes are live." : "An admin will review the changes.",
+          );
+        } else {
+          this.toast.success("Link submitted", "An admin will review it shortly.");
+        }
         this.clear();
         this.sheet.close();
       }
@@ -325,9 +438,11 @@ export class LinkFormComponent {
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
-    this.selectedCategoryIds.set([]);
-    // No stale incident targeting survives into the next open/submission.
+    this.selectedCategoryId.set(null);
+    // No stale incident targeting or edit target survives into the next open/submission.
     this.sheet.context.set(null);
+    this.sheet.editTarget.set(null);
+    this._hydratedLinkId = null;
     this.linkForm().reset();
   }
 }
