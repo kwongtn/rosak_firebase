@@ -38,8 +38,8 @@ export const GET_INCIDENTS = /* GraphQL */ `
 `;
 
 export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
-  query CalendarIncidents {
-    calendarIncidents {
+  query CalendarIncidents($filters: CalendarIncidentFilter) {
+    calendarIncidents(filters: $filters) {
       id
       startDatetime
       endDatetime

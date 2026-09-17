@@ -39,9 +39,11 @@
     "Today", month/year jump commit, or prev/next-month navigation; `InsidenPage` reacts by calling
     `router.navigate(["/insiden", dateKey])`, keeping the viewed day a real, shareable URL rather
     than local-only UI state.
-  - GraphQL query `INSIDEN_INCIDENTS_QUERY` (`data/insiden.queries.ts`) — single unfiltered
-    `calendarIncidents` query fetching the entire dataset (~280 records) once per page load;
-    everything is filtered/grouped client-side rather than using per-view queries. The sub-selects
+  - GraphQL query `INSIDEN_INCIDENTS_QUERY` (`data/insiden.queries.ts`) accepts optional filters.
+    `/insiden` fetches incidents overlapping the selected month plus 14 days on each side,
+    OR unresolved incidents for the pinned section. Changing months reloads the window;
+    selecting another day in the same month reuses it. The situasi consumer retains its
+    unfiltered query. The sub-selects
     now carry the full lifecycle surface: `status`, `version`, `user { shortId }`, `categories`,
     chronology `status` + vote fields, per-incident `links` (first page of the connection), and
     `medias` with `id` + `uploader { nickname }`.

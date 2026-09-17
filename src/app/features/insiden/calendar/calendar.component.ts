@@ -180,15 +180,14 @@ export class IncidentCalendarComponent implements OnDestroy {
     MONTH_NAMES.map((name, idx) => ({ label: name, value: idx, searchTerms: [String(idx + 1)] })),
   );
 
-  /** Spans from the earliest year with any incident through one year ahead of today — the same
-   * "recent past through near future" range the old app's own year picker used, just derived
-   * from the real data instead of a hardcoded start year. Newest first: jumping to a *different*
-   * year is far more often "a recent one" than "deep history". */
+  /** Keep history navigable back to the calendar's 2022 launch even when only one
+   * month's incidents are loaded. Include the viewed year for outlying deep links. */
   protected readonly yearItems = computed<ComboboxItem<number>[]>(() => {
     const now = new Date().getUTCFullYear();
     const incidentYears = this.incidents().map((i) => new Date(i.startDatetime).getUTCFullYear());
-    const minYear = Math.min(now, ...incidentYears);
-    const maxYear = Math.max(now + 1, ...incidentYears);
+    const selectedYear = this.viewedMonth().getUTCFullYear();
+    const minYear = Math.min(2022, selectedYear, ...incidentYears);
+    const maxYear = Math.max(now + 1, selectedYear, ...incidentYears);
     const items: ComboboxItem<number>[] = [];
     for (let y = maxYear; y >= minYear; y--) {
       items.push({ label: String(y), value: y });

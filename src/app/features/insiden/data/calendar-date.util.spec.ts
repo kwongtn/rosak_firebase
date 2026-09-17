@@ -1,4 +1,4 @@
-import { dateKeyOf, incidentCoversDate } from "./calendar-date.util";
+import { calendarMonthRange, dateKeyOf, incidentCoversDate } from "./calendar-date.util";
 import { CalendarIncident } from "./insiden.queries";
 
 function createMockIncident(
@@ -28,6 +28,18 @@ function createMockIncident(
     medias: [],
   };
 }
+
+describe("calendarMonthRange", () => {
+  it.each([
+    ["2026-09", "2026-08-18", "2026-10-14"],
+    ["2026-01", "2025-12-18", "2026-02-14"],
+    ["2026-12", "2026-11-17", "2027-01-14"],
+    ["2024-02", "2024-01-18", "2024-03-14"],
+    ["2025-02", "2025-01-18", "2025-03-14"],
+  ])("pads %s by exactly fourteen days on either side", (month, start, end) => {
+    expect(calendarMonthRange(month)).toEqual({ start, end });
+  });
+});
 
 describe("dateKeyOf", () => {
   it("formats Date into YYYY-MM-DD using UTC values", () => {
