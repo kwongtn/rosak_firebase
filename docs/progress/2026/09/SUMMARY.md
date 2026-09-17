@@ -15,6 +15,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 16 | Pre-paint theme init for dark-mode ads; links tab edit flow + compact cards + day grouping; link form pinned selections + category dropdown; unified link list + link sheet into a shared `app-link-list`/`app-link-sheet` component set (situasi gains day headers, -275 lines) |
 | Sep 17 | `/insiden` month-window incident fetching: month ±14 days + ongoing via `calendarIncidents(filters:)`; backend interval-overlap fix; year picker floored at 2022                                                                                                                 |
 | Sep 17 | Incident card chronology rows highlight on vote/deletion-button hover; entries with a source URL show a right-aligned link icon before the vote buttons                                                                                                                          |
+| Sep 17 | `/about` admin editor (structured draft-in-signals → `setDoc` with sanitization), search/filter across personnel/projects/tech stack, chronological project sort by `startDate`                                                                                                  |
 
 ---
 
