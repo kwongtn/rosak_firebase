@@ -3,16 +3,21 @@
   <main class="flex flex-1 flex-col gap-10">
     <div class="flex items-center justify-between gap-3">
       <h1 class="text-2xl font-bold">About the project</h1>
-      <a
-        hlmBtn
-        variant="outline"
-        size="sm"
-        href="https://github.com/kwongtn/rosak_firebase"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        View source on GitHub
-      </a>
+      <div class="flex items-center gap-2">
+        <a
+          hlmBtn
+          variant="outline"
+          size="sm"
+          href="https://github.com/kwongtn/rosak_firebase"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View source on GitHub
+        </a>
+        @if (isAdmin() && !isLoading() && !isError() && !editMode()) {
+          <button hlmBtn variant="outline" size="sm" (click)="beginEdit()">Edit</button>
+        }
+      </div>
     </div>
 
     @if (isLoading()) {
@@ -26,6 +31,236 @@
         <button hlmBtn variant="outline" size="sm" (click)="retry()">Retry</button>
       </div>
     } @else {
+      @if (!editMode()) {
+        <input
+          hlmInput
+          type="search"
+          placeholder="Search projects, personnel, tech stack…"
+          [value]="searchTerm()"
+          (input)="searchTerm.set($any($event.target).value)"
+        />
+      }
+
+      @if (isAdmin() && editMode()) {
+        <section class="flex flex-col gap-6 rounded-lg border p-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Edit about page</h2>
+            <div class="flex gap-2">
+              <button hlmBtn variant="ghost" size="sm" (click)="cancelEdit()">Cancel</button>
+              <button hlmBtn size="sm" (click)="saveDraft()">Save</button>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium">About the project</label>
+            <textarea
+              hlmInput
+              rows="5"
+              [value]="draft()?.aboutProject"
+              (input)="patchDraft({ aboutProject: $any($event.target).value })"
+            ></textarea>
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold">Projects</h3>
+              <button hlmBtn variant="outline" size="sm" (click)="addProject()">Add project</button>
+            </div>
+            @for (project of draft()?.projects; track $index) {
+              <div hlmCard class="flex flex-col gap-3 p-4">
+                <div class="flex flex-wrap items-center gap-2">
+                  <input
+                    hlmInput
+                    class="min-w-40 flex-1"
+                    placeholder="Name"
+                    [value]="project.name"
+                    (input)="updateProject($index, 'name', $any($event.target).value)"
+                  />
+                  <select
+                    hlmSelect
+                    class="w-32"
+                    [value]="project.status"
+                    (change)="updateProject($index, 'status', $any($event.target).value)"
+                  >
+                    <option value="alpha">alpha</option>
+                    <option value="beta">beta</option>
+                    <option value="stable">stable</option>
+                    <option value="planned">planned</option>
+                  </select>
+                  <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <hlm-checkbox
+                      [checked]="project.display"
+                      (checkedChange)="updateProject($index, 'display', $event)"
+                    />
+                    Show
+                  </label>
+                  <button hlmBtn variant="ghost" size="sm" (click)="removeProject($index)">
+                    Remove
+                  </button>
+                </div>
+                <input
+                  hlmInput
+                  placeholder="Start date (YYYY-MM-DD)"
+                  [value]="project.startDate"
+                  (input)="updateProject($index, 'startDate', $any($event.target).value)"
+                />
+                <textarea
+                  hlmInput
+                  rows="2"
+                  placeholder="Description"
+                  [value]="project.description"
+                  (input)="updateProject($index, 'description', $any($event.target).value)"
+                ></textarea>
+              </div>
+            }
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold">Personnel</h3>
+              <button hlmBtn variant="outline" size="sm" (click)="addPersonnel()">
+                Add person
+              </button>
+            </div>
+            @for (person of draft()?.personnel; track $index) {
+              <div hlmCard class="flex flex-col gap-3 p-4">
+                <div class="flex flex-wrap items-center gap-2">
+                  <input
+                    hlmInput
+                    class="min-w-40 flex-1"
+                    placeholder="Name"
+                    [value]="person.name"
+                    (input)="updatePersonnel($index, 'name', $any($event.target).value)"
+                  />
+                  <input
+                    hlmInput
+                    class="w-24"
+                    type="number"
+                    placeholder="Order"
+                    [value]="person.order"
+                    (input)="updatePersonnel($index, 'order', asNumber($any($event.target).value))"
+                  />
+                  <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <hlm-checkbox
+                      [checked]="person.display"
+                      (checkedChange)="updatePersonnel($index, 'display', $event)"
+                    />
+                    Show
+                  </label>
+                  <button hlmBtn variant="ghost" size="sm" (click)="removePersonnel($index)">
+                    Remove
+                  </button>
+                </div>
+                <input
+                  hlmInput
+                  placeholder="Title"
+                  [value]="person.title"
+                  (input)="updatePersonnel($index, 'title', $any($event.target).value)"
+                />
+                <input
+                  hlmInput
+                  placeholder="Avatar image URL"
+                  [value]="person.avatar"
+                  (input)="updatePersonnel($index, 'avatar', $any($event.target).value)"
+                />
+                <textarea
+                  hlmInput
+                  rows="2"
+                  placeholder="Description"
+                  [value]="person.description"
+                  (input)="updatePersonnel($index, 'description', $any($event.target).value)"
+                ></textarea>
+                <div class="flex flex-col gap-2">
+                  <div class="text-xs font-medium text-muted-foreground">Socials</div>
+                  @for (social of person.socials; track socialIndex; let socialIndex = $index) {
+                    <div class="flex items-center gap-2">
+                      <input
+                        hlmInput
+                        class="min-w-24"
+                        placeholder="Name"
+                        [value]="social.name"
+                        (input)="
+                          updateSocial($index, socialIndex, 'name', $any($event.target).value)
+                        "
+                      />
+                      <input
+                        hlmInput
+                        class="flex-1"
+                        placeholder="https://…"
+                        [value]="social.link"
+                        (input)="
+                          updateSocial($index, socialIndex, 'link', $any($event.target).value)
+                        "
+                      />
+                      <button
+                        hlmBtn
+                        variant="ghost"
+                        size="sm"
+                        (click)="removeSocial($index, socialIndex)"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  }
+                  <button hlmBtn variant="outline" size="sm" (click)="addSocial($index)">
+                    Add social
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold">Tech Stack &amp; Open Source</h3>
+              <button hlmBtn variant="outline" size="sm" (click)="addTechStack()">
+                Add tech stack
+              </button>
+            </div>
+            @for (stack of draft()?.techStacks; track $index) {
+              <div hlmCard class="flex flex-col gap-3 p-4">
+                <div class="flex items-center gap-2">
+                  <input
+                    hlmInput
+                    class="min-w-40 flex-1"
+                    placeholder="Name"
+                    [value]="stack.name"
+                    (input)="updateTechStack($index, 'name', $any($event.target).value)"
+                  />
+                  <button hlmBtn variant="ghost" size="sm" (click)="removeTechStack($index)">
+                    Remove
+                  </button>
+                </div>
+                <input
+                  hlmInput
+                  placeholder="Icon image URL"
+                  [value]="stack.iconUrl"
+                  (input)="updateTechStack($index, 'iconUrl', $any($event.target).value)"
+                />
+                <input
+                  hlmInput
+                  placeholder="URL"
+                  [value]="stack.url"
+                  (input)="updateTechStack($index, 'url', $any($event.target).value)"
+                />
+                <textarea
+                  hlmInput
+                  rows="2"
+                  placeholder="Description"
+                  [value]="stack.description"
+                  (input)="updateTechStack($index, 'description', $any($event.target).value)"
+                ></textarea>
+              </div>
+            }
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button hlmBtn variant="ghost" (click)="cancelEdit()">Cancel</button>
+            <button hlmBtn (click)="saveDraft()">Save</button>
+          </div>
+        </section>
+      }
+
       <section class="flex flex-col gap-4">
         @if (aboutProject()) {
           <p class="whitespace-pre-wrap text-sm">{{ aboutProject() }}</p>
