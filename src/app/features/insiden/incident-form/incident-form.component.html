@@ -153,15 +153,24 @@
             searchPlaceholder="Search stations"
           />
 
-          <app-asset-multi-select
-            heading="Categories"
-            [optional]="true"
-            [options]="categoryOptions()"
-            [(selectedIds)]="selectedCategoryIds"
-            [isLoading]="referenceResource.isLoading()"
-            emptyMessage="No categories available."
-            searchPlaceholder="Search categories"
-          />
+          <label class="flex flex-col gap-1.5 text-sm">
+            Categories
+            <select
+              hlmSelect
+              [value]="selectedCategoryId() ?? ''"
+              (change)="onCategoryChange($event)"
+            >
+              @if (referenceResource.isLoading()) {
+                <option value="" disabled>Loading…</option>
+              } @else if (categoryOptions().length === 0) {
+                <option value="" disabled>No categories available.</option>
+              } @else {
+                @for (category of categoryOptions(); track category.id) {
+                  <option [value]="category.id">{{ category.label }}</option>
+                }
+              }
+            </select>
+          </label>
         }
       </section>
 
@@ -216,6 +225,11 @@
                 >
                   <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
+                <span
+                  class="size-2.5 shrink-0 rounded-full"
+                  [class]="indicatorDotClass(chronology.indicator)"
+                  aria-hidden="true"
+                ></span>
                 {{ i + 1 }}.
               </span>
               <div class="flex items-center gap-1" (click)="$event.stopPropagation()">
@@ -283,25 +297,27 @@
 
             @if (!chronology.collapsed) {
               <div class="flex flex-col gap-2">
-                <select
-                  hlmSelect
-                  class="text-sm"
-                  [disabled]="isExtracting(chronology.key)"
-                  [value]="chronology.indicator"
-                  (change)="chronology.indicator = $any($event.target).value"
-                >
-                  @for (indicator of indicators; track indicator) {
-                    <option [value]="indicator">{{ indicator }}</option>
-                  }
-                </select>
-                <input
-                  hlmInput
-                  type="datetime-local"
-                  class="text-sm"
-                  [disabled]="isExtracting(chronology.key)"
-                  [value]="chronology.datetime"
-                  (change)="chronology.datetime = $any($event.target).value"
-                />
+                <div class="flex flex-col gap-2 md:flex-row">
+                  <select
+                    hlmSelect
+                    class="text-sm md:w-36 md:shrink-0"
+                    [disabled]="isExtracting(chronology.key)"
+                    [value]="chronology.indicator"
+                    (change)="chronology.indicator = $any($event.target).value"
+                  >
+                    @for (indicator of indicators; track indicator) {
+                      <option [value]="indicator">{{ indicatorLabel(indicator) }}</option>
+                    }
+                  </select>
+                  <input
+                    hlmInput
+                    type="datetime-local"
+                    class="min-w-0 flex-1 text-sm"
+                    [disabled]="isExtracting(chronology.key)"
+                    [value]="chronology.datetime"
+                    (change)="chronology.datetime = $any($event.target).value"
+                  />
+                </div>
                 <div class="flex items-center gap-2">
                   <input
                     hlmInput
@@ -425,9 +441,9 @@
       size="sm"
       type="button"
       [disabled]="isSubmitting()"
-      (click)="clear()"
+      (click)="isEditing() ? undoAll() : clear()"
     >
-      Clear form
+      {{ isEditing() ? "Undo All" : "Clear form" }}
     </button>
     <div class="flex items-center gap-2">
       <button

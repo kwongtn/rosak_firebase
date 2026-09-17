@@ -125,7 +125,12 @@
     - `impactFactor` echo; a returned revision `id` chains `SUBMIT_CALENDAR_INCIDENT_MUTATION`.
       GraphQL rejections (one-open-draft / version-mismatch) toast verbatim and keep the sheet open.
       The chronology section has per-row collapse plus a "Collapse all / Expand all" helper
-      (`setAllCollapsed()`), up/down reorder arrows, and the Gemini extract/summarize flows.
+      (`setAllCollapsed()`), up/down reorder arrows, the Gemini extract/summarize flows, indicator
+      status dots (pure `indicatorLabel()`/`indicatorDotClass()` in chronology-list.util), and — on
+      desktop — the color picker and datetime share a row. Categories are a mandatory single
+      dropdown defaulting to "Just Reporting" on new reports (mirrors the link form; selected
+      `selectedCategoryId` signal + derived array). In edit mode the footer button reads "Undo All"
+      and re-hydrates the form from the edit target instead of clearing the session.
   - `LinksSectionComponent`: first page through `graphqlResource` (retry banner kept), continuation
     pages via `GraphQLClient.request` + the infinite-scroll sentinel. Rendering is delegated to the
     shared `LinkListComponent` (see insiden shared components); this host only owns pagination and

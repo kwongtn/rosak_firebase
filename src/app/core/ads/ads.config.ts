@@ -21,6 +21,7 @@ export const ADS_CONFIG = {
   enabled: environment.production,
   slots: {
     footerEnd: "3724291191",
+    footerEndRight: "3724291191",
     galleryBetweenYears: "3724291191",
     insidenFeed: "3724291191",
     lineOverviewBetweenTypes: "3724291191",

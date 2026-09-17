@@ -36,7 +36,14 @@ import { ReportSheetService } from "../data/report-sheet.service";
         <router-outlet />
       </main>
 
-      <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
+      <div class="grid gap-3 sm:grid-cols-2">
+        <app-ad-slot [slotId]="footerEndSlotId" [minHeightPx]="250" [label]="'Advertisement'" />
+        <app-ad-slot
+          [slotId]="footerEndRightSlotId"
+          [minHeightPx]="250"
+          [label]="'Advertisement'"
+        />
+      </div>
 
       <app-footer />
     </div>
@@ -84,6 +91,7 @@ import { ReportSheetService } from "../data/report-sheet.service";
 })
 export class SpottingShellPage {
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
 
   protected readonly reportSheet = inject(ReportSheetService);
 }

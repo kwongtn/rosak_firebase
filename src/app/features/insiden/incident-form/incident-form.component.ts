@@ -39,6 +39,8 @@ import {
   canMoveDown,
   canMoveUp,
   emptyChronology,
+  indicatorDotClass,
+  indicatorLabel,
   moveChronology,
   removeChronology,
   setAllCollapsed,
@@ -134,7 +136,13 @@ export class IncidentFormComponent {
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
-  protected readonly selectedCategoryIds = signal<string[]>([]);
+  /** Category is a single mandatory dropdown value (default "Just Reporting") — the mutation
+   * contract still takes an array, derived in `selectedCategoryIds`. Mirrors link-form. */
+  protected readonly selectedCategoryId = signal<string | null>(null);
+  protected readonly selectedCategoryIds = computed<string[]>(() => {
+    const id = this.selectedCategoryId();
+    return id ? [id] : [];
+  });
 
   protected readonly isEditing = computed(() => this.sheet.editTarget() !== null);
 
@@ -249,6 +257,11 @@ export class IncidentFormComponent {
     })),
   );
 
+  protected onCategoryChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.selectedCategoryId.set(value || null);
+  }
+
   private readonly extractStates = signal(new Map<number, ChronologyExtractState>());
 
   private _wasSheetOpen = false;
@@ -266,6 +279,21 @@ export class IncidentFormComponent {
         this.clear();
       }
       this._wasSheetOpen = isOpen;
+    });
+
+    // Categories is a mandatory single-select — pre-fill "Just Reporting" whenever the sheet
+    // opens for a new submission (no edit target) once the reference data has loaded. Edit
+    // hydration and explicit user choices win; this only fills the empty slot.
+    effect(() => {
+      if (!this.sheet.isOpen() || this.sheet.editTarget() || this.selectedCategoryId()) {
+        return;
+      }
+      const justReporting = (this.referenceResource.data()?.calendarIncidentCategories ?? []).find(
+        (category) => category.name === "Just Reporting",
+      );
+      if (justReporting) {
+        this.selectedCategoryId.set(justReporting.id);
+      }
     });
 
     // Hydrate from `editTarget` once per open: `IncidentSheetService.open(incident)` is the
@@ -296,7 +324,7 @@ export class IncidentFormComponent {
     this.selectedLineIds.set(mapped.selectedLineIds);
     this.selectedVehicleIds.set(mapped.selectedVehicleIds);
     this.selectedStationIds.set(mapped.selectedStationIds);
-    this.selectedCategoryIds.set(mapped.selectedCategoryIds);
+    this.selectedCategoryId.set(mapped.selectedCategoryIds[0] ?? null);
     this.extractStates.set(new Map());
     this.isSummarizing.set(false);
     this.incidentForm().reset();
@@ -316,6 +344,14 @@ export class IncidentFormComponent {
 
   protected severityLabel(severity: CalendarIncidentSeverity): string {
     return severity.charAt(0) + severity.slice(1).toLowerCase();
+  }
+
+  protected indicatorLabel(indicator: ChronologyIndicator): string {
+    return indicatorLabel(indicator);
+  }
+
+  protected indicatorDotClass(indicator: ChronologyIndicator): string {
+    return indicatorDotClass(indicator);
   }
 
   protected canMove(index: number, direction: "up" | "down"): boolean {
@@ -663,8 +699,19 @@ export class IncidentFormComponent {
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
-    this.selectedCategoryIds.set([]);
+    this.selectedCategoryId.set(null);
     this.sheet.editTarget.set(null);
     this.incidentForm().reset();
+  }
+
+  /** Edit-session variant of `clear()`: re-hydrates the form from the original edit target so
+   * all edits since opening are reverted in place ("Undo All"). Non-edit fallback = clear. */
+  undoAll(): void {
+    const target = this.sheet.editTarget();
+    if (!target) {
+      this.clear();
+      return;
+    }
+    this.hydrate(target);
   }
 }

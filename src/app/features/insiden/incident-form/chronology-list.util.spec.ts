@@ -3,6 +3,8 @@ import {
   canMoveDown,
   canMoveUp,
   emptyChronology,
+  indicatorDotClass,
+  indicatorLabel,
   moveChronology,
   removeChronology,
   setAllCollapsed,
@@ -121,5 +123,23 @@ describe("removeChronology", () => {
   it("returns the same contents when the key is absent", () => {
     const list = [draft(1)];
     expect(removeChronology(list, 9).length).toBe(1);
+  });
+});
+
+describe("indicatorLabel", () => {
+  it("capitalizes only the first letter of every indicator", () => {
+    expect(indicatorLabel("GREEN")).toBe("Green");
+    expect(indicatorLabel("RED")).toBe("Red");
+    expect(indicatorLabel("BLUE")).toBe("Blue");
+    expect(indicatorLabel("GRAY")).toBe("Gray");
+  });
+});
+
+describe("indicatorDotClass", () => {
+  it("maps every indicator to the card's dot palette colors", () => {
+    expect(indicatorDotClass("GREEN")).toBe("bg-emerald-500");
+    expect(indicatorDotClass("RED")).toBe("bg-red-500");
+    expect(indicatorDotClass("BLUE")).toBe("bg-blue-500");
+    expect(indicatorDotClass("GRAY")).toBe("bg-neutral-400");
   });
 });

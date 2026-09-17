@@ -47,6 +47,7 @@ export class AboutPage implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
   protected readonly aboutBetweenSectionsSlotId = resolveAdSlot("aboutBetweenSections");
 
   protected readonly isLoading = signal(true);

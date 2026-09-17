@@ -68,6 +68,7 @@ export class InsidenPage {
   protected readonly linkSheet = inject(LinkSheetService);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
 
   /**
    * 2-ad-per-page cap coordination. Every incident card reports its details-toggle state through

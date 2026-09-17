@@ -94,6 +94,7 @@ export class GalleryPage {
   protected readonly selectedMedia = signal<MediaNode | null>(null);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
+  protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
   /** Renders once, between the first and second year sections (see the @if ($index === 0)
    * block in the template) — below lg only, where it pairs with footerEnd for the page's
    * 2-unit density cap; on lg+ the sidebar unit replaces it (see gallerySidebarSlotId). */
