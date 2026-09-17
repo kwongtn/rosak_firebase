@@ -1,7 +1,15 @@
 import { CalendarIncident } from "./insiden.queries";
 
-/** Pure Y-M-D calendar key, built off UTC getters so day-boundary arithmetic never drifts with
- * the viewer's local timezone. Matches the same pattern used by the spotting activity heatmap. */
+export function calendarMonthRange(monthKey: string): { start: string; end: string } {
+  const month = new Date(`${monthKey}-01T00:00:00Z`);
+  const year = month.getUTCFullYear();
+  const index = month.getUTCMonth();
+  return {
+    start: dateKeyOf(new Date(Date.UTC(year, index, 1 - 14))),
+    end: dateKeyOf(new Date(Date.UTC(year, index + 1, 14))),
+  };
+}
+
 export function dateKeyOf(date: Date): string {
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");

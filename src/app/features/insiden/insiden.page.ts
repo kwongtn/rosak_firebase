@@ -22,7 +22,7 @@ import {
   INSIDEN_INCIDENTS_QUERY,
   InsidenIncidentsQueryData,
 } from "./data/insiden.queries";
-import { dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
+import { calendarMonthRange, dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
 import { isPendingIncidentStatus } from "./data/incident-status.util";
 import { LinksSectionComponent } from "./links-section/links-section.component";
 
@@ -87,8 +87,16 @@ export class InsidenPage {
   protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
 
+  private readonly selectedMonth = computed(() => this.selectedDate().slice(0, 7));
+
   protected readonly incidentsResource = graphqlResource<InsidenIncidentsQueryData>(() => ({
     query: INSIDEN_INCIDENTS_QUERY,
+    variables: {
+      filters: {
+        date: { range: calendarMonthRange(this.selectedMonth()) },
+        OR: { ongoing: true },
+      },
+    },
   }));
 
   /** Previous sheet state, so the effect below can detect the open→closed edge. */
