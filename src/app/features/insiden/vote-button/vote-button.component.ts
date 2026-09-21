@@ -1,7 +1,14 @@
-import { Component, computed, inject, input, linkedSignal, signal } from "@angular/core";
+import { Component, computed, inject, input, linkedSignal, output, signal } from "@angular/core";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
+import {
+  DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+  REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
+  SocialMediaLinkVoteData,
+  SocialMediaLinkVoteVars,
+  UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+} from "../../home/data/home.queries";
 import {
   ChronologyVoteMutationData,
   ChronologyVoteMutationVars,
@@ -29,10 +36,12 @@ import {
  * state and surfaces a toast. Switching votes sends the new-direction mutation —
  * the backend's update_or_create makes that idempotent.
  *
- * Two callable targets (Task 13): the default "incident" votes the calendar incident,
- * "chronology" votes a single chronology row through the Task 8 mutations. The
- * optimistic state, disabled-while-voting, and auth gating (logged-out users see
- * the buttons disabled) behave identically for both.
+ * Three callable targets: the default "incident" votes the calendar incident,
+ * "chronology" votes a single chronology row through the Task 8 mutations, and
+ * "link" votes a feed/insiden social-media link through the front-page feed's
+ * upvoteSocialMediaLink/downvoteSocialMediaLink/removeSocialMediaLinkVote mutations.
+ * The optimistic state, disabled-while-voting, and auth gating (logged-out users see
+ * the buttons disabled) behave identically for all three.
  */
 @Component({
   selector: "app-vote-button",
@@ -104,17 +113,26 @@ export class VoteButtonComponent {
 
   /** What this button votes on: "incident" (default) targets the calendar incident via the
    * upvote/downvote/removeVote mutations; "chronology" targets a single chronology row via the
-   * Task 8 upvoteChronology/downvoteChronology/removeChronologyVote mutations. */
-  readonly targetType = input<"incident" | "chronology">("incident");
+   * Task 8 upvoteChronology/downvoteChronology/removeChronologyVote mutations; "link" targets a
+   * social-media link via the front page's upvoteSocialMediaLink/downvoteSocialMediaLink/
+   * removeSocialMediaLinkVote mutations. */
+  readonly targetType = input<"incident" | "chronology" | "link">("incident");
 
-  /** Backend object id this button votes on — the incident id for targetType "incident",
-   * the chronology row id (chronologies { id }) for targetType "chronology". */
+  /** Backend object id this button votes on — the incident id for targetType "incident", the
+   * chronology row id (chronologies { id }) for targetType "chronology", and the
+   * social-media link id for targetType "link" (the argument is named `socialMediaLinkId`
+   * there, but carrying it on this same input keeps every existing call site untouched). */
   readonly incidentId = input.required<string>();
   readonly netScore = input(0);
   readonly upvotes = input(0);
   readonly downvotes = input(0);
   /** 1 upvoted, -1 downvoted, 0 no vote. */
   readonly userVote = input<VoteValue>(0);
+
+  /** Emitted with the caller's new vote value after a successful mutation, so the host can
+   * mirror it into its own store (e.g. HomeStore.setUserVote). Not emitted on failure — the
+   * display has already rolled back. */
+  readonly voteChanged = output<{ value: number }>();
 
   /** linkedSignal, not a plain signal seeded in a field initializer: input
    * signals only carry their bound values after construction, so a plain seed
@@ -134,9 +152,15 @@ export class VoteButtonComponent {
     formatBreakdown(this.state().upvotes, this.state().downvotes),
   );
 
-  protected readonly ariaLabel = computed(() =>
-    this.targetType() === "chronology" ? "Vote on this chronology" : "Vote on this incident",
-  );
+  protected readonly ariaLabel = computed(() => {
+    if (this.targetType() === "chronology") {
+      return "Vote on this chronology";
+    }
+    if (this.targetType() === "link") {
+      return "Vote on this link";
+    }
+    return "Vote on this incident";
+  });
 
   protected async onVoteClick(target: Exclude<VoteValue, 0>): Promise<void> {
     const previous = this.state();
@@ -147,6 +171,7 @@ export class VoteButtonComponent {
     this.isVoting.set(true);
     try {
       await this.requestVote(nextTarget);
+      this.voteChanged.emit({ value: nextTarget });
     } catch {
       this.state.set(previous);
       this.toast.error("Vote not recorded", "Please try again in a moment.");
@@ -168,6 +193,20 @@ export class VoteButtonComponent {
       await this.graphql.request<ChronologyVoteMutationData, ChronologyVoteMutationVars>(
         mutation,
         { chronologyId: this.incidentId() },
+        headers,
+      );
+      return;
+    }
+    if (this.targetType() === "link") {
+      const mutation =
+        target === 1
+          ? UPVOTE_SOCIAL_MEDIA_LINK_MUTATION
+          : target === -1
+            ? DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION
+            : REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION;
+      await this.graphql.request<SocialMediaLinkVoteData, SocialMediaLinkVoteVars>(
+        mutation,
+        { id: this.incidentId() },
         headers,
       );
       return;
