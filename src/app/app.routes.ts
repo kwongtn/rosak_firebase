@@ -1,12 +1,16 @@
 import { Routes } from "@angular/router";
 import { pathWithOptionalParamMatcher } from "./core/routing/optional-param-matcher";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
+import { HomeStore } from "./features/home/data/home.store";
+import { LineStatusSheetService } from "./features/home/data/line-status-sheet.service";
 
 export const routes: Routes = [
   {
+    // Route-scoped providers, not root singletons: the polling beat and the status sheet's
+    // state must be created with the page and torn down with it (HomePage calls stop()).
     path: "",
-    redirectTo: "/spotting",
-    pathMatch: "full",
+    loadComponent: () => import("./features/home/home.page").then((m) => m.HomePage),
+    providers: [HomeStore, LineStatusSheetService],
   },
   {
     path: "spotting",
