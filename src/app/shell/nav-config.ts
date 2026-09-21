@@ -35,6 +35,7 @@ export interface ModuleNavLink {
  * than hardcoding it per page) means a future module that reuses the pill gets the same
  * self-exclusion for free just by setting its own `currentModulePath`. */
 export const MODULE_NAV_LINKS: ModuleNavLink[] = [
+  { path: "/", label: "Home" },
   { path: "/spotting", label: "TranSPOT" },
   { path: "/tracker", label: "Tracker" },
   { path: "/gallery", label: "Gallery" },
