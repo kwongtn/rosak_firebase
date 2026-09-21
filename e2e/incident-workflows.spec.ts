@@ -1,16 +1,21 @@
 import { expect, test } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
+import {
+  configureMock,
+  recordedCalls,
+  resetMock,
+  routeGraphQLToMock,
+} from "./helpers/mock-graphql";
 
 /**
- * End-to-end journeys over the real Angular app (dev server, SSR included).
- * The app's BACKEND_GRAPHQL_URL points at the local mock GraphQL server
- * (e2e/mock-graphql.server.mjs); each test configures its stubs and reads
- * back the recorded calls over HTTP. Firebase Auth is seeded through
+ * End-to-end journeys over the real Angular app, served as a static CSR build.
+ * Each test configures its stubs on the local mock GraphQL server
+ * (e2e/mock-graphql.server.mjs) and reads back the recorded calls over HTTP;
+ * `routeGraphQLToMock` bridges the build's dev-backend GraphQL URL to that mock
+ * (see e2e/helpers/mock-graphql.ts). Firebase Auth is seeded through
  * IndexedDB (helpers/auth.ts) so guarded console routes render.
  */
-
-const MOCK = "http://localhost:4301";
 
 const INCIDENT = {
   id: "101",
@@ -43,26 +48,9 @@ const INCIDENT = {
   medias: [],
 };
 
-interface RecordedCall {
-  operationName: string;
-  variables: Record<string, unknown>;
-}
-
-async function configureMock(stubs: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`${MOCK}/__configure`, {
-    method: "POST",
-    body: JSON.stringify(stubs),
-  });
-  expect(res.ok).toBe(true);
-}
-
-async function recordedCalls(): Promise<RecordedCall[]> {
-  const res = await fetch(`${MOCK}/__calls`);
-  return (await res.json()) as RecordedCall[];
-}
-
-test.beforeEach(async () => {
-  await fetch(`${MOCK}/__reset`, { method: "POST" });
+test.beforeEach(async ({ page }) => {
+  await resetMock();
+  await routeGraphQLToMock(page);
 });
 
 test.describe("incident workflows", () => {

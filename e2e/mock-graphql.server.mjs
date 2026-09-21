@@ -1,10 +1,17 @@
 /**
  * Minimal GraphQL mock server for the Playwright E2E suite.
  *
- * The Angular app is SSR — its first data fetch happens in Node inside the
- * dev server, where browser-level request interception cannot reach. Pointing
- * BACKEND_GRAPHQL_URL at this server instead gives both the SSR pass and the
- * browser one deterministic responses over the real HTTP wire format.
+ * The CSR bundle is built with the development configuration, so its GraphQL
+ * client targets the local dev backend (http://localhost:8000/graphql/) — a
+ * server the E2E stack never runs. `routeGraphQLToMock`
+ * (e2e/helpers/mock-graphql.ts) forwards every GraphQL request the page makes
+ * to this server instead, which answers over the real HTTP wire format.
+ *
+ * Handlers are keyed by the operation name parsed out of the query text and
+ * configured via POST /__configure. The home page's specs use FrontPageLines,
+ * Feed, SubmitFeedLink, SubmitLineStatusReport, UpvoteSocialMediaLink and
+ * StationLinesByLine; the operation-agnostic dispatch means adding a new one is
+ * a spec-side concern, not a change here.
  *
  * Endpoints:
  *   POST /graphql/        answered from the configured operation stubs
