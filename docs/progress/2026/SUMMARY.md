@@ -31,9 +31,10 @@
 
 ### Q3: Reliability (Sep)
 
-| Week   | Milestone                                                                         |
-| ------ | --------------------------------------------------------------------------------- |
-| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20 |
+| Week   | Milestone                                                                                                       |
+| ------ | --------------------------------------------------------------------------------------------------------------- |
+| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                               |
+| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet) |
 
 ---
 
@@ -98,6 +99,13 @@
 | Aug 26     | `app-ad-slot` component, `ADS_CONFIG`, manual AdSense units, fill-gated reveal, block capping, behavioral specs, `robots.txt` |
 | **Status** | **MVP Ready** — Config-driven, tested, SEO-protected                                                                          |
 
+### home (Community Front Page) — **NEW PLATFORM**
+
+| Phase      | Deliverables                                                                                                                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sep 22     | Root `""` route becomes `HomePage`: global rolling link feed with login-gated submit + duplicate detection, per-line pulse cards (vehicle counts, passenger status, related links), mobile line-status bottom sheet, route-scoped `HomeStore` with polling and an authenticated `userVote` overlay |
+| **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
+
 ### core (Utilities) — **EXTRACTED PATTERNS**
 
 | Phase      | Deliverables                                                         |
@@ -119,7 +127,7 @@
 ### After 2026 (Angular 22)
 
 - **Tailwind v4** + **Headless UI** (hlm-* components)
-- **Strawberry GraphQL** (via `graphqlResource()` / `postGraphQL()`)
+- **Strawberry GraphQL** (via `graphqlResource()` / `GraphQLClient.request()`)
 - **SSR** (Server-Side Rendering) via Angular Universal
 - **Standalone components** (no NgModules)
 - **Firebase Auth/Firestore/Storage** direct integration
@@ -137,17 +145,18 @@
 
 ## Commit Statistics (2026 YTD)
 
-| Month     | Commits | Major Focus                      |
-| --------- | ------- | -------------------------------- |
-| Jan       | 0       | (no data in range)               |
-| Feb       | 0       | (no data in range)               |
-| Mar       | 1       | Verification component fix       |
-| Apr       | 0       | (no data in range)               |
-| May       | 0       | (no data in range)               |
-| Jun       | 0       | (no data in range)               |
-| Jul       | 0       | (no data in range)               |
-| Aug       | **41+** | **3 feature platforms + polish** |
-| **Total** | **42+** |                                  |
+| Month     | Commits | Major Focus                                           |
+| --------- | ------- | ----------------------------------------------------- |
+| Jan       | 0       | (no data in range)                                    |
+| Feb       | 0       | (no data in range)                                    |
+| Mar       | 1       | Verification component fix                            |
+| Apr       | 0       | (no data in range)                                    |
+| May       | 0       | (no data in range)                                    |
+| Jun       | 0       | (no data in range)                                    |
+| Jul       | 0       | (no data in range)                                    |
+| Aug       | **41+** | **3 feature platforms + polish**                      |
+| Sep       | **53**  | **home front page (landing) + CI/deploy reliability** |
+| **Total** | **95+** |                                                       |
 
 > Note: Git history shows major activity in Aug 2026. Earlier 2026 commits may be in different branches or squashed.
 
@@ -260,6 +269,7 @@
 ```
 src/app/
 ├── features/
+│   ├── home/             # Community front page (NEW 2026, landing route)
 │   ├── insiden/          # Incident reporting platform (NEW 2026)
 │   ├── console/          # Admin dashboard (EXPANDED 2026)
 │   ├── tracker/          # GTFS real-time tracking (MATURE)

@@ -51,7 +51,7 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 **Do not guess component interfaces, dependencies, or extension points — look them up:**
 
 - **[`docs/COMPONENTS.md`](docs/COMPONENTS.md) is canonical** — system topology, the catalog of all
-  9 features, and where the seams are.
+  10 features, and where the seams are.
 - **[`docs/components/`](docs/components/)`<feature>.md`** — per-feature interfaces, internal state,
   and named extension points. Read the relevant one before touching a feature.
 - ⚠️ **[`docs/frontend-map/`](docs/frontend-map/) is LEGACY** — it describes the pre-rewrite
@@ -71,8 +71,9 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
   `Subject`s in app code — keep it that way. Private state is `private readonly _x = signal(...)`
   exposed through `computed()` projections; anything the template reads is `protected readonly`.
 - **Data access**: reads go through `graphqlResource()` (gives SSR TransferState + backoff retry for
-  free); mutations call `postGraphQL()` from an event handler — never `httpResource`, whose
-  re-fetch-on-signal-change lifecycle is wrong for one-shot writes.
+  free); mutations call `inject(GraphQLClient).request(query, variables, headers)` from an event
+  handler — never `httpResource`, whose re-fetch-on-signal-change lifecycle is wrong for one-shot
+  writes.
 - **`inject()`, not constructor parameters** (116 call sites vs 2 legacy holdouts).
 - **Built-in control flow** `@if`/`@for`/`@switch`. `CommonModule`, `NgIf`, and `NgFor` appear
   nowhere — never import them.
@@ -122,9 +123,11 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
    Report real output. If something fails, say so — never claim completion on an unverified change.
 3. **Tests**: always run them. **Add a spec for every feature and bug fix where it is reasonably
    possible** — at minimum, any new pure utility, service, store, or build-script logic must have a
-   test. Write new specs for pure utilities, services, and stores. Component template tests aren't
-   expected — there is no existing pattern (`src/app/app.spec.ts` is the only spec in the repo), so
-   don't invent a harness unasked.
+   test. Write new specs for pure utilities, services, and stores. Component specs with
+   `data-testid` assertions are established too: the repo has 69 spec files (e.g.
+   `features/home/home.page.spec.ts`, `features/home/feed/link-submit-box.component.spec.ts`), not
+   just `src/app/app.spec.ts`, so follow the existing TestBed patterns rather than treating component
+   tests as out of scope.
 4. **Context hygiene**: `/clear` between unrelated features. Feature areas here are deeply
    documented but largely independent — stale context from another feature causes wrong assumptions.
 5. **Git**: commit at logical checkpoints — one concern per commit — so the history reads chronologically and the working tree is never left full of uncommitted changes; push only when asked. Pre-commit runs `lint-staged` → Prettier.

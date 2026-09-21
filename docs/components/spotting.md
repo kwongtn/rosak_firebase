@@ -2,7 +2,7 @@
 
 ## 📌 Purpose & Scope
 
-- **Core Responsibility:** TranSPOT — the app's public, crowd-sourced train/rolling-stock spotting log. It lets anyone browse, per rail line, every vehicle's current status, spotting history, and incident timeline, and lets logged-in users submit a new "I saw this vehicle" report (status, location, wheel condition, photos). It is the flagship feature and the default landing route of the app.
+- **Core Responsibility:** TranSPOT — the app's public, crowd-sourced train/rolling-stock spotting log. It lets anyone browse, per rail line, every vehicle's current status, spotting history, and incident timeline, and lets logged-in users submit a new "I saw this vehicle" report (status, location, wheel condition, photos). It is the flagship feature; the app's landing route is now the `home` community front page (see `docs/components/home.md`).
 - **Domain/Layer:** Angular Presentation (standalone components, signals-based reactive state, route-lazy-loaded feature module). Talks to a Django/Strawberry GraphQL backend (`operation`, `spotting`, `incident` apps) plus one legacy REST endpoint for a historical trend chart.
 - **Subcomponent breakdown** (one coherent feature, several route/leaf components):
   - `spotting-shell/` — route shell: hosts nav/footer, `<router-outlet>`, and the single cross-page "Add a Spotting Entry" sheet.

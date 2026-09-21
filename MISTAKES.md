@@ -36,7 +36,28 @@ different padding/gap, either parameterize the directive or use plain element cl
 instance. Grep for other `hlmCard class="gap-` / `class="p-` instances before "tightening" a
 layout the same way.
 
+### [2026-09-22] graphql: `graphqlResource()` sends no auth token — per-user fields read as anonymous
+
+**Problem**: The front page's feed showed `userVote: 0` for every link on SSR and first paint even when the visitor was logged in and had voted, so the vote control rendered "no vote" until the user voted again.
+**Root Cause**: `graphqlResource()` builds its own `httpResource` POST and sends no auth header, so the backend resolves an anonymous caller; any per-user field read through it (`userVote`, `myVote`, …) comes back as the anonymous default. The only place a token can ride is `GraphQLClient.request`'s optional third `extraHeaders` argument, and the resource wrapper has no auth-token binding.
+**Fix**: `HomeStore` reads the feed anonymously as before, then — after `auth.whenReady`, when logged in — issues one authenticated `GraphQLClient.request(FEED_QUERY, vars, { "firebase-auth-key": idToken })` and records every non-zero `userVote` into a `signal<Record<string, number>>` overlay. `userVoteFor(linkId)` prefers the overlay over the anonymous feed value; `setUserVote()` keeps it in sync after a successful vote.
+**Prevention**: Treat `graphqlResource()` as anonymous-only. Any per-user field needs a separate authenticated read (`GraphQLClient.request` + `idToken`) after `auth.whenReady`, overlaid onto the resource data. Document the overlay at the call site so the next reader doesn't "fix" `userVote` by trusting the resource.
+
+### [2026-09-22] build: two concurrent `npm run build` runs corrupt the shared `dist/` output
+
+**Problem**: Running two `npm run build` invocations at once (two agents or terminals in the same checkout) produced a broken/partial build instead of two complete ones.
+**Root Cause**: Angular writes its browser + server bundles and the SSR server entry to a single repo-root `dist/`; there is no per-invocation output directory, so simultaneous runs race on the same files.
+**Fix**: Serialize builds and tests — one invocation at a time, or guard with a lockfile (e.g. `flock dist/.build.lock npm run build`) so a second run waits instead of clobbering the first.
+**Prevention**: Never run `npm run build` (or the test suite) concurrently in the same checkout. When agents share a workspace, wrap the command in a `flock`-based lock or work in separate git worktrees.
+
 ## Fixed
+
+### [2026-09-22] AGENTS.md: `postGraphQL()` referenced a non-existent API
+
+**Problem**: The "Data access" convention told agents to call `postGraphQL()` for mutations. No such function exists anywhere in the repo — the only hits are the AGENTS.md line and a stale docstring in `graphql-client.ts` — so anyone following it had to guess the real write API.
+**Root Cause**: The convention named a helper that was never shipped; the real surface is `graphqlResource()` for reads and `GraphQLClient.request(query, variables?, extraHeaders?)` for writes, but the doc wasn't kept in step with the implementation.
+**Fix**: AGENTS.md now names `inject(GraphQLClient).request(query, variables, headers)` for mutations (same commit as this entry).
+**Prevention**: Every API name in AGENTS.md should be greppable in `src/`; when the doc and the code disagree, the code is the contract. A fixed doc claim gets a progress entry plus a MISTAKES entry like this one.
 
 ### [2026-09-15] CI: `vi.mock` identity diverges across specs (`isolate: false` shared registry)
 
