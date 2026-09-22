@@ -68,6 +68,82 @@ describe("FeedLinkCardComponent", () => {
     );
   });
 
+  it("keeps the time on the body row, bottom-aligned with its last row (the tags)", () => {
+    const article = fixture.nativeElement.querySelector("article") as HTMLElement;
+    const anchor = article.querySelector("a") as HTMLElement;
+    const rail = article.querySelector('[data-testid="feed-meta-rail"]') as HTMLElement;
+    const time = rail.querySelector('[data-testid="feed-time"]') as HTMLElement;
+
+    // The card is a single row again: no second row holding only the time.
+    expect(article.children.length).toBe(1);
+    expect(rail.parentElement).toBe(article.children[0]);
+    expect(rail.parentElement?.contains(anchor)).toBe(true);
+
+    // The row bottom-aligns its children and the rail spans the row height with the time pinned
+    // to its bottom edge — i.e. to the bottom of the body's last row.
+    const row = rail.parentElement as HTMLElement;
+    expect(row.classList.contains("items-end")).toBe(true);
+    expect(rail.classList.contains("self-stretch")).toBe(true);
+    expect(rail.classList.contains("items-end")).toBe(true);
+    expect(rail.classList.contains("justify-between")).toBe(true);
+    expect(rail.contains(time)).toBe(true);
+    expect(time.parentElement).toBe(rail);
+    // The vote control stays where it was: top of the same rail.
+    expect(rail.firstElementChild?.tagName.toLowerCase()).toBe("app-vote-button");
+
+    // With tags, the tag row is the body's last row.
+    const tagRow = anchor.querySelector('[data-testid="feed-tags"]') as HTMLElement;
+    expect(tagRow).not.toBeNull();
+    expect(anchor.lastElementChild).toBe(tagRow);
+  });
+
+  it("bottom-aligns the time with the title when the card has no line tags", async () => {
+    fixture.componentRef.setInput("link", makeFeedLink({ lines: [] }));
+    await fixture.whenStable();
+
+    const article = fixture.nativeElement.querySelector("article") as HTMLElement;
+    const anchor = article.querySelector("a") as HTMLElement;
+    const rail = article.querySelector('[data-testid="feed-meta-rail"]') as HTMLElement;
+
+    expect(article.querySelector('[data-testid="feed-tags"]')).toBeNull();
+    expect(anchor.lastElementChild?.textContent).toContain("Delays on the KJL");
+    // Same bottom-aligned row + stretched rail: its bottom edge is the title block's bottom edge.
+    expect((rail.parentElement as HTMLElement).classList.contains("items-end")).toBe(true);
+    expect(rail.classList.contains("self-stretch")).toBe(true);
+    expect(rail.classList.contains("justify-between")).toBe(true);
+    expect(article.children.length).toBe(1);
+  });
+
+  it("renders the domain in the normal colour and the path in muted grey on one line", () => {
+    const domain = fixture.nativeElement.querySelector(
+      '[data-testid="feed-url-domain"]',
+    ) as HTMLElement;
+    const path = fixture.nativeElement.querySelector(
+      '[data-testid="feed-url-path"]',
+    ) as HTMLElement;
+    const outer = domain.parentElement as HTMLElement;
+
+    expect(domain.textContent).toBe("example.com");
+    expect(path.textContent).toBe("/story");
+    expect(domain.classList.contains("text-muted-foreground")).toBe(false);
+    expect(path.classList.contains("text-muted-foreground")).toBe(true);
+    // One line, no space between the parts: "example.com/story".
+    expect(outer.textContent).toBe("example.com/story");
+    expect(outer.classList.contains("truncate")).toBe(true);
+  });
+
+  it("drops the path when the url is a bare host", async () => {
+    fixture.componentRef.setInput("link", makeFeedLink({ url: "https://www.example.com/" }));
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-url-path"]').textContent).toBe(
+      "",
+    );
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-url-domain"]').textContent).toBe(
+      "example.com",
+    );
+  });
+
   it("prefers the submitter's nickname when present", async () => {
     fixture.componentRef.setInput(
       "link",

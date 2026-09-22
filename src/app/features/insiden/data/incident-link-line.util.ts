@@ -77,6 +77,20 @@ function restPathOf(parsed: URL | null): string {
   return parsed.pathname + parsed.search + parsed.hash;
 }
 
+/** Shared host + remainder split for a URL: the parsed http(s) hostname together with
+ * everything after it (`pathname + search + hash`). Returns `null` when the URL is
+ * missing/unparseable or carries a non-http(s) scheme. Used by `incidentLinkLine`
+ * (domain bold, remainder paler) and by the home feed card's one-line URL display. */
+export function splitHttpUrl(
+  url: string | undefined | null,
+): { domain: string; restPath: string } | null {
+  const parsed = parseHttpUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  return { domain: parsed.hostname, restPath: restPathOf(parsed) };
+}
+
 const isPendingApproval = (status: string | undefined | null): boolean =>
   status?.toUpperCase() === "PENDING_APPROVAL";
 

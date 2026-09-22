@@ -14,7 +14,6 @@ import { GraphQLClient } from "../../core/graphql/graphql-client";
 import { ImageUploadService } from "../../core/upload/image-upload.service";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
-import { InfiniteScrollDirective } from "../../ui/infinite-scroll/infinite-scroll.directive";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { ToastService } from "../../ui/toast/toast.service";
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
@@ -25,7 +24,7 @@ import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { FeedLinkCardComponent } from "./feed/feed-link-card.component";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
-import { HomePage } from "./home.page";
+import { HomePage, FEED_INITIAL_VISIBLE } from "./home.page";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 
@@ -82,6 +81,7 @@ interface StoreMock {
   feedLinks: WritableSignal<FeedLink[]>;
   feedPageInfo: WritableSignal<FeedLinkPageInfo | null>;
   isLoading: WritableSignal<boolean>;
+  isLoadingMore: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
   userVoteFor: ReturnType<typeof vi.fn>;
   setUserVote: ReturnType<typeof vi.fn>;
@@ -108,6 +108,7 @@ describe("HomePage", () => {
       feedLinks: signal<FeedLink[]>([makeFeedLink("a"), makeFeedLink("b")]),
       feedPageInfo: signal<FeedLinkPageInfo | null>({ hasNextPage: true, endCursor: "cursor-a" }),
       isLoading: signal(false),
+      isLoadingMore: signal(false),
       hasError: signal(false),
       userVoteFor: vi.fn((linkId: string) => (linkId === "a" ? 1 : 0)),
       setUserVote: vi.fn(),
@@ -254,16 +255,73 @@ describe("HomePage", () => {
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
   });
 
-  it("loads the next feed page from the infinite-scroll sentinel only while a next page exists", () => {
-    const sentinel = fixture.debugElement.query(By.directive(InfiniteScrollDirective));
-    expect(sentinel).not.toBeNull();
+  it("renders at most the initial visible chunk of feed cards", () => {
+    store.feedLinks.set(
+      Array.from({ length: FEED_INITIAL_VISIBLE + 2 }, (_, index) => makeFeedLink(`x${index}`)),
+    );
+    fixture.detectChanges();
 
-    sentinel.injector.get(InfiniteScrollDirective).loadMore.emit();
+    expect(fixture.nativeElement.querySelectorAll("app-feed-link-card").length).toBe(
+      FEED_INITIAL_VISIBLE,
+    );
+  });
+
+  it("scrolls the feed in its own bounded container", () => {
+    const container = fixture.nativeElement.querySelector(
+      '[data-testid="feed-scroll"]',
+    ) as HTMLElement;
+
+    expect(container).not.toBeNull();
+    expect(container.classList.contains("overflow-y-auto")).toBe(true);
+    expect(container.className).toContain("max-h-[60vh]");
+    expect(container.querySelector("app-feed-link-card")).not.toBeNull();
+    // Load More sits after the scroller, so it stays reachable without scrolling the feed.
+    expect(container.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+  });
+
+  it("loads the next feed page from Load More only while a next page exists", () => {
+    const button = fixture.nativeElement.querySelector(
+      '[data-testid="feed-load-more"]',
+    ) as HTMLButtonElement;
+    expect(button).not.toBeNull();
+
+    button.click();
     expect(store.loadMore).toHaveBeenCalledTimes(1);
 
     store.feedPageInfo.set({ hasNextPage: false, endCursor: "cursor-a" });
     fixture.detectChanges();
-    expect(fixture.debugElement.query(By.directive(InfiniteScrollDirective))).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+  });
+
+  it("hides Load More while a page is in flight", () => {
+    store.isLoading.set(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+
+    store.isLoading.set(false);
+    store.isLoadingMore.set(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+  });
+
+  it("reveals the next chunk on Load More before the next page arrives", () => {
+    store.feedLinks.set(
+      Array.from({ length: FEED_INITIAL_VISIBLE + 2 }, (_, index) => makeFeedLink(`x${index}`)),
+    );
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll("app-feed-link-card").length).toBe(
+      FEED_INITIAL_VISIBLE,
+    );
+
+    (
+      fixture.nativeElement.querySelector('[data-testid="feed-load-more"]') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    // Everything already resident is revealed; the continuation page adds more when it lands.
+    expect(fixture.nativeElement.querySelectorAll("app-feed-link-card").length).toBe(
+      FEED_INITIAL_VISIBLE + 2,
+    );
   });
 
   it("hands the store's lines to the line list", () => {

@@ -1,8 +1,7 @@
-import { Component, computed, inject, type OnDestroy } from "@angular/core";
+import { Component, computed, inject, signal, type OnDestroy } from "@angular/core";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
-import { InfiniteScrollDirective } from "../../ui/infinite-scroll/infinite-scroll.directive";
 import {
   RetryBannerComponent,
   type RetryableResource,
@@ -13,12 +12,16 @@ import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
 import { LinePulse } from "./data/home.queries";
-import { HomeStore } from "./data/home.store";
+import { FEED_PAGE_SIZE, HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { FeedLinkCardComponent } from "./feed/feed-link-card.component";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
+
+/** How many feed cards the list reveals at once. Tied to the store's fetch page size so the
+ * first render is exactly one fetched page and one "Load More" reveals one continuation page. */
+export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
 
 /**
  * The community front page — the site's root route. One global rolling feed at the top, the
@@ -41,7 +44,6 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
     LinePulseListComponent,
     LineStatusSheetComponent,
     ReportFormComponent,
-    InfiniteScrollDirective,
     RetryBannerComponent,
     HlmButton,
     HlmSheet,
@@ -61,24 +63,28 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
       }
 
       <section class="flex flex-col gap-3" aria-label="Community feed">
-        @if (store.isLoading() && store.feedLinks().length === 0) {
-          <div hlmSkeleton class="h-24 w-full"></div>
-        }
-        @for (link of store.feedLinks(); track link.id) {
-          <app-feed-link-card
-            [link]="link"
-            [userVote]="store.userVoteFor(link.id)"
-            (voteChanged)="store.setUserVote(link.id, $event.value)"
-          />
-        }
-        @if (store.feedPageInfo()?.hasNextPage) {
-          <div
-            appInfiniteScroll
-            [appInfiniteScrollLoading]="store.isLoading()"
-            (loadMore)="store.loadMore()"
-            class="h-px"
-            aria-hidden="true"
-          ></div>
+        <div class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto" data-testid="feed-scroll">
+          @if (store.isLoading() && store.feedLinks().length === 0) {
+            <div hlmSkeleton class="h-24 w-full"></div>
+          }
+          @for (link of visibleFeedLinks(); track link.id) {
+            <app-feed-link-card
+              [link]="link"
+              [userVote]="store.userVoteFor(link.id)"
+              (voteChanged)="store.setUserVote(link.id, $event.value)"
+            />
+          }
+        </div>
+        @if (canLoadMore()) {
+          <button
+            hlmBtn
+            variant="outline"
+            class="self-center"
+            data-testid="feed-load-more"
+            (click)="loadMore()"
+          >
+            Load More
+          </button>
         }
       </section>
 
@@ -153,6 +159,30 @@ export class HomePage implements OnDestroy {
     retryCountdownSec: () => null,
     retryNow: () => this.store.reloadAll(),
   };
+
+  /** How many feed cards the scroll container currently reveals; grows by one chunk per click. */
+  private readonly visibleCount = signal(FEED_INITIAL_VISIBLE);
+
+  /** The resident feed page(s), clipped to the revealed chunk — the list never renders more
+   * cards than the user has asked for, even though the store may hold more. */
+  protected readonly visibleFeedLinks = computed(() =>
+    this.store.feedLinks().slice(0, this.visibleCount()),
+  );
+
+  /** The click-driven replacement for the infinite-scroll sentinel: shown only while another
+   * page exists and nothing is in flight. */
+  protected readonly canLoadMore = computed(
+    () =>
+      Boolean(this.store.feedPageInfo()?.hasNextPage) &&
+      !this.store.isLoading() &&
+      !this.store.isLoadingMore(),
+  );
+
+  /** Reveals the next chunk of already-fetched links and pulls a continuation page. */
+  protected loadMore(): void {
+    this.visibleCount.update((count) => count + FEED_INITIAL_VISIBLE);
+    void this.store.loadMore();
+  }
 
   constructor() {
     this.store.start();

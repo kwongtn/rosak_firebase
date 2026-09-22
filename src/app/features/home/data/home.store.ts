@@ -16,7 +16,10 @@ import {
   LinePulse,
 } from "./home.queries";
 
-const FEED_PAGE_SIZE = 30;
+/** Links per GraphQL page: the initial read and every `loadMore()` continuation ask for this
+ * many. Kept small and equal to `HomePage`'s `FEED_INITIAL_VISIBLE` so the first render is
+ * exactly one fetched page and one "Load More" reveals one continuation page. */
+export const FEED_PAGE_SIZE = 8;
 
 /**
  * Route-scoped store for the community front page (provided by the route in a later wave —
@@ -73,6 +76,10 @@ export class HomeStore {
   readonly isLoading = computed(
     () => this.linesResource.isLoading() || this.feedResource.isLoading(),
   );
+
+  /** True while a `loadMore()` continuation page is in flight (the resources' own loading state
+   * doesn't cover the manual request, so the page hides "Load More" on this too). */
+  readonly isLoadingMore = this.loadingMore.asReadonly();
 
   readonly hasError = computed(() => this.linesResource.hasError() || this.feedResource.hasError());
 

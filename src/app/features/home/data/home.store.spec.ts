@@ -7,7 +7,7 @@ import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { FeedLink, FeedQueryData, FrontPageLinesQueryData } from "./home.queries";
-import { HomeStore } from "./home.store";
+import { FEED_PAGE_SIZE, HomeStore } from "./home.store";
 
 function makeLine(id: string): FrontPageLinesQueryData["lines"][number] {
   return {
@@ -121,7 +121,7 @@ describe("HomeStore", () => {
     linesReq.flush({ data: { lines: [makeLine("a"), makeLine("b")] } });
 
     const feedReq = feedRequest();
-    expect(feedReq.request.body.variables).toEqual({ first: 30, status: "LIVE" });
+    expect(feedReq.request.body.variables).toEqual({ first: FEED_PAGE_SIZE, status: "LIVE" });
     feedReq.flush({ data: feedData([makeFeedLink("x"), makeFeedLink("y")], false, null) });
 
     await Promise.resolve();
@@ -159,7 +159,7 @@ describe("HomeStore", () => {
 
     expect(requestMock).toHaveBeenCalledWith(
       expect.stringContaining("query Feed"),
-      { first: 30, status: "LIVE" },
+      { first: FEED_PAGE_SIZE, status: "LIVE" },
       { "firebase-auth-key": "token" },
     );
     expect(store.userVoteFor("y")).toBe(0);
@@ -174,7 +174,7 @@ describe("HomeStore", () => {
     await store.loadMore();
 
     expect(requestMock).toHaveBeenCalledWith(expect.stringContaining("query Feed"), {
-      first: 30,
+      first: FEED_PAGE_SIZE,
       after: "cursor-x",
       status: "LIVE",
     });
@@ -184,6 +184,19 @@ describe("HomeStore", () => {
     requestMock.mockClear();
     await store.loadMore();
     expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it("exposes isLoadingMore only while a continuation page is in flight", async () => {
+    const store = createStore();
+    flushInitial([], feedData([makeFeedLink("x")], true, "cursor-x"));
+    await Promise.resolve();
+    expect(store.isLoadingMore()).toBe(false);
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    const pending = store.loadMore();
+    expect(store.isLoadingMore()).toBe(true);
+    await pending;
+    expect(store.isLoadingMore()).toBe(false);
   });
 
   it("setUserVote updates the overlay so userVoteFor prefers it", async () => {
