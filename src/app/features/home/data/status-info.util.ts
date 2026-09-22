@@ -24,6 +24,14 @@ export interface VehicleStatusCountRow {
   count: number;
 }
 
+/** One pill of the passenger-status count breakdown: readable label, colour and current count. */
+export interface PassengerStatusCountRow {
+  key: PassengerStatus;
+  label: string;
+  variant: BadgeVariants["variant"];
+  count: number;
+}
+
 /** Readable label per vehicle status — the hover breakdown's row text. */
 export const VEHICLE_STATUS_LABEL: Record<VehicleStatus, string> = {
   IN_SERVICE: "In service",
@@ -106,6 +114,25 @@ export function passengerScale(status: PassengerStatus | null | undefined): Stat
     label: PASSENGER_LABEL[key],
     variant: PASSENGER_VARIANT[key],
     active: key === status,
+  }));
+}
+
+/**
+ * The reported passenger counts as readable pill rows: statuses with a non-zero count only, in
+ * enum order, with duplicate entries for one status summed. Missing input yields no rows at all.
+ */
+export function passengerStatusRows(
+  counts: readonly { status: PassengerStatus; count: number }[] | null | undefined,
+): PassengerStatusCountRow[] {
+  const byStatus = new Map<PassengerStatus, number>();
+  for (const entry of counts ?? []) {
+    byStatus.set(entry.status, (byStatus.get(entry.status) ?? 0) + entry.count);
+  }
+  return PASSENGER_SCALE.filter((status) => (byStatus.get(status) ?? 0) > 0).map((status) => ({
+    key: status,
+    label: PASSENGER_LABEL[status],
+    variant: PASSENGER_VARIANT[status],
+    count: byStatus.get(status) ?? 0,
   }));
 }
 

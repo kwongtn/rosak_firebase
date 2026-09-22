@@ -2,7 +2,12 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PASSENGER_INFO, passengerScale, type StatusInfo } from "../../home/data/status-info.util";
+import {
+  PASSENGER_INFO,
+  passengerScale,
+  type PassengerStatusCountRow,
+  type StatusInfo,
+} from "../../home/data/status-info.util";
 import { StatusInfoChipComponent, type StatusBreakdownRow } from "./status-info-chip.component";
 
 /**
@@ -32,6 +37,7 @@ interface RenderOptions {
   message?: string | null;
   windowMinutes?: number | null;
   breakdown?: StatusBreakdownRow[];
+  statusCounts?: PassengerStatusCountRow[];
 }
 
 describe("StatusInfoChipComponent", () => {
@@ -62,6 +68,9 @@ describe("StatusInfoChipComponent", () => {
     }
     if (options.breakdown) {
       fixture.componentRef.setInput("breakdown", options.breakdown);
+    }
+    if (options.statusCounts) {
+      fixture.componentRef.setInput("statusCounts", options.statusCounts);
     }
     // afterNextRender flips `_hoverCapable` only after one full cycle — detect, settle, detect.
     fixture.detectChanges();
@@ -221,6 +230,37 @@ describe("StatusInfoChipComponent", () => {
     expect(rows).toHaveLength(3);
     expect(rows[0]).toBe("In service 12");
     expect(rows[2]).toBe("Total 15");
+  });
+
+  it("renders per-status count pills as 'Label (count)'", async () => {
+    stubMatchMedia(true);
+    const fixture = await render({
+      info: PASSENGER_INFO.CROWDED,
+      statusCounts: [
+        { key: "NORMAL", label: "Normal", variant: "success", count: 1 },
+        { key: "BUSY", label: "Busy", variant: "info", count: 2 },
+      ],
+    });
+
+    hover(fixture);
+
+    const pills = [...host(fixture).querySelectorAll('[data-testid="status-count-pill"]')].map(
+      (pill) => (pill.textContent ?? "").replace(/\s+/g, " ").trim(),
+    );
+    expect(pills).toEqual(["Normal (1)", "Busy (2)"]);
+    expect(popover(fixture)?.querySelectorAll('[data-testid="status-scale-entry"]')).toHaveLength(
+      0,
+    );
+  });
+
+  it("renders no count pills when none are provided", async () => {
+    stubMatchMedia(true);
+    const fixture = await render();
+
+    hover(fixture);
+
+    expect(popover(fixture)).not.toBeNull();
+    expect(host(fixture).querySelectorAll('[data-testid="status-count-pill"]')).toHaveLength(0);
   });
 
   it("renders the 7-level legend with only the active level emphasised", async () => {

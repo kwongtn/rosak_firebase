@@ -1,7 +1,11 @@
 import { isPlatformBrowser } from "@angular/common";
 import { Component, PLATFORM_ID, afterNextRender, inject, input, signal } from "@angular/core";
 import { HlmBadge } from "../../../ui/badge/badge";
-import type { StatusInfo, StatusScaleEntry } from "../data/status-info.util";
+import type {
+  PassengerStatusCountRow,
+  StatusInfo,
+  StatusScaleEntry,
+} from "../data/status-info.util";
 
 /** One row of an extra per-category breakdown inside the popover (e.g. per-status vehicle counts). */
 export interface StatusBreakdownRow {
@@ -68,6 +72,15 @@ export interface StatusBreakdownRow {
               }
             </ul>
           }
+          @if (statusCounts().length > 0) {
+            <ul class="border-border mt-2.5 flex flex-wrap gap-1.5 border-t pt-2.5">
+              @for (row of statusCounts(); track row.key) {
+                <li hlmBadge [variant]="row.variant" data-testid="status-count-pill">
+                  {{ row.label }} ({{ row.count }})
+                </li>
+              }
+            </ul>
+          }
           @if (scale().length > 0) {
             <ul class="border-border mt-2.5 flex flex-col gap-1 border-t pt-2.5">
               @for (entry of scale(); track entry.key) {
@@ -103,6 +116,8 @@ export class StatusInfoChipComponent {
   readonly windowMinutes = input<number | null>(null);
   /** Optional per-category rows (e.g. the per-status vehicle counts), under the explanation. */
   readonly breakdown = input<readonly StatusBreakdownRow[]>([]);
+  /** Optional per-status report counts (e.g. the passenger severity counts), rendered as pills. */
+  readonly statusCounts = input<readonly PassengerStatusCountRow[]>([]);
 
   protected readonly _open = signal(false);
   /** Measured client-side; defaults to "no hover" (tap toggle) until resolved, the safe default. */

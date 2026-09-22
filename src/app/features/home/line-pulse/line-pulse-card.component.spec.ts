@@ -30,6 +30,10 @@ function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
       { status: "UNKNOWN", count: 0 },
     ],
     passengerStatusCount: 5,
+    passengerStatusCounts: [
+      { status: "NORMAL", count: 3 },
+      { status: "BUSY", count: 2 },
+    ],
     statusWindowMinutes: 15,
     pulseLinks: [],
     ...overrides,
@@ -173,20 +177,36 @@ describe("LinePulseCardComponent", () => {
     expect(textOf(root, "line-vehicle-count")).toBe("12 of 16 vehicles in service");
   });
 
-  it("shows the rolling-window report count next to the crowd status", () => {
+  it("lists the per-status report counts as pills inside the passenger popover", () => {
     const root = render(
-      makeLine({ passengerStatus: "CROWDED", passengerStatusCount: 7, statusWindowMinutes: 15 }),
+      makeLine({
+        passengerStatus: "CROWDED",
+        passengerStatusCounts: [
+          { status: "BUSY", count: 2 },
+          { status: "CROWDED", count: 0 },
+          { status: "NORMAL", count: 1 },
+        ],
+      }),
     );
 
-    const badge = root.querySelector('[data-testid="passenger-status-count"]') as HTMLElement;
-    expect(badge).not.toBeNull();
-    expect(badge.textContent?.trim()).toBe("7");
-    expect(badge.getAttribute("title")).toBe("7 reports in the last 15 minutes");
-    expect(badge.getAttribute("aria-label")).toBe("7 reports in the last 15 minutes");
+    openPopover(root, "passenger-status");
+
+    const pills = [...root.querySelectorAll('[data-testid="status-count-pill"]')].map((el) =>
+      (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+    );
+    expect(pills).toEqual(["Normal (1)", "Busy (2)"]);
   });
 
-  it("shows no count badge when the line has no crowd status", () => {
-    const root = render(makeLine({ passengerStatus: null, passengerStatusCount: 0 }));
+  it("shows no status pills when the line reported no passenger counts", () => {
+    const root = render(makeLine({ passengerStatus: null, passengerStatusCounts: [] }));
+
+    openPopover(root, "passenger-status");
+
+    expect(root.querySelectorAll('[data-testid="status-count-pill"]')).toHaveLength(0);
+  });
+
+  it("no longer renders the rolling-window count badge next to the crowd status", () => {
+    const root = render(makeLine({ passengerStatus: "CROWDED", passengerStatusCount: 7 }));
 
     expect(root.querySelector('[data-testid="passenger-status-count"]')).toBeNull();
   });

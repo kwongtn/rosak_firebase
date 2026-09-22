@@ -13,6 +13,7 @@ import {
   lineStatusInfo,
   passengerInfo,
   passengerScale,
+  passengerStatusRows,
   vehicleStatusRows,
 } from "../data/status-info.util";
 import { LineStatusChartComponent } from "./line-status-chart.component";
@@ -31,8 +32,8 @@ const MAX_PULSE_LINKS = 5;
  *
  * Both status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle count
  * opens the per-status breakdown, the passenger chip carries the consolidated message, the
- * rolling window it covers, and the severity legend. A small count badge next to the passenger
- * chip shows how many reports the rolling window holds. The title row is the expand/collapse
+ * rolling window it covers, the per-status report counts as pills, and the severity legend.
+ * The title row is the expand/collapse
  * toggle for the lazy detail panel — the hourly report chart and the recent reports list, both of
  * which only read once expanded. Mobile-first: the card is a single column with full-width,
  * content-sized actions; from `sm:` the actions move to the right of the title row. Links are
@@ -97,6 +98,7 @@ const MAX_PULSE_LINKS = 5;
                   [scale]="passengerScale(line().passengerStatus)"
                   [message]="line().passengerStatusMessage"
                   [windowMinutes]="_passengerWindowMinutes()"
+                  [statusCounts]="_passengerStatusCounts()"
                 >
                   <span
                     hlmBadge
@@ -106,17 +108,6 @@ const MAX_PULSE_LINKS = 5;
                     {{ passengerLabel(line().passengerStatus) }}
                   </span>
                 </app-status-info-chip>
-                @if (line().passengerStatus) {
-                  <span
-                    hlmBadge
-                    variant="secondary"
-                    data-testid="passenger-status-count"
-                    [attr.title]="_windowCountLabel()"
-                    [attr.aria-label]="_windowCountLabel()"
-                  >
-                    {{ line().passengerStatusCount }}
-                  </span>
-                }
               </div>
             </div>
           </header>
@@ -232,11 +223,9 @@ export class LinePulseCardComponent {
     this.line().passengerStatus ? this.line().statusWindowMinutes : null,
   );
 
-  protected readonly _windowCountLabel = computed(() => {
-    const count = this.line().passengerStatusCount;
-    const minutes = this.line().statusWindowMinutes;
-    return `${count} report${count === 1 ? "" : "s"} in the last ${minutes} minutes`;
-  });
+  protected readonly _passengerStatusCounts = computed(() =>
+    passengerStatusRows(this.line().passengerStatusCounts),
+  );
 
   protected toggleExpanded(): void {
     this._expanded.update((open) => !open);

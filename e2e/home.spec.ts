@@ -32,6 +32,10 @@ const KJL_LINE = {
   passengerStatus: "NORMAL",
   passengerStatusMessage: "Trains are running normally.",
   passengerStatusCount: 5,
+  passengerStatusCounts: [
+    { status: "NORMAL", count: 3 },
+    { status: "BUSY", count: 2 },
+  ],
   statusWindowMinutes: 30,
   statusReportCount: 3,
   pulseLinks: [],
@@ -199,15 +203,12 @@ test.describe("community front page", () => {
     await expect(card.getByRole("button", { name: "Upvote" })).toBeDisabled();
     await expect(card.getByRole("button", { name: "Downvote" })).toBeDisabled();
 
-    // Each line card: vehicle counts, status badge, passenger status (or "No data") and the
-    // rolling-window count that only a line with a status carries.
+    // Each line card: vehicle counts, status badge and passenger status (or "No data").
     const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
     await expect(kjl.getByTestId("line-vehicle-count")).toHaveText("12 of 20 vehicles in service");
     await expect(kjl.getByTestId("passenger-status")).toHaveText("Normal");
     await expect(kjl.getByText("Active", { exact: true })).toBeVisible();
-    const kjlCount = kjl.getByTestId("passenger-status-count");
-    await expect(kjlCount).toHaveText("5");
-    await expect(kjlCount).toHaveAttribute("aria-label", "5 reports in the last 30 minutes");
+    await expect(kjl.getByTestId("passenger-status-count")).toHaveCount(0);
 
     // The consolidated message moved off the card body into the passenger chip's popover.
     await expect(kjl.getByTestId("status-info-message")).toHaveCount(0);
@@ -221,6 +222,10 @@ test.describe("community front page", () => {
     await expect(kjlPopover.getByTestId("status-info-message")).toHaveText(
       "Trains are running normally.",
     );
+    const kjlPills = kjlPopover.getByTestId("status-count-pill");
+    await expect(kjlPills).toHaveCount(2);
+    await expect(kjlPills.first()).toHaveText("Normal (3)");
+    await expect(kjlPills.nth(1)).toHaveText("Busy (2)");
     await page.mouse.move(0, 0);
     await expect(kjlPopover).toHaveCount(0);
 
@@ -231,20 +236,19 @@ test.describe("community front page", () => {
     await expect(otherLines).toHaveJSProperty("open", false);
     await expect(page.getByTestId("other-lines-summary")).toContainText("Other lines");
     await expect(mrl).toBeHidden();
-    await expect(page.getByTestId("passenger-status-count")).toHaveCount(1);
 
     await page.getByTestId("other-lines-summary").click();
     await expect(otherLines).toHaveJSProperty("open", true);
     await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4 of 12 vehicles in service");
     await expect(mrl.getByTestId("passenger-status")).toHaveText("No data");
 
-    // "No data" means no rolling-window count and no consolidated message to show.
-    await expect(mrl.getByTestId("passenger-status-count")).toHaveCount(0);
+    // "No data" means no report counts and no consolidated message to show.
     const mrlPassengerChip = mrl
       .locator("app-status-info-chip")
       .filter({ has: page.getByTestId("passenger-status") });
     await mrlPassengerChip.hover();
     await expect(mrlPassengerChip.getByTestId("status-info-popover")).toBeVisible();
+    await expect(mrlPassengerChip.getByTestId("status-count-pill")).toHaveCount(0);
     await expect(mrlPassengerChip.getByTestId("status-info-message")).toHaveCount(0);
     await page.mouse.move(0, 0);
     await expect(mrlPassengerChip.getByTestId("status-info-popover")).toHaveCount(0);

@@ -48,6 +48,10 @@ export const FRONT_PAGE_LINES_QUERY = /* GraphQL */ `
         count
       }
       passengerStatusCount
+      passengerStatusCounts {
+        status
+        count
+      }
       statusWindowMinutes
       pulseLinks {
         id
@@ -106,6 +110,7 @@ export interface LinePulse {
   statusReportCount: number;
   vehicleStatusCounts: Array<{ status: VehicleStatus; count: number }>;
   passengerStatusCount: number;
+  passengerStatusCounts?: Array<{ status: PassengerStatus; count: number }>;
   statusWindowMinutes: number;
   pulseLinks: LinePulseLink[];
 }
