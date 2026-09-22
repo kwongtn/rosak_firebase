@@ -34,7 +34,16 @@ const HOUR_LABEL = new Intl.DateTimeFormat("en-GB", {
 
 /** The shortest visible stub for an hour that has reports, so a count of 1 is still a bar. */
 const MIN_BAR_PERCENT = 6;
-const TICK_EVERY_HOURS = 3;
+
+/**
+ * Reserved block height every chart state shares (loading skeleton, empty message, loaded chart),
+ * so swapping between them never moves the card below it. `min-h-40` = 160px, a little past the
+ * chart's natural height (readout + 24-hour bars + the label axis).
+ */
+export const CHART_STATE_MIN_HEIGHT_CLASS = "min-h-40";
+
+/** Every hour of the service day is labelled, so the axis can't rely on the container's width. */
+const HOUR_AXIS_MIN_WIDTH_CLASS = "min-w-[24rem]";
 
 interface ChartBar {
   hourStart: string;
@@ -56,6 +65,10 @@ interface ChartBar {
  * absolutely-positioned tooltip would be clipped inside the card) and each bar's hour, count and
  * dominant status also carried by its own `title`/`aria-label`.
  *
+ * All 24 hours are labelled (no every-third-hour sampling), which needs more room than a 390px
+ * viewport gives: the bars + hour axis sit on a common minimum-width strip inside an
+ * `overflow-x-auto` lane, so narrow screens scroll the strip instead of collapsing the labels.
+ *
  * The read stays inert until `expanded` is true, mirroring the status sheet's lazy station read.
  */
 @Component({
@@ -66,79 +79,93 @@ interface ChartBar {
       <section class="flex flex-col gap-2" data-testid="line-status-chart">
         <h4 class="text-muted-foreground text-xs font-medium">Reports by hour — today</h4>
         @if (resource.isLoading()) {
-          <div hlmSkeleton class="h-24 w-full"></div>
+          <div
+            hlmSkeleton
+            class="w-full"
+            [class]="_stateMinHeight"
+            data-testid="line-status-chart-skeleton"
+          ></div>
         } @else if (resource.hasError()) {
           <app-retry-banner
             [resource]="resource"
             message="Couldn't load this line's hourly reports."
           />
         } @else if (!hasData()) {
-          <p class="text-muted-foreground text-sm" data-testid="line-status-chart-empty">
+          <p
+            class="text-muted-foreground flex items-center justify-center text-center text-sm"
+            [class]="_stateMinHeight"
+            data-testid="line-status-chart-empty"
+          >
             No reports in this service day yet.
           </p>
         } @else {
-          <div
-            class="bg-muted/50 flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2.5 py-1.5 text-xs"
-            data-testid="line-status-chart-readout"
-          >
-            @if (hovered(); as bar) {
-              <span class="font-medium">{{ bar.rangeLabel }}</span>
-              <span>{{ bar.count }} report{{ bar.count === 1 ? "" : "s" }}</span>
-              @if (bar.dominantStatus; as status) {
-                <span class="flex items-center gap-1">
-                  <span class="size-2 rounded-full" [class]="bar.colorClass"></span>
-                  {{ _passengerLabel(status) }}
-                </span>
-              }
-            } @else {
-              <span class="text-muted-foreground">Hover a bar for that hour's reports.</span>
-            }
-          </div>
-
-          <div class="flex gap-2">
+          <div class="flex flex-col gap-2" [class]="_stateMinHeight">
             <div
-              class="text-muted-foreground flex h-24 w-7 flex-col justify-between pb-px text-right text-[10px] tabular-nums"
-              aria-hidden="true"
+              class="bg-muted/50 flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2.5 py-1.5 text-xs"
+              data-testid="line-status-chart-readout"
             >
-              <span>{{ maxCount() }}</span>
-              <span>{{ halfCount() }}</span>
-              <span>0</span>
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="relative flex h-24 items-end gap-px" (mouseleave)="hovered.set(null)">
-                <div
-                  class="pointer-events-none absolute inset-0 flex flex-col justify-between"
-                  aria-hidden="true"
-                >
-                  @for (_ of _gridlines; track $index) {
-                    <div class="border-border/60 border-t"></div>
-                  }
-                </div>
-                @for (bar of bars(); track bar.hourStart) {
-                  <div
-                    class="relative flex h-full min-w-0 flex-1 flex-col justify-end rounded-[1px]"
-                    data-testid="line-status-bar"
-                    [attr.data-hour]="bar.hourLabel"
-                    [title]="bar.title"
-                    [attr.aria-label]="bar.title"
-                    (mouseenter)="hovered.set(bar)"
-                  >
-                    <div
-                      class="w-full rounded-t-[2px]"
-                      [class]="bar.colorClass"
-                      [style.height.%]="bar.heightPct"
-                    ></div>
-                  </div>
-                }
-              </div>
-              <div class="mt-1 flex gap-px" aria-hidden="true">
-                @for (bar of bars(); track bar.hourStart) {
-                  <span
-                    class="text-muted-foreground min-w-0 flex-1 text-center text-[10px] tabular-nums"
-                  >
-                    {{ bar.tickLabel }}
+              @if (hovered(); as bar) {
+                <span class="font-medium">{{ bar.rangeLabel }}</span>
+                <span>{{ bar.count }} report{{ bar.count === 1 ? "" : "s" }}</span>
+                @if (bar.dominantStatus; as status) {
+                  <span class="flex items-center gap-1">
+                    <span class="size-2 rounded-full" [class]="bar.colorClass"></span>
+                    {{ _passengerLabel(status) }}
                   </span>
                 }
+              } @else {
+                <span class="text-muted-foreground">Hover a bar for that hour's reports.</span>
+              }
+            </div>
+
+            <div class="flex gap-2">
+              <div
+                class="text-muted-foreground flex h-24 w-7 flex-col justify-between pb-px text-right text-[10px] tabular-nums"
+                aria-hidden="true"
+              >
+                <span>{{ maxCount() }}</span>
+                <span>{{ halfCount() }}</span>
+                <span>0</span>
+              </div>
+              <div class="min-w-0 flex-1 overflow-x-auto">
+                <div [class]="_hourAxisMinWidth">
+                  <div class="relative flex h-24 items-end gap-px" (mouseleave)="hovered.set(null)">
+                    <div
+                      class="pointer-events-none absolute inset-0 flex flex-col justify-between"
+                      aria-hidden="true"
+                    >
+                      @for (_ of _gridlines; track $index) {
+                        <div class="border-border/60 border-t"></div>
+                      }
+                    </div>
+                    @for (bar of bars(); track bar.hourStart) {
+                      <div
+                        class="relative flex h-full min-w-0 flex-1 flex-col justify-end rounded-[1px]"
+                        data-testid="line-status-bar"
+                        [attr.data-hour]="bar.hourLabel"
+                        [title]="bar.title"
+                        [attr.aria-label]="bar.title"
+                        (mouseenter)="hovered.set(bar)"
+                      >
+                        <div
+                          class="w-full rounded-t-[2px]"
+                          [class]="bar.colorClass"
+                          [style.height.%]="bar.heightPct"
+                        ></div>
+                      </div>
+                    }
+                  </div>
+                  <div class="mt-1 flex gap-px" aria-hidden="true">
+                    @for (bar of bars(); track bar.hourStart) {
+                      <span
+                        class="text-muted-foreground min-w-0 flex-1 text-center text-[10px] tabular-nums"
+                        data-testid="line-status-tick"
+                      >
+                        {{ bar.tickLabel }}
+                      </span>
+                    }
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -154,6 +181,8 @@ export class LineStatusChartComponent {
 
   protected readonly _gridlines = [0, 1, 2];
   protected readonly _passengerLabel = passengerLabelFor;
+  protected readonly _stateMinHeight = CHART_STATE_MIN_HEIGHT_CLASS;
+  protected readonly _hourAxisMinWidth = HOUR_AXIS_MIN_WIDTH_CLASS;
 
   protected readonly hovered = signal<ChartBar | null>(null);
 
@@ -173,7 +202,7 @@ export class LineStatusChartComponent {
   protected readonly bars = computed<ChartBar[]>(() => {
     const buckets = this.resource.data()?.lineStatusHistory ?? [];
     const max = buckets.reduce((highest, bucket) => Math.max(highest, bucket.count), 0);
-    return buckets.map((bucket, index) => toBar(bucket, index, buckets.length, max));
+    return buckets.map((bucket) => toBar(bucket, max));
   });
 
   protected readonly maxCount = computed(() =>
@@ -185,7 +214,7 @@ export class LineStatusChartComponent {
   protected readonly hasData = computed(() => this.bars().some((bar) => bar.count > 0));
 }
 
-function toBar(bucket: LineStatusHourBucket, index: number, total: number, max: number): ChartBar {
+function toBar(bucket: LineStatusHourBucket, max: number): ChartBar {
   const hourLabel = HOUR_LABEL.format(new Date(bucket.hourStart));
   const endLabel = HOUR_LABEL.format(new Date(bucket.hourEnd));
   const rangeLabel = `${hourLabel}:00–${endLabel}:00`;
@@ -194,7 +223,7 @@ function toBar(bucket: LineStatusHourBucket, index: number, total: number, max: 
   return {
     hourStart: bucket.hourStart,
     hourLabel,
-    tickLabel: index % TICK_EVERY_HOURS === 0 || index === total - 1 ? hourLabel : "",
+    tickLabel: hourLabel,
     rangeLabel,
     count: bucket.count,
     dominantStatus,

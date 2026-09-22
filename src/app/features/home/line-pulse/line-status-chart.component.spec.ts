@@ -6,7 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
 import { LineStatusHourBucket } from "../data/home.queries";
-import { LineStatusChartComponent } from "./line-status-chart.component";
+import {
+  CHART_STATE_MIN_HEIGHT_CLASS,
+  LineStatusChartComponent,
+} from "./line-status-chart.component";
 
 /** 03:00–05:00 in Malaysia time — the service-day buckets the backend emits. */
 function makeBuckets(): LineStatusHourBucket[] {
@@ -30,6 +33,56 @@ function makeBuckets(): LineStatusHourBucket[] {
       dominantStatus: "DELAYED",
     },
   ];
+}
+
+/** The service day's hours in order: 03:00 MYT rolls all the way to 02:00 the next morning. */
+const SERVICE_DAY_HOURS = [
+  "03",
+  "04",
+  "05",
+  "06",
+  "07",
+  "08",
+  "09",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+  "21",
+  "22",
+  "23",
+  "00",
+  "01",
+  "02",
+];
+
+/** The full 24 hourly buckets the backend returns for one service day. */
+function makeServiceDayBuckets(): LineStatusHourBucket[] {
+  return SERVICE_DAY_HOURS.map((_, index) => ({
+    hourStart: new Date(Date.UTC(2026, 8, 21, 19 + index)).toISOString(),
+    hourEnd: new Date(Date.UTC(2026, 8, 21, 20 + index)).toISOString(),
+    count: index % 4,
+    dominantStatus: index % 4 === 0 ? null : "BUSY",
+  }));
+}
+
+/**
+ * jsdom performs no layout, so a pixel measurement is impossible here. Equality is instead
+ * asserted on the height utilities each state renders — the single shared source of truth that
+ * resolves to the same reserved height for both.
+ */
+function heightUtilitiesOf(el: Element | null): string[] {
+  expect(el).not.toBeNull();
+  return [...(el as Element).classList]
+    .filter((name) => name === "h-full" || name.startsWith("h-") || name.startsWith("min-h-"))
+    .sort();
 }
 
 describe("LineStatusChartComponent", () => {
@@ -124,6 +177,68 @@ describe("LineStatusChartComponent", () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('[data-testid="line-status-chart-empty"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="line-status-bar"]')).toBeNull();
+  });
+
+  it("renders a readable hour label for every bucket of the service day, never a sampled subset", async () => {
+    const fixture = render(true);
+    await flushBuckets(fixture, makeServiceDayBuckets());
+
+    const root = fixture.nativeElement as HTMLElement;
+    const bars = [...root.querySelectorAll('[data-testid="line-status-bar"]')];
+    const ticks = [...root.querySelectorAll<HTMLElement>('[data-testid="line-status-tick"]')];
+
+    expect(bars).toHaveLength(24);
+    expect(ticks).toHaveLength(24);
+    expect(ticks.map((tick) => (tick.textContent ?? "").trim())).toEqual(SERVICE_DAY_HOURS);
+
+    const axisStrip = ticks[0]?.parentElement?.parentElement;
+    expect(axisStrip?.className).toContain("min-w-");
+    expect(axisStrip?.parentElement?.className).toContain("overflow-x-auto");
+  });
+
+  it("keeps the hover readout wired to the bars inside the scrolled axis strip", async () => {
+    const fixture = render(true);
+    await flushBuckets(fixture, makeServiceDayBuckets());
+
+    const root = fixture.nativeElement as HTMLElement;
+    const secondBar = root.querySelectorAll<HTMLElement>('[data-testid="line-status-bar"]')[1];
+    secondBar?.dispatchEvent(new MouseEvent("mouseenter"));
+    fixture.detectChanges();
+
+    const readout = root.querySelector('[data-testid="line-status-chart-readout"]');
+    expect(readout?.textContent).toContain("04:00–05:00");
+    expect(readout?.textContent).toContain("1 report");
+  });
+
+  it("reserves the same height for the loading skeleton and the no-data state", async () => {
+    const fixture = render(true);
+    const root = fixture.nativeElement as HTMLElement;
+
+    const skeleton = root.querySelector('[data-testid="line-status-chart-skeleton"]');
+    expect(skeleton).not.toBeNull();
+    expect(heightUtilitiesOf(skeleton)).toContain(CHART_STATE_MIN_HEIGHT_CLASS);
+
+    await flushBuckets(
+      fixture,
+      makeBuckets().map((bucket) => ({ ...bucket, count: 0, dominantStatus: null })),
+    );
+
+    const empty = root.querySelector('[data-testid="line-status-chart-empty"]');
+    expect(empty).not.toBeNull();
+    expect(heightUtilitiesOf(empty)).toEqual(heightUtilitiesOf(skeleton));
+  });
+
+  it("gives the loaded chart the same reserved height as the skeleton", async () => {
+    const fixture = render(true);
+    const root = fixture.nativeElement as HTMLElement;
+    const skeletonClasses = heightUtilitiesOf(
+      root.querySelector('[data-testid="line-status-chart-skeleton"]'),
+    );
+
+    await flushBuckets(fixture, makeServiceDayBuckets());
+
+    const readout = root.querySelector('[data-testid="line-status-chart-readout"]');
+    expect(heightUtilitiesOf(readout?.parentElement ?? null)).toEqual(skeletonClasses);
   });
 
   it("shows the shared retry banner when the history read fails", async () => {
