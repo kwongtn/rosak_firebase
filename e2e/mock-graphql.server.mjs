@@ -14,6 +14,14 @@
  * LineStatusReports; the operation-agnostic dispatch means adding a new one is
  * a spec-side concern, not a change here.
  *
+ * Dispatch is deliberately variable-agnostic: whatever `variables` the page
+ * sends (the Feed read's `currentServiceDayOnly` service-day scoping and its
+ * `after` cursor included) are recorded verbatim and the configured stub is
+ * replayed as-is. Contract additions — the feed connection's `totalCount`, a
+ * report's `stations { id displayName }`, the vote fields — are therefore
+ * spec-side stub data, not server code; this file only has to not choke on the
+ * new variables, which the pass-through already guarantees.
+ *
  * Endpoints:
  *   POST /graphql/        answered from the configured operation stubs
  *   POST /__configure     body: { [operationName]: responseData }

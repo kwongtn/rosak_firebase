@@ -19,6 +19,12 @@ import {
  * submitter, the line card's consolidated message) and behind the line card's expand
  * toggle (the hourly chart and the recent-reports list, both lazy reads) — the assertions
  * live in the popovers/disclosure accordingly, and the two lazy reads are stubbed below.
+ *
+ * Round 4 reshaped the feed: its row is now the shared `app-link-card` (`link-*` testids),
+ * the per-status counts are folded into the severity legend (`status-scale-entry` /
+ * `status-scale-count`, no more `status-count-pill`), the read is scoped to the current
+ * service day and reports `totalCount`, and a bottom-right `feed-footer` shows
+ * "Showing X of Y" plus Load More while another page exists.
  */
 
 const KJL_LINE = {
@@ -55,7 +61,11 @@ const MRL_LINE = {
   pulseLinks: [],
 };
 
-/** A feed node created "now" so the card's relative time renders deterministically as "today". */
+/**
+ * A feed node created "now" so the card's relative time renders deterministically as
+ * "less than a minute ago" (`humanizeSince` is minute-granular). `completed` is true so the
+ * shared card's Pending pill stays off a feed row; the vote fields feed the vote control.
+ */
 function feedNode(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: "42",
@@ -63,19 +73,26 @@ function feedNode(overrides: Record<string, unknown> = {}): Record<string, unkno
     normalizedUrl: "https://facebook.com/mlptf/posts/123",
     title: "Kelana Jaya Line disruption thread",
     created: new Date().toISOString(),
+    completed: true,
     voteScore: 3,
     userVote: 0,
+    voteBreakdown: { upvotes: 3, downvotes: 0 },
     lines: [{ id: "1", code: "KJL", displayName: "Kelana Jaya Line" }],
     user: { shortId: "rk01", nickname: "RapidKL Watch" },
     ...overrides,
   };
 }
 
+/** The filtered total behind the one stubbed page — deliberately larger than the visible
+ * page (one node), so the footer reads "Showing 1 of 9" and Load More stays exercisable. */
+const FEED_TOTAL_COUNT = 9;
+
 function feedPage(node: Record<string, unknown> = feedNode()): Record<string, unknown> {
   return {
     publicSocialMediaLinks: {
       edges: [{ node, cursor: "cursor-1" }],
-      pageInfo: { hasNextPage: false, endCursor: "cursor-1" },
+      pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+      totalCount: FEED_TOTAL_COUNT,
     },
   };
 }
@@ -119,9 +136,10 @@ const HISTORY_BUCKETS = [
   },
 ];
 
-/** One page of KJL community reports: the first carries a delay + notes, the second only a badge. */
-function reportsPage(): Record<string, unknown> {
-  const created = new Date().toISOString();
+/** One page of KJL community reports: the first carries a delay, a station and notes, the
+ * second only a badge. Both are created at `created` so the row's right-aligned relative time
+ * (and the exact timestamp on its `title`) is deterministic. */
+function reportsPage(created: string): Record<string, unknown> {
   return {
     lineStatusReports: {
       edges: [
@@ -132,6 +150,7 @@ function reportsPage(): Record<string, unknown> {
             delayMinutes: 5,
             notes: "Very packed at KLCC.",
             created,
+            stations: [{ id: "10", displayName: "KLCC" }],
             user: { shortId: "rk01", nickname: "RapidKL Watch" },
           },
           cursor: "cursor-501",
@@ -143,6 +162,7 @@ function reportsPage(): Record<string, unknown> {
             delayMinutes: null,
             notes: "",
             created,
+            stations: [],
             user: null,
           },
           cursor: "cursor-502",
@@ -172,24 +192,29 @@ test.describe("community front page", () => {
     await expect(page.getByTestId("login-to-submit")).toHaveText("Log in to submit links");
     await expect(page.getByLabel("Link URL")).toHaveCount(0);
 
-    // The feed row: www-stripped domain, title, line badge and score, plus the footer's
-    // relative time — the exact timestamp and the submitter now hide in its tooltip.
+    // The feed row is now the shared link card: www-stripped domain + muted path, title, line
+    // badge, score, and the footer's minute-granular relative time — the exact timestamp and
+    // the submitter hide in its tooltip.
     const card = page
-      .locator("app-feed-link-card")
+      .locator("app-link-card")
       .filter({ hasText: "Kelana Jaya Line disruption thread" });
-    await expect(card.getByText("facebook.com", { exact: true })).toBeVisible();
+    await expect(card.getByTestId("link-url-domain")).toHaveText("facebook.com");
+    await expect(card.getByTestId("link-url-path")).toHaveText("/mlptf/posts/123");
     await expect(card.getByText("www.facebook.com")).toHaveCount(0);
-    await expect(card.getByText("KJL", { exact: true })).toBeVisible();
+    await expect(card.getByTestId("link-tags")).toContainText("KJL");
+    await expect(card.getByTestId("link-meta-rail")).toBeVisible();
+    // The stub node is completed, so the approval pill stays off a live feed row.
+    await expect(card.getByTestId("link-pending")).toHaveCount(0);
     await expect(card.getByText("+3")).toBeVisible();
-    await expect(card.getByTestId("feed-created")).toHaveText("today");
+    await expect(card.getByTestId("link-created")).toHaveText("less than a minute ago");
 
-    const feedTime = card.getByTestId("feed-time");
+    const feedTime = card.getByTestId("link-time");
     const feedTooltip = feedTime.locator('[role="tooltip"]');
     await expect(feedTooltip).toHaveCSS("opacity", "0");
     await feedTime.hover();
     await expect(feedTooltip).toHaveCSS("opacity", "1");
     await expect(feedTooltip).toContainText(exactTimestamp(created));
-    await expect(feedTooltip.getByTestId("feed-submitter")).toHaveText("RapidKL Watch");
+    await expect(feedTooltip.getByTestId("link-submitter")).toHaveText("RapidKL Watch");
 
     // Keyboard users get the same tooltip on focus, and it closes once focus/mouse leaves.
     await page.mouse.move(0, 0);
@@ -202,6 +227,16 @@ test.describe("community front page", () => {
     // Logged out, the vote controls render but are disabled.
     await expect(card.getByRole("button", { name: "Upvote" })).toBeDisabled();
     await expect(card.getByRole("button", { name: "Downvote" })).toBeDisabled();
+
+    // Under the scroller, the feed footer counts the visible rows against the filtered total
+    // and keeps Load More inside it while another page exists. The read is service-day scoped.
+    const feedFooter = page.getByTestId("feed-footer");
+    await expect(feedFooter.getByTestId("feed-count")).toHaveText(
+      `Showing 1 of ${FEED_TOTAL_COUNT}`,
+    );
+    await expect(feedFooter.getByTestId("feed-load-more")).toBeVisible();
+    const feedCall = (await recordedCalls()).find((call) => call.operationName === "Feed");
+    expect(feedCall?.variables).toEqual({ first: 8, status: "LIVE", currentServiceDayOnly: true });
 
     // Each line card: vehicle counts, status badge and passenger status (or "No data").
     const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
@@ -222,10 +257,18 @@ test.describe("community front page", () => {
     await expect(kjlPopover.getByTestId("status-info-message")).toHaveText(
       "Trains are running normally.",
     );
-    const kjlPills = kjlPopover.getByTestId("status-count-pill");
-    await expect(kjlPills).toHaveCount(2);
-    await expect(kjlPills.first()).toHaveText("Normal (3)");
-    await expect(kjlPills.nth(1)).toHaveText("Busy (2)");
+    // The per-status counts are folded into the 7-level severity legend: the active level is
+    // flagged and each reported level carries its own count. The old pill cluster is gone.
+    const kjlLegend = kjlPopover.getByTestId("status-scale-entry");
+    await expect(kjlLegend).toHaveCount(7);
+    await expect(page.getByTestId("status-count-pill")).toHaveCount(0);
+    const kjlNormalRow = kjlLegend.filter({ hasText: "Normal" });
+    await expect(kjlNormalRow).toHaveAttribute("data-active", "true");
+    await expect(kjlNormalRow.getByTestId("status-scale-count")).toHaveText("(3)");
+    await expect(
+      kjlLegend.filter({ hasText: "Busy" }).getByTestId("status-scale-count"),
+    ).toHaveText("(2)");
+    await expect(kjlLegend.getByTestId("status-scale-count")).toHaveCount(2);
     await page.mouse.move(0, 0);
     await expect(kjlPopover).toHaveCount(0);
 
@@ -242,13 +285,14 @@ test.describe("community front page", () => {
     await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4 of 12 vehicles in service");
     await expect(mrl.getByTestId("passenger-status")).toHaveText("No data");
 
-    // "No data" means no report counts and no consolidated message to show.
+    // "No data" means no legend counts and no consolidated message to show.
     const mrlPassengerChip = mrl
       .locator("app-status-info-chip")
       .filter({ has: page.getByTestId("passenger-status") });
     await mrlPassengerChip.hover();
     await expect(mrlPassengerChip.getByTestId("status-info-popover")).toBeVisible();
-    await expect(mrlPassengerChip.getByTestId("status-count-pill")).toHaveCount(0);
+    await expect(mrlPassengerChip.getByTestId("status-scale-count")).toHaveCount(0);
+    await expect(page.getByTestId("status-count-pill")).toHaveCount(0);
     await expect(mrlPassengerChip.getByTestId("status-info-message")).toHaveCount(0);
     await page.mouse.move(0, 0);
     await expect(mrlPassengerChip.getByTestId("status-info-popover")).toHaveCount(0);
@@ -314,7 +358,7 @@ test.describe("community front page", () => {
 
     // The duplicate's backend upvote is mirrored into the matching feed row.
     const card = page
-      .locator("app-feed-link-card")
+      .locator("app-link-card")
       .filter({ hasText: "Kelana Jaya Line disruption thread" });
     await expect(card.getByRole("button", { name: "Upvote" })).toHaveAttribute(
       "aria-pressed",
@@ -365,7 +409,7 @@ test.describe("community front page", () => {
     await page.goto("/");
 
     const card = page
-      .locator("app-feed-link-card")
+      .locator("app-link-card")
       .filter({ hasText: "Kelana Jaya Line disruption thread" });
     const upvote = card.getByRole("button", { name: "Upvote" });
     await expect(upvote).toBeEnabled();
@@ -389,11 +433,12 @@ test.describe("community front page", () => {
   test("VISITOR: expanding a line card lazily loads the hourly chart and reports", async ({
     page,
   }) => {
+    const reportsCreated = new Date().toISOString();
     await configureMock({
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
-      LineStatusReports: reportsPage(),
+      LineStatusReports: reportsPage(reportsCreated),
     });
 
     await page.goto("/");
@@ -422,13 +467,21 @@ test.describe("community front page", () => {
     await expect(chart.getByTestId("line-status-bar")).toHaveCount(HISTORY_BUCKETS.length);
     await expect(chart.getByTestId("line-status-chart-readout")).toContainText("Hover a bar");
 
-    // The reports list: the stubbed page renders a badge, a delay and notes per row.
+    // The reports list: the stubbed page renders a badge, a delay, the station and notes per
+    // row, with the relative time pinned right and the exact timestamp on its `title`.
     const reports = kjl.getByTestId("line-status-reports");
     await expect(reports).toBeVisible();
     await expect(reports.getByTestId("line-status-report")).toHaveCount(2);
     await expect(reports.getByTestId("line-status-report").first()).toContainText("Crowded");
     await expect(reports.getByTestId("report-delay").first()).toHaveText("5 min delay");
+    await expect(reports.getByTestId("report-station")).toHaveCount(1);
+    await expect(reports.getByTestId("report-station").first()).toHaveText("KLCC");
     await expect(reports.getByTestId("report-notes").first()).toHaveText("Very packed at KLCC.");
+    await expect(reports.getByTestId("report-time").first()).toHaveText("less than a minute ago");
+    await expect(reports.getByTestId("report-time").first()).toHaveAttribute(
+      "title",
+      `Reported ${exactTimestamp(reportsCreated)}`,
+    );
 
     // Both reads fire only now, over the exact documents the expanded card owns.
     await expect
