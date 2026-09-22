@@ -72,7 +72,7 @@ import { feedDomainOf } from "./feed-link.util";
           tabindex="0"
           data-testid="feed-time"
         >
-          {{ createdLabel() }}
+          <span data-testid="feed-created">{{ createdLabel() }}</span>
           <span
             role="tooltip"
             class="bg-popover text-popover-foreground border-border pointer-events-none absolute right-0 bottom-full z-10 mb-1 flex items-center gap-1 rounded-md border px-2 py-1 text-xs whitespace-nowrap opacity-0 shadow-md transition-opacity group-hover/time:opacity-100 group-focus-within/time:opacity-100"

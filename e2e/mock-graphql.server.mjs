@@ -9,8 +9,9 @@
  *
  * Handlers are keyed by the operation name parsed out of the query text and
  * configured via POST /__configure. The home page's specs use FrontPageLines,
- * Feed, SubmitFeedLink, SubmitLineStatusReport, UpvoteSocialMediaLink and
- * StationLinesByLine; the operation-agnostic dispatch means adding a new one is
+ * Feed, SubmitFeedLink, SubmitLineStatusReport, UpvoteSocialMediaLink,
+ * StationLinesByLine and the two lazy line-card reads LineStatusHistory and
+ * LineStatusReports; the operation-agnostic dispatch means adding a new one is
  * a spec-side concern, not a change here.
  *
  * Endpoints:
