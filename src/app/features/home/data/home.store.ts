@@ -44,13 +44,14 @@ export class HomeStore {
 
   private readonly feedResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => ({
     query: FEED_QUERY,
-    variables: { first: FEED_PAGE_SIZE, status: "LIVE" },
+    variables: { first: FEED_PAGE_SIZE, status: "LIVE", currentServiceDayOnly: true },
   }));
 
   readonly lines = computed<LinePulse[]>(() => this.linesResource.data()?.lines ?? []);
 
   private readonly appendedEdges = signal<FeedLinkEdge[]>([]);
   private readonly appendedHasNext = signal<boolean | null>(null);
+  private readonly appendedTotalCount = signal<number | null>(null);
   private readonly nextCursor = signal<string | null>(null);
   private readonly loadingMore = signal(false);
 
@@ -71,6 +72,11 @@ export class HomeStore {
       hasNextPage: this.appendedHasNext() ?? first.hasNextPage,
       endCursor: this.nextCursor() ?? first.endCursor,
     };
+  });
+
+  readonly feedTotalCount = computed<number>(() => {
+    const first = this.feedResource.data()?.publicSocialMediaLinks.totalCount;
+    return this.appendedTotalCount() ?? first ?? 0;
   });
 
   readonly isLoading = computed(
@@ -129,6 +135,7 @@ export class HomeStore {
   reloadAll(): void {
     this.appendedEdges.set([]);
     this.appendedHasNext.set(null);
+    this.appendedTotalCount.set(null);
     this.nextCursor.set(null);
     this.linesResource.reload();
     this.feedResource.reload();
@@ -148,10 +155,12 @@ export class HomeStore {
         first: FEED_PAGE_SIZE,
         after: cursor,
         status: "LIVE",
+        currentServiceDayOnly: true,
       });
       const connection = data.publicSocialMediaLinks;
       this.appendedEdges.update((prev) => [...prev, ...connection.edges]);
       this.appendedHasNext.set(connection.pageInfo.hasNextPage);
+      this.appendedTotalCount.set(connection.totalCount);
       this.nextCursor.set(connection.pageInfo.endCursor);
     } finally {
       this.loadingMore.set(false);

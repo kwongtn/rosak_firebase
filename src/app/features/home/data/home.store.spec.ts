@@ -123,7 +123,11 @@ describe("HomeStore", () => {
     linesReq.flush({ data: { lines: [makeLine("a"), makeLine("b")] } });
 
     const feedReq = feedRequest();
-    expect(feedReq.request.body.variables).toEqual({ first: FEED_PAGE_SIZE, status: "LIVE" });
+    expect(feedReq.request.body.variables).toEqual({
+      first: FEED_PAGE_SIZE,
+      status: "LIVE",
+      currentServiceDayOnly: true,
+    });
     feedReq.flush({ data: feedData([makeFeedLink("x"), makeFeedLink("y")], false, null) });
 
     await Promise.resolve();
@@ -131,6 +135,7 @@ describe("HomeStore", () => {
     expect(store.lines().map((l) => l.id)).toEqual(["a", "b"]);
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
     expect(store.feedPageInfo()?.hasNextPage).toBe(false);
+    expect(store.feedTotalCount()).toBe(2);
   });
 
   it("falls back to the feed value when the vote overlay is empty", async () => {
@@ -179,6 +184,7 @@ describe("HomeStore", () => {
       first: FEED_PAGE_SIZE,
       after: "cursor-x",
       status: "LIVE",
+      currentServiceDayOnly: true,
     });
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
 
@@ -186,6 +192,26 @@ describe("HomeStore", () => {
     requestMock.mockClear();
     await store.loadMore();
     expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it("reports the filtered total and lets a continuation page's totalCount win", async () => {
+    const store = createStore();
+    expect(store.feedTotalCount()).toBe(0);
+
+    flushInitial([], feedData([makeFeedLink("x")], true, "cursor-x"));
+    await Promise.resolve();
+    expect(store.feedTotalCount()).toBe(1);
+
+    requestMock.mockResolvedValueOnce({
+      publicSocialMediaLinks: {
+        edges: [{ node: makeFeedLink("y"), cursor: "cursor-y" }],
+        pageInfo: { hasNextPage: false, endCursor: "cursor-y" },
+        totalCount: 7,
+      },
+    });
+    await store.loadMore();
+
+    expect(store.feedTotalCount()).toBe(7);
   });
 
   it("exposes isLoadingMore only while a continuation page is in flight", async () => {

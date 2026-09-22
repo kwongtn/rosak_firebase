@@ -83,16 +83,23 @@ export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
             />
           }
         </div>
-        @if (canLoadMore()) {
-          <button
-            hlmBtn
-            variant="outline"
-            class="self-center"
-            data-testid="feed-load-more"
-            (click)="loadMore()"
-          >
-            Load More
-          </button>
+        @if (store.feedLinks().length > 0) {
+          <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
+            <span class="text-muted-foreground text-xs" data-testid="feed-count">
+              Showing {{ visibleFeedLinks().length }} of {{ store.feedTotalCount() }}
+            </span>
+            @if (canLoadMore()) {
+              <button
+                hlmBtn
+                variant="outline"
+                class="self-center"
+                data-testid="feed-load-more"
+                (click)="loadMore()"
+              >
+                Load More
+              </button>
+            }
+          </div>
         }
       </section>
 

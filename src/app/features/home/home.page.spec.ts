@@ -82,6 +82,7 @@ interface StoreMock {
   lines: WritableSignal<LinePulse[]>;
   feedLinks: WritableSignal<FeedLink[]>;
   feedPageInfo: WritableSignal<FeedLinkPageInfo | null>;
+  feedTotalCount: WritableSignal<number>;
   isLoading: WritableSignal<boolean>;
   isLoadingMore: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
@@ -114,6 +115,7 @@ describe("HomePage", () => {
       lines: signal<LinePulse[]>([makeLine("a")]),
       feedLinks: signal<FeedLink[]>([makeFeedLink("a"), makeFeedLink("b")]),
       feedPageInfo: signal<FeedLinkPageInfo | null>({ hasNextPage: true, endCursor: "cursor-a" }),
+      feedTotalCount: signal(2),
       isLoading: signal(false),
       isLoadingMore: signal(false),
       hasError: signal(false),
@@ -344,6 +346,29 @@ describe("HomePage", () => {
 
     store.feedPageInfo.set({ hasNextPage: false, endCursor: "cursor-a" });
     fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+  });
+
+  it("shows the visible count and the filtered total in the feed footer", () => {
+    const footer = fixture.nativeElement.querySelector(
+      '[data-testid="feed-footer"]',
+    ) as HTMLElement;
+    expect(footer).not.toBeNull();
+
+    const count = footer.querySelector('[data-testid="feed-count"]') as HTMLElement;
+    const button = footer.querySelector('[data-testid="feed-load-more"]') as HTMLElement;
+    expect(count.textContent?.replace(/\s+/g, " ").trim()).toBe("Showing 2 of 2");
+    expect(button).not.toBeNull();
+    // The button sits after the count in the bottom-right footer.
+    expect(count.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("keeps the count visible once every link is loaded and hides Load More", () => {
+    store.feedPageInfo.set({ hasNextPage: false, endCursor: "cursor-a" });
+    fixture.detectChanges();
+
+    const count = fixture.nativeElement.querySelector('[data-testid="feed-count"]') as HTMLElement;
+    expect(count.textContent?.replace(/\s+/g, " ").trim()).toBe("Showing 2 of 2");
     expect(fixture.nativeElement.querySelector('[data-testid="feed-load-more"]')).toBeNull();
   });
 
