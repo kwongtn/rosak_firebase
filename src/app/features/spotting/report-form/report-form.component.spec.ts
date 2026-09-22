@@ -24,6 +24,8 @@ const SEEDED_LINE: Line = {
   status: "ACTIVE",
 };
 
+const SEEDED_STATION = { id: "s1", displayName: "KLCC", internalRepresentation: "KLCC" };
+
 describe("ReportFormComponent", () => {
   let fixture: ComponentFixture<ReportFormComponent>;
   let httpMock: HttpTestingController;
@@ -39,6 +41,20 @@ describe("ReportFormComponent", () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+  }
+
+  /** The station resource's requestFn reads the whole model, so every station/type write
+   * re-issues its fetch — `settle()` alone would block on that in-flight request forever.
+   * Flush it, then settle: the flushed response lands on the microtask queue, so a bare
+   * `detectChanges()` would still render the pre-flush option list. */
+  async function flushStationLines(): Promise<void> {
+    fixture.detectChanges();
+    for (const request of httpMock.match(
+      (r) => r.method === "POST" && r.body.query.includes("StationLinesByLine"),
+    )) {
+      request.flush({ data: { stationLines: [SEEDED_STATION] } });
+    }
+    await settle();
   }
 
   beforeEach(async () => {
@@ -131,5 +147,59 @@ describe("ReportFormComponent", () => {
     input?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     fixture.detectChanges();
     expect(root.querySelectorAll("hlm-combobox ul li").length).toBe(1);
+  });
+
+  it("clears the form's lineId when the line combobox text is emptied", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+    expect(model().lineId).toBe("4");
+
+    const root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>("hlm-combobox input");
+    if (!input) throw new Error("line combobox input not rendered");
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+
+    // The old id must not survive in the model — keeping it is what made the field
+    // "reselect itself" on blur while still submitting the cleared vehicle.
+    expect(model().lineId ?? "").toBe("");
+    // The vehicle picker is gated on a selected line, so it goes away with it.
+    expect(root.textContent).not.toContain("Vehicle");
+  });
+
+  it("renders the station placeholder as a usable (non-disabled) option", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+
+    (fixture.componentInstance as unknown as ComponentUnderTest).model.update((m) => ({
+      ...m,
+      type: "AT_STATION",
+    }));
+    await flushStationLines();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const stationSelect = Array.from(root.querySelectorAll<HTMLSelectElement>("select")).find(
+      (select) =>
+        Array.from(select.options).some((o) => o.textContent?.trim() === "Select a station"),
+    );
+    if (!stationSelect) throw new Error("station select not rendered");
+
+    // A disabled placeholder is rejected by the browser, leaving the old station stuck.
+    expect(stationSelect.options[0].disabled).toBe(false);
+
+    stationSelect.value = "s1";
+    stationSelect.dispatchEvent(new Event("input", { bubbles: true }));
+    stationSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    await flushStationLines();
+    expect(model().atStation).toBe("s1");
+
+    stationSelect.value = "";
+    stationSelect.dispatchEvent(new Event("input", { bubbles: true }));
+    stationSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    await flushStationLines();
+    expect(model().atStation).toBe("");
   });
 });

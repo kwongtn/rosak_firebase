@@ -96,6 +96,11 @@ export class HlmCombobox<T> {
    * comboboxes inside a sheet: an over-wide list adds a horizontal scrollbar to the sheet body. */
   readonly constrainWidth = input(false);
 
+  /** Value written when the user empties the field. Defaults to "nothing selected"
+   * (`undefined`); a string-typed form field must pass `""` instead, because Signal Forms
+   * drops a field node whose model value becomes `undefined` while its control is rendered. */
+  readonly emptyValue = input<T | undefined>(undefined);
+
   readonly search = signal("");
   protected readonly _isOpen = signal(false);
   protected readonly _highlightIndex = signal(0);
@@ -137,6 +142,13 @@ export class HlmCombobox<T> {
    * `_onBlur` calls this directly to cover exactly that case. */
   private _syncSearchToValue(): void {
     const value = this.value();
+    // `undefined` means "nothing selected" (e.g. the user emptied the field — see `_onInput`).
+    // Never look it up in `items()`: an item could itself hold `undefined`, and a match here
+    // would resurrect its label over a field the user just cleared.
+    if (value === undefined) {
+      this.search.set("");
+      return;
+    }
     const match = this.items().find((item) => item.value === value);
     this.search.set(match ? match.label : "");
   }
@@ -152,7 +164,15 @@ export class HlmCombobox<T> {
   protected _onInput(event: Event): void {
     this._hasTypedSinceOpen.set(true);
     this._isOpen.set(true);
-    this.search.set((event.target as HTMLInputElement).value);
+    const text = (event.target as HTMLInputElement).value;
+    this.search.set(text);
+    // Emptying the field deselects: `value` is what the form/`(valueChange)` actually holds, so
+    // leaving it set lets `_syncSearchToValue` re-fill the old label on blur (the field looks
+    // like it reselected itself while still submitting the old id). A non-empty query must
+    // never clear it — that would drop the selection mid-search.
+    if (text.trim() === "") {
+      this.value.set(this.emptyValue());
+    }
   }
 
   protected _moveHighlight(delta: number): void {

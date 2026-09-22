@@ -15,6 +15,7 @@
       [items]="lineItems()"
       [itemTemplate]="lineOptionTpl"
       [constrainWidth]="true"
+      emptyValue=""
       placeholder="Search by code or name"
       emptyMessage="No matching lines"
     />
@@ -38,6 +39,7 @@
         [filterFn]="vehicleFilterFn()"
         [itemTemplate]="vehicleOptionTpl"
         [constrainWidth]="true"
+        emptyValue=""
         placeholder="Search by ID or the number seen on the train"
         emptyMessage="No matching vehicles"
       />
@@ -86,7 +88,7 @@
     <label class="flex flex-col gap-1.5 text-sm">
       Station
       <select hlmSelect [formField]="reportForm.atStation">
-        <option value="" disabled>Select a station</option>
+        <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
         }
@@ -101,7 +103,7 @@
     <label class="flex flex-col gap-1.5 text-sm">
       Origin station
       <select hlmSelect [formField]="reportForm.originStation">
-        <option value="" disabled>Select a station</option>
+        <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
         }
@@ -115,7 +117,7 @@
     <label class="flex flex-col gap-1.5 text-sm">
       Destination station
       <select hlmSelect [formField]="reportForm.destinationStation">
-        <option value="" disabled>Select a station</option>
+        <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
         }
