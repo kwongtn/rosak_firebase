@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal, type OnDestroy } from "@angular/core";
+import { Component, computed, effect, inject, signal, type OnDestroy } from "@angular/core";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
+import { AuthService } from "../../core/auth/auth.service";
 import {
   RetryBannerComponent,
   type RetryableResource,
@@ -11,10 +12,14 @@ import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../ui
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
+import { canEditLink } from "../insiden/data/can-edit.link.util";
+import { LinkCardItem } from "../insiden/data/link-card-item";
+import { LinkSheetService } from "../insiden/data/link-sheet.service";
+import { LinkCardComponent } from "../insiden/link-card/link-card.component";
+import { LinkSheetComponent } from "../insiden/link-sheet/link-sheet.component";
 import { LinePulse } from "./data/home.queries";
 import { FEED_PAGE_SIZE, HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
-import { FeedLinkCardComponent } from "./feed/feed-link-card.component";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
@@ -40,7 +45,8 @@ export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
     AppNavComponent,
     AppFooterComponent,
     LinkSubmitBoxComponent,
-    FeedLinkCardComponent,
+    LinkCardComponent,
+    LinkSheetComponent,
     LinePulseListComponent,
     LineStatusSheetComponent,
     ReportFormComponent,
@@ -68,10 +74,12 @@ export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
             <div hlmSkeleton class="h-24 w-full"></div>
           }
           @for (link of visibleFeedLinks(); track link.id) {
-            <app-feed-link-card
+            <app-link-card
               [link]="link"
               [userVote]="store.userVoteFor(link.id)"
+              [editable]="canEdit(link)"
               (voteChanged)="store.setUserVote(link.id, $event.value)"
+              (edit)="openEdit($event)"
             />
           }
         </div>
@@ -96,6 +104,8 @@ export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
     </main>
 
     <app-line-status-sheet [line]="sheetLine()" (submitted)="store.reloadAll()" />
+
+    <app-link-sheet />
 
     <hlm-sheet
       data-testid="spotting-entry-sheet"
@@ -144,6 +154,10 @@ export class HomePage implements OnDestroy {
   protected readonly store = inject(HomeStore);
   private readonly lineStatusSheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);
+  private readonly auth = inject(AuthService);
+
+  /** Edit flow for feed links — the same shared sheet the insiden/situasi lists host. */
+  protected readonly linkSheet = inject(LinkSheetService);
 
   /** The line the sheet is reporting on — the store owns the list, the sheet service the id. */
   protected readonly sheetLine = computed<LinePulse | null>(
@@ -184,8 +198,33 @@ export class HomePage implements OnDestroy {
     void this.store.loadMore();
   }
 
+  /** Previous shared-link-sheet state, so the effect can detect its open→closed edge. */
+  private _wasLinkSheetOpen = false;
+
   constructor() {
     this.store.start();
+    effect(() => {
+      const isOpen = this.linkSheet.isOpen();
+      if (!isOpen && this._wasLinkSheetOpen) {
+        this.store.reloadAll();
+      }
+      this._wasLinkSheetOpen = isOpen;
+    });
+  }
+
+  /** Author-or-admin gate for the card's edit pencil (mirrors LinkListComponent; the home feed
+   * node carries `user.shortId`, so authorship is provable here too). */
+  protected canEdit(link: LinkCardItem): boolean {
+    return canEditLink(link, {
+      isLoggedIn: this.auth.isLoggedIn(),
+      isAdmin: this.auth.isAdmin(),
+      userId: this.auth.user()?.uid ?? null,
+    });
+  }
+
+  /** Opens the shared link sheet in edit mode; its close edge above reloads the feed. */
+  protected openEdit(link: LinkCardItem): void {
+    this.linkSheet.openEdit(link);
   }
 
   /** The sheet closes on submit and the page data reloads so the new entry shows up. */

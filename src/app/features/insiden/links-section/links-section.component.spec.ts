@@ -1,15 +1,18 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { ToastService } from "../../../ui/toast/toast.service";
+import { LinkCardComponent } from "../link-card/link-card.component";
 import { PublicSocialMediaLinksQueryData } from "../data/social-links.queries";
 import { LinksSectionComponent } from "./links-section.component";
 
 interface TestableLinksSection {
   loadMore(): Promise<void>;
+  voteValues(): Record<string, number>;
 }
 
 function asTestable(fixture: ComponentFixture<LinksSectionComponent>): TestableLinksSection {
@@ -158,5 +161,23 @@ describe("LinksSectionComponent pagination", () => {
       });
     await fixture.whenStable();
     expect(fixture.nativeElement.textContent).toContain("No submitted links yet.");
+  });
+
+  it("records a card vote in the overlay and feeds it back as that card's userVote", async () => {
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: connectionOf([makeLink("a", true)], false, null),
+      });
+    await fixture.whenStable();
+
+    const card = fixture.debugElement.query(By.directive(LinkCardComponent));
+    expect(card).not.toBeNull();
+
+    card.componentInstance.voteChanged.emit({ value: 1 });
+    fixture.detectChanges();
+
+    expect(asTestable(fixture).voteValues()).toEqual({ a: 1 });
+    expect(card.componentInstance.userVote()).toBe(1);
   });
 });

@@ -15,10 +15,11 @@
   submit and vote. It has no Firestore involvement.
 - **Subcomponent breakdown** (one routed page, three child groups, a route-scoped store):
   - `home.page.ts` — the routed page: nav → submit box → feed → line-pulse list → footer, plus the
-    status sheet; starts/stops the store's polling and adapts the store to the shared retry banner.
-  - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance), plus
-    `feed-link-card.component.ts` and the pure `feed-link.util.ts` (one feed row) and
-    `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification).
+    status sheet and the shared link sheet (feed-link edits); starts/stops the store's polling and
+    adapts the store to the shared retry banner.
+  - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance) and
+    `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification). Feed rows render
+    through the shared insiden `app-link-card` (`LinkCardComponent`) — there is no home-local card.
   - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status plus the expand/collapse
     toggle), `line-pulse-list.component.ts` (skeletons / empty state / the list),
     `line-status-chart.component.ts` (the expanded hourly report strip),
@@ -49,16 +50,18 @@
 - **Component `input()`/`input.required()` signals:**
   - `LinePulseCardComponent.line = input.required<LinePulse>()`.
   - `LinePulseListComponent.lines = input.required<LinePulse[]>()`, `isLoading = input(false)`.
-  - `FeedLinkCardComponent.link = input.required<FeedLink>()`, `userVote = input(0)` (the host
+  - `LinkCardComponent` (the shared insiden `app-link-card`): `link = input.required<LinkCardItem>()`
+    — the feed node satisfies the structural contract directly — `userVote = input(0)` (the host
     passes `HomeStore.userVoteFor(link.id)`, because the store's authenticated overlay wins over the
-    anonymous feed value).
+    anonymous feed value) and `editable = input(false)` (host-gated with `canEditLink`).
   - `LineStatusSheetComponent.line = input<LinePulse | null>(null)` (the host's pulse entry;
     `LineStatusSheetService.lineId()` is the fallback for hosts that only know the id).
 - **Outputs (signals `output()`):**
   - `LinkSubmitBoxComponent.submitted = output<void>()` (after a successful submit or duplicate, so
     the host calls `HomeStore.reloadAll()`).
-  - `FeedLinkCardComponent.voteChanged = output<{ value: number }>()` (after a successful vote, so
-    the host records it via `HomeStore.setUserVote`).
+  - `LinkCardComponent.voteChanged = output<{ value: number }>()` (after a successful vote, so the
+    host records it via `HomeStore.setUserVote`) and `edit = output<LinkCardItem>()` (the host opens
+    the shared link sheet in edit mode).
   - `LineStatusSheetComponent.submitted = output<void>()` (after a successful report, reload).
 - **GraphQL documents** (`data/home.queries.ts`, single contract seam; hand-written types, no
   codegen):
@@ -91,10 +94,13 @@
   - `VoteButtonComponent` (`features/insiden/vote-button/`) — reused with `targetType="link"` for
     feed voting; its `VoteValue` is `{-1, 0, 1}`.
   - `humanizeSince` (`features/spotting/data/humanize-since.util.ts`) — cross-feature relative-time
-    formatting.
+    formatting, consumed by the shared link card.
   - `faviconHostnameOf` (`features/insiden/data/social-link.util.ts`) — hostname lookup for the pulse
-    card's favicon; `feed-link.util.ts` splits URLs with insiden's `splitHttpUrl`
+    card's favicon; the shared link card's `linkUrlPartsOf`
+    (`features/insiden/data/link-url.util.ts`) splits URLs with insiden's `splitHttpUrl`
     (`features/insiden/data/incident-link-line.util.ts`).
+  - `LinkSheetService` / `app-link-sheet` / `canEditLink` (`features/insiden/**`) — the shared link
+    edit flow the home feed now drives (same sheet as /insiden and situasi).
   - `LineStatusBadge` (`domain-ui/line-status-badge`) — the operational-status badge on each pulse
     card; Hlm `badge`/`button`/`input`/`native-select`/`sheet`/`skeleton` primitives; `ToastService`;
     `RetryBannerComponent` (via its structural `RetryableResource`).
@@ -163,13 +169,18 @@
   never jumps between states.
 - **`LineStatusReportsComponent`** — the expanded card's keyset-paginated report list
   (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded`.
-- **`FeedLinkCardComponent`** — `urlParts` (`feedUrlPartsOf`; the domain keeps the card's foreground
-  colour, the path renders muted), `submitter` (`nickname || shortId || ""`), `createdLabel`
-  (`humanizeSince`), and `voteValue` narrows the store's plain number into the shared vote button's
-  `VoteValue`. The meta rail stretches to the row height so the relative timestamp bottom-aligns with
-  the tag row (or the title row when the card has no tags) instead of claiming a footer row.
-- Pure logic lives outside the components: `feed-link.util.ts` (`feedUrlPartsOf` — domain with a
-  leading `www.` stripped plus the muted path, `feedDomainOf` delegating to it), `feed-url.util.ts`
+- **`LinkCardComponent`** (shared insiden `app-link-card`) — `urlParts` (`linkUrlPartsOf`; the domain
+  keeps the card's foreground colour, the path renders muted), `faviconDomain`, `submitter`
+  (`nickname || shortId || ""`), `createdLabel` (`humanizeSince`), and `voteValue`, which narrows the
+  store's plain number into the shared vote button's `VoteValue`. The meta rail stretches to the row
+  height so the relative timestamp bottom-aligns with the tag row (or the title row when the card has
+  no tags) instead of claiming a footer row, and holds the vote control plus the edit pencil (both
+  OUTSIDE the navigational `<a>`).
+- **`HomePage`** — feed edit wiring: `canEdit(link)` calls `canEditLink` with the host's
+  `isLoggedIn`/`isAdmin`/`user.uid` over `AuthService`; `openEdit(link)` calls
+  `LinkSheetService.openEdit(link)`; the page hosts `<app-link-sheet>` and an effect on the sheet's
+  open→closed edge calls `store.reloadAll()`.
+- Pure logic lives outside the components: `feed-url.util.ts`
   (`normalizeFeedUrl`), `passenger-status.util.ts` (`PASSENGER_LABEL`/`PASSENGER_VARIANT` lookup
   tables, `passengerLabel` null → `"No data"`, `passengerVariant` null → `"neutral"`),
   `status-info.util.ts` (the `passengerScale`/`vehicleStatusRows` and info/legend/breakdown row
@@ -188,9 +199,9 @@
 - **`passenger-status.util.ts`** lookup tables are the label/variant seam — a new `PassengerStatus`
   value is a one-line addition per table (the sheet's chips and the submit box's select both derive
   their options from `Object.keys(PASSENGER_LABEL)`, so they stay in sync automatically).
-- **`feed-link.util.ts` (`feedUrlPartsOf`/`feedDomainOf`)** isolates URL presentation; it delegates
-  parsing to insiden's `splitHttpUrl`. **`feed-url.util.ts` (`normalizeFeedUrl`)** is the submit-time
-  URL normalizer seam — a new scheme rule is a one-function change with its own spec.
+- **`feed-url.util.ts` (`normalizeFeedUrl`)** is the submit-time URL normalizer seam — a new scheme
+  rule is a one-function change with its own spec. URL _presentation_ (domain/path split) lives in
+  insiden's `link-url.util.ts` (`linkUrlPartsOf`), shared by the one link card every surface uses.
 - **`status-info.util.ts`** is the popover-content seam: a new `PassengerStatus`/`VehicleStatus`
   member is a one-line addition to the label/order tables, and the chips and pills stay in sync.
   **`line-status-metrics.util.ts`** holds the plain-language per-status copy.

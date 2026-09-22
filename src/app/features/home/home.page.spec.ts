@@ -16,13 +16,14 @@ import { AppFooterComponent } from "../../shell/app-footer/app-footer.component"
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { ToastService } from "../../ui/toast/toast.service";
+import { LinkSheetService } from "../insiden/data/link-sheet.service";
+import { LinkCardComponent } from "../insiden/link-card/link-card.component";
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
 import type { FeedLink, FeedLinkPageInfo, LinePulse } from "./data/home.queries";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
-import { FeedLinkCardComponent } from "./feed/feed-link-card.component";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { HomePage, FEED_INITIAL_VISIBLE } from "./home.page";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
@@ -94,6 +95,11 @@ interface StoreMock {
 
 describe("HomePage", () => {
   let store: StoreMock;
+  let auth: {
+    isLoggedIn: WritableSignal<boolean>;
+    isAdmin: WritableSignal<boolean>;
+    user: WritableSignal<{ uid: string } | null>;
+  };
   let sheet: {
     isOpen: WritableSignal<boolean>;
     lineId: WritableSignal<string | null>;
@@ -118,6 +124,11 @@ describe("HomePage", () => {
       start: vi.fn(),
       stop: vi.fn(),
     };
+    auth = {
+      isLoggedIn: signal(false),
+      isAdmin: signal(false),
+      user: signal<{ uid: string } | null>(null),
+    };
     sheet = {
       isOpen: signal(false),
       lineId: signal<string | null>(null),
@@ -139,9 +150,7 @@ describe("HomePage", () => {
         {
           provide: AuthService,
           useValue: {
-            isLoggedIn: signal(false),
-            isAdmin: signal(false),
-            user: signal(null),
+            ...auth,
             firstName: signal(null),
             login: vi.fn(),
             idToken: vi.fn(async () => null),
@@ -164,14 +173,21 @@ describe("HomePage", () => {
     fixture = TestBed.createComponent(HomePage);
     fixture.detectChanges();
 
-    // The sheet's projected report form is created with the page (Angular builds projected
-    // content eagerly; HlmSheet only gates the panel's own DOM), so its lines+vehicles read is
-    // already in flight here even though the sheet is closed. A pending httpResource keeps the
-    // app unstable, so tick + flush it before awaiting stability.
+    // The sheets' projected forms are created with the page (Angular builds projected content
+    // eagerly; HlmSheet only gates the panel's own DOM), so their reads are already in flight
+    // here even though both sheets are closed. A pending httpResource keeps the app unstable, so
+    // tick + flush them before awaiting stability.
     TestBed.tick();
     httpMock
       .match((r) => r.method === "POST" && r.body.query.includes("LinesAndVehicles"))
       .forEach((request) => request.flush({ data: { lines: [] } }));
+    httpMock
+      .match((r) => r.method === "POST" && r.body.query.includes("InsidenReferenceData"))
+      .forEach((request) =>
+        request.flush({
+          data: { lines: [], stations: [], calendarIncidentCategories: [] },
+        }),
+      );
     await fixture.whenStable();
   });
 
@@ -183,7 +199,7 @@ describe("HomePage", () => {
     const root = fixture.nativeElement as HTMLElement;
 
     expect(root.querySelector("app-link-submit-box")).not.toBeNull();
-    expect(root.querySelectorAll("app-feed-link-card").length).toBe(2);
+    expect(root.querySelectorAll("app-link-card").length).toBe(2);
     expect(root.textContent).toContain("Feed link a");
     expect(root.querySelector("app-line-pulse-list")).not.toBeNull();
     expect(root.querySelectorAll("app-line-pulse-card").length).toBe(1);
@@ -191,12 +207,12 @@ describe("HomePage", () => {
 
     // The composition order the page exists to enforce: submit box → global feed → line list.
     const html = root.innerHTML;
-    expect(html.indexOf("app-link-submit-box")).toBeLessThan(html.indexOf("app-feed-link-card"));
-    expect(html.indexOf("app-feed-link-card")).toBeLessThan(html.indexOf("app-line-pulse-list"));
+    expect(html.indexOf("app-link-submit-box")).toBeLessThan(html.indexOf("app-link-card"));
+    expect(html.indexOf("app-link-card")).toBeLessThan(html.indexOf("app-line-pulse-list"));
   });
 
   it("passes the store's per-link vote into each feed card", () => {
-    const cards = fixture.debugElement.queryAll(By.directive(FeedLinkCardComponent));
+    const cards = fixture.debugElement.queryAll(By.directive(LinkCardComponent));
 
     expect(cards.length).toBe(2);
     expect(cards[0].componentInstance.userVote()).toBe(1);
@@ -213,11 +229,48 @@ describe("HomePage", () => {
   });
 
   it("records a feed card's vote through the store", () => {
-    const cards = fixture.debugElement.queryAll(By.directive(FeedLinkCardComponent));
+    const cards = fixture.debugElement.queryAll(By.directive(LinkCardComponent));
 
     cards[1].componentInstance.voteChanged.emit({ value: -1 });
 
     expect(store.setUserVote).toHaveBeenCalledWith("b", -1);
+  });
+
+  it("opens the shared link sheet for a feed card the signed-in author may edit", () => {
+    auth.isLoggedIn.set(true);
+    auth.user.set({ uid: "abc12345zzz" });
+    fixture.detectChanges();
+
+    const card = fixture.debugElement.queryAll(By.directive(LinkCardComponent))[0];
+    expect(card.componentInstance.editable()).toBe(true);
+
+    const editButton = card.nativeElement.querySelector(
+      '[data-testid="link-edit"]',
+    ) as HTMLButtonElement;
+    editButton.click();
+
+    const linkSheet = TestBed.inject(LinkSheetService);
+    expect(linkSheet.isOpen()).toBe(true);
+    expect(linkSheet.editTarget()?.id).toBe("a");
+  });
+
+  it("leaves the edit pencil off the feed cards for anonymous visitors", () => {
+    const card = fixture.debugElement.queryAll(By.directive(LinkCardComponent))[0];
+
+    expect(card.componentInstance.editable()).toBe(false);
+    expect(card.nativeElement.querySelector('[data-testid="link-edit"]')).toBeNull();
+  });
+
+  it("reloads the feed when the link sheet closes after an edit", () => {
+    const linkSheet = TestBed.inject(LinkSheetService);
+    linkSheet.openEdit({ id: "a", url: "https://example.com/a", title: "Feed link a", lines: [] });
+    fixture.detectChanges();
+    expect(store.reloadAll).not.toHaveBeenCalled();
+
+    linkSheet.close();
+    fixture.detectChanges();
+
+    expect(store.reloadAll).toHaveBeenCalledTimes(1);
   });
 
   it("starts the polling beat on construction and stops it on destroy", () => {
@@ -262,7 +315,7 @@ describe("HomePage", () => {
     );
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll("app-feed-link-card").length).toBe(
+    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(
       FEED_INITIAL_VISIBLE,
     );
   });
@@ -275,7 +328,7 @@ describe("HomePage", () => {
     expect(container).not.toBeNull();
     expect(container.classList.contains("overflow-y-auto")).toBe(true);
     expect(container.className).toContain("max-h-[60vh]");
-    expect(container.querySelector("app-feed-link-card")).not.toBeNull();
+    expect(container.querySelector("app-link-card")).not.toBeNull();
     // Load More sits after the scroller, so it stays reachable without scrolling the feed.
     expect(container.querySelector('[data-testid="feed-load-more"]')).toBeNull();
   });
@@ -310,7 +363,7 @@ describe("HomePage", () => {
       Array.from({ length: FEED_INITIAL_VISIBLE + 2 }, (_, index) => makeFeedLink(`x${index}`)),
     );
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll("app-feed-link-card").length).toBe(
+    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(
       FEED_INITIAL_VISIBLE,
     );
 
@@ -320,7 +373,7 @@ describe("HomePage", () => {
     fixture.detectChanges();
 
     // Everything already resident is revealed; the continuation page adds more when it lands.
-    expect(fixture.nativeElement.querySelectorAll("app-feed-link-card").length).toBe(
+    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(
       FEED_INITIAL_VISIBLE + 2,
     );
   });

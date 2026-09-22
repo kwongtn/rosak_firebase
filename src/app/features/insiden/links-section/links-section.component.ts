@@ -42,7 +42,12 @@ const PAGE_SIZE = 20;
     } @else if (hasError()) {
       <app-retry-banner [resource]="linksResource" message="Couldn't load submitted links." />
     } @else {
-      <app-link-list [links]="links()" (sheetClosed)="onSheetClosed()" />
+      <app-link-list
+        [links]="links()"
+        [voteValues]="voteValues()"
+        (voteChanged)="onVoteChanged($event)"
+        (sheetClosed)="onSheetClosed()"
+      />
       @if (hasNextPage()) {
         @if (loadMoreError()) {
           <button
@@ -119,6 +124,13 @@ export class LinksSectionComponent {
     this.appendedHasNext.set(null);
     this.nextCursor.set(null);
     this.linksResource.reload();
+  }
+
+  /** Per-link vote overlay handed to the list (the cards' optimistic copy). */
+  protected readonly voteValues = signal<Record<string, number>>({});
+
+  protected onVoteChanged(event: { id: string; value: number }): void {
+    this.voteValues.update((prev) => ({ ...prev, [event.id]: event.value }));
   }
 
   /** Loads the next page through the same query with the last page's cursor. Coalesced

@@ -323,8 +323,8 @@ export class LinkFormComponent {
       this._hydratedLinkId = target.id;
       this.model.set({ url: target.url, title: target.title });
       this.selectedLineIds.set(target.lines.map((line) => line.id));
-      this.selectedVehicleIds.set(target.vehicles.map((vehicle) => vehicle.id));
-      this.selectedStationIds.set(target.stations.map((station) => station.id));
+      this.selectedVehicleIds.set((target.vehicles ?? []).map((vehicle) => vehicle.id));
+      this.selectedStationIds.set((target.stations ?? []).map((station) => station.id));
       this.selectedCategoryId.set(target.categories?.[0]?.id ?? null);
       this.linkForm().reset();
     });
