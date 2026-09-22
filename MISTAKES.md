@@ -50,6 +50,20 @@ layout the same way.
 **Fix**: Serialize builds and tests — one invocation at a time, or guard with a lockfile (e.g. `flock dist/.build.lock npm run build`) so a second run waits instead of clobbering the first.
 **Prevention**: Never run `npm run build` (or the test suite) concurrently in the same checkout. When agents share a workspace, wrap the command in a `flock`-based lock or work in separate git worktrees.
 
+### [2026-09-22] home/feed: native `type="url"` silently blocked schemeless input
+
+**Problem**: Pasting a schemeless link (`example.com/story`) into the feed submit box did nothing — no request, no inline error, no toast — so the UI looked broken for a URL every other tool accepts.
+**Root Cause**: The input was `type="url"`, so the browser's own constraint validation rejected `example.com/story` **before** the submit handler ran. Because the block happens outside app code, it produced no feedback, and the raw value would never have been an absolute URL anyway.
+**Fix**: The input is now `type="text"` + `inputmode="url"` (the mobile keyboard stays URL-shaped) and the new pure `feed-url.util.ts::normalizeFeedUrl()` scheme-qualifies the value at submit time — `https://` prefixed when no scheme is present, protocol-relative `//host` handled, an existing `http(s)://` left untouched, other schemes (`mailto:`, `ftp://`) left alone. Commit `dcf9885`.
+**Prevention**: Don't rely on native `type="url"` for URL capture — its validation is browser/locale-dependent, fails silently with no message, and rejects input the app can fix up. Capture as `type="text"` and normalize in a tested pure util before sending.
+
+### [2026-09-22] home/line-status: ignored `ok: false` payload showed a false success toast
+
+**Problem**: Submitting a line-status report the backend rejected (`submitLineStatusReport.ok: false`, no top-level GraphQL error) still toasted "Line status reported" and closed the sheet, so the user believed a report was saved when nothing was.
+**Root Cause**: Business-level rejections are a normal GraphQL response, not a thrown error, so the handler's `catch` never saw them and the code treated any returned payload as success. Only thrown errors (transport, `GraphQLRequestError`) were handled.
+**Fix**: The handler branches on `payload.ok` **before** any success side effect; a false `ok` sets the inline error (`[data-testid="line-status-submit-error"]`) and returns, mirroring the `GraphQLRequestError` path. Only a truthy `ok` closes the sheet and emits. Commit `9c1acf8`.
+**Prevention**: For any mutation whose payload carries an `ok` flag, check it before toast/close/emit. A returned payload is not evidence of success — only `ok: true` is.
+
 ## Fixed
 
 ### [2026-09-22] AGENTS.md: `postGraphQL()` referenced a non-existent API

@@ -19,6 +19,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | **home** community front page ships as the landing route: global link feed (login-gated submit, duplicate detection, votes) + per-line pulse cards + mobile line-status bottom sheet                                                                                             |
 | Sep 22 | Root `""` route swaps from the `/spotting` redirect to lazy `HomePage` with route-scoped `HomeStore`/`LineStatusSheetService`                                                                                                                                                    |
 | Sep 22 | Home hosts the spotting entry sheet: `ReportSheetService.openFor(lineId)` + one-shot line seed in the report form (wave 1 of the UI revision)                                                                                                                                    |
+| Sep 22 | Front-page UX round: inline submit errors + Cancel on the line-status sheet and feed box, schemeless-URL normalization, all-24-hour chart labels, feed Load More, per-category status pills in the hover popover                                                                 |
 
 ### Home — community front page (2026-09-22)
 
@@ -31,17 +32,29 @@ New landing feature under `src/app/features/home/`, delivered in four commits:
 | `ca8b495` | Link submit box + feed link card                                                              |
 | `f4ede6b` | Root-route swap + page shell                                                                  |
 
+### Home — front-page UX round (2026-09-22)
+
+Follow-up polish on the same landing feature, five commits:
+
+| Commit    | Deliverable                                                                         |
+| --------- | ----------------------------------------------------------------------------------- |
+| `9c1acf8` | Line-status sheet: inline submit error on all three failure paths + Cancel button   |
+| `dcf9885` | Feed submit box: inline error + schemeless-URL normalization (`feed-url.util.ts`)   |
+| `a0f1b95` | Line-status chart: all 24 hour labels + shared reserved-height skeleton             |
+| `858d059` | Feed: bottom-aligned timestamp, split URL colours, Load More list                   |
+| `3e46c04` | Line card: removed the single count badge, per-category pills in the status popover |
+
 ## Commit Statistics
 
 | Type      | Count  | Percentage |
 | --------- | ------ | ---------- |
-| feat      | 25     | ~47%       |
-| fix       | 13     | ~25%       |
-| docs      | 10     | ~19%       |
+| feat      | 28     | ~48%       |
+| fix       | 15     | ~26%       |
+| docs      | 10     | ~17%       |
 | style     | 1      | ~2%        |
 | refactor  | 1      | ~2%        |
-| other     | 3      | ~6%        |
-| **Total** | **53** | **100%**   |
+| other     | 3      | ~5%        |
+| **Total** | **58** | **100%**   |
 
 > No-merge commits authored in September 2026. "other" covers three non-conventional subjects (`Update AGENTS.md`, `Add graphify`, `Revert optimization except sentry`).
 

@@ -17,15 +17,20 @@
   - `home.page.ts` — the routed page: nav → submit box → feed → line-pulse list → footer, plus the
     status sheet; starts/stops the store's polling and adapts the store to the shared retry banner.
   - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance), plus
-    `feed-link-card.component.ts` and the pure `feed-link.util.ts` (one feed row).
-  - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status) and
-    `line-pulse-list.component.ts` (skeletons / empty state / the list).
+    `feed-link-card.component.ts` and the pure `feed-link.util.ts` (one feed row) and
+    `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification).
+  - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status plus the expand/collapse
+    toggle), `line-pulse-list.component.ts` (skeletons / empty state / the list),
+    `line-status-chart.component.ts` (the expanded hourly report strip),
+    `line-status-reports.component.ts` (the expanded report list), and
+    `status-info-chip.component.ts` (the hover/tap info popover shared by the card's chips).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
-    `ReportSheetService.openFor(lineId)`.
+    `ReportSheetService.openFor(lineId)`. It also owns the feed list's reveal pagination (Load More).
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
-    `HomeStore`), `line-status-sheet.service.ts` (sheet controller), and the pure
+    `HomeStore`), `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
+    (per-status plain-language copy), `status-info.util.ts` (popover/legend/pill rows), and the pure
     `passenger-status.util.ts` (no components).
 
 ## 🔌 Interface & Data Flow
@@ -58,8 +63,12 @@
 - **GraphQL documents** (`data/home.queries.ts`, single contract seam; hand-written types, no
   codegen):
   - `FRONT_PAGE_LINES_QUERY` — per-line pulse list: `id/code/displayName/displayColor/status`,
-    `inServiceVehicleCount`/`totalVehicleCount`, `passengerStatus`/`passengerStatusMessage` (both
-    nullable), `statusReportCount`, and nested `pulseLinks` (a `SocialMediaLinkScalar` subset).
+    `inServiceVehicleCount`/`totalVehicleCount`, `vehicleStatusCounts` (the per-status fleet
+    breakdown), `passengerStatus`/`passengerStatusMessage` (both nullable), `statusReportCount`,
+    `passengerStatusCount`/`passengerStatusCounts` (the per-category report breakdown the hover
+    popover's pills read), `statusWindowMinutes` (the rolling window), and nested `pulseLinks` (a
+    `SocialMediaLinkScalar` subset). `LINE_STATUS_HISTORY_QUERY` (hourly buckets) and
+    `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list) back the expanded card panel.
   - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status)` connection (`edges { node, cursor }`
     - `pageInfo { hasNextPage, endCursor }`); the store always requests `status: "LIVE"`,
       `first: 30`.
@@ -83,11 +92,12 @@
     feed voting; its `VoteValue` is `{-1, 0, 1}`.
   - `humanizeSince` (`features/spotting/data/humanize-since.util.ts`) — cross-feature relative-time
     formatting.
-  - `faviconHostnameOf` (`features/insiden/data/social-link.util.ts`) — URL/hostname parsing reused
-    by `feed-link.util.ts` and by the pulse card's favicon.
+  - `faviconHostnameOf` (`features/insiden/data/social-link.util.ts`) — hostname lookup for the pulse
+    card's favicon; `feed-link.util.ts` splits URLs with insiden's `splitHttpUrl`
+    (`features/insiden/data/incident-link-line.util.ts`).
   - `LineStatusBadge` (`domain-ui/line-status-badge`) — the operational-status badge on each pulse
     card; Hlm `badge`/`button`/`input`/`native-select`/`sheet`/`skeleton` primitives; `ToastService`;
-    `InfiniteScrollDirective`; `RetryBannerComponent` (via its structural `RetryableResource`).
+    `RetryBannerComponent` (via its structural `RetryableResource`).
   - `AppNavComponent` / `AppFooterComponent` (`shell/`) — page chrome.
 
 ## ⚙️ Internal State & Logic
@@ -119,26 +129,49 @@
   `store.lines()`; `errorResource` is a minimal `RetryableResource` adapter over `store.reloadAll()`
   (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy`.
 - **`LineStatusSheetComponent`** local signals: `status` (`PassengerStatus | null`), `delayMinutes`
-  (string, parsed on submit), `notes`, `selectedStationIds`, `isSubmitting`. `lineId` is computed
-  from the input or the service. `stationsResource` is a lazy `graphqlResource` that stays inert
-  until the sheet is open on a known line (`STATION_LINES_QUERY`, reused from spotting). An
-  `effect` detects the open→closed edge and calls `clear()`, so the next report starts clean.
-  Logged out, the sheet body is a login prompt instead of the form.
+  (string, parsed on submit), `notes`, `selectedStationIds`, `isSubmitting`, and `submitError`
+  (inline `[data-testid="line-status-submit-error"]`, `role="alert"`) — set on a GraphQL `ok: false`
+  payload, a `GraphQLRequestError` (server message mirrored), or a transport failure; only a truthy
+  `ok` closes the sheet and emits. A `[data-testid="cancel-line-status-report"]` button closes it
+  without submitting. `lineId` is computed from the input or the service. `stationsResource` is a
+  lazy `graphqlResource` that stays inert until the sheet is open on a known line
+  (`STATION_LINES_QUERY`, reused from spotting). An `effect` detects the open→closed edge and calls
+  `clear()` (which also resets `submitError`), so the next report starts clean. Logged out, the sheet
+  body is a login prompt instead of the form.
 - **`LinkSubmitBoxComponent`** local state: a Signal Forms `model`/`linkForm` (URL required),
   `selectedLineIds`, `selectedStatus`, `statusLineError` (a status without a line is blocked
-  locally), `duplicateOfId`, `isSubmitting`. On a duplicate response it stores `duplicateOfId`
-  (used for the `#feed-link-<id>` anchor) and records the backend's auto-upvote via
-  `store.setUserVote`. On a fresh submit it toasts success. `lineOptions` is computed from
-  `store.lines()`.
+  locally), `duplicateOfId`, `isSubmitting`, and `submitError` (inline
+  `[data-testid="feed-submit-error"]`, set for a rejected or unreachable submit). The URL input is
+  `type="text"` + `inputmode="url"` and `normalizeFeedUrl` scheme-qualifies the value at submit
+  time — native `type="url"` silently rejected schemeless input before the handler ran. On a
+  duplicate response it stores `duplicateOfId` (used for the `#feed-link-<id>` anchor) and records
+  the backend's auto-upvote via `store.setUserVote`. On a fresh submit it toasts success.
+  `lineOptions` is computed from `store.lines()`.
 - **`LinePulseCardComponent`** — `_links` caps related `pulseLinks` at 5 (`MAX_PULSE_LINKS`); the
-  passenger badge/label go through the pure `passengerLabel`/`passengerVariant` helpers.
-- **`FeedLinkCardComponent`** — `domain` (`feedDomainOf`), `submitter` (`nickname || shortId || ""`),
-  `createdLabel` (`humanizeSince`), and `voteValue` narrows the store's plain number into the shared
-  vote button's `VoteValue`.
-- Pure logic lives outside the components: `feed-link.util.ts` (`feedDomainOf` — hostname with a
-  leading `www.` stripped, raw URL fallback) and `passenger-status.util.ts`
-  (`PASSENGER_LABEL`/`PASSENGER_VARIANT` lookup tables, `passengerLabel` null → `"No data"`,
-  `passengerVariant` null → `"neutral"`).
+  passenger badge/label go through the pure `passengerLabel`/`passengerVariant` helpers. There is no
+  standalone status-count badge (`passenger-status-count` was removed at the user's correction):
+  `_passengerStatusCounts` (from `passengerStatusRows`) feeds the passenger chip's `statusCounts`,
+  rendered as one pill per reported status inside the hover popover. The title row toggles the lazy
+  expanded panel (`line-status-chart` + `line-status-reports`, both gated on `expanded`).
+- **`LineStatusChartComponent`** — the expanded card's hourly strip: `bars`/`hasData`/`maxCount`
+  computed over the lazy `LINE_STATUS_HISTORY_QUERY` (inert until `expanded`), one bar per
+  service-day hour coloured by the hour's dominant status. All 24 hours are labelled on a
+  `min-w-[24rem]` strip inside an `overflow-x-auto` lane, and the loading skeleton, empty state and
+  loaded chart all share the exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card below
+  never jumps between states.
+- **`LineStatusReportsComponent`** — the expanded card's keyset-paginated report list
+  (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded`.
+- **`FeedLinkCardComponent`** — `urlParts` (`feedUrlPartsOf`; the domain keeps the card's foreground
+  colour, the path renders muted), `submitter` (`nickname || shortId || ""`), `createdLabel`
+  (`humanizeSince`), and `voteValue` narrows the store's plain number into the shared vote button's
+  `VoteValue`. The meta rail stretches to the row height so the relative timestamp bottom-aligns with
+  the tag row (or the title row when the card has no tags) instead of claiming a footer row.
+- Pure logic lives outside the components: `feed-link.util.ts` (`feedUrlPartsOf` — domain with a
+  leading `www.` stripped plus the muted path, `feedDomainOf` delegating to it), `feed-url.util.ts`
+  (`normalizeFeedUrl`), `passenger-status.util.ts` (`PASSENGER_LABEL`/`PASSENGER_VARIANT` lookup
+  tables, `passengerLabel` null → `"No data"`, `passengerVariant` null → `"neutral"`),
+  `status-info.util.ts` (the `passengerStatusRows`/`vehicleStatusRows` and info/legend/pill row
+  builders) and `line-status-metrics.util.ts` (`PASSENGER_METRIC`/`passengerMetric`).
 
 ## 🧩 Extension Points & Hooks
 
@@ -153,12 +186,17 @@
 - **`passenger-status.util.ts`** lookup tables are the label/variant seam — a new `PassengerStatus`
   value is a one-line addition per table (the sheet's chips and the submit box's select both derive
   their options from `Object.keys(PASSENGER_LABEL)`, so they stay in sync automatically).
-- **`feed-link.util.ts` (`feedDomainOf`)** isolates URL presentation; it already delegates parsing to
-  insiden's `faviconHostnameOf`.
+- **`feed-link.util.ts` (`feedUrlPartsOf`/`feedDomainOf`)** isolates URL presentation; it delegates
+  parsing to insiden's `splitHttpUrl`. **`feed-url.util.ts` (`normalizeFeedUrl`)** is the submit-time
+  URL normalizer seam — a new scheme rule is a one-function change with its own spec.
+- **`status-info.util.ts`** is the popover-content seam: a new `PassengerStatus`/`VehicleStatus`
+  member is a one-line addition to the label/order tables, and the chips and pills stay in sync.
+  **`line-status-metrics.util.ts`** holds the plain-language per-status copy.
 - **Reused shared primitives stay the seams for new surfaces:** `AssetMultiSelectComponent`
-  (line/station pickers), `VoteButtonComponent` (`targetType` already supports `"link"`),
-  `InfiniteScrollDirective` (the feed's sentinel), `RetryBannerComponent` (structural
-  `RetryableResource`, so `HomeStore` doesn't need to expose the raw resources), and `humanizeSince`.
+  (line/station pickers), `VoteButtonComponent` (`targetType` already supports `"link"`), Hlm
+  `sheet`/`skeleton`/`badge`/`button`, `RetryBannerComponent` (structural `RetryableResource`, so
+  `HomeStore` doesn't need to expose the raw resources), and `humanizeSince`. The feed's visible
+  length is owned by `HomePage`'s reveal count (`Load More`), not by a list component.
 - **`errorResource` in `HomePage`** shows the adapter pattern for exposing a store (rather than a
   raw resource) to the shared retry banner.
 

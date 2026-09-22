@@ -31,10 +31,11 @@
 
 ### Q3: Reliability (Sep)
 
-| Week   | Milestone                                                                                                       |
-| ------ | --------------------------------------------------------------------------------------------------------------- |
-| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                               |
-| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet) |
+| Week   | Milestone                                                                                                                                              |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                                                                      |
+| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet)                                        |
+| Sep 22 | Home front-page UX round: inline submit errors + Cancel, schemeless-URL normalization, 24-hour chart labels, feed Load More, per-category status pills |
 
 ---
 
@@ -104,6 +105,7 @@
 | Phase      | Deliverables                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sep 22     | Root `""` route becomes `HomePage`: global rolling link feed with login-gated submit + duplicate detection, per-line pulse cards (vehicle counts, passenger status, related links), mobile line-status bottom sheet, route-scoped `HomeStore` with polling and an authenticated `userVote` overlay |
+| Sep 22     | UX round: inline submit errors + Cancel on the sheet and feed box, schemeless-URL normalization, all-24-hour chart labels with a shared reserved-height skeleton, feed Load More, per-category status pills in the hover popover                                                                   |
 | **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
 
 ### core (Utilities) — **EXTRACTED PATTERNS**
@@ -145,18 +147,18 @@
 
 ## Commit Statistics (2026 YTD)
 
-| Month     | Commits | Major Focus                                           |
-| --------- | ------- | ----------------------------------------------------- |
-| Jan       | 0       | (no data in range)                                    |
-| Feb       | 0       | (no data in range)                                    |
-| Mar       | 1       | Verification component fix                            |
-| Apr       | 0       | (no data in range)                                    |
-| May       | 0       | (no data in range)                                    |
-| Jun       | 0       | (no data in range)                                    |
-| Jul       | 0       | (no data in range)                                    |
-| Aug       | **41+** | **3 feature platforms + polish**                      |
-| Sep       | **53**  | **home front page (landing) + CI/deploy reliability** |
-| **Total** | **95+** |                                                       |
+| Month     | Commits  | Major Focus                                                      |
+| --------- | -------- | ---------------------------------------------------------------- |
+| Jan       | 0        | (no data in range)                                               |
+| Feb       | 0        | (no data in range)                                               |
+| Mar       | 1        | Verification component fix                                       |
+| Apr       | 0        | (no data in range)                                               |
+| May       | 0        | (no data in range)                                               |
+| Jun       | 0        | (no data in range)                                               |
+| Jul       | 0        | (no data in range)                                               |
+| Aug       | **41+**  | **3 feature platforms + polish**                                 |
+| Sep       | **58**   | **home front page (landing + UX round) + CI/deploy reliability** |
+| **Total** | **100+** |                                                                  |
 
 > Note: Git history shows major activity in Aug 2026. Earlier 2026 commits may be in different branches or squashed.
 
