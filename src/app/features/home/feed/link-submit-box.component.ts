@@ -18,6 +18,7 @@ import {
 } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
 import { PASSENGER_LABEL } from "../data/passenger-status.util";
+import { normalizeFeedUrl } from "./feed-url.util";
 
 interface LinkSubmitModel {
   url: string;
@@ -37,7 +38,10 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
  * optional line status and the affected lines through `submitFeedLink`; a status without a line
  * is blocked locally (the backend rejects that combination). A duplicate submission renders an
  * inline "already submitted" note with an anchor to the existing feed row and records the
- * upvote the backend just added, so the feed reflects it immediately.
+ * upvote the backend just added, so the feed reflects it immediately. The url field is plain
+ * text (`inputmode="url"`) so a schemeless "example.com" is accepted and scheme-qualified by
+ * `normalizeFeedUrl` at submit time; a rejected submission shows an inline error instead of
+ * failing silently, and neither a rejection nor a transport failure resets the form or emits.
  */
 @Component({
   selector: "app-link-submit-box",
@@ -58,7 +62,8 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
       <form class="flex flex-col gap-2" (submit)="$event.preventDefault(); submit()">
         <input
           hlmInput
-          type="url"
+          type="text"
+          inputmode="url"
           class="h-11"
           placeholder="Paste a link — news, post, thread…"
           aria-label="Link URL"
@@ -94,6 +99,12 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
         @if (statusLineError()) {
           <p class="text-destructive text-xs" data-testid="status-line-error" role="alert">
             Pick at least one line to report a line status.
+          </p>
+        }
+
+        @if (submitError(); as message) {
+          <p class="text-destructive text-xs" data-testid="feed-submit-error" role="alert">
+            {{ message }}
           </p>
         }
 
@@ -136,6 +147,9 @@ export class LinkSubmitBoxComponent {
   /** Id (as it appears in the feed row's anchor) of the entry an attempted submit duplicated. */
   protected readonly duplicateOfId = signal<string | null>(null);
 
+  /** Inline failure note for the last submit attempt; cleared on the next attempt and on reset. */
+  protected readonly submitError = signal<string | null>(null);
+
   readonly isSubmitting = signal(false);
 
   /** Emitted after a successful submit (fresh or duplicate) so the host can reload the store. */
@@ -156,6 +170,7 @@ export class LinkSubmitBoxComponent {
 
   async submit(): Promise<void> {
     this.duplicateOfId.set(null);
+    this.submitError.set(null);
     const status = this.selectedStatus();
     if (status !== null && this.selectedLineIds().length === 0) {
       this.statusLineError.set(true);
@@ -168,7 +183,7 @@ export class LinkSubmitBoxComponent {
         const idToken = await this.auth.idToken();
         const vars: SubmitFeedLinkVars = {
           input: {
-            url: this.model().url,
+            url: normalizeFeedUrl(this.model().url),
             lineIds: this.selectedLineIds(),
             // Only sent when chosen — `status: null` on the backend means "no report".
             ...(status ? { status } : {}),
@@ -187,10 +202,18 @@ export class LinkSubmitBoxComponent {
         this.submitted.emit();
       }
     } catch (err) {
-      if (err instanceof GraphQLRequestError) {
-        return;
+      // A GraphQL rejection is surfaced verbatim and is already reported to Sentry (and
+      // toasted) by GraphQLClient. Anything else — a transport/HTTP failure or a genuinely
+      // unexpected error — gets a generic inline retry message and still propagates, so it
+      // reaches the Sentry-backed global ErrorHandler instead of being swallowed.
+      this.submitError.set(
+        err instanceof GraphQLRequestError
+          ? err.message
+          : "Couldn't submit the link. Please try again.",
+      );
+      if (!(err instanceof GraphQLRequestError)) {
+        throw err;
       }
-      throw err;
     } finally {
       this.isSubmitting.set(false);
     }
@@ -210,6 +233,7 @@ export class LinkSubmitBoxComponent {
     this.selectedLineIds.set([]);
     this.selectedStatus.set(null);
     this.statusLineError.set(false);
+    this.submitError.set(null);
     this.linkForm().reset();
   }
 }

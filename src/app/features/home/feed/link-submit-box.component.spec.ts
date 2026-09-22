@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   SUBMIT_FEED_LINK_MUTATION,
@@ -128,7 +128,7 @@ describe("LinkSubmitBoxComponent", () => {
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain("Log in to submit links");
-    expect(fixture.nativeElement.querySelector('input[type="url"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector("input")).toBeNull();
 
     const cta = fixture.nativeElement.querySelector('[data-testid="login-to-submit"]');
     expect(cta).not.toBeNull();
@@ -141,7 +141,9 @@ describe("LinkSubmitBoxComponent", () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(fixture.nativeElement.querySelector('input[type="url"]')).not.toBeNull();
+    const urlInput = fixture.nativeElement.querySelector('input[type="text"]');
+    expect(urlInput).not.toBeNull();
+    expect(urlInput.getAttribute("inputmode")).toBe("url");
 
     const select = fixture.nativeElement.querySelector("select");
     const labels: string[] = Array.from(select.options as HTMLOptionElement[]).map((option) =>
@@ -198,7 +200,7 @@ describe("LinkSubmitBoxComponent", () => {
     component.model.set({ url: "https://example.com/story" });
     fixture.detectChanges();
 
-    const input = fixture.nativeElement.querySelector('input[type="url"]');
+    const input = fixture.nativeElement.querySelector('input[type="text"]');
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(1));
@@ -231,5 +233,72 @@ describe("LinkSubmitBoxComponent", () => {
 
     expect(requestMock).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('[data-testid="status-line-error"]')).not.toBeNull();
+  });
+
+  it("normalizes a schemeless url to https before sending", async () => {
+    requestMock.mockResolvedValue(submitResponse());
+    const component = asTestable(fixture);
+    component.model.set({ url: "example.com/story" });
+
+    await component.submit();
+
+    const [, vars] = requestMock.mock.calls[0];
+    expect(vars.input.url).toBe("https://example.com/story");
+  });
+
+  it("shows an inline error and does not emit when the mutation is rejected", async () => {
+    const message = "That URL is not allowed";
+    requestMock.mockRejectedValueOnce(new GraphQLRequestError([{ message }]));
+    const component = asTestable(fixture);
+    component.model.set({ url: "https://example.com/story" });
+    let submittedCount = 0;
+    fixture.componentInstance.submitted.subscribe(() => submittedCount++);
+    fixture.detectChanges();
+
+    await component.submit();
+    fixture.detectChanges();
+
+    const error = fixture.nativeElement.querySelector('[data-testid="feed-submit-error"]');
+    expect(error).not.toBeNull();
+    expect(error.textContent).toContain(message);
+    expect(error.getAttribute("role")).toBe("alert");
+    expect(submittedCount).toBe(0);
+    expect(component.model()).toEqual({ url: "https://example.com/story" });
+    expect(toastMocks.success).not.toHaveBeenCalled();
+  });
+
+  it("shows a generic inline error for a transport failure and still rethrows it", async () => {
+    requestMock.mockRejectedValueOnce(new Error("Network down"));
+    const component = asTestable(fixture);
+    component.model.set({ url: "https://example.com/story" });
+    let submittedCount = 0;
+    fixture.componentInstance.submitted.subscribe(() => submittedCount++);
+
+    await expect(component.submit()).rejects.toThrow("Network down");
+    fixture.detectChanges();
+
+    const error = fixture.nativeElement.querySelector('[data-testid="feed-submit-error"]');
+    expect(error).not.toBeNull();
+    expect(error.textContent).toContain("Couldn't submit the link. Please try again.");
+    expect(submittedCount).toBe(0);
+    expect(component.isSubmitting()).toBe(false);
+  });
+
+  it("clears the inline error on a subsequent successful submit", async () => {
+    requestMock
+      .mockRejectedValueOnce(new GraphQLRequestError([{ message: "Nope" }]))
+      .mockResolvedValueOnce(submitResponse());
+    const component = asTestable(fixture);
+    component.model.set({ url: "https://example.com/story" });
+
+    await component.submit();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-submit-error"]')).not.toBeNull();
+
+    await component.submit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-submit-error"]')).toBeNull();
+    expect(toastMocks.success).toHaveBeenCalledTimes(1);
   });
 });
