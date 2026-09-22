@@ -198,6 +198,50 @@ describe("LineStatusReportsComponent", () => {
     expect(root.querySelector('[data-testid="line-status-report"]')).toBeNull();
   });
 
+  it("caps the loaded list in its own scroll container", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, makeReports());
+
+    const root = fixture.nativeElement as HTMLElement;
+    const scroll = root.querySelector<HTMLElement>('[data-testid="line-status-reports-scroll"]');
+
+    expect(scroll).not.toBeNull();
+    expect(scroll?.classList.contains("max-h-56")).toBe(true);
+    expect(scroll?.classList.contains("overflow-y-auto")).toBe(true);
+    expect(scroll?.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(2);
+  });
+
+  it("does not render the scroll container for the skeleton or empty states", async () => {
+    const fixture = render(true);
+
+    const root = fixture.nativeElement as HTMLElement;
+    // The read is still in flight, so the skeleton branch is showing.
+    expect(root.querySelector('[data-testid="line-status-reports-scroll"]')).toBeNull();
+
+    await flushReports(fixture, []);
+    expect(root.querySelector('[data-testid="line-status-reports-empty"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="line-status-reports-scroll"]')).toBeNull();
+  });
+
+  it("re-issues the reports read when refreshTick changes while expanded", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, makeReports());
+
+    fixture.componentRef.setInput("refreshTick", 1);
+    fixture.detectChanges();
+
+    await flushReports(fixture, makeReports());
+  });
+
+  it("ignores refreshTick changes while collapsed", async () => {
+    const fixture = render(false);
+
+    fixture.componentRef.setInput("refreshTick", 1);
+    fixture.detectChanges();
+
+    expect(httpMock.match(() => true)).toHaveLength(0);
+  });
+
   it("shows the shared retry banner when the reports read fails", async () => {
     const fixture = render(true);
 
