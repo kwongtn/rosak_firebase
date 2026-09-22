@@ -1,7 +1,7 @@
 import { provideZonelessChangeDetection, signal } from "@angular/core";
-import { provideHttpClientTesting } from "@angular/common/http/testing";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { LinePulse } from "../data/home.queries";
@@ -43,6 +43,7 @@ function textOf(root: HTMLElement, testId: string): string {
 
 describe("LinePulseCardComponent", () => {
   let fixture: ComponentFixture<LinePulseCardComponent>;
+  let httpMock: HttpTestingController;
   let sheetMock: {
     isOpen: ReturnType<typeof signal<boolean>>;
     lineId: ReturnType<typeof signal<string | null>>;
@@ -81,6 +82,11 @@ describe("LinePulseCardComponent", () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(LinePulseCardComponent);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
   });
 
   function render(line: LinePulse): HTMLElement {
@@ -97,6 +103,12 @@ describe("LinePulseCardComponent", () => {
     expect(trigger).not.toBeNull();
     (trigger as HTMLElement).click();
     fixture.detectChanges();
+  }
+
+  function flushPendingRequests(): void {
+    for (const request of httpMock.match(() => true)) {
+      request.flush({ data: {} });
+    }
   }
 
   it("renders the in-service vehicle count as 'X of Y vehicles in service'", () => {
@@ -197,5 +209,86 @@ describe("LinePulseCardComponent", () => {
     button?.click();
 
     expect(reportSheetMock.openFor).toHaveBeenCalledWith("line-42");
+  });
+
+  it("expands and collapses from the title-row toggle without reacting to the actions", () => {
+    const root = render(makeLine());
+    const toggle = root.querySelector<HTMLElement>('[data-testid="line-card-toggle"]');
+
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(root.querySelector('[data-testid="line-card-expanded"]')).toBeNull();
+
+    toggle?.click();
+    fixture.detectChanges();
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+    expect(root.querySelector('[data-testid="line-card-expanded"]')).not.toBeNull();
+    flushPendingRequests();
+
+    root.querySelector<HTMLButtonElement>('[data-testid="submit-line-status"]')?.click();
+    fixture.detectChanges();
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+
+    toggle?.click();
+    fixture.detectChanges();
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(root.querySelector('[data-testid="line-card-expanded"]')).toBeNull();
+  });
+
+  it("fetches nothing until expanded, then loads the hourly chart and the report list", async () => {
+    const root = render(makeLine({ id: "line-7" }));
+
+    expect(httpMock.match(() => true)).toHaveLength(0);
+
+    root.querySelector<HTMLElement>('[data-testid="line-card-toggle"]')?.click();
+    fixture.detectChanges();
+
+    const historyRequest = httpMock.expectOne((r) => r.body.query.includes("LineStatusHistory"));
+    expect(historyRequest.request.body.variables).toEqual({
+      lineId: "line-7",
+      dayStartHour: 3,
+    });
+    historyRequest.flush({
+      data: {
+        lineStatusHistory: [
+          {
+            hourStart: "2026-09-21T19:00:00+00:00",
+            hourEnd: "2026-09-21T20:00:00+00:00",
+            count: 4,
+            dominantStatus: "CROWDED",
+          },
+        ],
+      },
+    });
+
+    const reportsRequest = httpMock.expectOne((r) => r.body.query.includes("LineStatusReports"));
+    expect(reportsRequest.request.body.variables).toEqual({ lineId: "line-7", first: 10 });
+    reportsRequest.flush({
+      data: {
+        lineStatusReports: {
+          edges: [
+            {
+              node: {
+                id: "r1",
+                status: "CROWDED",
+                delayMinutes: 12,
+                notes: "Packed at KLCC.",
+                created: new Date().toISOString(),
+                user: null,
+              },
+              cursor: "c1",
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    });
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="line-status-chart"]')).not.toBeNull();
+    expect(root.querySelectorAll('[data-testid="line-status-bar"]')).toHaveLength(1);
+    expect(root.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(1);
   });
 });
