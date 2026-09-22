@@ -25,6 +25,8 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | Fixed the Pending pill and pending group: the shared card and list now key "pending" off the approval `status` (`PENDING_APPROVAL`), never the console's separate `completed` handled flag; `FEED_QUERY` selects `status`                                                        |
 | Sep 22 | Expanded line card's hourly chart stacks each bar by report type (new `statusCounts` contract): segments bottom-up NORMAL → DISRUPTED summing to the bar height, breakdown in the hover readout and bar `title`, plus a `refreshTick` poll hook                                  |
 | Sep 23 | Front page split into a two-panel desktop layout (full-height URL list left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                                                  |
+| Sep 22 | Expanded line card's recent-reports list capped in its own scroll container (roughly 5 rows) instead of stretching the card                                                                                                                                                      |
+| Sep 22 | Spotting report form: clearing a combobox or re-choosing a station placeholder now really deselects (shared `HlmCombobox.emptyValue`, non-disabled placeholder)                                                                                                                  |
 
 ### Home — community front page (2026-09-22)
 
@@ -67,7 +69,7 @@ Seven commits close out the front page:
 
 | Commit    | Deliverable                                                                                                                         |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `be72cad` | Pending pill + approved/pending grouping key off `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status`; regressions pinned |
+| `fb136df` | Pending pill + approved/pending grouping key off `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status`; regressions pinned |
 
 ### Home — stacked hourly report bars (2026-09-22)
 
@@ -76,6 +78,20 @@ Seven commits close out the front page:
   height, `flex-col-reverse` + `last:rounded-t-[2px]`), with the per-status breakdown in the hover
   readout and each bar's `title`, plus a `refreshTick` input so the parent's poll beat refreshes an
   open accordion. Covered by the chart/card specs and the e2e history stub.
+
+### Home — recent-reports scroll container (2026-09-22)
+
+- `line-status-reports.component.ts` wraps its loaded rows in a capped scroller
+  (`data-testid="line-status-reports-scroll"`, `max-h-56 overflow-y-auto`) so the expanded card's
+  report list shows ~5 one-line rows and scrolls internally; the skeleton/empty/error branches stay
+  outside it. The same commit gave the component the `refreshTick` applied-tick effect (`4c92101`).
+
+### Spotting — combobox / station clear-to-deselect (2026-09-22)
+
+- The shared `HlmCombobox` gained `emptyValue` (default `undefined`): emptying the input clears the
+  value, and `_syncSearchToValue` no longer resurrects the old label. The report-form line/vehicle
+  pickers bind `emptyValue=""` and the three station placeholder options lost `disabled`, so a
+  cleared pick really deselects (`1f37d7d`).
 
 ### Home — two-panel layout + lines-only refresh beat (2026-09-23)
 

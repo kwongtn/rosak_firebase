@@ -92,13 +92,34 @@ layout the same way.
 **Fix**: Added `/test-results`, `/playwright-report` and `/blob-report` to `.gitignore` (commit `6157823`). Because Prettier reads `.gitignore`, that alone is sufficient; no `.prettierignore` entry is needed.
 **Prevention**: Keep generated tool output (Playwright reports, coverage, build output) in `.gitignore`; that one file is also Prettier's default ignore list. Do not add a separate `.prettierignore` before checking whether `.gitignore` already covers the path.
 
+### [2026-09-23] ui/combobox: clearing the input left the old selection (and its label) in place
+
+**Problem**: Emptying a shared `HlmCombobox` (report-form line/vehicle pickers, calendar year picker) appeared to do nothing — on blur the old label snapped back and the form model still held the old id, so a "cleared" field kept submitting the previous selection. The three station `<select>`s had the same class of bug: their placeholder `<option value="">` was `disabled`, so choosing it could not clear the station.
+**Root Cause**: `HlmCombobox` decoupled typed text from the selected value. `_onInput` set only `search`, and `_syncSearchToValue` (the constructor `effect` + `_onBlur`) re-derived the input text from `value` + `items()`, so a cleared field was refilled with the old item's label while `value` (and the `[formField]` model bound to it) kept the old selection.
+**Fix**: `_onInput` now clears `value` to a new `emptyValue` input when the text is emptied (default `undefined`; string-typed Signal Forms fields pass `""` because Signal Forms drops a node whose model becomes `undefined`), and `_syncSearchToValue` short-circuits on `undefined` so it can never resurrect a cleared field. The three station placeholders lost `disabled`. Commit `1f37d7d`; all three combobox consumers (report-form, vehicle-detail, calendar) guard falsy values.
+**Prevention**: In a text/value control, typed text and committed value are two states — clearing the text must clear the value, and any blur-time resync must treat "nothing selected" as a distinct state, not a failed lookup. Never make a placeholder option `disabled` when selecting it is meant to clear the field.
+
+### [2026-09-22] home: the 30s poll beat must reload the lines only, never `reloadAll()`
+
+**Problem**: Pointing the front page's `PollingSource` at `reloadAll()` silently discarded the user's appended feed pages every 30 seconds — `reloadAll()` drops `appendedEdges` (they belong to the stale dataset), so "Load More" progress vanished on a timer with no user action.
+**Root Cause**: `reloadAll()` is the submit/edit refresh (both resources, appended pages dropped); the poll beat is a passive lines refresh and needs different semantics. One call, two intents.
+**Fix**: The beat now calls `reloadLines()` (`linesResource.reload()` plus a `linesRefreshTick` bump) and leaves the feed untouched; the tick travels page → list → card → the open accordion's chart/reports, each reloading its own resource while expanded. `reloadAll()` is unchanged for submit/edit. Commit `ae667fb`; `home.store.spec.ts` pins both paths.
+**Prevention**: Give a periodic refresh its own method; never point a timer at the broad reset used by explicit user actions. If one call serves two intents, split it before attaching a beat.
+
+### [2026-09-22] home/line-status-chart: `line-status-bar` stays on the hour container, never on a segment
+
+**Problem**: After each hour's bar was split into per-status segments, putting `data-testid="line-status-bar"` on (or duplicating it onto) the segments would have made the chart spec and the e2e stub count one bar per segment, silently breaking every hour-count assertion.
+**Root Cause**: The test id names the hour, but the DOM changed from one element per hour to a container plus N segment children — the stable conceptual unit and the visual pieces diverged.
+**Fix**: `data-testid="line-status-bar"` remains on the hour container only; segments carry no test id (the spec selects `:scope > div` to count them). Commit `476683d`.
+**Prevention**: Keep a test hook on the semantic unit (the hour), not the visual pieces. When a component's DOM is subdivided, re-confirm each `data-testid` still resolves to the same node a spec or e2e assumes.
+
 ## Fixed
 
 ### [2026-09-22] insiden/home: the Pending pill and the pending group keyed off `completed`, not the approval `status`
 
 **Problem**: Approved links rendered the "Pending" pill (`title="Awaiting admin approval"`) — every seeded card on the home feed, and four approved links under the situasi tab's "Pending (4)" — so approved content looked unapproved.
 **Root Cause**: The link row conflated the two independent axes. `SocialMediaLink.status` (`LIVE`/`PENDING_APPROVAL`) is the approval state, while `completed` is the admin console's separate "mark handled" boolean (`incident/models.py`; `seed_demo_data.py` writes `status=LIVE` and never sets `completed`). The card rendered the pill on `!completed` and `LinkListComponent` split rows on `completed`, and `FEED_QUERY` didn't even select `status`, so the home card couldn't see the approval axis at all.
-**Fix**: `LinkCardComponent` renders `link-pending` only for `status === "PENDING_APPROVAL"`; `LinkListComponent` partitions approved = `status !== "PENDING_APPROVAL"` / pending = `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status` and `FeedLink`/`LinkCardItem` carry it. `completed` stays the console's own axis. Specs pin the independence (LIVE + `completed: false` → no pill; `PENDING_APPROVAL` + `completed: true` → pill). Commit `be72cad`.
+**Fix**: `LinkCardComponent` renders `link-pending` only for `status === "PENDING_APPROVAL"`; `LinkListComponent` partitions approved = `status !== "PENDING_APPROVAL"` / pending = `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status` and `FeedLink`/`LinkCardItem` carry it. `completed` stays the console's own axis. Specs pin the independence (LIVE + `completed: false` → no pill; `PENDING_APPROVAL` + `completed: true` → pill). Commit `fb136df`.
 **Prevention**: When two fields describe different lifecycle axes, name which axis drives which UI at the field declaration and assert the independence in the spec. A "pending" affordance belongs to the approval enum, never to an admin's handled flag.
 
 ### [2026-09-22] AGENTS.md: `postGraphQL()` referenced a non-existent API

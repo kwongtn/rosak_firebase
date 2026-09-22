@@ -152,8 +152,10 @@
     home feed, /insiden links tab and situasi. Renders the favicon (Google S2, plain-link SVG
     fallback), the domain/path colour split (`linkUrlPartsOf`), the title, line badges, the Pending
     pill (`title="Awaiting admin approval"`, rendered only while the link's approval `status` is
-    `PENDING_APPROVAL` — `completed` is the console's separate admin "mark handled" flag and does
-    not drive it) and a right rail carrying the vote button plus the relative time (`humanizeSince`
+    `PENDING_APPROVAL` — the contract field is `LinkCardItem.status?: string | null`, kept loose
+    rather than narrowed to `SocialMediaLinkStatus` so both source node types satisfy it
+    structurally; `completed` is the console's separate admin "mark handled" flag and does not drive
+    it) and a right rail carrying the vote button plus the relative time (`humanizeSince`
     with an exact-timestamp + submitter tooltip) and the edit pencil.
     The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
     their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),

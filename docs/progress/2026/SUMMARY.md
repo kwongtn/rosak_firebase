@@ -31,12 +31,14 @@
 
 ### Q3: Reliability (Sep)
 
-| Week   | Milestone                                                                                                                                                           |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                                                                                   |
-| Sep 22 | Home feed scoped to the current service day with a `Showing X of Y` footer; three link lists unified onto the shared `app-link-card`                                |
-| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet)                                                     |
-| Sep 22 | Home front-page UX round: inline submit errors + Cancel, schemeless-URL normalization, 24-hour chart labels, feed Load More, per-status counts in the status legend |
+| Week   | Milestone                                                                                                                                                                                                                                          |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                                                                                                                                                                  |
+| Sep 22 | Home feed scoped to the current service day with a `Showing X of Y` footer; three link lists unified onto the shared `app-link-card`                                                                                                               |
+| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet)                                                                                                                                    |
+| Sep 22 | Home front-page UX round: inline submit errors + Cancel, schemeless-URL normalization, 24-hour chart labels, feed Load More, per-status counts in the status legend                                                                                |
+| Sep 22 | Home close-out: Pending pill + pending group keyed off the approval `status`; hourly bars stacked by report type (`statusCounts`); recent-reports list capped in its own scroller; `HlmCombobox` clear-to-deselect fix in the spotting report form |
+| Sep 23 | Front page split into a two-panel desktop layout (full-height URL feed left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                    |
 
 ---
 
@@ -84,6 +86,7 @@
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Pre-2026   | Form (line/vehicle selection, sanity tests, run number, image upload, compression, queueing), drawer UI, inline history, session history |
 | Aug 2026   | Skeletons for line data, z-index fixes, GraphQL error catching                                                                           |
+| Sep 2026   | Report form: combobox/station clear-to-deselect (`HlmCombobox.emptyValue`, non-disabled placeholders)                                    |
 | **Status** | **Polished** — Robust form, image pipeline, history, loading states                                                                      |
 
 ### navigation / shell — **MODERNIZED**
@@ -108,6 +111,7 @@
 | Sep 22     | Root `""` route becomes `HomePage`: global rolling link feed with login-gated submit + duplicate detection, per-line pulse cards (vehicle counts, passenger status, related links), mobile line-status bottom sheet, route-scoped `HomeStore` with polling and an authenticated `userVote` overlay |
 | Sep 22     | UX round: inline submit errors + Cancel on the sheet and feed box, schemeless-URL normalization, all-24-hour chart labels with a shared reserved-height skeleton, feed Load More, per-status counts folded into the status legend                                                                  |
 | Sep 22     | Delivery round: feed scoped to the current service day with a `Showing X of Y` footer, the shared `app-link-card` across all three link lists, report stations + hover timestamps, legend counts, e2e 9/9                                                                                          |
+| Sep 22–23  | Approval-status-driven Pending pill, hourly bars stacked by report type, recent-reports list capped in its own scroller, two-panel desktop layout + 30s lines-only refresh beat                                                                                                                    |
 | **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
 
 ### core (Utilities) — **EXTRACTED PATTERNS**

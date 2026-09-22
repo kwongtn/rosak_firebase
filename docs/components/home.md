@@ -204,10 +204,15 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   `overflow-x-auto` lane, and the loading skeleton, empty state and loaded chart all share the
   exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card below never jumps between states.
 - **`LineStatusReportsComponent`** — the expanded card's keyset-paginated report list
-  (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded`. Each row shows the passenger badge, an
-  optional delay and the report's related `stations` (joined `displayName`s, `report-station`), with
-  the relative time pinned right (`report-time`, `humanizeSince`) carrying the exact timestamp on
-  its `title`.
+  (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded` (a parent-driven `refreshTick` input
+  re-issues the read while the accordion is open, via the same applied-tick guard as the chart).
+  Each row shows the passenger badge, an optional delay and the report's related `stations` (joined
+  `displayName`s, `report-station`), with the relative time pinned right (`report-time`,
+  `humanizeSince`) carrying the exact timestamp on its `title`. The loaded rows sit in their own
+  scroll container (`data-testid="line-status-reports-scroll"`, `max-h-56 overflow-y-auto`) so the
+  list shows roughly five one-line rows and scrolls internally rather than stretching the card;
+  rows carrying notes run taller, so the cap is approximate. Only the loaded branch is capped — the
+  skeleton, empty and error branches render outside it.
 - **`LinkCardComponent`** (shared insiden `app-link-card`) — `urlParts` (`linkUrlPartsOf`; the domain
   keeps the card's foreground colour, the path renders muted), `faviconDomain`, `submitter`
   (`nickname || shortId || ""`), `createdLabel` (`humanizeSince`), and `voteValue`, which narrows the
