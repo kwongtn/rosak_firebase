@@ -21,6 +21,9 @@ function makeLine(id: string): FrontPageLinesQueryData["lines"][number] {
     passengerStatus: "NORMAL",
     passengerStatusMessage: null,
     statusReportCount: 1,
+    vehicleStatusCounts: [],
+    passengerStatusCount: 0,
+    statusWindowMinutes: 60,
     pulseLinks: [],
   };
 }
@@ -34,6 +37,7 @@ function makeFeedLink(id: string, userVote = 0): FeedLink {
     created: "2026-08-01T08:00:00Z",
     voteScore: 2,
     userVote,
+    voteBreakdown: { upvotes: 2, downvotes: 0 },
     lines: [],
     user: { shortId: "abc123", nickname: "Tester" },
   };

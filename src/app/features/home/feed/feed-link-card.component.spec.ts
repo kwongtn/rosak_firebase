@@ -19,6 +19,7 @@ function makeFeedLink(overrides: Partial<FeedLink> = {}): FeedLink {
     created: new Date().toISOString(),
     voteScore: 7,
     userVote: 0,
+    voteBreakdown: { upvotes: 2, downvotes: 1 },
     lines: [{ id: "L1", code: "KJL", displayName: "Kajang Line" }],
     user: { shortId: "abc12345", nickname: "" },
     ...overrides,
@@ -83,6 +84,41 @@ describe("FeedLinkCardComponent", () => {
     const submitter = fixture.nativeElement.querySelector('[data-testid="feed-submitter"]');
 
     expect(submitter.textContent).toContain("abc12345");
+  });
+
+  it("shows the exact timestamp and the submitter in the relative-time tooltip", async () => {
+    // Built from local date parts so the rendered timestamp is timezone-stable.
+    const created = new Date(2026, 7, 1, 8, 0).toISOString();
+    fixture.componentRef.setInput(
+      "link",
+      makeFeedLink({ created, user: { shortId: "abc12345", nickname: "Ali" } }),
+    );
+    await fixture.whenStable();
+
+    const popover = fixture.nativeElement.querySelector(
+      '[data-testid="feed-time"] [role="tooltip"]',
+    );
+
+    expect(popover).not.toBeNull();
+    expect(popover.textContent).toContain("Aug 1, 2026 08:00");
+    expect(popover.querySelector('[data-testid="feed-submitter"]').textContent).toContain("Ali");
+  });
+
+  it("passes the link's real vote breakdown to the vote control", async () => {
+    fixture.componentRef.setInput(
+      "link",
+      makeFeedLink({ voteBreakdown: { upvotes: 9, downvotes: 3 } }),
+    );
+    await fixture.whenStable();
+
+    const voteButton = fixture.debugElement.query(By.directive(VoteButtonComponent));
+    expect(voteButton.componentInstance.upvotes()).toBe(9);
+    expect(voteButton.componentInstance.downvotes()).toBe(3);
+    expect(
+      fixture.nativeElement.querySelector('app-vote-button [role="tooltip"]').textContent,
+    ).toContain("9 ↑ / 3 ↓");
+    // The interactive control stays a sibling of the navigational <a>.
+    expect(fixture.nativeElement.querySelector("a app-vote-button")).toBeNull();
   });
 
   it("forwards the host's userVote to the vote control", async () => {

@@ -40,6 +40,7 @@ function makeLink(): FeedLink {
     created: "2026-08-01T08:00:00Z",
     voteScore: 1,
     userVote: 1,
+    voteBreakdown: { upvotes: 1, downvotes: 0 },
     lines: [],
     user: { shortId: "abc12345", nickname: "" },
   };
@@ -72,6 +73,9 @@ function makeLine(): LinePulse {
     passengerStatus: null,
     passengerStatusMessage: null,
     statusReportCount: 0,
+    vehicleStatusCounts: [],
+    passengerStatusCount: 0,
+    statusWindowMinutes: 60,
     pulseLinks: [],
   };
 }

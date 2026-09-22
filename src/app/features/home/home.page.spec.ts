@@ -52,6 +52,7 @@ function makeFeedLink(id: string): FeedLink {
     created: "2026-08-01T08:00:00Z",
     voteScore: 3,
     userVote: 0,
+    voteBreakdown: { upvotes: 3, downvotes: 0 },
     lines: [{ id: "L1", code: "KJL", displayName: "Kajang Line" }],
     user: { shortId: "abc12345", nickname: "Ali" },
   };
@@ -69,6 +70,9 @@ function makeLine(id: string): LinePulse {
     passengerStatus: "NORMAL",
     passengerStatusMessage: null,
     statusReportCount: 0,
+    vehicleStatusCounts: [],
+    passengerStatusCount: 0,
+    statusWindowMinutes: 60,
     pulseLinks: [],
   };
 }

@@ -1,4 +1,5 @@
 import { Component, computed, input, output } from "@angular/core";
+import { DatePipe } from "@angular/common";
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
 import { VoteButtonComponent } from "../../insiden/vote-button/vote-button.component";
 import type { VoteValue } from "../../insiden/vote-button/vote-state.util";
@@ -7,8 +8,9 @@ import type { FeedLink } from "../data/home.queries";
 import { feedDomainOf } from "./feed-link.util";
 
 /**
- * One row of the community feed: the source's domain, title and line tags as the link body, with
- * a footer carrying the vote control, the submitter and the relative submit time. Deliberately
+ * One row of the community feed: the source's domain, title and line tags as the link body, the
+ * vote control top-right of it, and a footer carrying only the relative submit time — whose
+ * hover/focus tooltip reveals the exact timestamp and the submitter. Deliberately
  * self-contained rather than composing the insiden `app-link-card`: that card's `link` input is a
  * `PublicSocialMediaLink` (requires `completed`/`vehicles`/`stations`, none of which the feed node
  * has), renders an absolute timestamp instead of a relative one, and owns the whole row with an
@@ -17,54 +19,71 @@ import { feedDomainOf } from "./feed-link.util";
  */
 @Component({
   selector: "app-feed-link-card",
-  imports: [HlmBadge, VoteButtonComponent],
+  imports: [DatePipe, HlmBadge, VoteButtonComponent],
   template: `
     <article
       class="bg-card text-card-foreground border-border flex flex-col gap-2 rounded-xl border p-3 shadow-sm"
     >
-      <a
-        [href]="link().url"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex min-w-0 flex-col gap-1"
-      >
-        <span class="text-muted-foreground min-w-0 truncate text-xs font-medium">
-          {{ domain() }}
-        </span>
-        @if (link().title) {
-          <span class="line-clamp-2 text-sm font-semibold">{{ link().title }}</span>
-        }
-        @if (link().lines.length > 0) {
-          <span class="flex flex-wrap items-center gap-1.5">
-            @for (line of link().lines; track line.id) {
-              <span
-                hlmBadge
-                variant="outline"
-                class="px-1.5 py-0.5 text-xs"
-                [title]="line.displayName"
-              >
-                {{ line.code }}
+      <div class="flex items-start gap-2">
+        <a
+          [href]="link().url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex min-w-0 flex-1 flex-col gap-1"
+        >
+          <span class="text-muted-foreground min-w-0 truncate text-xs font-medium">
+            {{ domain() }}
+          </span>
+          @if (link().title) {
+            <span class="line-clamp-2 text-sm font-semibold">{{ link().title }}</span>
+          }
+          @if (link().lines.length > 0) {
+            <span class="flex flex-wrap items-center gap-1.5">
+              @for (line of link().lines; track line.id) {
+                <span
+                  hlmBadge
+                  variant="outline"
+                  class="px-1.5 py-0.5 text-xs"
+                  [title]="line.displayName"
+                >
+                  {{ line.code }}
+                </span>
+              }
+            </span>
+          }
+        </a>
+
+        <div class="shrink-0">
+          <app-vote-button
+            targetType="link"
+            [incidentId]="link().id"
+            [netScore]="link().voteScore"
+            [upvotes]="link().voteBreakdown?.upvotes ?? 0"
+            [downvotes]="link().voteBreakdown?.downvotes ?? 0"
+            [userVote]="voteValue()"
+            (voteChanged)="voteChanged.emit($event)"
+          />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end">
+        <span
+          class="group/time text-muted-foreground relative inline-flex text-xs"
+          tabindex="0"
+          data-testid="feed-time"
+        >
+          {{ createdLabel() }}
+          <span
+            role="tooltip"
+            class="bg-popover text-popover-foreground border-border pointer-events-none absolute right-0 bottom-full z-10 mb-1 flex items-center gap-1 rounded-md border px-2 py-1 text-xs whitespace-nowrap opacity-0 shadow-md transition-opacity group-hover/time:opacity-100 group-focus-within/time:opacity-100"
+          >
+            <span>{{ link().created | date: "MMM d, y HH:mm" }}</span>
+            @if (submitter(); as submitterName) {
+              <span class="text-muted-foreground" data-testid="feed-submitter">
+                {{ submitterName }}
               </span>
             }
           </span>
-        }
-      </a>
-
-      <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <app-vote-button
-          targetType="link"
-          [incidentId]="link().id"
-          [netScore]="link().voteScore"
-          [userVote]="voteValue()"
-          (voteChanged)="voteChanged.emit($event)"
-        />
-        @if (submitter(); as submitterName) {
-          <span class="text-muted-foreground min-w-0 truncate text-xs" data-testid="feed-submitter">
-            {{ submitterName }}
-          </span>
-        }
-        <span class="text-muted-foreground ml-auto shrink-0 text-xs whitespace-nowrap">
-          {{ createdLabel() }}
         </span>
       </div>
     </article>
