@@ -17,6 +17,15 @@ export type PassengerStatus =
 
 export type SocialMediaLinkStatus = "LIVE" | "PENDING_APPROVAL";
 
+export type VehicleStatus =
+  | "IN_SERVICE"
+  | "NOT_SPOTTED"
+  | "OUT_OF_SERVICE"
+  | "DECOMMISSIONED"
+  | "MARRIED"
+  | "TESTING"
+  | "UNKNOWN";
+
 /* ---------------------------------------------------------------------- *
  * lines — the front page's line pulse list (plain list, no pagination)
  * ---------------------------------------------------------------------- */
@@ -34,6 +43,12 @@ export const FRONT_PAGE_LINES_QUERY = /* GraphQL */ `
       passengerStatus
       passengerStatusMessage
       statusReportCount
+      vehicleStatusCounts {
+        status
+        count
+      }
+      passengerStatusCount
+      statusWindowMinutes
       pulseLinks {
         id
         url
@@ -42,6 +57,10 @@ export const FRONT_PAGE_LINES_QUERY = /* GraphQL */ `
         created
         voteScore
         userVote
+        voteBreakdown {
+          upvotes
+          downvotes
+        }
         lines {
           id
           code
@@ -68,6 +87,7 @@ export interface LinePulseLink {
   created: string;
   voteScore: number;
   userVote: number;
+  voteBreakdown: { upvotes: number; downvotes: number };
   lines: Array<{ id: string; code: string }>;
   user: { shortId: string; nickname: string } | null;
 }
@@ -84,6 +104,9 @@ export interface LinePulse {
   passengerStatus: PassengerStatus | null;
   passengerStatusMessage: string | null;
   statusReportCount: number;
+  vehicleStatusCounts: Array<{ status: VehicleStatus; count: number }>;
+  passengerStatusCount: number;
+  statusWindowMinutes: number;
   pulseLinks: LinePulseLink[];
 }
 
@@ -103,6 +126,10 @@ export const FEED_QUERY = /* GraphQL */ `
           created
           voteScore
           userVote
+          voteBreakdown {
+            upvotes
+            downvotes
+          }
           lines {
             id
             code
@@ -142,6 +169,7 @@ export interface FeedLink {
   created: string;
   voteScore: number;
   userVote: number;
+  voteBreakdown: { upvotes: number; downvotes: number };
   lines: Array<{ id: string; code: string; displayName: string }>;
   user: { shortId: string; nickname: string } | null;
 }
@@ -159,6 +187,102 @@ export interface FeedLinkPageInfo {
 export interface FeedLinkConnection {
   edges: FeedLinkEdge[];
   pageInfo: FeedLinkPageInfo;
+}
+
+/* ---------------------------------------------------------------------- *
+ * lineStatusHistory — hourly report buckets for one line
+ * ---------------------------------------------------------------------- */
+
+export const LINE_STATUS_HISTORY_QUERY = /* GraphQL */ `
+  query LineStatusHistory($lineId: ID!, $dayStartHour: Int) {
+    lineStatusHistory(lineId: $lineId, dayStartHour: $dayStartHour) {
+      hourStart
+      hourEnd
+      count
+      dominantStatus
+    }
+  }
+`;
+
+export interface LineStatusHistoryQueryVars {
+  lineId: string;
+  dayStartHour?: number | null;
+}
+
+export interface LineStatusHistoryQueryData {
+  lineStatusHistory: LineStatusHourBucket[];
+}
+
+/** One hourly bucket of community reports. `dominantStatus` is null for an empty hour. */
+export interface LineStatusHourBucket {
+  hourStart: string;
+  hourEnd: string;
+  count: number;
+  dominantStatus: PassengerStatus | null;
+}
+
+/* ---------------------------------------------------------------------- *
+ * lineStatusReports — the per-line report list (keyset paginated)
+ * ---------------------------------------------------------------------- */
+
+export const LINE_STATUS_REPORTS_QUERY = /* GraphQL */ `
+  query LineStatusReports($lineId: ID!, $first: Int!, $after: String) {
+    lineStatusReports(lineId: $lineId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          status
+          delayMinutes
+          notes
+          created
+          user {
+            shortId
+            nickname
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export interface LineStatusReportsQueryVars {
+  lineId: string;
+  first: number;
+  after?: string | null;
+}
+
+export interface LineStatusReportsQueryData {
+  lineStatusReports: LineStatusReportConnection;
+}
+
+/** One community status report — the selected LineStatusReportScalar subset. */
+export interface LineStatusReportItem {
+  id: string;
+  status: PassengerStatus;
+  delayMinutes: number | null;
+  notes: string;
+  created: string;
+  user: { shortId: string; nickname: string } | null;
+}
+
+export interface LineStatusReportEdge {
+  node: LineStatusReportItem;
+  cursor: string;
+}
+
+export interface LineStatusReportPageInfo {
+  hasNextPage: boolean;
+  endCursor: string | null;
+}
+
+export interface LineStatusReportConnection {
+  edges: LineStatusReportEdge[];
+  pageInfo: LineStatusReportPageInfo;
 }
 
 /* ---------------------------------------------------------------------- *
