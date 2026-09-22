@@ -3,14 +3,17 @@ import { pathWithOptionalParamMatcher } from "./core/routing/optional-param-matc
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
 import { HomeStore } from "./features/home/data/home.store";
 import { LineStatusSheetService } from "./features/home/data/line-status-sheet.service";
+import { SpottingLinesStore } from "./features/spotting/data/spotting-lines.store";
 
 export const routes: Routes = [
   {
     // Route-scoped providers, not root singletons: the polling beat and the status sheet's
     // state must be created with the page and torn down with it (HomePage calls stop()).
+    // SpottingLinesStore is route-scoped by the spotting feature, but the report form it backs
+    // is hosted on this page too, so the store is provided here as well.
     path: "",
     loadComponent: () => import("./features/home/home.page").then((m) => m.HomePage),
-    providers: [HomeStore, LineStatusSheetService],
+    providers: [HomeStore, LineStatusSheetService, SpottingLinesStore],
   },
   {
     path: "spotting",

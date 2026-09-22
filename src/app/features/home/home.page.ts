@@ -7,7 +7,11 @@ import {
   RetryBannerComponent,
   type RetryableResource,
 } from "../../ui/retry-banner/retry-banner.component";
+import { HlmButton } from "../../ui/button/button";
+import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
+import { ReportSheetService } from "../spotting/data/report-sheet.service";
+import { ReportFormComponent } from "../spotting/report-form/report-form.component";
 import { LinePulse } from "./data/home.queries";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
@@ -36,8 +40,14 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
     FeedLinkCardComponent,
     LinePulseListComponent,
     LineStatusSheetComponent,
+    ReportFormComponent,
     InfiniteScrollDirective,
     RetryBannerComponent,
+    HlmButton,
+    HlmSheet,
+    HlmSheetHeader,
+    HlmSheetBody,
+    HlmSheetFooter,
     HlmSkeleton,
   ],
   template: `
@@ -80,11 +90,54 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
     </main>
 
     <app-line-status-sheet [line]="sheetLine()" (submitted)="store.reloadAll()" />
+
+    <hlm-sheet
+      data-testid="spotting-entry-sheet"
+      [open]="reportSheet.isOpen()"
+      (openChange)="reportSheet.setOpen($event)"
+      side="right"
+    >
+      <div hlmSheetHeader>
+        <h2 class="text-base font-semibold">Add a Spotting Entry</h2>
+      </div>
+      <div hlmSheetBody>
+        <app-report-form #reportFormRef (submitted)="onSpottingSubmitted()" />
+      </div>
+      <div hlmSheetFooter>
+        <button
+          hlmBtn
+          variant="ghost"
+          size="sm"
+          [disabled]="reportFormRef.isSubmitting()"
+          (click)="reportFormRef.clear()"
+        >
+          Clear form
+        </button>
+        <div class="flex items-center gap-2">
+          <button hlmBtn variant="outline" (click)="reportSheet.setOpen(false)">Cancel</button>
+          <button
+            hlmBtn
+            data-testid="submit-spotting-entry"
+            [disabled]="reportFormRef.isSubmitting() || reportFormRef.isPhotosCompressing()"
+            (click)="reportFormRef.submit()"
+          >
+            {{
+              reportFormRef.isSubmitting()
+                ? "Submitting…"
+                : reportFormRef.isPhotosCompressing()
+                  ? "Processing photos…"
+                  : "Submit"
+            }}
+          </button>
+        </div>
+      </div>
+    </hlm-sheet>
   `,
 })
 export class HomePage implements OnDestroy {
   protected readonly store = inject(HomeStore);
   private readonly lineStatusSheet = inject(LineStatusSheetService);
+  protected readonly reportSheet = inject(ReportSheetService);
 
   /** The line the sheet is reporting on — the store owns the list, the sheet service the id. */
   protected readonly sheetLine = computed<LinePulse | null>(
@@ -103,6 +156,12 @@ export class HomePage implements OnDestroy {
 
   constructor() {
     this.store.start();
+  }
+
+  /** The sheet closes on submit and the page data reloads so the new entry shows up. */
+  protected onSpottingSubmitted(): void {
+    this.reportSheet.setOpen(false);
+    this.store.reloadAll();
   }
 
   ngOnDestroy(): void {

@@ -7,7 +7,9 @@
   of approved links (with voting), and a per-line **pulse** list showing each line's live
   operational + passenger status alongside the social entries behind it. Tapping a line's pulse card
   opens a **line-status bottom sheet** for a link-less live report (status, optional delay/notes,
-  affected stations). It replaces the old default-route redirect to `/spotting`.
+  affected stations). It also hosts the spotting feature's **"Add a Spotting Entry" sheet**, opened
+  via `ReportSheetService.openFor(lineId)` from a line card and pre-scoped to that line. It replaces
+  the old default-route redirect to `/spotting`.
 - **Domain/Layer:** Angular Presentation (standalone, lazy-loaded routed feature, route-scoped
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
@@ -19,6 +21,9 @@
   - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status) and
     `line-pulse-list.component.ts` (skeletons / empty state / the list).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
+  - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
+    `hlm-sheet` (reused as-is — no form built here); the line seed travels through
+    `ReportSheetService.openFor(lineId)`.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `line-status-sheet.service.ts` (sheet controller), and the pure
     `passenger-status.util.ts` (no components).
@@ -26,9 +31,16 @@
 ## 🔌 Interface & Data Flow
 
 - **Route:** `""` in `src/app/app.routes.ts` — `loadComponent: HomePage` with
-  `providers: [HomeStore, LineStatusSheetService]`. Route-scoped on purpose: the polling beat and
-  the sheet state are created with the page and torn down with it (`HomePage.ngOnDestroy` calls
-  `store.stop()`).
+  `providers: [HomeStore, LineStatusSheetService, SpottingLinesStore]`. Route-scoped on purpose: the
+  polling beat and the sheet state are created with the page and torn down with it
+  (`HomePage.ngOnDestroy` calls `store.stop()`). `SpottingLinesStore` is the spotting feature's
+  route-scoped line list, provided here too because the spotting report form is hosted on this page.
+- **Hosted spotting sheet:** `<hlm-sheet data-testid="spotting-entry-sheet">` wraps
+  `<app-report-form #reportFormRef (submitted)="onSpottingSubmitted()" />` plus a
+  Clear/Cancel/Submit footer (submit testid `submit-spotting-entry`); `onSpottingSubmitted()` closes
+  the sheet and calls `store.reloadAll()`. The seed comes from
+  `ReportSheetService.openFor(lineId)` (root-provided), which the report form consumes on its
+  open edge.
 - **Component `input()`/`input.required()` signals:**
   - `LinePulseCardComponent.line = input.required<LinePulse>()`.
   - `LinePulseListComponent.lines = input.required<LinePulse[]>()`, `isLoading = input(false)`.

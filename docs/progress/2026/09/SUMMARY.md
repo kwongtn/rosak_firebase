@@ -18,6 +18,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 17 | `/about` admin editor (structured draft-in-signals → `setDoc` with sanitization), search/filter across personnel/projects/tech stack, chronological project sort by `startDate`                                                                                                  |
 | Sep 22 | **home** community front page ships as the landing route: global link feed (login-gated submit, duplicate detection, votes) + per-line pulse cards + mobile line-status bottom sheet                                                                                             |
 | Sep 22 | Root `""` route swaps from the `/spotting` redirect to lazy `HomePage` with route-scoped `HomeStore`/`LineStatusSheetService`                                                                                                                                                    |
+| Sep 22 | Home hosts the spotting entry sheet: `ReportSheetService.openFor(lineId)` + one-shot line seed in the report form (wave 1 of the UI revision)                                                                                                                                    |
 
 ### Home — community front page (2026-09-22)
 

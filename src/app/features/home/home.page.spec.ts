@@ -4,17 +4,22 @@ import {
   signal,
   type WritableSignal,
 } from "@angular/core";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../core/auth/auth.service";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
+import { ImageUploadService } from "../../core/upload/image-upload.service";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { InfiniteScrollDirective } from "../../ui/infinite-scroll/infinite-scroll.directive";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { ToastService } from "../../ui/toast/toast.service";
+import { ReportSheetService } from "../spotting/data/report-sheet.service";
+import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
+import { ReportFormComponent } from "../spotting/report-form/report-form.component";
 import type { FeedLink, FeedLinkPageInfo, LinePulse } from "./data/home.queries";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
@@ -77,6 +82,7 @@ describe("HomePage", () => {
     setOpen: ReturnType<typeof vi.fn>;
   };
   let fixture: ComponentFixture<HomePage>;
+  let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     store = {
@@ -103,8 +109,13 @@ describe("HomePage", () => {
       imports: [HomePage],
       providers: [
         provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
         { provide: HomeStore, useValue: store },
         { provide: LineStatusSheetService, useValue: sheet },
+        // Hosted spotting form injects this route-scoped store; its lines+vehicles POST is
+        // flushed below.
+        { provide: SpottingLinesStore, useValue: { lines: signal([]) } },
+        { provide: ImageUploadService, useValue: { addToQueue: vi.fn() } },
         {
           provide: AuthService,
           useValue: {
@@ -129,8 +140,23 @@ describe("HomePage", () => {
       })
       .compileComponents();
 
+    httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(HomePage);
     fixture.detectChanges();
+
+    // The sheet's projected report form is created with the page (Angular builds projected
+    // content eagerly; HlmSheet only gates the panel's own DOM), so its lines+vehicles read is
+    // already in flight here even though the sheet is closed. A pending httpResource keeps the
+    // app unstable, so tick + flush it before awaiting stability.
+    TestBed.tick();
+    httpMock
+      .match((r) => r.method === "POST" && r.body.query.includes("LinesAndVehicles"))
+      .forEach((request) => request.flush({ data: { lines: [] } }));
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
   });
 
   it("renders the submit box, then the feed cards, then the line list", () => {
@@ -227,5 +253,25 @@ describe("HomePage", () => {
 
     expect(list.componentInstance.lines().map((line: LinePulse) => line.id)).toEqual(["a"]);
     expect(list.componentInstance.isLoading()).toBe(false);
+  });
+
+  it("hosts the spotting entry sheet and closes it + reloads the store on submit", async () => {
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="spotting-entry-sheet"]')).not.toBeNull();
+
+    const reportSheet = TestBed.inject(ReportSheetService);
+    reportSheet.openFor("a");
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const form = fixture.debugElement.query(By.directive(ReportFormComponent));
+    expect(form).not.toBeNull();
+    expect(root.querySelector('[data-testid="submit-spotting-entry"]')).not.toBeNull();
+
+    form.componentInstance.submitted.emit();
+    fixture.detectChanges();
+
+    expect(reportSheet.isOpen()).toBe(false);
+    expect(store.reloadAll).toHaveBeenCalledTimes(1);
   });
 });
