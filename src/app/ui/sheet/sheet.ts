@@ -129,9 +129,19 @@ export class HlmSheetHeader {}
 @Component({
   selector: "[hlmSheetBody]",
   template: "<ng-content />",
-  host: { class: "flex-1 overflow-y-auto overscroll-contain p-5" },
+  host: {
+    class: "flex-1 overscroll-contain p-5",
+    "[class.overflow-y-auto]": "scrollable()",
+    "[class.overflow-hidden]": "!scrollable()",
+    "[class.flex]": "!scrollable()",
+    "[class.flex-col]": "!scrollable()",
+  },
 })
-export class HlmSheetBody {}
+export class HlmSheetBody {
+  /** Default true: the body scrolls. False turns the body into a non-scrolling flex column for
+   * fill-height sheets whose own child owns the scroll (the line-status station list). */
+  readonly scrollable = input(true);
+}
 
 @Component({
   selector: "[hlmSheetFooter]",

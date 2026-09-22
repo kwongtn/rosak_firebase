@@ -6,10 +6,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
-import { HlmSheet } from "../../../ui/sheet/sheet";
+import { HlmSheet, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
+import { AssetMultiSelectComponent } from "../../insiden/asset-multi-select/asset-multi-select.component";
 import { LinePulse, SUBMIT_LINE_STATUS_REPORT_MUTATION } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { passengerMetric } from "../data/line-status-metrics.util";
 import { LineStatusSheetComponent } from "./line-status-sheet.component";
 
 function stubMatchMedia(matches: boolean): void {
@@ -46,6 +48,9 @@ function makeLine(): LinePulse {
     passengerStatus: "NORMAL",
     passengerStatusMessage: null,
     statusReportCount: 3,
+    vehicleStatusCounts: [{ status: "IN_SERVICE", count: 12 }],
+    passengerStatusCount: 3,
+    statusWindowMinutes: 30,
     pulseLinks: [],
   };
 }
@@ -168,6 +173,56 @@ describe("LineStatusSheetComponent", () => {
     createWithViewport(true);
 
     expect(sheetSide()).toBe("right");
+  });
+
+  it("shows the universal-metric help text only once a status is selected", async () => {
+    await openSheetWithStations();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('[data-testid="status-help"]')).toBeNull();
+
+    root
+      .querySelector<HTMLButtonElement>('[data-testid="status-option-EXTREMELY_CROWDED"]')
+      ?.click();
+    fixture.detectChanges();
+
+    const help = root.querySelector<HTMLElement>('[data-testid="status-help"]');
+    expect(help).not.toBeNull();
+    expect(help?.textContent?.trim()).toBe(passengerMetric("EXTREMELY_CROWDED"));
+    expect(help?.getAttribute("aria-live")).toBe("polite");
+
+    root.querySelector<HTMLButtonElement>('[data-testid="status-option-NORMAL"]')?.click();
+    fixture.detectChanges();
+    expect(
+      root.querySelector<HTMLElement>('[data-testid="status-help"]')?.textContent?.trim(),
+    ).toBe(passengerMetric("NORMAL"));
+  });
+
+  it("makes the station list fill the sheet body instead of scrolling it", async () => {
+    await openSheetWithStations();
+    const root = fixture.nativeElement as HTMLElement;
+
+    const multiSelect = fixture.debugElement.query(By.directive(AssetMultiSelectComponent))
+      .componentInstance as AssetMultiSelectComponent;
+    expect(multiSelect.fillHeight()).toBe(true);
+
+    const body = fixture.debugElement.query(By.directive(HlmSheetBody))
+      .componentInstance as HlmSheetBody;
+    expect(body.scrollable()).toBe(false);
+
+    const form = root.querySelector<HTMLFormElement>("form");
+    expect(form?.classList.contains("flex-1")).toBe(true);
+    expect(form?.classList.contains("min-h-0")).toBe(true);
+
+    const host = root.querySelector<HTMLElement>("app-asset-multi-select");
+    expect(host?.classList.contains("flex-1")).toBe(true);
+    expect(host?.classList.contains("min-h-0")).toBe(true);
+    expect(host?.classList.contains("flex-col")).toBe(true);
+
+    const list = root.querySelector<HTMLElement>('[data-testid="asset-option-list"]');
+    expect(list?.classList.contains("flex-1")).toBe(true);
+    expect(list?.classList.contains("max-h-none")).toBe(true);
+    expect(list?.classList.contains("max-h-44")).toBe(false);
   });
 
   function createWithViewport(matches: boolean): void {

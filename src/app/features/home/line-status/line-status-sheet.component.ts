@@ -37,6 +37,7 @@ import {
   SubmitLineStatusReportVars,
 } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { passengerMetric } from "../data/line-status-metrics.util";
 import { PASSENGER_LABEL } from "../data/passenger-status.util";
 
 /** The 7 PassengerStatus values as large, tappable chips — labels reuse the shared util. */
@@ -86,7 +87,7 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
         </p>
       </div>
 
-      <div hlmSheetBody>
+      <div hlmSheetBody [scrollable]="false">
         @if (!auth.isLoggedIn()) {
           <div class="bg-muted flex flex-col gap-3 rounded-lg p-3 text-sm">
             You'll need to log in before submitting a line status report.
@@ -101,7 +102,10 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
             </button>
           </div>
         } @else {
-          <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); submit()">
+          <form
+            class="flex min-h-0 flex-1 flex-col gap-4"
+            (submit)="$event.preventDefault(); submit()"
+          >
             <div class="flex flex-col gap-2">
               <span class="text-sm">Line status</span>
               <div
@@ -128,6 +132,15 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
                   </button>
                 }
               </div>
+              @if (statusHelp(); as help) {
+                <p
+                  class="text-muted-foreground text-xs"
+                  data-testid="status-help"
+                  aria-live="polite"
+                >
+                  {{ help }}
+                </p>
+              }
             </div>
 
             <label class="flex flex-col gap-1.5 text-sm">
@@ -162,8 +175,10 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
               />
             } @else {
               <app-asset-multi-select
+                class="flex-1 min-h-0"
                 heading="Stations affected"
                 [optional]="true"
+                [fillHeight]="true"
                 [options]="stationOptions()"
                 [(selectedIds)]="selectedStationIds"
                 [pinnedSelected]="true"
@@ -240,6 +255,12 @@ export class LineStatusSheetComponent {
       label: station.displayName,
     })),
   );
+
+  /** Universal-metric copy for the selected status; null until a chip is picked. */
+  protected readonly statusHelp = computed(() => {
+    const status = this.status();
+    return status ? passengerMetric(status) : null;
+  });
 
   private _wasOpen = false;
 
