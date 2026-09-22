@@ -11,7 +11,6 @@ import {
   lineStatusInfo,
   passengerInfo,
   passengerScale,
-  passengerStatusRows,
   vehicleStatusRows,
 } from "./status-info.util";
 
@@ -95,6 +94,32 @@ describe("passengerScale", () => {
   it("marks nothing when the status is absent", () => {
     expect(passengerScale(null).some((entry) => entry.active)).toBe(false);
   });
+
+  it("folds the reported counts into the matching levels, summing duplicates", () => {
+    const entries = passengerScale("BUSY", [
+      { status: "DISRUPTED", count: 0 },
+      { status: "BUSY", count: 1 },
+      { status: "NORMAL", count: 3 },
+      { status: "BUSY", count: 2 },
+    ]);
+
+    expect(entries.map((entry) => entry.key)).toEqual(PASSENGER_STATUSES);
+    expect(entries.find((entry) => entry.key === "NORMAL")?.count).toBe(3);
+    expect(entries.find((entry) => entry.key === "BUSY")?.count).toBe(3);
+    expect(entries.find((entry) => entry.key === "CROWDED")?.count).toBeUndefined();
+    expect(entries.find((entry) => entry.key === "DISRUPTED")?.count).toBeUndefined();
+  });
+
+  it("leaves every count undefined when none were reported", () => {
+    for (const entries of [
+      passengerScale("BUSY"),
+      passengerScale("BUSY", null),
+      passengerScale("BUSY", undefined),
+      passengerScale("BUSY", []),
+    ]) {
+      expect(entries.every((entry) => entry.count === undefined)).toBe(true);
+    }
+  });
 });
 
 describe("lineStatusInfo", () => {
@@ -118,39 +143,6 @@ describe("lineStatusInfo", () => {
     expect(lineStatusInfo("PARTIAL_ACTIVE").title).toBe("Partially Active");
     expect(lineStatusInfo("PARTIAL_DISRUPTION").title).toBe("Partial Disruption");
     expect(lineStatusInfo("TOTAL_DISRUPTION").title).toBe("Total Disruption");
-  });
-});
-
-describe("passengerStatusRows", () => {
-  it("drops zero counts and orders the survivors in severity order, NORMAL → DISRUPTED", () => {
-    const rows = passengerStatusRows([
-      { status: "DISRUPTED", count: 0 },
-      { status: "BUSY", count: 2 },
-      { status: "NORMAL", count: 1 },
-      { status: "DELAYED", count: 0 },
-      { status: "CROWDED", count: 3 },
-    ]);
-
-    expect(rows).toEqual([
-      { key: "NORMAL", label: "Normal", variant: "success", count: 1 },
-      { key: "BUSY", label: "Busy", variant: "info", count: 2 },
-      { key: "CROWDED", label: "Crowded", variant: "warning", count: 3 },
-    ]);
-  });
-
-  it("returns an empty list when no counts were reported", () => {
-    expect(passengerStatusRows([])).toEqual([]);
-    expect(passengerStatusRows(null)).toEqual([]);
-    expect(passengerStatusRows(undefined)).toEqual([]);
-  });
-
-  it("sums duplicate entries for one status into a single row", () => {
-    const rows = passengerStatusRows([
-      { status: "BUSY", count: 1 },
-      { status: "BUSY", count: 2 },
-    ]);
-
-    expect(rows).toEqual([{ key: "BUSY", label: "Busy", variant: "info", count: 3 }]);
   });
 });
 

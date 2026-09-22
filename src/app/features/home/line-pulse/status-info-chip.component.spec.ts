@@ -2,12 +2,7 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  PASSENGER_INFO,
-  passengerScale,
-  type PassengerStatusCountRow,
-  type StatusInfo,
-} from "../../home/data/status-info.util";
+import { PASSENGER_INFO, passengerScale, type StatusInfo } from "../../home/data/status-info.util";
 import { StatusInfoChipComponent, type StatusBreakdownRow } from "./status-info-chip.component";
 
 /**
@@ -37,7 +32,6 @@ interface RenderOptions {
   message?: string | null;
   windowMinutes?: number | null;
   breakdown?: StatusBreakdownRow[];
-  statusCounts?: PassengerStatusCountRow[];
 }
 
 describe("StatusInfoChipComponent", () => {
@@ -68,9 +62,6 @@ describe("StatusInfoChipComponent", () => {
     }
     if (options.breakdown) {
       fixture.componentRef.setInput("breakdown", options.breakdown);
-    }
-    if (options.statusCounts) {
-      fixture.componentRef.setInput("statusCounts", options.statusCounts);
     }
     // afterNextRender flips `_hoverCapable` only after one full cycle — detect, settle, detect.
     fixture.detectChanges();
@@ -232,34 +223,42 @@ describe("StatusInfoChipComponent", () => {
     expect(rows[2]).toBe("Total 15");
   });
 
-  it("renders per-status count pills as 'Label (count)'", async () => {
+  it("folds the per-status counts into the legend rows, with no pill cluster left", async () => {
     stubMatchMedia(true);
     const fixture = await render({
       info: PASSENGER_INFO.CROWDED,
-      statusCounts: [
-        { key: "NORMAL", label: "Normal", variant: "success", count: 1 },
-        { key: "BUSY", label: "Busy", variant: "info", count: 2 },
-      ],
+      scale: passengerScale("CROWDED", [
+        { status: "NORMAL", count: 3 },
+        { status: "BUSY", count: 2 },
+      ]),
     });
 
     hover(fixture);
 
-    const pills = [...host(fixture).querySelectorAll('[data-testid="status-count-pill"]')].map(
-      (pill) => (pill.textContent ?? "").replace(/\s+/g, " ").trim(),
-    );
-    expect(pills).toEqual(["Normal (1)", "Busy (2)"]);
-    expect(popover(fixture)?.querySelectorAll('[data-testid="status-scale-entry"]')).toHaveLength(
-      0,
-    );
+    const rows = [...host(fixture).querySelectorAll('[data-testid="status-scale-entry"]')];
+    expect(rows).toHaveLength(7);
+
+    const countOf = (label: string): string =>
+      rows
+        .find((row) => row.textContent?.includes(label))
+        ?.querySelector('[data-testid="status-scale-count"]')
+        ?.textContent?.trim() ?? "";
+
+    expect(countOf("Normal")).toBe("(3)");
+    expect(countOf("Busy")).toBe("(2)");
+    expect(countOf("Crowded")).toBe("");
+    expect(host(fixture).querySelectorAll('[data-testid="status-count-pill"]')).toHaveLength(0);
   });
 
-  it("renders no count pills when none are provided", async () => {
+  it("renders no count spans when the legend carries no counts", async () => {
     stubMatchMedia(true);
-    const fixture = await render();
+    const fixture = await render({ scale: passengerScale("CROWDED") });
 
     hover(fixture);
 
     expect(popover(fixture)).not.toBeNull();
+    expect(host(fixture).querySelectorAll('[data-testid="status-scale-entry"]')).toHaveLength(7);
+    expect(host(fixture).querySelectorAll('[data-testid="status-scale-count"]')).toHaveLength(0);
     expect(host(fixture).querySelectorAll('[data-testid="status-count-pill"]')).toHaveLength(0);
   });
 

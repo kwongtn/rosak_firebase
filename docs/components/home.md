@@ -150,9 +150,11 @@
 - **`LinePulseCardComponent`** — `_links` caps related `pulseLinks` at 5 (`MAX_PULSE_LINKS`); the
   passenger badge/label go through the pure `passengerLabel`/`passengerVariant` helpers. There is no
   standalone status-count badge (`passenger-status-count` was removed at the user's correction):
-  `_passengerStatusCounts` (from `passengerStatusRows`) feeds the passenger chip's `statusCounts`,
-  rendered as one pill per reported status inside the hover popover. The title row toggles the lazy
-  expanded panel (`line-status-chart` + `line-status-reports`, both gated on `expanded`).
+  the passenger chip's severity legend carries the per-status report counts inline, via
+  `passengerScale(line().passengerStatus, line().passengerStatusCounts)` — a row shows
+  `[data-testid="status-scale-count"]` (`(n)`) only when the backend reported a non-zero count. The
+  title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated
+  on `expanded`).
 - **`LineStatusChartComponent`** — the expanded card's hourly strip: `bars`/`hasData`/`maxCount`
   computed over the lazy `LINE_STATUS_HISTORY_QUERY` (inert until `expanded`), one bar per
   service-day hour coloured by the hour's dominant status. All 24 hours are labelled on a
@@ -170,7 +172,7 @@
   leading `www.` stripped plus the muted path, `feedDomainOf` delegating to it), `feed-url.util.ts`
   (`normalizeFeedUrl`), `passenger-status.util.ts` (`PASSENGER_LABEL`/`PASSENGER_VARIANT` lookup
   tables, `passengerLabel` null → `"No data"`, `passengerVariant` null → `"neutral"`),
-  `status-info.util.ts` (the `passengerStatusRows`/`vehicleStatusRows` and info/legend/pill row
+  `status-info.util.ts` (the `passengerScale`/`vehicleStatusRows` and info/legend/breakdown row
   builders) and `line-status-metrics.util.ts` (`PASSENGER_METRIC`/`passengerMetric`).
 
 ## 🧩 Extension Points & Hooks

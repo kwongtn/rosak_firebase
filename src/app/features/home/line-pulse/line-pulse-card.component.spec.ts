@@ -177,7 +177,7 @@ describe("LinePulseCardComponent", () => {
     expect(textOf(root, "line-vehicle-count")).toBe("12 of 16 vehicles in service");
   });
 
-  it("lists the per-status report counts as pills inside the passenger popover", () => {
+  it("folds the per-status report counts into the passenger legend rows", () => {
     const root = render(
       makeLine({
         passengerStatus: "CROWDED",
@@ -191,18 +191,28 @@ describe("LinePulseCardComponent", () => {
 
     openPopover(root, "passenger-status");
 
-    const pills = [...root.querySelectorAll('[data-testid="status-count-pill"]')].map((el) =>
-      (el.textContent ?? "").replace(/\s+/g, " ").trim(),
-    );
-    expect(pills).toEqual(["Normal (1)", "Busy (2)"]);
+    const rows = [...root.querySelectorAll('[data-testid="status-scale-entry"]')];
+    expect(rows).toHaveLength(7);
+
+    const countOf = (label: string): string =>
+      rows
+        .find((row) => row.textContent?.includes(label))
+        ?.querySelector('[data-testid="status-scale-count"]')
+        ?.textContent?.trim() ?? "";
+
+    expect(countOf("Normal")).toBe("(1)");
+    expect(countOf("Busy")).toBe("(2)");
+    expect(countOf("Crowded")).toBe("");
+    expect(root.querySelectorAll('[data-testid="status-count-pill"]')).toHaveLength(0);
   });
 
-  it("shows no status pills when the line reported no passenger counts", () => {
+  it("shows no legend counts when the line reported no passenger counts", () => {
     const root = render(makeLine({ passengerStatus: null, passengerStatusCounts: [] }));
 
     openPopover(root, "passenger-status");
 
-    expect(root.querySelectorAll('[data-testid="status-count-pill"]')).toHaveLength(0);
+    expect(root.querySelectorAll('[data-testid="status-scale-entry"]')).toHaveLength(7);
+    expect(root.querySelectorAll('[data-testid="status-scale-count"]')).toHaveLength(0);
   });
 
   it("no longer renders the rolling-window count badge next to the crowd status", () => {
@@ -293,6 +303,7 @@ describe("LinePulseCardComponent", () => {
                 status: "CROWDED",
                 delayMinutes: 12,
                 notes: "Packed at KLCC.",
+                stations: [],
                 created: new Date().toISOString(),
                 user: null,
               },

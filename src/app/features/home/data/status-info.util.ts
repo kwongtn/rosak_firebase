@@ -15,20 +15,14 @@ export interface StatusScaleEntry {
   label: string;
   variant: BadgeVariants["variant"];
   active: boolean;
+  /** Reports behind this level in the current window; absent when the level has no count. */
+  count?: number;
 }
 
 /** One row of the vehicle-status breakdown popover: a readable label plus its current count. */
 export interface VehicleStatusCountRow {
   key: VehicleStatus;
   label: string;
-  count: number;
-}
-
-/** One pill of the passenger-status count breakdown: readable label, colour and current count. */
-export interface PassengerStatusCountRow {
-  key: PassengerStatus;
-  label: string;
-  variant: BadgeVariants["variant"];
   count: number;
 }
 
@@ -107,33 +101,29 @@ export function passengerInfo(status: PassengerStatus | null | undefined): Statu
   return status ? PASSENGER_INFO[status] : NO_PASSENGER_DATA;
 }
 
-/** The full severity legend, with exactly the active level flagged. */
-export function passengerScale(status: PassengerStatus | null | undefined): StatusScaleEntry[] {
-  return PASSENGER_SCALE.map((key) => ({
-    key,
-    label: PASSENGER_LABEL[key],
-    variant: PASSENGER_VARIANT[key],
-    active: key === status,
-  }));
-}
-
 /**
- * The reported passenger counts as readable pill rows: statuses with a non-zero count only, in
- * enum order, with duplicate entries for one status summed. Missing input yields no rows at all.
+ * The full severity legend, with exactly the active level flagged. When reported counts are
+ * given, each level carries its summed count — duplicate entries for one status are added
+ * together, and a level with no count (or a zero one) stays undefined.
  */
-export function passengerStatusRows(
-  counts: readonly { status: PassengerStatus; count: number }[] | null | undefined,
-): PassengerStatusCountRow[] {
+export function passengerScale(
+  status: PassengerStatus | null | undefined,
+  counts?: readonly { status: PassengerStatus; count: number }[] | null,
+): StatusScaleEntry[] {
   const byStatus = new Map<PassengerStatus, number>();
   for (const entry of counts ?? []) {
     byStatus.set(entry.status, (byStatus.get(entry.status) ?? 0) + entry.count);
   }
-  return PASSENGER_SCALE.filter((status) => (byStatus.get(status) ?? 0) > 0).map((status) => ({
-    key: status,
-    label: PASSENGER_LABEL[status],
-    variant: PASSENGER_VARIANT[status],
-    count: byStatus.get(status) ?? 0,
-  }));
+  return PASSENGER_SCALE.map((key) => {
+    const count = byStatus.get(key) ?? 0;
+    return {
+      key,
+      label: PASSENGER_LABEL[key],
+      variant: PASSENGER_VARIANT[key],
+      active: key === status,
+      count: count > 0 ? count : undefined,
+    };
+  });
 }
 
 /** Plain-language explanation per line status. Titles mirror LineStatusBadge's labels. */
