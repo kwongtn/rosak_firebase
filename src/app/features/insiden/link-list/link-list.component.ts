@@ -115,9 +115,15 @@ export class LinkListComponent {
   private readonly auth = inject(AuthService);
   private readonly linkSheet = inject(LinkSheetService);
 
-  /** "Approved" on links = `completed === true` (the backend has no status enum for links). */
-  protected readonly approved = computed(() => this.links().filter((link) => link.completed));
-  protected readonly pending = computed(() => this.links().filter((link) => !link.completed));
+  /** "Approved" = anything not awaiting admin approval: the approval axis is `status`
+   * (`PENDING_APPROVAL` vs everything else). `completed` is the admin console's separate
+   * "mark handled" flag and must not drive this split. */
+  protected readonly approved = computed(() =>
+    this.links().filter((link) => link.status !== "PENDING_APPROVAL"),
+  );
+  protected readonly pending = computed(() =>
+    this.links().filter((link) => link.status === "PENDING_APPROVAL"),
+  );
 
   /** Approved links bucketed by UTC day (created-DESC preserved within each day). */
   protected readonly approvedGroups = computed(() =>

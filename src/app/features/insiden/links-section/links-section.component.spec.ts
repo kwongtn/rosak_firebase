@@ -21,14 +21,15 @@ function asTestable(fixture: ComponentFixture<LinksSectionComponent>): TestableL
 
 function makeLink(
   id: string,
-  completed: boolean,
+  status: string | null,
 ): PublicSocialMediaLinksQueryData["publicSocialMediaLinks"]["edges"][number]["node"] {
   return {
     id,
     url: `https://example.com/${id}`,
     title: `Link ${id}`,
     created: "2026-08-01T08:00:00Z",
-    completed,
+    status,
+    completed: false,
     voteScore: 0,
     userVote: 0,
     voteBreakdown: { upvotes: 0, downvotes: 0 },
@@ -81,7 +82,11 @@ describe("LinksSectionComponent pagination", () => {
     const req = httpMock.expectOne((r) => r.method === "POST");
     expect(req.request.body.variables).toEqual({ first: 20 });
     req.flush({
-      data: connectionOf([makeLink("a", true), makeLink("b", false)], true, "cursor-a"),
+      data: connectionOf(
+        [makeLink("a", "LIVE"), makeLink("b", "PENDING_APPROVAL")],
+        true,
+        "cursor-a",
+      ),
     });
     await fixture.whenStable();
 
@@ -90,11 +95,39 @@ describe("LinksSectionComponent pagination", () => {
     expect(fixture.nativeElement.textContent).toContain("Pending (1)");
   });
 
+  it("groups by the approval status: LIVE approved, PENDING_APPROVAL collapsed away", async () => {
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: connectionOf([makeLink("a", "LIVE"), makeLink("b", "PENDING_APPROVAL")], false, null),
+      });
+    await fixture.whenStable();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const toggle = root.querySelector("button[aria-expanded]") as HTMLButtonElement;
+
+    expect(toggle.textContent).toContain("Pending (1)");
+    // The LIVE row is approved, so it renders; the PENDING_APPROVAL row stays collapsed.
+    expect(root.textContent).toContain("Link a");
+    expect(root.textContent).not.toContain("Link b");
+
+    toggle.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const pendingSection = toggle.parentElement as HTMLElement;
+    const pendingCards = pendingSection.querySelectorAll("app-link-card");
+    expect(pendingCards.length).toBe(1);
+    expect(pendingCards[0].textContent).toContain("Link b");
+    // The LIVE row lives in the day-grouped approved list, outside the pending collapsible.
+    expect(pendingSection.textContent).not.toContain("Link a");
+  });
+
   it("appends the next page via the after cursor without refetching the first", async () => {
     httpMock
       .expectOne((r) => r.method === "POST")
       .flush({
-        data: connectionOf([makeLink("a", true)], true, "cursor-a"),
+        data: connectionOf([makeLink("a", "LIVE")], true, "cursor-a"),
       });
     await fixture.whenStable();
 
@@ -102,7 +135,7 @@ describe("LinksSectionComponent pagination", () => {
     const next = httpMock.expectOne((r) => r.method === "POST");
     expect(next.request.body.variables).toEqual({ first: 20, after: "cursor-a" });
     next.flush({
-      data: connectionOf([makeLink("b", true)], false, "cursor-b"),
+      data: connectionOf([makeLink("b", "LIVE")], false, "cursor-b"),
     });
     await loadMore;
     fixture.detectChanges();
@@ -115,7 +148,7 @@ describe("LinksSectionComponent pagination", () => {
     httpMock
       .expectOne((r) => r.method === "POST")
       .flush({
-        data: connectionOf([makeLink("a", true)], true, "cursor-a"),
+        data: connectionOf([makeLink("a", "LIVE")], true, "cursor-a"),
       });
     await fixture.whenStable();
 
@@ -132,7 +165,7 @@ describe("LinksSectionComponent pagination", () => {
     httpMock
       .expectOne((r) => r.method === "POST")
       .flush({
-        data: connectionOf([makeLink("a", true)], true, "cursor-a"),
+        data: connectionOf([makeLink("a", "LIVE")], true, "cursor-a"),
       });
     await fixture.whenStable();
 
@@ -147,7 +180,7 @@ describe("LinksSectionComponent pagination", () => {
     retry.click();
     const retried = httpMock.expectOne((r) => r.method === "POST");
     expect(retried.request.body.variables).toEqual({ first: 20, after: "cursor-a" });
-    retried.flush({ data: connectionOf([makeLink("b", true)], false, "cursor-b") });
+    retried.flush({ data: connectionOf([makeLink("b", "LIVE")], false, "cursor-b") });
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain("Link b");
@@ -167,7 +200,7 @@ describe("LinksSectionComponent pagination", () => {
     httpMock
       .expectOne((r) => r.method === "POST")
       .flush({
-        data: connectionOf([makeLink("a", true)], false, null),
+        data: connectionOf([makeLink("a", "LIVE")], false, null),
       });
     await fixture.whenStable();
 

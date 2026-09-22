@@ -50,6 +50,7 @@ function makeFeedLink(id: string): FeedLink {
     normalizedUrl: `https://example.com/${id}`,
     title: `Feed link ${id}`,
     created: "2026-08-01T08:00:00Z",
+    status: "LIVE",
     completed: false,
     voteScore: 3,
     userVote: 0,
@@ -219,6 +220,14 @@ describe("HomePage", () => {
     expect(cards.length).toBe(2);
     expect(cards[0].componentInstance.userVote()).toBe(1);
     expect(cards[1].componentInstance.userVote()).toBe(0);
+  });
+
+  it("shows no Pending pill on a LIVE feed card even though completed is false", () => {
+    const card = fixture.debugElement.queryAll(By.directive(LinkCardComponent))[0];
+
+    expect(card.componentInstance.link().status).toBe("LIVE");
+    expect(card.componentInstance.link().completed).toBe(false);
+    expect(card.nativeElement.querySelector('[data-testid="link-pending"]')).toBeNull();
   });
 
   it("reloads the store when the submit box emits submitted", () => {

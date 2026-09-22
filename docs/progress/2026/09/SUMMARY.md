@@ -22,6 +22,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | Front-page UX round: inline submit errors + Cancel on the line-status sheet and feed box, schemeless-URL normalization, all-24-hour chart labels, feed Load More, per-status counts folded into the status legend                                                                |
 | Sep 22 | Feed scoped to the current service day with a `Showing X of Y` footer; recent community reports show their related station and a hover timestamp; the shared card, legend counts and footer covered by e2e (9/9)                                                                 |
 | Sep 22 | One shared `app-link-card` for the feed, `/insiden` and situasi (feed's URL split + relative-time tooltip + votes merged with insiden's favicon/pending/edit); the two duplicated feed-card files deleted, home feed gains working edit via the shared link sheet                |
+| Sep 22 | Fixed the Pending pill and pending group: the shared card and list now key "pending" off the approval `status` (`PENDING_APPROVAL`), never the console's separate `completed` handled flag; `FEED_QUERY` selects `status`                                                        |
 
 ### Home — community front page (2026-09-22)
 
@@ -59,6 +60,12 @@ Seven commits close out the front page:
 | `d60c906` | Feed scoped to the current service day; `feed-footer` "Showing X of Y" beside Load More             |
 | `dd77aab` | e2e retargeted to the shared card, legend counts and feed footer (9/9)                              |
 | `6157823` | `.gitignore` ignores Playwright artifact dirs so `prettier --check .` stays clean                   |
+
+### Home/insiden — Pending pill keyed off the approval status (2026-09-22)
+
+| Commit    | Deliverable                                                                                                                         |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `be72cad` | Pending pill + approved/pending grouping key off `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status`; regressions pinned |
 
 ## Commit Statistics
 

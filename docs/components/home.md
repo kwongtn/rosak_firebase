@@ -79,8 +79,10 @@
     `stations { id displayName }`) back the expanded card panel.
   - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status, currentServiceDayOnly)` connection
     (`edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }`, and the cursor-independent
-    `totalCount`); the store always requests `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`,
-    `currentServiceDayOnly: true`.
+    `totalCount`); the node selection carries both link axes — `status` (the approval state the
+    shared card keys its Pending pill off) and `completed` (the console's separate "mark handled"
+    flag) — and the store always requests `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`,
+    `currentServiceDayOnly: true`, so a feed row is always approved and never shows the pill.
   - `SUBMIT_FEED_LINK_MUTATION` (`submitFeedLink(input: FeedLinkInput!)`) — returns
     `{ ok, isDuplicate, duplicateOfId, userVote, link }`.
   - `SUBMIT_LINE_STATUS_REPORT_MUTATION` (`submitLineStatusReport(input: LineStatusReportInput!)`).
@@ -187,7 +189,8 @@
   store's plain number into the shared vote button's `VoteValue`. The meta rail stretches to the row
   height so the relative timestamp bottom-aligns with the tag row (or the title row when the card has
   no tags) instead of claiming a footer row, and holds the vote control plus the edit pencil (both
-  OUTSIDE the navigational `<a>`).
+  OUTSIDE the navigational `<a>`). Its Pending pill is driven by the link's approval `status`
+  (`PENDING_APPROVAL`), never by the separate `completed` handled flag.
 - **`HomePage`** — feed edit wiring: `canEdit(link)` calls `canEditLink` with the host's
   `isLoggedIn`/`isAdmin`/`user.uid` over `AuthService`; `openEdit(link)` calls
   `LinkSheetService.openEdit(link)`; the page hosts `<app-link-sheet>` and an effect on the sheet's

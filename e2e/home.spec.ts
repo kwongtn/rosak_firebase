@@ -63,8 +63,9 @@ const MRL_LINE = {
 
 /**
  * A feed node created "now" so the card's relative time renders deterministically as
- * "less than a minute ago" (`humanizeSince` is minute-granular). `completed` is true so the
- * shared card's Pending pill stays off a feed row; the vote fields feed the vote control.
+ * "less than a minute ago" (`humanizeSince` is minute-granular). `status` is the approval axis
+ * and is `LIVE` (the feed's own filter) so the shared card's Pending pill stays off a feed row
+ * even though the separate admin `completed` flag is false; the vote fields feed the vote control.
  */
 function feedNode(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -73,7 +74,8 @@ function feedNode(overrides: Record<string, unknown> = {}): Record<string, unkno
     normalizedUrl: "https://facebook.com/mlptf/posts/123",
     title: "Kelana Jaya Line disruption thread",
     created: new Date().toISOString(),
-    completed: true,
+    status: "LIVE",
+    completed: false,
     voteScore: 3,
     userVote: 0,
     voteBreakdown: { upvotes: 3, downvotes: 0 },
@@ -203,7 +205,8 @@ test.describe("community front page", () => {
     await expect(card.getByText("www.facebook.com")).toHaveCount(0);
     await expect(card.getByTestId("link-tags")).toContainText("KJL");
     await expect(card.getByTestId("link-meta-rail")).toBeVisible();
-    // The stub node is completed, so the approval pill stays off a live feed row.
+    // The stub node is approved (status LIVE, completed false), so the Pending pill — driven by
+    // the approval axis — stays off a live feed row.
     await expect(card.getByTestId("link-pending")).toHaveCount(0);
     await expect(card.getByText("+3")).toBeVisible();
     await expect(card.getByTestId("link-created")).toHaveText("less than a minute ago");

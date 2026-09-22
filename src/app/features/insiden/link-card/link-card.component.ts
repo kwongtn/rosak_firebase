@@ -88,7 +88,7 @@ import type { VoteValue } from "../vote-button/vote-state.util";
                 {{ line.code }}
               </span>
             }
-            @if (!link().completed) {
+            @if (link().status === "PENDING_APPROVAL") {
               <span
                 hlmBadge
                 variant="warning"

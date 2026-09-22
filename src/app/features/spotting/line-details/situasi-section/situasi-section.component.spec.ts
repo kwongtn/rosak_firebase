@@ -22,6 +22,7 @@ function makeLink(
     url: `https://example.com/${id}`,
     title: `Link ${id}`,
     created: "2026-08-01T08:00:00Z",
+    status: "LIVE",
     completed: true,
     voteScore: 2,
     userVote: 0,

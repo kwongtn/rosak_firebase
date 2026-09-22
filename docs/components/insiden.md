@@ -151,8 +151,10 @@
   - `LinkCardComponent` (shared, `app-link-card`): the single link-row element for every surface —
     home feed, /insiden links tab and situasi. Renders the favicon (Google S2, plain-link SVG
     fallback), the domain/path colour split (`linkUrlPartsOf`), the title, line badges, the Pending
-    pill (`title="Awaiting admin approval"`) and a right rail carrying the vote button plus the
-    relative time (`humanizeSince` with an exact-timestamp + submitter tooltip) and the edit pencil.
+    pill (`title="Awaiting admin approval"`, rendered only while the link's approval `status` is
+    `PENDING_APPROVAL` — `completed` is the console's separate admin "mark handled" flag and does
+    not drive it) and a right rail carrying the vote button plus the relative time (`humanizeSince`
+    with an exact-timestamp + submitter tooltip) and the edit pencil.
     The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
     their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
     `link-tags`, `link-pending`, `link-meta-rail`, `link-time` / `link-created`, `link-submitter` and
@@ -161,9 +163,11 @@
     the edit pencil as `edit`.
   - `LinkListComponent` (shared, `app-link-list`): host-agnostic link list taking an ordered
     `links` input + host-specific `emptyMessage` + a `voteValues` overlay (`Record<id, number>`).
-    Owns the approved/pending split, the UTC day-group
-    headers (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and browser agree on
-    the buckets — the pending collapsible, and the edit pencil gated by the pure `canEditLink()`
+    Owns the approval-axis split (approved = `status !== "PENDING_APPROVAL"`, pending =
+    `status === "PENDING_APPROVAL"`; the separate `completed` handled flag never groups rows), the
+    UTC day-group headers (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and
+    browser agree on the buckets — the pending collapsible, and the edit pencil gated by the pure
+    `canEditLink()`
     util (author shortId match or admin); the pencil opens the shared link sheet in edit mode via
     `LinkSheetService.openEdit()`. Re-emits each card's vote as `voteChanged = output<{ id: string;
 value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's open→closed edge

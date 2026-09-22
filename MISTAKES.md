@@ -87,6 +87,13 @@ layout the same way.
 
 ## Fixed
 
+### [2026-09-22] insiden/home: the Pending pill and the pending group keyed off `completed`, not the approval `status`
+
+**Problem**: Approved links rendered the "Pending" pill (`title="Awaiting admin approval"`) — every seeded card on the home feed, and four approved links under the situasi tab's "Pending (4)" — so approved content looked unapproved.
+**Root Cause**: The link row conflated the two independent axes. `SocialMediaLink.status` (`LIVE`/`PENDING_APPROVAL`) is the approval state, while `completed` is the admin console's separate "mark handled" boolean (`incident/models.py`; `seed_demo_data.py` writes `status=LIVE` and never sets `completed`). The card rendered the pill on `!completed` and `LinkListComponent` split rows on `completed`, and `FEED_QUERY` didn't even select `status`, so the home card couldn't see the approval axis at all.
+**Fix**: `LinkCardComponent` renders `link-pending` only for `status === "PENDING_APPROVAL"`; `LinkListComponent` partitions approved = `status !== "PENDING_APPROVAL"` / pending = `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status` and `FeedLink`/`LinkCardItem` carry it. `completed` stays the console's own axis. Specs pin the independence (LIVE + `completed: false` → no pill; `PENDING_APPROVAL` + `completed: true` → pill). Commit `be72cad`.
+**Prevention**: When two fields describe different lifecycle axes, name which axis drives which UI at the field declaration and assert the independence in the spec. A "pending" affordance belongs to the approval enum, never to an admin's handled flag.
+
 ### [2026-09-22] AGENTS.md: `postGraphQL()` referenced a non-existent API
 
 **Problem**: The "Data access" convention told agents to call `postGraphQL()` for mutations. No such function exists anywhere in the repo — the only hits are the AGENTS.md line and a stale docstring in `graphql-client.ts` — so anyone following it had to guess the real write API.

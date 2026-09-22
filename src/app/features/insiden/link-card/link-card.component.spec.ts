@@ -18,7 +18,8 @@ function makeLink(overrides: Partial<LinkCardItem> = {}): LinkCardItem {
     created: new Date().toISOString(),
     lines: [{ id: "L1", code: "KJL", displayName: "Kajang Line" }],
     user: { shortId: "abc12345", nickname: "" },
-    completed: true,
+    status: "LIVE",
+    completed: false,
     voteScore: 7,
     userVote: 0,
     voteBreakdown: { upvotes: 2, downvotes: 1 },
@@ -101,15 +102,33 @@ describe("LinkCardComponent", () => {
     expect(query('[data-testid="link-url-domain"]')?.textContent).toBe("not a url");
   });
 
-  it("shows the Pending pill, tooltipped 'Awaiting admin approval', only while not completed", async () => {
+  it("shows the Pending pill, tooltipped 'Awaiting admin approval', only while PENDING_APPROVAL", async () => {
+    // The regression: an approved (LIVE) link must show no pill even though the separate admin
+    // "handled" flag is false, and likewise when the flag is absent entirely (legacy rows).
     expect(query('[data-testid="link-pending"]')).toBeNull();
 
-    fixture.componentRef.setInput("link", makeLink({ completed: false }));
+    fixture.componentRef.setInput("link", makeLink({ status: "LIVE", completed: true }));
+    await fixture.whenStable();
+    expect(query('[data-testid="link-pending"]')).toBeNull();
+
+    fixture.componentRef.setInput("link", makeLink({ status: undefined, completed: false }));
+    await fixture.whenStable();
+    expect(query('[data-testid="link-pending"]')).toBeNull();
+
+    fixture.componentRef.setInput("link", makeLink({ status: "PENDING_APPROVAL" }));
     await fixture.whenStable();
 
     const pill = query('[data-testid="link-pending"]') as HTMLElement;
     expect(pill.textContent).toContain("Pending");
     expect(pill.getAttribute("title")).toBe("Awaiting admin approval");
+
+    // The axes are independent: marking a still-unapproved link "handled" keeps the pill.
+    fixture.componentRef.setInput(
+      "link",
+      makeLink({ status: "PENDING_APPROVAL", completed: true }),
+    );
+    await fixture.whenStable();
+    expect(query('[data-testid="link-pending"]')).not.toBeNull();
   });
 
   it("keeps the vote control and edit pencil out of the anchor so their clicks never navigate", async () => {

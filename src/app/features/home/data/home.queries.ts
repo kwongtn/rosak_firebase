@@ -139,6 +139,7 @@ export const FEED_QUERY = /* GraphQL */ `
           normalizedUrl
           title
           created
+          status
           completed
           voteScore
           userVote
@@ -185,6 +186,9 @@ export interface FeedLink {
   normalizedUrl: string | null;
   title: string;
   created: string;
+  /** The approval axis (`LIVE` / `PENDING_APPROVAL`) — drives the shared card's Pending pill. */
+  status: SocialMediaLinkStatus;
+  /** The separate admin "mark handled" flag (the console's own `completed` filter). */
   completed: boolean;
   voteScore: number;
   userVote: number;

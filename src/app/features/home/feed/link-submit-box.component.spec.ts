@@ -38,6 +38,7 @@ function makeLink(): FeedLink {
     normalizedUrl: "https://example.com/story",
     title: "Story",
     created: "2026-08-01T08:00:00Z",
+    status: "LIVE",
     completed: false,
     voteScore: 1,
     userVote: 1,
