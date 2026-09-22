@@ -29,7 +29,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
       [placeholder]="placeholder()"
       [value]="search()"
       (input)="_onInput($event)"
-      (focus)="_onFocus($event)"
+      (click)="_onClick($event)"
       (blur)="_onBlur()"
       (keydown.arrowdown)="_moveHighlight(1); $event.preventDefault()"
       (keydown.arrowup)="_moveHighlight(-1); $event.preventDefault()"
@@ -52,6 +52,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
     @if (_isOpen() && _filtered().length > 0) {
       <ul
         class="bg-popover text-popover-foreground border-border absolute z-50 mt-1 max-h-64 w-max min-w-full overflow-x-clip overflow-y-auto rounded-lg border py-1 shadow-md"
+        [class.max-w-full]="constrainWidth()"
       >
         @for (item of _filtered(); track item.value) {
           <li
@@ -91,6 +92,9 @@ export class HlmCombobox<T> {
   /** Shown when typed text matches nothing — callers should say what's actually being searched
    * (e.g. "No matching vehicles") rather than leave this at its generic default. */
   readonly emptyMessage = input<string>("No matching options");
+  /** Caps the dropdown at the field's own width instead of its content's (`w-max`). Set this for
+   * comboboxes inside a sheet: an over-wide list adds a horizontal scrollbar to the sheet body. */
+  readonly constrainWidth = input(false);
 
   readonly search = signal("");
   protected readonly _isOpen = signal(false);
@@ -137,26 +141,33 @@ export class HlmCombobox<T> {
     this.search.set(match ? match.label : "");
   }
 
-  protected _onFocus(event: FocusEvent): void {
+  protected _onClick(event: MouseEvent): void {
     this._isOpen.set(true);
     this._hasTypedSinceOpen.set(false);
     // Selects the pre-filled text so the very first keystroke replaces it outright, instead
     // of inserting at whatever the cursor position happens to be.
-    (event.target as HTMLInputElement).select();
+    (event.currentTarget as HTMLInputElement).select();
   }
 
   protected _onInput(event: Event): void {
     this._hasTypedSinceOpen.set(true);
+    this._isOpen.set(true);
     this.search.set((event.target as HTMLInputElement).value);
   }
 
   protected _moveHighlight(delta: number): void {
     const count = this._filtered().length;
     if (count === 0) return;
+    if (!this._isOpen()) {
+      this._isOpen.set(true);
+      this._highlightIndex.set(0);
+      return;
+    }
     this._highlightIndex.set((this._highlightIndex() + delta + count) % count);
   }
 
   protected _selectHighlighted(): void {
+    if (!this._isOpen()) return;
     const item = this._filtered()[this._highlightIndex()];
     if (item) {
       this._select(item);

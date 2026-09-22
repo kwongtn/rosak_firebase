@@ -9,6 +9,7 @@ import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { ReportSheetService } from "../data/report-sheet.service";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
+import type { Line } from "../data/spotting.queries";
 import { ReportFormComponent } from "./report-form.component";
 import type { ReportFormModel } from "./report-form.schema";
 
@@ -16,10 +17,18 @@ interface ComponentUnderTest {
   model: WritableSignal<ReportFormModel>;
 }
 
+const SEEDED_LINE: Line = {
+  id: "4",
+  code: "KJL",
+  displayName: "Kelana Jaya Line",
+  status: "ACTIVE",
+};
+
 describe("ReportFormComponent", () => {
   let fixture: ComponentFixture<ReportFormComponent>;
   let httpMock: HttpTestingController;
   let sheet: ReportSheetService;
+  let storeLines: WritableSignal<Line[]>;
 
   function model(): ReportFormModel {
     return (fixture.componentInstance as unknown as ComponentUnderTest).model();
@@ -33,12 +42,13 @@ describe("ReportFormComponent", () => {
   }
 
   beforeEach(async () => {
+    storeLines = signal<Line[]>([]);
     await TestBed.configureTestingModule({
       imports: [ReportFormComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
-        { provide: SpottingLinesStore, useValue: { lines: signal([]) } },
+        { provide: SpottingLinesStore, useValue: { lines: storeLines } },
         {
           provide: AuthService,
           useValue: { isLoggedIn: signal(false), login: vi.fn(), idToken: async () => "token" },
@@ -98,5 +108,28 @@ describe("ReportFormComponent", () => {
     sheet.open();
     await settle();
     expect(model().lineId).toBe("");
+  });
+
+  it("opens with the seeded line selected and the Line picker closed", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>("hlm-combobox input");
+    expect(model().lineId).toBe("4");
+    expect(input?.value).toContain("KJL");
+    expect(root.textContent).toContain("Vehicle");
+
+    // jsdom has no layout, so HlmSheet's CDK focus trap cannot run its own focus() call here;
+    // dispatch the exact focus event it fires at the first field on open instead.
+    input?.dispatchEvent(new FocusEvent("focus"));
+    fixture.detectChanges();
+    expect(root.querySelectorAll("hlm-combobox ul li").length).toBe(0);
+
+    // The field is still usable: a real click opens the picker.
+    input?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+    expect(root.querySelectorAll("hlm-combobox ul li").length).toBe(1);
   });
 });
