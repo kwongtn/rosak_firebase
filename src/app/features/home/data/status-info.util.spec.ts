@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import type { LineStatus, PassengerStatus } from "./home.queries";
+import type { LineStatus, PassengerStatus, VehicleStatus } from "./home.queries";
+import { PASSENGER_METRIC } from "./line-status-metrics.util";
 import {
   LINE_STATUS_INFO,
   PASSENGER_INFO,
   PASSENGER_SCALE,
+  VEHICLE_STATUS_LABEL,
+  VEHICLE_STATUS_ORDER,
   lineStatusInfo,
   passengerInfo,
   passengerScale,
+  vehicleStatusRows,
 } from "./status-info.util";
 
 /** The two enums are mirrored from the schema by hand — these lists are the contract. */
@@ -30,6 +34,16 @@ const LINE_STATUSES: LineStatus[] = [
   "TOTAL_DISRUPTION",
 ];
 
+const VEHICLE_STATUSES: VehicleStatus[] = [
+  "IN_SERVICE",
+  "NOT_SPOTTED",
+  "OUT_OF_SERVICE",
+  "DECOMMISSIONED",
+  "MARRIED",
+  "TESTING",
+  "UNKNOWN",
+];
+
 describe("passengerInfo", () => {
   it("has a non-empty title and one-line body for every passenger status", () => {
     for (const status of PASSENGER_STATUSES) {
@@ -38,6 +52,14 @@ describe("passengerInfo", () => {
       expect(PASSENGER_INFO[status].body, status).not.toContain("\n");
     }
     expect(Object.keys(PASSENGER_INFO).sort()).toEqual([...PASSENGER_STATUSES].sort());
+  });
+
+  it("uses the universal observable metric as each body, keeping the short title", () => {
+    for (const status of PASSENGER_STATUSES) {
+      expect(PASSENGER_INFO[status].body, status).toBe(PASSENGER_METRIC[status]);
+    }
+    expect(PASSENGER_INFO.CROWDED.title).toBe("Crowded");
+    expect(passengerInfo("CROWDED").body).toBe("Standing room only — board after 1–2 trains.");
   });
 
   it("falls back to a 'No data' explanation for an absent status", () => {
@@ -95,5 +117,57 @@ describe("lineStatusInfo", () => {
     expect(lineStatusInfo("PARTIAL_ACTIVE").title).toBe("Partially Active");
     expect(lineStatusInfo("PARTIAL_DISRUPTION").title).toBe("Partial Disruption");
     expect(lineStatusInfo("TOTAL_DISRUPTION").title).toBe("Total Disruption");
+  });
+});
+
+describe("VEHICLE_STATUS_LABEL", () => {
+  it("has a readable label for every vehicle status and keeps the enum order", () => {
+    expect(VEHICLE_STATUS_ORDER).toEqual(VEHICLE_STATUSES);
+    for (const status of VEHICLE_STATUSES) {
+      expect(VEHICLE_STATUS_LABEL[status], status).toMatch(/^[A-Z]/);
+      expect(VEHICLE_STATUS_LABEL[status], status).not.toContain("_");
+    }
+    expect(VEHICLE_STATUS_LABEL).toEqual({
+      IN_SERVICE: "In service",
+      NOT_SPOTTED: "Not spotted",
+      OUT_OF_SERVICE: "Out of service",
+      DECOMMISSIONED: "Decommissioned",
+      MARRIED: "Married",
+      TESTING: "Testing",
+      UNKNOWN: "Unknown",
+    });
+  });
+});
+
+describe("vehicleStatusRows", () => {
+  it("drops zero counts and orders the survivors in enum order", () => {
+    const rows = vehicleStatusRows([
+      { status: "UNKNOWN", count: 0 },
+      { status: "DECOMMISSIONED", count: 2 },
+      { status: "IN_SERVICE", count: 12 },
+      { status: "OUT_OF_SERVICE", count: 0 },
+      { status: "NOT_SPOTTED", count: 3 },
+      { status: "MARRIED", count: 1 },
+      { status: "TESTING", count: 0 },
+    ]);
+
+    expect(rows).toEqual([
+      { key: "IN_SERVICE", label: "In service", count: 12 },
+      { key: "NOT_SPOTTED", label: "Not spotted", count: 3 },
+      { key: "DECOMMISSIONED", label: "Decommissioned", count: 2 },
+      { key: "MARRIED", label: "Married", count: 1 },
+    ]);
+  });
+
+  it("returns an empty list when no counts were reported", () => {
+    expect(vehicleStatusRows([])).toEqual([]);
+    expect(vehicleStatusRows(null)).toEqual([]);
+    expect(vehicleStatusRows(undefined)).toEqual([]);
+  });
+
+  it("keeps every row when all statuses have a count", () => {
+    const rows = vehicleStatusRows(VEHICLE_STATUSES.map((status) => ({ status, count: 1 })));
+
+    expect(rows.map((row) => row.key)).toEqual(VEHICLE_STATUSES);
   });
 });

@@ -1,4 +1,5 @@
 import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +20,17 @@ function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
     passengerStatus: "NORMAL",
     passengerStatusMessage: null,
     statusReportCount: 3,
+    vehicleStatusCounts: [
+      { status: "IN_SERVICE", count: 12 },
+      { status: "NOT_SPOTTED", count: 3 },
+      { status: "OUT_OF_SERVICE", count: 1 },
+      { status: "DECOMMISSIONED", count: 0 },
+      { status: "MARRIED", count: 0 },
+      { status: "TESTING", count: 0 },
+      { status: "UNKNOWN", count: 0 },
+    ],
+    passengerStatusCount: 5,
+    statusWindowMinutes: 15,
     pulseLinks: [],
     ...overrides,
   };
@@ -62,6 +74,7 @@ describe("LinePulseCardComponent", () => {
       imports: [LinePulseCardComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
         { provide: ReportSheetService, useValue: reportSheetMock },
       ],
@@ -76,6 +89,16 @@ describe("LinePulseCardComponent", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  /** The info chips open on tap in jsdom (no `matchMedia` ⇒ no hover capability). */
+  function openPopover(root: HTMLElement, triggerTestId: string): void {
+    const trigger = root
+      .querySelector(`[data-testid="${triggerTestId}"]`)
+      ?.closest("[role='button']");
+    expect(trigger).not.toBeNull();
+    (trigger as HTMLElement).click();
+    fixture.detectChanges();
+  }
+
   it("renders the in-service vehicle count as 'X of Y vehicles in service'", () => {
     const root = render(makeLine({ inServiceVehicleCount: 12, totalVehicleCount: 20 }));
 
@@ -88,7 +111,7 @@ describe("LinePulseCardComponent", () => {
     expect(textOf(root, "passenger-status")).toBe("No data");
   });
 
-  it("shows the crowded label and the consolidated message", () => {
+  it("shows the crowded label and the consolidated message inside the status popover", () => {
     const root = render(
       makeLine({
         passengerStatus: "CROWDED",
@@ -97,9 +120,63 @@ describe("LinePulseCardComponent", () => {
     );
 
     expect(textOf(root, "passenger-status")).toBe("Crowded");
-    expect(textOf(root, "line-pulse-message")).toBe(
+    expect(root.querySelector('[data-testid="line-pulse-message"]')).toBeNull();
+
+    openPopover(root, "passenger-status");
+
+    expect(textOf(root, "status-info-message")).toBe(
       "According to 5 social media entries, this line is Crowded.",
     );
+    expect(textOf(root, "status-window")).toBe("Last 15 minutes");
+  });
+
+  it("sizes both actions with the compact button variant and never stretches them", () => {
+    const root = render(makeLine());
+
+    for (const testId of ["submit-line-status", "add-spotting-entry"]) {
+      const button = root.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
+      expect(button.className).toContain("h-7");
+      expect(button.className).toContain("px-2.5");
+      expect(button.className).toContain("w-full");
+      expect(button.className).toContain("sm:w-auto");
+      expect(button.className).not.toContain("h-11");
+      expect(button.className).not.toContain("text-base");
+    }
+
+    const actions = root.querySelector('[data-testid="submit-line-status"]')
+      ?.parentElement as HTMLElement;
+    expect(actions.className).not.toContain("items-stretch");
+    expect(actions.className).toContain("items-start");
+  });
+
+  it("lists the non-zero vehicle counts by status when the vehicle count is hovered", () => {
+    const root = render(makeLine());
+
+    openPopover(root, "line-vehicle-count");
+
+    const rows = [...root.querySelectorAll('[data-testid="status-breakdown-row"]')].map((el) =>
+      [...el.querySelectorAll("span")].map((span) => (span.textContent ?? "").trim()).join(" "),
+    );
+    expect(rows).toEqual(["In service 12", "Not spotted 3", "Out of service 1", "Total 16"]);
+    expect(textOf(root, "line-vehicle-count")).toBe("12 of 16 vehicles in service");
+  });
+
+  it("shows the rolling-window report count next to the crowd status", () => {
+    const root = render(
+      makeLine({ passengerStatus: "CROWDED", passengerStatusCount: 7, statusWindowMinutes: 15 }),
+    );
+
+    const badge = root.querySelector('[data-testid="passenger-status-count"]') as HTMLElement;
+    expect(badge).not.toBeNull();
+    expect(badge.textContent?.trim()).toBe("7");
+    expect(badge.getAttribute("title")).toBe("7 reports in the last 15 minutes");
+    expect(badge.getAttribute("aria-label")).toBe("7 reports in the last 15 minutes");
+  });
+
+  it("shows no count badge when the line has no crowd status", () => {
+    const root = render(makeLine({ passengerStatus: null, passengerStatusCount: 0 }));
+
+    expect(root.querySelector('[data-testid="passenger-status-count"]')).toBeNull();
   });
 
   it("opens the status sheet for this line when the submit button is clicked", () => {

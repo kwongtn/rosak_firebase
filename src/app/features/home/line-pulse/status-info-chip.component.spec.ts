@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PASSENGER_INFO, passengerScale, type StatusInfo } from "../../home/data/status-info.util";
-import { StatusInfoChipComponent } from "./status-info-chip.component";
+import { StatusInfoChipComponent, type StatusBreakdownRow } from "./status-info-chip.component";
 
 /**
  * jsdom provides no `matchMedia` (same trap as compact-nav's ThemeService spec), so the chip's
@@ -29,6 +29,9 @@ function stubMatchMedia(matches: boolean): void {
 interface RenderOptions {
   info?: StatusInfo;
   scale?: ReturnType<typeof passengerScale>;
+  message?: string | null;
+  windowMinutes?: number | null;
+  breakdown?: StatusBreakdownRow[];
 }
 
 describe("StatusInfoChipComponent", () => {
@@ -51,6 +54,15 @@ describe("StatusInfoChipComponent", () => {
     if (options.scale) {
       fixture.componentRef.setInput("scale", options.scale);
     }
+    if (options.message !== undefined) {
+      fixture.componentRef.setInput("message", options.message);
+    }
+    if (options.windowMinutes !== undefined) {
+      fixture.componentRef.setInput("windowMinutes", options.windowMinutes);
+    }
+    if (options.breakdown) {
+      fixture.componentRef.setInput("breakdown", options.breakdown);
+    }
     // afterNextRender flips `_hoverCapable` only after one full cycle — detect, settle, detect.
     fixture.detectChanges();
     await fixture.whenStable();
@@ -68,6 +80,11 @@ describe("StatusInfoChipComponent", () => {
 
   function popover(fixture: ComponentFixture<StatusInfoChipComponent>): HTMLElement | null {
     return host(fixture).querySelector<HTMLElement>('[data-testid="status-info-popover"]');
+  }
+
+  function textOf(fixture: ComponentFixture<StatusInfoChipComponent>, testId: string): string {
+    const el = host(fixture).querySelector(`[data-testid="${testId}"]`);
+    return (el?.textContent ?? "").replace(/\s+/g, " ").trim();
   }
 
   function hover(fixture: ComponentFixture<StatusInfoChipComponent>): void {
@@ -138,7 +155,7 @@ describe("StatusInfoChipComponent", () => {
     expect(popover(fixture)).toBeNull();
   });
 
-  it("renders the title and one-line explanation of the status", async () => {
+  it("renders the title and the universal metric explanation of the status", async () => {
     stubMatchMedia(true);
     const fixture = await render({ info: PASSENGER_INFO.DISRUPTED });
 
@@ -146,7 +163,64 @@ describe("StatusInfoChipComponent", () => {
     const text = (popover(fixture)?.textContent ?? "").replace(/\s+/g, " ").trim();
 
     expect(text).toContain("Disrupted");
-    expect(text).toContain("Service is disrupted; expect significant delays.");
+    expect(text).toContain("Service suspended — use an alternative route.");
+  });
+
+  it("renders the consolidated message inside the popover when one is provided", async () => {
+    stubMatchMedia(true);
+    const fixture = await render({
+      message: "According to 5 social media entries, this line is Crowded.",
+    });
+
+    hover(fixture);
+
+    expect(textOf(fixture, "status-info-message")).toBe(
+      "According to 5 social media entries, this line is Crowded.",
+    );
+    expect(popover(fixture)?.textContent).toContain(PASSENGER_INFO.CROWDED.title);
+  });
+
+  it("renders no message element when there is no message", async () => {
+    stubMatchMedia(true);
+    const fixture = await render({ message: null });
+
+    hover(fixture);
+
+    expect(popover(fixture)).not.toBeNull();
+    expect(host(fixture).querySelector('[data-testid="status-info-message"]')).toBeNull();
+  });
+
+  it("renders the rolling-window line only when a window is known", async () => {
+    stubMatchMedia(true);
+    const withWindow = await render({ windowMinutes: 15 });
+
+    hover(withWindow);
+    expect(textOf(withWindow, "status-window")).toBe("Last 15 minutes");
+
+    const withoutWindow = await render();
+    hover(withoutWindow);
+    expect(host(withoutWindow).querySelector('[data-testid="status-window"]')).toBeNull();
+  });
+
+  it("renders an extra per-category breakdown under the explanation", async () => {
+    stubMatchMedia(true);
+    const fixture = await render({
+      breakdown: [
+        { key: "IN_SERVICE", label: "In service", value: "12" },
+        { key: "NOT_SPOTTED", label: "Not spotted", value: "3" },
+        { key: "TOTAL", label: "Total", value: "15" },
+      ],
+    });
+
+    hover(fixture);
+    const rows = [...host(fixture).querySelectorAll('[data-testid="status-breakdown-row"]')].map(
+      (row) =>
+        [...row.querySelectorAll("span")].map((span) => (span.textContent ?? "").trim()).join(" "),
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toBe("In service 12");
+    expect(rows[2]).toBe("Total 15");
   });
 
   it("renders the 7-level legend with only the active level emphasised", async () => {

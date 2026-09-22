@@ -18,6 +18,9 @@ function makeLine(id: string, status: LinePulse["status"] = "ACTIVE"): LinePulse
     passengerStatus: "NORMAL",
     passengerStatusMessage: null,
     statusReportCount: 0,
+    vehicleStatusCounts: [{ status: "IN_SERVICE", count: 1 }],
+    passengerStatusCount: 0,
+    statusWindowMinutes: 15,
     pulseLinks: [],
   };
 }

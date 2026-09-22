@@ -8,8 +8,14 @@ import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
-import { lineStatusInfo, passengerInfo, passengerScale } from "../data/status-info.util";
-import { StatusInfoChipComponent } from "./status-info-chip.component";
+import {
+  StatusInfo,
+  lineStatusInfo,
+  passengerInfo,
+  passengerScale,
+  vehicleStatusRows,
+} from "../data/status-info.util";
+import { StatusInfoChipComponent, StatusBreakdownRow } from "./status-info-chip.component";
 
 /** Related links are a supporting signal on the card — never a feed of their own. */
 const MAX_PULSE_LINKS = 5;
@@ -21,9 +27,12 @@ const MAX_PULSE_LINKS = 5;
  * (mobile LineStatusSheetComponent via LineStatusSheetService) and "Add spotting entry"
  * (ReportSheetService, whose sheet the home page hosts).
  *
- * Both status chips carry a hover/tap info popover (StatusInfoChipComponent). Mobile-first:
- * the card is a single column with full-width actions; from `sm:` the actions move to the
- * right of the title row. Links are plain anchors (compact) rather than link cards.
+ * Both status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle count
+ * opens the per-status breakdown, the passenger chip carries the consolidated message, the
+ * rolling window it covers, and the severity legend. A small count badge next to the passenger
+ * chip shows how many reports the rolling window holds. Mobile-first: the card is a single
+ * column with full-width, content-sized actions; from `sm:` the actions move to the right of the
+ * title row. Links are plain anchors (compact) rather than link cards.
  */
 @Component({
   selector: "app-line-pulse-card",
@@ -33,9 +42,9 @@ const MAX_PULSE_LINKS = 5;
       class="bg-card text-card-foreground border-border flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4"
     >
       <div class="flex min-w-0 flex-col gap-3 sm:flex-1">
-        <header class="flex items-center gap-3">
+        <header class="flex items-start gap-3">
           <span
-            class="border-border size-3 shrink-0 rounded-full border"
+            class="border-border mt-1 size-3 shrink-0 rounded-full border"
             [style.background-color]="line().displayColor"
             aria-hidden="true"
           ></span>
@@ -51,6 +60,8 @@ const MAX_PULSE_LINKS = 5;
               <app-status-info-chip
                 [info]="passengerInfo(line().passengerStatus)"
                 [scale]="passengerScale(line().passengerStatus)"
+                [message]="line().passengerStatusMessage"
+                [windowMinutes]="_passengerWindowMinutes()"
               >
                 <span
                   hlmBadge
@@ -60,22 +71,26 @@ const MAX_PULSE_LINKS = 5;
                   {{ passengerLabel(line().passengerStatus) }}
                 </span>
               </app-status-info-chip>
+              @if (line().passengerStatus) {
+                <span
+                  hlmBadge
+                  variant="secondary"
+                  data-testid="passenger-status-count"
+                  [attr.title]="_windowCountLabel()"
+                  [attr.aria-label]="_windowCountLabel()"
+                >
+                  {{ line().passengerStatusCount }}
+                </span>
+              }
             </div>
           </div>
         </header>
 
-        <p class="text-sm font-medium" data-testid="line-vehicle-count">
-          {{ line().inServiceVehicleCount }} of {{ line().totalVehicleCount }} vehicles in service
-        </p>
-
-        @if (line().passengerStatusMessage; as message) {
-          <p
-            class="bg-muted text-muted-foreground rounded-lg p-3 text-sm"
-            data-testid="line-pulse-message"
-          >
-            {{ message }}
-          </p>
-        }
+        <app-status-info-chip [info]="_vehicleCountInfo()" [breakdown]="_vehicleBreakdown()">
+          <span class="text-sm font-medium" data-testid="line-vehicle-count">
+            {{ line().inServiceVehicleCount }} of {{ line().totalVehicleCount }} vehicles in service
+          </span>
+        </app-status-info-chip>
 
         @if (_links().length > 0) {
           <ul class="flex flex-col gap-1.5">
@@ -107,20 +122,22 @@ const MAX_PULSE_LINKS = 5;
         }
       </div>
 
-      <div class="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-start">
+      <div class="flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row">
         <button
           hlmBtn
+          size="sm"
           data-testid="submit-line-status"
-          class="h-11 w-full text-base sm:w-auto"
+          class="w-full sm:w-auto"
           (click)="sheet.openFor(line().id)"
         >
           Submit line status
         </button>
         <button
           hlmBtn
+          size="sm"
           variant="outline"
           data-testid="add-spotting-entry"
-          class="h-11 w-full text-base sm:w-auto"
+          class="w-full sm:w-auto"
           (click)="reportSheet.openFor(line().id)"
         >
           Add spotting entry
@@ -144,4 +161,31 @@ export class LinePulseCardComponent {
   protected readonly _hostname = faviconHostnameOf;
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
+
+  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => ({
+    title: "Vehicles",
+    body: `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service right now.`,
+  }));
+
+  protected readonly _vehicleBreakdown = computed<StatusBreakdownRow[]>(() => {
+    const rows = vehicleStatusRows(this.line().vehicleStatusCounts);
+    if (rows.length === 0) {
+      return [];
+    }
+    const total = rows.reduce((sum, row) => sum + row.count, 0);
+    return [
+      ...rows.map((row) => ({ key: row.key, label: row.label, value: `${row.count}` })),
+      { key: "TOTAL", label: "Total", value: `${total}` },
+    ];
+  });
+
+  protected readonly _passengerWindowMinutes = computed(() =>
+    this.line().passengerStatus ? this.line().statusWindowMinutes : null,
+  );
+
+  protected readonly _windowCountLabel = computed(() => {
+    const count = this.line().passengerStatusCount;
+    const minutes = this.line().statusWindowMinutes;
+    return `${count} report${count === 1 ? "" : "s"} in the last ${minutes} minutes`;
+  });
 }
