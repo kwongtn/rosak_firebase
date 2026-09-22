@@ -16,6 +16,7 @@ function makeReports(): LineStatusReportItem[] {
       delayMinutes: 12,
       notes: "Packed at KLCC.",
       created: new Date().toISOString(),
+      stations: [{ id: "st1", displayName: "KLCC" }],
       user: { shortId: "u1", nickname: "Aina" },
     },
     {
@@ -24,6 +25,7 @@ function makeReports(): LineStatusReportItem[] {
       delayMinutes: null,
       notes: "",
       created: new Date().toISOString(),
+      stations: [],
       user: null,
     },
   ];
@@ -103,7 +105,7 @@ describe("LineStatusReportsComponent", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toContain("Crowded");
-    expect(rows[0]?.textContent).toContain("today");
+    expect(rows[0]?.textContent).toContain("less than a minute ago");
     expect(rows[0]?.querySelector('[data-testid="report-delay"]')?.textContent).toContain(
       "12 min delay",
     );

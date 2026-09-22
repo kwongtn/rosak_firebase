@@ -120,8 +120,18 @@ export interface LinePulse {
  * ---------------------------------------------------------------------- */
 
 export const FEED_QUERY = /* GraphQL */ `
-  query Feed($first: Int!, $after: String, $status: SocialMediaLinkStatus) {
-    publicSocialMediaLinks(first: $first, after: $after, status: $status) {
+  query Feed(
+    $first: Int!
+    $after: String
+    $status: SocialMediaLinkStatus
+    $currentServiceDayOnly: Boolean
+  ) {
+    publicSocialMediaLinks(
+      first: $first
+      after: $after
+      status: $status
+      currentServiceDayOnly: $currentServiceDayOnly
+    ) {
       edges {
         node {
           id
@@ -129,6 +139,7 @@ export const FEED_QUERY = /* GraphQL */ `
           normalizedUrl
           title
           created
+          completed
           voteScore
           userVote
           voteBreakdown {
@@ -151,6 +162,7 @@ export const FEED_QUERY = /* GraphQL */ `
         hasNextPage
         endCursor
       }
+      totalCount
     }
   }
 `;
@@ -159,6 +171,7 @@ export interface FeedQueryVars {
   first: number;
   after?: string | null;
   status?: SocialMediaLinkStatus | null;
+  currentServiceDayOnly?: boolean | null;
 }
 
 export interface FeedQueryData {
@@ -172,6 +185,7 @@ export interface FeedLink {
   normalizedUrl: string | null;
   title: string;
   created: string;
+  completed: boolean;
   voteScore: number;
   userVote: number;
   voteBreakdown: { upvotes: number; downvotes: number };
@@ -192,6 +206,7 @@ export interface FeedLinkPageInfo {
 export interface FeedLinkConnection {
   edges: FeedLinkEdge[];
   pageInfo: FeedLinkPageInfo;
+  totalCount: number;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -240,6 +255,10 @@ export const LINE_STATUS_REPORTS_QUERY = /* GraphQL */ `
           delayMinutes
           notes
           created
+          stations {
+            id
+            displayName
+          }
           user {
             shortId
             nickname
@@ -272,6 +291,7 @@ export interface LineStatusReportItem {
   delayMinutes: number | null;
   notes: string;
   created: string;
+  stations: Array<{ id: string; displayName: string }>;
   user: { shortId: string; nickname: string } | null;
 }
 

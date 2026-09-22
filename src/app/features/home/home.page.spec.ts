@@ -49,6 +49,7 @@ function makeFeedLink(id: string): FeedLink {
     normalizedUrl: `https://example.com/${id}`,
     title: `Feed link ${id}`,
     created: "2026-08-01T08:00:00Z",
+    completed: false,
     voteScore: 3,
     userVote: 0,
     voteBreakdown: { upvotes: 3, downvotes: 0 },

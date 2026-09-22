@@ -15,7 +15,9 @@ export interface PublicSocialMediaLinkStation {
  * state (PENDING_APPROVAL for user submissions, LIVE for admin ones — Task 10);
  * `completed` keeps the pre-status contract the console uses. `user`/`categories`
  * are additive (Task 24 edit flow): `user.shortId` proves authorship for the edit
- * affordance, `categories` lets the edit form re-send the current tags. */
+ * affordance, `categories` lets the edit form re-send the current tags. The vote
+ * fields mirror the home FEED_QUERY node so the situasi list can host the vote
+ * control. */
 export interface PublicSocialMediaLink {
   id: string;
   url: string;
@@ -23,10 +25,13 @@ export interface PublicSocialMediaLink {
   created: string;
   completed: boolean;
   status?: string | null;
+  voteScore: number;
+  userVote: number;
+  voteBreakdown: { upvotes: number; downvotes: number };
   lines: PublicSocialMediaLinkLine[];
   vehicles: PublicSocialMediaLinkVehicle[];
   stations: PublicSocialMediaLinkStation[];
-  user?: { shortId: string } | null;
+  user?: { shortId: string; nickname: string } | null;
   categories?: { id: string; name: string }[];
 }
 export interface PublicSocialMediaLinkEdge {
@@ -79,7 +84,10 @@ export const PUBLIC_SOCIAL_MEDIA_LINKS_QUERY = `
           created
           status
           completed
-          user { shortId }
+          voteScore
+          userVote
+          voteBreakdown { upvotes downvotes }
+          user { shortId nickname }
           lines { id code displayName }
           vehicles { id identificationNo }
           stations { id displayName }

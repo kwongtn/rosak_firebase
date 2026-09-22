@@ -35,6 +35,7 @@ function makeFeedLink(id: string, userVote = 0): FeedLink {
     normalizedUrl: `https://example.com/${id}`,
     title: `Link ${id}`,
     created: "2026-08-01T08:00:00Z",
+    completed: false,
     voteScore: 2,
     userVote,
     voteBreakdown: { upvotes: 2, downvotes: 0 },
@@ -52,6 +53,7 @@ function feedData(
     publicSocialMediaLinks: {
       edges: nodes.map((node, index) => ({ node, cursor: endCursor ?? `cursor-${index}` })),
       pageInfo: { hasNextPage, endCursor },
+      totalCount: nodes.length,
     },
   };
 }

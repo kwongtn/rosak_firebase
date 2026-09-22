@@ -17,6 +17,7 @@ function makeFeedLink(overrides: Partial<FeedLink> = {}): FeedLink {
     normalizedUrl: "https://example.com/story",
     title: "Delays on the KJL",
     created: new Date().toISOString(),
+    completed: false,
     voteScore: 7,
     userVote: 0,
     voteBreakdown: { upvotes: 2, downvotes: 1 },
@@ -61,7 +62,7 @@ describe("FeedLinkCardComponent", () => {
     expect(text).not.toContain("www.");
     expect(text).toContain("Delays on the KJL");
     expect(text).toContain("KJL");
-    expect(text).toContain("today");
+    expect(text).toContain("less than a minute ago");
     expect(text).toContain("+7");
     expect(fixture.nativeElement.querySelector("a").getAttribute("href")).toBe(
       "https://www.example.com/story",
