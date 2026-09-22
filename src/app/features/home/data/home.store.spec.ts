@@ -236,4 +236,47 @@ describe("HomeStore", () => {
     store.setUserVote("x", 1);
     expect(store.userVoteFor("x")).toBe(1);
   });
+
+  it("refreshes only the lines on the poll beat, keeping the appended feed pages", async () => {
+    const store = createStore();
+    flushInitial([makeLine("a")], feedData([makeFeedLink("x")], true, "cursor-x"));
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    await store.loadMore();
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.linesRefreshTick()).toBe(0);
+
+    store.polling.refreshNow();
+    TestBed.tick();
+
+    const reload = linesRequest();
+    reload.flush({ data: { lines: [makeLine("a"), makeLine("b")] } });
+    await Promise.resolve();
+
+    expect(store.linesRefreshTick()).toBe(1);
+    expect(store.lines().map((l) => l.id)).toEqual(["a", "b"]);
+    httpMock.expectNone((r) => r.method === "POST" && r.body.query.includes("query Feed"));
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.feedPageInfo()?.endCursor).toBe("cursor-y");
+  });
+
+  it("keeps reloadAll resetting the appended feed pages without bumping the tick", async () => {
+    const store = createStore();
+    flushInitial([makeLine("a")], feedData([makeFeedLink("x")], true, "cursor-x"));
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    await store.loadMore();
+
+    store.reloadAll();
+    TestBed.tick();
+
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("z")], false, null) });
+    await Promise.resolve();
+
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["z"]);
+    expect(store.linesRefreshTick()).toBe(0);
+  });
 });

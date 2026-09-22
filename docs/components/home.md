@@ -14,9 +14,9 @@
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
 - **Subcomponent breakdown** (one routed page, three child groups, a route-scoped store):
-  - `home.page.ts` — the routed page: nav → submit box → feed → line-pulse list → footer, plus the
-    status sheet and the shared link sheet (feed-link edits); starts/stops the store's polling and
-    adapts the store to the shared retry banner.
+  - `home.page.ts` — the routed page: nav → submit box → a two-panel feed/line-status split →
+    footer, plus the status sheet and the shared link sheet (feed-link edits); starts/stops the
+    store's polling and adapts the store to the shared retry banner.
   - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance) and
     `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification). Feed rows render
     through the shared insiden `app-link-card` (`LinkCardComponent`) — there is no home-local card.
@@ -28,11 +28,20 @@
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
-    `ReportSheetService.openFor(lineId)`. It also owns the feed list's reveal pagination (Load More)
-    and the bottom-right `feed-footer` (`data-testid="feed-footer"`): a `feed-count` span reading
-    `Showing X of Y` (`visibleFeedLinks().length` over `HomeStore.feedTotalCount()`, so the
-    denominator stays the filtered total as pages append) beside the Load More button, both hidden
-    while the feed is empty.
+    `ReportSheetService.openFor(lineId)`. The page's desktop layout is a two-panel split: the
+    submit box, retry banner and footer stay full width, while the feed and the line-status
+    sections share `data-testid="home-panels"` (`flex flex-col gap-6 lg:grid lg:grid-cols-2
+lg:items-start`) — stacked on mobile, URL feed left / line statuses right from `lg` up. The
+    feed renders **every loaded link** in an uncapped `feed-scroll` container (no inner scroll —
+    the page scrolls) and owns the load-more continuation: the bottom-right `feed-footer`
+    (`data-testid="feed-footer"`) holds a `feed-count` span reading `Showing X of Y`
+    (`store.feedLinks().length` over `HomeStore.feedTotalCount()`, so the denominator stays the
+    filtered total as pages append) beside the `feed-load-more` button, both hidden while the feed
+    is empty. The line-status panel is headed by a fixed-cadence refresh row
+    (`data-testid="line-refresh-countdown"`): spinner + `Refreshing in {n}s` from the store's
+    public `polling.secondsRemaining()` + a `Refresh now` button
+    (`data-testid="line-refresh-now"`) calling `store.polling.refreshNow()` — deliberately no
+    interval picker (unlike situasi), the 30s cadence is fixed.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders),
@@ -52,8 +61,10 @@
   `ReportSheetService.openFor(lineId)` (root-provided), which the report form consumes on its
   open edge.
 - **Component `input()`/`input.required()` signals:**
-  - `LinePulseCardComponent.line = input.required<LinePulse>()`.
-  - `LinePulseListComponent.lines = input.required<LinePulse[]>()`, `isLoading = input(false)`.
+  - `LinePulseCardComponent.line = input.required<LinePulse>()`, `refreshTick = input(0)` (the
+    host's poll beat, forwarded to the expanded panel's chart and reports).
+  - `LinePulseListComponent.lines = input.required<LinePulse[]>()`, `isLoading = input(false)`,
+    `refreshTick = input(0)` (forwarded to every card, active and "Other lines").
   - `LinkCardComponent` (the shared insiden `app-link-card`): `link = input.required<LinkCardItem>()`
     — the feed node satisfies the structural contract directly — `userVote = input(0)` (the host
     passes `HomeStore.userVoteFor(link.id)`, because the store's authenticated overlay wins over the
@@ -131,9 +142,14 @@
     `appendedEdges`/`appendedHasNext`/`appendedTotalCount`/`nextCursor`/`loadingMore` signals;
     `loadMore()` re-issues `FEED_QUERY` through `GraphQLClient.request` with the last cursor and
     appends, coalesced by `loadingMore`.
-  - Polling: `new PollingSource(() => this.reloadAll())`, armed by `start()` and disarmed by
-    `stop()` (both no-ops on the server). `reloadAll()` drops appended pages (they belong to the
-    stale dataset) and reloads both resources.
+  - Polling: a public `new PollingSource(() => this.reloadLines())`, armed by `start()` and
+    disarmed by `stop()` (both no-ops on the server, 30s default). `reloadLines()` reloads the
+    lines resource **only** and bumps `linesRefreshTick` — the feed is deliberately left alone so
+    a poll can't drop the user's appended Load More pages. `reloadAll()` (unchanged) still drops
+    appended pages and reloads both resources for the submit/edit flows. The public beat is what
+    the page's countdown renders (`intervalMs()`/`secondsRemaining()`) and what
+    `refreshNow()` drives; `linesRefreshTick` travels page → list → card → the open accordion's
+    chart/reports.
   - **Authenticated `userVote` overlay:** `graphqlResource()` sends no auth token, so the feed's
     `userVote` is always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady`, re-reads
     the first feed page with `GraphQLClient.request(..., { "firebase-auth-key": idToken })`, and
@@ -145,7 +161,9 @@
   `LinePulseCardComponent` calls `openFor`; the sheet reads `isOpen`/`lineId`.
 - **`HomePage`** — `sheetLine` computes the `LinePulse` for `lineStatusSheet.lineId()` from
   `store.lines()`; `errorResource` is a minimal `RetryableResource` adapter over `store.reloadAll()`
-  (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy`.
+  (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy`. The feed renders
+  `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page) and the line
+  panel's countdown row mirrors the store's polling beat.
 - **`LineStatusSheetComponent`** local signals: `status` (`PassengerStatus | null`), `delayMinutes`
   (string, parsed on submit), `notes`, `selectedStationIds`, `isSubmitting`, and `submitError`
   (inline `[data-testid="line-status-submit-error"]`, `role="alert"`) — set on a GraphQL `ok: false`
@@ -230,8 +248,10 @@
 - **Reused shared primitives stay the seams for new surfaces:** `AssetMultiSelectComponent`
   (line/station pickers), `VoteButtonComponent` (`targetType` already supports `"link"`), Hlm
   `sheet`/`skeleton`/`badge`/`button`, `RetryBannerComponent` (structural `RetryableResource`, so
-  `HomeStore` doesn't need to expose the raw resources), and `humanizeSince`. The feed's visible
-  length is owned by `HomePage`'s reveal count (`Load More`), not by a list component.
+  `HomeStore` doesn't need to expose the raw resources), and `humanizeSince`. The feed has no
+  client-side reveal length any more — every loaded link renders and `Load More` only fetches the
+  next page; `refreshTick` is the seam for propagating the lines-only poll beat into an open
+  accordion.
 - **`errorResource` in `HomePage`** shows the adapter pattern for exposing a store (rather than a
   raw resource) to the shared retry banner.
 

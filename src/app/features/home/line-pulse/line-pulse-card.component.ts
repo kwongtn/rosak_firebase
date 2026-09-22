@@ -174,8 +174,16 @@ const MAX_PULSE_LINKS = 5;
           class="border-border flex flex-col gap-4 border-t pt-3"
           data-testid="line-card-expanded"
         >
-          <app-line-status-chart [lineId]="line().id" [expanded]="_expanded()" />
-          <app-line-status-reports [lineId]="line().id" [expanded]="_expanded()" />
+          <app-line-status-chart
+            [lineId]="line().id"
+            [expanded]="_expanded()"
+            [refreshTick]="refreshTick()"
+          />
+          <app-line-status-reports
+            [lineId]="line().id"
+            [expanded]="_expanded()"
+            [refreshTick]="refreshTick()"
+          />
         </div>
       }
     </section>
@@ -183,6 +191,8 @@ const MAX_PULSE_LINKS = 5;
 })
 export class LinePulseCardComponent {
   readonly line = input.required<LinePulse>();
+  /** The host's poll beat, forwarded to the expanded panel's chart and reports. */
+  readonly refreshTick = input(0);
 
   protected readonly sheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);

@@ -78,6 +78,13 @@ layout the same way.
 **Fix**: Use `npm test -- --no-watch --include <path>`; verified with `--include src/app/features/home/data/home.store.spec.ts` (1 file / 8 tests). `--filter <regex>` narrows by suite/test name, not by file.
 **Prevention**: For a single file use `--include`; for a single suite or test use `--filter`. Never pass a bare path positionally to `ng test`.
 
+### [2026-09-23] test/unit-test builder: spec type check enforces strict null checks — typed `querySelector<T>` derefs fail
+
+**Problem**: A new assertion using a typed DOM query (`const countdown = root.querySelector<HTMLElement>(…); countdown.compareDocumentPosition(list)`) failed the unit-test build with `TS18047: 'countdown' is possibly 'null'` and `TS2345: 'HTMLElement | null' is not assignable to 'Node'` — even though `AGENTS.md` documents `strict`/`strictNullChecks` as off and no `tsconfig*.json` sets them.
+**Root Cause**: the `@angular/build:unit-test` type check compiles specs with strict null checks regardless of the workspace tsconfig's (absent) strict flags. Existing specs dodge it because `fixture.nativeElement` is `any`: the `nativeElement.querySelector(…) as HTMLElement` idiom yields `any` (the cast erases the null), while the typed generic `querySelector<HTMLElement>(…)` keeps `HTMLElement | null`.
+**Fix**: Null-guard typed DOM queries in new specs (optional chaining, an explicit guard, or compare raw `innerHTML` offsets) — `feat(home): split the front page into two panels with a line-refresh countdown`.
+**Prevention**: In specs, either keep the `as HTMLElement` idiom or handle the `| null` that a typed `querySelector<T>` returns. Don't assume `AGENTS.md`'s "strict is off" applies to the unit-test build's type check.
+
 ### [2026-09-22] repo/prettier: Playwright artifacts broke `prettier --check .` (and Prettier _does_ read `.gitignore`)
 
 **Problem**: After an e2e run, Playwright wrote `test-results/`, `playwright-report/` and `blob-report/` into the repo root; `npx prettier --check .` then failed on the unformatted report files (e.g. `test-results/.last-run.json`). It is tempting to blame "Prettier does not read `.gitignore`", but that is backwards.

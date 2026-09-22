@@ -25,7 +25,7 @@ import type { FeedLink, FeedLinkPageInfo, LinePulse } from "./data/home.queries"
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
-import { HomePage, FEED_INITIAL_VISIBLE } from "./home.page";
+import { HomePage } from "./home.page";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 
@@ -87,6 +87,12 @@ interface StoreMock {
   isLoading: WritableSignal<boolean>;
   isLoadingMore: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
+  linesRefreshTick: WritableSignal<number>;
+  polling: {
+    intervalMs: WritableSignal<number | null>;
+    secondsRemaining: WritableSignal<number>;
+    refreshNow: ReturnType<typeof vi.fn>;
+  };
   userVoteFor: ReturnType<typeof vi.fn>;
   setUserVote: ReturnType<typeof vi.fn>;
   reloadAll: ReturnType<typeof vi.fn>;
@@ -120,6 +126,12 @@ describe("HomePage", () => {
       isLoading: signal(false),
       isLoadingMore: signal(false),
       hasError: signal(false),
+      linesRefreshTick: signal(0),
+      polling: {
+        intervalMs: signal<number | null>(30000),
+        secondsRemaining: signal(30),
+        refreshNow: vi.fn(),
+      },
       userVoteFor: vi.fn((linkId: string) => (linkId === "a" ? 1 : 0)),
       setUserVote: vi.fn(),
       reloadAll: vi.fn(),
@@ -320,28 +332,58 @@ describe("HomePage", () => {
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
   });
 
-  it("renders at most the initial visible chunk of feed cards", () => {
-    store.feedLinks.set(
-      Array.from({ length: FEED_INITIAL_VISIBLE + 2 }, (_, index) => makeFeedLink(`x${index}`)),
-    );
+  it("renders every loaded feed link, not a sliced subset", () => {
+    store.feedLinks.set(Array.from({ length: 10 }, (_, index) => makeFeedLink(`x${index}`)));
+    store.feedTotalCount.set(10);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(
-      FEED_INITIAL_VISIBLE,
-    );
+    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(10);
   });
 
-  it("scrolls the feed in its own bounded container", () => {
+  it("splits the feed and the line statuses into two columns from lg, feed first", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const panels = root.querySelector<HTMLElement>('[data-testid="home-panels"]');
+
+    expect(panels).not.toBeNull();
+    expect(panels?.className).toContain("flex-col");
+    expect(panels?.className).toContain("lg:grid");
+    expect(panels?.className).toContain("lg:grid-cols-2");
+    expect(panels?.className).toContain("lg:items-start");
+
+    const children = Array.from(panels?.children ?? []);
+    expect(children[0]?.getAttribute("aria-label")).toBe("Community feed");
+    expect(children[0]?.querySelector("app-link-card")).not.toBeNull();
+    expect(children[1]?.getAttribute("aria-label")).toBe("Line status");
+    expect(children[1]?.querySelector("app-line-pulse-list")).not.toBeNull();
+  });
+
+  it("renders the feed in an uncapped container owned by the page scroll", () => {
     const container = fixture.nativeElement.querySelector(
       '[data-testid="feed-scroll"]',
     ) as HTMLElement;
 
     expect(container).not.toBeNull();
-    expect(container.classList.contains("overflow-y-auto")).toBe(true);
-    expect(container.className).toContain("max-h-[60vh]");
-    expect(container.querySelector("app-link-card")).not.toBeNull();
-    // Load More sits after the scroller, so it stays reachable without scrolling the feed.
+    expect(container.classList.contains("overflow-y-auto")).toBe(false);
+    expect(container.className).not.toContain("max-h-");
+    expect(container.querySelectorAll("app-link-card").length).toBe(2);
+    // Load More sits at the foot of the feed panel, outside the links container.
     expect(container.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+  });
+
+  it("renders the 30s refresh countdown above the line statuses and refreshes on click", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const countdown = root.querySelector<HTMLElement>('[data-testid="line-refresh-countdown"]');
+
+    expect(countdown).not.toBeNull();
+    expect((countdown?.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
+    expect(root.innerHTML.indexOf('data-testid="line-refresh-countdown"')).toBeLessThan(
+      root.innerHTML.indexOf("app-line-pulse-list"),
+    );
+
+    const refreshNow = root.querySelector<HTMLButtonElement>('[data-testid="line-refresh-now"]');
+    expect(refreshNow).not.toBeNull();
+    refreshNow?.click();
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
   });
 
   it("loads the next feed page from Load More only while a next page exists", () => {
@@ -392,31 +434,29 @@ describe("HomePage", () => {
     expect(fixture.nativeElement.querySelector('[data-testid="feed-load-more"]')).toBeNull();
   });
 
-  it("reveals the next chunk on Load More before the next page arrives", () => {
-    store.feedLinks.set(
-      Array.from({ length: FEED_INITIAL_VISIBLE + 2 }, (_, index) => makeFeedLink(`x${index}`)),
-    );
+  it("keeps every loaded link rendered while Load More fetches the next page", () => {
+    store.feedLinks.set(Array.from({ length: 10 }, (_, index) => makeFeedLink(`x${index}`)));
+    store.feedTotalCount.set(18);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(
-      FEED_INITIAL_VISIBLE,
-    );
+    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(10);
 
     (
       fixture.nativeElement.querySelector('[data-testid="feed-load-more"]') as HTMLButtonElement
     ).click();
-    fixture.detectChanges();
 
-    // Everything already resident is revealed; the continuation page adds more when it lands.
-    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(
-      FEED_INITIAL_VISIBLE + 2,
-    );
+    expect(store.loadMore).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(10);
   });
 
-  it("hands the store's lines to the line list", () => {
+  it("hands the store's lines and refresh tick to the line list", () => {
+    store.linesRefreshTick.set(4);
+    fixture.detectChanges();
+
     const list = fixture.debugElement.query(By.directive(LinePulseListComponent));
 
     expect(list.componentInstance.lines().map((line: LinePulse) => line.id)).toEqual(["a"]);
     expect(list.componentInstance.isLoading()).toBe(false);
+    expect(list.componentInstance.refreshTick()).toBe(4);
   });
 
   it("hosts the spotting entry sheet and closes it + reloads the store on submit", async () => {

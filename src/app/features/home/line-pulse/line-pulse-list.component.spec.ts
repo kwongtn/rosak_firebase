@@ -1,9 +1,11 @@
 import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { LinePulseCardComponent } from "./line-pulse-card.component";
 import { LinePulseListComponent } from "./line-pulse-list.component";
 
 function makeLine(id: string, status: LinePulse["status"] = "ACTIVE"): LinePulse {
@@ -112,5 +114,22 @@ describe("LinePulseListComponent", () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('[data-testid="other-lines"]')).toBeNull();
     expect(root.querySelectorAll("app-line-pulse-card").length).toBe(2);
+  });
+
+  it("forwards refreshTick to the active and the Other lines cards", () => {
+    fixture.componentRef.setInput("lines", [
+      makeLine("a"),
+      makeLine("b", "PARTIAL_DISRUPTION"),
+      makeLine("c"),
+    ]);
+    fixture.componentRef.setInput("isLoading", false);
+    fixture.componentRef.setInput("refreshTick", 7);
+    fixture.detectChanges();
+
+    const cards = fixture.debugElement.queryAll(By.directive(LinePulseCardComponent));
+    expect(cards.length).toBe(3);
+    for (const card of cards) {
+      expect(card.componentInstance.refreshTick()).toBe(7);
+    }
   });
 });

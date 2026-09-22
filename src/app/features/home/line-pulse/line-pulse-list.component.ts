@@ -34,7 +34,7 @@ const SUMMARY_CLASS =
         </p>
       } @else {
         @for (line of _activeLines(); track line.id) {
-          <app-line-pulse-card [line]="line" />
+          <app-line-pulse-card [line]="line" [refreshTick]="refreshTick()" />
         }
 
         @if (_otherLines().length > 0) {
@@ -63,7 +63,7 @@ const SUMMARY_CLASS =
             </summary>
             <div class="mt-3 flex flex-col gap-3">
               @for (line of _otherLines(); track line.id) {
-                <app-line-pulse-card [line]="line" />
+                <app-line-pulse-card [line]="line" [refreshTick]="refreshTick()" />
               }
             </div>
           </details>
@@ -75,6 +75,8 @@ const SUMMARY_CLASS =
 export class LinePulseListComponent {
   readonly lines = input.required<LinePulse[]>();
   readonly isLoading = input(false);
+  /** The host's poll beat, forwarded to every card so an open accordion re-reads its data. */
+  readonly refreshTick = input(0);
 
   protected readonly SUMMARY_CLASS = SUMMARY_CLASS;
   protected readonly _skeletons = Array.from({ length: SKELETON_ROWS });

@@ -24,6 +24,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | One shared `app-link-card` for the feed, `/insiden` and situasi (feed's URL split + relative-time tooltip + votes merged with insiden's favicon/pending/edit); the two duplicated feed-card files deleted, home feed gains working edit via the shared link sheet                |
 | Sep 22 | Fixed the Pending pill and pending group: the shared card and list now key "pending" off the approval `status` (`PENDING_APPROVAL`), never the console's separate `completed` handled flag; `FEED_QUERY` selects `status`                                                        |
 | Sep 22 | Expanded line card's hourly chart stacks each bar by report type (new `statusCounts` contract): segments bottom-up NORMAL → DISRUPTED summing to the bar height, breakdown in the hover readout and bar `title`, plus a `refreshTick` poll hook                                  |
+| Sep 23 | Front page split into a two-panel desktop layout (full-height URL list left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                                                  |
 
 ### Home — community front page (2026-09-22)
 
@@ -76,6 +77,18 @@ Seven commits close out the front page:
   readout and each bar's `title`, plus a `refreshTick` input so the parent's poll beat refreshes an
   open accordion. Covered by the chart/card specs and the e2e history stub.
 
+### Home — two-panel layout + lines-only refresh beat (2026-09-23)
+
+One commit (`feat(home): split the front page into two panels with a line-refresh countdown`):
+
+- The front page's feed and line-status sections share a `lg:grid-cols-2` wrapper (stacked on
+  mobile) — URL list left, statuses right; the feed's `max-h-[60vh]` scroller and its
+  `FEED_INITIAL_VISIBLE` reveal cap are gone, so every loaded link renders and the page scrolls.
+- `HomeStore.polling` is public and now calls `reloadLines()` (lines resource + a new
+  `linesRefreshTick`) instead of `reloadAll()`, so the 30s beat can't drop the feed's appended
+  Load More pages; a spinner + `Refreshing in …s` + `Refresh now` row heads the line panel, and the
+  tick is forwarded page → list → card → the expanded chart/reports.
+
 ## Commit Statistics
 
 | Type      | Count  | Percentage |
@@ -101,3 +114,4 @@ Seven commits close out the front page:
 - [16.md](./16.md)
 - [17.md](./17.md)
 - [22.md](./22.md)
+- [23.md](./23.md)

@@ -17,8 +17,8 @@ import {
 } from "./home.queries";
 
 /** Links per GraphQL page: the initial read and every `loadMore()` continuation ask for this
- * many. Kept small and equal to `HomePage`'s `FEED_INITIAL_VISIBLE` so the first render is
- * exactly one fetched page and one "Load More" reveals one continuation page. */
+ * many. A fetch size only — the page renders every loaded link and "Load More" pulls one
+ * more continuation page. */
 export const FEED_PAGE_SIZE = 8;
 
 /**
@@ -92,7 +92,17 @@ export class HomeStore {
   /** Per-user vote overlay, keyed by link id. Populated only for logged-in callers. */
   private readonly userVotes = signal<Record<string, number>>({});
 
-  private readonly polling = new PollingSource(() => this.reloadAll());
+  /** Bumped on every lines-only poll so the line cards' open accordions can re-read their own
+   * data (`LinePulseListComponent` → `LinePulseCardComponent` → chart/reports). */
+  readonly linesRefreshTick = signal(0);
+
+  /**
+   * The shared 30s beat. Public so the page can render its countdown
+   * (`secondsRemaining()`) and a manual "Refresh now". The callback is lines-only on purpose —
+   * a full `reloadAll()` would drop the feed's appended pages and the user's Load More
+   * progress every 30 seconds.
+   */
+  readonly polling = new PollingSource(() => this.reloadLines());
 
   constructor() {
     // httpResource is lazy until first read — read both so the store fetches on creation
@@ -139,6 +149,13 @@ export class HomeStore {
     this.nextCursor.set(null);
     this.linesResource.reload();
     this.feedResource.reload();
+  }
+
+  /** The poll beat's refresh: lines only, so the feed (and the user's Load More progress)
+   * survives every tick. Bumps `linesRefreshTick` for the open line accordions. */
+  reloadLines(): void {
+    this.linesResource.reload();
+    this.linesRefreshTick.update((tick) => tick + 1);
   }
 
   /** Loads the next feed page through the same query with the last page's cursor. Coalesced by

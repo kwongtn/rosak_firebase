@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal, type OnDestroy } from "@angular/core";
+import { Component, computed, effect, inject, type OnDestroy } from "@angular/core";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -18,20 +18,17 @@ import { LinkSheetService } from "../insiden/data/link-sheet.service";
 import { LinkCardComponent } from "../insiden/link-card/link-card.component";
 import { LinkSheetComponent } from "../insiden/link-sheet/link-sheet.component";
 import { LinePulse } from "./data/home.queries";
-import { FEED_PAGE_SIZE, HomeStore } from "./data/home.store";
+import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 
-/** How many feed cards the list reveals at once. Tied to the store's fetch page size so the
- * first render is exactly one fetched page and one "Load More" reveals one continuation page. */
-export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
-
 /**
- * The community front page — the site's root route. One global rolling feed at the top, the
- * per-line pulse list below it, with the submit box above both (see the ordering rationale in
- * the page's own layout: submit → feed → lines).
+ * The community front page — the site's root route. The submit box spans the page, then the
+ * feed and the per-line pulse list share a two-panel split (the URL list left, the line
+ * statuses right) from `lg` up, stacked on mobile. The line panel carries a 30s refresh
+ * countdown over the store's polling beat, above the list.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
  * app.routes.ts, so their polling beat and sheet state are created with the page and die with
@@ -68,44 +65,95 @@ export const FEED_INITIAL_VISIBLE = FEED_PAGE_SIZE;
         <app-retry-banner [resource]="errorResource" message="Couldn't load the front page." />
       }
 
-      <section class="flex flex-col gap-3" aria-label="Community feed">
-        <div class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto" data-testid="feed-scroll">
-          @if (store.isLoading() && store.feedLinks().length === 0) {
-            <div hlmSkeleton class="h-24 w-full"></div>
-          }
-          @for (link of visibleFeedLinks(); track link.id) {
-            <app-link-card
-              [link]="link"
-              [userVote]="store.userVoteFor(link.id)"
-              [editable]="canEdit(link)"
-              (voteChanged)="store.setUserVote(link.id, $event.value)"
-              (edit)="openEdit($event)"
-            />
-          }
-        </div>
-        @if (store.feedLinks().length > 0) {
-          <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
-            <span class="text-muted-foreground text-xs" data-testid="feed-count">
-              Showing {{ visibleFeedLinks().length }} of {{ store.feedTotalCount() }}
-            </span>
-            @if (canLoadMore()) {
-              <button
-                hlmBtn
-                variant="outline"
-                class="self-center"
-                data-testid="feed-load-more"
-                (click)="loadMore()"
-              >
-                Load More
-              </button>
+      <div
+        class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
+        data-testid="home-panels"
+      >
+        <section class="flex flex-col gap-3" aria-label="Community feed">
+          <div class="flex flex-col gap-3" data-testid="feed-scroll">
+            @if (store.isLoading() && store.feedLinks().length === 0) {
+              <div hlmSkeleton class="h-24 w-full"></div>
+            }
+            @for (link of store.feedLinks(); track link.id) {
+              <app-link-card
+                [link]="link"
+                [userVote]="store.userVoteFor(link.id)"
+                [editable]="canEdit(link)"
+                (voteChanged)="store.setUserVote(link.id, $event.value)"
+                (edit)="openEdit($event)"
+              />
             }
           </div>
-        }
-      </section>
+          @if (store.feedLinks().length > 0) {
+            <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
+              <span class="text-muted-foreground text-xs" data-testid="feed-count">
+                Showing {{ store.feedLinks().length }} of {{ store.feedTotalCount() }}
+              </span>
+              @if (canLoadMore()) {
+                <button
+                  hlmBtn
+                  variant="outline"
+                  class="self-center"
+                  data-testid="feed-load-more"
+                  (click)="loadMore()"
+                >
+                  Load More
+                </button>
+              }
+            </div>
+          }
+        </section>
 
-      <section aria-label="Line status">
-        <app-line-pulse-list [lines]="store.lines()" [isLoading]="store.isLoading()" />
-      </section>
+        <section class="flex flex-col gap-3" aria-label="Line status">
+          <div
+            class="flex flex-wrap items-center justify-end gap-2"
+            data-testid="line-refresh-countdown"
+          >
+            @if (store.polling.intervalMs() !== null) {
+              <svg
+                class="text-muted-foreground size-3.5 [animation-direction:reverse]"
+                style="animation: spin 1s linear infinite"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-opacity="0.25"
+                />
+                <path
+                  d="M21 12a9 9 0 0 0-9-9"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span class="text-muted-foreground text-xs">
+                Refreshing in {{ store.polling.secondsRemaining() }}s
+              </span>
+            }
+            <button
+              hlmBtn
+              variant="ghost"
+              size="sm"
+              data-testid="line-refresh-now"
+              (click)="store.polling.refreshNow()"
+            >
+              Refresh now
+            </button>
+          </div>
+
+          <app-line-pulse-list
+            [lines]="store.lines()"
+            [isLoading]="store.isLoading()"
+            [refreshTick]="store.linesRefreshTick()"
+          />
+        </section>
+      </div>
 
       <app-footer />
     </main>
@@ -181,15 +229,6 @@ export class HomePage implements OnDestroy {
     retryNow: () => this.store.reloadAll(),
   };
 
-  /** How many feed cards the scroll container currently reveals; grows by one chunk per click. */
-  private readonly visibleCount = signal(FEED_INITIAL_VISIBLE);
-
-  /** The resident feed page(s), clipped to the revealed chunk — the list never renders more
-   * cards than the user has asked for, even though the store may hold more. */
-  protected readonly visibleFeedLinks = computed(() =>
-    this.store.feedLinks().slice(0, this.visibleCount()),
-  );
-
   /** The click-driven replacement for the infinite-scroll sentinel: shown only while another
    * page exists and nothing is in flight. */
   protected readonly canLoadMore = computed(
@@ -199,9 +238,9 @@ export class HomePage implements OnDestroy {
       !this.store.isLoadingMore(),
   );
 
-  /** Reveals the next chunk of already-fetched links and pulls a continuation page. */
+  /** Pulls the next feed page — the page renders every loaded link, so there is no client-side
+   * reveal step left to advance. */
   protected loadMore(): void {
-    this.visibleCount.update((count) => count + FEED_INITIAL_VISIBLE);
     void this.store.loadMore();
   }
 

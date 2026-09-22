@@ -237,8 +237,8 @@ test.describe("community front page", () => {
     await expect(card.getByRole("button", { name: "Upvote" })).toBeDisabled();
     await expect(card.getByRole("button", { name: "Downvote" })).toBeDisabled();
 
-    // Under the scroller, the feed footer counts the visible rows against the filtered total
-    // and keeps Load More inside it while another page exists. The read is service-day scoped.
+    // The feed footer counts the rendered rows against the filtered total and keeps Load More
+    // beside it while another page exists. The read is service-day scoped.
     const feedFooter = page.getByTestId("feed-footer");
     await expect(feedFooter.getByTestId("feed-count")).toHaveText(
       `Showing 1 of ${FEED_TOTAL_COUNT}`,

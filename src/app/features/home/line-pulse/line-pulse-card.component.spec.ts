@@ -1,12 +1,15 @@
 import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
+import { LineStatusChartComponent } from "./line-status-chart.component";
+import { LineStatusReportsComponent } from "./line-status-reports.component";
 
 function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
   return {
@@ -325,5 +328,26 @@ describe("LinePulseCardComponent", () => {
     expect(root.querySelector('[data-testid="line-status-chart"]')).not.toBeNull();
     expect(root.querySelectorAll('[data-testid="line-status-bar"]')).toHaveLength(1);
     expect(root.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(1);
+  });
+
+  it("forwards refreshTick to the expanded chart and reports", () => {
+    const root = render(makeLine({ id: "line-7" }));
+
+    root.querySelector<HTMLElement>('[data-testid="line-card-toggle"]')?.click();
+    fixture.detectChanges();
+    flushPendingRequests();
+
+    fixture.componentRef.setInput("refreshTick", 5);
+    fixture.detectChanges();
+
+    const chart = fixture.debugElement.query(By.directive(LineStatusChartComponent));
+    const reports = fixture.debugElement.query(By.directive(LineStatusReportsComponent));
+    expect(chart).not.toBeNull();
+    expect(reports).not.toBeNull();
+    expect(chart.componentInstance.refreshTick()).toBe(5);
+    expect(reports.componentInstance.refreshTick()).toBe(5);
+
+    // The forwarded tick re-issues the children's own reads, so settle them before teardown.
+    flushPendingRequests();
   });
 });
