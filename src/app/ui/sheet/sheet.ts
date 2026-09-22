@@ -97,7 +97,11 @@ export class HlmSheet implements OnDestroy {
       if (!this.isBrowser) {
         return;
       }
+      // `overflow-x: clip` on html/body (styles.css) keeps a classic 15px viewport scrollbar
+      // alive even with body overflow hidden — lock the root element too, or the page scrollbar
+      // stays visible behind the sheet.
       document.body.style.overflow = isOpen ? "hidden" : "";
+      document.documentElement.style.overflow = isOpen ? "hidden" : "";
     });
   }
 
@@ -115,6 +119,7 @@ export class HlmSheet implements OnDestroy {
   ngOnDestroy(): void {
     if (this.isBrowser) {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     }
   }
 }

@@ -1,8 +1,8 @@
 import { Component, provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { HlmSheetBody } from "./sheet";
+import { HlmSheet, HlmSheetBody } from "./sheet";
 
 @Component({
   imports: [HlmSheetBody],
@@ -51,5 +51,56 @@ describe("HlmSheetBody scrollable", () => {
     expect(el.classList.contains("flex-col")).toBe(true);
     // Still the panel's flex child — fill-height sheets rely on this.
     expect(el.classList.contains("flex-1")).toBe(true);
+  });
+});
+
+@Component({
+  imports: [HlmSheet],
+  template: `<hlm-sheet [(open)]="open" side="bottom">content</hlm-sheet>`,
+})
+class SheetHostComponent {
+  readonly open = signal(false);
+}
+
+describe("HlmSheet scroll lock", () => {
+  let fixture: ComponentFixture<SheetHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SheetHostComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(SheetHostComponent);
+    fixture.detectChanges();
+  });
+
+  // The host's own inline overflow would otherwise leak into sibling suites.
+  afterEach(() => {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+  });
+
+  it("hides the root scrollbar while open and restores it on close", () => {
+    expect(document.documentElement.style.overflow).toBe("");
+
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fixture.componentInstance.open.set(false);
+    fixture.detectChanges();
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("restores the root overflow on destroy", () => {
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+    expect(document.documentElement.style.overflow).toBe("hidden");
+
+    fixture.destroy();
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(document.body.style.overflow).toBe("");
   });
 });
