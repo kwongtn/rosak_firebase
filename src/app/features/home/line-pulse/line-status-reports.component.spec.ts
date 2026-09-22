@@ -116,6 +116,79 @@ describe("LineStatusReportsComponent", () => {
     expect(rows[1]?.querySelector('[data-testid="report-notes"]')).toBeNull();
   });
 
+  it("renders the related stations joined by name when present", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, [
+      {
+        id: "r-stations",
+        status: "CROWDED",
+        delayMinutes: null,
+        notes: "",
+        created: new Date().toISOString(),
+        stations: [
+          { id: "s1", displayName: "KLCC" },
+          { id: "s2", displayName: "Masjid Jamek" },
+        ],
+        user: null,
+      },
+    ]);
+
+    const root = fixture.nativeElement as HTMLElement;
+    const station = root.querySelector<HTMLElement>('[data-testid="report-station"]');
+    expect(station?.textContent).toContain("KLCC, Masjid Jamek");
+    expect(station?.getAttribute("title")).toBe("KLCC, Masjid Jamek");
+  });
+
+  it("omits the station when a report has none", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, makeReports());
+
+    const root = fixture.nativeElement as HTMLElement;
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-testid="line-status-report"]')];
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.querySelector('[data-testid="report-station"]')?.textContent).toContain("KLCC");
+    expect(rows[1]?.querySelector('[data-testid="report-station"]')).toBeNull();
+  });
+
+  it("shows the relative time with a hover title carrying the formatted timestamp", async () => {
+    const created = new Date();
+    const fixture = render(true);
+    await flushReports(fixture, [
+      {
+        id: "r-time",
+        status: "NORMAL",
+        delayMinutes: null,
+        notes: "",
+        created: created.toISOString(),
+        stations: [],
+        user: null,
+      },
+    ]);
+
+    const root = fixture.nativeElement as HTMLElement;
+    const time = root.querySelector<HTMLElement>('[data-testid="report-time"]');
+
+    expect(time?.textContent).toContain("less than a minute ago");
+    const title = time?.getAttribute("title") ?? "";
+    expect(title).not.toBe(created.toISOString());
+    expect(title).toMatch(/^Reported \w{3} \d{1,2}, \d{4} \d{2}:\d{2}$/);
+  });
+
+  it("keeps the station and the time in the same row", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, makeReports());
+
+    const root = fixture.nativeElement as HTMLElement;
+    const row = root.querySelector<HTMLElement>('[data-testid="line-status-report"]');
+
+    expect(row?.querySelector('[data-testid="report-station"]')?.textContent).toContain("KLCC");
+    const time = row?.querySelector<HTMLElement>('[data-testid="report-time"]');
+    expect(time).not.toBeNull();
+    expect(time?.textContent?.trim()).not.toBe("");
+    expect(row?.textContent).toContain("less than a minute ago");
+  });
+
   it("shows an empty state when the line has no reports", async () => {
     const fixture = render(true);
     await flushReports(fixture, []);
