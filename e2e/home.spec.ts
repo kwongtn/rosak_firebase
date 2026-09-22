@@ -104,13 +104,22 @@ test.describe("community front page", () => {
 
     // Each line card: vehicle counts, status badge and passenger status (or "No data").
     const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
-    await expect(kjl.getByTestId("line-vehicle-count")).toHaveText("12 of 20 in service");
+    await expect(kjl.getByTestId("line-vehicle-count")).toHaveText("12 of 20 vehicles in service");
     await expect(kjl.getByTestId("passenger-status")).toHaveText("Normal");
     await expect(kjl.getByText("Active", { exact: true })).toBeVisible();
     await expect(kjl.getByTestId("line-pulse-message")).toHaveText("Trains are running normally.");
 
+    // Non-ACTIVE lines are folded behind a disclosure that starts collapsed.
+    const otherLines = page.getByTestId("other-lines");
     const mrl = page.locator("app-line-pulse-card").filter({ hasText: "Monorail Line" });
-    await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4 of 12 in service");
+    await expect(otherLines).toBeVisible();
+    await expect(otherLines).toHaveJSProperty("open", false);
+    await expect(page.getByTestId("other-lines-summary")).toContainText("Other lines");
+    await expect(mrl).toBeHidden();
+
+    await page.getByTestId("other-lines-summary").click();
+    await expect(otherLines).toHaveJSProperty("open", true);
+    await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4 of 12 vehicles in service");
     await expect(mrl.getByTestId("passenger-status")).toHaveText("No data");
     await expect(mrl.getByTestId("line-pulse-message")).toHaveCount(0);
 

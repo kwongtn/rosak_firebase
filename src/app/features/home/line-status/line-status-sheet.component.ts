@@ -1,4 +1,14 @@
-import { Component, computed, effect, inject, input, output, signal } from "@angular/core";
+import { isPlatformBrowser } from "@angular/common";
+import {
+  Component,
+  PLATFORM_ID,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from "@angular/core";
 import { AuthService } from "../../../core/auth/auth.service";
 import {
   GraphQLClient,
@@ -57,7 +67,11 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
     AssetMultiSelectComponent,
   ],
   template: `
-    <hlm-sheet [open]="sheet.isOpen()" (openChange)="sheet.setOpen($event)" side="bottom">
+    <hlm-sheet
+      [open]="sheet.isOpen()"
+      (openChange)="sheet.setOpen($event)"
+      [side]="isDesktop() ? 'right' : 'bottom'"
+    >
       <div hlmSheetHeader>
         <h2 class="text-base font-semibold">
           @if (line(); as pulseLine) {
@@ -190,6 +204,13 @@ export class LineStatusSheetComponent {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
 
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** `sm` — the same breakpoint HlmSheet's side-panel width cap uses. Read once, eagerly rather
+   * than via afterNextRender, so the sheet never renders on one edge and visibly flips; SSR
+   * keeps this desktop default, which is inert because HlmSheet mounts no panel until opened. */
+  protected readonly isDesktop = signal(true);
+
   protected readonly STATUS_OPTIONS = STATUS_OPTIONS;
 
   protected readonly status = signal<PassengerStatus | null>(null);
@@ -223,6 +244,10 @@ export class LineStatusSheetComponent {
   private _wasOpen = false;
 
   constructor() {
+    if (this.isBrowser) {
+      this.isDesktop.set(window.matchMedia("(min-width: 640px)").matches);
+    }
+
     // Drop the draft on the open→closed edge so the next line's report starts clean.
     effect(() => {
       const isOpen = this.sheet.isOpen();

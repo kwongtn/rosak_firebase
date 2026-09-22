@@ -1,14 +1,29 @@
 import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { HlmSheet } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LinePulse, SUBMIT_LINE_STATUS_REPORT_MUTATION } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LineStatusSheetComponent } from "./line-status-sheet.component";
+
+function stubMatchMedia(matches: boolean): void {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
 
 interface ComponentUnderTest {
   submit(): Promise<void>;
@@ -78,6 +93,7 @@ describe("LineStatusSheetComponent", () => {
       ],
     }).compileComponents();
 
+    stubMatchMedia(true);
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(LineStatusSheetComponent);
   });
@@ -141,6 +157,29 @@ describe("LineStatusSheetComponent", () => {
     expect(requestMock).not.toHaveBeenCalled();
     expect(toastMocks.error).toHaveBeenCalledTimes(1);
   });
+
+  it("anchors the sheet to the bottom when matchMedia reports a narrow viewport", () => {
+    createWithViewport(false);
+
+    expect(sheetSide()).toBe("bottom");
+  });
+
+  it("docks the sheet to the right when matchMedia reports a wide viewport", () => {
+    createWithViewport(true);
+
+    expect(sheetSide()).toBe("right");
+  });
+
+  function createWithViewport(matches: boolean): void {
+    stubMatchMedia(matches);
+    fixture = TestBed.createComponent(LineStatusSheetComponent);
+    fixture.detectChanges();
+  }
+
+  function sheetSide(): string {
+    const sheetDebug = fixture.debugElement.query(By.directive(HlmSheet));
+    return (sheetDebug.componentInstance as HlmSheet).side();
+  }
 
   /** Logs in, targets a line, opens the sheet and flushes the lazily loaded station list. */
   async function openSheetWithStations(): Promise<void> {

@@ -29,6 +29,20 @@ import { HomePage } from "./home.page";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 
+// LineStatusSheetComponent reads window.matchMedia in its constructor; the test DOM doesn't provide it.
+if (!window.matchMedia) {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
 function makeFeedLink(id: string): FeedLink {
   return {
     id,
