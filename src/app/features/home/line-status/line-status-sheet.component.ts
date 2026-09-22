@@ -187,6 +187,16 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
                 searchPlaceholder="Search stations"
               />
             }
+
+            @if (submitError(); as error) {
+              <p
+                class="text-destructive text-xs"
+                data-testid="line-status-submit-error"
+                role="alert"
+              >
+                {{ error }}
+              </p>
+            }
           </form>
         }
       </div>
@@ -195,7 +205,16 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
         <div hlmSheetFooter style="padding-bottom: calc(env(safe-area-inset-bottom) + 1.25rem)">
           <button
             hlmBtn
-            class="h-11 w-full text-base"
+            variant="outline"
+            class="h-11"
+            data-testid="cancel-line-status-report"
+            (click)="sheet.setOpen(false)"
+          >
+            Cancel
+          </button>
+          <button
+            hlmBtn
+            class="h-11 flex-1 text-base"
             data-testid="submit-line-status-report"
             [disabled]="isSubmitting()"
             (click)="submit()"
@@ -234,6 +253,9 @@ export class LineStatusSheetComponent {
   protected readonly selectedStationIds = signal<string[]>([]);
   /** Public so the host can reflect the busy state if it adds its own controls. */
   readonly isSubmitting = signal(false);
+
+  /** Inline submission failure shown above the footer; null when there is nothing to report. */
+  protected readonly submitError = signal<string | null>(null);
 
   protected readonly lineId = computed(() => this.line()?.id ?? this.sheet.lineId());
 
@@ -288,6 +310,7 @@ export class LineStatusSheetComponent {
   }
 
   async submit(): Promise<void> {
+    this.submitError.set(null);
     if (!this.auth.isLoggedIn()) {
       this.toast.error("Please log in", "You need an account to submit a line status report.");
       return;
@@ -316,20 +339,26 @@ export class LineStatusSheetComponent {
           notes: this.notes().trim() || null,
         },
       };
-      await this.graphql.request<SubmitLineStatusReportData, SubmitLineStatusReportVars>(
-        SUBMIT_LINE_STATUS_REPORT_MUTATION,
-        vars,
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
+      const data = await this.graphql.request<
+        SubmitLineStatusReportData,
+        SubmitLineStatusReportVars
+      >(SUBMIT_LINE_STATUS_REPORT_MUTATION, vars, idToken ? { "firebase-auth-key": idToken } : {});
+      if (!data.submitLineStatusReport.ok) {
+        // Business-level rejection: GraphQL returned no top-level errors, but nothing was saved.
+        this.submitError.set("Couldn't submit your report. Please try again.");
+        return;
+      }
       this.toast.success("Line status reported", "Thanks for keeping the community informed.");
       this.clear();
       this.sheet.setOpen(false);
       this.submitted.emit();
     } catch (err) {
-      // GraphQLClient already surfaced the error — expected failure, nothing to add.
       if (err instanceof GraphQLRequestError) {
+        // GraphQLClient already toasted the server message; keep the sheet open and mirror it here.
+        this.submitError.set(err.message);
         return;
       }
+      this.submitError.set("Couldn't reach the server. Check your connection and try again.");
       throw err;
     } finally {
       this.isSubmitting.set(false);
@@ -342,5 +371,6 @@ export class LineStatusSheetComponent {
     this.delayMinutes.set("");
     this.notes.set("");
     this.selectedStationIds.set([]);
+    this.submitError.set(null);
   }
 }

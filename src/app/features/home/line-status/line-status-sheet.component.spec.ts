@@ -5,7 +5,7 @@ import { By } from "@angular/platform-browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { HlmSheet, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { AssetMultiSelectComponent } from "../../insiden/asset-multi-select/asset-multi-select.component";
@@ -163,6 +163,63 @@ describe("LineStatusSheetComponent", () => {
     expect(toastMocks.error).toHaveBeenCalledTimes(1);
   });
 
+  it("shows an inline error and keeps the sheet open when the payload reports ok: false", async () => {
+    requestMock.mockResolvedValue({ submitLineStatusReport: { ok: false, id: null } });
+    await prepareSubmit();
+    const emitted = vi.fn();
+    fixture.componentInstance.submitted.subscribe(emitted);
+
+    await asTestable(fixture).submit();
+    fixture.detectChanges();
+
+    const error = submitErrorElement();
+    expect(error).not.toBeNull();
+    expect(error?.getAttribute("role")).toBe("alert");
+    expect(error?.textContent?.trim()).toBe("Couldn't submit your report. Please try again.");
+    expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(sheetMock.setOpen).not.toHaveBeenCalled();
+    expect(emitted).not.toHaveBeenCalled();
+  });
+
+  it("mirrors a GraphQL error message inline and keeps the sheet open", async () => {
+    requestMock.mockRejectedValue(new GraphQLRequestError([{ message: "Not authenticated" }]));
+    await prepareSubmit();
+
+    await asTestable(fixture).submit();
+    fixture.detectChanges();
+
+    expect(submitErrorElement()?.textContent?.trim()).toBe("Not authenticated");
+    expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(sheetMock.setOpen).not.toHaveBeenCalled();
+  });
+
+  it("shows an inline transport error and still rethrows it", async () => {
+    requestMock.mockRejectedValue(new Error("Network down"));
+    await prepareSubmit();
+
+    await expect(asTestable(fixture).submit()).rejects.toThrow("Network down");
+    fixture.detectChanges();
+
+    expect(submitErrorElement()?.textContent?.trim()).toBe(
+      "Couldn't reach the server. Check your connection and try again.",
+    );
+    expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(sheetMock.setOpen).not.toHaveBeenCalled();
+  });
+
+  it("closes the sheet from Cancel without submitting", async () => {
+    await openSheetWithStations();
+
+    const cancel = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-testid="cancel-line-status-report"]',
+    );
+    expect(cancel).not.toBeNull();
+    cancel?.click();
+
+    expect(sheetMock.setOpen).toHaveBeenCalledWith(false);
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
   it("anchors the sheet to the bottom when matchMedia reports a narrow viewport", () => {
     createWithViewport(false);
 
@@ -234,6 +291,21 @@ describe("LineStatusSheetComponent", () => {
   function sheetSide(): string {
     const sheetDebug = fixture.debugElement.query(By.directive(HlmSheet));
     return (sheetDebug.componentInstance as HlmSheet).side();
+  }
+
+  function submitErrorElement(): HTMLElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[data-testid="line-status-submit-error"]',
+    );
+  }
+
+  /** Opens the sheet on a line with a status picked, ready for a `submit()` call. */
+  async function prepareSubmit(): Promise<void> {
+    await openSheetWithStations();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-testid="status-option-NORMAL"]')
+      ?.click();
+    fixture.detectChanges();
   }
 
   /** Logs in, targets a line, opens the sheet and flushes the lazily loaded station list. */
