@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
@@ -36,9 +37,21 @@ describe("LinePulseCardComponent", () => {
     openFor: ReturnType<typeof vi.fn>;
     setOpen: ReturnType<typeof vi.fn>;
   };
+  let reportSheetMock: {
+    isOpen: ReturnType<typeof signal<boolean>>;
+    lineId: ReturnType<typeof signal<string | null>>;
+    openFor: ReturnType<typeof vi.fn>;
+    setOpen: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     sheetMock = {
+      isOpen: signal(false),
+      lineId: signal<string | null>(null),
+      openFor: vi.fn(),
+      setOpen: vi.fn(),
+    };
+    reportSheetMock = {
       isOpen: signal(false),
       lineId: signal<string | null>(null),
       openFor: vi.fn(),
@@ -50,6 +63,7 @@ describe("LinePulseCardComponent", () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: LineStatusSheetService, useValue: sheetMock },
+        { provide: ReportSheetService, useValue: reportSheetMock },
       ],
     }).compileComponents();
 
@@ -62,10 +76,10 @@ describe("LinePulseCardComponent", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it("renders the in-service vehicle count as 'X of Y in service'", () => {
-    const root = render(makeLine({ inServiceVehicleCount: 12, totalVehicleCount: 16 }));
+  it("renders the in-service vehicle count as 'X of Y vehicles in service'", () => {
+    const root = render(makeLine({ inServiceVehicleCount: 12, totalVehicleCount: 20 }));
 
-    expect(textOf(root, "line-vehicle-count")).toBe("12 of 16 in service");
+    expect(textOf(root, "line-vehicle-count")).toBe("12 of 20 vehicles in service");
   });
 
   it("shows 'No data' for a line with no passenger status", () => {
@@ -96,5 +110,15 @@ describe("LinePulseCardComponent", () => {
     button?.click();
 
     expect(sheetMock.openFor).toHaveBeenCalledWith("line-42");
+  });
+
+  it("opens the spotting sheet seeded with this line from the add-entry button", () => {
+    const root = render(makeLine({ id: "line-42" }));
+
+    const button = root.querySelector<HTMLButtonElement>('[data-testid="add-spotting-entry"]');
+    expect(button).not.toBeNull();
+    button?.click();
+
+    expect(reportSheetMock.openFor).toHaveBeenCalledWith("line-42");
   });
 });
