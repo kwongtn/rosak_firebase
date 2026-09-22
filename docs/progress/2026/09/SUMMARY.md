@@ -23,6 +23,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | Feed scoped to the current service day with a `Showing X of Y` footer; recent community reports show their related station and a hover timestamp; the shared card, legend counts and footer covered by e2e (9/9)                                                                 |
 | Sep 22 | One shared `app-link-card` for the feed, `/insiden` and situasi (feed's URL split + relative-time tooltip + votes merged with insiden's favicon/pending/edit); the two duplicated feed-card files deleted, home feed gains working edit via the shared link sheet                |
 | Sep 22 | Fixed the Pending pill and pending group: the shared card and list now key "pending" off the approval `status` (`PENDING_APPROVAL`), never the console's separate `completed` handled flag; `FEED_QUERY` selects `status`                                                        |
+| Sep 22 | Expanded line card's hourly chart stacks each bar by report type (new `statusCounts` contract): segments bottom-up NORMAL → DISRUPTED summing to the bar height, breakdown in the hover readout and bar `title`, plus a `refreshTick` poll hook                                  |
 
 ### Home — community front page (2026-09-22)
 
@@ -66,6 +67,14 @@ Seven commits close out the front page:
 | Commit    | Deliverable                                                                                                                         |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `be72cad` | Pending pill + approved/pending grouping key off `status === "PENDING_APPROVAL"`; `FEED_QUERY` selects `status`; regressions pinned |
+
+### Home — stacked hourly report bars (2026-09-22)
+
+- `line-status-chart.component.ts` bars are now stacked per passenger status from the backend's new
+  `statusCounts` bucket field (bottom-up NORMAL → DISRUPTED, segments summing to exactly the bar's
+  height, `flex-col-reverse` + `last:rounded-t-[2px]`), with the per-status breakdown in the hover
+  readout and each bar's `title`, plus a `refreshTick` input so the parent's poll beat refreshes an
+  open accordion. Covered by the chart/card specs and the e2e history stub.
 
 ## Commit Statistics
 

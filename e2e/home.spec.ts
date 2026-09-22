@@ -123,18 +123,24 @@ const HISTORY_BUCKETS = [
     hourEnd: "2026-09-21T20:00:00Z",
     count: 0,
     dominantStatus: null,
+    statusCounts: [],
   },
   {
     hourStart: "2026-09-21T20:00:00Z",
     hourEnd: "2026-09-21T21:00:00Z",
     count: 4,
     dominantStatus: "CROWDED",
+    statusCounts: [
+      { status: "BUSY", count: 1 },
+      { status: "CROWDED", count: 3 },
+    ],
   },
   {
     hourStart: "2026-09-21T21:00:00Z",
     hourEnd: "2026-09-21T22:00:00Z",
     count: 2,
     dominantStatus: "BUSY",
+    statusCounts: [{ status: "BUSY", count: 2 }],
   },
 ];
 
@@ -464,11 +470,24 @@ test.describe("community front page", () => {
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(kjl.getByTestId("line-card-expanded")).toBeVisible();
 
-    // The hourly chart: one bar per stub bucket, scaled to the busiest hour.
+    // The hourly chart: one bar per stub bucket, scaled to the busiest hour and stacked by
+    // report type — the 4-report hour splits into two segments, and the breakdown is carried by
+    // the bar's own title and by the hover readout.
     const chart = kjl.getByTestId("line-status-chart");
     await expect(chart).toBeVisible();
     await expect(chart.getByTestId("line-status-bar")).toHaveCount(HISTORY_BUCKETS.length);
     await expect(chart.getByTestId("line-status-chart-readout")).toContainText("Hover a bar");
+
+    const stackedBar = chart.getByTestId("line-status-bar").nth(1);
+    await expect(stackedBar).toHaveAttribute(
+      "title",
+      "04:00–05:00 · 4 reports · Busy 1, Crowded 3",
+    );
+    await expect(stackedBar.locator(":scope > div")).toHaveCount(2);
+    await stackedBar.hover();
+    await expect(chart.getByTestId("line-status-chart-readout")).toContainText("Busy 1");
+    await expect(chart.getByTestId("line-status-chart-readout")).toContainText("Crowded 3");
+    await page.mouse.move(0, 0);
 
     // The reports list: the stubbed page renders a badge, a delay, the station and notes per
     // row, with the relative time pinned right and the exact timestamp on its `title`.

@@ -101,6 +101,13 @@ layout the same way.
 **Fix**: AGENTS.md now names `inject(GraphQLClient).request(query, variables, headers)` for mutations (same commit as this entry).
 **Prevention**: Every API name in AGENTS.md should be greppable in `src/`; when the doc and the code disagree, the code is the contract. A fixed doc claim gets a progress entry plus a MISTAKES entry like this one.
 
+### [2026-09-22] templates/prettier: an HTML comment inside an `@for` block breaks Prettier's Angular parser
+
+**Problem**: a `<!-- … -->` comment placed inside an `@for (…) { … }` block of an inline component template made `npx prettier --write` fail with `SyntaxError: ',' expected.` at the comment's line — Prettier could not parse the whole `.ts` file, so it dropped out of the formatting gate.
+**Root Cause**: Prettier parses inline templates with its Angular-HTML parser, which does not accept HTML comments inside control-flow block content (Angular's own compiler is more permissive).
+**Fix**: Moved the rationale into the TypeScript docstring of the function that owns the behaviour (the `@for` block itself stays comment-free).
+**Prevention**: Keep template comments outside `@if`/`@for`/`@switch` blocks — put them in the TS doc comments instead. If `prettier --write` reports a syntax error on a template line, look for a comment inside a control-flow block first.
+
 ### [2026-09-15] CI: `vi.mock` identity diverges across specs (`isolate: false` shared registry)
 
 **Problem**: `image-upload.service.spec` failed only in CI (`expected "vi.fn()" to be called at least once`) while passing locally — repeatedly, across unrelated fixes (polling, awaiting). The service genuinely called `captureException`, but on the REAL `@sentry/angular` module, not the spec's mock.

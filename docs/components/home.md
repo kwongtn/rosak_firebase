@@ -74,9 +74,10 @@
     breakdown), `passengerStatus`/`passengerStatusMessage` (both nullable), `statusReportCount`,
     `passengerStatusCount`/`passengerStatusCounts` (the per-category report breakdown the passenger
     chip's severity legend reads), `statusWindowMinutes` (the rolling window), and nested
-    `pulseLinks` (a `SocialMediaLinkScalar` subset). `LINE_STATUS_HISTORY_QUERY` (hourly buckets) and
-    `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list, each node carrying its
-    `stations { id displayName }`) back the expanded card panel.
+    `pulseLinks` (a `SocialMediaLinkScalar` subset). `LINE_STATUS_HISTORY_QUERY` (hourly buckets,
+    each carrying `count`, `dominantStatus` and the `statusCounts { status count }` breakdown the
+    chart stacks) and `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list, each node carrying
+    its `stations { id displayName }`) back the expanded card panel.
   - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status, currentServiceDayOnly)` connection
     (`edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }`, and the cursor-independent
     `totalCount`); the node selection carries both link axes — `status` (the approval state the
@@ -173,11 +174,17 @@
   title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated
   on `expanded`).
 - **`LineStatusChartComponent`** — the expanded card's hourly strip: `bars`/`hasData`/`maxCount`
-  computed over the lazy `LINE_STATUS_HISTORY_QUERY` (inert until `expanded`), one bar per
-  service-day hour coloured by the hour's dominant status. All 24 hours are labelled on a
-  `min-w-[24rem]` strip inside an `overflow-x-auto` lane, and the loading skeleton, empty state and
-  loaded chart all share the exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card below
-  never jumps between states.
+  computed over the lazy `LINE_STATUS_HISTORY_QUERY` (inert until `expanded`; a parent-driven
+  `refreshTick` input reloads it while the accordion is open, via the same applied-tick guard as the
+  reports list). One bar per service-day hour, scaled to the busiest hour and **stacked by report
+  type**: `toSegments()` splits each hour's `statusCounts` in `PASSENGER_SCALE` order (bottom-up
+  NORMAL → DISRUPTED, each segment `count / segmentedTotal * barHeightPct` so they sum to exactly the
+  bar's height; a bucket with no counts falls back to one dominant-coloured segment). The bar
+  container is `flex-col-reverse` (first DOM segment at the bottom) and only the topmost segment
+  rounds its top. The hover readout and each bar's `title`/`aria-label` carry the hour range, the
+  total and the per-status breakdown. All 24 hours are labelled on a `min-w-[24rem]` strip inside an
+  `overflow-x-auto` lane, and the loading skeleton, empty state and loaded chart all share the
+  exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card below never jumps between states.
 - **`LineStatusReportsComponent`** — the expanded card's keyset-paginated report list
   (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded`. Each row shows the passenger badge, an
   optional delay and the report's related `stations` (joined `displayName`s, `report-station`), with

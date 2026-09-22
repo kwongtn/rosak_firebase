@@ -224,6 +224,10 @@ export const LINE_STATUS_HISTORY_QUERY = /* GraphQL */ `
       hourEnd
       count
       dominantStatus
+      statusCounts {
+        status
+        count
+      }
     }
   }
 `;
@@ -243,6 +247,9 @@ export interface LineStatusHourBucket {
   hourEnd: string;
   count: number;
   dominantStatus: PassengerStatus | null;
+  /** The hour's per-status tallies in `PassengerStatus` declaration order, zero counts omitted
+   * (an empty hour returns `[]`). Always sums to `count`. */
+  statusCounts: Array<{ status: PassengerStatus; count: number }>;
 }
 
 /* ---------------------------------------------------------------------- *

@@ -286,6 +286,10 @@ describe("LinePulseCardComponent", () => {
             hourEnd: "2026-09-21T20:00:00+00:00",
             count: 4,
             dominantStatus: "CROWDED",
+            statusCounts: [
+              { status: "BUSY", count: 1 },
+              { status: "CROWDED", count: 3 },
+            ],
           },
         ],
       },
