@@ -64,6 +64,27 @@ layout the same way.
 **Fix**: The handler branches on `payload.ok` **before** any success side effect; a false `ok` sets the inline error (`[data-testid="line-status-submit-error"]`) and returns, mirroring the `GraphQLRequestError` path. Only a truthy `ok` closes the sheet and emits. Commit `9c1acf8`.
 **Prevention**: For any mutation whose payload carries an `ok` flag, check it before toast/close/emit. A returned payload is not evidence of success — only `ok: true` is.
 
+### [2026-09-22] insiden/link-card: interactive controls must stay outside the navigational `<a>`
+
+**Problem**: The shared link card (`app-link-card`) carries a vote control and an edit pencil inside a row whose body is an external link. If either control were rendered inside the `<a>` (the natural place when the whole row is the tap target), clicking it would follow the link instead of triggering the control, and nested interactive elements inside an anchor are invalid HTML.
+**Root Cause**: The row is one large anchor, so it is easy to drop the controls in with the rest of the body content; a click anywhere inside an anchor navigates, regardless of the control under the pointer.
+**Fix**: The anchor wraps only the non-interactive body (favicon, URL, title, tags, Pending pill); the vote button and edit pencil live in `link-meta-rail` as siblings of the `<a>`. `link-card.component.spec.ts` asserts `closest("a") === null` for both. Commit `46b0319`.
+**Prevention**: On any card whose row is a link, keep interactive children (buttons, toggles, menus) as siblings of the anchor and assert it in the spec. Never nest a control inside the anchor just to widen its tap target.
+
+### [2026-09-22] build/test: scope one spec with `--include`, never a positional path
+
+**Problem**: Running one spec by appending its path (`npm test -- --no-watch src/app/features/home/data/home.store.spec.ts`) did not run that spec; the Angular CLI parsed the path as the _project name_ and failed (`Argument: project, Given: "…", Choices: "web"`), so nothing ran.
+**Root Cause**: `npm test` is `ng test`, whose first positional argument is the project, not a file glob. Spec selection is the unit-test builder's `include` option.
+**Fix**: Use `npm test -- --no-watch --include <path>`; verified with `--include src/app/features/home/data/home.store.spec.ts` (1 file / 8 tests). `--filter <regex>` narrows by suite/test name, not by file.
+**Prevention**: For a single file use `--include`; for a single suite or test use `--filter`. Never pass a bare path positionally to `ng test`.
+
+### [2026-09-22] repo/prettier: Playwright artifacts broke `prettier --check .` (and Prettier _does_ read `.gitignore`)
+
+**Problem**: After an e2e run, Playwright wrote `test-results/`, `playwright-report/` and `blob-report/` into the repo root; `npx prettier --check .` then failed on the unformatted report files (e.g. `test-results/.last-run.json`). It is tempting to blame "Prettier does not read `.gitignore`", but that is backwards.
+**Root Cause**: Prettier's CLI `--ignore-path` defaults to `[.gitignore, .prettierignore]` (verified against Prettier 3.9.6 in this repo via `npx prettier --help`). Prettier therefore _does_ honour `.gitignore`; the artifacts broke the check only because they were not yet listed there. Confirmed with a throwaway probe: a badly-formatted file under a gitignored directory is skipped, while the same file under a tracked directory is flagged.
+**Fix**: Added `/test-results`, `/playwright-report` and `/blob-report` to `.gitignore` (commit `6157823`). Because Prettier reads `.gitignore`, that alone is sufficient; no `.prettierignore` entry is needed.
+**Prevention**: Keep generated tool output (Playwright reports, coverage, build output) in `.gitignore`; that one file is also Prettier's default ignore list. Do not add a separate `.prettierignore` before checking whether `.gitignore` already covers the path.
+
 ## Fixed
 
 ### [2026-09-22] AGENTS.md: `postGraphQL()` referenced a non-existent API
@@ -78,7 +99,7 @@ layout the same way.
 **Problem**: `image-upload.service.spec` failed only in CI (`expected "vi.fn()" to be called at least once`) while passing locally — repeatedly, across unrelated fixes (polling, awaiting). The service genuinely called `captureException`, but on the REAL `@sentry/angular` module, not the spec's mock.
 **Root Cause**: The Angular unit-test builder runs Vitest with `isolate: false`, so spec files in a worker share one module registry and execute in timing-dependent order. If any earlier file (e.g. `incident-card.component.spec`, which imports the service without a Sentry mock) evaluates `image-upload.service` first, the service binds the real Sentry while the spec's own import resolves to its mock — the assertion can never pass. Which files share a worker depends on CPU count, so it passes on some machines and fails on others.
 **Fix**: Report through an injectable `UPLOAD_ERROR_REPORTER` token (root factory defaults to `Sentry.captureException`); specs provide a spy via TestBed DI, which is per-test and immune to registry sharing. Test and service import the token from the same (cached) module instance, so identity always matches.
-**Prevention**: Never assert on a module-mock (`vi.mock`) binding for code under test in this repo — any spec asserting a mock must own the seam through TestBed DI. Suspect order-dependent flakes first when CI fails but local passes: check `isolate` in the builder executor.
+**Prevention**: Never assert on a module-mock (`vi.mock`) binding for code under test in this repo — any spec asserting a mock must own the seam through TestBed DI. Suspect order-dependent flakes first when CI fails but local passes: check `isolate` in the builder executor. Cross-reference (2026-09-22): `features/tracker/data/gtfs-static.service.spec.ts` is another known instance of this class (module-level mock + `isolate: false`), still a pre-existing order-dependent flake; treat it the same way (own the seam through DI) before chasing it as a regression.
 
 ### [2026-09-15] deploy-functions: job-level `if:` on `secrets` rejected by GitHub validator
 

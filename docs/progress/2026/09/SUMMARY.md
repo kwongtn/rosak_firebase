@@ -2,7 +2,7 @@
 
 ## Overview
 
-CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions`) were red on every run and are green again. The month closed with the new **home** community front page going live as the app's landing route.
+CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions`) were red on every run and are green again. The month closed with the new **home** community front page going live as the app's landing route, then a second pass that scoped the feed to the current service day and merged the three link lists onto one shared card.
 
 ---
 
@@ -19,7 +19,8 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | **home** community front page ships as the landing route: global link feed (login-gated submit, duplicate detection, votes) + per-line pulse cards + mobile line-status bottom sheet                                                                                             |
 | Sep 22 | Root `""` route swaps from the `/spotting` redirect to lazy `HomePage` with route-scoped `HomeStore`/`LineStatusSheetService`                                                                                                                                                    |
 | Sep 22 | Home hosts the spotting entry sheet: `ReportSheetService.openFor(lineId)` + one-shot line seed in the report form (wave 1 of the UI revision)                                                                                                                                    |
-| Sep 22 | Front-page UX round: inline submit errors + Cancel on the line-status sheet and feed box, schemeless-URL normalization, all-24-hour chart labels, feed Load More, per-category status pills in the hover popover                                                                 |
+| Sep 22 | Front-page UX round: inline submit errors + Cancel on the line-status sheet and feed box, schemeless-URL normalization, all-24-hour chart labels, feed Load More, per-status counts folded into the status legend                                                                |
+| Sep 22 | Feed scoped to the current service day with a `Showing X of Y` footer; recent community reports show their related station and a hover timestamp; the shared card, legend counts and footer covered by e2e (9/9)                                                                 |
 | Sep 22 | One shared `app-link-card` for the feed, `/insiden` and situasi (feed's URL split + relative-time tooltip + votes merged with insiden's favicon/pending/edit); the two duplicated feed-card files deleted, home feed gains working edit via the shared link sheet                |
 
 ### Home — community front page (2026-09-22)
@@ -37,27 +38,44 @@ New landing feature under `src/app/features/home/`, delivered in four commits:
 
 Follow-up polish on the same landing feature, five commits:
 
-| Commit    | Deliverable                                                                         |
-| --------- | ----------------------------------------------------------------------------------- |
-| `9c1acf8` | Line-status sheet: inline submit error on all three failure paths + Cancel button   |
-| `dcf9885` | Feed submit box: inline error + schemeless-URL normalization (`feed-url.util.ts`)   |
-| `a0f1b95` | Line-status chart: all 24 hour labels + shared reserved-height skeleton             |
-| `858d059` | Feed: bottom-aligned timestamp, split URL colours, Load More list                   |
-| `3e46c04` | Line card: removed the single count badge, per-category pills in the status popover |
+| Commit    | Deliverable                                                                                                       |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `9c1acf8` | Line-status sheet: inline submit error on all three failure paths + Cancel button                                 |
+| `dcf9885` | Feed submit box: inline error + schemeless-URL normalization (`feed-url.util.ts`)                                 |
+| `a0f1b95` | Line-status chart: all 24 hour labels + shared reserved-height skeleton                                           |
+| `858d059` | Feed: bottom-aligned timestamp, split URL colours, Load More list                                                 |
+| `3e46c04` | Line card: removed the single count badge; per-status counts folded into the status legend (revised in `33b367e`) |
+
+### Home — shared card, service-day feed and e2e (2026-09-22)
+
+Seven commits close out the front page:
+
+| Commit    | Deliverable                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `920e49a` | Feed day/total contract mirror + report stations + minute-granular `humanizeSince`                  |
+| `c6989eb` | Recent report row shows its station and a right-pinned hover timestamp                              |
+| `33b367e` | Per-status counts folded into the status legend (reverses the separate count-pill cluster)          |
+| `46b0319` | One shared `app-link-card` across the feed, situasi and insiden lists; duplicated feed card deleted |
+| `d60c906` | Feed scoped to the current service day; `feed-footer` "Showing X of Y" beside Load More             |
+| `dd77aab` | e2e retargeted to the shared card, legend counts and feed footer (9/9)                              |
+| `6157823` | `.gitignore` ignores Playwright artifact dirs so `prettier --check .` stays clean                   |
 
 ## Commit Statistics
 
 | Type      | Count  | Percentage |
 | --------- | ------ | ---------- |
-| feat      | 28     | ~48%       |
-| fix       | 15     | ~26%       |
-| docs      | 10     | ~17%       |
-| style     | 1      | ~2%        |
-| refactor  | 1      | ~2%        |
-| other     | 3      | ~5%        |
-| **Total** | **58** | **100%**   |
+| feat      | 35     | ~48%       |
+| docs      | 12     | ~16%       |
+| fix       | 11     | ~15%       |
+| test      | 3      | ~4%        |
+| refactor  | 3      | ~4%        |
+| merge     | 5      | ~7%        |
+| other     | 2      | ~3%        |
+| style     | 1      | ~1%        |
+| chore     | 1      | ~1%        |
+| **Total** | **73** | **100%**   |
 
-> No-merge commits authored in September 2026. "other" covers three non-conventional subjects (`Update AGENTS.md`, `Add graphify`, `Revert optimization except sentry`).
+> September 2026 on the checked-out branch. `merge` covers 3 `Merge branch 'staging'` and 2 `Merge branch 'main' into staging`; `other` covers `Update AGENTS.md` and `Add graphify`.
 
 ---
 

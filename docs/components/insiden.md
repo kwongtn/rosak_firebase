@@ -154,7 +154,11 @@
     pill (`title="Awaiting admin approval"`) and a right rail carrying the vote button plus the
     relative time (`humanizeSince` with an exact-timestamp + submitter tooltip) and the edit pencil.
     The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
-    their clicks can never navigate.
+    their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
+    `link-tags`, `link-pending`, `link-meta-rail`, `link-time` / `link-created`, `link-submitter` and
+    `link-edit`. The host passes `userVote` (its authenticated overlay wins over the anonymous feed
+    value) and `editable` (gated with `canEditLink`); the card re-emits votes as `voteChanged` and
+    the edit pencil as `edit`.
   - `LinkListComponent` (shared, `app-link-list`): host-agnostic link list taking an ordered
     `links` input + host-specific `emptyMessage` + a `voteValues` overlay (`Record<id, number>`).
     Owns the approved/pending split, the UTC day-group

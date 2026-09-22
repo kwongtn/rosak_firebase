@@ -28,11 +28,15 @@
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
-    `ReportSheetService.openFor(lineId)`. It also owns the feed list's reveal pagination (Load More).
+    `ReportSheetService.openFor(lineId)`. It also owns the feed list's reveal pagination (Load More)
+    and the bottom-right `feed-footer` (`data-testid="feed-footer"`): a `feed-count` span reading
+    `Showing X of Y` (`visibleFeedLinks().length` over `HomeStore.feedTotalCount()`, so the
+    denominator stays the filtered total as pages append) beside the Load More button, both hidden
+    while the feed is empty.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
-    (per-status plain-language copy), `status-info.util.ts` (popover/legend/pill rows), and the pure
-    `passenger-status.util.ts` (no components).
+    (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders),
+    and the pure `passenger-status.util.ts` (no components).
 
 ## 🔌 Interface & Data Flow
 
@@ -68,13 +72,15 @@
   - `FRONT_PAGE_LINES_QUERY` — per-line pulse list: `id/code/displayName/displayColor/status`,
     `inServiceVehicleCount`/`totalVehicleCount`, `vehicleStatusCounts` (the per-status fleet
     breakdown), `passengerStatus`/`passengerStatusMessage` (both nullable), `statusReportCount`,
-    `passengerStatusCount`/`passengerStatusCounts` (the per-category report breakdown the hover
-    popover's pills read), `statusWindowMinutes` (the rolling window), and nested `pulseLinks` (a
-    `SocialMediaLinkScalar` subset). `LINE_STATUS_HISTORY_QUERY` (hourly buckets) and
-    `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list) back the expanded card panel.
-  - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status)` connection (`edges { node, cursor }`
-    - `pageInfo { hasNextPage, endCursor }`); the store always requests `status: "LIVE"`,
-      `first: 30`.
+    `passengerStatusCount`/`passengerStatusCounts` (the per-category report breakdown the passenger
+    chip's severity legend reads), `statusWindowMinutes` (the rolling window), and nested
+    `pulseLinks` (a `SocialMediaLinkScalar` subset). `LINE_STATUS_HISTORY_QUERY` (hourly buckets) and
+    `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list, each node carrying its
+    `stations { id displayName }`) back the expanded card panel.
+  - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status, currentServiceDayOnly)` connection
+    (`edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }`, and the cursor-independent
+    `totalCount`); the store always requests `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`,
+    `currentServiceDayOnly: true`.
   - `SUBMIT_FEED_LINK_MUTATION` (`submitFeedLink(input: FeedLinkInput!)`) — returns
     `{ ok, isDuplicate, duplicateOfId, userVote, link }`.
   - `SUBMIT_LINE_STATUS_REPORT_MUTATION` (`submitLineStatusReport(input: LineStatusReportInput!)`).
@@ -111,12 +117,15 @@
 - **`HomeStore`** (`data/home.store.ts`, `@Injectable()` provided by the route) is the single source
   of truth for page data:
   - Two `graphqlResource`s: `linesResource` (`FRONT_PAGE_LINES_QUERY`) and `feedResource`
-    (`FEED_QUERY` with `first: 30`, `status: "LIVE"`). The constructor reads both once so the lazy
+    (`FEED_QUERY` with `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`, `currentServiceDayOnly: true`).
+    The constructor reads both once so the lazy
     `httpResource` fetches on store creation.
   - Derived: `lines` (pulse list), `feedLinks` (first page + appended pages), `feedPageInfo`
-    (appended `hasNextPage`/`endCursor` win over the first page's), `isLoading`/`hasError` (either
+    (appended `hasNextPage`/`endCursor` wins over the first page's), `feedTotalCount` (the appended
+    page's `totalCount` wins over the first page's, else `0`), `isLoading`/`hasError` (either
     resource).
-  - Cursor pagination: `appendedEdges`/`appendedHasNext`/`nextCursor`/`loadingMore` signals;
+  - Cursor pagination:
+    `appendedEdges`/`appendedHasNext`/`appendedTotalCount`/`nextCursor`/`loadingMore` signals;
     `loadMore()` re-issues `FEED_QUERY` through `GraphQLClient.request` with the last cursor and
     appends, coalesced by `loadingMore`.
   - Polling: `new PollingSource(() => this.reloadAll())`, armed by `start()` and disarmed by
@@ -168,7 +177,10 @@
   loaded chart all share the exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card below
   never jumps between states.
 - **`LineStatusReportsComponent`** — the expanded card's keyset-paginated report list
-  (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded`.
+  (`LINE_STATUS_REPORTS_QUERY`), also gated on `expanded`. Each row shows the passenger badge, an
+  optional delay and the report's related `stations` (joined `displayName`s, `report-station`), with
+  the relative time pinned right (`report-time`, `humanizeSince`) carrying the exact timestamp on
+  its `title`.
 - **`LinkCardComponent`** (shared insiden `app-link-card`) — `urlParts` (`linkUrlPartsOf`; the domain
   keeps the card's foreground colour, the path renders muted), `faviconDomain`, `submitter`
   (`nickname || shortId || ""`), `createdLabel` (`humanizeSince`), and `voteValue`, which narrows the
@@ -203,7 +215,7 @@
   rule is a one-function change with its own spec. URL _presentation_ (domain/path split) lives in
   insiden's `link-url.util.ts` (`linkUrlPartsOf`), shared by the one link card every surface uses.
 - **`status-info.util.ts`** is the popover-content seam: a new `PassengerStatus`/`VehicleStatus`
-  member is a one-line addition to the label/order tables, and the chips and pills stay in sync.
+  member is a one-line addition to the label/order tables, and the chips and legend stay in sync.
   **`line-status-metrics.util.ts`** holds the plain-language per-status copy.
 - **Reused shared primitives stay the seams for new surfaces:** `AssetMultiSelectComponent`
   (line/station pickers), `VoteButtonComponent` (`targetType` already supports `"link"`), Hlm
@@ -215,13 +227,13 @@
 
 ## 💡 Potential Feature Opportunities
 
-- **Feed filters + a real permalink.** The feed is currently unfiltered and the only deep link is
-  the in-page `#feed-link-<id>` anchor the duplicate indicator already emits. **Ready to implement,
-  purely additive:** a line/status filter signal folded into the feed request (or client-side over
-  the resident page), plus a per-link route/fragment that scrolls to and highlights a row — the
-  anchor id already exists for every row.
+- **Feed filters + a real permalink.** The feed is scoped to the current service day but otherwise
+  unfiltered, and the only deep link is the in-page `#feed-link-<id>` anchor the duplicate indicator
+  already emits. **Ready to implement, purely additive:** a line/status filter signal folded into
+  the feed request (or client-side over the resident page), plus a per-link route/fragment that
+  scrolls to and highlights a row, since the anchor id already exists for every row.
 - **Extend the `userVote` overlay past the first page.** Today `loadVoteOverlay()` reads only the
-  first `FEED_PAGE_SIZE` (30) links, so a logged-in user's own vote on an appended page renders as
+  first `FEED_PAGE_SIZE` (8) links, so a logged-in user's own vote on an appended page renders as
   `0` until they vote again. **Ready now:** either re-run the authenticated read with the appended
   cursors, or batch the appended links' ids into one authenticated query when `loadMore()` resolves.
 - **Optimistic voting.** `VoteButtonComponent` is reused as-is; the store's overlay makes optimistic
