@@ -10,6 +10,7 @@ import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
   CONSOLE_CATEGORIES_QUERY,
+  DELETE_SOCIAL_MEDIA_LINK_MUTATION,
   MARK_LINK_COMPLETED_MUTATION,
   SOCIAL_MEDIA_LINKS_QUERY,
   UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
@@ -81,6 +82,8 @@ interface ComponentUnderTest {
   openLinkDetail(link: SocialMediaLinkRow): void;
   closeLinkPanel(): void;
   markCompletedFromPanel(): Promise<void>;
+  isDeleting: WritableSignal<boolean>;
+  deleteLink(link: SocialMediaLinkRow): Promise<void>;
   onEditUrlInput(value: string): void;
   onEditTitleInput(value: string): void;
   saveLinkEdit(): Promise<void>;
@@ -135,6 +138,7 @@ describe("SocialMediaLinksComponent", () => {
   afterEach(() => {
     httpMock.verify();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   /** Zoneless whenStable() does not track the constructor's fire-and-forget
@@ -513,5 +517,51 @@ describe("SocialMediaLinksComponent", () => {
 
     expect(callsFor("updateSocialMediaLink")).toHaveLength(0);
     expect(component.urlTouched()).toBe(true);
+  });
+
+  it("deleteLink confirms, calls the delete mutation, drops the row and closes the panel", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("deleteSocialMediaLink")) {
+        return Promise.resolve({ deleteSocialMediaLink: { ok: true } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+
+    const component = asTestable(fixture);
+    const link = makeLink();
+    component.links.set([link]);
+    component.openLinkDetail(link);
+
+    await component.deleteLink(link);
+
+    const mutationCalls = callsFor("deleteSocialMediaLink");
+    expect(mutationCalls).toHaveLength(1);
+    expect(mutationCalls[0][1]).toEqual({ linkId: "link-1" });
+    expect(component.links()).toEqual([]);
+    expect(component.selectedLink()).toBeNull();
+  });
+
+  it("deleteLink does nothing when the confirm is dismissed", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
+
+    const component = asTestable(fixture);
+    const link = makeLink();
+    component.links.set([link]);
+
+    await component.deleteLink(link);
+
+    expect(callsFor("deleteSocialMediaLink")).toHaveLength(0);
+    expect(component.links().map((l) => l.id)).toEqual(["link-1"]);
   });
 });
