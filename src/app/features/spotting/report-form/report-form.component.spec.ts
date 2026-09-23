@@ -43,10 +43,11 @@ describe("ReportFormComponent", () => {
     fixture.detectChanges();
   }
 
-  /** The station resource's requestFn reads the whole model, so every station/type write
-   * re-issues its fetch — `settle()` alone would block on that in-flight request forever.
-   * Flush it, then settle: the flushed response lands on the microtask queue, so a bare
-   * `detectChanges()` would still render the pre-flush option list. */
+  /** A station-relevant write (`lineId`/`type`) re-issues the station resource's fetch, so
+   * `settle()` alone would block on that in-flight request forever. Flush it, then settle: the
+   * flushed response lands on the microtask queue, so a bare `detectChanges()` would still
+   * render the pre-flush option list. Unrelated writes (notes/status) no longer re-issue it —
+   * the requestFn reads projected `lineId`/`type` computeds, not the whole model. */
   async function flushStationLines(): Promise<void> {
     fixture.detectChanges();
     for (const request of httpMock.match(
@@ -201,5 +202,35 @@ describe("ReportFormComponent", () => {
     stationSelect.dispatchEvent(new Event("change", { bubbles: true }));
     await flushStationLines();
     expect(model().atStation).toBe("");
+  });
+
+  it("re-issues the station query on a lineId/type change, but not on unrelated model writes", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+
+    const component = fixture.componentInstance as unknown as ComponentUnderTest;
+    component.model.update((m) => ({ ...m, type: "AT_STATION" }));
+    await flushStationLines();
+
+    // The reported refetch storm: a Notes keystroke used to re-issue StationLinesByLine because
+    // the requestFn read the whole model. An unrelated write must now trigger nothing.
+    component.model.update((m) => ({ ...m, notes: "a" }));
+    await settle();
+    expect(
+      httpMock.match((r) => r.method === "POST" && r.body.query.includes("StationLinesByLine")),
+    ).toHaveLength(0);
+
+    // A type change is still a real dependency and must refetch.
+    component.model.update((m) => ({ ...m, type: "BETWEEN_STATIONS" }));
+    fixture.detectChanges();
+    const refetched = httpMock.match(
+      (r) => r.method === "POST" && r.body.query.includes("StationLinesByLine"),
+    );
+    expect(refetched.length).toBeGreaterThan(0);
+    for (const request of refetched) {
+      request.flush({ data: { stationLines: [SEEDED_STATION] } });
+    }
+    await settle();
   });
 });

@@ -128,11 +128,18 @@ export class ReportFormComponent {
     return status ? (status as VehicleStatus) : undefined;
   });
 
+  // Project only the primitives the station query depends on, so the resource re-runs on a
+  // line/type change but NOT on every unrelated model write (otherwise each keystroke in Notes
+  // re-issues StationLinesByLine).
+  private readonly _stationLineId = computed(() => this.model().lineId);
+  private readonly _stationType = computed(() => this.model().type);
+
   private readonly stationLinesResource = graphqlResource<
     StationLinesQueryData,
     StationLinesQueryVars
   >(() => {
-    const { lineId, type } = this.model();
+    const lineId = this._stationLineId();
+    const type = this._stationType();
     if (!lineId || (type !== "BETWEEN_STATIONS" && type !== "AT_STATION")) {
       return undefined;
     }
