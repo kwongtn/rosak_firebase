@@ -43,7 +43,7 @@ export interface StatusBreakdownRow {
           <p class="font-semibold">{{ info().title }}</p>
           <p class="text-muted-foreground mt-1">{{ info().body }}</p>
           @if (windowMinutes(); as minutes) {
-            <p class="text-muted-foreground mt-1" data-testid="status-window">
+            <p class="text-muted-foreground mt-3" data-testid="status-window">
               Last {{ minutes }} minutes
             </p>
           }
