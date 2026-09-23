@@ -31,14 +31,15 @@
 
 ### Q3: Reliability (Sep)
 
-| Week   | Milestone                                                                                                                                                                                                                                          |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                                                                                                                                                                  |
-| Sep 22 | Home feed scoped to the current service day with a `Showing X of Y` footer; three link lists unified onto the shared `app-link-card`                                                                                                               |
-| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet)                                                                                                                                    |
-| Sep 22 | Home front-page UX round: inline submit errors + Cancel, schemeless-URL normalization, 24-hour chart labels, feed Load More, per-status counts in the status legend                                                                                |
-| Sep 22 | Home close-out: Pending pill + pending group keyed off the approval `status`; hourly bars stacked by report type (`statusCounts`); recent-reports list capped in its own scroller; `HlmCombobox` clear-to-deselect fix in the spotting report form |
-| Sep 23 | Front page split into a two-panel desktop layout (full-height URL feed left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                    |
+| Week   | Milestone                                                                                                                                                                                                                                             |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                                                                                                                                                                     |
+| Sep 22 | Home feed scoped to the current service day with a `Showing X of Y` footer; three link lists unified onto the shared `app-link-card`                                                                                                                  |
+| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet)                                                                                                                                       |
+| Sep 22 | Home front-page UX round: inline submit errors + Cancel, schemeless-URL normalization, 24-hour chart labels, feed Load More, per-status counts in the status legend                                                                                   |
+| Sep 22 | Home close-out: Pending pill + pending group keyed off the approval `status`; hourly bars stacked by report type (`statusCounts`); recent-reports list capped in its own scroller; `HlmCombobox` clear-to-deselect fix in the spotting report form    |
+| Sep 23 | Front page split into a two-panel desktop layout (full-height URL feed left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                       |
+| Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection |
 
 ---
 
@@ -112,6 +113,7 @@
 | Sep 22     | UX round: inline submit errors + Cancel on the sheet and feed box, schemeless-URL normalization, all-24-hour chart labels with a shared reserved-height skeleton, feed Load More, per-status counts folded into the status legend                                                                  |
 | Sep 22     | Delivery round: feed scoped to the current service day with a `Showing X of Y` footer, the shared `app-link-card` across all three link lists, report stations + hover timestamps, legend counts, e2e 9/9                                                                                          |
 | Sep 22–23  | Approval-status-driven Pending pill, hourly bars stacked by report type, recent-reports list capped in its own scroller, two-panel desktop layout + 30s lines-only refresh beat                                                                                                                    |
+| Sep 23     | Round 7: URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection                                                                            |
 | **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
 
 ### core (Utilities) — **EXTRACTED PATTERNS**

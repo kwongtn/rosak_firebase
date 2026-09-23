@@ -14,9 +14,9 @@
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
 - **Subcomponent breakdown** (one routed page, three child groups, a route-scoped store):
-  - `home.page.ts` — the routed page: nav → submit box → a two-panel feed/line-status split →
-    footer, plus the status sheet and the shared link sheet (feed-link edits); starts/stops the
-    store's polling and adapts the store to the shared retry banner.
+  - `home.page.ts` — the routed page: nav → a two-panel feed/line-status split (submit box atop
+    the feed column) → footer, plus the status sheet and the shared link sheet (feed-link edits);
+    starts/stops the store's polling and adapts the store to the shared retry banner.
   - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance) and
     `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification). Feed rows render
     through the shared insiden `app-link-card` (`LinkCardComponent`) — there is no home-local card.
@@ -29,15 +29,20 @@
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
     `ReportSheetService.openFor(lineId)`. The page's desktop layout is a two-panel split: the
-    submit box, retry banner and footer stay full width, while the feed and the line-status
+    retry banner and footer stay full width, while the feed and the line-status
     sections share `data-testid="home-panels"` (`flex flex-col gap-6 lg:grid lg:grid-cols-2
 lg:items-start`) — stacked on mobile, URL feed left / line statuses right from `lg` up. The
-    feed renders **every loaded link** in an uncapped `feed-scroll` container (no inner scroll —
+    submit box heads the feed column (full width on mobile, column-wide from `lg` up, ahead of
+    the list in DOM order), and the feed renders **every loaded link** in an uncapped `feed-scroll` container (no inner scroll —
     the page scrolls) and owns the load-more continuation: the bottom-right `feed-footer`
     (`data-testid="feed-footer"`) holds a `feed-count` span reading `Showing X of Y`
     (`store.feedLinks().length` over `HomeStore.feedTotalCount()`, so the denominator stays the
     filtered total as pages append) beside the `feed-load-more` button, both hidden while the feed
-    is empty. The line-status panel is headed by a fixed-cadence refresh row
+    is empty; while the first page loads the feed shows `feed-skeleton`
+    (`data-testid="feed-skeleton"`, `hlmSkeleton h-24 w-full`), and an empty, settled, error-free
+    feed instead shows the muted `feed-empty` (`data-testid="feed-empty"`, "No links yet.") styled
+    like the line list's empty state (the retry banner replaces both when the read errored). The
+    line-status panel is headed by a fixed-cadence refresh row
     (`data-testid="line-refresh-countdown"`): spinner + `Refreshing in {n}s` from the store's
     public `polling.secondsRemaining()` + a `Refresh now` button
     (`data-testid="line-refresh-now"`) calling `store.polling.refreshNow()` — deliberately no
@@ -189,6 +194,12 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   the passenger chip's severity legend carries the per-status report counts inline, via
   `passengerScale(line().passengerStatus, line().passengerStatusCounts)` — a row shows
   `[data-testid="status-scale-count"]` (`(n)`) only when the backend reported a non-zero count. The
+  status row ends with the `line-vehicle-count` badge (`{{inService}}/{{total}} in service`, e.g.
+  "12/20 in service", `aria-label="N of M vehicles in service"`) whose popover lists the per-status
+  fleet breakdown plus a derived `Total`; the `line-status-badge` pill renders only when
+  `line().status !== "ACTIVE"` (Active is the default, not a chip); and the consolidated
+  `passengerStatusMessage` is not rendered — the query still selects it, but the card passes no
+  `message` to its chips. The
   title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated
   on `expanded`).
 - **`LineStatusChartComponent`** — the expanded card's hourly strip: `bars`/`hasData`/`maxCount`

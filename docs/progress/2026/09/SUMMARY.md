@@ -25,6 +25,8 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | Fixed the Pending pill and pending group: the shared card and list now key "pending" off the approval `status` (`PENDING_APPROVAL`), never the console's separate `completed` handled flag; `FEED_QUERY` selects `status`                                                        |
 | Sep 22 | Expanded line card's hourly chart stacks each bar by report type (new `statusCounts` contract): segments bottom-up NORMAL → DISRUPTED summing to the bar height, breakdown in the hover readout and bar `title`, plus a `refreshTick` poll hook                                  |
 | Sep 23 | Front page split into a two-panel desktop layout (full-height URL list left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                                                  |
+| Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): the URL form heads the desktop feed column and the feed gains `feed-skeleton` / `feed-empty` states; the card's vehicle count becomes a `line-vehicle-count` badge and the line-status pill renders only for non-active lines             |
+| Sep 23 | Combobox Enter now commits only a deliberately highlighted row or a non-empty query's match (fixes deselect-then-reselect, round 2); the spotting report's station resource projects `lineId`/`type` so unrelated model writes stop refetching `StationLinesByLine`              |
 | Sep 22 | Expanded line card's recent-reports list capped in its own scroll container (roughly 5 rows) instead of stretching the card                                                                                                                                                      |
 | Sep 22 | Spotting report form: clearing a combobox or re-choosing a station placeholder now really deselects (shared `HlmCombobox.emptyValue`, non-disabled placeholder)                                                                                                                  |
 
@@ -104,6 +106,23 @@ One commit (`feat(home): split the front page into two panels with a line-refres
   `linesRefreshTick`) instead of `reloadAll()`, so the 30s beat can't drop the feed's appended
   Load More pages; a spinner + `Refreshing in …s` + `Refresh now` row heads the line panel, and the
   tick is forwarded page → list → card → the expanded chart/reports.
+
+### Home/spotting — front-page round 7 (2026-09-23, dbacb1c..6bbb2a0)
+
+- `home.page.ts`: the URL submit box moved to the top of the desktop feed column, ahead of the list
+  (still full width while the panels stack on mobile); the feed gained `feed-skeleton` (first-page
+  load) and `feed-empty` ("No links yet.", styled like the line list's empty state), the retry
+  banner replacing both on error.
+- `line-pulse-card.component.ts`: the in-service text became a `line-vehicle-count` badge
+  ("12/20 in service", `aria-label` "12 of 20 vehicles in service") keeping its per-status hover
+  breakdown; the line-status pill renders only when `status !== "ACTIVE"`; the consolidated
+  `passengerStatusMessage` is no longer rendered. `status-info-chip.component.ts` gained `mt-3` on
+  the "Last N minutes" window line.
+- `ui/combobox/combobox.ts`: Enter commits only a deliberate ArrowUp/Down highlight or a non-empty
+  query's match, so a cleared field can't re-commit a stale item (the deselect fix's missing
+  commit gesture; see `MISTAKES.md`).
+- `report-form.component.ts`: the station resource reads projected `lineId`/`type` computeds instead
+  of the whole model, ending the per-keystroke `StationLinesByLine` refetch storm.
 
 ## Commit Statistics
 

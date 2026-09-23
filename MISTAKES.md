@@ -113,6 +113,20 @@ layout the same way.
 **Fix**: `data-testid="line-status-bar"` remains on the hour container only; segments carry no test id (the spec selects `:scope > div` to count them). Commit `476683d`.
 **Prevention**: Keep a test hook on the semantic unit (the hour), not the visual pieces. When a component's DOM is subdivided, re-confirm each `data-testid` still resolves to the same node a spec or e2e assumes.
 
+### [2026-09-23] ui/combobox: the deselect fix was tested with a blur, not the Enter that follows the clear
+
+**Problem**: After commit `1f37d7d` made emptying the combobox clear its `value`, the field could still "reselect itself": clearing the input and pressing Enter committed the previously highlighted item again (or a different one), so the form re-sent an id the user had just removed. The bug was reported twice because the first fix looked complete.
+**Root Cause**: Clearing the text clears `value` but leaves the panel OPEN over `_filtered()`, and an empty query makes `_filtered()` return the entire unfiltered list. `_highlightIndex` still pointed at whatever was highlighted before the clear, so `_selectHighlighted()`'s `_filtered()[_highlightIndex()]` committed a real (wrong) item. The first fix's spec cleared the field and then BLURRED — the one gesture that closes the panel and resyncs the display — so it never touched the Enter path where the stale commit happened.
+**Fix**: `_selectHighlighted()` now returns early unless `_hasMovedHighlight()` (true only after ArrowUp/ArrowDown since open, reset on open/input) or the query is non-empty; Enter therefore commits only a deliberate choice, and the panel stays open on a no-op. Specs pin Enter-after-clear and Enter-on-a-click-opened-panel as no-ops while Enter-after-ArrowDown still commits (22add7c).
+**Prevention**: When a control has separate "clear" and "commit" gestures, test the commit gesture that follows the clear, not just the clear itself. Closing/blurring the panel is not the user's commit path — model the exact keystroke sequence from the report. A fix is not verified until the failing gesture is reproduced in a spec.
+
+### [2026-09-23] spotting/report-form: a reactive resource's requestFn read the whole model signal
+
+**Problem**: Every write to the spotting report model re-issued the station lookup. Typing one character in Notes sent one `StationLinesByLine` POST, so a 10-character note fired 10 identical station queries; the same held for any unrelated field (status, wheel condition, run number).
+**Root Cause**: `stationLinesResource`'s requestFn read `this.model()`, the single signal holding the entire form. A `graphqlResource` tracks every signal read inside its requestFn, so the resource's dependency was the whole model object and each model write re-ran the fetch. Only `lineId`/`type` participate in the request (`variables: { lineId }` plus the type gate).
+**Fix**: The requestFn now reads two `computed`s of primitive values — `_stationLineId` (`model().lineId`) and `_stationType` (`model().type`) — so only a line/type change re-runs it. `report-form.component.spec.ts` asserts an unrelated `notes` write triggers no station POST and a `type` change does (6bbb2a0).
+**Prevention**: A reactive resource's requestFn must read only the primitive fields its request depends on; project them into `computed`s and read those, never the whole model signal. Mind the unit-test blind spot: jsdom/vitest flush resources synchronously, so specs cannot observe the refetch-storm timing window a real browser with real latency exposes — assert the projection in the spec, and reproduce the storm in a browser.
+
 ## Fixed
 
 ### [2026-09-22] insiden/home: the Pending pill and the pending group keyed off `completed`, not the approval `status`
