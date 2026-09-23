@@ -1,4 +1,4 @@
-import { Injectable, PLATFORM_ID, inject, signal } from "@angular/core";
+import { ErrorHandler, Injectable, PLATFORM_ID, inject, signal } from "@angular/core";
 import { isPlatformBrowser } from "@angular/common";
 import { getApps, initializeApp } from "firebase/app";
 import {
@@ -40,6 +40,7 @@ const firstNameStorageKey = (uid: string) => `auth:given-name:${uid}`;
 export class AuthService {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly toast = inject(ToastService);
+  private readonly errorHandler = inject(ErrorHandler);
   private auth: Auth | undefined;
 
   private readonly userSignal = signal<User | null>(null);
@@ -75,13 +76,20 @@ export class AuthService {
       return;
     }
     this.auth = getAuth(firebaseApp());
-    onAuthStateChanged(this.auth, async (user) => {
-      this.userSignal.set(user);
-      this.isLoggedIn.set(user !== null);
-      this.isAdmin.set(user !== null && (await user.getIdTokenResult()).claims["admin"] === true);
-      this.firstName.set(user ? localStorage.getItem(firstNameStorageKey(user.uid)) : null);
-      this.resolveReady();
-    });
+    onAuthStateChanged(
+      this.auth,
+      async (user) => {
+        this.userSignal.set(user);
+        this.isLoggedIn.set(user !== null);
+        this.isAdmin.set(user !== null && (await user.getIdTokenResult()).claims["admin"] === true);
+        this.firstName.set(user ? localStorage.getItem(firstNameStorageKey(user.uid)) : null);
+        this.resolveReady();
+      },
+      (error) => {
+        this.errorHandler.handleError(error);
+        this.resolveReady();
+      },
+    );
   }
 
   /** Google-popup sign-in — the only login method the current app offers. Resolves to

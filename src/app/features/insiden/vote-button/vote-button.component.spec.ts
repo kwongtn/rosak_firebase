@@ -6,6 +6,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
+import {
+  DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+  REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
+  UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+} from "../../home/data/home.queries";
 import { DOWNVOTE_MUTATION, REMOVE_VOTE_MUTATION, UPVOTE_MUTATION } from "../data/insiden.queries";
 import {
   DOWNVOTE_CHRONOLOGY_MUTATION,
@@ -163,5 +168,66 @@ describe("VoteButtonComponent", () => {
     const [mutation, vars] = requestMock.mock.calls[0];
     expect(mutation).toBe(DOWNVOTE_CHRONOLOGY_MUTATION);
     expect(vars).toEqual({ chronologyId: "inc-7" });
+  });
+
+  it("sends upvoteSocialMediaLink with the link id when targetType is link", async () => {
+    fixture.componentRef.setInput("targetType", "link");
+    await fixture.whenStable();
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    await component.onVoteClick(1);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(UPVOTE_SOCIAL_MEDIA_LINK_MUTATION);
+    expect(vars).toEqual({ id: "inc-7" });
+    expect(component.state().userVote).toBe(1);
+  });
+
+  it("sends removeSocialMediaLinkVote when unvoting a previously-upvoted link", async () => {
+    fixture.componentRef.setInput("targetType", "link");
+    await fixture.whenStable();
+    await asTestable(fixture).onVoteClick(1);
+    requestMock.mockClear();
+
+    await asTestable(fixture).onVoteClick(1);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION);
+    expect(vars).toEqual({ id: "inc-7" });
+  });
+
+  it("sends downvoteSocialMediaLink when switching a link vote down", async () => {
+    fixture.componentRef.setInput("targetType", "link");
+    await fixture.whenStable();
+    await asTestable(fixture).onVoteClick(1);
+    requestMock.mockClear();
+
+    await asTestable(fixture).onVoteClick(-1);
+
+    const [mutation, vars] = requestMock.mock.calls[0];
+    expect(mutation).toBe(DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION);
+    expect(vars).toEqual({ id: "inc-7" });
+  });
+
+  it("emits voteChanged with the new value after a successful vote", async () => {
+    const component = asTestable(fixture);
+    let emitted: { value: number } | null = null;
+    fixture.componentInstance.voteChanged.subscribe((event) => (emitted = event));
+
+    await component.onVoteClick(1);
+
+    expect(emitted).toEqual({ value: 1 });
+  });
+
+  it("does not emit voteChanged when the mutation fails", async () => {
+    const component = asTestable(fixture);
+    let emitted: { value: number } | null = null;
+    fixture.componentInstance.voteChanged.subscribe((event) => (emitted = event));
+    requestMock.mockRejectedValueOnce(new Error("offline"));
+
+    await component.onVoteClick(1);
+
+    expect(emitted).toBeNull();
   });
 });

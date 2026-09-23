@@ -29,7 +29,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
       [placeholder]="placeholder()"
       [value]="search()"
       (input)="_onInput($event)"
-      (focus)="_onFocus($event)"
+      (click)="_onClick($event)"
       (blur)="_onBlur()"
       (keydown.arrowdown)="_moveHighlight(1); $event.preventDefault()"
       (keydown.arrowup)="_moveHighlight(-1); $event.preventDefault()"
@@ -52,6 +52,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
     @if (_isOpen() && _filtered().length > 0) {
       <ul
         class="bg-popover text-popover-foreground border-border absolute z-50 mt-1 max-h-64 w-max min-w-full overflow-x-clip overflow-y-auto rounded-lg border py-1 shadow-md"
+        [class.max-w-full]="constrainWidth()"
       >
         @for (item of _filtered(); track item.value) {
           <li
@@ -91,6 +92,14 @@ export class HlmCombobox<T> {
   /** Shown when typed text matches nothing — callers should say what's actually being searched
    * (e.g. "No matching vehicles") rather than leave this at its generic default. */
   readonly emptyMessage = input<string>("No matching options");
+  /** Caps the dropdown at the field's own width instead of its content's (`w-max`). Set this for
+   * comboboxes inside a sheet: an over-wide list adds a horizontal scrollbar to the sheet body. */
+  readonly constrainWidth = input(false);
+
+  /** Value written when the user empties the field. Defaults to "nothing selected"
+   * (`undefined`); a string-typed form field must pass `""` instead, because Signal Forms
+   * drops a field node whose model value becomes `undefined` while its control is rendered. */
+  readonly emptyValue = input<T | undefined>(undefined);
 
   readonly search = signal("");
   protected readonly _isOpen = signal(false);
@@ -101,6 +110,12 @@ export class HlmCombobox<T> {
    * native <select>, rather than "filtering" against the current selection's own label (which
    * would otherwise make the list look empty/wrong the moment you click a filled-in combobox). */
   protected readonly _hasTypedSinceOpen = signal(false);
+  /** True once the user deliberately moves the highlight with ArrowUp/ArrowDown since the panel
+   * opened. `_highlightIndex` alone can't express this: after the field is cleared `_filtered()`
+   * returns the whole unfiltered list and index 0 is a real (wrong) item, so "highlight is at 0"
+   * must not be read as "the user chose item 0". `_selectHighlighted` requires this (or a
+   * non-empty query) before it will commit anything. */
+  protected readonly _hasMovedHighlight = signal(false);
 
   protected readonly _filtered = computed(() => {
     const query = this._hasTypedSinceOpen() ? this.search().trim().toLowerCase() : "";
@@ -133,30 +148,63 @@ export class HlmCombobox<T> {
    * `_onBlur` calls this directly to cover exactly that case. */
   private _syncSearchToValue(): void {
     const value = this.value();
+    // `undefined` means "nothing selected" (e.g. the user emptied the field — see `_onInput`).
+    // Never look it up in `items()`: an item could itself hold `undefined`, and a match here
+    // would resurrect its label over a field the user just cleared.
+    if (value === undefined) {
+      this.search.set("");
+      return;
+    }
     const match = this.items().find((item) => item.value === value);
     this.search.set(match ? match.label : "");
   }
 
-  protected _onFocus(event: FocusEvent): void {
+  protected _onClick(event: MouseEvent): void {
     this._isOpen.set(true);
     this._hasTypedSinceOpen.set(false);
+    this._hasMovedHighlight.set(false);
     // Selects the pre-filled text so the very first keystroke replaces it outright, instead
     // of inserting at whatever the cursor position happens to be.
-    (event.target as HTMLInputElement).select();
+    (event.currentTarget as HTMLInputElement).select();
   }
 
   protected _onInput(event: Event): void {
     this._hasTypedSinceOpen.set(true);
-    this.search.set((event.target as HTMLInputElement).value);
+    this._isOpen.set(true);
+    this._highlightIndex.set(0);
+    this._hasMovedHighlight.set(false);
+    const text = (event.target as HTMLInputElement).value;
+    this.search.set(text);
+    // Emptying the field deselects: `value` is what the form/`(valueChange)` actually holds, so
+    // leaving it set lets `_syncSearchToValue` re-fill the old label on blur (the field looks
+    // like it reselected itself while still submitting the old id). A non-empty query must
+    // never clear it — that would drop the selection mid-search.
+    if (text.trim() === "") {
+      this.value.set(this.emptyValue());
+    }
   }
 
   protected _moveHighlight(delta: number): void {
     const count = this._filtered().length;
     if (count === 0) return;
+    this._hasMovedHighlight.set(true);
+    if (!this._isOpen()) {
+      this._isOpen.set(true);
+      this._highlightIndex.set(0);
+      return;
+    }
     this._highlightIndex.set((this._highlightIndex() + delta + count) % count);
   }
 
   protected _selectHighlighted(): void {
+    if (!this._isOpen()) return;
+    // Enter commits only what the user actually chose: a deliberately ArrowUp/ArrowDown-ed row,
+    // or a non-empty query's highlighted match. After the field is cleared the query is empty and
+    // no row was navigated to, so Enter is a no-op (the panel stays open) rather than silently
+    // re-committing `_filtered()[_highlightIndex()]` from the now-unfiltered list — the bug
+    // where a deselected field "reselects itself".
+    const query = this._hasTypedSinceOpen() ? this.search().trim() : "";
+    if (!this._hasMovedHighlight() && !query) return;
     const item = this._filtered()[this._highlightIndex()];
     if (item) {
       this._select(item);

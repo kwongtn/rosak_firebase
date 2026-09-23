@@ -14,7 +14,7 @@ import type { ChronologyDraft } from "./chronology-list.util";
 import { isoToDateTimeLocal } from "./extract-data.util";
 import type { IncidentFormModel } from "./incident-form.schema";
 
-export interface IncidentToFormData {
+interface IncidentToFormData {
   model: IncidentFormModel;
   /** Chronology drafts sorted by backend `order`, keyed `startKey..startKey+n-1`. */
   chronologies: ChronologyDraft[];

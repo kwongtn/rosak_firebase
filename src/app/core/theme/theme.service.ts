@@ -2,7 +2,7 @@ import { Injectable, PLATFORM_ID, computed, effect, inject, signal } from "@angu
 import { isPlatformBrowser } from "@angular/common";
 
 export type ThemeMode = "light" | "dark" | "system";
-export type ResolvedTheme = "light" | "dark";
+type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "theme";
 const MODES: ThemeMode[] = ["light", "dark", "system"];

@@ -27,8 +27,17 @@ export function parentCodeChipText(code: string): string {
 @Component({
   selector: "app-asset-multi-select",
   imports: [HlmInput, HlmSkeleton],
+  host: {
+    "[class.flex]": "fillHeight()",
+    "[class.flex-col]": "fillHeight()",
+    "[class.min-h-0]": "fillHeight()",
+  },
   template: `
-    <div class="flex flex-col gap-1.5 text-sm">
+    <div
+      class="flex flex-col gap-1.5 text-sm"
+      [class.flex-1]="fillHeight()"
+      [class.min-h-0]="fillHeight()"
+    >
       <span class="flex items-baseline gap-1">
         {{ heading() }}
         @if (optional()) {
@@ -47,7 +56,12 @@ export function parentCodeChipText(code: string): string {
       />
 
       <div
-        class="border-border flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+        class="border-border flex flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5"
+        data-testid="asset-option-list"
+        [class.max-h-44]="!fillHeight()"
+        [class.max-h-none]="fillHeight()"
+        [class.flex-1]="fillHeight()"
+        [class.min-h-0]="fillHeight()"
       >
         @if (isLoading()) {
           <div hlmSkeleton class="h-4 w-full"></div>
@@ -117,6 +131,11 @@ export class AssetMultiSelectComponent {
   /** Render `parentCodes` as caret chips showing only each code's last segment, with the
    * full code on hover (via `title`) — replaces the muted "(…)" bracket text. */
   readonly chipParentCodes = input(false);
+  /** Fill the parent's remaining height instead of capping the list at `max-h-44` — the caller
+   * sizes the host (`flex-1 min-h-0`) and this component turns itself into the flex column that
+   * lets the option list take what's left. The list keeps its own scrolling, so a hosting sheet
+   * body never has to scroll instead. */
+  readonly fillHeight = input(false);
 
   protected readonly searchText = signal("");
 

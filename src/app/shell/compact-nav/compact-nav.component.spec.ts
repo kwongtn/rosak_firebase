@@ -52,8 +52,11 @@ describe("CompactNavComponent", () => {
     const el = await renderNav("/tracker");
     const labels = moduleLinkLabels(el);
     expect(labels).not.toContain("Tracker");
+    expect(labels[0]).toBe("Home");
     // The other module links still render.
-    expect(labels).toEqual(expect.arrayContaining(["TranSPOT", "Gallery", "Insiden", "About"]));
+    expect(labels).toEqual(
+      expect.arrayContaining(["Home", "TranSPOT", "Gallery", "Insiden", "About"]),
+    );
   });
 
   it("reuses the same pill for other modules without listing them either", async () => {
@@ -67,6 +70,8 @@ describe("CompactNavComponent", () => {
     const el = await renderNav("/insiden");
     const labels = moduleLinkLabels(el);
     expect(labels).not.toContain("Insiden");
-    expect(labels).toEqual(expect.arrayContaining(["TranSPOT", "Tracker", "Gallery", "About"]));
+    expect(labels).toEqual(
+      expect.arrayContaining(["Home", "TranSPOT", "Tracker", "Gallery", "About"]),
+    );
   });
 });

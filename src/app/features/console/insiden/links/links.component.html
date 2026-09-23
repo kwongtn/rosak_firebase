@@ -194,16 +194,28 @@
                   {{ link.created | date: "MMM d, y HH:mm" }}
                 </td>
                 <td hlmTd class="py-3">
-                  @if (!link.completed) {
+                  <div class="flex items-center gap-2">
+                    @if (!link.completed) {
+                      <button
+                        hlmBtn
+                        size="sm"
+                        [disabled]="isLoading()"
+                        (click)="$event.stopPropagation(); markCompleted(link)"
+                      >
+                        Mark completed
+                      </button>
+                    }
                     <button
                       hlmBtn
                       size="sm"
-                      [disabled]="isLoading()"
-                      (click)="$event.stopPropagation(); markCompleted(link)"
+                      variant="ghost"
+                      class="text-destructive"
+                      [disabled]="isDeleting()"
+                      (click)="$event.stopPropagation(); deleteLink(link)"
                     >
-                      Mark completed
+                      Delete
                     </button>
-                  }
+                  </div>
                 </td>
               </tr>
             } @empty {
@@ -386,6 +398,17 @@
         }
       </div>
       <div hlmSheetFooter class="flex justify-end gap-2">
+        @if (isEditing() && selectedLink(); as link) {
+          <button
+            hlmBtn
+            variant="ghost"
+            class="text-destructive mr-auto"
+            [disabled]="isDeleting()"
+            (click)="deleteLink(link)"
+          >
+            Delete
+          </button>
+        }
         <button hlmBtn variant="outline" (click)="closeLinkPanel()">Close</button>
         @if (isEditing() && selectedLink(); as link) {
           <button hlmBtn [disabled]="isSaving() || !canSave()" (click)="saveLinkEdit()">

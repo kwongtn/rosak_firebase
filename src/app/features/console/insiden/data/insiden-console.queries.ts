@@ -292,6 +292,22 @@ export interface MarkLinkCompletedData {
   markSocialMediaLinkCompleted: { ok: boolean };
 }
 
+export const DELETE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
+  mutation DeleteSocialMediaLink($linkId: ID!) {
+    deleteSocialMediaLink(socialMediaLinkId: $linkId) {
+      ok
+    }
+  }
+`;
+
+export interface DeleteSocialMediaLinkVars {
+  linkId: string;
+}
+
+export interface DeleteSocialMediaLinkData {
+  deleteSocialMediaLink: { ok: boolean };
+}
+
 /** Single source of truth for the link edit mutation — re-exported from the public insiden
  * queries so public-edit and console-edit never carry divergent copies. Backend role rule:
  * admin edits land live; a submitter's edit goes back into the approval queue

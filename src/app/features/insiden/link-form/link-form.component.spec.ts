@@ -242,10 +242,13 @@ describe("LinkFormComponent", () => {
       created: "2026-08-01T08:00:00Z",
       completed: true,
       status: "LIVE" as const,
+      voteScore: 0,
+      userVote: 0,
+      voteBreakdown: { upvotes: 0, downvotes: 0 },
       lines: [{ id: "4", code: "KTM1", displayName: "KTM Komuter Line 1" }],
       vehicles: [{ id: "5", identificationNo: "TR-102" }],
       stations: [{ id: "6", displayName: "KL Sentral" }],
-      user: { shortId: "abc12345" },
+      user: { shortId: "abc12345", nickname: "" },
       categories: [{ id: "9", name: "Signal" }],
     };
   }

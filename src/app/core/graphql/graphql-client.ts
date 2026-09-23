@@ -51,9 +51,10 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  * on every retry attempt, which reads as the page restarting from scratch rather than quietly
  * trying again behind an already-shown error state.
  *
- * Only for queries (idempotent reads). Mutations should call `postGraphQL` directly
- * from an event handler — httpResource re-issues its request whenever a dependency
- * signal changes, which is the wrong lifecycle for a one-shot write.
+ * Only for queries (idempotent reads). Mutations should call
+ * `inject(GraphQLClient).request(query, variables, headers)` directly from an event handler —
+ * httpResource re-issues its request whenever a dependency signal changes, which is the wrong
+ * lifecycle for a one-shot write.
  */
 export function graphqlResource<TData, TVars = Record<string, unknown>>(
   requestFn: () => { query: string; variables?: TVars } | undefined,

@@ -14,13 +14,15 @@
       [formField]="reportForm.lineId"
       [items]="lineItems()"
       [itemTemplate]="lineOptionTpl"
+      [constrainWidth]="true"
+      emptyValue=""
       placeholder="Search by code or name"
       emptyMessage="No matching lines"
     />
     <ng-template #lineOptionTpl let-item>
       <span class="flex w-full items-center justify-between gap-2">
-        <span>{{ item.label }}</span>
-        <line-status-badge [status]="item.meta.status" />
+        <span class="min-w-0 truncate">{{ item.label }}</span>
+        <line-status-badge class="shrink-0" [status]="item.meta.status" />
       </span>
     </ng-template>
     @if (reportForm.lineId().invalid() && reportForm.lineId().touched()) {
@@ -36,13 +38,15 @@
         [items]="vehicleItems()"
         [filterFn]="vehicleFilterFn()"
         [itemTemplate]="vehicleOptionTpl"
+        [constrainWidth]="true"
+        emptyValue=""
         placeholder="Search by ID or the number seen on the train"
         emptyMessage="No matching vehicles"
       />
       <ng-template #vehicleOptionTpl let-item>
         <span class="flex w-full items-center justify-between gap-2">
-          <span>{{ item.label }}</span>
-          <vehicle-status-badge [status]="item.meta.status" />
+          <span class="min-w-0 truncate">{{ item.label }}</span>
+          <vehicle-status-badge class="shrink-0" [status]="item.meta.status" />
         </span>
       </ng-template>
       @if (reportForm.vehicleId().invalid() && reportForm.vehicleId().touched()) {
@@ -84,7 +88,7 @@
     <label class="flex flex-col gap-1.5 text-sm">
       Station
       <select hlmSelect [formField]="reportForm.atStation">
-        <option value="" disabled>Select a station</option>
+        <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
         }
@@ -99,7 +103,7 @@
     <label class="flex flex-col gap-1.5 text-sm">
       Origin station
       <select hlmSelect [formField]="reportForm.originStation">
-        <option value="" disabled>Select a station</option>
+        <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
         }
@@ -113,7 +117,7 @@
     <label class="flex flex-col gap-1.5 text-sm">
       Destination station
       <select hlmSelect [formField]="reportForm.destinationStation">
-        <option value="" disabled>Select a station</option>
+        <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
         }

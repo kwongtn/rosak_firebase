@@ -26,6 +26,9 @@ import {
 import {
   CONSOLE_CATEGORIES_QUERY,
   ConsoleCategoriesQueryData,
+  DELETE_SOCIAL_MEDIA_LINK_MUTATION,
+  DeleteSocialMediaLinkData,
+  DeleteSocialMediaLinkVars,
   MARK_LINK_COMPLETED_MUTATION,
   MarkLinkCompletedData,
   MarkLinkCompletedVars,
@@ -132,6 +135,7 @@ export class SocialMediaLinksComponent {
   protected readonly urlTouched = signal(false);
   protected readonly isEditing = signal(false);
   protected readonly isSaving = signal(false);
+  protected readonly isDeleting = signal(false);
 
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
@@ -517,6 +521,36 @@ export class SocialMediaLinksComponent {
     const ok = await this.markCompleted(link);
     if (ok) {
       this.closeLinkPanel();
+    }
+  }
+
+  /** Admin hard-delete of a link entry. Mirrors the spotting-history delete:
+   *  a native confirm guard, then the admin mutation; on success the row is
+   *  dropped locally and the panel closes. */
+  protected async deleteLink(link: SocialMediaLinkRow): Promise<void> {
+    if (!confirm("Delete this link entry? This can't be undone.")) {
+      return;
+    }
+    this.isDeleting.set(true);
+    try {
+      const idToken = await this.auth.idToken();
+      await this.graphql.request<DeleteSocialMediaLinkData, DeleteSocialMediaLinkVars>(
+        DELETE_SOCIAL_MEDIA_LINK_MUTATION,
+        { linkId: link.id },
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      this.links.update((list) => list.filter((existing) => existing.id !== link.id));
+      if (this.selectedLink()?.id === link.id) {
+        this.closeLinkPanel();
+      }
+      this.toast.success("Link deleted", link.url);
+    } catch (err) {
+      this.toast.error(
+        "Couldn't delete link",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+    } finally {
+      this.isDeleting.set(false);
     }
   }
 

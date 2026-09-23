@@ -128,11 +128,18 @@ export class ReportFormComponent {
     return status ? (status as VehicleStatus) : undefined;
   });
 
+  // Project only the primitives the station query depends on, so the resource re-runs on a
+  // line/type change but NOT on every unrelated model write (otherwise each keystroke in Notes
+  // re-issues StationLinesByLine).
+  private readonly _stationLineId = computed(() => this.model().lineId);
+  private readonly _stationType = computed(() => this.model().type);
+
   private readonly stationLinesResource = graphqlResource<
     StationLinesQueryData,
     StationLinesQueryVars
   >(() => {
-    const { lineId, type } = this.model();
+    const lineId = this._stationLineId();
+    const type = this._stationType();
     if (!lineId || (type !== "BETWEEN_STATIONS" && type !== "AT_STATION")) {
       return undefined;
     }
@@ -169,16 +176,27 @@ export class ReportFormComponent {
       }
     });
 
-    // Reset the whole draft, including touched state (see clear()), on the open→closed
-    // edge — otherwise a field like line, once touched, stays filled in and "touched" for
-    // the next time the sheet opens, regardless of *how* it closed (Cancel, backdrop click,
-    // Escape — anything that isn't the submit-success path, which already calls clear()
-    // itself; calling it again here on that same edge is harmless). The line and vehicle
-    // fields deliberately always start blank, even when opened from a vehicle-detail page's
-    // own "Add a Spotting Entry" button — the vehicle you were just looking at isn't
-    // necessarily the one you're reporting on.
+    // Sheet-state edge handling, deliberately one effect (not two) so the seed and the reset
+    // can never race against each other or the `_wasSheetOpen` latch: on close, reset the whole
+    // draft including touched state (see clear()) — otherwise a field like line, once touched,
+    // stays filled in and "touched" for the next time the sheet opens, regardless of *how* it
+    // closed (Cancel, backdrop click, Escape — anything that isn't the submit-success path,
+    // which already calls clear() itself; calling it again here on that same edge is harmless).
+    // On open, apply ReportSheetService's one-shot line seed when a trigger supplied one (the
+    // home page's line cards do); without a seed the line and vehicle fields start blank, even
+    // when opened from a vehicle-detail page's own "Add a Spotting Entry" button — the vehicle
+    // you were just looking at isn't necessarily the one you're reporting on.
     effect(() => {
       const isSheetOpen = this.reportSheet.isOpen();
+      if (isSheetOpen && !this._wasSheetOpen) {
+        const seedLineId = this.reportSheet.lineId();
+        if (seedLineId) {
+          // Consumed here, never retained: a later seedless open() (the /spotting shell's own
+          // buttons) must not resurrect a line from an unrelated, already-closed sheet.
+          this.reportSheet.lineId.set(null);
+          this.model.update((m) => ({ ...m, lineId: seedLineId }));
+        }
+      }
       if (!isSheetOpen && this._wasSheetOpen) {
         this.clear();
       }

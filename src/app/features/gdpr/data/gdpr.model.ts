@@ -2,14 +2,14 @@
  * `compliance/models/firestore.ts`. Admin-edited CMS content, not something this app writes: a
  * checklist of GDPR-related requirements, each flagged whether this project currently adheres to
  * it, with rich-text detail and an optional note. */
-export interface GdprDetailChild {
+interface GdprDetailChild {
   title: string;
   adhered: boolean;
   details: string;
   notes?: string;
 }
 
-export interface GdprDetail {
+interface GdprDetail {
   title: string;
   children: GdprDetailChild[];
 }

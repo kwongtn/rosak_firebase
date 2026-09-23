@@ -3,7 +3,7 @@ import { faviconHostnameOf } from "./social-link.util";
 /** One incident link row as drawn on the card (spec F7/F8/F9): the line is
  * `[yyyy-mm-dd hh:mm] [favicon] [title]`, where "title" is the provided title,
  * or the URL — domain bold, remainder paler, single-line truncated. */
-export interface IncidentLinkLine {
+interface IncidentLinkLine {
   /** Local-time "yyyy-mm-dd hh:mm" label from `created` (no DatePipe inside
    * this util — pure and unit-testable). Empty string when `created` is
    * missing/invalid. Local time matches the card's own DatePipe rendering
@@ -28,7 +28,7 @@ export interface IncidentLinkLine {
   isPending: boolean;
 }
 
-export interface IncidentLinkRow {
+interface IncidentLinkRow {
   url: string;
   title?: string | null;
   created?: string | null;
@@ -75,6 +75,20 @@ function restPathOf(parsed: URL | null): string {
     return "";
   }
   return parsed.pathname + parsed.search + parsed.hash;
+}
+
+/** Shared host + remainder split for a URL: the parsed http(s) hostname together with
+ * everything after it (`pathname + search + hash`). Returns `null` when the URL is
+ * missing/unparseable or carries a non-http(s) scheme. Used by `incidentLinkLine`
+ * (domain bold, remainder paler) and by the home feed card's one-line URL display. */
+export function splitHttpUrl(
+  url: string | undefined | null,
+): { domain: string; restPath: string } | null {
+  const parsed = parseHttpUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  return { domain: parsed.hostname, restPath: restPathOf(parsed) };
 }
 
 const isPendingApproval = (status: string | undefined | null): boolean =>

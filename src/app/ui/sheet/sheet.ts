@@ -2,7 +2,6 @@ import { A11yModule } from "@angular/cdk/a11y";
 import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
-  HostListener,
   OnDestroy,
   PLATFORM_ID,
   computed,
@@ -35,6 +34,7 @@ import {
   imports: [A11yModule],
   host: {
     "[class.pointer-events-none]": "!open()",
+    "(document:keydown.escape)": "onEscape()",
   },
   template: `
     @if (_everOpened()) {
@@ -97,11 +97,14 @@ export class HlmSheet implements OnDestroy {
       if (!this.isBrowser) {
         return;
       }
+      // `overflow-x: clip` on html/body (styles.css) keeps a classic 15px viewport scrollbar
+      // alive even with body overflow hidden — lock the root element too, or the page scrollbar
+      // stays visible behind the sheet.
       document.body.style.overflow = isOpen ? "hidden" : "";
+      document.documentElement.style.overflow = isOpen ? "hidden" : "";
     });
   }
 
-  @HostListener("document:keydown.escape")
   protected onEscape(): void {
     if (this.open()) {
       this.close();
@@ -115,6 +118,7 @@ export class HlmSheet implements OnDestroy {
   ngOnDestroy(): void {
     if (this.isBrowser) {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     }
   }
 }
@@ -129,9 +133,19 @@ export class HlmSheetHeader {}
 @Component({
   selector: "[hlmSheetBody]",
   template: "<ng-content />",
-  host: { class: "flex-1 overflow-y-auto overscroll-contain p-5" },
+  host: {
+    class: "flex-1 overscroll-contain p-5",
+    "[class.overflow-y-auto]": "scrollable()",
+    "[class.overflow-hidden]": "!scrollable()",
+    "[class.flex]": "!scrollable()",
+    "[class.flex-col]": "!scrollable()",
+  },
 })
-export class HlmSheetBody {}
+export class HlmSheetBody {
+  /** Default true: the body scrolls. False turns the body into a non-scrolling flex column for
+   * fill-height sheets whose own child owns the scroll (the line-status station list). */
+  readonly scrollable = input(true);
+}
 
 @Component({
   selector: "[hlmSheetFooter]",

@@ -169,7 +169,7 @@ export interface StationLinesQueryData {
   stationLines: StationLine[];
 }
 
-export interface StationLine {
+interface StationLine {
   id: string;
   displayName: string;
   internalRepresentation: string;
@@ -424,7 +424,7 @@ export interface LineStationAssetsQueryVars {
 
 export type AssetType = "ESCALATOR" | "LIFT";
 
-export interface StationAsset {
+interface StationAsset {
   id: string;
   assetType: AssetType;
   officialid: string | null;
@@ -454,7 +454,7 @@ export const ADD_SPOTTING_EVENT_MUTATION = /* GraphQL */ `
   }
 `;
 
-export interface WebLocationInput {
+interface WebLocationInput {
   accuracy?: number;
   altitudeAccuracy?: number | null;
   heading?: number | null;
@@ -464,7 +464,7 @@ export interface WebLocationInput {
   altitude?: number | null;
 }
 
-export interface AddSpottingEventInput {
+interface AddSpottingEventInput {
   spottingDate: string;
   vehicle: string;
   notes: string;

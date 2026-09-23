@@ -1,19 +1,52 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { humanizeSince } from "./humanize-since.util";
 
+const NOW = new Date(2026, 7, 18, 12, 0, 0); // Aug 18, 2026, local noon
+
+/** An ISO timestamp `ms` before NOW — built from the same clock, so it is timezone-independent. */
+function ago(ms: number): string {
+  return new Date(NOW.getTime() - ms).toISOString();
+}
+
 describe("humanizeSince", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(NOW);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("should return 'today' for the current date/time or same-day date", () => {
-    vi.setSystemTime(new Date(2026, 7, 18, 12, 0, 0)); // Aug 18, 2026
-    expect(humanizeSince("2026-08-18T12:00:00.000Z")).toBe("today");
-    expect(humanizeSince(new Date(2026, 7, 18).toISOString())).toBe("today");
+  it("should return 'less than a minute ago' for the current time and anything under 60 seconds", () => {
+    expect(humanizeSince(ago(0))).toBe("less than a minute ago");
+    expect(humanizeSince(ago(59_999))).toBe("less than a minute ago");
+  });
+
+  it("should format minutes only with correct singular/plural forms", () => {
+    expect(humanizeSince(ago(60_000))).toBe("1 minute ago");
+    expect(humanizeSince(ago(3 * 60_000))).toBe("3 minutes ago");
+    expect(humanizeSince(ago(59 * 60_000))).toBe("59 minutes ago");
+  });
+
+  it("should format hours only with correct singular/plural forms", () => {
+    expect(humanizeSince(ago(60 * 60_000))).toBe("1 hour ago");
+    expect(humanizeSince(ago(5 * 60 * 60_000))).toBe("5 hours ago");
+    expect(humanizeSince(ago(23 * 60 * 60_000 + 59 * 60_000))).toBe("23 hours ago");
+    // Same calendar day, but hours old: never "today" on a live feed.
+    expect(humanizeSince(new Date(2026, 7, 18).toISOString())).toBe("12 hours ago");
+  });
+
+  it("should switch to calendar Days once a full day has elapsed", () => {
+    expect(humanizeSince(ago(24 * 60 * 60_000))).toBe("1 Day ago");
+    expect(humanizeSince(ago(25 * 60 * 60_000))).toBe("1 Day ago");
+  });
+
+  it("should clamp future and invalid timestamps to 'less than a minute ago'", () => {
+    expect(humanizeSince(new Date(NOW.getTime() + 60_000).toISOString())).toBe(
+      "less than a minute ago",
+    );
+    expect(humanizeSince("not-a-date")).toBe("less than a minute ago");
   });
 
   it("should format days only with correct singular/plural forms", () => {

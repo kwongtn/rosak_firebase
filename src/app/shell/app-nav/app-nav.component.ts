@@ -28,11 +28,12 @@ import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy"
 const GENERIC_TITLE = "Malaysia Land Public Transport Fans";
 
 const NAV_LINKS = [
-  { path: "/spotting", label: "TranSPOT" },
-  { path: "/tracker", label: "Tracker" },
-  { path: "/gallery", label: "Gallery" },
-  { path: "/insiden", label: "Insiden" },
-  { path: "/about", label: "About" },
+  { path: "/", label: "Home", exact: true },
+  { path: "/spotting", label: "TranSPOT", exact: false },
+  { path: "/tracker", label: "Tracker", exact: false },
+  { path: "/gallery", label: "Gallery", exact: false },
+  { path: "/insiden", label: "Insiden", exact: false },
+  { path: "/about", label: "About", exact: false },
 ];
 
 /** How long a hover-close waits before actually collapsing the menu — long enough that moving
@@ -190,6 +191,7 @@ let hasRevealedNavLinksThisPageLoad = false;
                 <a
                   [routerLink]="link.path"
                   routerLinkActive="text-foreground font-medium"
+                  [routerLinkActiveOptions]="{ exact: link.exact }"
                   class="hover:text-foreground shrink-0 whitespace-nowrap"
                   (mouseenter)="link.path === '/tracker' && preloadTracker()"
                   (focus)="link.path === '/tracker' && preloadTracker()"
@@ -289,6 +291,7 @@ let hasRevealedNavLinksThisPageLoad = false;
                     <a
                       [routerLink]="link.path"
                       routerLinkActive="text-foreground font-medium bg-muted"
+                      [routerLinkActiveOptions]="{ exact: link.exact }"
                       class="hover:bg-muted px-5 py-3"
                       (click)="moduleMenuOpen.set(false)"
                       (mouseenter)="link.path === '/tracker' && preloadTracker()"
@@ -369,6 +372,7 @@ let hasRevealedNavLinksThisPageLoad = false;
                       <a
                         [routerLink]="link.path"
                         routerLinkActive="text-foreground font-medium bg-muted"
+                        [routerLinkActiveOptions]="{ exact: link.exact }"
                         class="hover:bg-muted rounded-lg px-3 py-2"
                         (click)="moduleMenuOpen.set(false)"
                         (mouseenter)="link.path === '/tracker' && preloadTracker()"

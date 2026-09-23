@@ -5,7 +5,7 @@ import { IFeedEntity } from "./types";
 /** `null` means "Do not refresh" — no timer gets scheduled at all once a fetch succeeds. */
 export type RefreshIntervalMs = number | null;
 
-export const DEFAULT_REFRESH_INTERVAL_MS = 30000;
+const DEFAULT_REFRESH_INTERVAL_MS = 30000;
 /** The dropdown's own option list — see RefreshIntervalSelectComponent... this file doesn't own
  * UI, so the options list itself lives with the component that renders it (layer-checklist);
  * this constant is just the default every newly-applied source starts at. */

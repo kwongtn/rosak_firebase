@@ -1,6 +1,6 @@
 import { computed, signal, type Signal, type WritableSignal } from "@angular/core";
 
-export interface BulkActions {
+interface BulkActions {
   /** Whether bulk-select mode is active. */
   readonly selectMode: WritableSignal<boolean>;
   /** The set of currently checked ids. */

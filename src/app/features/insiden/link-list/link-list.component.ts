@@ -3,6 +3,7 @@ import { DatePipe } from "@angular/common";
 import { AuthService } from "../../../core/auth/auth.service";
 import { LinkCardComponent } from "../link-card/link-card.component";
 import { canEditLink } from "../data/can-edit.link.util";
+import { LinkCardItem } from "../data/link-card-item";
 import { groupLinksByDay, linkDateKey } from "../data/link-day-group.util";
 import { LinkSheetService } from "../data/link-sheet.service";
 import { PublicSocialMediaLink } from "../data/social-links.queries";
@@ -39,7 +40,13 @@ import { PublicSocialMediaLink } from "../data/social-links.queries";
             }
             <div class="flex flex-col gap-2">
               @for (link of group.items; track link.id) {
-                <app-link-card [link]="link" [editable]="canEdit(link)" (edit)="openEdit($event)" />
+                <app-link-card
+                  [link]="link"
+                  [userVote]="voteValues()[link.id] ?? link.userVote ?? 0"
+                  [editable]="canEdit(link)"
+                  (voteChanged)="voteChanged.emit({ id: link.id, value: $event.value })"
+                  (edit)="openEdit($event)"
+                />
               }
             </div>
           </div>
@@ -72,7 +79,9 @@ import { PublicSocialMediaLink } from "../data/social-links.queries";
                 @for (link of pending(); track link.id) {
                   <app-link-card
                     [link]="link"
+                    [userVote]="voteValues()[link.id] ?? link.userVote ?? 0"
                     [editable]="canEdit(link)"
+                    (voteChanged)="voteChanged.emit({ id: link.id, value: $event.value })"
                     (edit)="openEdit($event)"
                   />
                 }
@@ -96,12 +105,25 @@ export class LinkListComponent {
    * server-side, so the host should reload its resource (and drop stale continuation pages). */
   readonly sheetClosed = output<void>();
 
+  /** Per-link vote overlay, keyed by link id (the host's optimistic copy — `link.userVote` is the
+   * anonymous backend value). The host updates it on `voteChanged`. */
+  readonly voteValues = input<Record<string, number>>({});
+
+  /** Re-emitted per card with the voted link's id, so the host can record it in its own store. */
+  readonly voteChanged = output<{ id: string; value: number }>();
+
   private readonly auth = inject(AuthService);
   private readonly linkSheet = inject(LinkSheetService);
 
-  /** "Approved" on links = `completed === true` (the backend has no status enum for links). */
-  protected readonly approved = computed(() => this.links().filter((link) => link.completed));
-  protected readonly pending = computed(() => this.links().filter((link) => !link.completed));
+  /** "Approved" = anything not awaiting admin approval: the approval axis is `status`
+   * (`PENDING_APPROVAL` vs everything else). `completed` is the admin console's separate
+   * "mark handled" flag and must not drive this split. */
+  protected readonly approved = computed(() =>
+    this.links().filter((link) => link.status !== "PENDING_APPROVAL"),
+  );
+  protected readonly pending = computed(() =>
+    this.links().filter((link) => link.status === "PENDING_APPROVAL"),
+  );
 
   /** Approved links bucketed by UTC day (created-DESC preserved within each day). */
   protected readonly approvedGroups = computed(() =>
@@ -122,7 +144,7 @@ export class LinkListComponent {
 
   /** Opens the sheet in edit mode for the clicked link (the host may host the sheet itself — the
    * shared LinkSheetService carries the edit target regardless of where the sheet renders). */
-  protected openEdit(link: PublicSocialMediaLink): void {
+  protected openEdit(link: LinkCardItem): void {
     this.linkSheet.openEdit(link);
   }
 

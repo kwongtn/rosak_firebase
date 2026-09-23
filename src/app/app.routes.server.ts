@@ -1,11 +1,9 @@
 import { RenderMode, ServerRoute } from "@angular/ssr";
 
 export const serverRoutes: ServerRoute[] = [
-  // The '' → '/spotting' redirect (see app.routes.ts) needs its own entry here, ahead of the
-  // wildcard's 404 status below — without it, this path has no more specific match in *this*
-  // route tree (there's no dedicated client-route component at '' to derive one from) and would
-  // otherwise fall through to the wildcard and incorrectly serve the site's own root with an
-  // HTTP 404, despite rendering a perfectly valid redirect.
+  // The '' entry renders the community front page (see app.routes.ts) — no longer a redirect to
+  // /spotting. It still needs its own entry here, ahead of the wildcard entry below: with no
+  // more specific match in *this* route tree it would otherwise fall through to that wildcard.
   {
     path: "",
     renderMode: RenderMode.Server,

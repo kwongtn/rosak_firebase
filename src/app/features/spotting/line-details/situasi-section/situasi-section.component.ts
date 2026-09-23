@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, input } from "@angular/core";
+import { Component, DestroyRef, computed, inject, input, signal } from "@angular/core";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../../core/polling/polling-source";
 import { HlmButton } from "../../../../ui/button/button";
@@ -115,7 +115,9 @@ function optionValueToRefreshInterval(value: string): number | null {
       } @else {
         <app-link-list
           [links]="sorted()"
+          [voteValues]="voteValues()"
           emptyMessage="No submitted links for this line yet."
+          (voteChanged)="onVoteChanged($event)"
           (sheetClosed)="resource.reload()"
         />
       }
@@ -140,6 +142,13 @@ export class SituasiSectionComponent {
   }));
 
   protected readonly polling = new PollingSource(() => this.resource.reload());
+
+  /** Per-link vote overlay handed to the list (the cards' optimistic copy). */
+  protected readonly voteValues = signal<Record<string, number>>({});
+
+  protected onVoteChanged(event: { id: string; value: number }): void {
+    this.voteValues.update((prev) => ({ ...prev, [event.id]: event.value }));
+  }
 
   protected readonly refreshIntervalOptionValue = computed(() =>
     refreshIntervalToOptionValue(this.polling.intervalMs()),

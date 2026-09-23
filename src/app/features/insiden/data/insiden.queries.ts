@@ -28,15 +28,6 @@ export type CalendarIncidentStatus =
  * (separate list/details/medias services, lazy-loaded per interaction).
  * ---------------------------------------------------------------------- */
 
-export const GET_INCIDENTS = /* GraphQL */ `
-  query GetIncidents {
-    calendarIncidents {
-      id
-      title
-    }
-  }
-`;
-
 export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
   query CalendarIncidents($filters: CalendarIncidentFilter) {
     calendarIncidents(filters: $filters) {
@@ -285,7 +276,7 @@ export const CALENDAR_INCIDENT_HISTORY_QUERY = /* GraphQL */ `
 
 /** Backend changeType for one history record (django-simple-history history_type
  * `+`/`~`/`-` mapped by the resolver to created/updated/deleted). */
-export type CalendarIncidentHistoryChangeType = "created" | "updated" | "deleted";
+type CalendarIncidentHistoryChangeType = "created" | "updated" | "deleted";
 
 /** One diffed history record. `changedFields` lists the MODEL field names that
  * changed (diffed against the previous record): ["created"] for the creation
@@ -551,7 +542,7 @@ export const INSIDEN_REFERENCE_QUERY = /* GraphQL */ `
   }
 `;
 
-export interface InsidenReferenceLine {
+interface InsidenReferenceLine {
   id: string;
   code: string;
   displayName: string;
@@ -562,13 +553,13 @@ export interface InsidenReferenceLine {
   }[];
 }
 
-export interface InsidenReferenceStation {
+interface InsidenReferenceStation {
   id: string;
   displayName: string;
   lines: { id: string; code: string }[];
 }
 
-export interface InsidenReferenceCategory {
+interface InsidenReferenceCategory {
   id: string;
   name: string;
 }

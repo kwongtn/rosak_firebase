@@ -31,14 +31,25 @@
   - `IncidentFormComponent`: hydrates from `IncidentSheetService.editTarget` (a
     `signal<CalendarIncident | null>`); no-arg `open()` stays create-only.
   - `LinkFormComponent`: reads `LinkSheetService.context` (`{ incidentId, incidentTitle? }`) to
-    target a submission at a specific incident; no-arg open is the just-dumping flow.
-  - `VoteButtonComponent`: `targetType = input<"incident" | "chronology">("incident")` — the same
-    button drives both vote surfaces.
+    target a submission at a specific incident; no-arg open is the just-dumping flow. Its edit target
+    is the structural `LinkEditTarget` (vehicles/stations optional), so the home feed's node — which
+    selects neither — hydrates as an empty selection.
+  - `LinkCardComponent` (shared `app-link-card`): `link = input.required<LinkCardItem>()` — the
+    structural contract both `PublicSocialMediaLink` and the home feed's `FeedLink` satisfy with no
+    host mapping — `userVote = input(0)` (host overlay) and `editable = input(false)` (host-gated
+    with `canEditLink`, author or admin).
+  - `VoteButtonComponent`: `targetType = input<"incident" | "chronology" | "link">("incident")` — the
+    same button drives incident, chronology and social-media-link votes (the shared link card hosts
+    it with `targetType="link"`).
 - **Outputs / Events / API Responses:**
   - `IncidentCalendarComponent.daySelected = output<string>()` — emits a `dateKey` on day click,
     "Today", month/year jump commit, or prev/next-month navigation; `InsidenPage` reacts by calling
     `router.navigate(["/insiden", dateKey])`, keeping the viewed day a real, shareable URL rather
     than local-only UI state.
+  - `LinkCardComponent.voteChanged = output<{ value: number }>()` — after a successful vote (the
+    link-list host records it in its `voteValues` overlay); `edit = output<LinkCardItem>()` — the
+    edit pencil, host-gated with `canEditLink`. `LinkListComponent.voteChanged` re-emits it with
+    the voted link's id as `{ id: string; value: number }`.
   - GraphQL query `INSIDEN_INCIDENTS_QUERY` (`data/insiden.queries.ts`) accepts optional filters.
     `/insiden` fetches incidents overlapping the selected month plus 14 days on each side,
     OR unresolved incidents for the pinned section. Changing months reloads the window;
@@ -137,13 +148,32 @@
     pages via `GraphQLClient.request` + the infinite-scroll sentinel. Rendering is delegated to the
     shared `LinkListComponent` (see insiden shared components); this host only owns pagination and
     reload-on-sheet-close (dropping appended continuation pages of the stale dataset).
+  - `LinkCardComponent` (shared, `app-link-card`): the single link-row element for every surface —
+    home feed, /insiden links tab and situasi. Renders the favicon (Google S2, plain-link SVG
+    fallback), the domain/path colour split (`linkUrlPartsOf`), the title, line badges, the Pending
+    pill (`title="Awaiting admin approval"`, rendered only while the link's approval `status` is
+    `PENDING_APPROVAL` — the contract field is `LinkCardItem.status?: string | null`, kept loose
+    rather than narrowed to `SocialMediaLinkStatus` so both source node types satisfy it
+    structurally; `completed` is the console's separate admin "mark handled" flag and does not drive
+    it) and a right rail carrying the vote button plus the relative time (`humanizeSince`
+    with an exact-timestamp + submitter tooltip) and the edit pencil.
+    The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
+    their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
+    `link-tags`, `link-pending`, `link-meta-rail`, `link-time` / `link-created`, `link-submitter` and
+    `link-edit`. The host passes `userVote` (its authenticated overlay wins over the anonymous feed
+    value) and `editable` (gated with `canEditLink`); the card re-emits votes as `voteChanged` and
+    the edit pencil as `edit`.
   - `LinkListComponent` (shared, `app-link-list`): host-agnostic link list taking an ordered
-    `links` input + host-specific `emptyMessage`. Owns the approved/pending split, the UTC day-group
-    headers (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and browser agree on
-    the buckets — the pending collapsible, and the edit pencil gated by the pure `canEditLink()`
+    `links` input + host-specific `emptyMessage` + a `voteValues` overlay (`Record<id, number>`).
+    Owns the approval-axis split (approved = `status !== "PENDING_APPROVAL"`, pending =
+    `status === "PENDING_APPROVAL"`; the separate `completed` handled flag never groups rows), the
+    UTC day-group headers (Today/Yesterday/`MMMM d, y` via `groupLinksByDay()`) — UTC so SSR and
+    browser agree on the buckets — the pending collapsible, and the edit pencil gated by the pure
+    `canEditLink()`
     util (author shortId match or admin); the pencil opens the shared link sheet in edit mode via
-    `LinkSheetService.openEdit()`. Emits `sheetClosed` on the sheet's open→closed edge so the host
-    reloads its resource (an edit submit or cancel changed the data server-side).
+    `LinkSheetService.openEdit()`. Re-emits each card's vote as `voteChanged = output<{ id: string;
+value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's open→closed edge
+    so the host reloads its resource (an edit submit or cancel changed the data server-side).
   - `LinkSheetComponent` (shared, `app-link-sheet`): hosts the HlmSheet + LinkFormComponent pair
     (previously inlined in both `insiden.page.html` and the situasi section) with edit-aware
     header/footer labels ("Edit link"/"Save" vs "Submit a link"/"Submit"), an optional

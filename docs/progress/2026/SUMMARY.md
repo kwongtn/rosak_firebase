@@ -31,9 +31,15 @@
 
 ### Q3: Reliability (Sep)
 
-| Week   | Milestone                                                                         |
-| ------ | --------------------------------------------------------------------------------- |
-| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20 |
+| Week   | Milestone                                                                                                                                                                                                                                             |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sep 15 | CI + Deploy Functions workflows green: console spec HTTP mocks, functions Node 20                                                                                                                                                                     |
+| Sep 22 | Home feed scoped to the current service day with a `Showing X of Y` footer; three link lists unified onto the shared `app-link-card`                                                                                                                  |
+| Sep 22 | **home** community front page goes live as the app's landing route (link feed + line pulse + line-status sheet)                                                                                                                                       |
+| Sep 22 | Home front-page UX round: inline submit errors + Cancel, schemeless-URL normalization, 24-hour chart labels, feed Load More, per-status counts in the status legend                                                                                   |
+| Sep 22 | Home close-out: Pending pill + pending group keyed off the approval `status`; hourly bars stacked by report type (`statusCounts`); recent-reports list capped in its own scroller; `HlmCombobox` clear-to-deselect fix in the spotting report form    |
+| Sep 23 | Front page split into a two-panel desktop layout (full-height URL feed left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                       |
+| Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection |
 
 ---
 
@@ -52,12 +58,13 @@
 
 ### console (Admin Dashboard) — **MAJOR EXPANSION**
 
-| Phase      | Deliverables                                                                |
-| ---------- | --------------------------------------------------------------------------- |
-| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links |
-| Aug 22     | Incident approval queue, social media links triage, section navigation      |
-| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)              |
-| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes          |
+| Phase      | Deliverables                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------- |
+| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links                                   |
+| Aug 22     | Incident approval queue, social media links triage, section navigation                                        |
+| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)                                                |
+| Sep 2026   | Social-media link triage: admin hard-delete of link entries (confirm guard + IsAdmin `deleteSocialMediaLink`) |
+| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes                                            |
 
 ### tracker (GTFS Real-time) — **MATURE PLATFORM**
 
@@ -81,6 +88,7 @@
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Pre-2026   | Form (line/vehicle selection, sanity tests, run number, image upload, compression, queueing), drawer UI, inline history, session history |
 | Aug 2026   | Skeletons for line data, z-index fixes, GraphQL error catching                                                                           |
+| Sep 2026   | Report form: combobox/station clear-to-deselect (`HlmCombobox.emptyValue`, non-disabled placeholders)                                    |
 | **Status** | **Polished** — Robust form, image pipeline, history, loading states                                                                      |
 
 ### navigation / shell — **MODERNIZED**
@@ -97,6 +105,17 @@
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Aug 26     | `app-ad-slot` component, `ADS_CONFIG`, manual AdSense units, fill-gated reveal, block capping, behavioral specs, `robots.txt` |
 | **Status** | **MVP Ready** — Config-driven, tested, SEO-protected                                                                          |
+
+### home (Community Front Page) — **NEW PLATFORM**
+
+| Phase      | Deliverables                                                                                                                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sep 22     | Root `""` route becomes `HomePage`: global rolling link feed with login-gated submit + duplicate detection, per-line pulse cards (vehicle counts, passenger status, related links), mobile line-status bottom sheet, route-scoped `HomeStore` with polling and an authenticated `userVote` overlay |
+| Sep 22     | UX round: inline submit errors + Cancel on the sheet and feed box, schemeless-URL normalization, all-24-hour chart labels with a shared reserved-height skeleton, feed Load More, per-status counts folded into the status legend                                                                  |
+| Sep 22     | Delivery round: feed scoped to the current service day with a `Showing X of Y` footer, the shared `app-link-card` across all three link lists, report stations + hover timestamps, legend counts, e2e 9/9                                                                                          |
+| Sep 22–23  | Approval-status-driven Pending pill, hourly bars stacked by report type, recent-reports list capped in its own scroller, two-panel desktop layout + 30s lines-only refresh beat                                                                                                                    |
+| Sep 23     | Round 7: URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection                                                                            |
+| **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
 
 ### core (Utilities) — **EXTRACTED PATTERNS**
 
@@ -119,7 +138,7 @@
 ### After 2026 (Angular 22)
 
 - **Tailwind v4** + **Headless UI** (hlm-* components)
-- **Strawberry GraphQL** (via `graphqlResource()` / `postGraphQL()`)
+- **Strawberry GraphQL** (via `graphqlResource()` / `GraphQLClient.request()`)
 - **SSR** (Server-Side Rendering) via Angular Universal
 - **Standalone components** (no NgModules)
 - **Firebase Auth/Firestore/Storage** direct integration
@@ -137,17 +156,18 @@
 
 ## Commit Statistics (2026 YTD)
 
-| Month     | Commits | Major Focus                      |
-| --------- | ------- | -------------------------------- |
-| Jan       | 0       | (no data in range)               |
-| Feb       | 0       | (no data in range)               |
-| Mar       | 1       | Verification component fix       |
-| Apr       | 0       | (no data in range)               |
-| May       | 0       | (no data in range)               |
-| Jun       | 0       | (no data in range)               |
-| Jul       | 0       | (no data in range)               |
-| Aug       | **41+** | **3 feature platforms + polish** |
-| **Total** | **42+** |                                  |
+| Month     | Commits  | Major Focus                                                                     |
+| --------- | -------- | ------------------------------------------------------------------------------- |
+| Jan       | 0        | (no data in range)                                                              |
+| Feb       | 0        | (no data in range)                                                              |
+| Mar       | 1        | Verification component fix                                                      |
+| Apr       | 0        | (no data in range)                                                              |
+| May       | 0        | (no data in range)                                                              |
+| Jun       | 0        | (no data in range)                                                              |
+| Jul       | 0        | (no data in range)                                                              |
+| Aug       | **41+**  | **3 feature platforms + polish**                                                |
+| Sep       | **74**   | **home front page (landing + UX + shared-card rounds) + CI/deploy reliability** |
+| **Total** | **116+** |                                                                                 |
 
 > Note: Git history shows major activity in Aug 2026. Earlier 2026 commits may be in different branches or squashed.
 
@@ -260,6 +280,7 @@
 ```
 src/app/
 ├── features/
+│   ├── home/             # Community front page (NEW 2026, landing route)
 │   ├── insiden/          # Incident reporting platform (NEW 2026)
 │   ├── console/          # Admin dashboard (EXPANDED 2026)
 │   ├── tracker/          # GTFS real-time tracking (MATURE)

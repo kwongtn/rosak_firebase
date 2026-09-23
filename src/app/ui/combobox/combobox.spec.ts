@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { ComboboxItem, HlmCombobox } from "./combobox";
 
-describe("HlmCombobox stable track key", () => {
+const ITEMS: ComboboxItem<string>[] = [
+  { label: "Apple", value: "a" },
+  { label: "Banana", value: "b" },
+  { label: "Cherry", value: "c" },
+];
+
+describe("HlmCombobox", () => {
   let fixture: ComponentFixture<HlmCombobox<string>>;
   let component: HlmCombobox<string>;
 
@@ -15,28 +21,187 @@ describe("HlmCombobox stable track key", () => {
     }).compileComponents();
     fixture = TestBed.createComponent(HlmCombobox<string>);
     component = fixture.componentInstance;
+    component.items.set(ITEMS);
+    fixture.detectChanges();
   });
 
+  function input(): HTMLInputElement {
+    const el = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>("input");
+    if (!el) throw new Error("combobox input not rendered");
+    return el;
+  }
+
+  function options(): NodeListOf<HTMLElement> {
+    return (fixture.nativeElement as HTMLElement).querySelectorAll("li");
+  }
+
+  /** Selects "cher" via Enter and returns with `value()` === "c". */
+  function selectCherryViaEnter(): void {
+    input().value = "cher";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+  }
+
+  /** `_onBlur` defers its sync by 100ms so a (mousedown) selection lands first. */
+  async function blurAndSettle(): Promise<void> {
+    input().dispatchEvent(new FocusEvent("blur"));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    fixture.detectChanges();
+  }
+
   it("keeps the rendered <li> count in sync with the filtered items", () => {
-    const items: ComboboxItem<string>[] = [
-      { label: "Apple", value: "a" },
-      { label: "Banana", value: "b" },
-      { label: "Cherry", value: "c" },
-    ];
-    component.items.set(items);
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+    expect(options().length).toBe(3);
+
+    input().value = "b";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
 
-    // Open the dropdown (focus triggers the open path) so the option list renders.
-    const input = fixture.nativeElement.querySelector("input");
-    input.dispatchEvent(new FocusEvent("focus"));
+    expect(options().length).toBe(1);
+    expect(options()[0].textContent?.trim()).toBe("Banana");
+  });
+
+  it("stays closed when merely focused — the sheet focus trap focuses the first field", () => {
+    input().dispatchEvent(new FocusEvent("focus"));
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll("li").length).toBe(3);
+    expect(options().length).toBe(0);
+  });
 
-    input.value = "b";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+  it("opens on click and closes on Escape", () => {
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+    expect(options().length).toBe(3);
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    fixture.detectChanges();
+    expect(options().length).toBe(0);
+  });
+
+  it("opens and filters when the user types, and Enter selects the highlighted item", () => {
+    input().value = "cher";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll("li").length).toBe(1);
+    expect(options().length).toBe(1);
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBe("c");
+    expect(options().length).toBe(0);
+  });
+
+  it("opens on ArrowDown when closed and keeps the list open for navigation", () => {
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    fixture.detectChanges();
+    expect(options().length).toBe(3);
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+    expect(component.value()).toBe("a");
+  });
+
+  it("clears the value when the user empties the input, and blur cannot resurrect it", async () => {
+    selectCherryViaEnter();
+    expect(component.value()).toBe("c");
+
+    input().value = "";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    expect(component.value()).toBeUndefined();
+
+    await blurAndSettle();
+
+    // The reported bug: the field used to re-fill "Cherry" and keep "c" selected.
+    expect(component.value()).toBeUndefined();
+    expect(component.search()).toBe("");
+    expect(input().value).toBe("");
+  });
+
+  it("does not commit a value when Enter is pressed after the field is cleared", () => {
+    selectCherryViaEnter();
+    expect(component.value()).toBe("c");
+
+    input().value = "";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    expect(component.value()).toBeUndefined();
+
+    // The reported bug: the panel stays open over the now-unfiltered list, and Enter used to
+    // silently re-commit `_filtered()[_highlightIndex()]` (a previously highlighted item).
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBeUndefined();
+    expect(component.search()).toBe("");
+    expect(input().value).toBe("");
+  });
+
+  it("does not commit on Enter when the panel was opened with no query or navigation", () => {
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+    expect(options().length).toBe(3);
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBeUndefined();
+  });
+
+  it("commits the highlighted item after deliberate ArrowDown navigation", () => {
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    fixture.detectChanges();
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBe("b");
+    expect(input().value).toBe("Banana");
+  });
+
+  it("treats whitespace-only text as emptying the field", () => {
+    selectCherryViaEnter();
+
+    input().value = "   ";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBeUndefined();
+    expect(input().value).toBe("");
+  });
+
+  it("keeps the current value while a non-empty query is typed", () => {
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+    options()[1].dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    fixture.detectChanges();
+    expect(component.value()).toBe("b");
+    expect(input().value).toBe("Banana");
+
+    input().value = "che";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBe("b");
+  });
+
+  it("reverts an abandoned, unmatched non-empty query to the selected label on blur", async () => {
+    selectCherryViaEnter();
+
+    input().value = "zzz";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    await blurAndSettle();
+
+    expect(component.value()).toBe("c");
+    expect(input().value).toBe("Cherry");
   });
 });
