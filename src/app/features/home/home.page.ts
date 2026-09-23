@@ -25,10 +25,10 @@ import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 
 /**
- * The community front page — the site's root route. The submit box spans the page, then the
- * feed and the per-line pulse list share a two-panel split (the URL list left, the line
- * statuses right) from `lg` up, stacked on mobile. The line panel carries a 30s refresh
- * countdown over the store's polling beat, above the list.
+ * The community front page — the site's root route. The feed and the per-line pulse list share a
+ * two-panel split (the URL list left, the line statuses right) from `lg` up, stacked on mobile;
+ * the submit box heads the feed column and the retry banner and footer stay full width. The line
+ * panel carries a 30s refresh countdown over the store's polling beat, above the list.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
  * app.routes.ts, so their polling beat and sheet state are created with the page and die with
@@ -59,8 +59,6 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
     <app-nav />
 
     <main class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
-      <app-link-submit-box (submitted)="store.reloadAll()" />
-
       @if (store.hasError()) {
         <app-retry-banner [resource]="errorResource" message="Couldn't load the front page." />
       }
@@ -70,9 +68,18 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
         data-testid="home-panels"
       >
         <section class="flex flex-col gap-3" aria-label="Community feed">
+          <app-link-submit-box (submitted)="store.reloadAll()" />
+
           <div class="flex flex-col gap-3" data-testid="feed-scroll">
             @if (store.isLoading() && store.feedLinks().length === 0) {
-              <div hlmSkeleton class="h-24 w-full"></div>
+              <div hlmSkeleton class="h-24 w-full" data-testid="feed-skeleton"></div>
+            } @else if (store.feedLinks().length === 0 && !store.hasError()) {
+              <p
+                class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
+                data-testid="feed-empty"
+              >
+                No links yet.
+              </p>
             }
             @for (link of store.feedLinks(); track link.id) {
               <app-link-card

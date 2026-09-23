@@ -221,6 +221,9 @@ describe("HomePage", () => {
     expect(root.textContent).toContain("Line a");
 
     // The composition order the page exists to enforce: submit box → global feed → line list.
+    // The box lives inside the feed section (top of the left column) and still precedes the cards.
+    const feedSection = root.querySelector('section[aria-label="Community feed"]');
+    expect(feedSection?.querySelector("app-link-submit-box")).not.toBeNull();
     const html = root.innerHTML;
     expect(html.indexOf("app-link-submit-box")).toBeLessThan(html.indexOf("app-link-card"));
     expect(html.indexOf("app-link-card")).toBeLessThan(html.indexOf("app-line-pulse-list"));
@@ -355,6 +358,12 @@ describe("HomePage", () => {
     expect(children[0]?.querySelector("app-link-card")).not.toBeNull();
     expect(children[1]?.getAttribute("aria-label")).toBe("Line status");
     expect(children[1]?.querySelector("app-line-pulse-list")).not.toBeNull();
+
+    // The left column owns the submit box, ahead of the feed it feeds.
+    const feedSection = children[0];
+    expect(feedSection?.querySelector("app-link-submit-box")).not.toBeNull();
+    const feedHtml = feedSection?.innerHTML ?? "";
+    expect(feedHtml.indexOf("app-link-submit-box")).toBeLessThan(feedHtml.indexOf("app-link-card"));
   });
 
   it("renders the feed in an uncapped container owned by the page scroll", () => {
@@ -368,6 +377,43 @@ describe("HomePage", () => {
     expect(container.querySelectorAll("app-link-card").length).toBe(2);
     // Load More sits at the foot of the feed panel, outside the links container.
     expect(container.querySelector('[data-testid="feed-load-more"]')).toBeNull();
+  });
+
+  it("shows the muted empty state once a settled feed has no links", () => {
+    store.feedLinks.set([]);
+    store.isLoading.set(false);
+    fixture.detectChanges();
+
+    const empty = fixture.nativeElement.querySelector('[data-testid="feed-empty"]') as HTMLElement;
+    expect(empty).not.toBeNull();
+    expect(empty.textContent?.replace(/\s+/g, " ").trim()).toBe("No links yet.");
+    // The same dashed/muted shell as the sibling line-list empty state, so the columns read alike.
+    expect(empty.className).toContain("text-muted-foreground");
+    expect(empty.className).toContain("border-dashed");
+  });
+
+  it("shows the feed skeleton, not the empty state, while the first page loads", () => {
+    store.feedLinks.set([]);
+    store.isLoading.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-skeleton"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-empty"]')).toBeNull();
+  });
+
+  it("keeps the empty state off a feed that has links", () => {
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-empty"]')).toBeNull();
+  });
+
+  it("leaves the empty state to the retry banner when the feed errored", () => {
+    store.feedLinks.set([]);
+    store.hasError.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="feed-empty"]')).toBeNull();
+    expect(fixture.debugElement.query(By.directive(RetryBannerComponent))).not.toBeNull();
   });
 
   it("renders the 30s refresh countdown above the line statuses and refreshes on click", () => {
