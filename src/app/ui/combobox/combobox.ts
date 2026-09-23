@@ -110,6 +110,12 @@ export class HlmCombobox<T> {
    * native <select>, rather than "filtering" against the current selection's own label (which
    * would otherwise make the list look empty/wrong the moment you click a filled-in combobox). */
   protected readonly _hasTypedSinceOpen = signal(false);
+  /** True once the user deliberately moves the highlight with ArrowUp/ArrowDown since the panel
+   * opened. `_highlightIndex` alone can't express this: after the field is cleared `_filtered()`
+   * returns the whole unfiltered list and index 0 is a real (wrong) item, so "highlight is at 0"
+   * must not be read as "the user chose item 0". `_selectHighlighted` requires this (or a
+   * non-empty query) before it will commit anything. */
+  protected readonly _hasMovedHighlight = signal(false);
 
   protected readonly _filtered = computed(() => {
     const query = this._hasTypedSinceOpen() ? this.search().trim().toLowerCase() : "";
@@ -156,6 +162,7 @@ export class HlmCombobox<T> {
   protected _onClick(event: MouseEvent): void {
     this._isOpen.set(true);
     this._hasTypedSinceOpen.set(false);
+    this._hasMovedHighlight.set(false);
     // Selects the pre-filled text so the very first keystroke replaces it outright, instead
     // of inserting at whatever the cursor position happens to be.
     (event.currentTarget as HTMLInputElement).select();
@@ -164,6 +171,8 @@ export class HlmCombobox<T> {
   protected _onInput(event: Event): void {
     this._hasTypedSinceOpen.set(true);
     this._isOpen.set(true);
+    this._highlightIndex.set(0);
+    this._hasMovedHighlight.set(false);
     const text = (event.target as HTMLInputElement).value;
     this.search.set(text);
     // Emptying the field deselects: `value` is what the form/`(valueChange)` actually holds, so
@@ -178,6 +187,7 @@ export class HlmCombobox<T> {
   protected _moveHighlight(delta: number): void {
     const count = this._filtered().length;
     if (count === 0) return;
+    this._hasMovedHighlight.set(true);
     if (!this._isOpen()) {
       this._isOpen.set(true);
       this._highlightIndex.set(0);
@@ -188,6 +198,13 @@ export class HlmCombobox<T> {
 
   protected _selectHighlighted(): void {
     if (!this._isOpen()) return;
+    // Enter commits only what the user actually chose: a deliberately ArrowUp/ArrowDown-ed row,
+    // or a non-empty query's highlighted match. After the field is cleared the query is empty and
+    // no row was navigated to, so Enter is a no-op (the panel stays open) rather than silently
+    // re-committing `_filtered()[_highlightIndex()]` from the now-unfiltered list — the bug
+    // where a deselected field "reselects itself".
+    const query = this._hasTypedSinceOpen() ? this.search().trim() : "";
+    if (!this._hasMovedHighlight() && !query) return;
     const item = this._filtered()[this._highlightIndex()];
     if (item) {
       this._select(item);

@@ -122,6 +122,50 @@ describe("HlmCombobox", () => {
     expect(input().value).toBe("");
   });
 
+  it("does not commit a value when Enter is pressed after the field is cleared", () => {
+    selectCherryViaEnter();
+    expect(component.value()).toBe("c");
+
+    input().value = "";
+    input().dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    expect(component.value()).toBeUndefined();
+
+    // The reported bug: the panel stays open over the now-unfiltered list, and Enter used to
+    // silently re-commit `_filtered()[_highlightIndex()]` (a previously highlighted item).
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBeUndefined();
+    expect(component.search()).toBe("");
+    expect(input().value).toBe("");
+  });
+
+  it("does not commit on Enter when the panel was opened with no query or navigation", () => {
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+    expect(options().length).toBe(3);
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBeUndefined();
+  });
+
+  it("commits the highlighted item after deliberate ArrowDown navigation", () => {
+    input().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    fixture.detectChanges();
+
+    input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.value()).toBe("b");
+    expect(input().value).toBe("Banana");
+  });
+
   it("treats whitespace-only text as emptying the field", () => {
     selectCherryViaEnter();
 
