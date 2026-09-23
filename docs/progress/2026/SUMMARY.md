@@ -58,12 +58,13 @@
 
 ### console (Admin Dashboard) — **MAJOR EXPANSION**
 
-| Phase      | Deliverables                                                                |
-| ---------- | --------------------------------------------------------------------------- |
-| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links |
-| Aug 22     | Incident approval queue, social media links triage, section navigation      |
-| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)              |
-| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes          |
+| Phase      | Deliverables                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------- |
+| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links                                   |
+| Aug 22     | Incident approval queue, social media links triage, section navigation                                        |
+| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)                                                |
+| Sep 2026   | Social-media link triage: admin hard-delete of link entries (confirm guard + IsAdmin `deleteSocialMediaLink`) |
+| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes                                            |
 
 ### tracker (GTFS Real-time) — **MATURE PLATFORM**
 
@@ -165,8 +166,8 @@
 | Jun       | 0        | (no data in range)                                                              |
 | Jul       | 0        | (no data in range)                                                              |
 | Aug       | **41+**  | **3 feature platforms + polish**                                                |
-| Sep       | **73**   | **home front page (landing + UX + shared-card rounds) + CI/deploy reliability** |
-| **Total** | **115+** |                                                                                 |
+| Sep       | **74**   | **home front page (landing + UX + shared-card rounds) + CI/deploy reliability** |
+| **Total** | **116+** |                                                                                 |
 
 > Note: Git history shows major activity in Aug 2026. Earlier 2026 commits may be in different branches or squashed.
 

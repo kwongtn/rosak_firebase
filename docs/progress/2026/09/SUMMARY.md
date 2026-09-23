@@ -27,6 +27,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 23 | Front page split into a two-panel desktop layout (full-height URL list left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                                                  |
 | Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): the URL form heads the desktop feed column and the feed gains `feed-skeleton` / `feed-empty` states; the card's vehicle count becomes a `line-vehicle-count` badge and the line-status pill renders only for non-active lines             |
 | Sep 23 | Combobox Enter now commits only a deliberately highlighted row or a non-empty query's match (fixes deselect-then-reselect, round 2); the spotting report's station resource projects `lineId`/`type` so unrelated model writes stop refetching `StationLinesByLine`              |
+| Sep 23 | Console link triage: admins can hard-delete social-media link entries from `/console/insiden/links` (confirm guard + IsAdmin `deleteSocialMediaLink`, local row drop, panel close)                                                                                               |
 | Sep 22 | Expanded line card's recent-reports list capped in its own scroll container (roughly 5 rows) instead of stretching the card                                                                                                                                                      |
 | Sep 22 | Spotting report form: clearing a combobox or re-choosing a station placeholder now really deselects (shared `HlmCombobox.emptyValue`, non-disabled placeholder)                                                                                                                  |
 
@@ -124,11 +125,19 @@ One commit (`feat(home): split the front page into two panels with a line-refres
 - `report-form.component.ts`: the station resource reads projected `lineId`/`type` computeds instead
   of the whole model, ending the per-keystroke `StationLinesByLine` refetch storm.
 
+### Console/insiden — social-media link delete in the triage queue (2026-09-23)
+
+One commit (`feat(console): let admins delete social-media link entries`):
+
+| Commit  | Deliverable                                                                                                                                                                                                                  |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 481a332 | `deleteLink` on `/console/insiden/links`: native confirm guard + IsAdmin `deleteSocialMediaLink` mutation, local row drop, panel close, success/error toast; Delete buttons in the table Actions column and the sheet footer |
+
 ## Commit Statistics
 
 | Type      | Count  | Percentage |
 | --------- | ------ | ---------- |
-| feat      | 35     | ~48%       |
+| feat      | 36     | ~49%       |
 | docs      | 12     | ~16%       |
 | fix       | 11     | ~15%       |
 | test      | 3      | ~4%        |
@@ -137,7 +146,7 @@ One commit (`feat(home): split the front page into two panels with a line-refres
 | other     | 2      | ~3%        |
 | style     | 1      | ~1%        |
 | chore     | 1      | ~1%        |
-| **Total** | **73** | **100%**   |
+| **Total** | **74** | **100%**   |
 
 > September 2026 on the checked-out branch. `merge` covers 3 `Merge branch 'staging'` and 2 `Merge branch 'main' into staging`; `other` covers `Update AGENTS.md` and `Add graphify`.
 
