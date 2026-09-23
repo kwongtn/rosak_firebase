@@ -247,14 +247,14 @@ test.describe("community front page", () => {
     const feedCall = (await recordedCalls()).find((call) => call.operationName === "Feed");
     expect(feedCall?.variables).toEqual({ first: 8, status: "LIVE", currentServiceDayOnly: true });
 
-    // Each line card: vehicle counts, status badge and passenger status (or "No data").
+    // Each line card: vehicle counts, passenger status and any non-active status pill.
     const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
-    await expect(kjl.getByTestId("line-vehicle-count")).toHaveText("12 of 20 vehicles in service");
+    await expect(kjl.getByTestId("line-vehicle-count")).toHaveText("12/20 in service");
     await expect(kjl.getByTestId("passenger-status")).toHaveText("Normal");
-    await expect(kjl.getByText("Active", { exact: true })).toBeVisible();
+    await expect(kjl.getByText("Active", { exact: true })).toHaveCount(0);
     await expect(kjl.getByTestId("passenger-status-count")).toHaveCount(0);
 
-    // The consolidated message moved off the card body into the passenger chip's popover.
+    // The consolidated message no longer renders anywhere — not on the card, not in the popover.
     await expect(kjl.getByTestId("status-info-message")).toHaveCount(0);
     const kjlPassengerChip = kjl
       .locator("app-status-info-chip")
@@ -263,9 +263,7 @@ test.describe("community front page", () => {
     const kjlPopover = kjlPassengerChip.getByTestId("status-info-popover");
     await expect(kjlPopover).toBeVisible();
     await expect(kjlPopover.getByTestId("status-window")).toHaveText("Last 30 minutes");
-    await expect(kjlPopover.getByTestId("status-info-message")).toHaveText(
-      "Trains are running normally.",
-    );
+    await expect(kjlPopover.getByTestId("status-info-message")).toHaveCount(0);
     // The per-status counts are folded into the 7-level severity legend: the active level is
     // flagged and each reported level carries its own count. The old pill cluster is gone.
     const kjlLegend = kjlPopover.getByTestId("status-scale-entry");
@@ -291,8 +289,9 @@ test.describe("community front page", () => {
 
     await page.getByTestId("other-lines-summary").click();
     await expect(otherLines).toHaveJSProperty("open", true);
-    await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4 of 12 vehicles in service");
+    await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4/12 in service");
     await expect(mrl.getByTestId("passenger-status")).toHaveText("No data");
+    await expect(mrl.getByText("Partial Disruption", { exact: true })).toBeVisible();
 
     // "No data" means no legend counts and no consolidated message to show.
     const mrlPassengerChip = mrl

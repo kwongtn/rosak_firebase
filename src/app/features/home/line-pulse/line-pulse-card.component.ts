@@ -24,15 +24,16 @@ const MAX_PULSE_LINKS = 5;
 
 /**
  * The per-line pulse card of the community front page: what a line looks like right now
- * (vehicle counts + passenger status + the backend's consolidated message + the social
- * entries behind it) plus the two actions that keep the data fresh — "Submit line status"
- * (mobile LineStatusSheetComponent via LineStatusSheetService) and "Add spotting entry"
- * (ReportSheetService, whose sheet the home page hosts).
+ * (vehicle counts + passenger status + the social entries behind it) plus the two actions that
+ * keep the data fresh — "Submit line status" (mobile LineStatusSheetComponent via
+ * LineStatusSheetService) and "Add spotting entry" (ReportSheetService, whose sheet the home
+ * page hosts).
  *
- * Both status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle count
- * opens the per-status breakdown, the passenger chip carries the consolidated message, the
- * rolling window it covers, and the severity legend with the per-status report counts folded in.
- * The title row is the expand/collapse toggle for the lazy detail panel — the hourly report chart
+ * The status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle-count
+ * pill opens the per-status breakdown, the passenger chip carries the rolling window it covers
+ * and the severity legend with the per-status report counts folded in. The line-status pill is
+ * rendered only for non-active lines — "Active" is the unremarkable default. The title row is
+ * the expand/collapse toggle for the lazy detail panel — the hourly report chart
  * and the recent reports list, both of which only read once expanded. Mobile-first: the card is a
  * single column with full-width, content-sized actions; from `sm:` the actions move to the right
  * of the title row. Links are plain anchors (compact) rather than link cards.
@@ -88,13 +89,14 @@ const MAX_PULSE_LINKS = 5;
                 </button>
               </h3>
               <div class="mt-1.5 flex flex-wrap items-center gap-2">
-                <app-status-info-chip [info]="lineStatusInfo(line().status)">
-                  <line-status-badge [status]="line().status" />
-                </app-status-info-chip>
+                @if (line().status !== "ACTIVE") {
+                  <app-status-info-chip [info]="lineStatusInfo(line().status)">
+                    <line-status-badge [status]="line().status" />
+                  </app-status-info-chip>
+                }
                 <app-status-info-chip
                   [info]="passengerInfo(line().passengerStatus)"
                   [scale]="passengerScale(line().passengerStatus, line().passengerStatusCounts)"
-                  [message]="line().passengerStatusMessage"
                   [windowMinutes]="_passengerWindowMinutes()"
                 >
                   <span
@@ -105,16 +107,22 @@ const MAX_PULSE_LINKS = 5;
                     {{ passengerLabel(line().passengerStatus) }}
                   </span>
                 </app-status-info-chip>
+                <app-status-info-chip
+                  [info]="_vehicleCountInfo()"
+                  [breakdown]="_vehicleBreakdown()"
+                >
+                  <span
+                    hlmBadge
+                    variant="secondary"
+                    data-testid="line-vehicle-count"
+                    [attr.aria-label]="_vehicleCountLabel()"
+                  >
+                    {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
+                  </span>
+                </app-status-info-chip>
               </div>
             </div>
           </header>
-
-          <app-status-info-chip [info]="_vehicleCountInfo()" [breakdown]="_vehicleBreakdown()">
-            <span class="text-sm font-medium" data-testid="line-vehicle-count">
-              {{ line().inServiceVehicleCount }} of {{ line().totalVehicleCount }} vehicles in
-              service
-            </span>
-          </app-status-info-chip>
 
           @if (_links().length > 0) {
             <ul class="flex flex-col gap-1.5">
@@ -213,6 +221,11 @@ export class LinePulseCardComponent {
     title: "Vehicles",
     body: `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service right now.`,
   }));
+
+  protected readonly _vehicleCountLabel = computed(
+    () =>
+      `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service`,
+  );
 
   protected readonly _vehicleBreakdown = computed<StatusBreakdownRow[]>(() => {
     const rows = vehicleStatusRows(this.line().vehicleStatusCounts);

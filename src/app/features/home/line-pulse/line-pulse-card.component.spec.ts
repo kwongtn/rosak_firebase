@@ -118,10 +118,19 @@ describe("LinePulseCardComponent", () => {
     }
   }
 
-  it("renders the in-service vehicle count as 'X of Y vehicles in service'", () => {
+  it("renders the in-service vehicle count as the last badge pill in the status row", () => {
     const root = render(makeLine({ inServiceVehicleCount: 12, totalVehicleCount: 20 }));
 
-    expect(textOf(root, "line-vehicle-count")).toBe("12 of 20 vehicles in service");
+    const badge = root.querySelector<HTMLElement>('[data-testid="line-vehicle-count"]');
+    expect(badge?.textContent?.replace(/\s+/g, " ").trim()).toBe("12/20 in service");
+    expect(badge?.getAttribute("aria-label")).toBe("12 of 20 vehicles in service");
+    expect(badge?.getAttribute("data-slot")).toBe("badge");
+    expect(badge?.className).toContain("bg-secondary");
+
+    const chip = badge?.closest("app-status-info-chip");
+    const row = chip?.parentElement;
+    expect(row?.lastElementChild).toBe(chip);
+    expect(row?.querySelector('[data-testid="passenger-status"]')).not.toBeNull();
   });
 
   it("shows 'No data' for a line with no passenger status", () => {
@@ -130,7 +139,7 @@ describe("LinePulseCardComponent", () => {
     expect(textOf(root, "passenger-status")).toBe("No data");
   });
 
-  it("shows the crowded label and the consolidated message inside the status popover", () => {
+  it("shows the crowded label and no consolidated message inside the status popover", () => {
     const root = render(
       makeLine({
         passengerStatus: "CROWDED",
@@ -143,10 +152,21 @@ describe("LinePulseCardComponent", () => {
 
     openPopover(root, "passenger-status");
 
-    expect(textOf(root, "status-info-message")).toBe(
-      "According to 5 social media entries, this line is Crowded.",
-    );
+    expect(root.querySelector('[data-testid="status-info-message"]')).toBeNull();
     expect(textOf(root, "status-window")).toBe("Last 15 minutes");
+  });
+
+  it("hides the Active pill for an active line but keeps the status pill for other statuses", () => {
+    const root = render(makeLine({ status: "ACTIVE" }));
+
+    expect(root.querySelector("line-status-badge")).toBeNull();
+
+    fixture.componentRef.setInput("line", makeLine({ status: "PARTIAL_DISRUPTION" }));
+    fixture.detectChanges();
+
+    const pill = root.querySelector("line-status-badge");
+    expect(pill).not.toBeNull();
+    expect(pill?.textContent?.trim()).toBe("Partial Disruption");
   });
 
   it("sizes both actions with the compact button variant and never stretches them", () => {
@@ -177,7 +197,7 @@ describe("LinePulseCardComponent", () => {
       [...el.querySelectorAll("span")].map((span) => (span.textContent ?? "").trim()).join(" "),
     );
     expect(rows).toEqual(["In service 12", "Not spotted 3", "Out of service 1", "Total 16"]);
-    expect(textOf(root, "line-vehicle-count")).toBe("12 of 16 vehicles in service");
+    expect(textOf(root, "line-vehicle-count")).toBe("12/16 in service");
   });
 
   it("folds the per-status report counts into the passenger legend rows", () => {
