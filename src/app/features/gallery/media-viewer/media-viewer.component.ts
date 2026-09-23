@@ -1,13 +1,5 @@
 import { isPlatformBrowser, DatePipe } from "@angular/common";
-import {
-  Component,
-  HostListener,
-  OnDestroy,
-  PLATFORM_ID,
-  inject,
-  input,
-  output,
-} from "@angular/core";
+import { Component, OnDestroy, PLATFORM_ID, inject, input, output } from "@angular/core";
 import { MediaNode } from "../data/gallery.queries";
 
 /**
@@ -23,6 +15,7 @@ import { MediaNode } from "../data/gallery.queries";
   host: {
     class: "fixed inset-0 z-50 flex flex-col bg-black/90",
     "(click)": "close.emit()",
+    "(document:keydown.escape)": "onEscape()",
   },
   template: `
     <div class="flex items-center justify-end p-3">
@@ -85,7 +78,6 @@ export class MediaViewerComponent implements OnDestroy {
     }
   }
 
-  @HostListener("document:keydown.escape")
   protected onEscape(): void {
     this.close.emit();
   }

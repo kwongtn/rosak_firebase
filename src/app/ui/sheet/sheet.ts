@@ -2,7 +2,6 @@ import { A11yModule } from "@angular/cdk/a11y";
 import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
-  HostListener,
   OnDestroy,
   PLATFORM_ID,
   computed,
@@ -35,6 +34,7 @@ import {
   imports: [A11yModule],
   host: {
     "[class.pointer-events-none]": "!open()",
+    "(document:keydown.escape)": "onEscape()",
   },
   template: `
     @if (_everOpened()) {
@@ -105,7 +105,6 @@ export class HlmSheet implements OnDestroy {
     });
   }
 
-  @HostListener("document:keydown.escape")
   protected onEscape(): void {
     if (this.open()) {
       this.close();

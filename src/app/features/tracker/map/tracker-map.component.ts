@@ -1,12 +1,11 @@
 import {
   Component,
-  EventEmitter,
   Injector,
   OnDestroy,
-  Output,
   afterNextRender,
   effect,
   inject,
+  output,
 } from "@angular/core";
 import { ILayer, LineLayer, Mapbox, PointLayer, Scene } from "@antv/l7";
 import { environment } from "../../../../environments/environment";
@@ -41,7 +40,7 @@ const RAIL_LINE_FILE = "malaysia_railway.geo.json";
 })
 export class TrackerMapComponent implements OnDestroy {
   /** Emits true once the L7 scene, Mapbox, and initial data fetches have started. */
-  @Output() readonly mapReady = new EventEmitter<void>();
+  readonly mapReady = output<void>();
   private readonly injector = inject(Injector);
   private readonly geojsonStorage = inject(GeojsonStorageService);
   private readonly gtfsRealtime = inject(GtfsRealtimeService);
