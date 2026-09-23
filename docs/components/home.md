@@ -43,10 +43,16 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     feed instead shows the muted `feed-empty` (`data-testid="feed-empty"`, "No links yet.") styled
     like the line list's empty state (the retry banner replaces both when the read errored). The
     line-status panel is headed by a fixed-cadence refresh row
-    (`data-testid="line-refresh-countdown"`): spinner + `Refreshing in {n}s` from the store's
-    public `polling.secondsRemaining()` + a `Refresh now` button
-    (`data-testid="line-refresh-now"`) calling `store.polling.refreshNow()` — deliberately no
-    interval picker (unlike situasi), the 30s cadence is fixed.
+    (`data-testid="line-refresh-countdown"`), itself a `<button>`: spinner +
+    `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, and a click
+    calling `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no
+    hover — capability is measured with `(hover: hover) and (pointer: fine)`, the same
+    `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
+    (`data-testid="line-refresh-tooltip"`). After a manual refresh settles, the row swaps its
+    spinner + countdown for a transient `Updated` confirmation
+    (`data-testid="line-refresh-confirmation"`, `role="status"`, ~2s). There is no separate
+    `Refresh now` button any more. Deliberately no interval picker (unlike situasi), the 30s
+    cadence is fixed.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders),

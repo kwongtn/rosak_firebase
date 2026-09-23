@@ -1,4 +1,14 @@
-import { Component, computed, effect, inject, type OnDestroy } from "@angular/core";
+import { isPlatformBrowser } from "@angular/common";
+import {
+  Component,
+  PLATFORM_ID,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  signal,
+  type OnDestroy,
+} from "@angular/core";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -112,11 +122,34 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
         </section>
 
         <section class="flex flex-col gap-3" aria-label="Line status">
-          <div
-            class="flex flex-wrap items-center justify-end gap-2"
+          <button
+            type="button"
+            class="relative flex cursor-pointer flex-wrap items-center justify-end gap-2"
             data-testid="line-refresh-countdown"
+            aria-label="Refresh line statuses now"
+            (mouseenter)="onRefreshHoverEnter()"
+            (mouseleave)="onRefreshHoverLeave()"
+            (click)="onRefreshClick()"
           >
-            @if (store.polling.intervalMs() !== null) {
+            @if (_showRefreshed()) {
+              <svg
+                class="text-muted-foreground size-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span
+                class="text-muted-foreground text-xs"
+                data-testid="line-refresh-confirmation"
+                role="status"
+              >
+                Updated
+              </span>
+            } @else if (store.polling.intervalMs() !== null) {
               <svg
                 class="text-muted-foreground size-3.5 [animation-direction:reverse]"
                 style="animation: spin 1s linear infinite"
@@ -143,16 +176,16 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
                 Refreshing in {{ store.polling.secondsRemaining() }}s
               </span>
             }
-            <button
-              hlmBtn
-              variant="ghost"
-              size="sm"
-              data-testid="line-refresh-now"
-              (click)="store.polling.refreshNow()"
-            >
-              Refresh now
-            </button>
-          </div>
+            @if (_refreshTooltipOpen()) {
+              <span
+                role="tooltip"
+                data-testid="line-refresh-tooltip"
+                class="bg-popover text-popover-foreground border-border pointer-events-none absolute top-full right-0 z-10 mt-1.5 rounded-md border px-2 py-1 text-xs font-normal whitespace-nowrap shadow-md"
+              >
+                Click to Refresh Now
+              </span>
+            }
+          </button>
 
           <app-line-pulse-list
             [lines]="store.lines()"
@@ -254,6 +287,19 @@ export class HomePage implements OnDestroy {
   /** Previous shared-link-sheet state, so the effect can detect its open→closed edge. */
   private _wasLinkSheetOpen = false;
 
+  /** Hover-capability of the refresh row's tooltip: measured (not guessed), the same way
+   * `StatusInfoChipComponent` does — pointer devices hover/focus, everything else taps. */
+  protected readonly _hoverCapable = signal(false);
+  protected readonly _refreshTooltipOpen = signal(false);
+
+  /** The transient "Updated" confirmation: shown once a manual refresh settles (see the effect
+   * below), then hidden again by `_refreshedTimer`. */
+  protected readonly _showRefreshed = signal(false);
+  private _refreshPending = false;
+  private _refreshedTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
   constructor() {
     this.store.start();
     effect(() => {
@@ -263,6 +309,45 @@ export class HomePage implements OnDestroy {
       }
       this._wasLinkSheetOpen = isOpen;
     });
+    effect(() => {
+      const isLoading = this.store.isLoading();
+      if (this._refreshPending && !isLoading) {
+        this._refreshPending = false;
+        this._showRefreshed.set(true);
+        clearTimeout(this._refreshedTimer);
+        this._refreshedTimer = setTimeout(() => this._showRefreshed.set(false), 2000);
+      }
+    });
+    if (this._isBrowser) {
+      afterNextRender(() => {
+        if (typeof window.matchMedia === "function") {
+          this._hoverCapable.set(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+        }
+      });
+    }
+  }
+
+  protected onRefreshHoverEnter(): void {
+    if (this._hoverCapable()) {
+      this._refreshTooltipOpen.set(true);
+    }
+  }
+
+  protected onRefreshHoverLeave(): void {
+    if (this._hoverCapable()) {
+      this._refreshTooltipOpen.set(false);
+    }
+  }
+
+  /** The refresh row is the control now (the old separate button is gone): every click refreshes
+   * and arms the "Updated" confirmation, and touch devices toggle the "Click to Refresh Now"
+   * tooltip where they cannot hover. */
+  protected onRefreshClick(): void {
+    this._refreshPending = true;
+    this.store.polling.refreshNow();
+    if (!this._hoverCapable()) {
+      this._refreshTooltipOpen.update((open) => !open);
+    }
   }
 
   /** Author-or-admin gate for the card's edit pencil (mirrors LinkListComponent; the home feed
@@ -287,6 +372,7 @@ export class HomePage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this._refreshedTimer);
     this.store.stop();
   }
 }

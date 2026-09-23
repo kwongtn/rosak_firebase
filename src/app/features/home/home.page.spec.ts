@@ -426,10 +426,24 @@ describe("HomePage", () => {
       root.innerHTML.indexOf("app-line-pulse-list"),
     );
 
-    const refreshNow = root.querySelector<HTMLButtonElement>('[data-testid="line-refresh-now"]');
-    expect(refreshNow).not.toBeNull();
-    refreshNow?.click();
+    expect(root.querySelector('[data-testid="line-refresh-now"]')).toBeNull();
+
+    // A manual refresh goes in flight: still the countdown, no confirmation yet.
+    store.polling.refreshNow.mockImplementation(() => store.isLoading.set(true));
+    countdown?.click();
+    fixture.detectChanges();
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+    expect(root.querySelector('[data-testid="line-refresh-confirmation"]')).toBeNull();
+
+    // Once the reload settles, the row confirms with a subtle "Updated".
+    store.isLoading.set(false);
+    fixture.detectChanges();
+    const confirmation = root.querySelector('[data-testid="line-refresh-confirmation"]');
+    expect(confirmation?.textContent?.trim()).toBe("Updated");
+
+    // Not hover-capable under the test DOM, so a tap also revealed the tooltip.
+    const tooltip = root.querySelector('[data-testid="line-refresh-tooltip"]');
+    expect(tooltip?.textContent?.trim()).toBe("Click to Refresh Now");
   });
 
   it("loads the next feed page from Load More only while a next page exists", () => {

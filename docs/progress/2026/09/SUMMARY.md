@@ -30,6 +30,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 23 | Console link triage: admins can hard-delete social-media link entries from `/console/insiden/links` (confirm guard + IsAdmin `deleteSocialMediaLink`, local row drop, panel close)                                                                                               |
 | Sep 22 | Expanded line card's recent-reports list capped in its own scroll container (roughly 5 rows) instead of stretching the card                                                                                                                                                      |
 | Sep 22 | Spotting report form: clearing a combobox or re-choosing a station placeholder now really deselects (shared `HlmCombobox.emptyValue`, non-disabled placeholder)                                                                                                                  |
+| Sep 23 | Home line-refresh countdown is now the refresh button itself, with a hover/tap "Click to Refresh Now" tooltip and a transient "Updated" confirmation; the separate Refresh now button is gone                                                                                    |
 
 ### Home — community front page (2026-09-22)
 
