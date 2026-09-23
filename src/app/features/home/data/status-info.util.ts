@@ -20,7 +20,7 @@ export interface StatusScaleEntry {
 }
 
 /** One row of the vehicle-status breakdown popover: a readable label plus its current count. */
-export interface VehicleStatusCountRow {
+interface VehicleStatusCountRow {
   key: VehicleStatus;
   label: string;
   count: number;

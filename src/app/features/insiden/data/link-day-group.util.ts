@@ -23,7 +23,7 @@ export function linkDayLabel(dateKey: string, todayKey: string): "Today" | "Yest
   return dateKey === linkDateKey(yesterday.toISOString()) ? "Yesterday" : "";
 }
 
-export interface LinkDayGroup<T> {
+interface LinkDayGroup<T> {
   /** UTC YYYY-MM-DD ("" for unparseable dates — rendered headerless). */
   key: string;
   label: "Today" | "Yesterday" | "";

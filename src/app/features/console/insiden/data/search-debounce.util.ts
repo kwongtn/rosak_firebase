@@ -6,7 +6,7 @@
  */
 export const SEARCH_DEBOUNCE_MS = 300;
 
-export interface TrailingDebouncer {
+interface TrailingDebouncer {
   push(run: () => void): void;
   cancel(): void;
   readonly isPending: boolean;

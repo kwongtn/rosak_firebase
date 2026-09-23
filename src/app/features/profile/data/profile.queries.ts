@@ -122,7 +122,7 @@ export interface GetPublicUserVars {
   freeRange: boolean;
 }
 
-export interface DateTrend {
+interface DateTrend {
   dateKey: string;
   year: number;
   month: number | null;
@@ -130,11 +130,11 @@ export interface DateTrend {
   count: number;
 }
 
-export interface SpottingTrendPoint extends DateTrend {
+interface SpottingTrendPoint extends DateTrend {
   eventType: SpottingType;
 }
 
-export interface FavouriteVehicle {
+interface FavouriteVehicle {
   vehicle: {
     identificationNo: string;
     lines: { code: string }[];

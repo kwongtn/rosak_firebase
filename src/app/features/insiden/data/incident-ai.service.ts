@@ -6,14 +6,14 @@ import { getAuth } from "firebase/auth";
 import { environment } from "../../../../environments/environment";
 import { ToastService } from "../../../ui/toast/toast.service";
 
-export interface SummarizeChronology {
+interface SummarizeChronology {
   indicator: string;
   datetime?: string | null;
   content?: string | null;
   sourceUrl?: string | null;
 }
 
-export interface SummarizeResult {
+interface SummarizeResult {
   title: string;
   brief: string;
   details: string;
@@ -32,7 +32,7 @@ export interface ExtractedIncidentData {
   affected_stations: string[];
 }
 
-export interface ExtractIncidentResult {
+interface ExtractIncidentResult {
   requestId: string;
   data: ExtractedIncidentData;
 }

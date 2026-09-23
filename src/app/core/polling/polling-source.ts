@@ -2,9 +2,9 @@ import { isPlatformBrowser } from "@angular/common";
 import { DestroyRef, PLATFORM_ID, inject, signal } from "@angular/core";
 
 /** `null` = "Never refresh" — no timer, no countdown, nothing scheduled. */
-export type PollingIntervalMs = number | null;
+type PollingIntervalMs = number | null;
 
-export const DEFAULT_POLLING_INTERVAL_MS = 30000;
+const DEFAULT_POLLING_INTERVAL_MS = 30000;
 
 /**
  * A tiny self-contained polling beat for a zoneless data section: one self-rescheduling

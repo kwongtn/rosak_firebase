@@ -2,7 +2,7 @@ import { splitHttpUrl } from "./incident-link-line.util";
 
 /** One link row's URL as the shared card displays it on a single line: `domain` in the normal
  * foreground colour, `restPath` in muted grey. */
-export interface LinkUrlParts {
+interface LinkUrlParts {
   /** Hostname with a leading `www.` stripped, so "https://www.example.com/story" reads as
    * "example.com". Falls back to the raw URL when no hostname can be extracted (unparseable URL
    * or non-http(s) scheme). */

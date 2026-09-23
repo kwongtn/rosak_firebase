@@ -2,7 +2,7 @@ import { Injectable, signal } from "@angular/core";
 
 /** Per-incident targeting context for a link submission (Task 14): set when the sheet is
  * opened from an incident card; `null` means the plain "just-dumping" flow. */
-export interface LinkSheetContext {
+interface LinkSheetContext {
   incidentId: string;
   /** Optional incident title for the read-only context line; falls back to the id. */
   incidentTitle?: string | null;
@@ -14,7 +14,7 @@ export interface LinkSheetContext {
  * vehicle/station/category tags. Missing tags hydrate as empty selections (`?? []` in the form),
  * which is exactly what a link with no tags looks like.
  */
-export interface LinkEditTarget {
+interface LinkEditTarget {
   id: string;
   url: string;
   title: string;

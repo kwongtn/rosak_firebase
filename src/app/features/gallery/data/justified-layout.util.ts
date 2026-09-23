@@ -3,12 +3,12 @@ export interface JustifiedItem {
   height: number;
 }
 
-export interface JustifiedCell<T> {
+interface JustifiedCell<T> {
   item: T;
   width: number;
 }
 
-export interface JustifiedRow<T> {
+interface JustifiedRow<T> {
   height: number;
   cells: JustifiedCell<T>[];
 }

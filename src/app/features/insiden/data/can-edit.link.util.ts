@@ -1,6 +1,6 @@
 /** Read-model needed to decide the link Edit affordance. Deliberately plain values so the
  * util stays pure and unit-testable — callers wire signals to it. */
-export interface CanEditLinkContext {
+interface CanEditLinkContext {
   isLoggedIn: boolean;
   isAdmin: boolean;
   /** Full Firebase uid of the signed-in user (the util derives the 8-char prefix itself so

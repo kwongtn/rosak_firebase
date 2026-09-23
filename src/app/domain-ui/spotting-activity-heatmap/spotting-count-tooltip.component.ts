@@ -2,7 +2,7 @@ import { Component, input } from "@angular/core";
 import { SpottingType } from "../../core/graphql/types";
 import { SpottingTypeBadge } from "../spotting-type-badge/spotting-type-badge";
 
-export interface SpottingTypeCount {
+interface SpottingTypeCount {
   type: SpottingType;
   count: number;
 }

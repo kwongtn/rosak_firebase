@@ -4,7 +4,7 @@ const DB_NAME = "rosak-upload-queue";
 const DB_VERSION = 1;
 const STORE_NAME = "pending";
 
-export interface PersistedUpload {
+interface PersistedUpload {
   /** IndexedDB's own key — undefined for a record that hasn't been saved yet. */
   id?: number;
   relatedId: number | string;

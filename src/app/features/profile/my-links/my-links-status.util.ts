@@ -1,6 +1,6 @@
-export type LinkStatusLabel = "Pending approval" | "Live";
+type LinkStatusLabel = "Pending approval" | "Live";
 
-export interface LinkStatusSource {
+interface LinkStatusSource {
   status?: string | null;
   completed: boolean;
 }

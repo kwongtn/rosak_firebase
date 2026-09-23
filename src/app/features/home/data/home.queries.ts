@@ -83,7 +83,7 @@ export interface FrontPageLinesQueryData {
 }
 
 /** A pulse link nested under a line — the subset of SocialMediaLinkScalar the front page reads. */
-export interface LinePulseLink {
+interface LinePulseLink {
   id: string;
   url: string;
   normalizedUrl: string | null;
@@ -207,7 +207,7 @@ export interface FeedLinkPageInfo {
   endCursor: string | null;
 }
 
-export interface FeedLinkConnection {
+interface FeedLinkConnection {
   edges: FeedLinkEdge[];
   pageInfo: FeedLinkPageInfo;
   totalCount: number;
@@ -306,17 +306,17 @@ export interface LineStatusReportItem {
   user: { shortId: string; nickname: string } | null;
 }
 
-export interface LineStatusReportEdge {
+interface LineStatusReportEdge {
   node: LineStatusReportItem;
   cursor: string;
 }
 
-export interface LineStatusReportPageInfo {
+interface LineStatusReportPageInfo {
   hasNextPage: boolean;
   endCursor: string | null;
 }
 
-export interface LineStatusReportConnection {
+interface LineStatusReportConnection {
   edges: LineStatusReportEdge[];
   pageInfo: LineStatusReportPageInfo;
 }
@@ -354,7 +354,7 @@ export const SUBMIT_FEED_LINK_MUTATION = /* GraphQL */ `
   }
 `;
 
-export interface FeedLinkInput {
+interface FeedLinkInput {
   url: string;
   title?: string | null;
   lineIds?: string[];
@@ -387,7 +387,7 @@ export const SUBMIT_LINE_STATUS_REPORT_MUTATION = /* GraphQL */ `
   }
 `;
 
-export interface LineStatusReportInput {
+interface LineStatusReportInput {
   lineId: string;
   status: PassengerStatus;
   stationIds?: string[];

@@ -3,7 +3,7 @@ import { faviconHostnameOf } from "./social-link.util";
 /** One incident link row as drawn on the card (spec F7/F8/F9): the line is
  * `[yyyy-mm-dd hh:mm] [favicon] [title]`, where "title" is the provided title,
  * or the URL — domain bold, remainder paler, single-line truncated. */
-export interface IncidentLinkLine {
+interface IncidentLinkLine {
   /** Local-time "yyyy-mm-dd hh:mm" label from `created` (no DatePipe inside
    * this util — pure and unit-testable). Empty string when `created` is
    * missing/invalid. Local time matches the card's own DatePipe rendering
@@ -28,7 +28,7 @@ export interface IncidentLinkLine {
   isPending: boolean;
 }
 
-export interface IncidentLinkRow {
+interface IncidentLinkRow {
   url: string;
   title?: string | null;
   created?: string | null;

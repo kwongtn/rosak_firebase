@@ -1,6 +1,6 @@
 import { LineStatus } from "../../core/graphql/types";
 
-export interface NotFoundMessage {
+interface NotFoundMessage {
   /** The small uppercase label above the "404" — varies alongside the joke below it rather
    * than staying a single generic "Service Alert" forever. */
   eyebrow: string;

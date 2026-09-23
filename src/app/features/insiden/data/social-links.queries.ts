@@ -1,13 +1,13 @@
-export interface PublicSocialMediaLinkLine {
+interface PublicSocialMediaLinkLine {
   id: string;
   code: string;
   displayName: string;
 }
-export interface PublicSocialMediaLinkVehicle {
+interface PublicSocialMediaLinkVehicle {
   id: string;
   identificationNo: string;
 }
-export interface PublicSocialMediaLinkStation {
+interface PublicSocialMediaLinkStation {
   id: string;
   displayName: string;
 }
@@ -38,11 +38,11 @@ export interface PublicSocialMediaLinkEdge {
   node: PublicSocialMediaLink;
   cursor: string;
 }
-export interface PublicSocialMediaLinkPageInfo {
+interface PublicSocialMediaLinkPageInfo {
   hasNextPage: boolean;
   endCursor: string | null;
 }
-export interface PublicSocialMediaLinksConnection {
+interface PublicSocialMediaLinksConnection {
   edges: PublicSocialMediaLinkEdge[];
   pageInfo: PublicSocialMediaLinkPageInfo;
 }

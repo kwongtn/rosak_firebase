@@ -1,5 +1,5 @@
 /** One line tag as the shared link card renders it (code badge, `displayName` in the title attr). */
-export interface LinkCardItemLine {
+interface LinkCardItemLine {
   id: string;
   code: string;
   displayName: string;

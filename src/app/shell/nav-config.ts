@@ -1,7 +1,7 @@
 /** A single console sub-section link — shared between `<app-nav>` (hover dropdown, collapsed
  * module-menu dropdown, mobile sheet) and `/tracker`'s own compact nav pill, so both surfaces
  * render the same Console sub-links from one source instead of drifting apart. */
-export interface ConsoleLink {
+interface ConsoleLink {
   path: string;
   label: string;
   /** Only the spotting queue's path is exact — the bare /console redirects to

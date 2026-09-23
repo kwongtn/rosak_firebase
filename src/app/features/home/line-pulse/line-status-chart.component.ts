@@ -13,7 +13,7 @@ import { PASSENGER_LABEL } from "../data/passenger-status.util";
 import { PASSENGER_SCALE } from "../data/status-info.util";
 
 /** The community service day runs 03:00 → 02:00, so that's the hour the backend buckets from. */
-export const SERVICE_DAY_START_HOUR = 3;
+const SERVICE_DAY_START_HOUR = 3;
 
 /** Bar/segment fill per passenger status — the same palette vocabulary the fleet trend chart uses. */
 const BAR_CLASS: Record<PassengerStatus, string> = {
