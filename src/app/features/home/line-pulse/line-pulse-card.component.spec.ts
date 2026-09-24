@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
@@ -82,6 +83,7 @@ describe("LinePulseCardComponent", () => {
       imports: [LinePulseCardComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
         { provide: ReportSheetService, useValue: reportSheetMock },
@@ -104,9 +106,7 @@ describe("LinePulseCardComponent", () => {
 
   /** The info chips open on tap in jsdom (no `matchMedia` ⇒ no hover capability). */
   function openPopover(root: HTMLElement, triggerTestId: string): void {
-    const trigger = root
-      .querySelector(`[data-testid="${triggerTestId}"]`)
-      ?.closest("[role='button']");
+    const trigger = root.querySelector(`[data-testid="${triggerTestId}"]`)?.closest("button");
     expect(trigger).not.toBeNull();
     (trigger as HTMLElement).click();
     fixture.detectChanges();

@@ -1,7 +1,12 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import { PASSENGER_INFO, passengerScale, type StatusInfo } from "../../home/data/status-info.util";
 import { StatusInfoChipComponent, type StatusBreakdownRow } from "./status-info-chip.component";
 
@@ -38,7 +43,7 @@ describe("StatusInfoChipComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [StatusInfoChipComponent],
-      providers: [provideZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection(), provideRouter([])],
     }).compileComponents();
   });
 
@@ -74,8 +79,8 @@ describe("StatusInfoChipComponent", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  function trigger(fixture: ComponentFixture<StatusInfoChipComponent>): HTMLElement {
-    return host(fixture).querySelector<HTMLElement>('[role="button"]') as HTMLElement;
+  function trigger(fixture: ComponentFixture<StatusInfoChipComponent>): HTMLButtonElement {
+    return host(fixture).querySelector<HTMLButtonElement>("button") as HTMLButtonElement;
   }
 
   function popover(fixture: ComponentFixture<StatusInfoChipComponent>): HTMLElement | null {
@@ -117,9 +122,11 @@ describe("StatusInfoChipComponent", () => {
     stubMatchMedia(true);
     const fixture = await render();
 
+    // The shared popover opens on click (keyboard activation after Escape) and never closes a
+    // panel the pointer still hovers — a click can never toggle it shut.
     trigger(fixture).click();
     fixture.detectChanges();
-    expect(popover(fixture)).toBeNull();
+    expect(popover(fixture)).not.toBeNull();
 
     hover(fixture);
     trigger(fixture).click();
@@ -164,6 +171,18 @@ describe("StatusInfoChipComponent", () => {
 
     expect(text).toContain("Disrupted");
     expect(text).toContain("Service suspended — use an alternative route.");
+  });
+
+  it("renders the status definition from the methodology registry", async () => {
+    stubMatchMedia(true);
+    const fixture = await render();
+
+    hover(fixture);
+
+    const definition = popover(fixture)?.querySelectorAll("p")[1];
+    expect(definition?.textContent?.trim()).toBe(
+      renderMethodologyCopy(metricDoc("passenger.crowded").definition),
+    );
   });
 
   it("renders the consolidated message inside the popover when one is provided", async () => {
