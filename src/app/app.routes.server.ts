@@ -38,6 +38,12 @@ export const serverRoutes: ServerRoute[] = [
     path: "gdpr",
     renderMode: RenderMode.Client,
   },
+  // Server (not Prerender): spec recommends Server; the sources section will gain a dataSources
+  // fetch; never Client — this page must be indexable.
+  {
+    path: "methodology",
+    renderMode: RenderMode.Server,
+  },
   // /gallery is fully public with real, request-independent GraphQL data (same reasoning as
   // /spotting) — good for shareable/indexable links.
   {

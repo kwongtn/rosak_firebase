@@ -1,0 +1,19 @@
+<app-nav />
+<div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+  <main class="flex flex-1 flex-col gap-8">
+    <div class="flex flex-col gap-4">
+      <h1 class="text-2xl font-bold">How this is counted</h1>
+      <app-disclaimer-note />
+    </div>
+
+    <div class="flex flex-col gap-10">
+      @for (section of sections; track section.id) {
+        <app-methodology-section [section]="section" />
+      }
+    </div>
+
+    <app-disclaimer-note />
+  </main>
+
+  <app-footer />
+</div>
