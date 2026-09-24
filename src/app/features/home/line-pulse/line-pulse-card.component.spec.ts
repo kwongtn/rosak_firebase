@@ -6,6 +6,10 @@ import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
@@ -198,6 +202,13 @@ describe("LinePulseCardComponent", () => {
     );
     expect(rows).toEqual(["In service 12", "Not spotted 3", "Out of service 1", "Total 16"]);
     expect(textOf(root, "line-vehicle-count")).toBe("12/16 in service");
+
+    const definition = root
+      .querySelector('[data-testid="status-info-popover"]')
+      ?.querySelectorAll("p")[1];
+    expect(definition?.textContent?.trim()).toBe(
+      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").definition),
+    );
   });
 
   it("deep-links each status chip to the methodology section owning its metric", () => {

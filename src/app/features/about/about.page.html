@@ -266,6 +266,13 @@
           <p class="whitespace-pre-wrap text-sm">{{ aboutProject() }}</p>
         }
 
+        <a
+          routerLink="/methodology"
+          class="text-muted-foreground hover:text-foreground self-start text-sm underline"
+        >
+          How this is counted
+        </a>
+
         @if (projects().length > 0) {
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (project of projects(); track project.name) {

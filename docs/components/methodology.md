@@ -22,8 +22,8 @@ Everything a rider can read about a number comes from three files under
   each tagged with the spec that owns it. v1 ships exactly one (`STALE_REVIEW_MONTHS: 6`); every
   transit number is backend-owned and has not landed.
 - `methodology.content.ts` — `METHODOLOGY_SECTIONS` (the 8 anchored sections, all `inProgress: true`
-  in v1) and `METRIC_DOCS` (6 `line-status.*` + 7 `passenger.*` definitions), with the
-  `MethodologySection` / `MetricDoc` interfaces.
+  in v1) and `METRIC_DOCS` (6 `line-status.*` + 7 `passenger.*` + 1 `line-pulse.*` definitions),
+  with the `MethodologySection` / `MetricDoc` interfaces.
 - `methodology-render.util.ts` — `renderMethodologyCopy()`, `methodologyTokenValues()`,
   `metricDoc(id)` and `section(id)`.
 
@@ -49,7 +49,9 @@ consuming component. A popover carries **one precise paragraph**; anything longe
 `/methodology`, and the popover's optional `link` (`{ text, routerLink, fragment }`) points at the
 owning section anchor (`/methodology#<sectionId>`). The home status chips
 (`status-info-chip.component.ts`) and the `MethodologySectionComponent` metric rows are the two
-existing consumers; DATA_PROVENANCE.md's `ProvenanceChipComponent` is expected to compose the same
+existing consumers; each chip carries a `linkFragment` input (default `line-status`) so it can
+deep-link to the section that owns **its** metric — the passenger chip passes `sightings`.
+DATA_PROVENANCE.md's `ProvenanceChipComponent` is expected to compose the same
 component rather than re-implement hover/tap.
 
 ### In-progress rule

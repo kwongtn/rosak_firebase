@@ -1,4 +1,8 @@
 import { Component, computed, inject, input, signal } from "@angular/core";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -218,10 +222,10 @@ export class LinePulseCardComponent {
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
 
-  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => ({
-    title: "Vehicles",
-    body: `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service right now.`,
-  }));
+  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => {
+    const doc = metricDoc("line-pulse.vehicle-count");
+    return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
+  });
 
   protected readonly _vehicleCountLabel = computed(
     () =>

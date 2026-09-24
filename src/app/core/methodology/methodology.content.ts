@@ -127,11 +127,13 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
 
 /**
  * The metrics with a real, human-readable definition today. The strings are the existing home
- * registries' copy folded in verbatim — `LINE_STATUS_INFO` / `PASSENGER_INFO`
- * (`features/home/data/status-info.util.ts`) and `PASSENGER_METRIC`
- * (`features/home/data/line-status-metrics.util.ts`). They are copied, not imported, because
- * `core/` must not depend on a feature. Vehicle-status labels and other unlanded specs carry no
- * definition yet, so they are deliberately absent (never invent a formula).
+ * registries' copy folded in — `LINE_STATUS_INFO` / `PASSENGER_INFO`
+ * (`features/home/data/status-info.util.ts`), `PASSENGER_METRIC`
+ * (`features/home/data/line-status-metrics.util.ts`) and the line-pulse vehicle-count popover
+ * (`features/home/line-pulse/line-pulse-card.component.ts`). They are copied, not imported,
+ * because `core/` must not depend on a feature. Vehicle-status labels (the breakdown rows) and
+ * other unlanded specs carry no definition yet, so they are deliberately absent (never invent a
+ * formula).
  */
 export const METRIC_DOCS: MetricDoc[] = [
   {
@@ -184,6 +186,15 @@ export const METRIC_DOCS: MetricDoc[] = [
     sectionId: "line-status",
     title: "Total Disruption",
     definition: "The line is not running — use an alternative route.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_SHIP,
+  },
+  {
+    id: "line-pulse.vehicle-count",
+    sectionId: "line-status",
+    title: "Vehicles",
+    definition: "Vehicles in service right now.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_SHIP,
