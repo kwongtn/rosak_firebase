@@ -98,6 +98,7 @@ const MAX_PULSE_LINKS = 5;
                   [info]="passengerInfo(line().passengerStatus)"
                   [scale]="passengerScale(line().passengerStatus, line().passengerStatusCounts)"
                   [windowMinutes]="_passengerWindowMinutes()"
+                  linkFragment="sightings"
                 >
                   <span
                     hlmBadge

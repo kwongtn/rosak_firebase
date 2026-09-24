@@ -200,6 +200,26 @@ describe("LinePulseCardComponent", () => {
     expect(textOf(root, "line-vehicle-count")).toBe("12/16 in service");
   });
 
+  it("deep-links each status chip to the methodology section owning its metric", () => {
+    const root = render(makeLine({ passengerStatus: "CROWDED" }));
+
+    openPopover(root, "passenger-status");
+    const passengerChip = root
+      .querySelector('[data-testid="passenger-status"]')
+      ?.closest("app-status-info-chip");
+    expect(
+      passengerChip?.querySelector('[data-testid="status-info-popover"] a')?.getAttribute("href"),
+    ).toBe("/methodology#sightings");
+
+    openPopover(root, "line-vehicle-count");
+    const vehicleChip = root
+      .querySelector('[data-testid="line-vehicle-count"]')
+      ?.closest("app-status-info-chip");
+    expect(
+      vehicleChip?.querySelector('[data-testid="status-info-popover"] a')?.getAttribute("href"),
+    ).toBe("/methodology#line-status");
+  });
+
   it("folds the per-status report counts into the passenger legend rows", () => {
     const root = render(
       makeLine({

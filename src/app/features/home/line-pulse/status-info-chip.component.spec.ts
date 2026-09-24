@@ -37,6 +37,7 @@ interface RenderOptions {
   message?: string | null;
   windowMinutes?: number | null;
   breakdown?: StatusBreakdownRow[];
+  linkFragment?: string;
 }
 
 describe("StatusInfoChipComponent", () => {
@@ -67,6 +68,9 @@ describe("StatusInfoChipComponent", () => {
     }
     if (options.breakdown) {
       fixture.componentRef.setInput("breakdown", options.breakdown);
+    }
+    if (options.linkFragment !== undefined) {
+      fixture.componentRef.setInput("linkFragment", options.linkFragment);
     }
     // afterNextRender flips `_hoverCapable` only after one full cycle — detect, settle, detect.
     fixture.detectChanges();
@@ -118,7 +122,7 @@ describe("StatusInfoChipComponent", () => {
     expect(popover(fixture)).toBeNull();
   });
 
-  it("does not toggle on click when the device is hover-capable", async () => {
+  it("opens from a click and never closes a hovered panel when the device is hover-capable", async () => {
     stubMatchMedia(true);
     const fixture = await render();
 
@@ -183,6 +187,16 @@ describe("StatusInfoChipComponent", () => {
     expect(definition?.textContent?.trim()).toBe(
       renderMethodologyCopy(metricDoc("passenger.crowded").definition),
     );
+  });
+
+  it("deep-links to the methodology section named by linkFragment", async () => {
+    stubMatchMedia(true);
+    const fixture = await render({ linkFragment: "sightings" });
+
+    hover(fixture);
+
+    const link = popover(fixture)?.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/methodology#sightings");
   });
 
   it("renders the consolidated message inside the popover when one is provided", async () => {

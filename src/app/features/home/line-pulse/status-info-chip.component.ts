@@ -1,4 +1,4 @@
-import { Component, input } from "@angular/core";
+import { Component, computed, input } from "@angular/core";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
 import type { StatusInfo, StatusScaleEntry } from "../data/status-info.util";
@@ -24,7 +24,7 @@ export interface StatusBreakdownRow {
     <app-info-popover
       [label]="info().title"
       [content]="info().body"
-      [link]="_methodologyLink"
+      [link]="_methodologyLink()"
       testId="status-info-popover"
     >
       <ng-content />
@@ -100,11 +100,13 @@ export class StatusInfoChipComponent {
   readonly windowMinutes = input<number | null>(null);
   /** Optional per-category rows (e.g. the per-status vehicle counts), under the explanation. */
   readonly breakdown = input<readonly StatusBreakdownRow[]>([]);
+  /** Methodology section anchor this chip's popover deep-links to (`/methodology#<id>`). */
+  readonly linkFragment = input("line-status");
 
-  /** Line status and sightings are documented in the same methodology section. */
-  protected readonly _methodologyLink: InfoPopoverLink = {
+  /** Deep link to the methodology section that owns this chip's metric. */
+  protected readonly _methodologyLink = computed<InfoPopoverLink>(() => ({
     text: "How this is counted",
     routerLink: "/methodology",
-    fragment: "line-status",
-  };
+    fragment: this.linkFragment(),
+  }));
 }
