@@ -35,6 +35,8 @@ function stubMatchMedia(matches: boolean): void {
       [link]="link()"
       [align]="align()"
       [testId]="testId()"
+      [showIcon]="showIcon()"
+      [showMethodologyLink]="showMethodologyLink()"
     >
       <span data-testid="trigger-content">Reliability</span>
       <span popoverExtra data-testid="popover-extra">Updated hourly</span>
@@ -47,7 +49,12 @@ class InfoPopoverHost {
   readonly link = signal<InfoPopoverLink | null>(null);
   readonly align = signal<"start" | "end">("start");
   readonly testId = signal("info-popover-panel");
+  readonly showIcon = signal(true);
+  readonly showMethodologyLink = signal(true);
 }
+
+/** The shared grace window between a host `mouseleave` and the panel closing. */
+const HOVER_CLOSE_DELAY_MS = 1000;
 
 describe("InfoPopover", () => {
   let fixture: ComponentFixture<InfoPopoverHost>;
@@ -61,6 +68,7 @@ describe("InfoPopover", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   /** `afterNextRender` fills the panel id and the hover probe only after one full cycle —
@@ -87,8 +95,19 @@ describe("InfoPopover", () => {
     return host().querySelector<HTMLElement>('[data-testid="info-popover-panel"]');
   }
 
+  /** Hover is tracked on the `app-info-popover` host, not on the trigger button, so entering
+   * anywhere in the component (pill or panel) is what keeps it open. */
+  function popoverHost(): HTMLElement {
+    return host().querySelector<HTMLElement>("app-info-popover") ?? host();
+  }
+
   function openByHover(): void {
-    trigger().dispatchEvent(new MouseEvent("mouseenter"));
+    popoverHost().dispatchEvent(new MouseEvent("mouseenter"));
+    fixture.detectChanges();
+  }
+
+  function leaveHost(): void {
+    popoverHost().dispatchEvent(new MouseEvent("mouseleave"));
     fixture.detectChanges();
   }
 
@@ -108,9 +127,10 @@ describe("InfoPopover", () => {
     expect(panel()).toBeNull();
   });
 
-  it("opens on hover, flips aria-expanded, and closes on mouseleave", async () => {
+  it("opens on host hover and closes only after the pointer left the host for the grace window", async () => {
     stubMatchMedia(true);
     await render();
+    vi.useFakeTimers();
 
     openByHover();
     expect(panel()).not.toBeNull();
@@ -118,10 +138,82 @@ describe("InfoPopover", () => {
     expect(panel()?.textContent).toContain("Reliability");
     expect(panel()?.textContent).toContain("Share of scheduled trips that actually ran.");
 
-    trigger().dispatchEvent(new MouseEvent("mouseleave"));
+    // Leaving the host does not close immediately: the pointer may be crossing the gap to the
+    // panel, and the link inside it has to stay clickable for the whole window.
+    leaveHost();
+    expect(panel()).not.toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("true");
+
+    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS - 1);
+    fixture.detectChanges();
+    expect(panel()).not.toBeNull();
+
+    vi.advanceTimersByTime(1);
     fixture.detectChanges();
     expect(panel()).toBeNull();
     expect(trigger().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("cancels the pending close when the pointer re-enters the host within the grace window", async () => {
+    stubMatchMedia(true);
+    await render();
+    vi.useFakeTimers();
+
+    openByHover();
+    leaveHost();
+    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS - 500);
+    fixture.detectChanges();
+
+    openByHover();
+    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS * 2);
+    fixture.detectChanges();
+
+    expect(panel()).not.toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("keeps the panel open when the pointer moves off the trigger onto the panel", async () => {
+    stubMatchMedia(true);
+    await render();
+    vi.useFakeTimers();
+
+    openByHover();
+    // The panel is a DOM descendant of the host, so moving from the pill onto the panel fires the
+    // trigger's own non-bubbling mouseleave but never the host's: no close is ever scheduled.
+    trigger().dispatchEvent(new MouseEvent("mouseleave"));
+    panel()?.dispatchEvent(new MouseEvent("mouseenter"));
+    fixture.detectChanges();
+
+    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS * 2);
+    fixture.detectChanges();
+    expect(panel()).not.toBeNull();
+  });
+
+  it("closes immediately on Escape while a close is pending", async () => {
+    stubMatchMedia(true);
+    await render();
+    vi.useFakeTimers();
+
+    openByHover();
+    leaveHost();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(panel()).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it("closes immediately on an outside click while a close is pending", async () => {
+    stubMatchMedia(true);
+    await render();
+    vi.useFakeTimers();
+
+    openByHover();
+    leaveHost();
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(panel()).toBeNull();
   });
 
   it("wires aria-controls to the panel id generated after render", async () => {
@@ -268,6 +360,33 @@ describe("InfoPopover", () => {
     expect(panel()?.getAttribute("role")).toBe("dialog");
     expect(panel()?.getAttribute("tabindex")).toBe("-1");
     expect(panel()?.getAttribute("aria-label")).toBe("Reliability");
+    expect(panel()?.querySelector("a")?.textContent?.trim()).toBe("How this is counted");
+  });
+
+  it("renders no 'i' glyph when showIcon is false, leaving the projected content as the trigger", async () => {
+    stubMatchMedia(false);
+    await render();
+    fixture.componentInstance.showIcon.set(false);
+    fixture.detectChanges();
+
+    expect(trigger().querySelector('span[aria-hidden="true"]')).toBeNull();
+    expect(trigger().textContent?.trim()).toBe("Reliability");
+
+    openByTap();
+    expect(panel()).not.toBeNull();
+  });
+
+  it("drops the link and demotes the panel to a tooltip when showMethodologyLink is false", async () => {
+    stubMatchMedia(false);
+    await render();
+    fixture.componentInstance.link.set({ text: "How this is counted", routerLink: "/methodology" });
+    fixture.componentInstance.showMethodologyLink.set(false);
+    fixture.detectChanges();
+    openByTap();
+
+    expect(panel()?.querySelector("a")).toBeNull();
+    expect(panel()?.getAttribute("role")).toBe("tooltip");
+    expect(panel()?.getAttribute("tabindex")).toBeNull();
   });
 
   it("defaults to the start edge and flips to the right edge with align end", async () => {

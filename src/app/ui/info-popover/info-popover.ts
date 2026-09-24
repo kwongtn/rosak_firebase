@@ -1,9 +1,11 @@
 import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
+  DestroyRef,
   ElementRef,
   PLATFORM_ID,
   afterNextRender,
+  computed,
   inject,
   input,
   signal,
@@ -19,14 +21,31 @@ export interface InfoPopoverLink {
 }
 
 /**
- * Shared "what does this mean?" popover: a real info button plus a non-modal panel holding one
- * precise definition and an optional link to the full method on `/methodology`.
+ * Grace window between the pointer leaving the host and the panel closing. Moving the cursor from
+ * the trigger pill to the panel crosses a few pixels outside the host; without the delay the panel
+ * would close before the link inside it could be clicked.
+ */
+const HOVER_CLOSE_DELAY_MS = 1000;
+
+/**
+ * Shared "what does this mean?" popover: an info trigger (the projected content, optionally led by
+ * an "i" glyph) plus a non-modal panel holding one precise definition and an optional link to the
+ * full method on `/methodology`.
  *
  * Extracted from the home status chip so every non-obvious number uses one implementation of the
  * parts that are easy to get subtly wrong: hover/focus on pointer devices, tap on touch,
  * Escape-to-close with focus return, outside-click close, and an SSR-safe panel id. Deliberately
  * not built on a portal/overlay library — an absolutely-positioned sibling is the established
  * pattern here and keeps server rendering trivial.
+ *
+ * Hover is tracked on the host, not on the trigger button, so the panel counts as still-hovered
+ * (it is a DOM descendant of the host) and the reader can move the cursor onto it. Leaving the host
+ * schedules a close after `HOVER_CLOSE_DELAY_MS`; re-entering cancels it, while Escape and an
+ * outside click close immediately.
+ *
+ * `showIcon: false` drops the "i" glyph for consumers whose projected content is already the
+ * trigger (the home status chips). `showMethodologyLink: false` drops the link for chips whose
+ * metric has no method page section, demoting the panel from a dialog to a plain tooltip.
  *
  * Capability is measured, not guessed: a `(hover: hover) and (pointer: fine)` device gets
  * hover/focus; anything else gets a tap toggle, and "no hover" is the default until the probe
@@ -45,6 +64,8 @@ export interface InfoPopoverLink {
     // re-render on hydration instead of hydrating (the server markup inside `app-info-popover` is
     // discarded). Functionally identical: a11y and the public API are unchanged.
     ngSkipHydration: "",
+    "(mouseenter)": "onHostEnter()",
+    "(mouseleave)": "onHostLeave()",
     "(document:click)": "onDocumentClick($event)",
     "(document:keydown.escape)": "onEscape()",
   },
@@ -56,17 +77,17 @@ export interface InfoPopoverLink {
       [attr.aria-label]="'What is ' + label() + '?'"
       [attr.aria-expanded]="_open()"
       [attr.aria-controls]="_panelId() || null"
-      (mouseenter)="onMouseEnter()"
-      (mouseleave)="onMouseLeave()"
       (focus)="onFocus()"
       (blur)="onBlur($event)"
       (click)="onClick()"
     >
-      <span
-        class="border-border bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none font-semibold"
-        aria-hidden="true"
-        >i</span
-      >
+      @if (showIcon()) {
+        <span
+          class="border-border bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none font-semibold"
+          aria-hidden="true"
+          >i</span
+        >
+      }
       <ng-content />
     </button>
     @if (_open()) {
@@ -76,14 +97,14 @@ export interface InfoPopoverLink {
         [class.left-0]="align() === 'start'"
         [class.right-0]="align() === 'end'"
         [attr.data-testid]="testId()"
-        [attr.role]="link() ? 'dialog' : 'tooltip'"
+        [attr.role]="hasLink() ? 'dialog' : 'tooltip'"
         [attr.aria-label]="label()"
-        [attr.tabindex]="link() ? -1 : null"
+        [attr.tabindex]="hasLink() ? -1 : null"
       >
         <p class="font-semibold">{{ label() }}</p>
         <p class="text-muted-foreground mt-1">{{ content() }}</p>
         <ng-content select="[popoverExtra]" />
-        @if (link(); as l) {
+        @if (hasLink() && link(); as l) {
           <a
             class="text-primary mt-2 inline-block underline-offset-4 hover:underline"
             [routerLink]="l.routerLink"
@@ -107,6 +128,13 @@ export class InfoPopover {
   readonly align = input<"start" | "end">("start");
   /** `data-testid` of the panel — consumers needing back-compat pass their own id. */
   readonly testId = input("info-popover-panel");
+  /** Whether the "i" glyph leads the trigger; false when the projected content is the trigger. */
+  readonly showIcon = input(true);
+  /** Whether the panel renders the "How this is counted" link; without it the panel is a tooltip. */
+  readonly showMethodologyLink = input(true);
+
+  /** A panel is a dialog only when it actually carries the methodology link. */
+  protected readonly hasLink = computed(() => this.showMethodologyLink() && this.link() !== null);
 
   protected readonly _open = signal(false);
   /** Measured client-side; defaults to "no hover" (tap toggle) until resolved, the safe default. */
@@ -124,9 +152,13 @@ export class InfoPopover {
   private _restoringFocus = false;
 
   private readonly _host = inject(ElementRef<HTMLElement>);
+  private readonly _destroyRef = inject(DestroyRef);
   private readonly _trigger = viewChild<ElementRef<HTMLButtonElement>>("trigger");
+  /** Pending delayed close from a host `mouseleave`; null when no close is scheduled. */
+  private _closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    this._destroyRef.onDestroy(() => this._cancelPendingClose());
     if (!this._isBrowser) {
       return;
     }
@@ -139,16 +171,24 @@ export class InfoPopover {
     });
   }
 
-  protected onMouseEnter(): void {
+  protected onHostEnter(): void {
+    this._cancelPendingClose();
     if (this._hoverCapable()) {
       this._open.set(true);
     }
   }
 
-  protected onMouseLeave(): void {
-    if (this._hoverCapable()) {
-      this._open.set(false);
+  /** Deferred so the pointer can cross the gap between the trigger and the panel; any re-entry,
+   * Escape, outside click or destroy cancels the pending close. */
+  protected onHostLeave(): void {
+    if (!this._hoverCapable()) {
+      return;
     }
+    this._cancelPendingClose();
+    this._closeTimer = setTimeout(() => {
+      this._closeTimer = null;
+      this._open.set(false);
+    }, HOVER_CLOSE_DELAY_MS);
   }
 
   /** Focus/blur only drive the popover where hover does: on touch, focus() fires before click()
@@ -190,10 +230,12 @@ export class InfoPopover {
     if (target instanceof Node && this._host.nativeElement.contains(target)) {
       return;
     }
+    this._cancelPendingClose();
     this._open.set(false);
   }
 
   protected onEscape(): void {
+    this._cancelPendingClose();
     if (!this._open()) {
       return;
     }
@@ -201,6 +243,14 @@ export class InfoPopover {
     this._restoringFocus = true;
     this._trigger()?.nativeElement.focus();
     this._restoringFocus = false;
+  }
+
+  private _cancelPendingClose(): void {
+    if (this._closeTimer === null) {
+      return;
+    }
+    clearTimeout(this._closeTimer);
+    this._closeTimer = null;
   }
 }
 

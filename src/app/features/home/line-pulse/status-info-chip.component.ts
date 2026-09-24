@@ -25,6 +25,8 @@ export interface StatusBreakdownRow {
       [label]="info().title"
       [content]="info().body"
       [link]="_methodologyLink()"
+      [showIcon]="false"
+      [showMethodologyLink]="showMethodologyLink()"
       testId="status-info-popover"
     >
       <ng-content />
@@ -102,6 +104,8 @@ export class StatusInfoChipComponent {
   readonly breakdown = input<readonly StatusBreakdownRow[]>([]);
   /** Methodology section anchor this chip's popover deep-links to (`/methodology#<id>`). */
   readonly linkFragment = input("line-status");
+  /** Whether the panel renders the "How this is counted" link; off for chips with no metric doc. */
+  readonly showMethodologyLink = input(true);
 
   /** Deep link to the methodology section that owns this chip's metric. */
   protected readonly _methodologyLink = computed<InfoPopoverLink>(() => ({

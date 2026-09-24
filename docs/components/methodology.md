@@ -116,8 +116,10 @@ page stays `RenderMode.Server`.
   `sectionId` matches. Its `_body`, `_lastReviewed` and each metric's `content` all go through
   `renderMethodologyCopy()`.
 - **`InfoPopover`** (`src/app/ui/info-popover/info-popover.ts`, selector `app-info-popover`):
-  `label`, `content` (already-rendered text), optional `link`, `align: "start" | "end"`, and
-  `testId` inputs. Content projection: default slot is the trigger label; `[popoverExtra]` is extra
+  `label`, `content` (already-rendered text), optional `link`, `align: "start" | "end"`, `testId`,
+  `showIcon` (default `true`; `false` drops the "i" glyph so the projected content is the trigger)
+  and `showMethodologyLink` (default `true`; `false` drops the link and demotes the panel to a
+  tooltip) inputs. Content projection: default slot is the trigger label; `[popoverExtra]` is extra
   panel blocks (the home chip's window/breakdown/legend).
 - **`DisclaimerNote`** (`src/app/ui/disclaimer-note/disclaimer-note.ts`, selector
   `app-disclaimer-note`): one canonical disclaimer string, `variant: "inline" | "footer"`, no data
@@ -133,10 +135,16 @@ page stays `RenderMode.Server`.
   `_panelId` (starts empty so SSR and hydration agree, filled in `afterNextRender`).
 - **a11y/behaviour (the five defects the extraction fixed):** the trigger is a real
   `<button type="button">` with `aria-label`/`aria-expanded`/`aria-controls`; the panel is a
-  non-modal `role="dialog"` (with `tabindex="-1"`) when it carries a link and `role="tooltip"`
-  otherwise; Escape closes and returns focus to the trigger; outside click closes; focus moving into
-  the panel does not close it; the panel is width-clamped (`max-w-[calc(100vw-2rem)]`) and `align`
-  flips its edge.
+  non-modal `role="dialog"` (with `tabindex="-1"`) when it actually renders a link
+  (`showMethodologyLink()` on and `link` set) and `role="tooltip"` otherwise; Escape closes and
+  returns focus to the trigger; outside click closes; focus moving into the panel does not close it;
+  the panel is width-clamped (`max-w-[calc(100vw-2rem)]`) and `align` flips its edge.
+- **Hover is tracked on the host, not the trigger** (`(mouseenter)`/`(mouseleave)` on
+  `app-info-popover`), so the panel — an absolutely-positioned descendant — counts as still-hovered
+  while the cursor crosses onto it. Leaving the host schedules the close after
+  `HOVER_CLOSE_DELAY_MS` (1000 ms), keeping the "How this is counted" link clickable; re-entering
+  the host cancels the pending close, while Escape and an outside click close immediately and
+  cancel it. The timer is cleared on destroy.
 - The renderer computes token values fresh on each call (`methodologyTokenValues()`), so a test (or
   a future CMS overlay) that mutates a constant is reflected immediately rather than frozen at
   module load.

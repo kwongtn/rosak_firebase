@@ -226,15 +226,25 @@ describe("methodology registry sourcing", () => {
         "passenger.crowded / line-status.active missing from the methodology registry",
       );
     }
+    const passengerOriginal = { title: passengerDoc.title, definition: passengerDoc.definition };
+    const lineOriginal = { title: lineDoc.title, definition: lineDoc.definition };
     passengerDoc.title = "sentinel title";
     passengerDoc.definition = "sentinel body";
     lineDoc.title = "sentinel line title";
     lineDoc.definition = "sentinel line body";
 
-    const { PASSENGER_INFO: passengers, LINE_STATUS_INFO: lines } =
-      await import("./status-info.util");
+    try {
+      const { PASSENGER_INFO: passengers, LINE_STATUS_INFO: lines } =
+        await import("./status-info.util");
 
-    expect(passengers.CROWDED).toEqual({ title: "sentinel title", body: "sentinel body" });
-    expect(lines.ACTIVE).toEqual({ title: "sentinel line title", body: "sentinel line body" });
+      expect(passengers.CROWDED).toEqual({ title: "sentinel title", body: "sentinel body" });
+      expect(lines.ACTIVE).toEqual({ title: "sentinel line title", body: "sentinel line body" });
+    } finally {
+      // The worker's shared module cache now holds sentinel-sourced registries and copies, so put
+      // the originals back and drop the poisoned cache before the next spec reads it.
+      Object.assign(passengerDoc, passengerOriginal);
+      Object.assign(lineDoc, lineOriginal);
+      vi.resetModules();
+    }
   });
 });

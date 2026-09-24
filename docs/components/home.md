@@ -25,8 +25,9 @@
     `line-status-chart.component.ts` (the expanded hourly report strip),
     `line-status-reports.component.ts` (the expanded report list), and
     `status-info-chip.component.ts` (the hover/tap info popover shared by the card's chips — a thin
-    wrapper over the shared `app-info-popover`; `status-info-chip.server.spec.ts` renders it through
-    the real server path to guard SSR/hydration).
+    wrapper over the shared `app-info-popover` that passes `showIcon=false` (the projected badge is
+    the trigger) and forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
+    through the real server path to guard SSR/hydration).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
@@ -205,7 +206,10 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   status row ends with the `line-vehicle-count` badge (`{{inService}}/{{total}} in service`, e.g.
   "12/20 in service", `aria-label="N of M vehicles in service"`) whose popover lists the per-status
   fleet breakdown plus a derived `Total`; the `line-status-badge` pill renders only when
-  `line().status !== "ACTIVE"` (Active is the default, not a chip); and the consolidated
+  `line().status !== "ACTIVE"` (Active is the default, not a chip) and passes
+  `[showMethodologyLink]="false"` — line status has no method section of its own, so its popover is
+  a plain tooltip while the passenger and vehicle chips keep the "How this is counted" link; and the
+  consolidated
   `passengerStatusMessage` is not rendered — the query still selects it, but the card passes no
   `message` to its chips. The
   title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated

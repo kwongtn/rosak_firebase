@@ -94,7 +94,10 @@ const MAX_PULSE_LINKS = 5;
               </h3>
               <div class="mt-1.5 flex flex-wrap items-center gap-2">
                 @if (line().status !== "ACTIVE") {
-                  <app-status-info-chip [info]="lineStatusInfo(line().status)">
+                  <app-status-info-chip
+                    [info]="lineStatusInfo(line().status)"
+                    [showMethodologyLink]="false"
+                  >
                     <line-status-badge [status]="line().status" />
                   </app-status-info-chip>
                 }

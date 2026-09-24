@@ -231,6 +231,42 @@ describe("LinePulseCardComponent", () => {
     ).toBe("/methodology#line-status");
   });
 
+  it("renders every status chip as a text pill with no 'i' glyph", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
+
+    const statusTrigger = root.querySelector("line-status-badge")?.closest("button");
+    expect(statusTrigger).not.toBeNull();
+    expect(statusTrigger?.querySelector('span[aria-hidden="true"]')).toBeNull();
+
+    for (const testId of ["passenger-status", "line-vehicle-count"]) {
+      const trigger = root.querySelector(`[data-testid="${testId}"]`)?.closest("button");
+      expect(trigger, testId).not.toBeNull();
+      expect(trigger?.querySelector('span[aria-hidden="true"]'), testId).toBeNull();
+    }
+  });
+
+  it("drops the methodology link for the line-status chip but keeps it on the passenger chip", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", passengerStatus: "CROWDED" }));
+
+    const passengerChip = root
+      .querySelector('[data-testid="passenger-status"]')
+      ?.closest("app-status-info-chip") as HTMLElement;
+    const lineStatusChip = root
+      .querySelector("line-status-badge")
+      ?.closest("app-status-info-chip") as HTMLElement;
+
+    openPopover(root, "passenger-status");
+    expect(passengerChip.querySelector('[data-testid="status-info-popover"] a')).not.toBeNull();
+
+    (lineStatusChip.querySelector("button") as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const lineStatusPanel = lineStatusChip.querySelector('[data-testid="status-info-popover"]');
+    expect(lineStatusPanel).not.toBeNull();
+    expect(lineStatusPanel?.querySelector("a")).toBeNull();
+    expect(lineStatusPanel?.getAttribute("role")).toBe("tooltip");
+  });
+
   it("folds the per-status report counts into the passenger legend rows", () => {
     const root = render(
       makeLine({

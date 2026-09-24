@@ -52,10 +52,18 @@ describe("line-status-metrics.util", () => {
     if (!doc) {
       throw new Error("passenger.crowded is missing from the methodology registry");
     }
+    const original = doc.definition;
     doc.definition = "sentinel: registry-sourced";
 
-    const { PASSENGER_METRIC: sourced } = await import("./line-status-metrics.util");
+    try {
+      const { PASSENGER_METRIC: sourced } = await import("./line-status-metrics.util");
 
-    expect(sourced.CROWDED).toBe("sentinel: registry-sourced");
+      expect(sourced.CROWDED).toBe("sentinel: registry-sourced");
+    } finally {
+      // The worker's shared module cache now holds a sentinel-sourced registry and metric module,
+      // so put the copy back and drop the poisoned cache before the next spec reads it.
+      doc.definition = original;
+      vi.resetModules();
+    }
   });
 });

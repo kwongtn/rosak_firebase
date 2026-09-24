@@ -38,7 +38,11 @@ interface RenderOptions {
   windowMinutes?: number | null;
   breakdown?: StatusBreakdownRow[];
   linkFragment?: string;
+  showMethodologyLink?: boolean;
 }
+
+/** The shared grace window between the popover host's `mouseleave` and the panel closing. */
+const HOVER_CLOSE_DELAY_MS = 1000;
 
 describe("StatusInfoChipComponent", () => {
   beforeEach(async () => {
@@ -50,6 +54,7 @@ describe("StatusInfoChipComponent", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   async function render(
@@ -71,6 +76,9 @@ describe("StatusInfoChipComponent", () => {
     }
     if (options.linkFragment !== undefined) {
       fixture.componentRef.setInput("linkFragment", options.linkFragment);
+    }
+    if (options.showMethodologyLink !== undefined) {
+      fixture.componentRef.setInput("showMethodologyLink", options.showMethodologyLink);
     }
     // afterNextRender flips `_hoverCapable` only after one full cycle — detect, settle, detect.
     fixture.detectChanges();
@@ -96,8 +104,20 @@ describe("StatusInfoChipComponent", () => {
     return (el?.textContent ?? "").replace(/\s+/g, " ").trim();
   }
 
+  /** Hover is tracked on the `app-info-popover` host, not on the trigger button. */
+  function popoverHost(fixture: ComponentFixture<StatusInfoChipComponent>): HTMLElement {
+    const el = host(fixture).querySelector<HTMLElement>("app-info-popover");
+    if (!el) throw new Error("popover host not rendered");
+    return el;
+  }
+
   function hover(fixture: ComponentFixture<StatusInfoChipComponent>): void {
-    trigger(fixture).dispatchEvent(new MouseEvent("mouseenter"));
+    popoverHost(fixture).dispatchEvent(new MouseEvent("mouseenter"));
+    fixture.detectChanges();
+  }
+
+  function leaveHost(fixture: ComponentFixture<StatusInfoChipComponent>): void {
+    popoverHost(fixture).dispatchEvent(new MouseEvent("mouseleave"));
     fixture.detectChanges();
   }
 
@@ -109,17 +129,39 @@ describe("StatusInfoChipComponent", () => {
     expect(trigger(fixture).getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("shows on hover and hides on mouseleave when the device is hover-capable", async () => {
+  it("shows on hover and closes only after the pointer left the host for the grace window", async () => {
     stubMatchMedia(true);
     const fixture = await render();
+    vi.useFakeTimers();
 
     hover(fixture);
     expect(popover(fixture)).not.toBeNull();
     expect(trigger(fixture).getAttribute("aria-expanded")).toBe("true");
 
-    trigger(fixture).dispatchEvent(new MouseEvent("mouseleave"));
+    leaveHost(fixture);
+    expect(popover(fixture)).not.toBeNull();
+
+    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS);
     fixture.detectChanges();
     expect(popover(fixture)).toBeNull();
+  });
+
+  it("renders the projected badge as the trigger with no 'i' glyph", async () => {
+    stubMatchMedia(true);
+    const fixture = await render();
+
+    expect(trigger(fixture).querySelector('span[aria-hidden="true"]')).toBeNull();
+  });
+
+  it("drops the methodology link and demotes the panel to a tooltip when asked to", async () => {
+    stubMatchMedia(true);
+    const fixture = await render({ showMethodologyLink: false });
+
+    hover(fixture);
+
+    expect(popover(fixture)).not.toBeNull();
+    expect(popover(fixture)?.querySelector("a")).toBeNull();
+    expect(popover(fixture)?.getAttribute("role")).toBe("tooltip");
   });
 
   it("opens from a click and never closes a hovered panel when the device is hover-capable", async () => {
