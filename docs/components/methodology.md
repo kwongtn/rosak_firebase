@@ -59,8 +59,10 @@ consumer can project `<div popoverExtra>` into `<ng-content select="[popoverExtr
 rendered inside `@if (_open())`. On the server `_open()` is false, so the projected node has no DOM
 counterpart and Angular's hydration serializer throws `NG0502` mid-stream; `@angular/ssr` then
 swallows the throw and the route serves a 22-byte `Internal server error.` behind HTTP 200. The
-consequence is that every `app-info-popover` re-renders on hydration instead of hydrating; the
-server-rendered markup is unaffected. Anyone projecting `[popoverExtra]` is already covered by this,
+consequence is that Angular's `clearElementContents` discards the host's children and re-renders
+the component, so every `app-info-popover` re-renders on hydration instead of hydrating and the
+server markup inside `app-info-popover` is newly created client-side (functionally identical; a11y
+and the public API are unchanged). Anyone projecting `[popoverExtra]` is already covered by this,
 but a **new** conditionally-rendered slot (or any other hydration-incompatible content) needs the
 same `ngSkipHydration` remedy and a server-render spec (`renderApplication`), because a jsdom
 `TestBed` spec cannot catch this class of failure. See `MISTAKES.md` (2026-09-24).

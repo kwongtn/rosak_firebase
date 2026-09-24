@@ -39,9 +39,11 @@ export interface InfoPopoverLink {
     class: "relative inline-flex",
     // The panel's `popoverExtra` projection slot is rendered inside `@if (_open())`, so on the
     // server a consumer's projected extras have no DOM home; Angular's hydration serializer then
-    // throws NG0502 mid-stream and the route renders as a 22-byte error. Skipping hydration here is
-    // Angular's documented remedy for content that is not hydration-compatible (the closed panel
-    // is inert anyway; no a11y or behavioural surface changes).
+    // throws NG0502 mid-stream and `@angular/ssr` masks it as a 22-byte `Internal server error.`
+    // after a 200. Skipping hydration is Angular's documented remedy for content that is not
+    // hydration-compatible — the consequence is that this component and its projected content
+    // re-render on hydration instead of hydrating (the server markup inside `app-info-popover` is
+    // discarded). Functionally identical: a11y and the public API are unchanged.
     ngSkipHydration: "",
     "(document:click)": "onDocumentClick($event)",
     "(document:keydown.escape)": "onEscape()",
