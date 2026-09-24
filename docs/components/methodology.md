@@ -54,6 +54,17 @@ deep-link to the section that owns **its** metric — the passenger chip passes 
 DATA_PROVENANCE.md's `ProvenanceChipComponent` is expected to compose the same
 component rather than re-implement hover/tap.
 
+**SSR: the popover host skips hydration.** `InfoPopover`'s host carries `ngSkipHydration` because a
+consumer can project `<div popoverExtra>` into `<ng-content select="[popoverExtra]" />`, which is
+rendered inside `@if (_open())`. On the server `_open()` is false, so the projected node has no DOM
+counterpart and Angular's hydration serializer throws `NG0502` mid-stream; `@angular/ssr` then
+swallows the throw and the route serves a 22-byte `Internal server error.` behind HTTP 200. The
+consequence is that every `app-info-popover` re-renders on hydration instead of hydrating; the
+server-rendered markup is unaffected. Anyone projecting `[popoverExtra]` is already covered by this,
+but a **new** conditionally-rendered slot (or any other hydration-incompatible content) needs the
+same `ngSkipHydration` remedy and a server-render spec (`renderApplication`), because a jsdom
+`TestBed` spec cannot catch this class of failure. See `MISTAKES.md` (2026-09-24).
+
 ### In-progress rule
 
 A section whose owning spec has landed its **prose but not its code** renders the "in progress"

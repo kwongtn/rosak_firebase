@@ -136,6 +136,13 @@ layout the same way.
 
 ## Fixed
 
+### [2026-09-24] SSR: NG0502 from content projected into a conditional slot
+
+**Problem**: `GET /` returned HTTP 200 with a 22-byte body (`Internal server error.`) on both the dev server (`:4200`) and the production SSR build, while `/methodology` rendered fine. Nothing was logged anywhere, so the route looked healthy to every client and monitor.
+**Root Cause**: `StatusInfoChipComponent` projects `<div popoverExtra>` into the shared `InfoPopover`'s `<ng-content select="[popoverExtra]" />`, which lives inside `@if (_open())`. `_open()` is false on the server, so the slot never exists and the projected node has no DOM counterpart; Angular's hydration serializer (`calcPathForNode` → `appendSerializedNodePath` → `annotateForHydration`) throws `NG0502` mid-stream. `@angular/ssr`'s `writeResponseToNodeResponse` wraps the stream in a bare catch (`node_modules/@angular/ssr/fesm2022/node.mjs:401-404`) that writes the 22-byte fallback after the status line is already sent, swallowing the real error. Bisect: `977e10f` rendered `/` at 229,700 bytes; `5c53c4c` (the chip composing the shared popover) dropped it to 22 bytes.
+**Fix**: `ngSkipHydration: ""` on the `InfoPopover` host (`src/app/ui/info-popover/info-popover.ts:45`) — Angular's documented remedy for content that is not hydration-compatible (the closed panel is inert, so a11y and behaviour are unchanged) — which also covers every future consumer that projects `[popoverExtra]` (e.g. the planned provenance chip). Consequence: `app-info-popover` instances re-render on hydration instead of hydrating; the server-rendered markup is unaffected. New `src/app/features/home/line-pulse/status-info-chip.server.spec.ts` renders the real chip through the actual server path (`renderApplication` + `provideClientHydration`) and fails with the same `NG0502` without the fix. Commit `f0954ac`.
+**Prevention**: Never project content into a slot that is conditionally rendered; if you must, skip hydration on that component and cover it with a server-render spec (`renderApplication`), because a jsdom `TestBed` spec cannot catch this class of failure. Debugging tip: a 22-byte `Internal server error.` with HTTP 200 means the `@angular/ssr` stream catch fired — instrument the response stream to see the real error, since nothing reaches the console.
+
 ### [2026-09-22] insiden/home: the Pending pill and the pending group keyed off `completed`, not the approval `status`
 
 **Problem**: Approved links rendered the "Pending" pill (`title="Awaiting admin approval"`) — every seeded card on the home feed, and four approved links under the situasi tab's "Pending (4)" — so approved content looked unapproved.

@@ -24,7 +24,9 @@
     toggle), `line-pulse-list.component.ts` (skeletons / empty state / the list),
     `line-status-chart.component.ts` (the expanded hourly report strip),
     `line-status-reports.component.ts` (the expanded report list), and
-    `status-info-chip.component.ts` (the hover/tap info popover shared by the card's chips).
+    `status-info-chip.component.ts` (the hover/tap info popover shared by the card's chips — a thin
+    wrapper over the shared `app-info-popover`; `status-info-chip.server.spec.ts` renders it through
+    the real server path to guard SSR/hydration).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
