@@ -123,7 +123,9 @@ page stays `RenderMode.Server`.
   panel blocks (the home chip's window/breakdown/legend).
 - **`DisclaimerNote`** (`src/app/ui/disclaimer-note/disclaimer-note.ts`, selector
   `app-disclaimer-note`): one canonical disclaimer string, `variant: "inline" | "footer"`, no data
-  dependencies and no browser APIs (renders identically on the server).
+  dependencies and no browser APIs (renders identically on the server). The rail/schedule-derived
+  sentence was deliberately **removed** in `6727641` (the app shows live GTFS data, not schedule
+  estimates); don't re-add it.
 - **Dependencies:** `@angular/platform-browser` (`Meta`), `@angular/router` (`RouterLink`), the
   registry under `core/methodology/`, the shared UI primitives above, and shell chrome
   (`AppNavComponent`/`AppFooterComponent`). No Firebase, no `GraphQLClient`, no HTTP in v1.
