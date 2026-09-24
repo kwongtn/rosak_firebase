@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { metricDoc } from "../../../core/methodology/methodology-render.util";
 import type { LineStatus, PassengerStatus, VehicleStatus } from "./home.queries";
 import { PASSENGER_METRIC } from "./line-status-metrics.util";
 import {
@@ -60,6 +61,14 @@ describe("passengerInfo", () => {
     }
     expect(PASSENGER_INFO.CROWDED.title).toBe("Crowded");
     expect(passengerInfo("CROWDED").body).toBe("Standing room only — board after 1–2 trains.");
+  });
+
+  it("sources every passenger title and body from the methodology registry", () => {
+    for (const status of PASSENGER_STATUSES) {
+      const doc = metricDoc(`passenger.${status.toLowerCase()}`);
+      expect(PASSENGER_INFO[status].title, status).toBe(doc.title);
+      expect(PASSENGER_INFO[status].body, status).toBe(doc.definition);
+    }
   });
 
   it("falls back to a 'No data' explanation for an absent status", () => {
@@ -132,6 +141,14 @@ describe("lineStatusInfo", () => {
     expect(Object.keys(LINE_STATUS_INFO).sort()).toEqual([...LINE_STATUSES].sort());
   });
 
+  it("sources every line-status title and body from the methodology registry", () => {
+    for (const status of LINE_STATUSES) {
+      const doc = metricDoc(`line-status.${status.toLowerCase()}`);
+      expect(LINE_STATUS_INFO[status].title, status).toBe(doc.title);
+      expect(LINE_STATUS_INFO[status].body, status).toBe(doc.definition);
+    }
+  });
+
   it("returns the matching entry", () => {
     expect(lineStatusInfo("PARTIAL_DISRUPTION")).toEqual(LINE_STATUS_INFO.PARTIAL_DISRUPTION);
   });
@@ -195,5 +212,29 @@ describe("vehicleStatusRows", () => {
     const rows = vehicleStatusRows(VEHICLE_STATUSES.map((status) => ({ status, count: 1 })));
 
     expect(rows.map((row) => row.key)).toEqual(VEHICLE_STATUSES);
+  });
+});
+
+describe("methodology registry sourcing", () => {
+  it("reads both copy registries from the registry at module load, not from private literals", async () => {
+    vi.resetModules();
+    const { METRIC_DOCS } = await import("../../../core/methodology/methodology.content");
+    const passengerDoc = METRIC_DOCS.find((entry) => entry.id === "passenger.crowded");
+    const lineDoc = METRIC_DOCS.find((entry) => entry.id === "line-status.active");
+    if (!passengerDoc || !lineDoc) {
+      throw new Error(
+        "passenger.crowded / line-status.active missing from the methodology registry",
+      );
+    }
+    passengerDoc.title = "sentinel title";
+    passengerDoc.definition = "sentinel body";
+    lineDoc.title = "sentinel line title";
+    lineDoc.definition = "sentinel line body";
+
+    const { PASSENGER_INFO: passengers, LINE_STATUS_INFO: lines } =
+      await import("./status-info.util");
+
+    expect(passengers.CROWDED).toEqual({ title: "sentinel title", body: "sentinel body" });
+    expect(lines.ACTIVE).toEqual({ title: "sentinel line title", body: "sentinel line body" });
   });
 });

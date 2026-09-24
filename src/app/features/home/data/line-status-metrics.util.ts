@@ -1,14 +1,15 @@
+import { metricDoc } from "../../../core/methodology/methodology-render.util";
 import type { PassengerStatus } from "./home.queries";
 
 /** The "universal metric" copy per passenger status — shared by chip hover and submission help. */
 export const PASSENGER_METRIC: Record<PassengerStatus, string> = {
-  NORMAL: "Seats available — you can sit.",
-  BUSY: "Can board the first train — standing, but you have space.",
-  CROWDED: "Standing room only — board after 1–2 trains.",
-  EXTREMELY_CROWDED: "Unable to board — board after 3+ trains.",
-  BACKLOGGED: "Long gap since last train — platform filling up.",
-  DELAYED: "Trains running 10–15 min late.",
-  DISRUPTED: "Service suspended — use an alternative route.",
+  NORMAL: metricDoc("passenger.normal").definition,
+  BUSY: metricDoc("passenger.busy").definition,
+  CROWDED: metricDoc("passenger.crowded").definition,
+  EXTREMELY_CROWDED: metricDoc("passenger.extremely_crowded").definition,
+  BACKLOGGED: metricDoc("passenger.backlogged").definition,
+  DELAYED: metricDoc("passenger.delayed").definition,
+  DISRUPTED: metricDoc("passenger.disrupted").definition,
 };
 
 const NO_RECENT_REPORTS = "No recent reports for this line.";
