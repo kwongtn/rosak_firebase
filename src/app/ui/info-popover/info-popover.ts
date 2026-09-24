@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injectable,
   PLATFORM_ID,
   afterNextRender,
   computed,
@@ -23,9 +24,46 @@ export interface InfoPopoverLink {
 /**
  * Grace window between the pointer leaving the host and the panel closing. Moving the cursor from
  * the trigger pill to the panel crosses a few pixels outside the host; without the delay the panel
- * would close before the link inside it could be clicked.
+ * would close before the link inside it could be clicked. Short enough that moving between pills
+ * feels immediate — the one-panel-at-a-time registry, not this delay, is what stops overlap.
  */
-const HOVER_CLOSE_DELAY_MS = 1000;
+const HOVER_CLOSE_DELAY_MS = 300;
+
+/**
+ * The slice of a popover the exclusivity registry needs: close at once, without stealing focus.
+ * Structural so the registry does not depend on the component class.
+ */
+export interface ExclusivePopoverHandle {
+  closeForExclusivity(): void;
+}
+
+/**
+ * Only one popover panel is open at a time. Opening claims the slot and immediately closes
+ * whichever instance held it; closing (or destroying) releases it. Root-provided so the state
+ * lives in the injector — per TestBed, per SSR request — rather than in module scope, which the
+ * non-isolated test runner and SSR would otherwise share.
+ */
+@Injectable({ providedIn: "root" })
+export class InfoPopoverRegistry {
+  private _active: ExclusivePopoverHandle | null = null;
+
+  /** Makes `popover` the one open panel, closing the previous holder if there was one. */
+  claim(popover: ExclusivePopoverHandle): void {
+    if (this._active === popover) {
+      return;
+    }
+    const previous = this._active;
+    this._active = popover;
+    previous?.closeForExclusivity();
+  }
+
+  /** Frees the slot; a no-op for an instance that no longer holds it. */
+  release(popover: ExclusivePopoverHandle): void {
+    if (this._active === popover) {
+      this._active = null;
+    }
+  }
+}
 
 /**
  * Shared "what does this mean?" popover: an info trigger (the projected content, optionally led by
@@ -42,6 +80,12 @@ const HOVER_CLOSE_DELAY_MS = 1000;
  * (it is a DOM descendant of the host) and the reader can move the cursor onto it. Leaving the host
  * schedules a close after `HOVER_CLOSE_DELAY_MS`; re-entering cancels it, while Escape and an
  * outside click close immediately.
+ *
+ * Only one panel is open app-wide: every open claims `InfoPopoverRegistry`, which closes the
+ * previous holder at once, so moving from pill A to pill B never leaves two panels on screen. The
+ * panel's `absolute … z-20` stacking is what keeps A open (and the pills it overlaps closed) while
+ * the cursor is over A's panel: hit-testing lands on the panel, so the overlapped pill's host never
+ * receives `mouseenter`.
  *
  * `showIcon: false` drops the "i" glyph for consumers whose projected content is already the
  * trigger (the home status chips). `showMethodologyLink: false` drops the link for chips whose
@@ -153,12 +197,16 @@ export class InfoPopover {
 
   private readonly _host = inject(ElementRef<HTMLElement>);
   private readonly _destroyRef = inject(DestroyRef);
+  private readonly _registry = inject(InfoPopoverRegistry);
   private readonly _trigger = viewChild<ElementRef<HTMLButtonElement>>("trigger");
   /** Pending delayed close from a host `mouseleave`; null when no close is scheduled. */
   private _closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    this._destroyRef.onDestroy(() => this._cancelPendingClose());
+    this._destroyRef.onDestroy(() => {
+      this._cancelPendingClose();
+      this._registry.release(this);
+    });
     if (!this._isBrowser) {
       return;
     }
@@ -172,9 +220,8 @@ export class InfoPopover {
   }
 
   protected onHostEnter(): void {
-    this._cancelPendingClose();
     if (this._hoverCapable()) {
-      this._open.set(true);
+      this._setOpen(true);
     }
   }
 
@@ -187,7 +234,7 @@ export class InfoPopover {
     this._cancelPendingClose();
     this._closeTimer = setTimeout(() => {
       this._closeTimer = null;
-      this._open.set(false);
+      this._setOpen(false);
     }, HOVER_CLOSE_DELAY_MS);
   }
 
@@ -195,7 +242,7 @@ export class InfoPopover {
    * and would otherwise fight the tap toggle. */
   protected onFocus(): void {
     if (this._hoverCapable() && !this._restoringFocus) {
-      this._open.set(true);
+      this._setOpen(true);
     }
   }
 
@@ -209,17 +256,17 @@ export class InfoPopover {
     if (next instanceof Node && this._host.nativeElement.contains(next)) {
       return;
     }
-    this._open.set(false);
+    this._setOpen(false);
   }
 
   protected onClick(): void {
     if (this._hoverCapable()) {
       // The pointer already opened it; a click must not close a panel the cursor still hovers.
       // Opening from closed still matters for keyboard activation after Escape.
-      this._open.set(true);
+      this._setOpen(true);
       return;
     }
-    this._open.update((open) => !open);
+    this._setOpen(!this._open());
   }
 
   protected onDocumentClick(event: Event): void {
@@ -230,8 +277,7 @@ export class InfoPopover {
     if (target instanceof Node && this._host.nativeElement.contains(target)) {
       return;
     }
-    this._cancelPendingClose();
-    this._open.set(false);
+    this._setOpen(false);
   }
 
   protected onEscape(): void {
@@ -239,10 +285,28 @@ export class InfoPopover {
     if (!this._open()) {
       return;
     }
-    this._open.set(false);
+    this._setOpen(false);
     this._restoringFocus = true;
     this._trigger()?.nativeElement.focus();
     this._restoringFocus = false;
+  }
+
+  /** Called by the registry when another popover opens: close at once, cancel any pending close,
+   * and leave focus alone — only Escape returns focus to the trigger. */
+  closeForExclusivity(): void {
+    this._setOpen(false);
+  }
+
+  /** The single open/close funnel: the panel signal and the registry slot always move together,
+   * so no path can leave a closed popover holding the slot or an open one unclaimed. */
+  private _setOpen(open: boolean): void {
+    this._cancelPendingClose();
+    if (open) {
+      this._registry.claim(this);
+    } else {
+      this._registry.release(this);
+    }
+    this._open.set(open);
   }
 
   private _cancelPendingClose(): void {

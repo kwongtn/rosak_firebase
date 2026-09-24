@@ -53,8 +53,23 @@ class InfoPopoverHost {
   readonly showMethodologyLink = signal(true);
 }
 
+/** Two independent popovers under one TestBed root injector — the exclusivity contract is about
+ * two chips on the same page (same card or not), so the registry must be shared between them. */
+@Component({
+  imports: [InfoPopover],
+  template: `
+    <app-info-popover label="Reliability" content="First definition." testId="panel-a">
+      <span>Reliability</span>
+    </app-info-popover>
+    <app-info-popover label="Punctuality" content="Second definition." testId="panel-b">
+      <span>Punctuality</span>
+    </app-info-popover>
+  `,
+})
+class InfoPopoverPairHost {}
+
 /** The shared grace window between a host `mouseleave` and the panel closing. */
-const HOVER_CLOSE_DELAY_MS = 1000;
+const HOVER_CLOSE_DELAY_MS = 300;
 
 describe("InfoPopover", () => {
   let fixture: ComponentFixture<InfoPopoverHost>;
@@ -161,7 +176,7 @@ describe("InfoPopover", () => {
 
     openByHover();
     leaveHost();
-    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS - 500);
+    vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS / 2);
     fixture.detectChanges();
 
     openByHover();
@@ -187,6 +202,47 @@ describe("InfoPopover", () => {
     vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS * 2);
     fixture.detectChanges();
     expect(panel()).not.toBeNull();
+  });
+
+  it("stacks the panel above sibling pills so an overlapped pill cannot take the pointer", async () => {
+    stubMatchMedia(true);
+    await render();
+    openByHover();
+
+    expect(panel()?.classList.contains("absolute")).toBe(true);
+    expect(panel()?.classList.contains("z-20")).toBe(true);
+  });
+
+  it("keeps only one panel open: opening a second popover closes the first", async () => {
+    stubMatchMedia(true);
+    const pairFixture = TestBed.createComponent(InfoPopoverPairHost);
+    pairFixture.detectChanges();
+    await pairFixture.whenStable();
+    pairFixture.detectChanges();
+
+    const root = pairFixture.nativeElement as HTMLElement;
+    const popovers = Array.from(root.querySelectorAll<HTMLElement>("app-info-popover"));
+    const first = popovers[0];
+    const second = popovers[1];
+    const firstTrigger = first?.querySelector("button");
+    const secondTrigger = second?.querySelector("button");
+    if (!first || !second || !firstTrigger || !secondTrigger) {
+      throw new Error("popover pair not rendered");
+    }
+
+    first.dispatchEvent(new MouseEvent("mouseenter"));
+    pairFixture.detectChanges();
+    expect(first.querySelector('[data-testid="panel-a"]')).not.toBeNull();
+    expect(firstTrigger.getAttribute("aria-expanded")).toBe("true");
+
+    // Moving the cursor from pill A to pill B closes A at once — no grace window where both
+    // panels are on screen — while B opens.
+    second.dispatchEvent(new MouseEvent("mouseenter"));
+    pairFixture.detectChanges();
+    expect(second.querySelector('[data-testid="panel-b"]')).not.toBeNull();
+    expect(secondTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(first.querySelector('[data-testid="panel-a"]')).toBeNull();
+    expect(firstTrigger.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("closes immediately on Escape while a close is pending", async () => {
