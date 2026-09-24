@@ -59,7 +59,7 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
 
 /**
  * A vehicle type's fleet roster. Renders a table on wider viewports and a card list below the
- * `sm` breakpoint, rather than the old app's fixed 1330px-wide horizontally-scrolling table
+ * `md` breakpoint, rather than the old app's fixed 1330px-wide horizontally-scrolling table
  * (see the redesign rationale in the rewrite plan / spotting.md Known Quirks). Sorted by
  * vehicle ID by default; every column header is clickable to re-sort.
  *
@@ -143,7 +143,7 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
             @if (isExpanded()) {
               <button
                 type="button"
-                class="text-muted-foreground hover:text-foreground shrink-0 text-xs underline sm:hidden"
+                class="text-muted-foreground hover:text-foreground shrink-0 text-xs underline md:hidden"
                 (click)="showFullTable.set(!showFullTable())"
               >
                 {{ showFullTable() ? "View as cards" : "View full table" }}
@@ -274,7 +274,7 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
                 </table>
               </div>
             } @else {
-              <div class="relative w-full hidden sm:block">
+              <div class="relative w-full hidden md:block">
                 <table hlmTable>
                   <thead hlmTHead>
                     <tr
@@ -350,7 +350,7 @@ export const DEFAULT_SORT_DIRECTION: SortDirection = "asc";
             <!-- Mobile cards: vehicle, status, wheel, last spotted, notes — the fields
                              that matter at a glance; times-spotted is skipped here (still on the
                              desktop table) since it isn't useful without a time window to compare against. -->
-            <div [class]="showFullTable() ? 'hidden' : 'flex flex-col gap-3 sm:hidden'">
+            <div [class]="showFullTable() ? 'hidden' : 'flex flex-col gap-3 md:hidden'">
               @for (vehicle of _sortedVehicles(); track vehicle.id) {
                 <a [routerLink]="['vehicle', vehicle.id]" hlmCard class="gap-2 p-3">
                   <div class="flex items-center justify-between gap-2">

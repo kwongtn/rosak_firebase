@@ -10,6 +10,25 @@
 
 ---
 
+### [2026-09-24] spotting/line-overview: `vehicle-list` roster — cards only engaged below `sm` while the table needs ~654px (overflow band 640–~706px)
+
+**Problem**: On `/spotting`, at ~626–742px viewport the fleet roster stayed a squeezed, overflowing
+desktop table ("smallest size") instead of switching to the mobile cards layout — the cards only
+engaged below ~640px.
+**Root Cause**: Not a breakpoint-definition inconsistency (spotting uniformly uses `sm`; the project
+uses Tailwind defaults throughout). The 7-column roster table's min-content width is ~654px and it
+cannot shrink further, while the table↔cards switch sat at `sm` (640px) — so "desktop table" mode
+guaranteed less width than the table needs and the table overflowed its card in the 640–~706px band.
+**Fix**: Raised the `vehicle-list` switch `sm` → `md` (768px) in `vehicle-list.component.ts`: the
+"View as cards / View full table" toggle (`md:hidden`, line 146), the desktop table wrapper
+(`hidden md:block`, line 277), and the card list (`flex flex-col gap-3 md:hidden`, line 353). Cards
+now render below 768px (covers the reported 626–742px band); desktop starts only where the 654px
+table fits (at 768px: 654px table inside ~720px card). Verified in-browser at 500/700/767 → cards,
+768 → table fits; full suite **86 files / 755 tests** green.
+**Prevention**: When a data-dense table is the widest element, pin its mobile-switch breakpoint at or
+above its measured min-content width — probe the table's `getBoundingClientRect().width` right above
+the chosen breakpoint, because the worst overflow is just above it, not at deep desktop widths.
+
 ### [2026-09-15] deploy-functions: `npm ci` lockfile drift + Node 18 EOL + missing `functions` codebase
 
 **Problem**: `Deploy Functions` workflow failed at `npm ci` — lockfile's `@types/express` tree did not satisfy `package.json`, and the job ran Node 18 while `cheerio`/`vite`/`vitest`/`undici` require ≥20. `firebase.json` also had no `functions` section, so `deploy --only functions` would have found no codebase even past install.
