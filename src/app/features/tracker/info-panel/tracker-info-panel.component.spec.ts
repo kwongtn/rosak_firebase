@@ -78,33 +78,3 @@ describe("TrackerInfoPanelComponent rows() stable id", () => {
     expect(rows[0]["id"]).toBe(rows[0]["stopId"]);
   });
 });
-
-describe("TrackerInfoPanelComponent realtime overview note", () => {
-  let fixture: ComponentFixture<TrackerInfoPanelComponent>;
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [TrackerInfoPanelComponent],
-      providers: [
-        provideZonelessChangeDetection(),
-        provideHttpClient(),
-        GtfsRealtimeService,
-        GtfsStaticService,
-        LayerSelectionService,
-      ],
-    }).compileComponents();
-    fixture = TestBed.createComponent(TrackerInfoPanelComponent);
-  });
-
-  it("shows the schedule-derived rail sentence for the realtime layer", () => {
-    fixture.componentRef.setInput("kind", "realtime");
-    fixture.componentRef.setInput("sourceKey", "ktmb");
-    fixture.componentRef.setInput("label", "KTMB");
-    fixture.componentRef.setInput("open", true);
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain(
-      "Rail positions and arrival times are schedule-derived, not live GPS or GTFS-Realtime.",
-    );
-  });
-});

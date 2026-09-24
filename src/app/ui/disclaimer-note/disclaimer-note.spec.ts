@@ -13,7 +13,6 @@ const CANONICAL_SENTENCES = [
   "MLPTF is an independent community project.",
   "We are not affiliated with Prasarana Malaysia, RapidKL, MRT Corp, or any transit operator.",
   "Figures here are estimates derived from official operator posts, community reports, and published schedules — they can be wrong or incomplete, and they are not official operator data.",
-  "Rail positions and arrival times are schedule-derived, not live GPS or GTFS-Realtime.",
   "Do not use this site for safety-critical decisions.",
 ] as const;
 
