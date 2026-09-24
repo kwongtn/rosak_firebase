@@ -31,6 +31,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 22 | Expanded line card's recent-reports list capped in its own scroll container (roughly 5 rows) instead of stretching the card                                                                                                                                                      |
 | Sep 22 | Spotting report form: clearing a combobox or re-choosing a station placeholder now really deselects (shared `HlmCombobox.emptyValue`, non-disabled placeholder)                                                                                                                  |
 | Sep 23 | Home line-refresh countdown is now the refresh button itself, with a hover/tap "Click to Refresh Now" tooltip and a transient "Updated" confirmation; the separate Refresh now button is gone                                                                                    |
+| Sep 24 | **methodology** "How this is counted" page ships: one code-first registry (8 sections + 13 metric docs) read by the page and every `app-info-popover`; shared popover fixes 5 a11y defects; `app-disclaimer-note`; PR-template anti-drift checklist                              |
 
 ### Home — community front page (2026-09-22)
 
@@ -134,6 +135,27 @@ One commit (`feat(console): let admins delete social-media link entries`):
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 481a332 | `deleteLink` on `/console/insiden/links`: native confirm guard + IsAdmin `deleteSocialMediaLink` mutation, local row drop, panel close, success/error toast; Delete buttons in the table Actions column and the sheet footer |
 
+### methodology — "How this is counted" page + registry (2026-09-24)
+
+Nine commits (`6355d6b..56ac071`) ship the methodology feature and its docs:
+
+| Commit    | Deliverable                                                                                                                   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `6355d6b` | Core registry: `methodology.constants.ts`, `methodology.content.ts` (8 sections, 13 metric docs), renderer + drift tests      |
+| `1bb21a0` | Shared `app-info-popover` (real button, `role="dialog"`, Escape/focus-return, outside-click, viewport clamp, `aria-controls`) |
+| `4af4550` | `app-disclaimer-note` (`inline` / `footer`)                                                                                   |
+| `1dbb800` | Footer links `/methodology`                                                                                                   |
+| `22c0d66` | PR-template anti-drift checklist line                                                                                         |
+| `977e10f` | Home copy (`PASSENGER_INFO` / `LINE_STATUS_INFO` / `PASSENGER_METRIC`) sourced from the registry                              |
+| `5c53c4c` | `status-info-chip` becomes a thin wrapper over `app-info-popover`                                                             |
+| `548581d` | Tracker info panel gains the rail-schedule sentence                                                                           |
+| `56ac071` | `/methodology` page + `app-methodology-section` + `RenderMode.Server` route                                                   |
+
+Every one of the 8 sections renders the in-progress state naming its owning spec (the sibling specs
+declare they block this one and their code has not landed); `reliability` and `limitations` carry
+`ownerRoute: null` as the documented exception. v1 wires no `dataSources` fetch, so `sources` never
+renders a license literal. Full suite 741 tests green.
+
 ## Commit Statistics
 
 | Type      | Count  | Percentage |
@@ -160,3 +182,4 @@ One commit (`feat(console): let admins delete social-media link entries`):
 - [17.md](./17.md)
 - [22.md](./22.md)
 - [23.md](./23.md)
+- [24.md](./24.md)

@@ -266,7 +266,9 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   insiden's `link-url.util.ts` (`linkUrlPartsOf`), shared by the one link card every surface uses.
 - **`status-info.util.ts`** is the popover-content seam: a new `PassengerStatus`/`VehicleStatus`
   member is a one-line addition to the label/order tables, and the chips and legend stay in sync.
-  **`line-status-metrics.util.ts`** holds the plain-language per-status copy.
+  **`line-status-metrics.util.ts`** holds the plain-language per-status copy. That copy is no longer
+  authored here — both now read the shared methodology registry (`core/methodology/`,
+  `metricDoc(...)`), so the popover and `/methodology` cannot drift.
 - **Reused shared primitives stay the seams for new surfaces:** `AssetMultiSelectComponent`
   (line/station pickers), `VoteButtonComponent` (`targetType` already supports `"link"`), Hlm
   `sheet`/`skeleton`/`badge`/`button`, `RetryBannerComponent` (structural `RetryableResource`, so

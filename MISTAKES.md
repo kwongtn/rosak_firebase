@@ -127,6 +127,13 @@ layout the same way.
 **Fix**: The requestFn now reads two `computed`s of primitive values — `_stationLineId` (`model().lineId`) and `_stationType` (`model().type`) — so only a line/type change re-runs it. `report-form.component.spec.ts` asserts an unrelated `notes` write triggers no station POST and a `type` change does (6bbb2a0).
 **Prevention**: A reactive resource's requestFn must read only the primitive fields its request depends on; project them into `computed`s and read those, never the whole model signal. Mind the unit-test blind spot: jsdom/vitest flush resources synchronously, so specs cannot observe the refetch-storm timing window a real browser with real latency exposes — assert the projection in the spec, and reproduce the storm in a browser.
 
+### [2026-09-24] Testing: `vitest --filter` matches test NAMES with a case-sensitive regex, not file paths
+
+**Problem**: Two agents scoped the methodology specs with `npm test -- --no-watch --filter "methodology"` and each saw the spec file loaded but **0 tests ran** — a suite that looked like it passed while executing nothing.
+**Root Cause**: `--filter` narrows by suite/test **name** using a **case-sensitive regular expression**; it is not a path or filename filter (that is `--include`). A spec whose `describe(...)` names are capitalized (e.g. `MethodologyPage`, `InfoPopover`) never matches a lowercase `methodology` filter, and the builder reports the file as loaded with zero matching tests rather than erroring.
+**Fix**: Filter with the real-cased name regex, or use `--include <path>` for a single file. `AGENTS.md`'s own example is `npm test -- --no-watch --filter "^App"` for exactly this reason.
+**Prevention**: Read "file loaded but 0 tests ran" as a filter mismatch, not a pass. Use `--include <path>` for one file and `--filter` only with a regex that matches the suite/test name's actual casing (anchor it, e.g. `"^Methodology"`); re-run without a filter before trusting a green result.
+
 ## Fixed
 
 ### [2026-09-22] insiden/home: the Pending pill and the pending group keyed off `completed`, not the approval `status`
