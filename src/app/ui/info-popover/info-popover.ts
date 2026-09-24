@@ -37,6 +37,12 @@ export interface InfoPopoverLink {
   imports: [RouterLink],
   host: {
     class: "relative inline-flex",
+    // The panel's `popoverExtra` projection slot is rendered inside `@if (_open())`, so on the
+    // server a consumer's projected extras have no DOM home; Angular's hydration serializer then
+    // throws NG0502 mid-stream and the route renders as a 22-byte error. Skipping hydration here is
+    // Angular's documented remedy for content that is not hydration-compatible (the closed panel
+    // is inert anyway; no a11y or behavioural surface changes).
+    ngSkipHydration: "",
     "(document:click)": "onDocumentClick($event)",
     "(document:keydown.escape)": "onEscape()",
   },
