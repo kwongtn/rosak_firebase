@@ -288,6 +288,12 @@ function highlightJson(json: string): string {
                 <div class="text-muted-foreground text-xs">{{ overviewLabel() }}</div>
               </div>
             </div>
+            @if (kind() === "realtime") {
+              <p class="text-muted-foreground">
+                Rail positions and arrival times are schedule-derived, not live GPS or
+                GTFS-Realtime.
+              </p>
+            }
             @if (kind() === "railway") {
               <p class="text-muted-foreground">
                 This layer is a single always-on/off overlay rather than a set of individually
