@@ -144,9 +144,17 @@ page stays `RenderMode.Server`.
 - **Hover is tracked on the host, not the trigger** (`(mouseenter)`/`(mouseleave)` on
   `app-info-popover`), so the panel — an absolutely-positioned descendant — counts as still-hovered
   while the cursor crosses onto it. Leaving the host schedules the close after
-  `HOVER_CLOSE_DELAY_MS` (1000 ms), keeping the "How this is counted" link clickable; re-entering
-  the host cancels the pending close, while Escape and an outside click close immediately and
-  cancel it. The timer is cleared on destroy.
+  `HOVER_CLOSE_DELAY_MS` (300 ms) — short enough that moving between pills feels immediate, long
+  enough to cross the few pixels onto the panel and keep the "How this is counted" link clickable;
+  re-entering the host cancels the pending close, while Escape and an outside click close
+  immediately and cancel it. The timer is cleared on destroy.
+- **Only one panel is open at a time** (`InfoPopoverRegistry`, root-provided so its state lives in
+  the injector, not module scope): every open path (hover, focus, click, tap) claims the slot and
+  immediately closes the previous holder, and every close path (delay, Escape, outside click, blur,
+  tap-toggle, destroy) releases it. Moving from pill A to pill B is therefore atomic — A closes as B
+  opens, with no grace window where both panels overlap. A's panel wins hit-testing over the pills it
+  overlays (`absolute … z-20`): the overlapped pill's host never receives `mouseenter`, so A stays
+  open and no other panel opens under the cursor.
 - The renderer computes token values fresh on each call (`methodologyTokenValues()`), so a test (or
   a future CMS overlay) that mutates a constant is reflected immediately rather than frozen at
   module load.
