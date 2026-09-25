@@ -14,6 +14,7 @@ import { isPlatformBrowser } from "@angular/common";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
+import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -24,6 +25,7 @@ import { ToastService } from "../../../ui/toast/toast.service";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { VehicleStatus } from "../../../core/graphql/types";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
+import { isSpottingLineRoute } from "../data/spotting-route-patterns";
 import {
   VEHICLE_TYPES_QUERY,
   VehicleTypesQueryData,
@@ -261,6 +263,9 @@ export class LineOverviewPage {
   private stickyBarObserver: ResizeObserver | undefined;
 
   constructor() {
+    // Revalidate silently on return; the keep-alive page retains its existing data.
+    revalidateOnReturn(isSpottingLineRoute, () => this.vehicleTypesResource.reload());
+
     // Clear the status filter when navigating to a different line — it shouldn't silently
     // carry over and hide vehicles on a line the user hasn't looked at yet.
     effect(() => {

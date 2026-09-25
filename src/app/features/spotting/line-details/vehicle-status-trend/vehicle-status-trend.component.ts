@@ -2,6 +2,8 @@ import { httpResource } from "@angular/common/http";
 import { DecimalPipe } from "@angular/common";
 import { Component, computed, signal, input } from "@angular/core";
 import { environment } from "../../../../../environments/environment";
+import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { VehicleStatus } from "../../../../core/graphql/types";
@@ -345,6 +347,13 @@ export class VehicleStatusTrendComponent {
     }
     return [...seen];
   });
+
+  constructor() {
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.resource.reload();
+    });
+  }
 
   protected statusColor(status: VehicleStatus): string {
     return STATUS_COLOR[status];

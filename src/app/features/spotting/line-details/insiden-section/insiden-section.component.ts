@@ -1,6 +1,8 @@
 import { Component, computed, inject, input } from "@angular/core";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../../core/polling/polling-source";
+import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
@@ -134,6 +136,13 @@ export class InsidenSectionComponent {
   protected readonly incidents = computed(() =>
     incidentsForLine(this.resource.data()?.calendarIncidents ?? [], this.lineId()),
   );
+
+  constructor() {
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.resource.reload();
+    });
+  }
 
   protected onRefreshIntervalChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;

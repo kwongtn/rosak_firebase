@@ -3,11 +3,13 @@ import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { LINES_QUERY, Line, LinesQueryData } from "./spotting.queries";
 
 /**
- * Route-scoped store (provided on the /spotting shell route) for the one piece of data every
- * spotting page needs: the line list. One fetch shared by the redirect page, the line-overview
- * header, and the report form's line dropdown — see spotting.routes.ts for the providers wiring.
+ * App-lifetime cache for the line list shared by the home report form and every spotting page.
+ * This keeps one `Lines` fetch alive across home/spotting navigations, avoiding duplicate
+ * requests, and must outlive the spotting shell now that `ReusableRouteStrategy` keeps pages
+ * mounted across navigations (`data: { reuse: true }`); a route-scoped store would leave a
+ * detached page with stale data and a dead retry loop after its injector was destroyed.
  */
-@Injectable()
+@Injectable({ providedIn: "root" })
 export class SpottingLinesStore {
   private readonly resource = graphqlResource<LinesQueryData>(() => ({ query: LINES_QUERY }));
 

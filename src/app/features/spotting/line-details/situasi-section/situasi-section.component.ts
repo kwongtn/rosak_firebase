@@ -1,6 +1,8 @@
 import { Component, DestroyRef, computed, inject, input, signal } from "@angular/core";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../../core/polling/polling-source";
+import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
@@ -164,6 +166,11 @@ export class SituasiSectionComponent {
   );
 
   constructor() {
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.resource.reload();
+    });
+
     // Don't leave the sheet open for the next route's section.
     inject(DestroyRef).onDestroy(() => this.linkSheet.close());
   }

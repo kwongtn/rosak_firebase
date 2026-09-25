@@ -1,11 +1,9 @@
 import { Routes } from "@angular/router";
 import { pathWithOptionalParamMatcher } from "../../core/routing/optional-param-matcher";
-import { SpottingLinesStore } from "./data/spotting-lines.store";
 
 export const SPOTTING_ROUTES: Routes = [
   {
     path: "",
-    providers: [SpottingLinesStore],
     loadComponent: () =>
       import("./spotting-shell/spotting-shell.page").then((m) => m.SpottingShellPage),
     children: [
@@ -14,7 +12,10 @@ export const SPOTTING_ROUTES: Routes = [
         loadComponent: () => import("./spotting-redirect.page").then((m) => m.SpottingRedirectPage),
       },
       {
+        // Keep these three page routes mounted across spotting navigations so their DOM, scroll
+        // position, and loaded resources survive a return trip (see ReusableRouteStrategy).
         path: ":lineId",
+        data: { reuse: true },
         loadComponent: () =>
           import("./line-overview/line-overview.page").then((m) => m.LineOverviewPage),
       },
@@ -30,6 +31,7 @@ export const SPOTTING_ROUTES: Routes = [
         children: [
           {
             matcher: pathWithOptionalParamMatcher("details", "tab"),
+            data: { reuse: true },
             loadComponent: () =>
               import("./line-details/line-details.page").then((m) => m.LineDetailsPage),
           },
@@ -37,6 +39,7 @@ export const SPOTTING_ROUTES: Routes = [
       },
       {
         path: ":lineId/vehicle/:vehicleId",
+        data: { reuse: true },
         loadComponent: () =>
           import("./vehicle-detail/vehicle-detail.page").then((m) => m.VehicleDetailPage),
       },

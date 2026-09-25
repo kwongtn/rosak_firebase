@@ -3,6 +3,7 @@ import { isPlatformBrowser } from "@angular/common";
 import { Router, RouterLink } from "@angular/router";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
+import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
 import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
@@ -18,6 +19,7 @@ import {
   toSpottingActivityPoints,
 } from "../../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
+import { isSpottingVehicleRoute } from "../data/spotting-route-patterns";
 import {
   VEHICLE_SPOTTING_HISTORY_QUERY,
   VEHICLE_TYPES_QUERY,
@@ -221,6 +223,12 @@ export class VehicleDetailPage {
   });
 
   constructor() {
+    // Refresh retained page data after returning from outside the vehicle route.
+    revalidateOnReturn(isSpottingVehicleRoute, () => {
+      this.vehicleTypesResource.reload();
+      this.spottingHistoryResource.reload();
+    });
+
     effect(() => {
       // A fetch error isn't "this vehicle doesn't exist" — that's a fetch-level `hasError()`
       // guard on the template's own retry banner to work out, not a reason to redirect

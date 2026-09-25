@@ -8,6 +8,7 @@ import {
 } from "@angular/core";
 import {
   provideRouter,
+  RouteReuseStrategy,
   withComponentInputBinding,
   withInMemoryScrolling,
   withPreloading,
@@ -24,6 +25,8 @@ import { AnalyticsService } from "./core/analytics/analytics.service";
 import { NewVersionService } from "./core/version/new-version.service";
 import { isChunkLoadError } from "./core/version/chunk-load-error.util";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
+import { ReusableRouteStrategy } from "./core/routing/reusable-route.strategy";
+import { RouteScrollMemoryService } from "./core/routing/route-scroll-memory.service";
 
 /**
  * Checks if an error represents an HTTP 404 / Not Found error that should be ignored
@@ -134,9 +137,19 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       inject(NewVersionService);
     }),
+    // Same instantiate-once-for-its-side-effects shape as the services above:
+    // RouteScrollMemoryService's constructor subscribes to Router/ViewportScroller events and
+    // restores positions for in-app back navigations. It is browser-guarded inside the service,
+    // so the SSR app initializer remains safe.
+    provideAppInitializer(() => {
+      inject(RouteScrollMemoryService);
+    }),
     // 'enabled' scrolls new navigations to the top (the bug this fixes — e.g. landing mid-page on
     // a vehicle-detail route after scrolling far down a long vehicle list) while still restoring
     // the prior scroll position on real back/forward navigation, which is what people expect.
+    // Spotting pages opt into bounded keep-alive; all other routes retain Angular's default reuse
+    // behavior. The provider is explicit rather than replacing shouldReuseRoute globally.
+    { provide: RouteReuseStrategy, useClass: ReusableRouteStrategy },
     provideRouter(
       routes,
       withComponentInputBinding(),

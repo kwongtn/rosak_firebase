@@ -17,6 +17,8 @@ import {
 import { RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { VehicleStatus } from "../../../../core/graphql/types";
+import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import {
   dateKeyOf,
   spottingIntensityClass,
@@ -892,6 +894,12 @@ export class VehicleSpottingGridComponent {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.resource.reload();
+    });
+
     // Captured here (still in an injection context), so the effect() created inside
     // afterNextRender's callback below — which runs *outside* one — can be told explicitly
     // which injector to use instead of throwing NG0203.
