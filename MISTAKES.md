@@ -10,6 +10,29 @@
 
 ---
 
+## [2026-09-25] spotting/route-persistence: default route reuse destroyed retained page state
+
+**Problem**: Navigating `/spotting/:lineId` to `/spotting/:lineId/details` or
+`/spotting/:lineId/vehicle/:vehicleId` and back re-showed skeletons, reloaded data from scratch,
+and lost the window scroll position. Angular's `scrollPositionRestoration: 'enabled'` could not fix
+this alone because its restoration could target the rebuilt page while it was still skeleton-high.
+
+**Root Cause**: The spotting page routes relied on Angular's default `RouteReuseStrategy`, which
+never detaches them on cross-page navigation. Each navigation therefore destroyed the page component,
+its component-owned resources, and its DOM; the default scroll behavior could not restore state that
+no longer existed, while imperative in-app “← Back” links do not use browser `popstate`.
+
+**Fix**: Added opt-in `ReusableRouteStrategy` route reuse with `data: { reuse: true }` on the three
+spotting page routes, browser-only `RouteScrollMemoryService` restoration, and
+`revalidateOnReturn` hooks backed by the shared spotting route predicates. Retained resources now
+refresh silently and the existing structural-equality retention avoids replacing unchanged `data()`
+references.
+
+**Prevention**: Keep `data: { reuse: true }` on the three spotting page routes and keep the
+`revalidateOnReturn(<route pattern>, () => resource.reload())` hooks up to date when adding data
+sections. Verify the keep-alive e2e/live flow, including an in-app back while a refresh is pending;
+do not rely on `scrollPositionRestoration` alone.
+
 ### [2026-09-24] spotting/line-overview: `vehicle-list` roster — cards only engaged below `sm` while the table needs ~654px (overflow band 640–~706px)
 
 **Problem**: On `/spotting`, at ~626–742px viewport the fleet roster stayed a squeezed, overflowing
