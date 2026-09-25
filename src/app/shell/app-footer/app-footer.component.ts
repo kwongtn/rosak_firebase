@@ -105,6 +105,8 @@ interface BackendVersion {
           KwongTN
         </a>
         &amp; contributors &middot;
+        <a routerLink="/methodology" class="hover:text-foreground underline">Methodology</a>
+        &middot;
         <a routerLink="/gdpr" class="hover:text-foreground underline">GDPR</a> (beta)
       </p>
     </footer>

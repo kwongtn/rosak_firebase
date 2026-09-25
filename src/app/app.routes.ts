@@ -43,6 +43,12 @@ export const routes: Routes = [
     loadComponent: () => import("./features/gdpr/gdpr.page").then((m) => m.GdprPage),
   },
   {
+    path: "methodology",
+    title: "MLPTF | Methodology",
+    loadComponent: () =>
+      import("./features/methodology/methodology.page").then((m) => m.MethodologyPage),
+  },
+  {
     // Matches /gallery and /gallery/:mediaId as ONE route rather than two sibling entries — see
     // the matcher's own doc comment for why that distinction matters here: the default
     // RouteReuseStrategy would otherwise destroy and recreate GalleryPage on every photo

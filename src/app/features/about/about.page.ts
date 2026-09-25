@@ -1,5 +1,6 @@
 import { isPlatformBrowser } from "@angular/common";
 import { Component, OnDestroy, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { getApps, initializeApp } from "firebase/app";
 import {
   Unsubscribe,
@@ -71,6 +72,7 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
     AdSlotComponent,
     AppNavComponent,
     AppFooterComponent,
+    RouterLink,
     ...HlmCardImports,
   ],
   templateUrl: "./about.page.html",

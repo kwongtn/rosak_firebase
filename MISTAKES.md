@@ -10,6 +10,25 @@
 
 ---
 
+### [2026-09-24] spotting/line-overview: `vehicle-list` roster — cards only engaged below `sm` while the table needs ~654px (overflow band 640–~706px)
+
+**Problem**: On `/spotting`, at ~626–742px viewport the fleet roster stayed a squeezed, overflowing
+desktop table ("smallest size") instead of switching to the mobile cards layout — the cards only
+engaged below ~640px.
+**Root Cause**: Not a breakpoint-definition inconsistency (spotting uniformly uses `sm`; the project
+uses Tailwind defaults throughout). The 7-column roster table's min-content width is ~654px and it
+cannot shrink further, while the table↔cards switch sat at `sm` (640px) — so "desktop table" mode
+guaranteed less width than the table needs and the table overflowed its card in the 640–~706px band.
+**Fix**: Raised the `vehicle-list` switch `sm` → `md` (768px) in `vehicle-list.component.ts`: the
+"View as cards / View full table" toggle (`md:hidden`, line 146), the desktop table wrapper
+(`hidden md:block`, line 277), and the card list (`flex flex-col gap-3 md:hidden`, line 353). Cards
+now render below 768px (covers the reported 626–742px band); desktop starts only where the 654px
+table fits (at 768px: 654px table inside ~720px card). Verified in-browser at 500/700/767 → cards,
+768 → table fits; full suite **86 files / 755 tests** green.
+**Prevention**: When a data-dense table is the widest element, pin its mobile-switch breakpoint at or
+above its measured min-content width — probe the table's `getBoundingClientRect().width` right above
+the chosen breakpoint, because the worst overflow is just above it, not at deep desktop widths.
+
 ### [2026-09-15] deploy-functions: `npm ci` lockfile drift + Node 18 EOL + missing `functions` codebase
 
 **Problem**: `Deploy Functions` workflow failed at `npm ci` — lockfile's `@types/express` tree did not satisfy `package.json`, and the job ran Node 18 while `cheerio`/`vite`/`vitest`/`undici` require ≥20. `firebase.json` also had no `functions` section, so `deploy --only functions` would have found no codebase even past install.
@@ -127,7 +146,70 @@ layout the same way.
 **Fix**: The requestFn now reads two `computed`s of primitive values — `_stationLineId` (`model().lineId`) and `_stationType` (`model().type`) — so only a line/type change re-runs it. `report-form.component.spec.ts` asserts an unrelated `notes` write triggers no station POST and a `type` change does (6bbb2a0).
 **Prevention**: A reactive resource's requestFn must read only the primitive fields its request depends on; project them into `computed`s and read those, never the whole model signal. Mind the unit-test blind spot: jsdom/vitest flush resources synchronously, so specs cannot observe the refetch-storm timing window a real browser with real latency exposes — assert the projection in the spec, and reproduce the storm in a browser.
 
+### [2026-09-24] Testing: `vitest --filter` matches test NAMES with a case-sensitive regex, not file paths
+
+**Problem**: Two agents scoped the methodology specs with `npm test -- --no-watch --filter "methodology"` and each saw the spec file loaded but **0 tests ran** — a suite that looked like it passed while executing nothing.
+**Root Cause**: `--filter` narrows by suite/test **name** using a **case-sensitive regular expression**; it is not a path or filename filter (that is `--include`). A spec whose `describe(...)` names are capitalized (e.g. `MethodologyPage`, `InfoPopover`) never matches a lowercase `methodology` filter, and the builder reports the file as loaded with zero matching tests rather than erroring.
+**Fix**: Filter with the real-cased name regex, or use `--include <path>` for a single file. `AGENTS.md`'s own example is `npm test -- --no-watch --filter "^App"` for exactly this reason.
+**Prevention**: Read "file loaded but 0 tests ran" as a filter mismatch, not a pass. Use `--include <path>` for one file and `--filter` only with a regex that matches the suite/test name's actual casing (anchor it, e.g. `"^Methodology"`); re-run without a filter before trusting a green result.
+
+## [2026-09-24] SSR/graphql: `REQUESTS_CONTRIBUTE_TO_STABILITY` renders resource data, so a viewport-conditional `@if` mismatches hydration
+
+**Problem**: The spotting details grid's template branches on viewport (`isNarrow()`): below 768px it renders a stacked mobile layout, at/above it the desktop table. The server has no viewport, so it always rendered the desktop branch, and because Angular's `REQUESTS_CONTRIBUTE_TO_STABILITY` defaults `true` the server awaited the grid's GraphQL POST and rendered the desktop grid with real data. On a phone the client's first render wanted the mobile branch, so hydration could not match the server markup (NG0500/NG0502).
+**Root Cause**: `httpResource`/`graphqlResource` requests contribute to Angular's stability by default; a server render therefore resolves them and emits fully-populated desktop markup. Any `@if` keyed on a client-only signal (viewport, media query) then disagrees with that markup on first client render, which is exactly what hydration mismatch detection reports.
+**Fix**: `host: { ngSkipHydration: "" }` on `VehicleSpottingGridComponent` — Angular's documented remedy for content that is not hydration-compatible. The component re-renders on hydration instead of hydrating, and the client's own synchronous `isNarrow()` picks the correct branch immediately. Same remedy already used by `src/app/ui/info-popover/info-popover.ts`.
+**Prevention**: Any component whose first-render markup depends on a browser-only signal (viewport, `matchMedia`, `localStorage`) while also reading a `graphqlResource`/`httpResource` cannot be safely hydrated; skip hydration on that host and leave a comment naming the reason. Do not assume "SSR renders the skeleton and hydration fills it in" — stability defaults make the resource resolve before the server flushes.
+
+## [2026-09-24] spotting/vehicle-spotting-grid: `flex-col` with a retained `items-start` collapses the horizontal scroll container
+
+**Problem**: On mobile the grid switched to `flex-col`, but the names/scroll split still carried `items-start` (added for the desktop layout, where it stops the taller horizontal-scroll sibling from stretching the names table). Under `flex-col`, `align-items: start` sizes each child to its content width on the cross (horizontal) axis instead of stretching to full width, so the `overflow-x-auto` date body collapsed to its content and the dates no longer scrolled within the viewport.
+**Root Cause**: `items-start` is axis-relative: in a `flex-row` container it controls the vertical cross axis and is harmless, but in a `flex-col` container it controls the horizontal cross axis, where "start" means content width, not full width.
+**Fix**: Bind the class rather than leaving it static: `[class.items-start]="!isNarrow()"` (with `[class.flex-col]="isNarrow()"`), so `items-start` applies only in the desktop row layout and the column layout gets the default `stretch`.
+**Prevention**: When a flex container flips direction responsively, audit every alignment utility for axis-dependence; `items-start`/`items-end`/`items-center` mean a different axis under `flex-col`. Make such utilities signal-bound, never a static class that outlives the direction it was chosen for.
+
+## [2026-09-24] spotting/vehicle-spotting-grid: `position: sticky; left: 0` on a `colspan` `<td>` is unreliable, pin an inner `<div>`
+
+**Problem**: On mobile the per-vehicle name and per-type label needed to stay pinned to the left while the date row scrolled horizontally. Putting `position: sticky; left: 0` on the full-width `colspan` `<td>` did not pin reliably across browsers, and a pinned cell can also overlap cells in adjacent rows.
+**Root Cause**: Sticky positioning on table cells, and especially on a cell spanning a `colspan`, is not honoured consistently; a cell's own box and the table's layout algorithm interact badly with the sticky containing block.
+**Fix**: Keep the `<td>` as a plain full-width `colspan` cell and put the sticky pin on an inner `<div class="sticky left-0 w-fit">` inside it. The `<div>` is the sticky element; the `<td>` stays an ordinary cell.
+**Prevention**: Never put `position: sticky` on a `<td>` (or `<th>`) that spans columns. Wrap the pinned content in an inner element and pin that. Test the pin against horizontal scroll rather than trusting the CSS on inspection.
+
+## [2026-09-24] spotting/vehicle-spotting-grid: a pinned overlay must be a sibling of the `overflow-x-auto` body
+
+**Problem**: The mobile pinned overlay (current type label + totals) has to stay under the month/day header while scrolling vertically, but placing it inside the horizontal-scroll body left it inert: it never engaged.
+**Root Cause**: `position: sticky` sticks against its nearest scrolling ancestor. The body owns `overflow-x-auto`, and the CSS overflow spec promotes the other axis too, so that element is the sticky containing block on both axes; it never scrolls vertically (it flows with the page), so a sticky descendant inside it has nothing to stick against and sits at its natural position forever.
+**Fix**: Render the overlay as a page-sticky sibling of the `overflow-x-auto` body, not a descendant, with `height: 0` so it contributes no flow height and its visible content overflows downward only while a section is pinned. The component's existing desktop mirror already followed this rule; the mobile overlay follows it too.
+**Prevention**: A sticky element that must stick to the page can never live inside an `overflow` ancestor, even one that only overflows on the other axis. Place it as a sibling of the scroll container. This is the same trap the component's class doc comment documents for its header/mirror split.
+
+## [2026-09-24] e2e/spotting-details: a too-short stub fleet clamps `window.scrollBy` so the pinned overlay never engages
+
+**Problem**: The new mobile e2e asserted the pinned overlay engaged after `window.scrollBy`, but with a 3-vehicle stub fleet the page was barely taller than the 844px viewport, so `scrollBy` clamped to the tiny maximum and the grid never scrolled the sticky boundary into range; the overlay stayed unpinned and the assertion was meaningless.
+**Root Cause**: Sticky engagement depends on real scroll distance. The test data has to make the page tall enough that the sticky boundary can actually be scrolled past; a stub smaller than the viewport gives no scroll room, and the browser silently clamps the requested scroll.
+**Fix**: Enlarged the stub fleet to 2 types × 8 vehicles so the grid is ~1150px tall, giving the page real scroll distance for the pinned overlay to engage. The e2e then passes at 390×844 (stacked rows, sticky-left pins, pinned overlay, collapse) alongside the desktop 1280×900 regression check.
+**Prevention**: For any e2e that exercises sticky/pinned behaviour, size the stub data so the scrollable content is comfortably taller than the viewport; a `scrollBy` against a non-scrolling page clamps silently and the pin assertion passes or fails for the wrong reason. Assert the page actually scrolled (e.g. `window.scrollY > 0`) before asserting the pin.
+
+## [2026-09-25] spotting/vehicle-spotting-grid: a duplicated pinned overlay drifts from its in-flow twin, so pinning jumps the type label
+
+**Problem**: On mobile (<768px) the current type label renders twice — the in-flow full-width TYPE row and the pinned overlay copy (`data-testid="grid-mobile-pinned-label"`). Their class lists had drifted, so when a type anchored (pinned) under the header, its font size, colour and borders visibly jumped from the in-flow styles — exactly the moment both copies are on screen together.
+**Root Cause**: Two markup copies of the same visual element each carried their own hand-maintained class list, duplicated in the template rather than derived from one source; styling passes on the in-flow copy (font/border/colour changes) were never mirrored to the pinned snapshot, and the pinned totals cells even used a different border side (`border-t`) than the in-flow totals row (`border-b`).
+**Fix**: Both copies now read one class-producing method (`mobileTypeLabelClass()`) as the single source for the label's look classes; the pinned overlay's per-date totals cells use `border-b` to match the in-flow totals row, and the in-flow label's inner `<span>` wrapper was removed (the label is itself the flex row now). Desktop markup is untouched. New unit test `"renders the pinned type label with the same look classes as the in-flow type label"` was RED 1 failed / 10 passed → GREEN 11 passed / 11; full suite **87 files / 766 tests**, `npx prettier --check .` clean, `npm run build` exit 0, Playwright spotting-details 2/2 with the pinned label matching the in-flow label (`.omo/evidence/spotting-details-mobile-pinned.png`).
+**Prevention**: When the same visual element exists in two templates (an in-flow row and a pinned/mirrored copy), both must read one shared class-producing method or class constant — never paste a second copy of the class list. Assert the class parity in a spec so drift surfaces as a failed test, not a visible pinning jump.
+
 ## Fixed
+
+### [2026-09-24] SSR: NG0502 from content projected into a conditional slot
+
+**Problem**: `GET /` returned HTTP 200 with a 22-byte body (`Internal server error.`) on both the dev server (`:4200`) and the production SSR build, while `/methodology` rendered fine. Nothing was logged anywhere, so the route looked healthy to every client and monitor.
+**Root Cause**: `StatusInfoChipComponent` projects `<div popoverExtra>` into the shared `InfoPopover`'s `<ng-content select="[popoverExtra]" />`, which lives inside `@if (_open())`. `_open()` is false on the server, so the slot never exists and the projected node has no DOM counterpart; Angular's hydration serializer (`calcPathForNode` → `appendSerializedNodePath` → `annotateForHydration`) throws `NG0502` mid-stream. `@angular/ssr`'s `writeResponseToNodeResponse` wraps the stream in a bare catch (`node_modules/@angular/ssr/fesm2022/node.mjs:401-404`) that writes the 22-byte fallback after the status line is already sent, swallowing the real error. Bisect: `977e10f` rendered `/` at 229,700 bytes; `5c53c4c` (the chip composing the shared popover) dropped it to 22 bytes.
+**Fix**: `ngSkipHydration: ""` on the `InfoPopover` host (`src/app/ui/info-popover/info-popover.ts:45`) — Angular's documented remedy for content that is not hydration-compatible — which also covers every future consumer that projects `[popoverExtra]` (e.g. the planned provenance chip). Consequence: because Angular's `clearElementContents` discards the host's children and re-renders the component, `app-info-popover` instances re-render on hydration instead of hydrating, so the server markup inside `app-info-popover` is newly created client-side (functionally identical; a11y and the public API are unchanged). New `src/app/features/home/line-pulse/status-info-chip.server.spec.ts` renders the real chip through the actual server path (`renderApplication` + `provideClientHydration`) and fails with the same `NG0502` without the fix. Commit `f0954ac`.
+**Prevention**: Never project content into a slot that is conditionally rendered; if you must, skip hydration on that component and cover it with a server-render spec (`renderApplication`), because a jsdom `TestBed` spec cannot catch this class of failure. Debugging tip: a 22-byte `Internal server error.` with HTTP 200 means the `@angular/ssr` stream catch fired — instrument the response stream to see the real error, since nothing reaches the console.
+
+### [2026-09-24] Testing: non-isolated Vitest shares globals and the module cache across spec files
+
+**Problem**: Growing four spec files reshuffled Vitest's size/duration ordering and exposed three cross-file leaks that made `npm test -- --no-watch` intermittently red: `status-info.util.spec.ts` read `"sentinel: registry-sourced"`, `info-popover.spec.ts`'s "missing matchMedia" case behaved as hover-capable, and `gtfs-static.service.spec.ts`'s `Sentry.captureException` assertions saw zero calls.
+**Root Cause**: `@angular/build:unit-test` defaults to `isolate: false` (Karma/Jasmine parity), so every file in a worker shares the jsdom global object **and** the module cache. `line-status-metrics.util.spec.ts` / `status-info.util.spec.ts` mutated `METRIC_DOCS` after `vi.resetModules()` and left the sentinel-sourced registry and metric modules cached for later files; `line-status-sheet.component.spec.ts` assigned `window.matchMedia` (returning `matches: true`) in `beforeEach` and never restored it; and the tracker specs that `vi.mock("@sentry/angular")` can run after another spec already cached `gtfs-static.service` bound to a different mock.
+**Fix**: The mutating specs now restore the registry and `vi.resetModules()` in a `finally`; `line-status-sheet.component.spec.ts` stubs `matchMedia` via `vi.stubGlobal` and calls `vi.unstubAllGlobals()` in `afterEach`. The remaining `gtfs-static.service.spec.ts` hazard is untouched (tracker file, separately owned); `npm test -- --no-watch --isolate` runs the whole suite deterministically (86 files / 753 tests, 3/3 green) at ~4× the duration.
+**Prevention**: With `isolate: false`, never mutate a shared module export or assign a browser global without restoring it; use `vi.stubGlobal` + `vi.unstubAllGlobals()` for globals, and leave the module cache clean (`vi.resetModules()` in `finally`) after any spec that mutates registry/module state. A spec that passes alone but fails in the full suite is this class of bug — read the file ordering, not a timing flake.
 
 ### [2026-09-22] insiden/home: the Pending pill and the pending group keyed off `completed`, not the approval `status`
 

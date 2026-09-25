@@ -25,12 +25,12 @@ npx prettier --write .          # autofix formatting
 
 There is **no ESLint and no `lint` script**. Type checking happens only via `npm run build`.
 
-**Backend** (`rosak_backend`, sibling repo at `/home/kwongtn/rosak_backend` — Django 5.2 +
+**Backend** (`rosak_backend`, sibling repo at `/home/kwongtn/rosak/rosak_backend` — Django 5.2 +
 Strawberry GraphQL + Celery, rye-managed). `rye`/`uv` are not on PATH; use the committed `.venv`
 or Docker:
 
 ```bash
-cd /home/kwongtn/rosak_backend
+cd /home/kwongtn/rosak/rosak_backend
 docker compose up                          # full stack: postgis, redis, granian app, nginx :8000,
                                            # celery worker + beat
 .venv/bin/python manage.py makemigrations <app>   # then commit the migration WITH the model change
@@ -51,7 +51,7 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 **Do not guess component interfaces, dependencies, or extension points — look them up:**
 
 - **[`docs/COMPONENTS.md`](docs/COMPONENTS.md) is canonical** — system topology, the catalog of all
-  10 features, and where the seams are.
+  11 features, and where the seams are.
 - **[`docs/components/`](docs/components/)`<feature>.md`** — per-feature interfaces, internal state,
   and named extension points. Read the relevant one before touching a feature.
 - ⚠️ **[`docs/frontend-map/`](docs/frontend-map/) is LEGACY** — it describes the pre-rewrite
@@ -166,6 +166,22 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 - **Content**: Grouped by module/feature, with commit references
 - **Cleanup**: Remove completed items from "Suggested Features", "TODO", "Potential Feature Opportunities" sections in component docs
 - **Main docs stay clean**: Component docs only show _current_ opportunities, not history
+
+### Methodology & Metric Constants
+
+- `/methodology` and every `app-info-popover` read ONE code-first registry:
+  `src/app/core/methodology/methodology.constants.ts` (documented numbers) +
+  `methodology.content.ts` (sections + metric definitions). Copy is rendered via
+  `renderMethodologyCopy()` — never a literal in a consuming template.
+- Any user-visible metric/status/threshold/rule must add a `MetricDoc` (+ a `METHODOLOGY_CONSTANTS`
+  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is
+  `metricDoc(id).definition` rendered with the constants.
+- When a feature changes a documented value or rule: update the registry, bump the owning section's
+  `lastReviewed`, re-run `npm test -- --no-watch` (the PR template carries the checklist line).
+- Backend-owned values (reliability constants, provenance licenses, staleness windows) are fetched
+  via GraphQL and rendered — never mirrored into a frontend literal.
+- Sections whose owning spec has not shipped its CODE render the "in progress" state naming the
+  owning spec; never invent a formula or threshold.
 
 ### Workflow Integration
 

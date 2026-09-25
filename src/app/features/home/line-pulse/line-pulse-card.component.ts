@@ -1,4 +1,8 @@
 import { Component, computed, inject, input, signal } from "@angular/core";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -90,7 +94,10 @@ const MAX_PULSE_LINKS = 5;
               </h3>
               <div class="mt-1.5 flex flex-wrap items-center gap-2">
                 @if (line().status !== "ACTIVE") {
-                  <app-status-info-chip [info]="lineStatusInfo(line().status)">
+                  <app-status-info-chip
+                    [info]="lineStatusInfo(line().status)"
+                    [showMethodologyLink]="false"
+                  >
                     <line-status-badge [status]="line().status" />
                   </app-status-info-chip>
                 }
@@ -98,6 +105,7 @@ const MAX_PULSE_LINKS = 5;
                   [info]="passengerInfo(line().passengerStatus)"
                   [scale]="passengerScale(line().passengerStatus, line().passengerStatusCounts)"
                   [windowMinutes]="_passengerWindowMinutes()"
+                  linkFragment="sightings"
                 >
                   <span
                     hlmBadge
@@ -217,10 +225,10 @@ export class LinePulseCardComponent {
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
 
-  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => ({
-    title: "Vehicles",
-    body: `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service right now.`,
-  }));
+  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => {
+    const doc = metricDoc("line-pulse.vehicle-count");
+    return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
+  });
 
   protected readonly _vehicleCountLabel = computed(
     () =>

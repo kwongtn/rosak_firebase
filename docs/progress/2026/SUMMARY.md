@@ -40,6 +40,7 @@
 | Sep 22 | Home close-out: Pending pill + pending group keyed off the approval `status`; hourly bars stacked by report type (`statusCounts`); recent-reports list capped in its own scroller; `HlmCombobox` clear-to-deselect fix in the spotting report form    |
 | Sep 23 | Front page split into a two-panel desktop layout (full-height URL feed left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                       |
 | Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection |
+| Sep 24 | **methodology** "How this is counted" page + code-first registry (8 sections, 13 metric docs) read by the page and every shared `app-info-popover`; `app-disclaimer-note`; PR-template anti-drift checklist                                           |
 
 ---
 
@@ -116,6 +117,13 @@
 | Sep 22–23  | Approval-status-driven Pending pill, hourly bars stacked by report type, recent-reports list capped in its own scroller, two-panel desktop layout + 30s lines-only refresh beat                                                                                                                    |
 | Sep 23     | Round 7: URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection                                                                            |
 | **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
+
+### methodology (Methodology & Inline Docs) — **NEW PLATFORM**
+
+| Phase      | Deliverables                                                                                                                                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sep 24     | `/methodology` "How this is counted" page over a code-first registry (`core/methodology/`: constants + 8 sections + 13 metric docs) read by both the page and every shared `app-info-popover`; shared `app-disclaimer-note`; PR-template anti-drift checklist |
+| **Status** | **Structure shipped** — all 8 sections render the in-progress state naming their owning spec until those specs' code lands                                                                                                                                    |
 
 ### core (Utilities) — **EXTRACTED PATTERNS**
 
@@ -281,6 +289,7 @@
 src/app/
 ├── features/
 │   ├── home/             # Community front page (NEW 2026, landing route)
+│   ├── methodology/      # "How this is counted" + registry (NEW 2026)
 │   ├── insiden/          # Incident reporting platform (NEW 2026)
 │   ├── console/          # Admin dashboard (EXPANDED 2026)
 │   ├── tracker/          # GTFS real-time tracking (MATURE)

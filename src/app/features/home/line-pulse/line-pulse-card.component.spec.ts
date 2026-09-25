@@ -2,9 +2,14 @@ import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
@@ -82,6 +87,7 @@ describe("LinePulseCardComponent", () => {
       imports: [LinePulseCardComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
         { provide: ReportSheetService, useValue: reportSheetMock },
@@ -104,9 +110,7 @@ describe("LinePulseCardComponent", () => {
 
   /** The info chips open on tap in jsdom (no `matchMedia` ⇒ no hover capability). */
   function openPopover(root: HTMLElement, triggerTestId: string): void {
-    const trigger = root
-      .querySelector(`[data-testid="${triggerTestId}"]`)
-      ?.closest("[role='button']");
+    const trigger = root.querySelector(`[data-testid="${triggerTestId}"]`)?.closest("button");
     expect(trigger).not.toBeNull();
     (trigger as HTMLElement).click();
     fixture.detectChanges();
@@ -198,6 +202,69 @@ describe("LinePulseCardComponent", () => {
     );
     expect(rows).toEqual(["In service 12", "Not spotted 3", "Out of service 1", "Total 16"]);
     expect(textOf(root, "line-vehicle-count")).toBe("12/16 in service");
+
+    const definition = root
+      .querySelector('[data-testid="status-info-popover"]')
+      ?.querySelectorAll("p")[1];
+    expect(definition?.textContent?.trim()).toBe(
+      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").definition),
+    );
+  });
+
+  it("deep-links each status chip to the methodology section owning its metric", () => {
+    const root = render(makeLine({ passengerStatus: "CROWDED" }));
+
+    openPopover(root, "passenger-status");
+    const passengerChip = root
+      .querySelector('[data-testid="passenger-status"]')
+      ?.closest("app-status-info-chip");
+    expect(
+      passengerChip?.querySelector('[data-testid="status-info-popover"] a')?.getAttribute("href"),
+    ).toBe("/methodology#sightings");
+
+    openPopover(root, "line-vehicle-count");
+    const vehicleChip = root
+      .querySelector('[data-testid="line-vehicle-count"]')
+      ?.closest("app-status-info-chip");
+    expect(
+      vehicleChip?.querySelector('[data-testid="status-info-popover"] a')?.getAttribute("href"),
+    ).toBe("/methodology#line-status");
+  });
+
+  it("renders every status chip as a text pill with no 'i' glyph", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
+
+    const statusTrigger = root.querySelector("line-status-badge")?.closest("button");
+    expect(statusTrigger).not.toBeNull();
+    expect(statusTrigger?.querySelector('span[aria-hidden="true"]')).toBeNull();
+
+    for (const testId of ["passenger-status", "line-vehicle-count"]) {
+      const trigger = root.querySelector(`[data-testid="${testId}"]`)?.closest("button");
+      expect(trigger, testId).not.toBeNull();
+      expect(trigger?.querySelector('span[aria-hidden="true"]'), testId).toBeNull();
+    }
+  });
+
+  it("drops the methodology link for the line-status chip but keeps it on the passenger chip", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", passengerStatus: "CROWDED" }));
+
+    const passengerChip = root
+      .querySelector('[data-testid="passenger-status"]')
+      ?.closest("app-status-info-chip") as HTMLElement;
+    const lineStatusChip = root
+      .querySelector("line-status-badge")
+      ?.closest("app-status-info-chip") as HTMLElement;
+
+    openPopover(root, "passenger-status");
+    expect(passengerChip.querySelector('[data-testid="status-info-popover"] a')).not.toBeNull();
+
+    (lineStatusChip.querySelector("button") as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const lineStatusPanel = lineStatusChip.querySelector('[data-testid="status-info-popover"]');
+    expect(lineStatusPanel).not.toBeNull();
+    expect(lineStatusPanel?.querySelector("a")).toBeNull();
+    expect(lineStatusPanel?.getAttribute("role")).toBe("tooltip");
   });
 
   it("folds the per-status report counts into the passenger legend rows", () => {

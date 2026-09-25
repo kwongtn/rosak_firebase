@@ -1,6 +1,6 @@
+import { metricDoc } from "../../../core/methodology/methodology-render.util";
 import type { BadgeVariants } from "../../../ui/badge/badge";
 import type { LineStatus, PassengerStatus, VehicleStatus } from "./home.queries";
-import { PASSENGER_METRIC } from "./line-status-metrics.util";
 import { PASSENGER_LABEL, PASSENGER_VARIANT } from "./passenger-status.util";
 
 /** Copy shown in a status info popover: a short title plus one line of plain language. */
@@ -71,18 +71,24 @@ const NO_PASSENGER_DATA: StatusInfo = {
   body: "No recent community reports for this line.",
 };
 
-/** Plain-language explanation per passenger status: its short title plus the universal metric. */
+/**
+ * The popover copy for a methodology registry metric: its title plus its definition. Reading the
+ * registry here is what keeps the tooltip and `/methodology` from ever disagreeing.
+ */
+function infoFromDoc(id: string): StatusInfo {
+  const doc = metricDoc(id);
+  return { title: doc.title, body: doc.definition };
+}
+
+/** Plain-language explanation per passenger status, sourced from the methodology registry. */
 export const PASSENGER_INFO: Record<PassengerStatus, StatusInfo> = {
-  NORMAL: { title: "Normal", body: PASSENGER_METRIC.NORMAL },
-  BUSY: { title: "Busy", body: PASSENGER_METRIC.BUSY },
-  CROWDED: { title: "Crowded", body: PASSENGER_METRIC.CROWDED },
-  EXTREMELY_CROWDED: {
-    title: "Extremely Crowded",
-    body: PASSENGER_METRIC.EXTREMELY_CROWDED,
-  },
-  BACKLOGGED: { title: "Backlogged", body: PASSENGER_METRIC.BACKLOGGED },
-  DELAYED: { title: "Delayed", body: PASSENGER_METRIC.DELAYED },
-  DISRUPTED: { title: "Disrupted", body: PASSENGER_METRIC.DISRUPTED },
+  NORMAL: infoFromDoc("passenger.normal"),
+  BUSY: infoFromDoc("passenger.busy"),
+  CROWDED: infoFromDoc("passenger.crowded"),
+  EXTREMELY_CROWDED: infoFromDoc("passenger.extremely_crowded"),
+  BACKLOGGED: infoFromDoc("passenger.backlogged"),
+  DELAYED: infoFromDoc("passenger.delayed"),
+  DISRUPTED: infoFromDoc("passenger.disrupted"),
 };
 
 /** The 7 passenger levels in severity order — the order the legend must render them in. */
@@ -126,26 +132,14 @@ export function passengerScale(
   });
 }
 
-/** Plain-language explanation per line status. Titles mirror LineStatusBadge's labels. */
+/** Plain-language explanation per line status, sourced from the methodology registry. */
 export const LINE_STATUS_INFO: Record<LineStatus, StatusInfo> = {
-  TESTING: {
-    title: "Testing",
-    body: "The line is under test — service is not fully open to the public yet.",
-  },
-  DEFUNCT: { title: "Defunct", body: "This line is no longer in service." },
-  ACTIVE: { title: "Active", body: "The line is fully operational." },
-  PARTIAL_ACTIVE: {
-    title: "Partially Active",
-    body: "Only part of the line is open — some stations are skipped or closed.",
-  },
-  PARTIAL_DISRUPTION: {
-    title: "Partial Disruption",
-    body: "Part of the line is disrupted; expect delays or detours.",
-  },
-  TOTAL_DISRUPTION: {
-    title: "Total Disruption",
-    body: "The line is not running — use an alternative route.",
-  },
+  TESTING: infoFromDoc("line-status.testing"),
+  DEFUNCT: infoFromDoc("line-status.defunct"),
+  ACTIVE: infoFromDoc("line-status.active"),
+  PARTIAL_ACTIVE: infoFromDoc("line-status.partial_active"),
+  PARTIAL_DISRUPTION: infoFromDoc("line-status.partial_disruption"),
+  TOTAL_DISRUPTION: infoFromDoc("line-status.total_disruption"),
 };
 
 /** Info for a line status. */
