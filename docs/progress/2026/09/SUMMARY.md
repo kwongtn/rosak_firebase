@@ -36,6 +36,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 24 | Home info chips drop the "(i)" pill (the badge is the trigger) and the shared popover closes only 1 s after the cursor leaves the host, so "How this is counted" stays clickable; `showMethodologyLink` makes the line-status chip's panel a plain tooltip; three non-isolated-runner cross-file leaks fixed                                                                                                                      |
 | Sep 24 | Shared popover exclusivity: `InfoPopoverRegistry` closes the previous holder on every open, so pill-to-pill movement never leaves two panels overlapping; the hover grace drops 1 s → 300 ms (supersedes the row above) — `53255b4`                                                                                                                                                                                               |
 | Sep 24 | **spotting** `/spotting/:lineId/details` grid gains a mobile (<768px) stacked layout: each vehicle/type becomes a full-width NAME/TYPE row above its own horizontally-scrolling date/totals row, names/types pinned left, the current type pinned under the header by a page-sticky 2-row sibling overlay; `isNarrow` `matchMedia` signal + `host.ngSkipHydration` for the SSR/window hydration mismatch (`87 files / 765 tests`) |
+| Sep 25 | **spotting** `/spotting/:lineId/details` pinned mobile type label styling parity: the in-flow mobile type label and its pinned overlay copy (`grid-mobile-pinned-label`) drifted apart, so pinning a type visibly jumped its font/colour/borders — both copies now share one `mobileTypeLabelClass()` and the pinned totals cells match the in-flow `border-b` (`87 files / 766 tests`)                                           |
 
 ### Home — community front page (2026-09-22)
 
@@ -187,3 +188,4 @@ renders a license literal. Full suite 741 tests green.
 - [22.md](./22.md)
 - [23.md](./23.md)
 - [24.md](./24.md)
+- [25.md](./25.md)

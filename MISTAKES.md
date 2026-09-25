@@ -188,6 +188,13 @@ layout the same way.
 **Fix**: Enlarged the stub fleet to 2 types × 8 vehicles so the grid is ~1150px tall, giving the page real scroll distance for the pinned overlay to engage. The e2e then passes at 390×844 (stacked rows, sticky-left pins, pinned overlay, collapse) alongside the desktop 1280×900 regression check.
 **Prevention**: For any e2e that exercises sticky/pinned behaviour, size the stub data so the scrollable content is comfortably taller than the viewport; a `scrollBy` against a non-scrolling page clamps silently and the pin assertion passes or fails for the wrong reason. Assert the page actually scrolled (e.g. `window.scrollY > 0`) before asserting the pin.
 
+## [2026-09-25] spotting/vehicle-spotting-grid: a duplicated pinned overlay drifts from its in-flow twin, so pinning jumps the type label
+
+**Problem**: On mobile (<768px) the current type label renders twice — the in-flow full-width TYPE row and the pinned overlay copy (`data-testid="grid-mobile-pinned-label"`). Their class lists had drifted, so when a type anchored (pinned) under the header, its font size, colour and borders visibly jumped from the in-flow styles — exactly the moment both copies are on screen together.
+**Root Cause**: Two markup copies of the same visual element each carried their own hand-maintained class list, duplicated in the template rather than derived from one source; styling passes on the in-flow copy (font/border/colour changes) were never mirrored to the pinned snapshot, and the pinned totals cells even used a different border side (`border-t`) than the in-flow totals row (`border-b`).
+**Fix**: Both copies now read one class-producing method (`mobileTypeLabelClass()`) as the single source for the label's look classes; the pinned overlay's per-date totals cells use `border-b` to match the in-flow totals row, and the in-flow label's inner `<span>` wrapper was removed (the label is itself the flex row now). Desktop markup is untouched. New unit test `"renders the pinned type label with the same look classes as the in-flow type label"` was RED 1 failed / 10 passed → GREEN 11 passed / 11; full suite **87 files / 766 tests**, `npx prettier --check .` clean, `npm run build` exit 0, Playwright spotting-details 2/2 with the pinned label matching the in-flow label (`.omo/evidence/spotting-details-mobile-pinned.png`).
+**Prevention**: When the same visual element exists in two templates (an in-flow row and a pinned/mirrored copy), both must read one shared class-producing method or class constant — never paste a second copy of the class list. Assert the class parity in a spec so drift surfaces as a failed test, not a visible pinning jump.
+
 ## Fixed
 
 ### [2026-09-24] SSR: NG0502 from content projected into a conditional slot
