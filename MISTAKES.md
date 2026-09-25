@@ -153,6 +153,41 @@ layout the same way.
 **Fix**: Filter with the real-cased name regex, or use `--include <path>` for a single file. `AGENTS.md`'s own example is `npm test -- --no-watch --filter "^App"` for exactly this reason.
 **Prevention**: Read "file loaded but 0 tests ran" as a filter mismatch, not a pass. Use `--include <path>` for one file and `--filter` only with a regex that matches the suite/test name's actual casing (anchor it, e.g. `"^Methodology"`); re-run without a filter before trusting a green result.
 
+## [2026-09-24] SSR/graphql: `REQUESTS_CONTRIBUTE_TO_STABILITY` renders resource data, so a viewport-conditional `@if` mismatches hydration
+
+**Problem**: The spotting details grid's template branches on viewport (`isNarrow()`): below 768px it renders a stacked mobile layout, at/above it the desktop table. The server has no viewport, so it always rendered the desktop branch, and because Angular's `REQUESTS_CONTRIBUTE_TO_STABILITY` defaults `true` the server awaited the grid's GraphQL POST and rendered the desktop grid with real data. On a phone the client's first render wanted the mobile branch, so hydration could not match the server markup (NG0500/NG0502).
+**Root Cause**: `httpResource`/`graphqlResource` requests contribute to Angular's stability by default; a server render therefore resolves them and emits fully-populated desktop markup. Any `@if` keyed on a client-only signal (viewport, media query) then disagrees with that markup on first client render, which is exactly what hydration mismatch detection reports.
+**Fix**: `host: { ngSkipHydration: "" }` on `VehicleSpottingGridComponent` — Angular's documented remedy for content that is not hydration-compatible. The component re-renders on hydration instead of hydrating, and the client's own synchronous `isNarrow()` picks the correct branch immediately. Same remedy already used by `src/app/ui/info-popover/info-popover.ts`.
+**Prevention**: Any component whose first-render markup depends on a browser-only signal (viewport, `matchMedia`, `localStorage`) while also reading a `graphqlResource`/`httpResource` cannot be safely hydrated; skip hydration on that host and leave a comment naming the reason. Do not assume "SSR renders the skeleton and hydration fills it in" — stability defaults make the resource resolve before the server flushes.
+
+## [2026-09-24] spotting/vehicle-spotting-grid: `flex-col` with a retained `items-start` collapses the horizontal scroll container
+
+**Problem**: On mobile the grid switched to `flex-col`, but the names/scroll split still carried `items-start` (added for the desktop layout, where it stops the taller horizontal-scroll sibling from stretching the names table). Under `flex-col`, `align-items: start` sizes each child to its content width on the cross (horizontal) axis instead of stretching to full width, so the `overflow-x-auto` date body collapsed to its content and the dates no longer scrolled within the viewport.
+**Root Cause**: `items-start` is axis-relative: in a `flex-row` container it controls the vertical cross axis and is harmless, but in a `flex-col` container it controls the horizontal cross axis, where "start" means content width, not full width.
+**Fix**: Bind the class rather than leaving it static: `[class.items-start]="!isNarrow()"` (with `[class.flex-col]="isNarrow()"`), so `items-start` applies only in the desktop row layout and the column layout gets the default `stretch`.
+**Prevention**: When a flex container flips direction responsively, audit every alignment utility for axis-dependence; `items-start`/`items-end`/`items-center` mean a different axis under `flex-col`. Make such utilities signal-bound, never a static class that outlives the direction it was chosen for.
+
+## [2026-09-24] spotting/vehicle-spotting-grid: `position: sticky; left: 0` on a `colspan` `<td>` is unreliable, pin an inner `<div>`
+
+**Problem**: On mobile the per-vehicle name and per-type label needed to stay pinned to the left while the date row scrolled horizontally. Putting `position: sticky; left: 0` on the full-width `colspan` `<td>` did not pin reliably across browsers, and a pinned cell can also overlap cells in adjacent rows.
+**Root Cause**: Sticky positioning on table cells, and especially on a cell spanning a `colspan`, is not honoured consistently; a cell's own box and the table's layout algorithm interact badly with the sticky containing block.
+**Fix**: Keep the `<td>` as a plain full-width `colspan` cell and put the sticky pin on an inner `<div class="sticky left-0 w-fit">` inside it. The `<div>` is the sticky element; the `<td>` stays an ordinary cell.
+**Prevention**: Never put `position: sticky` on a `<td>` (or `<th>`) that spans columns. Wrap the pinned content in an inner element and pin that. Test the pin against horizontal scroll rather than trusting the CSS on inspection.
+
+## [2026-09-24] spotting/vehicle-spotting-grid: a pinned overlay must be a sibling of the `overflow-x-auto` body
+
+**Problem**: The mobile pinned overlay (current type label + totals) has to stay under the month/day header while scrolling vertically, but placing it inside the horizontal-scroll body left it inert: it never engaged.
+**Root Cause**: `position: sticky` sticks against its nearest scrolling ancestor. The body owns `overflow-x-auto`, and the CSS overflow spec promotes the other axis too, so that element is the sticky containing block on both axes; it never scrolls vertically (it flows with the page), so a sticky descendant inside it has nothing to stick against and sits at its natural position forever.
+**Fix**: Render the overlay as a page-sticky sibling of the `overflow-x-auto` body, not a descendant, with `height: 0` so it contributes no flow height and its visible content overflows downward only while a section is pinned. The component's existing desktop mirror already followed this rule; the mobile overlay follows it too.
+**Prevention**: A sticky element that must stick to the page can never live inside an `overflow` ancestor, even one that only overflows on the other axis. Place it as a sibling of the scroll container. This is the same trap the component's class doc comment documents for its header/mirror split.
+
+## [2026-09-24] e2e/spotting-details: a too-short stub fleet clamps `window.scrollBy` so the pinned overlay never engages
+
+**Problem**: The new mobile e2e asserted the pinned overlay engaged after `window.scrollBy`, but with a 3-vehicle stub fleet the page was barely taller than the 844px viewport, so `scrollBy` clamped to the tiny maximum and the grid never scrolled the sticky boundary into range; the overlay stayed unpinned and the assertion was meaningless.
+**Root Cause**: Sticky engagement depends on real scroll distance. The test data has to make the page tall enough that the sticky boundary can actually be scrolled past; a stub smaller than the viewport gives no scroll room, and the browser silently clamps the requested scroll.
+**Fix**: Enlarged the stub fleet to 2 types × 8 vehicles so the grid is ~1150px tall, giving the page real scroll distance for the pinned overlay to engage. The e2e then passes at 390×844 (stacked rows, sticky-left pins, pinned overlay, collapse) alongside the desktop 1280×900 regression check.
+**Prevention**: For any e2e that exercises sticky/pinned behaviour, size the stub data so the scrollable content is comfortably taller than the viewport; a `scrollBy` against a non-scrolling page clamps silently and the pin assertion passes or fails for the wrong reason. Assert the page actually scrolled (e.g. `window.scrollY > 0`) before asserting the pin.
+
 ## Fixed
 
 ### [2026-09-24] SSR: NG0502 from content projected into a conditional slot
