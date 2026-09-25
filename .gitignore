@@ -43,6 +43,9 @@ __screenshots__/
 /playwright-report
 /blob-report
 
+# OhMyOpenCode agent workspace (plans, evidence, sessions)
+/.omo
+
 # System files
 .DS_Store
 Thumbs.db
