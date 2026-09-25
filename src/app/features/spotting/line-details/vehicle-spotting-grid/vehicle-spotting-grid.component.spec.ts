@@ -223,6 +223,33 @@ describe("VehicleSpottingGridComponent", () => {
         ).toBeTruthy();
       }
     });
+
+    it("renders the pinned type label with the same look classes as the in-flow type label", () => {
+      const inFlow = root.querySelector<HTMLElement>('[data-testid="grid-mobile-type-label"]');
+      const pinned = root.querySelector<HTMLElement>('[data-testid="grid-mobile-pinned-label"]');
+      expect(inFlow).not.toBeNull();
+      expect(pinned).not.toBeNull();
+
+      // Pinning swaps the in-flow label for this overlay copy, so any class unique to the overlay is
+      // a visible font/size/colour/border change mid-pin. Every overlay class must exist on the
+      // in-flow label (which additionally carries the positioning classes sticky/left-0/w-fit).
+      const inFlowClasses = new Set(inFlow?.classList ?? []);
+      expect(Array.from(pinned?.classList ?? []).filter((c) => !inFlowClasses.has(c))).toEqual([]);
+
+      // The overlay lives outside <table class="text-xs">, so it must set the size/colour explicitly.
+      expect(pinned?.classList.contains("text-xs")).toBe(true);
+      expect(pinned?.classList.contains("text-muted-foreground")).toBe(true);
+
+      // Its per-date totals cells must match the in-flow totals row's bottom border, not add a top one.
+      const totalsCells = Array.from(
+        root.querySelectorAll<HTMLElement>('[data-testid="grid-mobile-pinned"] td'),
+      );
+      expect(totalsCells.length).toBeGreaterThan(0);
+      for (const cell of totalsCells) {
+        expect(cell.classList.contains("border-b")).toBe(true);
+        expect(cell.classList.contains("border-t")).toBe(false);
+      }
+    });
   });
 
   describe("desktop layout (>=768px)", () => {

@@ -429,7 +429,7 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                 >
                   <div
                     data-testid="grid-mobile-pinned-label"
-                    class="flex items-center gap-1.5 border-t border-b px-2 font-semibold whitespace-nowrap select-none"
+                    [class]="mobileTypeLabelClass()"
                     [style.height.px]="ROW_H"
                     (click)="toggleCurrentSection()"
                   >
@@ -463,7 +463,7 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                       <tr [style.height.px]="ROW_H" class="text-muted-foreground">
                         @for (col of columns(); track col.dateKey) {
                           <td
-                            class="border-t p-0 text-center text-[10px] tabular-nums"
+                            class="border-b p-0 text-center text-[10px] tabular-nums"
                             [class.border-l]="col.isMonthStart"
                           >
                             @if (_currentSection(); as section) {
@@ -526,25 +526,23 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                             #sectionAnchor
                             [attr.data-type-id]="section.typeId"
                             data-testid="grid-mobile-type-label"
-                            class="sticky left-0 w-fit cursor-pointer bg-muted px-2 py-1 font-semibold text-muted-foreground whitespace-nowrap select-none"
+                            [class]="mobileTypeLabelClass() + ' sticky left-0 w-fit'"
                             (click)="toggleCollapsed(section.typeId)"
                           >
-                            <span class="flex items-center gap-1.5">
-                              <svg
-                                viewBox="0 0 24 24"
-                                class="size-3 shrink-0 transition-transform duration-150"
-                                [class.-rotate-90]="isCollapsed(section.typeId)"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                              >
-                                <path d="m6 9 6 6 6-6" />
-                              </svg>
-                              {{ section.typeName }}
-                            </span>
+                            <svg
+                              viewBox="0 0 24 24"
+                              class="size-3 shrink-0 transition-transform duration-150"
+                              [class.-rotate-90]="isCollapsed(section.typeId)"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="m6 9 6 6 6-6" />
+                            </svg>
+                            {{ section.typeName }}
                           </div>
                         </td>
                       </tr>
@@ -1243,6 +1241,15 @@ export class VehicleSpottingGridComponent {
     ]
       .filter(Boolean)
       .join(" ");
+  }
+
+  /** The one look shared by the mobile type label's two rendered copies, the in-flow row and the
+   * pinned overlay. Pinning swaps one for the other, so they must be pixel-identical or the label
+   * visibly jumps (font size, colour, borders) as it anchors; desktop has no such jump because its
+   * pinned label is the same element. The overlay sits outside `<table class="text-xs">`, hence the
+   * explicit `text-xs`. */
+  protected mobileTypeLabelClass(): string {
+    return "flex items-center gap-1.5 cursor-pointer bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground whitespace-nowrap select-none";
   }
 
   /** translateY for the currently-pinned section's label — see `pushProgress`'s own doc comment.
