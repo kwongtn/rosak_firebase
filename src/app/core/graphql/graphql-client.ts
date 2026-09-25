@@ -1,4 +1,4 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, type HttpResourceOptions } from "@angular/common/http";
 import { isPlatformBrowser } from "@angular/common";
 import {
   computed,
@@ -15,6 +15,7 @@ import * as Sentry from "@sentry/angular";
 
 import { environment } from "../../../environments/environment";
 import { ToastService } from "../../ui/toast/toast.service";
+import { deepEqual } from "../util/deep-equal.util";
 import { GraphQLError, GraphQLResponse } from "./types";
 
 interface GraphQLRequestBody {
@@ -51,6 +52,12 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  * on every retry attempt, which reads as the page restarting from scratch rather than quietly
  * trying again behind an already-shown error state.
  *
+ * By default, a refresh whose GraphQL response is structurally equal to the current response
+ * retains the previous object reference. That keeps computed signals, effects, and DOM bindings
+ * from churning while route keep-alive pages revalidate silently in the background (see
+ * `.omo/plans/spotting-route-persistence.md`); only genuinely different payloads replace `data()`.
+ * Set `retainDataIfEqual` to `false` when a caller needs every response to become a new reference.
+ *
  * Only for queries (idempotent reads). Mutations should call
  * `inject(GraphQLClient).request(query, variables, headers)` directly from an event handler —
  * httpResource re-issues its request whenever a dependency signal changes, which is the wrong
@@ -58,7 +65,16 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  */
 export function graphqlResource<TData, TVars = Record<string, unknown>>(
   requestFn: () => { query: string; variables?: TVars } | undefined,
+  options?: { retainDataIfEqual?: boolean },
 ) {
+  const retainIfEqual = options?.retainDataIfEqual ?? true;
+  const resourceOptions: HttpResourceOptions<GraphQLResponse<TData>, unknown> | undefined =
+    retainIfEqual
+      ? {
+          equal: (a, b) => deepEqual(a, b),
+        }
+      : undefined;
+
   const raw = httpResource<GraphQLResponse<TData>>(() => {
     const req = requestFn();
     if (!req) {
@@ -69,7 +85,7 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
       method: "POST",
       body: { query: req.query, variables: req.variables ?? {} } satisfies GraphQLRequestBody,
     };
-  });
+  }, resourceOptions);
 
   const errors = computed(() => raw.value()?.errors);
   const data = computed(() => raw.value()?.data);
