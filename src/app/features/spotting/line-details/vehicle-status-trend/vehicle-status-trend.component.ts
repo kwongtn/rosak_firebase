@@ -3,6 +3,7 @@ import { DecimalPipe } from "@angular/common";
 import { Component, computed, signal, input } from "@angular/core";
 import { environment } from "../../../../../environments/environment";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { deepEqual } from "../../../../core/util/deep-equal.util";
 import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
@@ -159,9 +160,9 @@ const TOOLTIP_DATE_LABEL = new Intl.DateTimeFormat("en-US", {
           <p class="text-muted-foreground mb-3 text-xs italic">{{ activeDisclaimer() }}</p>
         }
 
-        @if (resource.isLoading()) {
+        @if (resource.isLoading() && !resource.hasValue()) {
           <div hlmSkeleton class="h-24 w-full"></div>
-        } @else if (resource.error()) {
+        } @else if (resource.error() && !resource.hasValue()) {
           <p class="text-muted-foreground text-sm">
             Couldn't load fleet status history for this line.
           </p>
@@ -288,10 +289,17 @@ export class VehicleStatusTrendComponent {
     return { start: isoDate(start), end: isoDate(end) };
   });
 
-  protected readonly resource = httpResource<StatusTrendRow[]>(() => {
-    const { start, end } = this._range();
-    return `${environment.backendUrl}operation/line_vehicles_status_trend_count/${this.lineId()}/${this.selectedSource()}/${start}/${end}/`;
-  });
+  /** `equal` keeps the previous rows when a revalidation returns the same history, so the strip
+   * below keeps its bars (and hover/legend state) instead of rebuilding on every reload. */
+  protected readonly resource = httpResource<StatusTrendRow[]>(
+    () => {
+      const { start, end } = this._range();
+      return `${environment.backendUrl}operation/line_vehicles_status_trend_count/${this.lineId()}/${this.selectedSource()}/${start}/${end}/`;
+    },
+    {
+      equal: (a, b) => deepEqual(a, b),
+    },
+  );
 
   protected readonly columns = computed<DayColumn[]>(() => {
     const rows = this.resource.value() ?? [];

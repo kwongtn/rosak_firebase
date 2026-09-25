@@ -77,6 +77,12 @@ export class RouteScrollMemoryService {
   }
 
   private restorePosition(event: Scroll): void {
+    // A popstate restore carries the position Angular stored for that history entry, which is more
+    // precise than our per-URL memory (two entries can share a URL at different offsets) — leave it.
+    if (event.position !== null) {
+      return;
+    }
+
     // An explicit fragment is an instruction, not a request to restore an old page position.
     if (event.anchor) {
       return;
@@ -99,8 +105,7 @@ export class RouteScrollMemoryService {
     }
 
     // RouterScroller handles its Scroll event synchronously. Deferring one microtask makes this
-    // restoration the final write, including for imperative in-app back links; on popstate the
-    // same position is simply re-applied and remains idempotent.
+    // restoration the final write, including for imperative in-app back links.
     queueMicrotask(() => {
       this.viewportScroller.scrollToPosition(position, { behavior: "instant" });
     });

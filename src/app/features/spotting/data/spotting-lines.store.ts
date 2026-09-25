@@ -3,11 +3,12 @@ import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { LINES_QUERY, Line, LinesQueryData } from "./spotting.queries";
 
 /**
- * App-lifetime cache for the line list shared by the home report form and every spotting page.
- * This keeps one `Lines` fetch alive across home/spotting navigations, avoiding duplicate
- * requests, and must outlive the spotting shell now that `ReusableRouteStrategy` keeps pages
- * mounted across navigations (`data: { reuse: true }`); a route-scoped store would leave a
- * detached page with stale data and a dead retry loop after its injector was destroyed.
+ * App-lifetime cache for the line list shared by the home report form and every spotting page, so
+ * one `Lines` fetch serves both entry points instead of refetching on every navigation. It is
+ * deliberately root-provided: `ReusableRouteStrategy` keeps page components mounted after
+ * navigation (`data: { reuse: true }`), and route injectors are not destroyed on deactivation, so a
+ * route-scoped store would still be alive but would hand a kept-alive page an instance tied to a
+ * route subtree that no longer exists.
  */
 @Injectable({ providedIn: "root" })
 export class SpottingLinesStore {

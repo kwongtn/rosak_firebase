@@ -16,8 +16,12 @@ function end(url: string): NavigationEnd {
   return new NavigationEnd(1, url, url);
 }
 
-function scroll(url: string, anchor: string | null = null): Scroll {
-  return new Scroll(end(url), null, anchor);
+function scroll(
+  url: string,
+  anchor: string | null = null,
+  position: [number, number] | null = null,
+): Scroll {
+  return new Scroll(end(url), position, anchor);
 }
 
 async function flushMicrotask(): Promise<void> {
@@ -82,6 +86,22 @@ describe("route-scroll-memory", () => {
     await flushMicrotask();
 
     expect(scrollToPosition).toHaveBeenCalledWith([10, 20], { behavior: "instant" });
+  });
+
+  it("leaves a popstate restore to the router's per-history-entry position", async () => {
+    getScrollPosition.mockReturnValueOnce([10, 20]).mockReturnValueOnce([30, 40]);
+    TestBed.inject(RouteScrollMemoryService);
+
+    events.next(start("/page"));
+    events.next(end("/other"));
+    events.next(start("/other"));
+    events.next(end("/page"));
+    // RouterScroller emits a non-null position when it is restoring this history entry itself.
+    events.next(scroll("/page", null, [0, 400]));
+
+    await flushMicrotask();
+
+    expect(scrollToPosition).not.toHaveBeenCalled();
   });
 
   it("does not override anchor scrolling", async () => {

@@ -1,7 +1,8 @@
 import { Component, DestroyRef, computed, inject, input, signal } from "@angular/core";
+import { Router } from "@angular/router";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../../core/polling/polling-source";
-import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { revalidateOnReturn, urlPath } from "../../../../core/routing/revalidate-on-return";
 import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
@@ -143,7 +144,15 @@ export class SituasiSectionComponent {
     variables: { lineId: this.lineId() },
   }));
 
-  protected readonly polling = new PollingSource(() => this.resource.reload());
+  private readonly router = inject(Router);
+
+  protected readonly polling = new PollingSource(() => {
+    // Keep-alive detaches this page behind other routes; revalidateOnReturn already refreshes it on
+    // return, so skip the beat while it is not the active route instead of polling invisibly.
+    if (isSpottingDetailsRoute(urlPath(this.router.url))) {
+      this.resource.reload();
+    }
+  });
 
   /** Per-link vote overlay handed to the list (the cards' optimistic copy). */
   protected readonly voteValues = signal<Record<string, number>>({});
