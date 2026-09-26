@@ -195,6 +195,16 @@
                 </td>
                 <td hlmTd class="py-3">
                   <div class="flex items-center gap-2">
+                    @if (link.status !== "LIVE") {
+                      <button
+                        hlmBtn
+                        size="sm"
+                        [disabled]="isLoading()"
+                        (click)="$event.stopPropagation(); approveLink(link)"
+                      >
+                        Approve
+                      </button>
+                    }
                     @if (!link.completed) {
                       <button
                         hlmBtn

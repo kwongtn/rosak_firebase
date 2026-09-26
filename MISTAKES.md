@@ -211,6 +211,32 @@ layout the same way.
 **Fix**: Enlarged the stub fleet to 2 types × 8 vehicles so the grid is ~1150px tall, giving the page real scroll distance for the pinned overlay to engage. The e2e then passes at 390×844 (stacked rows, sticky-left pins, pinned overlay, collapse) alongside the desktop 1280×900 regression check.
 **Prevention**: For any e2e that exercises sticky/pinned behaviour, size the stub data so the scrollable content is comfortably taller than the viewport; a `scrollBy` against a non-scrolling page clamps silently and the pin assertion passes or fails for the wrong reason. Assert the page actually scrolled (e.g. `window.scrollY > 0`) before asserting the pin.
 
+## [2026-09-26] incident/schema: `SocialMediaLinkInput` is not a patch — a status-only update blanks the title and strips every tag
+
+**Problem**: the console links queue's new **Approve** action needs to flip a row to `LIVE` and
+nothing else. The obvious payload — `{ status: "LIVE" }` — is destructive: the backend
+`update_social_media_link` service assigns `link.title = write.title or ""` and calls `.set()` on
+`categories`/`lines`/`vehicles`/`stations` with whatever id tuples arrive, defaulting to the empty
+tuple when the arg is omitted. A status-only input therefore wipes the title and removes every
+category, line, vehicle and station tag on the row.
+
+**Root Cause**: `SocialMediaLinkInput` mixes a required scalar (`url`) with `strawberry.Maybe`
+tri-state fields, so only `status`/`description`/`incidentId` are genuinely "omit = leave
+unchanged". `title` and the four id lists are full replacements, and the type mirror
+`UpdateSocialMediaLinkVars["input"]` made them all _look_ like optional patches because they are
+declared `?:`.
+
+**Fix**: `approveLink()` re-sends the row's current `url`, `title` and all four id lists next to
+`status: "LIVE"`; the `UpdateSocialMediaLinkVars.input` doc comment now states the replacement
+semantics explicitly; a spec asserts the full approve payload so a future "just send the status"
+shortcut fails loudly.
+
+**Prevention**: before sending a partial update through any `*Input` type, read the service — not
+just the GraphQL input — to see which fields it assigns unconditionally or `.set()`s. In this
+schema, `Maybe[...]` means "omit = unchanged" only for the fields the service treats as optional;
+everything else is a full replace. Same trap applies to
+`CalendarIncidentInput`'s chronology/asset lists.
+
 ## [2026-09-25] spotting/vehicle-spotting-grid: a duplicated pinned overlay drifts from its in-flow twin, so pinning jumps the type label
 
 **Problem**: On mobile (<768px) the current type label renders twice — the in-flow full-width TYPE row and the pinned overlay copy (`data-testid="grid-mobile-pinned-label"`). Their class lists had drifted, so when a type anchored (pinned) under the header, its font size, colour and borders visibly jumped from the in-flow styles — exactly the moment both copies are on screen together.

@@ -1,3 +1,5 @@
+import type { SocialMediaLinkStatus } from "../../home/data/home.queries";
+
 interface PublicSocialMediaLinkLine {
   id: string;
   code: string;
@@ -125,6 +127,11 @@ export const UPDATE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
 
 export interface UpdateSocialMediaLinkVars {
   socialMediaLinkId: string;
+  /** `SocialMediaLinkInput` is NOT a partial patch: `url` is required, and the
+   *  backend service replaces `title` and the lines/vehicles/stations/categories
+   *  M2M sets verbatim — an omitted `title` blanks it and an omitted id list
+   *  strips every tag. Callers must therefore re-send the row's current
+   *  scalars and ids even when they only mean to change `status`. */
   input: {
     url: string;
     title?: string | null;
@@ -132,6 +139,10 @@ export interface UpdateSocialMediaLinkVars {
     vehicleIds?: string[];
     stationIds?: string[];
     categoryIds?: string[];
+    /** Tri-state (backend `Maybe[SocialMediaLinkStatusInput]`): omit to leave the
+     *  approval status untouched, send `"LIVE"` to publish (the console queue's
+     *  Approve action). */
+    status?: SocialMediaLinkStatus;
   };
 }
 
