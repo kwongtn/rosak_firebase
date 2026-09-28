@@ -41,6 +41,7 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 25 | **spotting** route persistence: opt-in `ReusableRouteStrategy` + `RouteScrollMemoryService` scroll memory + `revalidateOnReturn`/route-pattern hooks keep page DOM/resources across returns and revalidate silently (`93 files / 800 tests`)                                                                                                                                                                                                                          |
 | Sep 26 | **console** `/console/insiden/links` gains an admin **Approve** row action for rows that aren't `LIVE` (sends the existing `updateSocialMediaLink` with `status: "LIVE"` — full current fields, since the backend replaces title + tag M2Ms — then reloads the list; the queue query now selects `status`). `OFFICIAL_POST_INGESTION.md` §5.3 (`93 files / 805 tests`)                                                                                                |
 | Sep 28 | **Official + HIDDEN** (frontend half of the backend's `isAutomated` / hidden-feed change, `0d2eea2`): the shared `app-link-card` grows an **Official** chip off the new `isAutomated` feed field, `/console/insiden/links` gains a **Hide** row action (`status: "HIDDEN"`, Approve stays as the un-hide verb) plus a per-row Official chip, and `SocialMediaLinkStatus` learns `"HIDDEN"` with a "Hidden" label/variant in the profile list (`94 files / 819 tests`) |
+| Sep 28 | **about** admin editor cards flow in the same responsive grid as the public sections below (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so an edit cell lines up with the card it produces; the personnel socials and tech-stack name rows wrap inside a narrow cell (`94 files / 819 tests`)                                                                                                                                                                       |
 
 ### Home — community front page (2026-09-22)
 
@@ -194,3 +195,4 @@ renders a license literal. Full suite 741 tests green.
 - [24.md](./24.md)
 - [25.md](./25.md)
 - [26.md](./26.md)
+- [28.md](./28.md)

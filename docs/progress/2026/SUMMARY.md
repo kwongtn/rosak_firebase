@@ -42,6 +42,7 @@
 | Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection |
 | Sep 24 | **methodology** "How this is counted" page + code-first registry (8 sections, 13 metric docs) read by the page and every shared `app-info-popover`; `app-disclaimer-note`; PR-template anti-drift checklist                                           |
 | Sep 28 | Link moderation + attribution: shared-card **Official** chip, console link **Hide** action (`HIDDEN`), per-row Official chip in the triage queue, "Hidden" status label/variant                                                                       |
+| Sep 28 | `/about` admin editor cards mirror the public display grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so an edit cell lines up with the card it produces                                                                                          |
 
 ---
 
