@@ -155,11 +155,15 @@
     `PENDING_APPROVAL` — the contract field is `LinkCardItem.status?: string | null`, kept loose
     rather than narrowed to `SocialMediaLinkStatus` so both source node types satisfy it
     structurally; `completed` is the console's separate admin "mark handled" flag and does not drive
-    it) and a right rail carrying the vote button plus the relative time (`humanizeSince`
+    it), the Official chip (`title="Captured automatically from an official operator account"`,
+    rendered only when `LinkCardItem.isAutomated === true`; the home feed's `FEED_QUERY` is the
+    only query selecting the field, so the other hosts leave it undefined and show no chip), and a
+    right rail carrying the vote button plus the relative time (`humanizeSince`
     with an exact-timestamp + submitter tooltip) and the edit pencil.
     The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
     their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
-    `link-tags`, `link-pending`, `link-meta-rail`, `link-time` / `link-created`, `link-submitter` and
+    `link-tags`, `link-pending`, `link-official`, `link-meta-rail`, `link-time` / `link-created`,
+    `link-submitter` and
     `link-edit`. The host passes `userVote` (its authenticated overlay wins over the anonymous feed
     value) and `editable` (gated with `canEditLink`); the card re-emits votes as `voteChanged` and
     the edit pencil as `edit`.

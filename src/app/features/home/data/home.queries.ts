@@ -15,7 +15,10 @@ export type LineStatus =
 export type PassengerStatus =
   "NORMAL" | "BUSY" | "CROWDED" | "EXTREMELY_CROWDED" | "BACKLOGGED" | "DELAYED" | "DISRUPTED";
 
-export type SocialMediaLinkStatus = "LIVE" | "PENDING_APPROVAL";
+/** `HIDDEN` is the backend's moderation state (rosak_backend `SocialMediaLinkStatus.HIDDEN`):
+ * the row exists and admins still see it in the console so they can un-hide it, but the public
+ * feed never returns it — not even through an explicit `status: HIDDEN` narrowing. */
+export type SocialMediaLinkStatus = "LIVE" | "PENDING_APPROVAL" | "HIDDEN";
 
 export type VehicleStatus =
   | "IN_SERVICE"
@@ -141,6 +144,7 @@ export const FEED_QUERY = /* GraphQL */ `
           created
           status
           completed
+          isAutomated
           voteScore
           userVote
           voteBreakdown {
@@ -186,10 +190,15 @@ export interface FeedLink {
   normalizedUrl: string | null;
   title: string;
   created: string;
-  /** The approval axis (`LIVE` / `PENDING_APPROVAL`) — drives the shared card's Pending pill. */
+  /** The approval axis (`LIVE` / `PENDING_APPROVAL` / `HIDDEN`) — drives the shared card's
+   * Pending pill. `HIDDEN` never reaches the public feed, so it only shows up in an admin
+   * context (the console queue) or the submitter's own `mine` list. */
   status: SocialMediaLinkStatus;
   /** The separate admin "mark handled" flag (the console's own `completed` filter). */
   completed: boolean;
+  /** True for rows written by the official-post ingestion (backend `is_automated`) — drives
+   * the shared card's "Official" marker. False/absent for every hand-submitted link. */
+  isAutomated: boolean;
   voteScore: number;
   userVote: number;
   voteBreakdown: { upvotes: number; downvotes: number };

@@ -52,6 +52,7 @@ function makeFeedLink(id: string): FeedLink {
     created: "2026-08-01T08:00:00Z",
     status: "LIVE",
     completed: false,
+    isAutomated: false,
     voteScore: 3,
     userVote: 0,
     voteBreakdown: { upvotes: 3, downvotes: 0 },

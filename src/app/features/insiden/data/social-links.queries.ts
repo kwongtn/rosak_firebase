@@ -141,7 +141,8 @@ export interface UpdateSocialMediaLinkVars {
     categoryIds?: string[];
     /** Tri-state (backend `Maybe[SocialMediaLinkStatusInput]`): omit to leave the
      *  approval status untouched, send `"LIVE"` to publish (the console queue's
-     *  Approve action). */
+     *  Approve action) or `"HIDDEN"` to pull the row out of the public feed
+     *  (its Hide action). */
     status?: SocialMediaLinkStatus;
   };
 }

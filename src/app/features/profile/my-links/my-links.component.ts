@@ -13,7 +13,7 @@ import {
   PublicSocialMediaLinksQueryData,
   PublicSocialMediaLinksVars,
 } from "../../insiden/data/social-links.queries";
-import { isPendingLink, linkStatusLabel } from "./my-links-status.util";
+import { linkStatusLabel, linkStatusVariant } from "./my-links-status.util";
 
 const PAGE_SIZE = 20;
 
@@ -78,7 +78,7 @@ const PAGE_SIZE = 20;
                     <span class="text-muted-foreground text-xs whitespace-nowrap">
                       {{ link.created | date: "MMM d, y HH:mm" }}
                     </span>
-                    <span hlmBadge [variant]="isPendingLink(link) ? 'warning' : 'default'">
+                    <span hlmBadge [variant]="linkStatusVariant(link)">
                       {{ linkStatusLabel(link) }}
                     </span>
                   </div>
@@ -120,7 +120,7 @@ export class MyLinksComponent {
   readonly isOwnProfile = input.required<boolean>();
 
   protected readonly linkStatusLabel = linkStatusLabel;
-  protected readonly isPendingLink = isPendingLink;
+  protected readonly linkStatusVariant = linkStatusVariant;
 
   private readonly graphql = inject(GraphQLClient);
   private readonly auth = inject(AuthService);

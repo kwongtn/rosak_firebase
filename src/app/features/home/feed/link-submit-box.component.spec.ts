@@ -40,6 +40,7 @@ function makeLink(): FeedLink {
     created: "2026-08-01T08:00:00Z",
     status: "LIVE",
     completed: false,
+    isAutomated: false,
     voteScore: 1,
     userVote: 1,
     voteBreakdown: { upvotes: 1, downvotes: 0 },

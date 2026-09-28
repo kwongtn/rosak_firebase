@@ -107,8 +107,12 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     (`edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }`, and the cursor-independent
     `totalCount`); the node selection carries both link axes — `status` (the approval state the
     shared card keys its Pending pill off) and `completed` (the console's separate "mark handled"
-    flag) — and the store always requests `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`,
-    `currentServiceDayOnly: true`, so a feed row is always approved and never shows the pill.
+    flag) — plus `isAutomated` (backend `is_automated`, the provenance flag the shared card keys
+    its Official chip off). The store always requests `first: FEED_PAGE_SIZE` (8),
+    `status: "LIVE"`, `currentServiceDayOnly: true`, so a feed row is always approved and never
+    shows the Pending pill. `HIDDEN` rows never reach this query at all — the backend's
+    public-feed resolver excludes them after the optional `status` narrowing, so the status
+    argument cannot resurrect one.
   - `SUBMIT_FEED_LINK_MUTATION` (`submitFeedLink(input: FeedLinkInput!)`) — returns
     `{ ok, isDuplicate, duplicateOfId, userVote, link }`.
   - `SUBMIT_LINE_STATUS_REPORT_MUTATION` (`submitLineStatusReport(input: LineStatusReportInput!)`).
@@ -242,8 +246,11 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   store's plain number into the shared vote button's `VoteValue`. The meta rail stretches to the row
   height so the relative timestamp bottom-aligns with the tag row (or the title row when the card has
   no tags) instead of claiming a footer row, and holds the vote control plus the edit pencil (both
-  OUTSIDE the navigational `<a>`). Its Pending pill is driven by the link's approval `status`
-  (`PENDING_APPROVAL`), never by the separate `completed` handled flag.
+  OUTSIDE the navigational `<a>`). Its tag row carries two independent chips: the Pending pill,
+  driven by the link's approval `status` (`PENDING_APPROVAL`), never by the separate `completed`
+  handled flag, and the **Official** chip, driven by the link's `isAutomated` provenance flag
+  (only the home feed's `FEED_QUERY` selects it today, so the insiden and situasi hosts show no
+  chip rather than a wrong one).
 - **`HomePage`** — feed edit wiring: `canEdit(link)` calls `canEditLink` with the host's
   `isLoggedIn`/`isAdmin`/`user.uid` over `AuthService`; `openEdit(link)` calls
   `LinkSheetService.openEdit(link)`; the page hosts `<app-link-sheet>` and an effect on the sheet's

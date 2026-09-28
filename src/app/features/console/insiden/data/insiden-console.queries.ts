@@ -226,6 +226,10 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
       # Approval lifecycle (independent of the completed/handled flag above):
       # the row's Approve action is offered only while this isn't LIVE.
       status
+      # Provenance: true only for rows written by the official-post ingestion,
+      # so the row can badge an automatically captured operator post instead of
+      # leaving an admin to infer it from the submitter.
+      isAutomated
       user {
         nickname
         shortId
@@ -261,9 +265,13 @@ export interface SocialMediaLinkRow {
   /** Display name of the completing admin (nickname or shortId), null until completed. */
   completedBy: string | null;
   /** Approval lifecycle — `PENDING_APPROVAL` for a community submission (or an
-   *  auto-ingested post) awaiting an admin, `LIVE` once published. Distinct from
-   *  `completed`, the queue's own "mark handled" flag. */
+   *  auto-ingested post) awaiting an admin, `LIVE` once published, `HIDDEN` when an
+   *  admin removed it from the feed. Distinct from `completed`, the queue's own
+   *  "mark handled" flag. */
   status: SocialMediaLinkStatus;
+  /** True for rows written by the official-post ingestion (backend `is_automated`) —
+   *  drives the row's "Official" chip. False for every hand-submitted link. */
+  isAutomated: boolean;
   user: { nickname: string; shortId: string } | null;
   lines: { id: string; code: string; displayName: string }[];
   vehicles: { id: string; identificationNo: string }[];

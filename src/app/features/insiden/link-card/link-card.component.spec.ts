@@ -131,6 +131,27 @@ describe("LinkCardComponent", () => {
     expect(query('[data-testid="link-pending"]')).not.toBeNull();
   });
 
+  it("shows the Official chip only for an automatically captured link (isAutomated)", async () => {
+    // Hosts that don't select the field at all (insiden/situasi) must not show a chip.
+    expect(query('[data-testid="link-official"]')).toBeNull();
+
+    fixture.componentRef.setInput("link", makeLink({ isAutomated: false }));
+    await fixture.whenStable();
+    expect(query('[data-testid="link-official"]')).toBeNull();
+
+    fixture.componentRef.setInput("link", makeLink({ isAutomated: true }));
+    await fixture.whenStable();
+
+    const chip = query('[data-testid="link-official"]') as HTMLElement;
+    expect(chip.textContent).toContain("Official");
+    expect(chip.getAttribute("title")).toBe(
+      "Captured automatically from an official operator account",
+    );
+    // Provenance is independent of the approval axis: an ingested post that is still
+    // queued shows both chips.
+    expect(chip.closest('[data-testid="link-tags"]')).not.toBeNull();
+  });
+
   it("keeps the vote control and edit pencil out of the anchor so their clicks never navigate", async () => {
     fixture.componentRef.setInput("editable", true);
     await fixture.whenStable();

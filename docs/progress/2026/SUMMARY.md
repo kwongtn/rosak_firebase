@@ -41,6 +41,7 @@
 | Sep 23 | Front page split into a two-panel desktop layout (full-height URL feed left, line statuses right) with a 30s lines-only refresh countdown; the poll no longer resets the feed's Load More pages                                                       |
 | Sep 23 | Front-page round 7 (dbacb1c..6bbb2a0): URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection |
 | Sep 24 | **methodology** "How this is counted" page + code-first registry (8 sections, 13 metric docs) read by the page and every shared `app-info-popover`; `app-disclaimer-note`; PR-template anti-drift checklist                                           |
+| Sep 28 | Link moderation + attribution: shared-card **Official** chip, console link **Hide** action (`HIDDEN`), per-row Official chip in the triage queue, "Hidden" status label/variant                                                                       |
 
 ---
 
@@ -59,14 +60,15 @@
 
 ### console (Admin Dashboard) — **MAJOR EXPANSION**
 
-| Phase      | Deliverables                                                                                                       |
-| ---------- | ------------------------------------------------------------------------------------------------------------------ |
-| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links                                        |
-| Aug 22     | Incident approval queue, social media links triage, section navigation                                             |
-| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)                                                     |
-| Sep 2026   | Social-media link triage: admin hard-delete of link entries (confirm guard + IsAdmin `deleteSocialMediaLink`)      |
-| Sep 26     | Link queue **Approve** action for non-`LIVE` rows (`status: "LIVE"` through `updateSocialMediaLink` + list reload) |
-| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes                                                 |
+| Phase      | Deliverables                                                                                                                                  |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links                                                                   |
+| Aug 22     | Incident approval queue, social media links triage, section navigation                                                                        |
+| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)                                                                                |
+| Sep 2026   | Social-media link triage: admin hard-delete of link entries (confirm guard + IsAdmin `deleteSocialMediaLink`)                                 |
+| Sep 26     | Link queue **Approve** action for non-`LIVE` rows (`status: "LIVE"` through `updateSocialMediaLink` + list reload)                            |
+| Sep 28     | Link queue **Hide** action (`status: "HIDDEN"`, Approve remains the un-hide verb) + per-row **Official** chip off the new `isAutomated` field |
+| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes                                                                            |
 
 ### tracker (GTFS Real-time) — **MATURE PLATFORM**
 
@@ -117,6 +119,7 @@
 | Sep 22     | Delivery round: feed scoped to the current service day with a `Showing X of Y` footer, the shared `app-link-card` across all three link lists, report stations + hover timestamps, legend counts, e2e 9/9                                                                                          |
 | Sep 22–23  | Approval-status-driven Pending pill, hourly bars stacked by report type, recent-reports list capped in its own scroller, two-panel desktop layout + 30s lines-only refresh beat                                                                                                                    |
 | Sep 23     | Round 7: URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection                                                                            |
+| Sep 28     | Feed rows badge provenance: the shared card's **Official** chip off the new `isAutomated` field, so a rider can see an automatically captured operator post at a glance                                                                                                                            |
 | **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
 
 ### methodology (Methodology & Inline Docs) — **NEW PLATFORM**
