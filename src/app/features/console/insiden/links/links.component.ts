@@ -73,6 +73,13 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
  * calls the admin mutation and reloads so the row's completion state and
  * timestamp come back as server truth. The detail card names the completing
  * admin (`completedBy`) next to `completedAt`.
+ *
+ * Approve is the publish gate for a row that isn't LIVE yet (a community
+ * submission, or an auto-ingested operator post): it sends the same
+ * `updateSocialMediaLink` with `status: "LIVE"`, then reloads. The console
+ * route is already `adminOnlyGuard`-gated, and the backend refuses a
+ * non-admin status change, so the row action carries no second permission
+ * check.
  */
 @Component({
   selector: "app-console-social-media-links",
@@ -379,6 +386,50 @@ export class SocialMediaLinksComponent {
     this.appliedDateFrom = undefined;
     this.appliedDateTo = undefined;
     this.load();
+  }
+
+  /** Publish a row that isn't LIVE yet (community submission or an
+   *  auto-ingested operator post) through the existing update mutation.
+   *
+   *  `SocialMediaLinkInput` is not a patch: `url` is non-nullable and the
+   *  service assigns `title` and calls `.set()` on the four M2M tag relations
+   *  unconditionally, so a status-only payload would blank the title and strip
+   *  every tag. The row's current scalars and ids are therefore re-sent
+   *  alongside `status: "LIVE"`. Success reloads the list so the publish state
+   *  comes back as server truth; failures surface via the toast (never
+   *  swallowed) and leave the list untouched. */
+  protected async approveLink(link: SocialMediaLinkRow): Promise<boolean> {
+    this.isLoading.set(true);
+    try {
+      const idToken = await this.auth.idToken();
+      await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
+        UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+        {
+          socialMediaLinkId: link.id,
+          input: {
+            url: link.url,
+            title: link.title || null,
+            lineIds: link.lines.map((line) => line.id),
+            vehicleIds: link.vehicles.map((vehicle) => vehicle.id),
+            stationIds: link.stations.map((station) => station.id),
+            categoryIds: link.categories.map((category) => category.id),
+            status: "LIVE",
+          },
+        },
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      this.toast.success("Link approved", link.url);
+      await this.fetchLinks();
+      return true;
+    } catch (err) {
+      this.toast.error(
+        "Couldn't approve link",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+      return false;
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   protected async markCompleted(link: SocialMediaLinkRow): Promise<boolean> {

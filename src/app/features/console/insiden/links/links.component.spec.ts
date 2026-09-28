@@ -38,6 +38,7 @@ function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkR
     completed: false,
     completedAt: null,
     completedBy: null,
+    status: "PENDING_APPROVAL",
     user: { nickname: "Zul", shortId: "abcd1234" },
     lines: [{ id: "l1", code: "KJL", displayName: "Kelana Jaya Line" }],
     vehicles: [{ id: "v1", identificationNo: "V-123" }],
@@ -78,6 +79,7 @@ interface ComponentUnderTest {
   filterStationId: WritableSignal<string>;
   filterDateFrom: WritableSignal<string>;
   filterDateTo: WritableSignal<string>;
+  approveLink(link: SocialMediaLinkRow): Promise<boolean>;
   markCompleted(link: SocialMediaLinkRow): Promise<boolean>;
   openLinkDetail(link: SocialMediaLinkRow): void;
   closeLinkPanel(): void;
@@ -95,6 +97,11 @@ function asTestable(fixture: ComponentFixture<SocialMediaLinksComponent>): Compo
 
 describe("SocialMediaLinksComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
+  let toastMocks: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+    info: ReturnType<typeof vi.fn>;
+  };
   let fixture: ComponentFixture<SocialMediaLinksComponent>;
   let httpMock: HttpTestingController;
 
@@ -105,6 +112,7 @@ describe("SocialMediaLinksComponent", () => {
       }
       return Promise.resolve({ calendarIncidentCategories: [] });
     });
+    toastMocks = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [SocialMediaLinksComponent],
       providers: [
@@ -113,10 +121,7 @@ describe("SocialMediaLinksComponent", () => {
         provideHttpClientTesting(),
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: AuthService, useValue: { idToken: async () => "token" } },
-        {
-          provide: ToastService,
-          useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
-        },
+        { provide: ToastService, useValue: toastMocks },
       ],
     }).compileComponents();
 
@@ -155,6 +160,25 @@ describe("SocialMediaLinksComponent", () => {
       string,
       Record<string, unknown>,
     ][];
+  }
+
+  /** Per-queue-row button labels, in DOM order. Scoped to `tbody` so the
+   *  detail sheet's own action row is never counted. */
+  function rowActionLabels(): string[][] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr")).map(
+      (row) => Array.from(row.querySelectorAll("button")).map((b) => b.textContent?.trim() ?? ""),
+    );
+  }
+
+  function approveButton(): HTMLButtonElement | null {
+    for (const row of (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr")) {
+      for (const button of Array.from(row.querySelectorAll("button"))) {
+        if (button.textContent?.trim() === "Approve") {
+          return button;
+        }
+      }
+    }
+    return null;
   }
 
   it("loads links and categories on init with the pending default filter", async () => {
@@ -349,6 +373,108 @@ describe("SocialMediaLinksComponent", () => {
       expect(text).toContain("Marked completed");
       expect(text).toContain("by Zul");
     });
+  });
+
+  it("offers Approve only on rows whose approval status is not LIVE", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    component.links.set([
+      makeLink({ id: "pending-1" }),
+      makeLink({ id: "live-1", status: "LIVE" }),
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const labels = rowActionLabels();
+    expect(labels).toHaveLength(2);
+    expect(labels[0]).toContain("Approve");
+    expect(labels[1]).not.toContain("Approve");
+  });
+
+  it("approveLink sends status LIVE with the row id and its current fields", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "pending-1" })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    approveButton()?.click();
+    await vi.waitFor(() => expect(callsFor("updateSocialMediaLink")).toHaveLength(1));
+
+    const [, vars] = callsFor("updateSocialMediaLink")[0];
+    // The backend replaces the title and the M2M tag sets verbatim, so the
+    // approve payload must carry them — a status-only input would wipe them.
+    expect(vars).toEqual({
+      socialMediaLinkId: "pending-1",
+      input: {
+        url: "https://x.com/prasarana/status/1",
+        title: "Service alert",
+        lineIds: ["l1"],
+        vehicleIds: ["v1"],
+        stationIds: ["s1"],
+        categoryIds: ["c1"],
+        status: "LIVE",
+      },
+    });
+    // stopPropagation on the row action keeps the click off the row's open-panel handler.
+    expect(component.selectedLink()).toBeNull();
+  });
+
+  it("reloads the list after a successful approve so the row comes back LIVE", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      if (query.includes("socialMediaLinks")) {
+        return Promise.resolve({
+          socialMediaLinks: [makeLink({ id: "pending-1", status: "LIVE" })],
+        });
+      }
+      return Promise.resolve({ calendarIncidentCategories: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "pending-1" })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    approveButton()?.click();
+    await vi.waitFor(() => expect(callsFor("updateSocialMediaLink")).toHaveLength(1));
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
+    expect(component.links().map((l) => l.status)).toEqual(["LIVE"]);
+    expect(component.isLoading()).toBe(false);
+  });
+
+  it("keeps the list untouched and toasts when the approve mutation fails", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.reject(new Error("backend down"));
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "pending-1" })]);
+
+    const ok = await component.approveLink(makeLink({ id: "pending-1" }));
+
+    expect(ok).toBe(false);
+    expect(callsFor("socialMediaLinks")).toHaveLength(0);
+    expect(toastMocks.error).toHaveBeenCalledWith("Couldn't approve link", "backend down");
+    expect(component.links().map((l) => l.id)).toEqual(["pending-1"]);
   });
 
   it("markCompleted calls the mutation and reloads the list", async () => {

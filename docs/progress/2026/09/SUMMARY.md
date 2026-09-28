@@ -37,6 +37,9 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 24 | Shared popover exclusivity: `InfoPopoverRegistry` closes the previous holder on every open, so pill-to-pill movement never leaves two panels overlapping; the hover grace drops 1 s → 300 ms (supersedes the row above) — `53255b4`                                                                                                                                                                                               |
 | Sep 24 | **spotting** `/spotting/:lineId/details` grid gains a mobile (<768px) stacked layout: each vehicle/type becomes a full-width NAME/TYPE row above its own horizontally-scrolling date/totals row, names/types pinned left, the current type pinned under the header by a page-sticky 2-row sibling overlay; `isNarrow` `matchMedia` signal + `host.ngSkipHydration` for the SSR/window hydration mismatch (`87 files / 765 tests`) |
 | Sep 25 | **spotting** `/spotting/:lineId/details` pinned mobile type label styling parity: the in-flow mobile type label and its pinned overlay copy (`grid-mobile-pinned-label`) drifted apart, so pinning a type visibly jumped its font/colour/borders — both copies now share one `mobileTypeLabelClass()` and the pinned totals cells match the in-flow `border-b` (`87 files / 766 tests`)                                           |
+| Sep 25 | **core/graphql** `graphqlResource()` now retains structurally equal response/data references by default, with a JSON-shaped deep-equality utility and an explicit opt-out for callers that need reference replacement (`93 files / 800 tests`)                                                                                                                                                                                    |
+| Sep 25 | **spotting** route persistence: opt-in `ReusableRouteStrategy` + `RouteScrollMemoryService` scroll memory + `revalidateOnReturn`/route-pattern hooks keep page DOM/resources across returns and revalidate silently (`93 files / 800 tests`)                                                                                                                                                                                      |
+| Sep 26 | **console** `/console/insiden/links` gains an admin **Approve** row action for rows that aren't `LIVE` (sends the existing `updateSocialMediaLink` with `status: "LIVE"` — full current fields, since the backend replaces title + tag M2Ms — then reloads the list; the queue query now selects `status`). `OFFICIAL_POST_INGESTION.md` §5.3 (`93 files / 805 tests`)                                                            |
 
 ### Home — community front page (2026-09-22)
 
@@ -189,3 +192,4 @@ renders a license literal. Full suite 741 tests green.
 - [23.md](./23.md)
 - [24.md](./24.md)
 - [25.md](./25.md)
+- [26.md](./26.md)

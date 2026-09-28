@@ -11,6 +11,10 @@ import type {
   CalendarIncidentMedia,
   CalendarIncidentStatus,
 } from "../../../insiden/data/insiden.queries";
+/* The approval-status union is declared once, in the feed queries that also own
+ * the `status` argument — the console reads the same values, so it imports the
+ * type rather than cloning a second union. */
+import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
 
 export type CalendarIncidentSeverity = "MAJOR" | "MINOR" | "OTHERS";
 export type ChronologyIndicator = "GREEN" | "RED" | "BLUE" | "GRAY";
@@ -219,6 +223,9 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
       # Completing admin (Task 1): the admin user who marked the link completed;
       # null when it was never completed.
       completedBy
+      # Approval lifecycle (independent of the completed/handled flag above):
+      # the row's Approve action is offered only while this isn't LIVE.
+      status
       user {
         nickname
         shortId
@@ -253,6 +260,10 @@ export interface SocialMediaLinkRow {
   completedAt: string | null;
   /** Display name of the completing admin (nickname or shortId), null until completed. */
   completedBy: string | null;
+  /** Approval lifecycle — `PENDING_APPROVAL` for a community submission (or an
+   *  auto-ingested post) awaiting an admin, `LIVE` once published. Distinct from
+   *  `completed`, the queue's own "mark handled" flag. */
+  status: SocialMediaLinkStatus;
   user: { nickname: string; shortId: string } | null;
   lines: { id: string; code: string; displayName: string }[];
   vehicles: { id: string; identificationNo: string }[];

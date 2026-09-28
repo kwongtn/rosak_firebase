@@ -11,6 +11,8 @@ import {
 } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
+import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../data/spotting-route-patterns";
 import { observeHeight } from "../../../core/dom/observe-height";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -353,6 +355,12 @@ export class LineDetailsPage {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.vehicleTypesResource.reload();
+      this.boundsResource.reload();
+    });
 
     observeHeight(this.titleBar, (h) => this.titleBarHeight.set(h));
     observeHeight(this.activityControls, (h) => this.activityControlsHeight.set(h));

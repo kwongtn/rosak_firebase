@@ -1,6 +1,8 @@
 import { isPlatformBrowser } from "@angular/common";
 import { Component, PLATFORM_ID, computed, inject, input } from "@angular/core";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
+import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
@@ -142,4 +144,11 @@ export class StationAssetsSectionComponent {
   }));
 
   protected readonly stations = computed(() => this.resource.data()?.lines[0]?.stations ?? []);
+
+  constructor() {
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.resource.reload();
+    });
+  }
 }

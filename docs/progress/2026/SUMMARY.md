@@ -59,13 +59,14 @@
 
 ### console (Admin Dashboard) — **MAJOR EXPANSION**
 
-| Phase      | Deliverables                                                                                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------------- |
-| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links                                   |
-| Aug 22     | Incident approval queue, social media links triage, section navigation                                        |
-| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)                                                |
-| Sep 2026   | Social-media link triage: admin hard-delete of link entries (confirm guard + IsAdmin `deleteSocialMediaLink`) |
-| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes                                            |
+| Phase      | Deliverables                                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| Pre-2026   | Events table, pagination, mark-as-read, vehicle status tags, reporter links                                        |
+| Aug 22     | Incident approval queue, social media links triage, section navigation                                             |
+| Aug 22     | **Security**: Admin claim enforcement (Firebase custom claims)                                                     |
+| Sep 2026   | Social-media link triage: admin hard-delete of link entries (confirm guard + IsAdmin `deleteSocialMediaLink`)      |
+| Sep 26     | Link queue **Approve** action for non-`LIVE` rows (`status: "LIVE"` through `updateSocialMediaLink` + list reload) |
+| **Status** | **Admin tools mature** — Approval workflows, triage, secure routes                                                 |
 
 ### tracker (GTFS Real-time) — **MATURE PLATFORM**
 

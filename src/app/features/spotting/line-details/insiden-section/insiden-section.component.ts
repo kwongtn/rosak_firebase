@@ -1,6 +1,9 @@
 import { Component, computed, inject, input } from "@angular/core";
+import { Router } from "@angular/router";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../../core/polling/polling-source";
+import { revalidateOnReturn, urlPath } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
@@ -123,7 +126,15 @@ export class InsidenSectionComponent {
     query: INSIDEN_INCIDENTS_QUERY,
   }));
 
-  protected readonly polling = new PollingSource(() => this.resource.reload());
+  private readonly router = inject(Router);
+
+  protected readonly polling = new PollingSource(() => {
+    // Keep-alive detaches this page behind other routes; revalidateOnReturn already refreshes it on
+    // return, so skip the beat while it is not the active route instead of polling invisibly.
+    if (isSpottingDetailsRoute(urlPath(this.router.url))) {
+      this.resource.reload();
+    }
+  });
 
   protected readonly refreshIntervalOptionValue = computed(() =>
     refreshIntervalToOptionValue(this.polling.intervalMs()),
@@ -134,6 +145,13 @@ export class InsidenSectionComponent {
   protected readonly incidents = computed(() =>
     incidentsForLine(this.resource.data()?.calendarIncidents ?? [], this.lineId()),
   );
+
+  constructor() {
+    // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.
+    revalidateOnReturn(isSpottingDetailsRoute, () => {
+      this.resource.reload();
+    });
+  }
 
   protected onRefreshIntervalChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;

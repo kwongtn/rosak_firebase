@@ -2,6 +2,8 @@ import { Component, computed, input } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { IncidentSeverity } from "../../../../core/graphql/types";
+import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
+import { isSpottingVehicleRoute } from "../../data/spotting-route-patterns";
 import {
   VEHICLE_INCIDENTS_QUERY,
   VehicleIncidentsQueryData,
@@ -58,6 +60,11 @@ export class IncidentTimelineComponent {
   protected readonly _incidents = computed(() =>
     [...(this.resource.data()?.vehicleIncidents ?? [])].sort((a, b) => a.order - b.order),
   );
+
+  constructor() {
+    // Refresh retained incident data after returning from outside the vehicle route.
+    revalidateOnReturn(isSpottingVehicleRoute, () => this.resource.reload());
+  }
 
   protected _dotClass(severity: IncidentSeverity): string {
     return DOT_CLASS_BY_SEVERITY[severity];
