@@ -128,12 +128,16 @@ export const FEED_QUERY = /* GraphQL */ `
     $after: String
     $status: SocialMediaLinkStatus
     $currentServiceDayOnly: Boolean
+    $lastWeekOnly: Boolean
+    $alignPageToDay: Boolean
   ) {
     publicSocialMediaLinks(
       first: $first
       after: $after
       status: $status
       currentServiceDayOnly: $currentServiceDayOnly
+      lastWeekOnly: $lastWeekOnly
+      alignPageToDay: $alignPageToDay
     ) {
       edges {
         node {
@@ -177,6 +181,13 @@ export interface FeedQueryVars {
   after?: string | null;
   status?: SocialMediaLinkStatus | null;
   currentServiceDayOnly?: boolean | null;
+  /** Window filter for the home page's collapsed "Last Week" section: keep only rows created
+   * since 00:00 (Asia/Kuala_Lumpur) six days before today. Computed backend-side so the frontend
+   * never bakes a date into query variables (SSR TransferState needs identical vars). */
+  lastWeekOnly?: boolean | null;
+  /** When true, a returned page never ends mid-calendar-day: the backend may exceed `first` to
+   * finish the current day. Used by the last-week section's Load More so day groups stay whole. */
+  alignPageToDay?: boolean | null;
 }
 
 export interface FeedQueryData {

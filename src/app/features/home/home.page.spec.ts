@@ -22,6 +22,7 @@ import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
 import type { FeedLink, FeedLinkPageInfo, LinePulse } from "./data/home.queries";
+import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
@@ -85,8 +86,14 @@ interface StoreMock {
   feedLinks: WritableSignal<FeedLink[]>;
   feedPageInfo: WritableSignal<FeedLinkPageInfo | null>;
   feedTotalCount: WritableSignal<number>;
+  lastWeekLinks: WritableSignal<FeedLink[]>;
+  lastWeekDayGroups: WritableSignal<FeedDayGroup[]>;
+  lastWeekPageInfo: WritableSignal<FeedLinkPageInfo | null>;
+  lastWeekTotalCount: WritableSignal<number>;
   isLoading: WritableSignal<boolean>;
   isLoadingMore: WritableSignal<boolean>;
+  isLoadingLastWeek: WritableSignal<boolean>;
+  isLoadingMoreLastWeek: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
   linesRefreshTick: WritableSignal<number>;
   polling: {
@@ -98,6 +105,7 @@ interface StoreMock {
   setUserVote: ReturnType<typeof vi.fn>;
   reloadAll: ReturnType<typeof vi.fn>;
   loadMore: ReturnType<typeof vi.fn>;
+  loadMoreLastWeek: ReturnType<typeof vi.fn>;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
 }
@@ -124,8 +132,14 @@ describe("HomePage", () => {
       feedLinks: signal<FeedLink[]>([makeFeedLink("a"), makeFeedLink("b")]),
       feedPageInfo: signal<FeedLinkPageInfo | null>({ hasNextPage: true, endCursor: "cursor-a" }),
       feedTotalCount: signal(2),
+      lastWeekLinks: signal<FeedLink[]>([]),
+      lastWeekDayGroups: signal<FeedDayGroup[]>([]),
+      lastWeekPageInfo: signal<FeedLinkPageInfo | null>(null),
+      lastWeekTotalCount: signal(0),
       isLoading: signal(false),
       isLoadingMore: signal(false),
+      isLoadingLastWeek: signal(false),
+      isLoadingMoreLastWeek: signal(false),
       hasError: signal(false),
       linesRefreshTick: signal(0),
       polling: {
@@ -137,6 +151,7 @@ describe("HomePage", () => {
       setUserVote: vi.fn(),
       reloadAll: vi.fn(),
       loadMore: vi.fn(async () => undefined),
+      loadMoreLastWeek: vi.fn(async () => undefined),
       start: vi.fn(),
       stop: vi.fn(),
     };
@@ -538,5 +553,61 @@ describe("HomePage", () => {
 
     expect(reportSheet.isOpen()).toBe(false);
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the Last Week section collapsed by default", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const toggle = root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement;
+
+    expect(toggle).not.toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(root.querySelector('[data-testid="last-week-panel"]')).toBeNull();
+  });
+
+  it("shows the last-week count in the collapsed header", () => {
+    store.lastWeekTotalCount.set(5);
+    fixture.detectChanges();
+
+    const count = fixture.nativeElement.querySelector(
+      '[data-testid="last-week-count"]',
+    ) as HTMLElement;
+    expect(count.textContent?.replace(/\s+/g, " ").trim()).toBe("Last Week (5)");
+  });
+
+  it("expands the last-week panel with day groups on toggle", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    store.lastWeekDayGroups.set([
+      { key: "2026-09-30", label: "Today", links: [makeFeedLink("w")] },
+    ]);
+    fixture.detectChanges();
+
+    const toggle = root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement;
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const panel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;
+    expect(panel).not.toBeNull();
+    expect(panel.querySelectorAll('[data-testid="last-week-day-group"]').length).toBe(1);
+    expect(panel.textContent).toContain("Today");
+    expect(panel.querySelectorAll("app-link-card").length).toBe(1);
+  });
+
+  it("delegates the last-week Load More to the store", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    store.lastWeekDayGroups.set([
+      { key: "2026-09-30", label: "Today", links: [makeFeedLink("w")] },
+    ]);
+    store.lastWeekPageInfo.set({ hasNextPage: true, endCursor: "cursor-w" });
+    fixture.detectChanges();
+
+    (root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const button = root.querySelector('[data-testid="last-week-load-more"]') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    button.click();
+
+    expect(store.loadMoreLastWeek).toHaveBeenCalledTimes(1);
   });
 });
