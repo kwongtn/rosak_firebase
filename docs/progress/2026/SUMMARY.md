@@ -43,6 +43,8 @@
 | Sep 24 | **methodology** "How this is counted" page + code-first registry (8 sections, 13 metric docs) read by the page and every shared `app-info-popover`; `app-disclaimer-note`; PR-template anti-drift checklist                                           |
 | Sep 28 | Link moderation + attribution: shared-card **Official** chip, console link **Hide** action (`HIDDEN`), per-row Official chip in the triage queue, "Hidden" status label/variant                                                                       |
 | Sep 28 | `/about` admin editor cards mirror the public display grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so an edit cell lines up with the card it produces                                                                                          |
+| Sep 30 | **home** quick submit box reworked into a two-mode form (URL-only **Submit Link** + **Advanced Input** opening the shared sheet with a one-shot URL prefill, `96 files / 843 tests`)                                                                  |
+| Sep 30 | **home** collapsed **Last Week (N)** section below the today feed: 7 calendar days via backend `lastWeekOnly`, day-grouped, 20-link day-aligned Load More (`alignPageToDay`), `96 files / 843 tests`                                                  |
 
 ---
 
@@ -121,6 +123,8 @@
 | Sep 22–23  | Approval-status-driven Pending pill, hourly bars stacked by report type, recent-reports list capped in its own scroller, two-panel desktop layout + 30s lines-only refresh beat                                                                                                                    |
 | Sep 23     | Round 7: URL form heads the desktop feed column, feed `feed-skeleton`/`feed-empty` states, `line-vehicle-count` badge + non-ACTIVE-only status pill, combobox Enter commit rule, station-resource dependency projection                                                                            |
 | Sep 28     | Feed rows badge provenance: the shared card's **Official** chip off the new `isAutomated` field, so a rider can see an automatically captured operator post at a glance                                                                                                                            |
+| Sep 30     | Quick submit box becomes a two-mode form: URL-only **Submit Link** plus **Advanced Input**, which opens the shared link sheet with a one-shot URL prefill (`LinkSheetService.open(context?, { url })`)                                                                                             |
+| Sep 30     | Collapsed **Last Week (N)** section below the today feed: last 7 calendar days (backend `lastWeekOnly`), day-grouped (Today / Yesterday / `EEE, d MMM`) with a 20-link day-aligned Load More (`alignPageToDay`)                                                                                    |
 | **Status** | **Live** — The site's landing page; the `/spotting` default-route redirect is gone                                                                                                                                                                                                                 |
 
 ### methodology (Methodology & Inline Docs) — **NEW PLATFORM**

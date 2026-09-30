@@ -33,7 +33,8 @@
   - `LinkFormComponent`: reads `LinkSheetService.context` (`{ incidentId, incidentTitle? }`) to
     target a submission at a specific incident; no-arg open is the just-dumping flow. Its edit target
     is the structural `LinkEditTarget` (vehicles/stations optional), so the home feed's node — which
-    selects neither — hydrates as an empty selection.
+    selects neither — hydrates as an empty selection. A create-mode open also applies the sheet's
+    one-shot URL prefill (home's "Advanced Input") once; edit mode never does.
   - `LinkCardComponent` (shared `app-link-card`): `link = input.required<LinkCardItem>()` — the
     structural contract both `PublicSocialMediaLink` and the home feed's `FeedLink` satisfy with no
     host mapping — `userVote = input(0)` (host overlay) and `editable = input(false)` (host-gated
@@ -183,6 +184,12 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
     header/footer labels ("Edit link"/"Save" vs "Submit a link"/"Submit"), an optional
     `defaultLineIds` input (line-prefilled submissions on the situasi tab) and
     `data-testid="submit-link"` on the submit button.
+  - `LinkSheetService` (root, `data/link-sheet.service.ts`): `open(context?, prefill?)` opens create
+    mode — the optional second arg `{ url? }` seeds a one-shot URL prefill (home's "Advanced
+    Input"); `openEdit(link)` opens edit mode and never prefills; `close()`/`setOpen(false)` clear
+    the pending prefill. The form consumes it through the consume-once `takePrefillUrl()` (returns
+    and clears), so a later reopen without a new `open(..., { url })` starts blank. Existing
+    `open()`/`open(context)` call sites are unchanged.
 - Pure helper modules carry the non-trivial domain logic outside the components:
   `calendar-date.util.ts` (`dateKeyOf`, `incidentCoversDate`), `elapsed-time.util.ts`
   (`getReadableTimeDifference`), `incident-to-form.util.ts` (edit hydration), `can-edit.incident.util.ts`

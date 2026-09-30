@@ -15,9 +15,11 @@
   submit and vote. It has no Firestore involvement.
 - **Subcomponent breakdown** (one routed page, three child groups, a route-scoped store):
   - `home.page.ts` — the routed page: nav → a two-panel feed/line-status split (submit box atop
-    the feed column) → footer, plus the status sheet and the shared link sheet (feed-link edits);
-    starts/stops the store's polling and adapts the store to the shared retry banner.
-  - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance) and
+    the feed column, a collapsed Last Week section below it) → footer, plus the status sheet and the
+    shared link sheet (feed-link edits); starts/stops the store's polling and adapts the store to
+    the shared retry banner.
+  - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance: a quick URL-only
+    form plus an "Advanced Input" button that opens the shared link sheet) and
     `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification). Feed rows render
     through the shared insiden `app-link-card` (`LinkCardComponent`) — there is no home-local card.
   - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status plus the expand/collapse
@@ -44,7 +46,17 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     is empty; while the first page loads the feed shows `feed-skeleton`
     (`data-testid="feed-skeleton"`, `hlmSkeleton h-24 w-full`), and an empty, settled, error-free
     feed instead shows the muted `feed-empty` (`data-testid="feed-empty"`, "No links yet.") styled
-    like the line list's empty state (the retry banner replaces both when the read errored). The
+    like the line list's empty state (the retry banner replaces both when the read errored). Below
+    the today feed sits a collapsed **Last Week** section: its header button
+    (`data-testid="last-week-toggle"`, `[attr.aria-expanded]`) reads `Last Week (N)` from
+    `store.lastWeekTotalCount()`, the chevron rotates when open, and the panel is closed by
+    default so its content only mounts on first expand. Expanded, it lists the same feed links over
+    the **last 7 calendar days including today** (backend `lastWeekOnly`), bucketed by local
+    calendar day (`data-testid="last-week-day-group"`, headings Today / Yesterday / `EEE, d MMM`),
+    with a skeleton (`data-testid="last-week-skeleton"`) and an empty state
+    (`data-testid="last-week-empty"`, "No links in the last week.") and its own `Load More`
+    (`data-testid="last-week-load-more"`) pulling 20-link day-aligned pages (the page may exceed 20
+    to finish a day). The
     line-status panel is headed by a fixed-cadence refresh row
     (`data-testid="line-refresh-countdown"`), itself a `<button>`: spinner +
     `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, and a click
@@ -57,7 +69,8 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     `Refresh now` button any more. Deliberately no interval picker (unlike situasi), the 30s
     cadence is fixed.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
-    `HomeStore`), `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
+    `HomeStore`), `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
+    `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders),
     and the pure `passenger-status.util.ts` (no components).
 
@@ -103,16 +116,22 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     each carrying `count`, `dominantStatus` and the `statusCounts { status count }` breakdown the
     chart stacks) and `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list, each node carrying
     its `stations { id displayName }`) back the expanded card panel.
-  - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status, currentServiceDayOnly)` connection
+  - `FEED_QUERY` — `publicSocialMediaLinks(first, after, status, currentServiceDayOnly,
+lastWeekOnly, alignPageToDay)` connection
     (`edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }`, and the cursor-independent
     `totalCount`); the node selection carries both link axes — `status` (the approval state the
     shared card keys its Pending pill off) and `completed` (the console's separate "mark handled"
     flag) — plus `isAutomated` (backend `is_automated`, the provenance flag the shared card keys
-    its Official chip off). The store always requests `first: FEED_PAGE_SIZE` (8),
-    `status: "LIVE"`, `currentServiceDayOnly: true`, so a feed row is always approved and never
-    shows the Pending pill. `HIDDEN` rows never reach this query at all — the backend's
-    public-feed resolver excludes them after the optional `status` narrowing, so the status
-    argument cannot resurrect one.
+    its Official chip off). One document backs **two** resources: the today feed requests
+    `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`, `currentServiceDayOnly: true` — **unchanged**,
+    the two new vars stay absent — so a feed row is always approved and never shows the Pending
+    pill; the Last Week section requests `first: LAST_WEEK_PAGE_SIZE` (20), `status: "LIVE"`,
+    `lastWeekOnly: true`, `alignPageToDay: true`. `lastWeekOnly` keeps only rows created since
+    00:00 Asia/Kuala_Lumpur six days before today (computed backend-side so no date is ever baked
+    into query vars — SSR TransferState needs identical vars); `alignPageToDay` lets a page
+    overshoot `first` to finish the calendar day it ended on. `HIDDEN` rows never reach this query
+    at all — the backend's public-feed resolver excludes them after the optional `status`
+    narrowing, so the status argument cannot resurrect one.
   - `SUBMIT_FEED_LINK_MUTATION` (`submitFeedLink(input: FeedLinkInput!)`) — returns
     `{ ok, isDuplicate, duplicateOfId, userVote, link }`.
   - `SUBMIT_LINE_STATUS_REPORT_MUTATION` (`submitLineStatusReport(input: LineStatusReportInput!)`).
@@ -128,7 +147,7 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     `whenReady`.
   - `PollingSource` (`core/polling/polling-source.ts`) — the shared polling beat.
   - `AssetMultiSelectComponent` (`features/insiden/asset-multi-select/`) — cross-feature reuse for
-    the line picker (submit box) and station picker (status sheet).
+    the line-status sheet's station picker (and the advanced link form's line picker).
   - `VoteButtonComponent` (`features/insiden/vote-button/`) — reused with `targetType="link"` for
     feed voting; its `VoteValue` is `{-1, 0, 1}`.
   - `humanizeSince` (`features/spotting/data/humanize-since.util.ts`) — cross-feature relative-time
@@ -138,7 +157,9 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     (`features/insiden/data/link-url.util.ts`) splits URLs with insiden's `splitHttpUrl`
     (`features/insiden/data/incident-link-line.util.ts`).
   - `LinkSheetService` / `app-link-sheet` / `canEditLink` (`features/insiden/**`) — the shared link
-    edit flow the home feed now drives (same sheet as /insiden and situasi).
+    create/edit flow the home feed drives (same sheet as /insiden and situasi): the quick box's
+    "Advanced Input" opens it in create mode with a one-shot URL prefill
+    (`open(context?, { url })`), and the card edit pencil opens edit mode.
   - `LineStatusBadge` (`domain-ui/line-status-badge`) — the operational-status badge on each pulse
     card; Hlm `badge`/`button`/`input`/`native-select`/`sheet`/`skeleton` primitives; `ToastService`;
     `RetryBannerComponent` (via its structural `RetryableResource`).
@@ -148,30 +169,38 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
 
 - **`HomeStore`** (`data/home.store.ts`, `@Injectable()` provided by the route) is the single source
   of truth for page data:
-  - Two `graphqlResource`s: `linesResource` (`FRONT_PAGE_LINES_QUERY`) and `feedResource`
-    (`FEED_QUERY` with `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`, `currentServiceDayOnly: true`).
-    The constructor reads both once so the lazy
+  - Three `graphqlResource`s: `linesResource` (`FRONT_PAGE_LINES_QUERY`), `feedResource`
+    (`FEED_QUERY` with `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`, `currentServiceDayOnly: true`)
+    and `lastWeekResource` (`FEED_QUERY` with `first: LAST_WEEK_PAGE_SIZE` (20), `status: "LIVE"`,
+    `lastWeekOnly: true`, `alignPageToDay: true`). The constructor reads all three once so the lazy
     `httpResource` fetches on store creation.
   - Derived: `lines` (pulse list), `feedLinks` (first page + appended pages), `feedPageInfo`
     (appended `hasNextPage`/`endCursor` wins over the first page's), `feedTotalCount` (the appended
-    page's `totalCount` wins over the first page's, else `0`), `isLoading`/`hasError` (either
-    resource).
+    page's `totalCount` wins over the first page's, else `0`); the last week mirrors
+    `lastWeekLinks`/`lastWeekPageInfo`/`lastWeekTotalCount`, plus `lastWeekDayGroups`
+    (`groupFeedLinksByDay` over the resident links) and `isLoadingLastWeek` (the resource's own
+    pristine fetch — drives the section skeleton). `isLoading` is lines + today feed and `hasError`
+    ORs in all three resources (the retry banner covers a last-week failure too).
   - Cursor pagination:
     `appendedEdges`/`appendedHasNext`/`appendedTotalCount`/`nextCursor`/`loadingMore` signals;
     `loadMore()` re-issues `FEED_QUERY` through `GraphQLClient.request` with the last cursor and
-    appends, coalesced by `loadingMore`.
+    appends, coalesced by `loadingMore`. The last week has its own mirror set
+    (`lastWeekAppended*`, `lastWeekNextCursor`, `lastWeekLoadingMore`) driven by
+    `loadMoreLastWeek()` (same `lastWeekOnly`/`alignPageToDay` vars + cursor, exposed as
+    `isLoadingMoreLastWeek`).
   - Polling: a public `new PollingSource(() => this.reloadLines())`, armed by `start()` and
     disarmed by `stop()` (both no-ops on the server, 30s default). `reloadLines()` reloads the
     lines resource **only** and bumps `linesRefreshTick` — the feed is deliberately left alone so
-    a poll can't drop the user's appended Load More pages. `reloadAll()` (unchanged) still drops
-    appended pages and reloads both resources for the submit/edit flows. The public beat is what
+    a poll can't drop the user's appended Load More pages. `reloadAll()` drops both appended-page
+    sets and reloads all three resources for the submit/edit flows. The public beat is what
     the page's countdown renders (`intervalMs()`/`secondsRemaining()`) and what
     `refreshNow()` drives; `linesRefreshTick` travels page → list → card → the open accordion's
     chart/reports.
   - **Authenticated `userVote` overlay:** `graphqlResource()` sends no auth token, so the feed's
-    `userVote` is always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady`, re-reads
-    the first feed page with `GraphQLClient.request(..., { "firebase-auth-key": idToken })`, and
-    records every non-zero vote into `userVotes = signal<Record<string, number>>({})`.
+    `userVote` is always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady`, then
+    issues **two** reads in `Promise.all` — the today feed's first page and the last-week first
+    page, both with `GraphQLClient.request(..., { "firebase-auth-key": idToken })` — and records
+    every non-zero vote from either into `userVotes = signal<Record<string, number>>({})`.
     `userVoteFor(linkId)` prefers the overlay, then the anonymous feed value, then `0`;
     `setUserVote(linkId, value)` records a vote after a successful mutation.
 - **`LineStatusSheetService`** (`data/line-status-sheet.service.ts`) — the cross-component sheet
@@ -180,8 +209,11 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
 - **`HomePage`** — `sheetLine` computes the `LinePulse` for `lineStatusSheet.lineId()` from
   `store.lines()`; `errorResource` is a minimal `RetryableResource` adapter over `store.reloadAll()`
   (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy`. The feed renders
-  `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page) and the line
-  panel's countdown row mirrors the store's polling beat.
+  `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page); below it
+  `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
+  `canLoadMoreLastWeek` (`computed`) gates its Load More (`loadMoreLastWeek()`) on
+  `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
+  line panel's countdown row mirrors the store's polling beat.
 - **`LineStatusSheetComponent`** local signals: `status` (`PassengerStatus | null`), `delayMinutes`
   (string, parsed on submit), `notes`, `selectedStationIds`, `isSubmitting`, and `submitError`
   (inline `[data-testid="line-status-submit-error"]`, `role="alert"`) — set on a GraphQL `ok: false`
@@ -192,15 +224,20 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   (`STATION_LINES_QUERY`, reused from spotting). An `effect` detects the open→closed edge and calls
   `clear()` (which also resets `submitError`), so the next report starts clean. Logged out, the sheet
   body is a login prompt instead of the form.
-- **`LinkSubmitBoxComponent`** local state: a Signal Forms `model`/`linkForm` (URL required),
-  `selectedLineIds`, `selectedStatus`, `statusLineError` (a status without a line is blocked
-  locally), `duplicateOfId`, `isSubmitting`, and `submitError` (inline
+- **`LinkSubmitBoxComponent`** is a two-mode quick submit. Logged in it renders a Signal Forms
+  `model`/`linkForm` (URL required) and two buttons in one responsive row (`flex-col` on mobile,
+  `sm:flex-row` from `sm` up): **Submit Link** (`type=submit`) sends only
+  `{ input: { url: normalizeFeedUrl(url) } }` through `submitFeedLink`; **Advanced Input**
+  (`data-testid="advanced-input"`, `type=button`) calls
+  `linkSheet.open(undefined, { url: trimmed || undefined })`, opening the shared sheet in create
+  mode with whatever is already typed as a one-shot prefill (the sheet's fuller form adds title +
+  asset tags). Local state is just `duplicateOfId`, `isSubmitting` and `submitError` (inline
   `[data-testid="feed-submit-error"]`, set for a rejected or unreachable submit). The URL input is
   `type="text"` + `inputmode="url"` and `normalizeFeedUrl` scheme-qualifies the value at submit
   time — native `type="url"` silently rejected schemeless input before the handler ran. On a
   duplicate response it stores `duplicateOfId` (used for the `#feed-link-<id>` anchor) and records
-  the backend's auto-upvote via `store.setUserVote`. On a fresh submit it toasts success.
-  `lineOptions` is computed from `store.lines()`.
+  the backend's auto-upvote via `store.setUserVote`. On a fresh submit it toasts success; either
+  outcome resets the form and emits `submitted` so the host reloads.
 - **`LinePulseCardComponent`** — `_links` caps related `pulseLinks` at 5 (`MAX_PULSE_LINKS`); the
   passenger badge/label go through the pure `passengerLabel`/`passengerVariant` helpers. There is no
   standalone status-count badge (`passenger-status-count` was removed at the user's correction):
@@ -256,8 +293,9 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   `LinkSheetService.openEdit(link)`; the page hosts `<app-link-sheet>` and an effect on the sheet's
   open→closed edge calls `store.reloadAll()`.
 - Pure logic lives outside the components: `feed-url.util.ts`
-  (`normalizeFeedUrl`), `passenger-status.util.ts` (`PASSENGER_LABEL`/`PASSENGER_VARIANT` lookup
-  tables, `passengerLabel` null → `"No data"`, `passengerVariant` null → `"neutral"`),
+  (`normalizeFeedUrl`), `feed-day-groups.util.ts` (`groupFeedLinksByDay`, the Last Week section's
+  local-calendar day buckets/labels), `passenger-status.util.ts` (`PASSENGER_LABEL`/`PASSENGER_VARIANT`
+  lookup tables, `passengerLabel` null → `"No data"`, `passengerVariant` null → `"neutral"`),
   `status-info.util.ts` (the `passengerScale`/`vehicleStatusRows` and info/legend/breakdown row
   builders) and `line-status-metrics.util.ts` (`PASSENGER_METRIC`/`passengerMetric`).
 
@@ -267,8 +305,8 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
   additive documents plus matching interfaces, keeping query strings out of components (mirrors
   `insiden.queries.ts`/`spotting.queries.ts`).
 - **`HomeStore`** centralizes the page's data lifecycle: the polling beat (`PollingSource`), cursor
-  pagination, `reloadAll()`, and the authenticated `userVote` overlay. New derived views belong here
-  as `computed()`s over the two resources rather than in components.
+  pagination (today feed + last week), `reloadAll()`, and the authenticated `userVote` overlay. New
+  derived views belong here as `computed()`s over the resources rather than in components.
 - **`LineStatusSheetService`** is the cross-component trigger seam: any future card or page can open
   the report sheet with `openFor(lineId)` without wiring the sheet itself.
 - **`passenger-status.util.ts`** lookup tables are the label/variant seam — a new `PassengerStatus`
@@ -277,6 +315,10 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
 - **`feed-url.util.ts` (`normalizeFeedUrl`)** is the submit-time URL normalizer seam — a new scheme
   rule is a one-function change with its own spec. URL _presentation_ (domain/path split) lives in
   insiden's `link-url.util.ts` (`linkUrlPartsOf`), shared by the one link card every surface uses.
+- **`feed-day-groups.util.ts` (`groupFeedLinksByDay`)** is the Last Week section's day-bucketing
+  seam — a new relative-day label or a different grouping key is a pure function change with its own
+  spec. It is deliberately LOCAL-calendar (the backend's naive Asia/Kuala_Lumpur `created` values),
+  unlike insiden's UTC `link-day-group.util`; an unparsable date falls into a headerless `""` group.
 - **`status-info.util.ts`** is the popover-content seam: a new `PassengerStatus`/`VehicleStatus`
   member is a one-line addition to the label/order tables, and the chips and legend stay in sync.
   **`line-status-metrics.util.ts`** holds the plain-language per-status copy. That copy is no longer
@@ -294,15 +336,17 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
 
 ## 💡 Potential Feature Opportunities
 
-- **Feed filters + a real permalink.** The feed is scoped to the current service day but otherwise
-  unfiltered, and the only deep link is the in-page `#feed-link-<id>` anchor the duplicate indicator
+- **Feed filters + a real permalink.** The today feed is scoped to the current service day (with a
+  collapsed last-week list below it) but otherwise unfiltered, and the only deep link is the in-page
+  `#feed-link-<id>` anchor the duplicate indicator
   already emits. **Ready to implement, purely additive:** a line/status filter signal folded into
   the feed request (or client-side over the resident page), plus a per-link route/fragment that
   scrolls to and highlights a row, since the anchor id already exists for every row.
 - **Extend the `userVote` overlay past the first page.** Today `loadVoteOverlay()` reads only the
-  first `FEED_PAGE_SIZE` (8) links, so a logged-in user's own vote on an appended page renders as
-  `0` until they vote again. **Ready now:** either re-run the authenticated read with the appended
-  cursors, or batch the appended links' ids into one authenticated query when `loadMore()` resolves.
+  first page of the today feed (8) and of the last-week resource (20), so a logged-in user's own
+  vote on an appended page renders as `0` until they vote again. **Ready now:** either re-run the
+  authenticated read with the appended cursors, or batch the appended links' ids into one
+  authenticated query when `loadMore()`/`loadMoreLastWeek()` resolves.
 - **Optimistic voting.** `VoteButtonComponent` is reused as-is; the store's overlay makes optimistic
   score updates straightforward (record the overlay value first, roll back on a GraphQL error).
 - **A dedicated route `title` and share metadata.** The `""` route sets no `title` (unlike every

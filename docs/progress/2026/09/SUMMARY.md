@@ -42,6 +42,8 @@ CI/des reliability month: both GitHub Actions workflows (`CI`, `Deploy Functions
 | Sep 26 | **console** `/console/insiden/links` gains an admin **Approve** row action for rows that aren't `LIVE` (sends the existing `updateSocialMediaLink` with `status: "LIVE"` — full current fields, since the backend replaces title + tag M2Ms — then reloads the list; the queue query now selects `status`). `OFFICIAL_POST_INGESTION.md` §5.3 (`93 files / 805 tests`)                                                                                                |
 | Sep 28 | **Official + HIDDEN** (frontend half of the backend's `isAutomated` / hidden-feed change, `0d2eea2`): the shared `app-link-card` grows an **Official** chip off the new `isAutomated` feed field, `/console/insiden/links` gains a **Hide** row action (`status: "HIDDEN"`, Approve stays as the un-hide verb) plus a per-row Official chip, and `SocialMediaLinkStatus` learns `"HIDDEN"` with a "Hidden" label/variant in the profile list (`94 files / 819 tests`) |
 | Sep 28 | **about** admin editor cards flow in the same responsive grid as the public sections below (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so an edit cell lines up with the card it produces; the personnel socials and tech-stack name rows wrap inside a narrow cell (`94 files / 819 tests`)                                                                                                                                                                       |
+| Sep 30 | **home** quick submit box becomes a two-mode form: URL-only **Submit Link** plus **Advanced Input**, which opens the shared link sheet with a one-shot URL prefill (`LinkSheetService.open(context?, { url })` + consume-once `takePrefillUrl()`); the line-status/tags inputs now live only in the sheet (`96 files / 843 tests`)                                                                                                                                    |
+| Sep 30 | **home** gains a collapsed **Last Week (N)** section below the today feed: last 7 calendar days (backend `lastWeekOnly`), day-grouped (Today / Yesterday / `EEE, d MMM`) with a 20-link day-aligned Load More (`alignPageToDay`); `HomeStore` third resource + mirrored pagination, `reloadAll`/`hasError` cover it, the vote overlay does two reads (`96 files / 843 tests`)                                                                                         |
 
 ### Home — community front page (2026-09-22)
 
@@ -196,3 +198,4 @@ renders a license literal. Full suite 741 tests green.
 - [25.md](./25.md)
 - [26.md](./26.md)
 - [28.md](./28.md)
+- [30.md](./30.md)
