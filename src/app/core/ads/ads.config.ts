@@ -42,7 +42,7 @@ export const ADS_CONFIG = {
 export const AD_DISCLOSURE = {
   /** Popover heading and the trigger's `aria-label` subject. */
   label: "Advertisement",
-  body: "Rosak is a free, volunteer-run project with no company behind it. Ad revenue is the only thing paying for the servers, the database and the realtime data feeds, so the ads pay for the app. Google places the ads — never us — and we do not read or sell your data.",
+  body: "Why ads? This site mostly runs on free-tier hosting, but external API fees and LLM sub costs add up fast. Ads help offset those bills and keep the dev caffeinated ☕ (even if we're still far from breaking even!). Thanks for supporting!",
 } as const;
 
 /** Union of logical slot keys configured above — the parameter type for `resolveAdSlot`. */
