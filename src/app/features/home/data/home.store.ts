@@ -296,7 +296,11 @@ export class HomeStore {
       return;
     }
     const headers = { "firebase-auth-key": token };
-    const [today, lastWeek] = await Promise.all([
+    // allSettled, not all: if one read fails, the other's votes must still land in the overlay.
+    // A per-request failure is already surfaced by `GraphQLClient` (toast + Sentry), so there is
+    // nothing to rethrow — and swallowing it keeps the constructor's fire-and-forget
+    // `void this.loadVoteOverlay()` from producing an unhandled rejection.
+    const results = await Promise.allSettled([
       this.graphql.request<FeedQueryData, FeedQueryVars>(
         FEED_QUERY,
         { first: FEED_PAGE_SIZE, status: "LIVE" },
@@ -314,12 +318,14 @@ export class HomeStore {
       ),
     ]);
     const overlay: Record<string, number> = {};
-    for (const edge of [
-      ...today.publicSocialMediaLinks.edges,
-      ...lastWeek.publicSocialMediaLinks.edges,
-    ]) {
-      if (edge.node.userVote !== 0) {
-        overlay[edge.node.id] = edge.node.userVote;
+    for (const result of results) {
+      if (result.status !== "fulfilled") {
+        continue;
+      }
+      for (const edge of result.value.publicSocialMediaLinks.edges) {
+        if (edge.node.userVote !== 0) {
+          overlay[edge.node.id] = edge.node.userVote;
+        }
       }
     }
     this.userVotes.set(overlay);

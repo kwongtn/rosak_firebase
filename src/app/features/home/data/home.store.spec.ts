@@ -399,4 +399,50 @@ describe("HomeStore", () => {
       { "firebase-auth-key": "token" },
     );
   });
+
+  it("keeps the last-week votes when the today overlay read rejects", async () => {
+    isLoggedIn.set(true);
+    requestMock.mockRejectedValueOnce(new Error("today overlay failed"));
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w", 1)], false, null));
+    const store = createStore();
+    flushInitial([], feedData([makeFeedLink("x", 0)], false, null));
+
+    await vi.waitFor(() => expect(store.userVoteFor("w")).toBe(1));
+    expect(store.userVoteFor("w")).toBe(1);
+  });
+
+  it("reports a last-week-only failure through hasError while the today feed keeps its data", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], false, null) });
+    lastWeekRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(store.hasError()).toBe(true);
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x"]);
+  });
+
+  it("coalesces concurrent loadMoreLastWeek calls into one request", async () => {
+    const store = createStore();
+    flushInitial([], feedData([], false, null), feedData([makeFeedLink("w1")], true, "cursor-w"));
+    await Promise.resolve();
+
+    requestMock.mockClear();
+    let resolveRequest: (value: FeedQueryData) => void = () => undefined;
+    requestMock.mockImplementationOnce(
+      () =>
+        new Promise<FeedQueryData>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+
+    const first = store.loadMoreLastWeek();
+    const second = store.loadMoreLastWeek();
+    resolveRequest(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await Promise.all([first, second]);
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+  });
 });
