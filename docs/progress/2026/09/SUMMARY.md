@@ -126,7 +126,7 @@ One commit (`feat(home): split the front page into two panels with a line-refres
 
 - `home.page.ts`: the URL submit box moved to the top of the desktop feed column, ahead of the list
   (still full width while the panels stack on mobile); the feed gained `feed-skeleton` (first-page
-  load) and `feed-empty` ("No links yet.", styled like the line list's empty state), the retry
+  load) and `feed-empty` ("No links today yet.", styled like the line list's empty state), the retry
   banner replacing both on error.
 - `line-pulse-card.component.ts`: the in-service text became a `line-vehicle-count` badge
   ("12/20 in service", `aria-label` "12 of 20 vehicles in service") keeping its per-status hover

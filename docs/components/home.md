@@ -45,7 +45,7 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     filtered total as pages append) beside the `feed-load-more` button, both hidden while the feed
     is empty; while the first page loads the feed shows `feed-skeleton`
     (`data-testid="feed-skeleton"`, `hlmSkeleton h-24 w-full`), and an empty, settled, error-free
-    feed instead shows the muted `feed-empty` (`data-testid="feed-empty"`, "No links yet.") styled
+    feed instead shows the muted `feed-empty` (`data-testid="feed-empty"`, "No links today yet.") styled
     like the line list's empty state (the retry banner replaces both when the read errored). Below
     the today feed sits a collapsed **Last Week** section: its header button
     (`data-testid="last-week-toggle"`, `[attr.aria-expanded]`) reads `Last Week (N)` from

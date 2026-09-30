@@ -402,7 +402,7 @@ describe("HomePage", () => {
 
     const empty = fixture.nativeElement.querySelector('[data-testid="feed-empty"]') as HTMLElement;
     expect(empty).not.toBeNull();
-    expect(empty.textContent?.replace(/\s+/g, " ").trim()).toBe("No links yet.");
+    expect(empty.textContent?.replace(/\s+/g, " ").trim()).toBe("No links today yet.");
     // The same dashed/muted shell as the sibling line-list empty state, so the columns read alike.
     expect(empty.className).toContain("text-muted-foreground");
     expect(empty.className).toContain("border-dashed");

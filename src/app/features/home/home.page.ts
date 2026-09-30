@@ -88,7 +88,7 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
                 class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
                 data-testid="feed-empty"
               >
-                No links yet.
+                No links today yet.
               </p>
             }
             @for (link of store.feedLinks(); track link.id) {
