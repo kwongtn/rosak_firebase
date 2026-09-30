@@ -123,6 +123,7 @@ interface StoreMock {
   isLoadingMore: WritableSignal<boolean>;
   isLoadingLastWeek: WritableSignal<boolean>;
   isLoadingMoreLastWeek: WritableSignal<boolean>;
+  isRefreshing: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
   linesRefreshTick: WritableSignal<number>;
   polling: {
@@ -170,6 +171,7 @@ describe("HomePage", () => {
       isLoadingMore: signal(false),
       isLoadingLastWeek: signal(false),
       isLoadingMoreLastWeek: signal(false),
+      isRefreshing: signal(false),
       hasError: signal(false),
       linesRefreshTick: signal(0),
       polling: {
@@ -463,34 +465,46 @@ describe("HomePage", () => {
     expect(fixture.debugElement.query(By.directive(RetryBannerComponent))).not.toBeNull();
   });
 
-  it("renders the 30s refresh countdown above the line statuses and refreshes on click", () => {
+  it("mounts one refresh control atop each section, gated by breakpoint classes", () => {
     const root = fixture.nativeElement as HTMLElement;
-    const countdown = root.querySelector<HTMLElement>('[data-testid="line-refresh-countdown"]');
+    const feedSection = root.querySelector<HTMLElement>('section[aria-label="Community feed"]');
+    const lineSection = root.querySelector<HTMLElement>('section[aria-label="Line status"]');
 
-    expect(countdown).not.toBeNull();
-    expect((countdown?.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
-    expect(root.innerHTML.indexOf('data-testid="line-refresh-countdown"')).toBeLessThan(
-      root.innerHTML.indexOf("app-line-pulse-list"),
+    // The beat refreshes BOTH sections, so the control heads the links section on mobile and the
+    // line panel on desktop — one component, two instances, CSS-only visibility (no matchMedia
+    // placement signal, which would desync SSR from hydration).
+    const controls = root.querySelectorAll("app-home-refresh-control");
+    expect(controls.length).toBe(2);
+
+    const mobileWrapper = feedSection?.querySelector<HTMLElement>('[class~="lg:hidden"]');
+    expect(mobileWrapper).not.toBeNull();
+    expect(mobileWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
+    expect(feedSection?.firstElementChild).toBe(mobileWrapper);
+    // …ahead of the submit box it sits above.
+    const feedHtml = feedSection?.innerHTML ?? "";
+    expect(feedHtml.indexOf("app-home-refresh-control")).toBeLessThan(
+      feedHtml.indexOf("app-link-submit-box"),
     );
 
-    expect(root.querySelector('[data-testid="line-refresh-now"]')).toBeNull();
+    const desktopWrapper = lineSection?.querySelector<HTMLElement>('[class~="lg:block"]');
+    expect(desktopWrapper).not.toBeNull();
+    expect(desktopWrapper?.className).toContain("hidden");
+    expect(desktopWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
+    expect(lineSection?.firstElementChild).toBe(desktopWrapper);
+    expect(lineSection?.querySelector("app-line-pulse-list")).not.toBeNull();
 
-    // A manual refresh goes in flight: still the countdown, no confirmation yet.
-    store.polling.refreshNow.mockImplementation(() => store.isLoading.set(true));
-    countdown?.click();
+    // Both instances render the same countdown row, and either one drives the store's beat.
+    const countdowns = root.querySelectorAll('[data-testid="line-refresh-countdown"]');
+    expect(countdowns.length).toBe(2);
+    for (const countdown of Array.from(countdowns)) {
+      expect((countdown.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
+    }
+    (countdowns[0] as HTMLElement).click();
     fixture.detectChanges();
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
-    expect(root.querySelector('[data-testid="line-refresh-confirmation"]')).toBeNull();
 
-    // Once the reload settles, the row confirms with a subtle "Updated".
-    store.isLoading.set(false);
-    fixture.detectChanges();
-    const confirmation = root.querySelector('[data-testid="line-refresh-confirmation"]');
-    expect(confirmation?.textContent?.trim()).toBe("Updated");
-
-    // Not hover-capable under the test DOM, so a tap also revealed the tooltip.
-    const tooltip = root.querySelector('[data-testid="line-refresh-tooltip"]');
-    expect(tooltip?.textContent?.trim()).toBe("Click to Refresh Now");
+    // The old separate button stays gone.
+    expect(root.querySelector('[data-testid="line-refresh-now"]')).toBeNull();
   });
 
   it("loads the next feed page from Load More only while a next page exists", () => {
