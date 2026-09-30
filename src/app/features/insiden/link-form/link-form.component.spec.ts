@@ -209,6 +209,24 @@ describe("LinkFormComponent", () => {
     expect(component.model()).toEqual({ url: "", title: "" });
   });
 
+  it("re-applies a new prefill on a second create-open after a close", async () => {
+    sheet.open(undefined, { url: "https://example.com/first" });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+    expect(component.model().url).toBe("https://example.com/first");
+
+    sheet.close();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    sheet.open(undefined, { url: "https://example.com/second" });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.model().url).toBe("https://example.com/second");
+  });
+
   it("sends the UPDATE mutation with the link id for edits", async () => {
     const link = makeLink();
     sheet.openEdit(link);
