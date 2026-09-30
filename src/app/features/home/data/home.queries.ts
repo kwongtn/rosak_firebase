@@ -243,7 +243,13 @@ export interface FeedQueryVars {
    * Computed backend-side so the frontend never bakes a date into query variables (SSR
    * TransferState needs identical vars). Keys on `occurredAt`, NOT `created` — the ordering is
    * `-occurredAt, -id`, and windowing one column while sorting another would drop a backdated
-   * report into a day it does not belong to. */
+   * report into a day it does not belong to.
+   *
+   * TODAY IS EXCLUDED, by the backend default rather than by an argument this side sends: the
+   * resolver's `display_today_in_last_week` defaults to `false`, so the window is closed at 00:00
+   * today and the newest day group the section can show is "Yesterday". This side deliberately does
+   * NOT send the flag — relying on the default keeps a frontend that deploys BEFORE the backend
+   * change correct, instead of asking for a variable an older schema rejects. */
   lastWeekOnly?: boolean | null;
   /** When true, a returned page never ends mid-calendar-day: the backend may exceed `first` to
    * finish the current day. Used by the last-week section's Load More so day groups stay whole. */

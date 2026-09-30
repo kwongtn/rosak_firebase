@@ -101,4 +101,32 @@ describe("graphql-client", () => {
 
     expect(resource.data()).not.toBe(first);
   });
+
+  it("exposes isFetching for a reload that isLoading deliberately hides", async () => {
+    // The trap this member exists for: `isLoading` is pristine-first-fetch-only, so once the first
+    // load has settled it can never be observed again — a caller that wants to know "did that manual
+    // refresh finish?" has nothing to watch, and a plain `_pending` boolean can never re-trigger an
+    // effect keyed on `isLoading`. `isFetching` is the raw in-flight flag, true for the first fetch
+    // AND every later reload/retry.
+    const resource = createResource();
+    TestBed.tick();
+    expect(resource.isFetching()).toBe(true);
+
+    expectRequest().flush({ data: { lines: [{ id: "1" }] } });
+    await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "1" }] }));
+    TestBed.tick();
+
+    expect(resource.isFetching()).toBe(false);
+    expect(resource.isLoading()).toBe(false);
+
+    resource.reload();
+    TestBed.tick();
+    expect(resource.isFetching()).toBe(true);
+    // The pair that makes the distinction legible: same request, opposite answers.
+    expect(resource.isLoading()).toBe(false);
+
+    expectRequest().flush({ data: { lines: [{ id: "1" }] } });
+    await vi.waitFor(() => expect(resource.isFetching()).toBe(false));
+    expect(resource.isFetching()).toBe(false);
+  });
 });

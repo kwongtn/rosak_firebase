@@ -485,28 +485,122 @@ describe("HomeStore", () => {
     expect(store.userVoteFor("x")).toBe(1);
   });
 
-  it("refreshes only the lines on the poll beat, keeping the appended feed pages", async () => {
+  it("refreshes every section's first page on the poll beat, keeping the appended pages", async () => {
+    // The user-facing promise is "Refreshing in 12s" for the WHOLE page, so the beat must re-read
+    // page one of all three resources — but it must NOT drop the appended Load More pages, or the
+    // reader's place in a long feed would be wiped every 30 seconds. Hence `reloadFirstPages()`
+    // (append-only signals untouched) rather than `reloadAll()`.
     const store = createStore();
-    flushInitial([makeLine("a")], feedData([makeFeedLink("x")], true, "cursor-x"));
+    flushInitial(
+      [makeLine("a")],
+      feedData([makeFeedLink("x")], true, "cursor-x"),
+      feedData([makeFeedLink("w1")], true, "cursor-w"),
+    );
     await Promise.resolve();
 
     requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
     await store.loadMore();
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await store.loadMoreLastWeek();
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
     expect(store.linesRefreshTick()).toBe(0);
 
     store.polling.refreshNow();
     TestBed.tick();
 
-    const reload = linesRequest();
-    reload.flush({ data: { lines: [makeLine("a"), makeLine("b")] } });
+    // All three are requested. `expectOne` DEQUEUES, so capture both feed reads before flushing —
+    // FEED_QUERY serves the today feed AND the last-week section, split by the window variable.
+    const linesReq = linesRequest();
+    const feedReq = feedRequest();
+    const lastWeekReq = lastWeekRequest();
+    linesReq.flush({ data: { lines: [makeLine("a"), makeLine("b")] } });
+    feedReq.flush({ data: feedData([makeFeedLink("x")], true, "cursor-x") });
+    lastWeekReq.flush({ data: feedData([makeFeedLink("w1")], true, "cursor-w") });
     await Promise.resolve();
 
     expect(store.linesRefreshTick()).toBe(1);
     expect(store.lines().map((l) => l.id)).toEqual(["a", "b"]);
-    httpMock.expectNone((r) => r.method === "POST" && r.body.query.includes("query Feed"));
+    // The appended pages survive the beat — the whole point of not resetting them.
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
     expect(store.feedPageInfo()?.endCursor).toBe("cursor-y");
+    expect(store.lastWeekPageInfo()?.endCursor).toBe("cursor-w2");
+  });
+
+  it("drops a row the refetched first page and an appended page now both carry", async () => {
+    // The dedup guard `reloadFirstPages()` requires. An admin edit or deletion between the two
+    // reads shifts a row out of page one and into a position the appended pages already cover, so
+    // the same id lands in both. A duplicate id is fatal, not cosmetic: the page renders
+    // `@for (link of store.feedLinks(); track link.id)` and a repeated track key throws.
+    const store = createStore();
+    flushInitial(
+      [makeLine("a")],
+      feedData([makeFeedLink("x")], true, "cursor-x"),
+      feedData([makeFeedLink("w1")], true, "cursor-w"),
+    );
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    await store.loadMore();
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await store.loadMoreLastWeek();
+
+    store.reloadFirstPages();
+    TestBed.tick();
+
+    const linesReq = linesRequest();
+    const feedReq = feedRequest();
+    const lastWeekReq = lastWeekRequest();
+    linesReq.flush({ data: { lines: [makeLine("a")] } });
+    // Page one now reaches into what used to be page two for both lists.
+    feedReq.flush({
+      data: {
+        publicSocialMediaLinks: {
+          edges: [makeFeedLink("x"), makeFeedLink("y")].map((node) => ({ node, cursor: "c" })),
+          pageInfo: { hasNextPage: true, endCursor: "cursor-x" },
+          totalCount: 2,
+        },
+      },
+    });
+    lastWeekReq.flush({
+      data: {
+        publicSocialMediaLinks: {
+          edges: [makeFeedLink("w1"), makeFeedLink("w2")].map((node) => ({ node, cursor: "c" })),
+          pageInfo: { hasNextPage: true, endCursor: "cursor-w" },
+          totalCount: 2,
+        },
+      },
+    });
+    await Promise.resolve();
+
+    // First occurrence wins, so the refetched copy leads and the appended duplicate is dropped —
+    // backend order preserved, no repeated track key for either surface.
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
+  });
+
+  it("reports isRefreshing for the first load and for every later reload", async () => {
+    // Built on each resource's raw `isFetching`, not `isLoading` — `isLoading` is
+    // pristine-first-fetch-only, so a refresh confirmation can never observe it. Three assertions
+    // in order: the pristine fetch is in flight, it settles, a reload is observable again.
+    const store = createStore();
+    expect(store.isRefreshing()).toBe(true);
+
+    flushInitial([], feedData([makeFeedLink("x")], false, null));
+    await Promise.resolve();
+    expect(store.isRefreshing()).toBe(false);
+
+    store.reloadAll();
+    TestBed.tick();
+    expect(store.isRefreshing()).toBe(true);
+
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("z")], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    expect(store.isRefreshing()).toBe(false);
   });
 
   it("keeps reloadAll resetting the appended feed pages without bumping the tick", async () => {

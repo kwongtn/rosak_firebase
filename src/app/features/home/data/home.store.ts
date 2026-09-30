@@ -56,6 +56,31 @@ export const LAST_WEEK_PAGE_SIZE = 20;
 const HOME_FEED_COLLAPSE_VARS = { collapseThreads: true } as const;
 
 /**
+ * Merge helper for a refetched first page + already-appended continuation pages, de-duplicated by
+ * `node.id` and keeping the FIRST occurrence (i.e. the backend's own order: first page first).
+ *
+ * This is a correctness requirement, not tidiness. The poll beat / manual refresh re-reads page one
+ * WITHOUT dropping the appended pages (dropping them would wipe the user's Load More progress every
+ * 30s — see `reloadFirstPages()`), and the two sets can then legitimately OVERLAP: an admin edit or
+ * deletion between the two reads shifts a row out of page one and into a position the appended pages
+ * already cover, so the same id lands in both. A duplicate id is not cosmetic — the page renders
+ * `@for (link of store.feedLinks(); track link.id)`, and a repeated track key throws on the next
+ * render of that view. First-wins keeps the newest refetched copy for a row that is in both.
+ */
+function dedupeEdges(edges: FeedLinkEdge[]): FeedLinkEdge[] {
+  const seenIds = new Set<string>();
+  const merged: FeedLinkEdge[] = [];
+  for (const edge of edges) {
+    if (seenIds.has(edge.node.id)) {
+      continue;
+    }
+    seenIds.add(edge.node.id);
+    merged.push(edge);
+  }
+  return merged;
+}
+
+/**
  * Route-scoped store for the community front page (provided by the route in a later wave —
  * deliberately NOT `providedIn: "root"`). Owns the two reads the page needs (the line pulse
  * list and the public feed), cursor pagination for the feed, a shared polling beat, and a
@@ -92,11 +117,12 @@ export class HomeStore {
     },
   }));
 
-  /** The collapsed "Last Week" section's first page: last 7 calendar days (today + 6), day-aligned
-   * pages. Variables are STATIC (only the boolean flags, never a computed date) so SSR's
-   * TransferState hydrates without a refetch. Collapses threads too — this surface renders
-   * `app-link-thread` per day group exactly like the today feed, so an uncollapsed last week would
-   * split a group across two day headers. */
+  /** The collapsed "Last Week" section's first page: a 7-calendar-day window with TODAY EXCLUDED
+   * (the backend's `displayTodayInLastWeek` default is `false`, so the newest day group is
+   * "Yesterday"), day-aligned pages. Variables are STATIC (only the boolean flags, never a computed
+   * date) so SSR's TransferState hydrates without a refetch. Collapses threads too — this surface
+   * renders `app-link-thread` per day group exactly like the today feed, so an uncollapsed last week
+   * would split a group across two day headers. */
   private readonly lastWeekResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => ({
     query: FEED_QUERY,
     variables: {
@@ -122,11 +148,15 @@ export class HomeStore {
   private readonly lastWeekNextCursor = signal<string | null>(null);
   private readonly lastWeekLoadingMore = signal(false);
 
-  /** First page (resource) + appended continuation pages, in backend order. */
-  private readonly edges = computed<FeedLinkEdge[]>(() => [
-    ...(this.feedResource.data()?.publicSocialMediaLinks.edges ?? []),
-    ...this.appendedEdges(),
-  ]);
+  /** First page (resource) + appended continuation pages, in backend order, de-duplicated by
+   *  `node.id` — see `dedupeEdges`: a refresh of page one can overlap an appended page, and a
+   *  duplicate id would throw on the page's `track link.id`. */
+  private readonly edges = computed<FeedLinkEdge[]>(() =>
+    dedupeEdges([
+      ...(this.feedResource.data()?.publicSocialMediaLinks.edges ?? []),
+      ...this.appendedEdges(),
+    ]),
+  );
 
   readonly feedLinks = computed<FeedLink[]>(() => this.edges().map((edge) => edge.node));
 
@@ -147,11 +177,13 @@ export class HomeStore {
   });
 
   /** First page (resource) + appended continuation pages of the last-week section, in backend
-   * order (newest-first). */
-  private readonly lastWeekEdges = computed<FeedLinkEdge[]>(() => [
-    ...(this.lastWeekResource.data()?.publicSocialMediaLinks.edges ?? []),
-    ...this.lastWeekAppendedEdges(),
-  ]);
+   * order (newest-first), de-duplicated by `node.id` like the today feed. */
+  private readonly lastWeekEdges = computed<FeedLinkEdge[]>(() =>
+    dedupeEdges([
+      ...(this.lastWeekResource.data()?.publicSocialMediaLinks.edges ?? []),
+      ...this.lastWeekAppendedEdges(),
+    ]),
+  );
 
   readonly lastWeekLinks = computed<FeedLink[]>(() =>
     this.lastWeekEdges().map((edge) => edge.node),
@@ -186,6 +218,23 @@ export class HomeStore {
 
   readonly isLoading = computed(
     () => this.linesResource.isLoading() || this.feedResource.isLoading(),
+  );
+
+  /**
+   * True while ANY of the three page resources has a request in flight — the first load, a poll
+   * beat, or a manual refresh.
+   *
+   * Built on each resource's `isFetching`, NOT on `isLoading`, and the distinction is the whole
+   * point: `graphqlResource.isLoading` is pristine-first-fetch-only, so it is `false` for every
+   * reload after the first success. A refresh confirmation ("Updated") has to observe a request
+   * actually starting and finishing, which `isLoading` cannot report. `hasError` is read
+   * separately by the control, so a beat that settles with an error shows nothing.
+   */
+  readonly isRefreshing = computed(
+    () =>
+      this.linesResource.isFetching() ||
+      this.feedResource.isFetching() ||
+      this.lastWeekResource.isFetching(),
   );
 
   /** True while a `loadMore()` continuation page is in flight (the resources' own loading state
@@ -229,12 +278,18 @@ export class HomeStore {
   readonly linesRefreshTick = signal(0);
 
   /**
-   * The shared 30s beat. Public so the page can render its countdown
-   * (`secondsRemaining()`) and a manual "Refresh now". The callback is lines-only on purpose —
-   * a full `reloadAll()` would drop the feed's appended pages and the user's Load More
-   * progress every 30 seconds.
+   * The shared 30s beat. Public so the page can render its countdown (`secondsRemaining()`) and a
+   * manual "Refresh Now"; both the beat and the click go through the SAME `reloadFirstPages()`.
+   *
+   * The beat covers the WHOLE page — line statuses, the Today feed's first page and the Last Week
+   * first page — not just the lines, because "Refreshing in 12s" sitting above the links section
+   * on mobile promises the links refresh too. What it must NOT do is drop the appended Load More
+   * pages: resetting them every 30 seconds would wipe the reader's place in a long feed, which is
+   * why the beat calls `reloadFirstPages()` (append-only signals untouched) and not `reloadAll()`.
+   * The full reset stays for the flows that genuinely invalidate the whole dataset — a submit, a
+   * link edit, a status report, the retry banner's "Try Now".
    */
-  readonly polling = new PollingSource(() => this.reloadLines());
+  readonly polling = new PollingSource(() => this.reloadFirstPages());
 
   constructor() {
     // httpResource is lazy until first read — read both so the store fetches on creation
@@ -290,11 +345,25 @@ export class HomeStore {
     this.lastWeekResource.reload();
   }
 
-  /** The poll beat's refresh: lines only, so the feed (and the user's Load More progress)
-   * survives every tick. Bumps `linesRefreshTick` for the open line accordions. */
-  reloadLines(): void {
+  /**
+   * The poll beat's refresh (and the manual click's — the countdown control drives the same store
+   * beat): re-reads page one of ALL THREE resources and bumps `linesRefreshTick` for the open line
+   * accordions.
+   *
+   * Every appended-page signal is deliberately LEFT ALONE. Dropping them would be simplest and
+   * would also be wrong at a 30-second cadence: the reader's Load More progress would be thrown
+   * away every tick, and the first page's rows would be the only thing on screen. The overlap that
+   * creates instead (a refetched page one can re-include a row an appended page already holds) is
+   * absorbed by the `dedupeEdges` merge in `edges`/`lastWeekEdges` — which is why the two pieces
+   * belong together and neither is optional.
+   *
+   * Use `reloadAll()` when the whole dataset is invalid (submit / edit / report / retry), not here.
+   */
+  reloadFirstPages(): void {
     this.linesResource.reload();
     this.linesRefreshTick.update((tick) => tick + 1);
+    this.feedResource.reload();
+    this.lastWeekResource.reload();
   }
 
   /** Loads the next feed page through the same query with the last page's cursor. Coalesced by
