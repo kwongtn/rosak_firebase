@@ -30,6 +30,18 @@ import type { VoteValue } from "../vote-button/vote-state.util";
  * operator post). Both are hidden when their axis says nothing, so a hand-submitted approved link
  * shows neither.
  *
+ * Two time axes: the card DISPLAYS `occurredAt` — "when did this happen", the instant a rider
+ * actually cares about, and the column every feed/queue orders on. `created` — "when did someone
+ * report it" — is moderation provenance and stays the fallback (see `occurredAt` below), because
+ * `occurredAt` is optional on `LinkCardItem`: every link document selects it today (the front
+ * page's per-line pulse included — see FRONT_PAGE_LINES_QUERY), but the field is optional
+ * per host, and `strict`/`strictNullChecks` are OFF, so a host that does not ask for it — or a
+ * payload cached before the column existed — still renders a real time instead of a blank. The
+ * tooltip is where the *other* axis stays reachable: when the two differ it also names the
+ * submission time, so nothing is lost by promoting `occurredAt` to the visible label. No thread
+ * UI lives here on purpose — the grouping wrapper `app-link-thread` owns it, so every other
+ * surface of this shared card stays byte-for-byte a flat list.
+ *
  * Favicon comes from Google's s2 service; a URL whose hostname can't be extracted (or isn't
  * http/https) falls back to a plain link icon instead of a broken image. Edit gating (author or
  * admin) belongs to the host via canEditLink — this card only honours `editable`. SSR-safe: no
@@ -138,12 +150,19 @@ import type { VoteValue } from "../vote-button/vote-state.util";
               tabindex="0"
               data-testid="link-time"
             >
-              <span data-testid="link-created">{{ createdLabel() }}</span>
+              <!-- Testid intentionally NOT renamed with the displayed field: "link-created" is
+                   the stable DOM hook host specs assert on (home feed, /insiden, situasi). -->
+              <span data-testid="link-created">{{ occurredLabel() }}</span>
               <span
                 role="tooltip"
                 class="bg-popover text-popover-foreground border-border pointer-events-none absolute right-0 bottom-full z-10 mb-1 flex items-center gap-1 rounded-md border px-2 py-1 text-xs whitespace-nowrap opacity-0 shadow-md transition-opacity group-hover/time:opacity-100 group-focus-within/time:opacity-100"
               >
-                <span>{{ link().created | date: "MMM d, y HH:mm" }}</span>
+                <span>{{ occurredAt() | date: "MMM d, y HH:mm" }}</span>
+                @if (submittedAt(); as submitted) {
+                  <span class="text-muted-foreground" data-testid="link-submitted">
+                    Submitted {{ submitted | date: "MMM d, y HH:mm" }}
+                  </span>
+                }
                 @if (submitter(); as submitterName) {
                   <span class="text-muted-foreground" data-testid="link-submitter">
                     {{ submitterName }}
@@ -214,5 +233,40 @@ export class LinkCardComponent {
     return user?.nickname || user?.shortId || "";
   });
 
-  protected readonly createdLabel = computed(() => humanizeSince(this.link().created));
+  /**
+   * THE displayed instant: "when did this happen" (`occurredAt`), falling back to "when was it
+   * reported" (`created`).
+   *
+   * The `?? created` is load-bearing, not defensive noise. `occurredAt` is optional on
+   * `LinkCardItem` because it is selected per document, and `strict`/`strictNullChecks` are OFF in
+   * this repo — the compiler will not tell a host that it forgot the field, and the backend column
+   * is NOT NULL, so "absent" can only ever mean "this host didn't ask for it". Every surface
+   * (home feed, /insiden, situasi, incident card) then shows the submission time instead of
+   * nothing. Both strings are naive local wall time (backend `USE_TZ = False`,
+   * `TIME_ZONE = Asia/Kuala_Lumpur`), so no offset juggling is needed — `DatePipe` and
+   * `humanizeSince` both read them as local, which is what the writer meant.
+   */
+  protected readonly occurredAt = computed(() => this.link().occurredAt ?? this.link().created);
+
+  /** Relative label ("3 hours ago") for the displayed instant. */
+  protected readonly occurredLabel = computed(() => humanizeSince(this.occurredAt()));
+
+  /**
+   * The submission instant, surfaced in the tooltip ONLY when it differs from the displayed one —
+   * `null` means "nothing extra to say". Two cases collapse to `null` on purpose:
+   * - `occurredAt` absent: the displayed value IS `created`, so a second copy would be noise.
+   * - both present and the same instant: `threadSize`-style redundancy on every row is noise.
+   *
+   * Compared by parsed instant, not by string: the backend serialises with microseconds
+   * (`…:00.265464`) and `created` may arrive without a fractional part, so the same wall time can
+   * be two different strings. V8 truncates the excess digits, so the parse is stable.
+   */
+  protected readonly submittedAt = computed(() => {
+    const occurredAt = this.link().occurredAt;
+    const created = this.link().created;
+    if (!occurredAt) {
+      return null;
+    }
+    return new Date(occurredAt).getTime() === new Date(created).getTime() ? null : created;
+  });
 }

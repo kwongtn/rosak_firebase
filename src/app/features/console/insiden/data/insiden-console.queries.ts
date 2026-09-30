@@ -193,6 +193,21 @@ export type {
   UpdateCalendarIncidentVars,
 } from "../../../insiden/data/insiden.queries";
 
+/** The admin link-triage queue.
+ *
+ *  Ordering is `-occurredAt, -id` — "what happened most recently", keyed on the event instant,
+ *  not the submission time. Consequently the date-range arguments were RENAMED `createdAfter` /
+ *  `createdBefore` → `occurredAfter` / `occurredBefore` (verified against the deployed schema:
+ *  `socialMediaLinks(search: String, ..., occurredAfter: DateTime, occurredBefore: DateTime)`).
+ *  The rename is deliberate and has NO alias: the old names filtered on `created` while the page
+ *  sorted by `occurredAt`, so an alias would have kept a date filter silently answering a
+ *  different question than the rows above it. A stale `createdAfter` is a hard validation error
+ *  ("Unknown argument"), which is the intended failure mode — loud, not silently wrong.
+ *
+ *  `threadLinks` is deliberately NOT selected: the queue renders a flat moderation table where
+ *  a thread shows as a `Thread (N)` chip, and the count already answers "how many members does
+ *  this row hide?". Selecting the members would let a HIDDEN row's URL/title travel inside a
+ *  nested field of an admin-gated query for no rendering benefit. */
 export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
   query ConsoleSocialMediaLinks(
     $search: String
@@ -201,8 +216,8 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
     $lineId: ID
     $vehicleId: ID
     $stationId: ID
-    $createdAfter: DateTime
-    $createdBefore: DateTime
+    $occurredAfter: DateTime
+    $occurredBefore: DateTime
   ) {
     socialMediaLinks(
       search: $search
@@ -211,13 +226,26 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
       lineId: $lineId
       vehicleId: $vehicleId
       stationId: $stationId
-      createdAfter: $createdAfter
-      createdBefore: $createdBefore
+      occurredAfter: $occurredAfter
+      occurredBefore: $occurredBefore
     ) {
       id
       url
       title
       created
+      # "When did this happen" — the column the queue sorts on and the instant the
+      # range filter windows over. Kept next to created deliberately: an admin
+      # moderates against the submission time, so the row must be able to show
+      # both. Naive local wall time (backend USE_TZ = False), no offset.
+      occurredAt
+      # Thread grouping, for the row's "Thread (N)" chip and its Ungroup action.
+      # threadSize counts only publicly-visible members, which is exactly what an
+      # admin needs: the gap between the chip and the raw member count is the
+      # hidden members, and that coupling (thread public iff root public) is
+      # invisible otherwise.
+      threadId
+      isThreadRoot
+      threadSize
       completed
       completedAt
       # Completing admin (Task 1): the admin user who marked the link completed;
@@ -260,6 +288,26 @@ export interface SocialMediaLinkRow {
   url: string;
   title: string;
   created: string;
+  /** "When did this happen" — the instant the row is sorted and range-filtered on
+   *  (`-occurredAt, -id`). NOT NULL on the backend, so a present value is always real;
+   *  naive local wall time, no offset (backend `USE_TZ = False`). Distinct from
+   *  `created`, which stays the "when did someone report it" moderation column —
+   *  an admin moderates against `created` and reads `occurredAt` as a claim.
+   *
+   *  RE-SENT VERBATIM by linkStatusInput: `SocialMediaLinkInput` is
+   *  replace-not-patch, and `occurredAt` has a third tri-state (explicit `null`
+   *  resets the row to its submission time), so an editor that coerces this to
+   *  `?? null` would silently rewrite the event time of every approved row. */
+  occurredAt: string;
+  /** Id of the thread root this row belongs to; `null` exactly when this row IS a
+   *  root (which includes every ordinary unthreaded row). */
+  threadId: string | null;
+  /** True for thread roots — gates the row's "Thread (N)" chip and Ungroup action. */
+  isThreadRoot: boolean;
+  /** `1 + count(publicly-visible members)` — the chip's number. `1` when unthreaded;
+   *  it counts only publicly-visible members, so the gap against the raw member
+   *  count is exactly the hidden ones (a thread is public iff its ROOT is). */
+  threadSize: number;
   completed: boolean;
   completedAt: string | null;
   /** Display name of the completing admin (nickname or shortId), null until completed. */
@@ -290,9 +338,16 @@ export interface SocialMediaLinksQueryVars {
   lineId?: string;
   vehicleId?: string;
   stationId?: string;
-  /** ISO datetimes for the backend's createdAfter/createdBefore range — omit for unbounded. */
-  createdAfter?: string;
-  createdBefore?: string;
+  /** ISO datetimes bounding `occurredAt` — the same column the result is ordered by, so the
+   *  filter and the sort can never disagree. Omit for unbounded.
+   *
+   *  ⚠️ Renamed from `createdAfter`/`createdBefore` on purpose, with no alias. The queue now
+   *  orders `-occurredAt, -id`, so filtering on `created` would show a page sorted by one
+   *  instant and windowed by another — a backdated report would appear at the top of a day
+   *  range that excludes it. The backend arguments carry the same new names, so a stale
+   *  spelling fails loudly ("Unknown argument") instead of quietly returning the wrong rows. */
+  occurredAfter?: string;
+  occurredBefore?: string;
 }
 
 export const MARK_LINK_COMPLETED_MUTATION = /* GraphQL */ `

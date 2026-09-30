@@ -13,11 +13,19 @@ interface LinkSheetContext {
  * the shared card emits its structural `LinkCardItem` and the home feed node carries no
  * vehicle/station/category tags. Missing tags hydrate as empty selections (`?? []` in the form),
  * which is exactly what a link with no tags looks like.
+ *
+ * `occurredAt` ("when did this happen") is OPTIONAL for the same reason the tags are: it is only
+ * present on hosts whose query selects it, and the form renders `isoToOccurredAtInput(undefined)`
+ * → `""` (an empty, unset control) when it is absent. It is deliberately NOT folded into `created`
+ * here — the two are different instants and the form needs them apart.
  */
 interface LinkEditTarget {
   id: string;
   url: string;
   title: string;
+  /** "When did this happen", naive local wall time, no offset (`USE_TZ = False`). Distinct from
+   *  `created`, which is the report time the sheet never shows. */
+  occurredAt?: string;
   lines: Array<{ id: string }>;
   vehicles?: Array<{ id: string }>;
   stations?: Array<{ id: string }>;

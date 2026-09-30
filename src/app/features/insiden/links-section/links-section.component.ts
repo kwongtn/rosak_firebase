@@ -22,6 +22,14 @@ const PAGE_SIZE = 20;
  * — the full-dataset fetch is gone. Rendering is delegated to the shared LinkListComponent
  * (day grouping, pending collapsible, edit pencils); this host only owns pagination and
  * reload-on-sheet-close (dropping continuation pages of the stale dataset).
+ *
+ * Deliberately flat and thread-free: neither the first-page resource nor `loadMore` sends
+ * `collapseThreads`, so every thread member stays a row of its own. Thread UI is scoped to the
+ * home feed and the admin console, and this tab is a browsable "everything submitted" view
+ * where hiding members behind a root would lose rows the reader came for. Grouping/labelling
+ * happens in the shared list (keyed on the DISPLAYED instant, `occurredAt ?? created` — the
+ * backend orders this same connection by `-occurred_at, -id`), so there is no per-host date
+ * logic here to drift out of sync.
  */
 @Component({
   selector: "app-links-section",
@@ -82,6 +90,9 @@ export class LinksSectionComponent {
 
   protected readonly linksResource = graphqlResource<PublicSocialMediaLinksQueryData>(() => ({
     query: PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
+    // No `collapseThreads` key: omitting it is how this tab says "use the schema default
+    // (false)" — an explicit `false` would be a real value the resolver reads, and an explicit
+    // `null` is fatal on a `Boolean!` argument. See PublicSocialMediaLinksVars.
     variables: { first: PAGE_SIZE },
   }));
 

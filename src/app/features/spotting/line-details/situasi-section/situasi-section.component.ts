@@ -9,6 +9,7 @@ import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
 import { LinkListComponent } from "../../../insiden/link-list/link-list.component";
 import { LinkSheetComponent } from "../../../insiden/link-sheet/link-sheet.component";
+import { linkDisplayInstant } from "../../../insiden/data/link-day-group.util";
 import {
   PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
   PublicSocialMediaLinksQueryData,
@@ -165,13 +166,24 @@ export class SituasiSectionComponent {
     refreshIntervalToOptionValue(this.polling.intervalMs()),
   );
 
-  /** Newest-first by creation time (backend order; sorted defensively). The connection's
-   * first page is what this panel loads — matching the paginated contract of the shared
-   * query (Task 16: no full-dataset link fetches). */
+  /** Newest-first by the DISPLAYED instant — the event time `occurredAt ?? created` — matching
+   * the `-occurred_at, -id` ordering this panel's page already arrives in (sorted defensively;
+   * ties keep backend order, since `Array.prototype.sort` is stable and the backend breaks ties
+   * with `-id`).
+   *
+   * The `?? created` is the same load-bearing fallback the shared card applies: `occurredAt` is
+   * optional per document, so a payload without it must still sort. Plain string comparison is
+   * correct because both fields are naive local wall time from one serializer (backend
+   * `USE_TZ = False`) — never re-format them through UTC here.
+   *
+   * The connection's first page is what this panel loads — matching the paginated contract of
+   * the shared query (Task 16: no full-dataset link fetches). `collapseThreads` is deliberately
+   * NOT sent: thread UI is scoped to the home feed and the console, and a per-line filter needs a
+   * flat, COMPLETE list — collapsing here would silently hide every thread member. */
   protected readonly sorted = computed(() =>
     [...(this.resource.data()?.publicSocialMediaLinks.edges ?? [])]
       .map((edge) => edge.node)
-      .sort((a, b) => b.created.localeCompare(a.created)),
+      .sort((a, b) => linkDisplayInstant(b).localeCompare(linkDisplayInstant(a))),
   );
 
   constructor() {

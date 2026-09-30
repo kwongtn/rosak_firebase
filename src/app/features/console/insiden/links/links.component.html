@@ -90,20 +90,30 @@
         Reset
       </button>
 
+      <!--
+        RELABELLED "Submitted between" -> "Occurred between" on purpose. The two
+        resolver args these controls drive are `occurredAfter`/`occurredBefore`,
+        i.e. the EVENT instant, and it is the same column the table is sorted by
+        (`-occurredAt, -id`) — so "Submitted" described a filter the server does
+        not apply, and collided with the "Submitted" column one screen lower,
+        which is a different clock entirely. An admin chasing a report that
+        arrived this morning but happened last week now has an honest control.
+        The `Submitted` column is untouched: it stays the queue's triage clock.
+      -->
       <div class="flex flex-col gap-1.5 text-sm sm:col-span-2">
-        Submitted between
+        Occurred between
         <div class="flex flex-wrap items-center gap-1.5">
           <input
             hlmInput
             type="date"
-            aria-label="Submitted from date"
+            aria-label="Occurred from date"
             [value]="filterDateFrom()"
             (input)="onDateFromInput($any($event.target).value)"
           />
           <input
             hlmInput
             type="date"
-            aria-label="Submitted to date"
+            aria-label="Occurred to date"
             [value]="filterDateTo()"
             (input)="onDateToInput($any($event.target).value)"
           />
@@ -111,16 +121,68 @@
       </div>
     </div>
 
+    <!--
+      Selection toolbar. Rendered ALWAYS (not only once something is ticked) so the
+      affordance is discoverable, and so "needs two" shows up as a disabled button
+      with a stated reason rather than as a button that is simply absent. The hint
+      is `canGroup`'s rule in plain words: a one-link thread is a no-op that still
+      renders as a thread.
+    -->
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        hlmBtn
+        size="sm"
+        data-testid="group-selected"
+        [disabled]="isLoading() || !canGroupSelection()"
+        (click)="groupSelected()"
+      >
+        Group into thread
+      </button>
+      <span class="text-muted-foreground text-xs" data-testid="selection-count"
+        >{{ selectedCount() }} selected</span
+      >
+      @if (selectedCount() > 0) {
+        <button hlmBtn size="sm" variant="ghost" (click)="clearSelection()">Clear selection</button>
+      }
+      @if (!canGroupSelection()) {
+        <span class="text-muted-foreground text-xs">
+          Select at least two links to group them into one thread.
+        </span>
+      }
+    </div>
+
     <div hlmTableContainer>
-      <table hlmTable class="min-w-[900px]">
+      <table hlmTable class="min-w-[1100px]">
         <thead hlmTHead>
           <tr hlmTr>
+            <th hlmTh class="w-8">
+              <input
+                type="checkbox"
+                class="size-4 accent-primary"
+                aria-label="Select all links"
+                data-testid="select-all"
+                [checked]="allVisibleSelected()"
+                (change)="toggleSelectAll()"
+              />
+            </th>
             <th hlmTh>URL</th>
             <th hlmTh>Title</th>
             <th hlmTh>Submitter</th>
             <th hlmTh>Categories</th>
             <th hlmTh>Status</th>
             <th hlmTh>Submitted</th>
+            <!--
+              The event instant, kept beside the report instant because an admin
+              needs both and cannot tell which is which without the labels: the
+              queue is SORTED by this one, while the column next to it answers
+              "how long has this been waiting?". `link.occurredAt` is naive local
+              wall time (backend USE_TZ = False, no offset) and Angular's date
+              pipe renders an offset-free ISO string in the viewer's own zone, so
+              the value shown is the server's wall time, unshifted — the same
+              contract the existing `created` column already relies on.
+            -->
+            <th hlmTh>Occurred</th>
+            <th hlmTh>Thread</th>
             <th hlmTh>Actions</th>
           </tr>
         </thead>
@@ -128,17 +190,20 @@
           @if (isLoading() && links().length === 0) {
             @for (row of skeletonRows; track row) {
               <tr hlmTr>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-4"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-full"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-28"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-20"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-16"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
+                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-16"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-8 w-28"></div></td>
               </tr>
             }
             <tr hlmTr>
-              <td hlmTd colspan="7" class="sr-only py-8 text-center" role="status">
+              <td hlmTd colspan="10" class="sr-only py-8 text-center" role="status">
                 Loading links…
               </td>
             </tr>
@@ -151,6 +216,23 @@
                 (click)="openLinkDetail(link)"
                 (keydown.enter)="openLinkDetail(link)"
               >
+                <td hlmTd class="py-3">
+                  <!--
+                    stopPropagation on the click, not the change: the row itself
+                    opens the detail sheet, and `change` only fires after the
+                    click has already bubbled — so without this, ticking a row
+                    would also open its editor.
+                  -->
+                  <input
+                    type="checkbox"
+                    class="size-4 accent-primary"
+                    data-testid="link-select"
+                    [attr.aria-label]="'Select ' + link.url"
+                    [checked]="selectedIds().includes(link.id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleRowSelection(link.id)"
+                  />
+                </td>
                 <td hlmTd class="max-w-72 py-3">
                   <a
                     [href]="link.url"
@@ -205,6 +287,42 @@
                 <td hlmTd class="py-3 whitespace-nowrap">
                   {{ link.created | date: "MMM d, y HH:mm" }}
                 </td>
+                <td hlmTd class="py-3 whitespace-nowrap">
+                  {{ link.occurredAt | date: "MMM d, y HH:mm" }}
+                </td>
+                <td hlmTd class="py-3 whitespace-nowrap">
+                  <!--
+                    The thread chip, and the one place in the row that states the
+                    coupling an admin would otherwise discover only after the
+                    fact: a thread is public IFF its ROOT is, so this row's Hide
+                    is really a decision about every member too. `threadLabel`
+                    returns "" for a size of 1, so an unthreaded link AND a thread
+                    member both render an em dash — only a genuine multi-link root
+                    gets a chip, and the count is the number of publicly-visible
+                    members (backend `thread_size`), so a hidden member can never
+                    inflate it.
+
+                    The tooltip repeats the coupling; `hideLink` also confirms at
+                    the moment of the click, because a tooltip is only read if
+                    the admin happens to hover the one cell that carries it.
+                  -->
+                  @if (threadLabel(link.threadSize); as label) {
+                    <span
+                      hlmBadge
+                      variant="special"
+                      data-testid="link-thread"
+                      [title]="
+                        'Thread root — ' +
+                        label +
+                        ' in this thread. A thread is public only while its root is, so hiding this row hides every member too.'
+                      "
+                    >
+                      {{ label }}
+                    </span>
+                  } @else {
+                    <span class="text-muted-foreground">—</span>
+                  }
+                </td>
                 <td hlmTd class="py-3">
                   <div class="flex items-center gap-2">
                     @if (link.status !== "LIVE") {
@@ -238,6 +356,24 @@
                         Mark completed
                       </button>
                     }
+                    <!--
+                      Members only. Ungrouping a ROOT is a server-side no-op (it is
+                      not a member of anything), so offering it there would be a
+                      button that succeeds and changes nothing; the root's own
+                      job is to carry the chip above.
+                    -->
+                    @if (link.threadId) {
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="outline"
+                        data-testid="ungroup-link"
+                        [disabled]="isLoading()"
+                        (click)="$event.stopPropagation(); ungroupLink(link)"
+                      >
+                        Ungroup
+                      </button>
+                    }
                     <button
                       hlmBtn
                       size="sm"
@@ -253,7 +389,7 @@
               </tr>
             } @empty {
               <tr hlmTr>
-                <td hlmTd colspan="7" class="text-muted-foreground py-8 text-center">
+                <td hlmTd colspan="10" class="text-muted-foreground py-8 text-center">
                   No social media links match the current filters.
                 </td>
               </tr>
@@ -319,6 +455,15 @@
               }
               on {{ link.created | date: "MMM d, y HH:mm" }}
             </p>
+            <!--
+              The same two clocks as the table, restated here because this card is
+              what an admin reads while deciding whether the event time needs
+              correcting — and "Occurred" is the one that decides where the link
+              lands in the public feed.
+            -->
+            <p class="text-muted-foreground text-xs" data-testid="detail-occurred-at">
+              Occurred on {{ link.occurredAt | date: "MMM d, y HH:mm" }}
+            </p>
             @if (link.completedAt) {
               <p class="text-muted-foreground text-xs">
                 Marked completed
@@ -374,6 +519,33 @@
                   [value]="editTitle()"
                   (input)="onEditTitleInput($any($event.target).value)"
                 />
+              </label>
+
+              <!--
+                Mirrors the public form's "When did this happen?" control, hydrated
+                from `occurredAt` rather than `created`: the same field, the same
+                util, the same tri-state — an admin correcting a guessed event time
+                and a rider stating it must not be able to disagree about what
+                clearing the box means. Placement follows the public form: last in
+                the "Link" section, after the two identity fields and before the
+                bulk tag block.
+              -->
+              <label class="flex flex-col gap-1.5 text-sm">
+                <span class="flex items-baseline gap-1">
+                  When did this happen?
+                  <span class="text-muted-foreground text-xs whitespace-nowrap">(optional)</span>
+                </span>
+                <input
+                  hlmInput
+                  type="datetime-local"
+                  data-testid="edit-occurred-at"
+                  [value]="editOccurredAt()"
+                  (input)="onEditOccurredAtInput($any($event.target).value)"
+                />
+                <p class="text-muted-foreground text-xs">
+                  Clear it to fall back to the report time. This is the column the public feed sorts
+                  on.
+                </p>
               </label>
             </section>
 

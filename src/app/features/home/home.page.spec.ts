@@ -18,10 +18,16 @@ import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.compone
 import { ToastService } from "../../ui/toast/toast.service";
 import { LinkSheetService } from "../insiden/data/link-sheet.service";
 import { LinkCardComponent } from "../insiden/link-card/link-card.component";
+import { LinkThreadComponent } from "../insiden/link-thread/link-thread.component";
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
-import type { FeedLink, FeedLinkPageInfo, LinePulse } from "./data/home.queries";
+import type {
+  FeedLink,
+  FeedLinkPageInfo,
+  FeedLinkThreadMember,
+  LinePulse,
+} from "./data/home.queries";
 import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
@@ -50,7 +56,12 @@ function makeFeedLink(id: string): FeedLink {
     url: `https://example.com/${id}`,
     normalizedUrl: `https://example.com/${id}`,
     title: `Feed link ${id}`,
-    created: "2026-08-01T08:00:00Z",
+    created: "2026-08-01T08:00:00",
+    occurredAt: "2026-08-01T08:00:00",
+    threadId: null,
+    isThreadRoot: true,
+    threadSize: 1,
+    threadLinks: [],
     status: "LIVE",
     completed: false,
     isAutomated: false,
@@ -59,6 +70,24 @@ function makeFeedLink(id: string): FeedLink {
     voteBreakdown: { upvotes: 3, downvotes: 0 },
     lines: [{ id: "L1", code: "KJL", displayName: "Kajang Line" }],
     user: { shortId: "abc12345", nickname: "Ali" },
+  };
+}
+
+/** A thread member: no thread fields of its own (depth is 1 by model invariant). Built by
+ *  destructuring them OFF the root fixture rather than by re-spelling the type, so the fixture can
+ *  never drift from `FeedLinkThreadMember` — the query's nested `threadLinks` selection. */
+function makeMember(id: string): FeedLinkThreadMember {
+  const { threadId, isThreadRoot, threadSize, threadLinks, ...member } = makeFeedLink(id);
+  return member;
+}
+
+/** A collapsed root as the backend returns it: members nested, `threadSize` counting the root. */
+function makeThreadedLink(id: string, memberIds: string[]): FeedLink {
+  const threadLinks = memberIds.map((memberId) => makeMember(memberId));
+  return {
+    ...makeFeedLink(id),
+    threadSize: threadLinks.length + 1,
+    threadLinks,
   };
 }
 
@@ -102,6 +131,7 @@ interface StoreMock {
     refreshNow: ReturnType<typeof vi.fn>;
   };
   userVoteFor: ReturnType<typeof vi.fn>;
+  userVotes: WritableSignal<Record<string, number>>;
   setUserVote: ReturnType<typeof vi.fn>;
   reloadAll: ReturnType<typeof vi.fn>;
   loadMore: ReturnType<typeof vi.fn>;
@@ -148,6 +178,7 @@ describe("HomePage", () => {
         refreshNow: vi.fn(),
       },
       userVoteFor: vi.fn((linkId: string) => (linkId === "a" ? 1 : 0)),
+      userVotes: signal<Record<string, number>>({}),
       setUserVote: vi.fn(),
       reloadAll: vi.fn(),
       loadMore: vi.fn(async () => undefined),
@@ -609,5 +640,126 @@ describe("HomePage", () => {
     button.click();
 
     expect(store.loadMoreLastWeek).toHaveBeenCalledTimes(1);
+  });
+
+  /* ---- thread rendering (plan F4: the home feed collapses + renders app-link-thread) -------- */
+
+  it("renders every feed row through the thread wrapper, not a bare card", () => {
+    const root = fixture.nativeElement as HTMLElement;
+
+    // The wrapper renders the root itself, so `app-link-card` still appears exactly twice — but
+    // only INSIDE a wrapper, which is what keeps the "first link looks like any other link" rule
+    // while giving a grouped row somewhere to hang its indicator.
+    expect(root.querySelectorAll("app-link-thread").length).toBe(2);
+    expect(root.querySelectorAll("app-link-thread app-link-card").length).toBe(2);
+    expect(root.querySelectorAll("app-link-card").length).toBe(2);
+  });
+
+  it("gives a collapsed root the 'N links' indicator and reveals its members on expand", () => {
+    store.feedLinks.set([makeThreadedLink("a", ["m1", "m2"])]);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const thread = root.querySelector('[data-testid="link-thread"]') as HTMLElement;
+
+    // Collapsed by default: the root alone, exactly as a single link renders.
+    expect(thread.querySelectorAll("app-link-card").length).toBe(1);
+    expect(thread.querySelector('[data-testid="link-thread-size"]')?.textContent?.trim()).toBe(
+      "3 links",
+    );
+    expect(thread.querySelector('[data-testid="link-thread-members"]')).toBeNull();
+
+    (thread.querySelector('[data-testid="link-thread-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(thread.querySelectorAll("app-link-card").length).toBe(3);
+    const titles = Array.from(
+      thread.querySelectorAll("app-link-card") as NodeListOf<HTMLElement>,
+    ).map((card) => card.textContent ?? "");
+    expect(titles[0]).toContain("Feed link a");
+    expect(titles[1]).toContain("Feed link m1");
+    expect(titles[2]).toContain("Feed link m2");
+  });
+
+  it("renders a plain unthreaded link as ONE card and no indicator", () => {
+    // `isThreadRoot` is true for an unthreaded link (thread == null IS the definition of a root),
+    // so a wrapper gated on it would sprout a "1 links" badge on every row in the feed.
+    const root = fixture.nativeElement as HTMLElement;
+    const thread = root.querySelector('[data-testid="link-thread"]') as HTMLElement;
+
+    expect(root.querySelectorAll("app-link-thread").length).toBe(2);
+    expect(thread.querySelectorAll("app-link-card").length).toBe(1);
+    expect(thread.querySelector('[data-testid="link-thread-size"]')).toBeNull();
+    expect(thread.querySelector('[data-testid="link-thread-toggle"]')).toBeNull();
+  });
+
+  it("hands the wrapper the store's whole vote map, not a per-row number", () => {
+    store.userVotes.set({ a: -1, m1: 1 });
+    fixture.detectChanges();
+
+    const threads = fixture.debugElement.queryAll(By.directive(LinkThreadComponent));
+
+    // One map for every row: the overlay stays in the store, and the wrapper forwards it to each
+    // card (root and members) by id, which is the only way a member can render the caller's vote.
+    expect(threads).toHaveLength(2);
+    for (const thread of threads) {
+      expect(thread.componentInstance.voteValues()).toEqual({ a: -1, m1: 1 });
+    }
+    // The root's scalar input stays wired for the no-overlay case (anonymous feed value).
+    expect(threads[0].componentInstance.userVote()).toBe(1);
+  });
+
+  it("records a member's vote through the store under the MEMBER's id", () => {
+    store.feedLinks.set([makeThreadedLink("a", ["m1"])]);
+    fixture.detectChanges();
+
+    const thread = fixture.nativeElement.querySelector(
+      '[data-testid="link-thread"]',
+    ) as HTMLElement;
+    (thread.querySelector('[data-testid="link-thread-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    // The wrapper re-emits with the VOTED card's id, so the optimistic overlay is filed against the
+    // member — hard-coding the root's id (all the old flat loop knew) would attribute it to `a`.
+    const wrapper = fixture.debugElement.queryAll(By.directive(LinkThreadComponent))[0];
+    wrapper.componentInstance.voteChanged.emit({ id: "m1", value: 1 });
+    wrapper.componentInstance.voteChanged.emit({ id: "a", value: -1 });
+
+    expect(store.setUserVote).toHaveBeenNthCalledWith(1, "m1", 1);
+    expect(store.setUserVote).toHaveBeenNthCalledWith(2, "a", -1);
+  });
+
+  it("opens the edit sheet from a thread's edit pencil", () => {
+    auth.isLoggedIn.set(true);
+    auth.user.set({ uid: "abc12345zzz" });
+    store.feedLinks.set([makeThreadedLink("a", ["m1"])]);
+    fixture.detectChanges();
+
+    const thread = fixture.nativeElement.querySelector(
+      '[data-testid="link-thread"]',
+    ) as HTMLElement;
+    (thread.querySelector('[data-testid="link-edit"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const linkSheet = TestBed.inject(LinkSheetService);
+    expect(linkSheet.isOpen()).toBe(true);
+    expect(linkSheet.editTarget()?.id).toBe("a");
+  });
+
+  it("renders the last-week day groups through the thread wrapper too", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    store.lastWeekDayGroups.set([
+      { key: "2026-09-30", label: "Today", links: [makeThreadedLink("w", ["wm1"])] },
+    ]);
+    fixture.detectChanges();
+
+    (root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const panel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;
+    expect(panel.querySelectorAll("app-link-thread").length).toBe(1);
+    expect(panel.querySelector('[data-testid="link-thread-size"]')?.textContent?.trim()).toBe(
+      "2 links",
+    );
   });
 });

@@ -12,11 +12,11 @@ function localEnd(day: string): string {
 }
 
 describe("date-range.util", () => {
-  it("converts a picked date to the ISO instant at local midnight for createdAfter", () => {
+  it("converts a picked date to the ISO instant at local midnight for occurredAfter", () => {
     expect(dateInputToIsoStart("2026-08-01")).toBe(localStart("2026-08-01"));
   });
 
-  it("converts a picked date to the ISO instant at local end-of-day for createdBefore", () => {
+  it("converts a picked date to the ISO instant at local end-of-day for occurredBefore", () => {
     expect(dateInputToIsoEnd("2026-08-03")).toBe(localEnd("2026-08-03"));
   });
 

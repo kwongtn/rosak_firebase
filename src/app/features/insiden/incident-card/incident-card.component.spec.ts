@@ -9,6 +9,7 @@ import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import type { ImageFile } from "../../../core/upload/image-file";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { IncidentSheetService } from "../data/incident-sheet.service";
+import { toLocalDateTimeLabel } from "../data/incident-link-line.util";
 import { LinkSheetService } from "../data/link-sheet.service";
 import {
   PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
@@ -16,6 +17,7 @@ import {
 } from "../data/social-links.queries";
 import {
   CALENDAR_INCIDENT_HISTORY_QUERY,
+  INSIDEN_INCIDENTS_QUERY,
   REQUEST_CHRONOLOGY_DELETION_MUTATION,
 } from "../data/insiden.queries";
 import type { CalendarIncident, CalendarIncidentLinks } from "../data/insiden.queries";
@@ -43,6 +45,46 @@ function makeLinkEdge(
     },
     cursor: `cursor-${id}`,
   };
+}
+
+/** Field names selected on the node of INSIDEN_INCIDENTS_QUERY's nested `links(first: 10)`
+ *  sub-select, read straight out of the document. The scan is brace-matched, so the sibling
+ *  `cursor` / `pageInfo` selections cannot leak in, and the bare-identifier regex drops the
+ *  explanatory `#` comment lines.
+ *
+ *  Why bother parsing the document instead of hand-writing a node: a fixture shaped by THIS
+ *  list is exactly what the server can send back for page 1, so dropping a field from the
+ *  sub-select also drops it from the fixture. The display assertion then goes red on its own
+ *  — rather than a hand-written fixture that keeps inventing data the query never requests,
+ *  which is precisely how "page 1 labels by submission time, continuation pages by event
+ *  time" stayed invisible. */
+function nestedLinksNodeSelection(): string[] {
+  const doc = INSIDEN_INCIDENTS_QUERY;
+  const linksAt = doc.indexOf("links(first: 10)");
+  if (linksAt < 0) {
+    throw new Error("INSIDEN_INCIDENTS_QUERY has no nested links(first: 10) sub-select");
+  }
+  const nodeOpen = doc.indexOf("node {", linksAt);
+  if (nodeOpen < 0) {
+    throw new Error("nested links sub-select has no node selection");
+  }
+  const bodyStart = nodeOpen + "node {".length;
+  let depth = 1;
+  let cursor = bodyStart;
+  while (cursor < doc.length && depth > 0) {
+    const ch = doc[cursor];
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+    }
+    cursor++;
+  }
+  return doc
+    .slice(bodyStart, cursor - 1)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line));
 }
 
 function makeIncident(overrides: Partial<CalendarIncident> = {}): CalendarIncident {
@@ -509,11 +551,101 @@ describe("IncidentCardComponent incident links", () => {
 
     expect(requestMock).toHaveBeenCalledWith(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, {
       first: 10,
+      // Forwarded verbatim — the nested connection mints the same (occurredAt, id) keyset as the
+      // root query, so no re-derivation happens here (and `collapseThreads` stays unsent so the
+      // card's list is flat and complete).
       after: "cursor-live-1",
       incidentId: "42",
     });
     fixture.detectChanges();
     expect(linkLines()).toHaveLength(3);
+  });
+
+  it("prints the event time, not the submission time, on a row that carries occurredAt", async () => {
+    // Naive local wall time, exactly as the backend serializes it (USE_TZ = False) — so the
+    // expected label is derived with the same helper rather than a hand-rolled formatter.
+    fixture.componentRef.setInput(
+      "incident",
+      makeIncident({
+        links: {
+          edges: [
+            makeLinkEdge("ev", {
+              created: "2026-08-01T10:30:00",
+              occurredAt: "2026-08-01T07:15:00",
+            }),
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      }),
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = linkLines()[0].textContent ?? "";
+    expect(text).toContain(`[${toLocalDateTimeLabel("2026-08-01T07:15:00")}]`);
+    expect(text).not.toContain(`[${toLocalDateTimeLabel("2026-08-01T10:30:00")}]`);
+  });
+
+  it("selects occurredAt on the nested links node, keeping created as its fallback", () => {
+    // The QUERY-side pin. Page 1 of this list arrives through the nested sub-select while the
+    // continuation pages appended under it come from PUBLIC_SOCIAL_MEDIA_LINKS_QUERY; both
+    // have to carry the event instant or the one list labels its top 10 rows by submission
+    // time and every row below by event time.
+    const selected = nestedLinksNodeSelection();
+    expect(selected).toContain("occurredAt");
+    // Not a duplicate: `incidentLinkLine` reads `occurredAt ?? created`, so dropping `created`
+    // would blank the timestamp on rows that predate the occurred_at column.
+    expect(selected).toContain("created");
+  });
+
+  it("labels a first-page row by event time on a payload shaped by that sub-select", async () => {
+    // A link reported hours after the event it documents. The node is assembled from ONLY the
+    // fields the document actually selects, so this reproduces the real page-1 payload — and
+    // if `occurredAt` is ever dropped from the sub-select it vanishes here too, the row
+    // falls back to `created`, and the assertion below fails.
+    const selected = nestedLinksNodeSelection();
+    const node: PublicSocialMediaLink = {
+      ...makeLinkEdge("ev", { created: "2026-08-01T10:30:00" }).node,
+      ...(selected.includes("occurredAt") ? { occurredAt: "2026-08-01T07:15:00" } : {}),
+    };
+    fixture.componentRef.setInput(
+      "incident",
+      makeIncident({
+        links: {
+          edges: [{ node, cursor: "cursor-ev" }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      }),
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = linkLines()[0].textContent ?? "";
+    // Naive local wall time as the backend serializes it (USE_TZ = False) — the expected label
+    // goes through the same helper rather than a hand-rolled formatter, and nothing here
+    // normalises the instant.
+    expect(text).toContain(`[${toLocalDateTimeLabel("2026-08-01T07:15:00")}]`);
+    expect(text).not.toContain(`[${toLocalDateTimeLabel("2026-08-01T10:30:00")}]`);
+  });
+
+  it("falls back to the submission time on a row without occurredAt", async () => {
+    // The documented `occurredAt ?? created` fallback: still required for rows/hosts that
+    // carry no event time, which is exactly why `created` stays in the sub-select.
+    fixture.componentRef.setInput(
+      "incident",
+      makeIncident({
+        links: {
+          edges: [makeLinkEdge("no-event-time", { created: "2026-08-01T10:30:00" })],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      }),
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(linkLines()[0].textContent).toContain(
+      `[${toLocalDateTimeLabel("2026-08-01T10:30:00")}]`,
+    );
   });
 
   it("swaps the sentinel for an inline retry when a continuation page fails", async () => {

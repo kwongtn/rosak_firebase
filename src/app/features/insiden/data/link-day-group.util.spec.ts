@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { groupLinksByDay, linkDateKey, linkDayLabel } from "./link-day-group.util";
+import {
+  groupLinksByDay,
+  linkDateKey,
+  linkDayLabel,
+  linkDisplayInstant,
+} from "./link-day-group.util";
+
+describe("linkDisplayInstant", () => {
+  it("prefers the event time and falls back to the submission time", () => {
+    expect(
+      linkDisplayInstant({ created: "2026-08-01T10:00:00Z", occurredAt: "2026-07-30T23:00:00Z" }),
+    ).toBe("2026-07-30T23:00:00Z");
+    // Absent (a document that never selected it) and explicitly null must both fall back.
+    expect(linkDisplayInstant({ created: "2026-08-01T10:00:00Z" })).toBe("2026-08-01T10:00:00Z");
+    expect(linkDisplayInstant({ created: "2026-08-01T10:00:00Z", occurredAt: undefined })).toBe(
+      "2026-08-01T10:00:00Z",
+    );
+    expect(linkDisplayInstant({ created: "2026-08-01T10:00:00Z", occurredAt: null })).toBe(
+      "2026-08-01T10:00:00Z",
+    );
+  });
+});
 
 describe("linkDateKey", () => {
   it("derives a local YYYY-MM-DD key", () => {
@@ -46,11 +67,46 @@ describe("groupLinksByDay", () => {
     expect(groupLinksByDay([], "2026-08-01")).toEqual([]);
   });
 
+  it("buckets on the event time, not the submission time", () => {
+    // A back-dated report: submitted on 08-01, about something that happened on 07-31. The
+    // backend orders this feed by -occurred_at, -id, so the header must follow the event day.
+    const links = [
+      { id: "a", created: "2026-08-01T10:00:00Z", occurredAt: "2026-07-31T23:00:00Z" },
+      { id: "b", created: "2026-08-01T09:00:00Z", occurredAt: "2026-08-01T08:00:00Z" },
+    ];
+    const groups = groupLinksByDay(links, "2026-08-01");
+    // Keying on `created` would collapse both rows into ONE "Today" group with no 07-31 header.
+    expect(groups.map((group) => group.key)).toEqual(["2026-07-31", "2026-08-01"]);
+    expect(groups.map((group) => group.label)).toEqual(["Yesterday", "Today"]);
+    expect(groups[0].items.map((link) => link.id)).toEqual(["a"]);
+    expect(groups[1].items.map((link) => link.id)).toEqual(["b"]);
+  });
+
+  it("groups a link whose host did not select occurredAt, on its created day", () => {
+    // The fallback is load-bearing (occurredAt is selected per document): without it both rows
+    // would fall into the headerless "" bucket instead of the Today group.
+    const links = [
+      { id: "a", created: "2026-08-01T10:00:00Z", occurredAt: undefined },
+      { id: "b", created: "2026-08-01T09:00:00Z" },
+    ];
+    const groups = groupLinksByDay(links, "2026-08-01");
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe("2026-08-01");
+    expect(groups[0].label).toBe("Today");
+    expect(groups[0].items.map((link) => link.id)).toEqual(["a", "b"]);
+  });
+
   it("surfaces unparseable dates in a headerless group", () => {
-    const links = [{ id: "x", created: "garbage" }];
+    const links = [
+      // Garbage on the fallback field (host never selected occurredAt)…
+      { id: "x", created: "garbage" },
+      // …and garbage on the preferred field.
+      { id: "y", created: "2026-08-01T10:00:00Z", occurredAt: "also-garbage" },
+    ];
     const groups = groupLinksByDay(links, "2026-08-01");
     expect(groups).toHaveLength(1);
     expect(groups[0].key).toBe("");
     expect(groups[0].label).toBe("");
+    expect(groups[0].items.map((link) => link.id)).toEqual(["x", "y"]);
   });
 });

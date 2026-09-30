@@ -201,7 +201,16 @@ export class IncidentCardComponent implements OnDestroy {
   );
 
   /** Link list rows in the spec format (F7/F8). First page arrives inline with the
-   * incident (`links` sub-select); continuation pages append below it. */
+   * incident (`links` sub-select); continuation pages append below it. The
+   * `[yyyy-mm-dd hh:mm]` label is the DISPLAYED instant (`occurredAt ?? created`, inside
+   * `incidentLinkLine`) so it agrees with the `-occurred_at, -id` order these rows arrive in.
+   *
+   * That list is ONE list assembled from TWO documents — page 1 from the nested
+   * `links(first: 10)` sub-select, every later page from PUBLIC_SOCIAL_MEDIA_LINKS_QUERY (see
+   * `loadMoreLinks`) — so a field the display path reads has to be selected by BOTH: a gap on
+   * either side makes a single list label its top 10 rows by one instant and its rows below by
+   * another. The invariant is invisible from either document alone; see the sub-select's own
+   * comment in insiden.queries.ts. */
   protected readonly linkRows = computed(() =>
     this.linkEdges().map((edge) => ({ id: edge.node.id, ...incidentLinkLine(edge.node) })),
   );
@@ -223,6 +232,14 @@ export class IncidentCardComponent implements OnDestroy {
     () => this.appendedHasNext() ?? this.incident().links?.pageInfo.hasNextPage ?? false,
   );
 
+  /** Cursor for the next nested page, forwarded VERBATIM to the root
+   * `publicSocialMediaLinks(incidentId, …)` query by `loadMoreLinks`. Safe because both sides
+   * mint the SAME keyset: the nested `CalendarIncidentScalar.links` connection orders
+   * `-occurred_at, -id` and encodes `base64("<occurredAt iso>|<id>")`, exactly like the root
+   * resolver (rosak_backend `incident/schema/scalars.py` + `keyset.py`). The ordering migration
+   * moved both sides from `(created, id)` to `(occurredAt, id)` together, so there is nothing to
+   * re-derive here — and nothing here decodes the cursor, so there is no `created` assumption
+   * left to fix. */
   protected readonly linksNextCursor = computed(
     () => this.nextCursor() ?? this.incident().links?.pageInfo.endCursor ?? null,
   );

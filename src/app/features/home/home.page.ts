@@ -25,7 +25,7 @@ import { ReportFormComponent } from "../spotting/report-form/report-form.compone
 import { canEditLink } from "../insiden/data/can-edit.link.util";
 import { LinkCardItem } from "../insiden/data/link-card-item";
 import { LinkSheetService } from "../insiden/data/link-sheet.service";
-import { LinkCardComponent } from "../insiden/link-card/link-card.component";
+import { LinkThreadComponent } from "../insiden/link-thread/link-thread.component";
 import { LinkSheetComponent } from "../insiden/link-sheet/link-sheet.component";
 import { LinePulse } from "./data/home.queries";
 import { HomeStore } from "./data/home.store";
@@ -45,6 +45,13 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
  * it — hence `start()` in the constructor and `stop()` in `ngOnDestroy` (the beat must not
  * outlive the page). Data fetching, loading/empty states and the vote overlay all live in the
  * store; this page only composes.
+ *
+ * Every feed row renders through `app-link-thread` — the collapsible group wrapper — not
+ * `app-link-card` directly, in BOTH the today feed and the Last Week day groups (the two
+ * surfaces the plan ships thread UI on). The wrapper renders the root as an ordinary card, so an
+ * unthreaded link looks exactly as it did; it only adds a "N links" + chevron affordance when the
+ * backend nested members under `threadLinks`. `HomeStore` asks the backend to collapse threads for
+ * that to be possible at all (see `HOME_FEED_COLLAPSE_VARS`).
  */
 @Component({
   selector: "app-home-page",
@@ -52,7 +59,7 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
     AppNavComponent,
     AppFooterComponent,
     LinkSubmitBoxComponent,
-    LinkCardComponent,
+    LinkThreadComponent,
     LinkSheetComponent,
     LinePulseListComponent,
     LineStatusSheetComponent,
@@ -92,11 +99,12 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
               </p>
             }
             @for (link of store.feedLinks(); track link.id) {
-              <app-link-card
+              <app-link-thread
                 [link]="link"
                 [userVote]="store.userVoteFor(link.id)"
+                [voteValues]="store.userVotes()"
                 [editable]="canEdit(link)"
-                (voteChanged)="store.setUserVote(link.id, $event.value)"
+                (voteChanged)="onVoteChanged($event)"
                 (edit)="openEdit($event)"
               />
             }
@@ -168,11 +176,12 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
                       </h2>
                     }
                     @for (link of group.links; track link.id) {
-                      <app-link-card
+                      <app-link-thread
                         [link]="link"
                         [userVote]="store.userVoteFor(link.id)"
+                        [voteValues]="store.userVotes()"
                         [editable]="canEdit(link)"
-                        (voteChanged)="store.setUserVote(link.id, $event.value)"
+                        (voteChanged)="onVoteChanged($event)"
                         (edit)="openEdit($event)"
                       />
                     }
@@ -453,6 +462,20 @@ export class HomePage implements OnDestroy {
   /** Opens the shared link sheet in edit mode; its close edge above reloads the feed. */
   protected openEdit(link: LinkCardItem): void {
     this.linkSheet.openEdit(link);
+  }
+
+  /**
+   * Records a vote against the VOTED card's id, which `app-link-thread` reports — a thread member
+   * is votable too, so hard-coding the root's id (as the old flat loop could, because it knew the
+   * row) would file a member's vote under the group.
+   *
+   * The vote OVERLAY lives in the store and reaches the wrapper as one `voteValues` map bound from
+   * `store.userVotes()` rather than as page-local state: the wrapper renders N cards per row (root
+   * + members), so a per-page map would have to be merged from the store's anyway — a copy that can
+   * only drift. `store.setUserVote` remains the single write path.
+   */
+  protected onVoteChanged(event: { id: string; value: number }): void {
+    this.store.setUserVote(event.id, event.value);
   }
 
   /** The sheet closes on submit and the page data reloads so the new entry shows up. */

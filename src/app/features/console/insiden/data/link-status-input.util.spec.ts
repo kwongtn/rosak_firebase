@@ -7,7 +7,11 @@ function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkR
     id: "1",
     url: "https://x.com/prasarana/status/1",
     title: "Service alert",
-    created: "2026-09-01T09:00:00Z",
+    created: "2026-09-01T09:00:00",
+    occurredAt: "2026-08-31T22:15:00",
+    threadId: null,
+    isThreadRoot: true,
+    threadSize: 1,
     completed: false,
     completedAt: null,
     completedBy: null,
@@ -31,8 +35,26 @@ describe("linkStatusInput", () => {
       vehicleIds: ["v1"],
       stationIds: ["s1"],
       categoryIds: ["c1"],
+      occurredAt: "2026-08-31T22:15:00",
       status: "HIDDEN",
     });
+  });
+
+  it("round-trips occurredAt verbatim — never as null", () => {
+    // `occurredAt` is tri-state on the backend: omitted = unchanged, a value =
+    // set, explicit null = RESET to the row's created. `SocialMediaLinkInput` is
+    // replace-not-patch, so an Approve/Hide click that coerced a missing event
+    // time to null would silently rewrite the row's event time — and re-sort the
+    // public feed with it. Guarded here because the coercion is one `??` away.
+    expect(linkStatusInput(makeLink(), "LIVE").occurredAt).toBe("2026-08-31T22:15:00");
+    expect(linkStatusInput(makeLink(), "HIDDEN").occurredAt).not.toBeNull();
+  });
+
+  it("keeps the naive wall-time string exactly as the row carried it", () => {
+    // No offset to add, no UTC to convert to: the backend runs USE_TZ = False.
+    const input = linkStatusInput(makeLink({ occurredAt: "2026-08-31T22:15:00" }), "LIVE");
+    expect(input.occurredAt).toBe("2026-08-31T22:15:00");
+    expect(input.occurredAt).not.toContain("Z");
   });
 
   it("carries the LIVE status for the publish verb", () => {

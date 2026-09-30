@@ -22,6 +22,7 @@ import {
   SubmitSocialMediaLinkData,
   SubmitSocialMediaLinkVars,
 } from "../data/insiden.queries";
+import { isoToOccurredAtInput, occurredAtInputToIso } from "../data/link-occurred-at.util";
 import { LinkSheetService } from "../data/link-sheet.service";
 import {
   UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
@@ -32,21 +33,33 @@ import {
 interface LinkFormModel {
   url: string;
   title: string;
+  /** "When did this happen" — a `datetime-local` value (`YYYY-MM-DDTHH:mm`, naive local wall
+   * time), `""` when unset. Optional by design: an empty field means "the backend stamps the
+   * report time", which is the right answer for the overwhelming majority of submissions. Kept
+   * out of `created`'s slot on purpose — `created` is when someone REPORTED the link, this is
+   * when the thing HAPPENED, and a rider reporting an old post needs the second one. */
+  occurredAt: string;
 }
 
 function emptyLinkFormModel(): LinkFormModel {
-  return { url: "", title: "" };
+  return { url: "", title: "", occurredAt: "" };
 }
 
 const linkFormSchema = schema<LinkFormModel>((f) => {
+  // `occurredAt` is deliberately NOT validated — see the model comment.
   required(f.url, { message: "Enter a URL" });
 });
 
 /**
  * "Submit a link" — the just-dumping path for social media posts, blog articles
- * and other sources. Only the URL is required; title and asset tags are optional,
- * while the category dropdown is mandatory and pre-fills "Just Reporting".
- * Submissions land in the admin triage queue (/console/insiden/links).
+ * and other sources. Only the URL is required; title, the "when did this happen" datetime and the
+ * asset tags are optional, while the category dropdown is mandatory and pre-fills "Just
+ * Reporting". Submissions land in the admin triage queue (/console/insiden/links).
+ *
+ * The optional datetime is the whole reason this form carries a clock at all: a rider reporting a
+ * post from three days ago submits today, and the feed orders on the EVENT instant (`occurredAt`),
+ * not the report instant (`created`). Left blank, the backend stamps the report time — which is
+ * also exactly what the edit path means by an explicit `null` (see `submit`).
  */
 @Component({
   selector: "app-link-form",
@@ -103,6 +116,33 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
             placeholder="What is this about?"
             [formField]="linkForm.title"
           />
+        </label>
+
+        <!--
+          PLACEMENT: last of the "Link" section, i.e. straight after Title and before the whole
+          Tags section — deliberately NOT buried among the tags. A rider fills this form in story
+          order: what it is (URL) → what it's called (Title) → when it happened → where/what it
+          concerns (tags). The datetime is the third fact of the sentence, and the tag block is a
+          bulk-assignment panel rather than a linear read; a clock dropped at the bottom of it
+          would read like another filter. In edit mode it also belongs with the fields it hydrates
+          from the same row (URL/Title), not next to unrelated tag selections.
+
+          SSR note: the control renders an empty value by default — there is deliberately NO
+          new Date() "now" default, because a server/client clock (or timezone) skew would then
+          produce two different value= attributes for the same request. "" is also the honest
+          state: the server decides the report instant. Hydration from an existing link is
+          SSR-safe for the same reason — isoToOccurredAtInput round-trips the backend's
+          offset-free naive ISO identically on any machine (see link-occurred-at.util.ts).
+        -->
+        <label class="flex flex-col gap-1.5 text-sm">
+          <span class="flex items-baseline gap-1">
+            When did this happen?
+            <span class="text-muted-foreground text-xs whitespace-nowrap">(optional)</span>
+          </span>
+          <input hlmInput type="datetime-local" [formField]="linkForm.occurredAt" />
+          <p class="text-muted-foreground text-xs">
+            Leave blank to use the report time. You can correct this later.
+          </p>
         </label>
       </section>
 
@@ -328,7 +368,16 @@ export class LinkFormComponent {
         return;
       }
       this._hydratedLinkId = target.id;
-      this.model.set({ url: target.url, title: target.title });
+      this.model.set({
+        url: target.url,
+        title: target.title,
+        // The event instant, NOT the row's `created`: a link whose event time differs from its
+        // report time is exactly the one being edited here, so hydrating from the wrong column
+        // would silently rewrite it to the report time on the next save. A host that doesn't
+        // select `occurredAt` hydrates `""` (unset), which saves back as an explicit `null` —
+        // the reset semantic — so such a host should not open this sheet for editing.
+        occurredAt: isoToOccurredAtInput(target.occurredAt),
+      });
       this.selectedLineIds.set(target.lines.map((line) => line.id));
       this.selectedVehicleIds.set((target.vehicles ?? []).map((vehicle) => vehicle.id));
       this.selectedStationIds.set((target.stations ?? []).map((station) => station.id));
@@ -409,6 +458,18 @@ export class LinkFormComponent {
               vehicleIds: this.selectedVehicleIds(),
               stationIds: this.selectedStationIds(),
               categoryIds: this.selectedCategoryIds(),
+              // ⚠️ ALWAYS send this key, and DO NOT rewrite it as `?? undefined`.
+              // `SocialMediaLinkInput` is replace-not-patch, and `occurredAt` is tri-state:
+              //   omitted        → leave the event time untouched
+              //   a datetime     → set it
+              //   explicit null  → RESET it to the row's submission time (`link.created`)
+              // So a hydrated link round-trips its event time (the normal save), and an EMPTY
+              // box sends the explicit `null` on purpose: a rider clearing it means "this
+              // actually happened when I reported it", which is precisely what `null` encodes.
+              // That also makes the field the one place a rider can deliberately undo a wrong
+              // guess — coercing it to `undefined` would make "cleared" unreachable and would
+              // strand the control as a value you can see but cannot clear.
+              occurredAt: occurredAtInputToIso(m.occurredAt),
             },
           };
           await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
@@ -418,6 +479,7 @@ export class LinkFormComponent {
           );
         } else {
           const context = this.sheet.context();
+          const occurredAt = occurredAtInputToIso(m.occurredAt);
           const vars: SubmitSocialMediaLinkVars = {
             input: {
               url: m.url,
@@ -426,6 +488,12 @@ export class LinkFormComponent {
               vehicleIds: this.selectedVehicleIds(),
               stationIds: this.selectedStationIds(),
               categoryIds: this.selectedCategoryIds(),
+              // Only when the rider actually set it. On CREATE an omitted key and an explicit
+              // `null` both mean "stamp the submission instant" server-side, so either works —
+              // but omitting is the honest spelling: `occurredAt: null` reads on the wire like an
+              // intent to clear a value that was never set, and it would make the payload
+              // indistinguishable from the edit path's deliberate reset.
+              ...(occurredAt ? { occurredAt } : {}),
               // Only when a context is set — `incidentId: null` is a server-side error path.
               ...(context ? { incidentId: context.incidentId } : {}),
             },
@@ -461,6 +529,10 @@ export class LinkFormComponent {
   }
 
   clear(): void {
+    // Also resets `occurredAt` — it is a model field, so the fresh `emptyLinkFormModel()` is the
+    // single reset point and there is no second signal to keep in sync. Important because an
+    // edit-mode clear followed by a create-mode open must not carry the edited row's event time
+    // into the new submission.
     this.model.set(emptyLinkFormModel());
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);

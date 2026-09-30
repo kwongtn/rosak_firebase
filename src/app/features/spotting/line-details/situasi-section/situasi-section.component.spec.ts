@@ -12,11 +12,12 @@ import { SituasiSectionComponent } from "./situasi-section.component";
 
 interface TestableSituasiSection {
   voteValues(): Record<string, number>;
+  sorted(): PublicSocialMediaLinksQueryData["publicSocialMediaLinks"]["edges"][number]["node"][];
 }
 
-function makeLink(
-  id: string,
-): PublicSocialMediaLinksQueryData["publicSocialMediaLinks"]["edges"][number]["node"] {
+type LinkNode = PublicSocialMediaLinksQueryData["publicSocialMediaLinks"]["edges"][number]["node"];
+
+function makeLink(id: string, overrides: Partial<LinkNode> = {}): LinkNode {
   return {
     id,
     url: `https://example.com/${id}`,
@@ -30,13 +31,14 @@ function makeLink(
     lines: [],
     vehicles: [],
     stations: [],
+    ...overrides,
   };
 }
 
-function linksData(ids: string[]): PublicSocialMediaLinksQueryData {
+function linksData(nodes: LinkNode[]): PublicSocialMediaLinksQueryData {
   return {
     publicSocialMediaLinks: {
-      edges: ids.map((id, index) => ({ node: makeLink(id), cursor: `cursor-${index}` })),
+      edges: nodes.map((node, index) => ({ node, cursor: `cursor-${index}` })),
       pageInfo: { hasNextPage: false, endCursor: null },
     },
   };
@@ -80,7 +82,7 @@ describe("SituasiSectionComponent vote overlay", () => {
   it("feeds a card vote back into that card's userVote", async () => {
     httpMock
       .expectOne((r) => r.method === "POST" && r.body.query.includes("PublicSocialMediaLinks"))
-      .flush({ data: linksData(["a"]) });
+      .flush({ data: linksData([makeLink("a")]) });
     await fixture.whenStable();
 
     const card = fixture.debugElement.query(By.directive(LinkCardComponent));
@@ -93,5 +95,45 @@ describe("SituasiSectionComponent vote overlay", () => {
       a: -1,
     });
     expect(card.componentInstance.userVote()).toBe(-1);
+  });
+
+  it("orders the list by the event time, not the submission time", async () => {
+    // "back-dated" was submitted LAST but happened first; the panel sorts the same instant the
+    // backend orders the connection on (-occurred_at, -id), so it must lead the list.
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("PublicSocialMediaLinks"))
+      .flush({
+        data: linksData([
+          makeLink("back-dated", {
+            created: "2026-08-02T09:00:00Z",
+            occurredAt: "2026-07-30T08:00:00Z",
+          }),
+          makeLink("fresh", {
+            created: "2026-08-01T09:00:00Z",
+            occurredAt: "2026-08-02T09:00:00Z",
+          }),
+        ]),
+      });
+    await fixture.whenStable();
+
+    const sorted = (fixture.componentInstance as unknown as TestableSituasiSection).sorted();
+    expect(sorted.map((link) => link.id)).toEqual(["fresh", "back-dated"]);
+    // The fixture's `created` values run the OTHER way, so the assertion above can only pass if
+    // the sort keyed on the event time.
+    expect(sorted.map((link) => link.created)).toEqual([
+      "2026-08-01T09:00:00Z",
+      "2026-08-02T09:00:00Z",
+    ]);
+  });
+
+  it("never asks the backend to collapse threads (a per-line list stays flat and complete)", async () => {
+    const req = httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("PublicSocialMediaLinks"),
+    );
+    // Omitting the key is the only legal spelling on a `Boolean!` argument; sending it at all
+    // would hide every thread member from this line's filter.
+    expect(req.request.body.variables).not.toHaveProperty("collapseThreads");
+    req.flush({ data: linksData([makeLink("a")]) });
+    await fixture.whenStable();
   });
 });

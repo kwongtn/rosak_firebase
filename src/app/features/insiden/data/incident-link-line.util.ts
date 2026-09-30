@@ -4,8 +4,9 @@ import { faviconHostnameOf } from "./social-link.util";
  * `[yyyy-mm-dd hh:mm] [favicon] [title]`, where "title" is the provided title,
  * or the URL — domain bold, remainder paler, single-line truncated. */
 interface IncidentLinkLine {
-  /** Local-time "yyyy-mm-dd hh:mm" label from `created` (no DatePipe inside
-   * this util — pure and unit-testable). Empty string when `created` is
+  /** Local-time "yyyy-mm-dd hh:mm" label from the DISPLAYED instant —
+   * `occurredAt ?? created`, the same rule `app-link-card` applies (no DatePipe inside
+   * this util — pure and unit-testable). Empty string when the instant is
    * missing/invalid. Local time matches the card's own DatePipe rendering
    * (`MMM d, y HH:mm` — DatePipe's default timezone is the browser's). */
   datetimeLabel: string;
@@ -31,7 +32,17 @@ interface IncidentLinkLine {
 interface IncidentLinkRow {
   url: string;
   title?: string | null;
+  /** "When someone reported it" — moderation provenance, and the DISPLAYED instant only when
+   * `occurredAt` is absent. Optional here because the row type is deliberately loose (spec
+   * fixtures and the "gracefully degrades" cases omit it entirely). */
   created?: string | null;
+  /** "When it happened" — the event instant and, since the ordering migration, the column every
+   * link list sorts on. OPTIONAL because it is selected per GraphQL document and this row type is
+   * deliberately loose (the "gracefully degrades" cases omit it) — NOT because any document is
+   * known to skip it: every link selection requests it today, the nested per-incident `links`
+   * sub-select included. An absent value therefore means a row/payload that predates the column,
+   * which is what the `?? created` fallback in `incidentLinkLine` is for. */
+  occurredAt?: string | null;
   status?: string | null;
 }
 
@@ -41,11 +52,17 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-export function toLocalDateTimeLabel(created: string | undefined | null): string {
-  if (!created) {
+/** Formats an ISO instant as local "yyyy-mm-dd hh:mm"; "" for a missing/unparseable value.
+ *
+ * `new Date(...)` + local getters is the SSR-safe way to do this: the backend runs
+ * `USE_TZ = False` with `TIME_ZONE = Asia/Kuala_Lumpur`, so the timestamp string is naive local
+ * wall time. Do NOT "normalize" it through `toISOString()` or UTC field getters — that converts
+ * to UTC and shifts the value by 8 hours. */
+export function toLocalDateTimeLabel(instant: string | undefined | null): string {
+  if (!instant) {
     return "";
   }
-  const date = new Date(created);
+  const date = new Date(instant);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
@@ -103,7 +120,11 @@ export function incidentLinkLine(input: IncidentLinkRow): IncidentLinkLine {
   const domain = parsed?.hostname ?? null;
 
   return {
-    datetimeLabel: toLocalDateTimeLabel(input.created),
+    // The EVENT time, so the inline line agrees with the card's own timestamp and with the
+    // `-occurred_at, -id` order these rows arrive in. `?? created` covers a row that carries no
+    // event time at all — legacy rows, an older cached payload — which is a data case, not a query
+    // gap: every link document selects `occurredAt` today.
+    datetimeLabel: toLocalDateTimeLabel(input.occurredAt ?? input.created),
     faviconUrl: host ? `${S2_FAVICON_BASE}${host}&sz=32` : "",
     domain,
     restPath: restPathOf(parsed),

@@ -238,4 +238,60 @@ describe("LinkCardComponent", () => {
 
     expect(submitter?.textContent).toContain("abc12345");
   });
+
+  it("displays occurredAt (when it happened) instead of created (when it was reported)", async () => {
+    // `created` stays "now" in the fixture, so a non-fresh label can only have come from
+    // occurredAt. Both instants are built from local date parts so the assertion is tz-stable.
+    const occurredAt = new Date(2026, 7, 1, 8, 0).toISOString();
+    fixture.componentRef.setInput("link", makeLink({ occurredAt }));
+    await fixture.whenStable();
+
+    const label = query('[data-testid="link-created"]') as HTMLElement;
+    expect(label.textContent).toContain("ago");
+    expect(label.textContent).not.toContain("less than a minute");
+
+    const tooltip = query('[data-testid="link-time"] [role="tooltip"]') as HTMLElement;
+    expect(tooltip.textContent).toContain("Aug 1, 2026 08:00");
+  });
+
+  it("falls back to the submission time when the host did not select occurredAt", async () => {
+    // The fallback is load-bearing: occurredAt is optional on LinkCardItem (per-document
+    // selection) and strict mode is OFF, so a host that omits it must still see a real time.
+    const created = new Date(2026, 7, 1, 8, 0).toISOString();
+    fixture.componentRef.setInput("link", makeLink({ created, occurredAt: undefined }));
+    await fixture.whenStable();
+
+    const tooltip = query('[data-testid="link-time"] [role="tooltip"]') as HTMLElement;
+    expect(tooltip.textContent).toContain("Aug 1, 2026 08:00");
+    expect(query('[data-testid="link-created"]')?.textContent).toContain("ago");
+    // Displayed instant IS created, so the tooltip must not repeat itself.
+    expect(query('[data-testid="link-submitted"]')).toBeNull();
+  });
+
+  it("keeps the submission time in the tooltip only when the two axes differ", async () => {
+    // Promoting occurredAt to the visible label must not lose moderation provenance, so the
+    // tooltip names the reported instant too.
+    fixture.componentRef.setInput(
+      "link",
+      makeLink({
+        occurredAt: new Date(2026, 7, 1, 8, 0).toISOString(),
+        created: new Date(2026, 7, 2, 9, 30).toISOString(),
+      }),
+    );
+    await fixture.whenStable();
+
+    const submitted = query('[data-testid="link-submitted"]') as HTMLElement;
+    expect(submitted.textContent).toContain("Submitted Aug 2, 2026 09:30");
+    expect(query('[data-testid="link-submitter"]')).not.toBeNull();
+
+    // The same instant written with different precision is NOT a second fact: the backend
+    // serialises microseconds, `created` often arrives without a fractional part.
+    fixture.componentRef.setInput(
+      "link",
+      makeLink({ occurredAt: "2026-08-01T08:00:00.000000", created: "2026-08-01T08:00:00" }),
+    );
+    await fixture.whenStable();
+
+    expect(query('[data-testid="link-submitted"]')).toBeNull();
+  });
 });

@@ -19,10 +19,9 @@ function asTestable(fixture: ComponentFixture<LinksSectionComponent>): TestableL
   return fixture.componentInstance as unknown as TestableLinksSection;
 }
 
-function makeLink(
-  id: string,
-  status: string | null,
-): PublicSocialMediaLinksQueryData["publicSocialMediaLinks"]["edges"][number]["node"] {
+type LinkNode = PublicSocialMediaLinksQueryData["publicSocialMediaLinks"]["edges"][number]["node"];
+
+function makeLink(id: string, status: string | null, overrides: Partial<LinkNode> = {}): LinkNode {
   return {
     id,
     url: `https://example.com/${id}`,
@@ -36,14 +35,11 @@ function makeLink(
     lines: [],
     vehicles: [],
     stations: [],
+    ...overrides,
   };
 }
 
-function connectionOf(
-  nodes: ReturnType<typeof makeLink>[],
-  hasNextPage: boolean,
-  endCursor: string | null,
-) {
+function connectionOf(nodes: LinkNode[], hasNextPage: boolean, endCursor: string | null) {
   return {
     publicSocialMediaLinks: {
       edges: nodes.map((node, index) => ({ node, cursor: endCursor ?? `cursor-${index}` })),
@@ -212,5 +208,48 @@ describe("LinksSectionComponent pagination", () => {
 
     expect(asTestable(fixture).voteValues()).toEqual({ a: 1 });
     expect(card.componentInstance.userVote()).toBe(1);
+  });
+
+  it("keeps the tab flat: never asks the backend to collapse threads", async () => {
+    // Omitting the key is the only legal spelling on a `Boolean!` argument, and it is also what
+    // keeps every thread member a row of its own on this "see everything submitted" tab.
+    const first = httpMock.expectOne((r) => r.method === "POST");
+    expect(first.request.body.variables).not.toHaveProperty("collapseThreads");
+    first.flush({ data: connectionOf([makeLink("a", "LIVE")], true, "cursor-a") });
+    await fixture.whenStable();
+
+    const loadMore = asTestable(fixture).loadMore();
+    const next = httpMock.expectOne((r) => r.method === "POST");
+    expect(next.request.body.variables).not.toHaveProperty("collapseThreads");
+    next.flush({ data: connectionOf([makeLink("b", "LIVE")], false, "cursor-b") });
+    await loadMore;
+  });
+
+  it("heads the day group with the event time, not the submission time", async () => {
+    // Today (UTC) as the event instant against a 2020 submission: grouping on `created` would
+    // render a 2020 header instead of "Today".
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: connectionOf(
+          [
+            makeLink("a", "LIVE", {
+              created: "2020-01-01T00:00:00Z",
+              occurredAt: `${todayUtc}T08:00:00Z`,
+            }),
+          ],
+          false,
+          null,
+        ),
+      });
+    await fixture.whenStable();
+
+    // Exactly one day header, and it names the EVENT day. (The card's own tooltip still shows
+    // "Submitted Jan 1, 2020" — that provenance line is intentional and out of scope here.)
+    const headers = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll("h2")).map(
+      (h) => h.textContent?.trim(),
+    );
+    expect(headers).toEqual(["Today"]);
   });
 });
