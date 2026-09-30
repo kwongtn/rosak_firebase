@@ -33,6 +33,18 @@ export const ADS_CONFIG = {
   },
 } as const;
 
+/**
+ * The single user-facing explanation of why the app carries ads, surfaced by `AdSlotComponent` as
+ * an info popover on its `"Advertisement"` disclosure caption — hover on pointer devices, tap on
+ * touch. Lives here (not in the component) so the wording is one constant for every slot, and
+ * carries no numbers, so it is not a methodology metric doc.
+ */
+export const AD_DISCLOSURE = {
+  /** Popover heading and the trigger's `aria-label` subject. */
+  label: "Advertisement",
+  body: "Rosak is a free, volunteer-run project with no company behind it. Ad revenue is the only thing paying for the servers, the database and the realtime data feeds, so the ads pay for the app. Google places the ads — never us — and we do not read or sell your data.",
+} as const;
+
 /** Union of logical slot keys configured above — the parameter type for `resolveAdSlot`. */
 export type AdSlotKey = keyof typeof ADS_CONFIG.slots;
 

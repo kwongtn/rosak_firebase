@@ -47,7 +47,7 @@ class InfoPopoverHost {
   readonly label = signal("Reliability");
   readonly content = signal("Share of scheduled trips that actually ran.");
   readonly link = signal<InfoPopoverLink | null>(null);
-  readonly align = signal<"start" | "end">("start");
+  readonly align = signal<"start" | "end" | "center">("start");
   readonly testId = signal("info-popover-panel");
   readonly showIcon = signal(true);
   readonly showMethodologyLink = signal(true);
@@ -458,6 +458,20 @@ describe("InfoPopover", () => {
 
     expect(panel()?.classList.contains("right-0")).toBe(true);
     expect(panel()?.classList.contains("left-0")).toBe(false);
+  });
+
+  it("centers the panel on its trigger with align center, for a clipped ancestor", async () => {
+    stubMatchMedia(false);
+    await render();
+    openByTap();
+
+    fixture.componentInstance.align.set("center");
+    fixture.detectChanges();
+
+    expect(panel()?.classList.contains("left-1/2")).toBe(true);
+    expect(panel()?.classList.contains("-translate-x-1/2")).toBe(true);
+    expect(panel()?.classList.contains("left-0")).toBe(false);
+    expect(panel()?.classList.contains("right-0")).toBe(false);
   });
 
   it("clamps the panel between the minimum width and the viewport width", async () => {

@@ -138,8 +138,7 @@ export class InfoPopoverRegistry {
       <div
         [id]="_panelId()"
         class="bg-popover text-popover-foreground border-border absolute top-full z-20 mt-1.5 min-w-56 max-w-[calc(100vw-2rem)] rounded-lg border p-3 text-left text-xs font-normal whitespace-normal shadow-md"
-        [class.left-0]="align() === 'start'"
-        [class.right-0]="align() === 'end'"
+        [class]="alignClasses()"
         [attr.data-testid]="testId()"
         [attr.role]="hasLink() ? 'dialog' : 'tooltip'"
         [attr.aria-label]="label()"
@@ -168,8 +167,12 @@ export class InfoPopover {
   readonly content = input.required<string>();
   /** Optional "read the full method" link, rendered as the last block of the panel. */
   readonly link = input<InfoPopoverLink | null>(null);
-  /** Which edge the panel hugs; "end" in right-hand table cells so it cannot spill off-screen. */
-  readonly align = input<"start" | "end">("start");
+  /**
+   * Which edge the panel hugs: "end" in right-hand table cells so it cannot spill off-screen;
+   * "center" for a trigger that sits in the middle of a narrow, already-clipped ancestor (e.g. the
+   * ad slot's overflow-hidden block), where either edge would cut the panel off.
+   */
+  readonly align = input<"start" | "end" | "center">("start");
   /** `data-testid` of the panel — consumers needing back-compat pass their own id. */
   readonly testId = input("info-popover-panel");
   /** Whether the "i" glyph leads the trigger; false when the projected content is the trigger. */
@@ -179,6 +182,17 @@ export class InfoPopover {
 
   /** A panel is a dialog only when it actually carries the methodology link. */
   protected readonly hasLink = computed(() => this.showMethodologyLink() && this.link() !== null);
+  /** Horizontal anchoring of the panel against its trigger; see `align`. */
+  protected readonly alignClasses = computed(() => {
+    switch (this.align()) {
+      case "end":
+        return "right-0";
+      case "center":
+        return "left-1/2 -translate-x-1/2";
+      default:
+        return "left-0";
+    }
+  });
 
   protected readonly _open = signal(false);
   /** Measured client-side; defaults to "no hover" (tap toggle) until resolved, the safe default. */
