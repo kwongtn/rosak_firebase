@@ -15,6 +15,40 @@
 
 ## Traps
 
+### [2026-10-01] core/graphql: `isLoading` is PRISTINE-ONLY — a refresh that completes can never be observed through it (FIXED)
+
+**Problem**: The home page's refresh confirmation ("Updated", transient) never appeared in practice,
+and could have appeared on a FAILED refresh. Its effect was armed by a click through a plain
+`_refreshPending` boolean and settled on `HomeStore.isLoading()` going false — but
+`graphqlResource.isLoading` is deliberately `raw.isLoading() && !hasEverLoaded() && !hasError()`, so
+it is `true` only for the very first fetch and is `false` for every `reload()` afterwards. A boolean
+is not a signal, so arming the flag re-ran nothing; and even if the effect had re-run, `isLoading`
+had nothing left to report. The same effect never read `hasError`, so a refresh that settled on an
+error was indistinguishable from a successful one. The button's `aria-label` also still said
+"Refresh line statuses now" when the beat had been scoped to the whole page.
+**Root Cause**: The narrowing that makes `isLoading` right for a skeleton gate
+(`@if (isLoading) {skeleton} @else if (hasError) {...}` must not re-flash on every retry) silently
+removed the only observable in-flight signal, and nothing in the code said so at the call site. A
+`httpResource`'s real in-flight flag was reachable — it is what `isLoading` is derived from — it just
+had not been exposed, so the natural spelling for "is a refresh happening?" was the one flag that
+cannot answer it.
+**Fix**: `graphqlResource()` gained an ADDITIVE `isFetching: computed(() => raw.isLoading())` — the
+raw in-flight flag, true for the pristine fetch, a `reload()` and an automatic retry alike, with
+`isLoading` untouched as the skeleton gate. `HomeStore.isRefreshing` ORs it across the three page
+resources, and `HomeRefreshControlComponent` arms `_refreshPending` on a **click** (a signal, so the
+effect re-runs), latches `_refreshStarted` when `isRefreshing` goes true, and confirms only when it
+settles false with `!store.hasError()` — an automatic poll tick can never confirm anything, and
+neither can a click whose request never went out. Pinned by
+`graphql-client.spec.ts` (`isFetching` true across a reload where `isLoading` is false) and
+`home-refresh-control.component.spec.ts` (green check only on a click-armed clean settle; nothing on
+an error, on an automatic transition, or on a no-op click).
+**Prevention**: When a UI must react to a REFRESH **completing** — "no changes", "Updated", a
+spinner during a manual reload, an idle-vs-busy badge — never key it on `graphqlResource.isLoading`
+or on a plain boolean. Use `isFetching` (or a store projection of it), and make the trigger a signal
+so the effect actually re-runs. If the two flags are ever tempted back into one name, remember the
+skeleton gate and the in-flight state are different questions: `isLoading` answers "has this ever
+loaded?", `isFetching` answers "is a request on the wire right now?".
+
 ### [2026-09-30] home/store: the authenticated vote overlay read must be the SAME READ as the feed it mirrors — window included
 
 **Problem**: `loadVoteOverlay()` re-reads the feed to fill the id-keyed vote overlay, because

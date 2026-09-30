@@ -9,7 +9,9 @@
   opens a **line-status bottom sheet** for a link-less live report (status, optional delay/notes,
   affected stations). It also hosts the spotting feature's **"Add a Spotting Entry" sheet**, opened
   via `ReportSheetService.openFor(lineId)` from a line card and pre-scoped to that line. It replaces
-  the old default-route redirect to `/spotting`.
+  the old default-route redirect to `/spotting`. One fixed-cadence refresh beat (30s) keeps the whole
+  page current — line statuses, the Today feed and the Last Week first page — and its countdown /
+  manual click are the same action.
 - **Domain/Layer:** Angular Presentation (standalone, lazy-loaded routed feature, route-scoped
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
@@ -34,6 +36,14 @@
     the trigger) and forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
     through the real server path to guard SSR/hydration).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
+  - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
+    refresh row: countdown spinner, transient "Updated" confirmation and the `Click to Refresh Now`
+    tooltip). Rendered TWICE by the page — the countdown drives the whole-page beat, so it heads
+    whichever section the reader is actually looking at: the links section below `lg`, the line
+    panel from `lg` up. The two instances are gated with **CSS only** (`lg:hidden` /
+    `hidden lg:block`), never a `matchMedia` placement signal, so SSR and hydration emit identical
+    markup; the `data-testid`s are therefore duplicated in the DOM (two
+    `line-refresh-countdown` buttons, exactly one visible) and specs must scope to a section.
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
     `ReportSheetService.openFor(lineId)`. The page's desktop layout is a two-panel split: the
@@ -54,23 +64,29 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     (`data-testid="last-week-toggle"`, `[attr.aria-expanded]`) reads `Last Week (N)` from
     `store.lastWeekTotalCount()`, the chevron rotates when open, and the panel is closed by
     default so its content only mounts on first expand. Expanded, it lists the same feed links over
-    the **last 7 calendar days including today** (backend `lastWeekOnly`), bucketed by local
-    calendar day (`data-testid="last-week-day-group"`, headings Today / Yesterday / `EEE, d MMM`),
-    with a skeleton (`data-testid="last-week-skeleton"`) and an empty state
+    the **last 7 calendar days, with today excluded** (backend `lastWeekOnly`; the newest day group
+    is therefore always "Yesterday" — see the window note below), bucketed by local calendar day
+    (`data-testid="last-week-day-group"`, headings Today / Yesterday / `EEE, d MMM`), with a
+    skeleton (`data-testid="last-week-skeleton"`) and an empty state
     (`data-testid="last-week-empty"`, "No links in the last week.") and its own `Load More`
     (`data-testid="last-week-load-more"`) pulling 20-link day-aligned pages (the page may exceed 20
-    to finish a day). The
-    line-status panel is headed by a fixed-cadence refresh row
-    (`data-testid="line-refresh-countdown"`), itself a `<button>`: spinner +
-    `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, and a click
-    calling `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no
-    hover — capability is measured with `(hover: hover) and (pointer: fine)`, the same
+    to finish a day). The refresh row is the fixed-cadence control, and it covers BOTH sections:
+    the 30s beat and a click both go through the same `HomeStore.reloadFirstPages()`, re-reading
+    the line statuses, the Today feed's first page and the Last Week first page. Rendered by
+    `HomeRefreshControlComponent` as the `<button data-testid="line-refresh-countdown">` — spinner +
+    `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, and a click calling
+    `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no hover —
+    capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
-    (`data-testid="line-refresh-tooltip"`). After a manual refresh settles, the row swaps its
-    spinner + countdown for a transient `Updated` confirmation
-    (`data-testid="line-refresh-confirmation"`, `role="status"`, ~2s). There is no separate
-    `Refresh now` button any more. Deliberately no interval picker (unlike situasi), the 30s
-    cadence is fixed.
+    (`data-testid="line-refresh-tooltip"`). After a manual refresh settles **without an error**, the
+    row swaps its spinner + countdown for a transient GREEN `Updated` confirmation
+    (`data-testid="line-refresh-confirmation"`, `role="status"`, `text-green-600 dark:text-green-400`
+    on both the tick and the label, ~2s). There is no separate `Refresh now` button any more.
+    Deliberately no interval picker (unlike situasi), the 30s cadence is fixed.
+    ⚠️ Already-loaded `Load More` pages are **never** dropped by that refresh — a 30-second reset of
+    the appended pages would wipe the reader's place in a long feed — which is why the beat calls
+    `reloadFirstPages()` and not `reloadAll()`; `reloadAll()` (full reset) stays with the submit box,
+    the sheets and the retry banner.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
     `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
@@ -145,8 +161,13 @@ lastWeekOnly, alignPageToDay, collapseThreads)` connection
     `currentServiceDayOnly: true` — **unchanged** — so a feed row is always approved and never shows
     the Pending pill; the Last Week section requests `first: LAST_WEEK_PAGE_SIZE` (20),
     `status: "LIVE"`, `lastWeekOnly: true`, `alignPageToDay: true`. `lastWeekOnly` keeps only rows
-    whose **event instant** is since 00:00 Asia/Kuala_Lumpur six days before today (computed
-    backend-side so no date is ever baked into query vars — SSR TransferState needs identical vars);
+    whose **event instant** is since 00:00 Asia/Kuala_Lumpur six days before today AND before 00:00
+    today — i.e. the 7-day window with **today excluded**, because the backend's
+    `displayTodayInLastWeek` argument defaults to `false` (computed backend-side so no date is ever
+    baked into query vars — SSR TransferState needs identical vars; and, deliberately, **not** sent
+    from here, so a frontend that deploys before the backend still gets the right window instead of
+    asking a variable an older schema rejects). The Today feed already carries the current service
+    day, so a "Today" group in this section is always a duplicate of it.
     `alignPageToDay` lets a page overshoot `first` to finish the calendar day it ended on.
     `collapseThreads: true` is the **only** surface that collapses (see the store below) and it is
     a compile-time constant, so SSR and hydration compute identical variables. `HIDDEN` rows never
@@ -167,8 +188,10 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   - Enums mirrored from the schema: `LineStatus`, `PassengerStatus`, `SocialMediaLinkStatus`.
 - **Dependencies (shared services/state consumed):**
   - `graphqlResource()` (`core/graphql/graphql-client.ts`) — reactive reads (SSR TransferState +
-    backoff retry); `GraphQLClient.request(query, variables?, extraHeaders?)` — mutations and the
-    authenticated vote-overlay read.
+    backoff retry); the returned `isFetching` (raw in-flight, true across reloads and retries —
+    unlike the pristine-only `isLoading`) is what backs `HomeStore.isRefreshing` and the refresh
+    control's confirmation; `GraphQLClient.request(query, variables?, extraHeaders?)` — mutations and
+    the authenticated vote-overlay read.
   - `AuthService` (`core/auth/auth.service.ts`) — `isLoggedIn`, `login()`, `idToken()`,
     `whenReady`.
   - `PollingSource` (`core/polling/polling-source.ts`) — the shared polling beat.
@@ -218,14 +241,23 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     rows). The flag is a compile-time constant, so SSR and hydration compute identical variables and
     the TransferState payload is reused. It is the ONLY surface that collapses — `/insiden`, the
     situasi tab, per-incident cards and My Links stay flat and omit the key entirely.
-  - Derived: `lines` (pulse list), `feedLinks` (first page + appended pages), `feedPageInfo`
+  - Derived: `lines` (pulse list), `feedLinks` (first page + appended pages, de-duplicated by
+    `node.id` — see the ⚠️ below), `feedPageInfo`
     (appended `hasNextPage`/`endCursor` wins over the first page's), `feedTotalCount` (the appended
     page's `totalCount` wins over the first page's, else `0`); the last week mirrors
     `lastWeekLinks`/`lastWeekPageInfo`/`lastWeekTotalCount`, plus `lastWeekDayGroups`
     (`groupFeedLinksByDay` over the resident links — keyed on the **displayed** instant
     `occurredAt ?? created`, matching the feed's ordering) and `isLoadingLastWeek` (the resource's
     own pristine fetch — drives the section skeleton). `isLoading` is lines + today feed and
-    `hasError` ORs in all three resources (the retry banner covers a last-week failure too).
+    `hasError` ORs in all three resources (the retry banner covers a last-week failure too);
+    `isRefreshing` ORs in all three resources' **`isFetching`** — the raw in-flight flag, which
+    unlike `isLoading` is observable for every reload — and is what the refresh control watches to
+    know a refresh actually started and finished.
+    ⚠️ `edges`/`lastWeekEdges` de-duplicate by `edge.node.id` on merge, first occurrence wins. That
+    is a correctness requirement, not tidiness: `reloadFirstPages()` refetches page one while leaving
+    the appended pages in place, and an admin edit or deletion between the two reads can shift a row
+    out of page one and into a position the appended pages already cover. A duplicate id would throw
+    on the page's `@for (link of …; track link.id)`.
   - Cursor pagination:
     `appendedEdges`/`appendedHasNext`/`appendedTotalCount`/`nextCursor`/`loadingMore` signals;
     `loadMore()` re-issues `FEED_QUERY` through `GraphQLClient.request` with the last cursor and
@@ -233,13 +265,16 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     (`lastWeekAppended*`, `lastWeekNextCursor`, `lastWeekLoadingMore`) driven by
     `loadMoreLastWeek()` (same `lastWeekOnly`/`alignPageToDay`/`collapseThreads` vars + cursor,
     exposed as `isLoadingMoreLastWeek`).
-  - Polling: a public `new PollingSource(() => this.reloadLines())`, armed by `start()` and
-    disarmed by `stop()` (both no-ops on the server, 30s default). `reloadLines()` reloads the
-    lines resource **only** and bumps `linesRefreshTick` — the feed is deliberately left alone so
-    a poll can't drop the user's appended Load More pages. `reloadAll()` drops both appended-page
-    sets and reloads all three resources for the submit/edit flows. The public beat is what
-    the page's countdown renders (`intervalMs()`/`secondsRemaining()`) and what
-    `refreshNow()` drives; `linesRefreshTick` travels page → list → card → the open accordion's
+  - Polling: a public `new PollingSource(() => this.reloadFirstPages())`, armed by `start()` and
+    disarmed by `stop()` (both no-ops on the server, 30s default). `reloadFirstPages()` re-reads page
+    one of **all three** resources and bumps `linesRefreshTick` — the beat covers the whole page (line
+    statuses + Today feed + Last Week), because on mobile the countdown heads the links section and
+    would otherwise be lying about what it refreshes — but it touches **no** appended-page signal, so
+    a poll can never drop the reader's Load More progress. `reloadAll()` (full reset of both
+    appended-page sets + all three resources) stays with the submit box, the sheets and the retry
+    banner. The public beat is what the control's countdown renders
+    (`intervalMs()`/`secondsRemaining()`) and what `refreshNow()` drives, so the automatic tick and
+    the manual click cannot diverge; `linesRefreshTick` travels page → list → card → the open accordion's
     chart/reports.
   - **Authenticated `userVote` overlay:** `graphqlResource()` sends no auth token, so the feed's
     `userVote` is always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady`, then
@@ -273,7 +308,9 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
   `canLoadMoreLastWeek` (`computed`) gates its Load More (`loadMoreLastWeek()`) on
   `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
-  line panel's countdown row mirrors the store's polling beat.
+  page itself holds no refresh state at all: it composes two `app-home-refresh-control` instances
+  (links section below `lg`, line panel from `lg` up, each behind a CSS visibility class) and the
+  countdown, tooltip and transient "Updated" confirmation all live in that component.
 - **`LinkThreadComponent`** (shared insiden `app-link-thread`) — the feed's row element. `members`
   is `link().threadLinks ?? []`, `totalCount` prefers the backend's `threadSize` (already
   `1 + publicly-visible members`, so it counts the root) and falls back to
@@ -459,8 +496,16 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   `sheet`/`skeleton`/`badge`/`button`, `RetryBannerComponent` (structural `RetryableResource`, so
   `HomeStore` doesn't need to expose the raw resources), and `humanizeSince`. The feed has no
   client-side reveal length any more — every loaded link renders and `Load More` only fetches the
-  next page; `refreshTick` is the seam for propagating the lines-only poll beat into an open
+  next page; `refreshTick` is the seam for propagating the poll beat's line half into an open
   accordion.
+- **`refresh-control/home-refresh-control.component.ts`** is the single source of the refresh
+  affordance and the seam for any future host of it: it takes no inputs, injects `HomeStore` itself,
+  and is rendered twice with a CSS visibility class rather than a JS breakpoint probe. Keep it that
+  way — a second copy of this markup (or a `matchMedia`-driven placement) would either duplicate the
+  confirmation state machine or desync SSR from hydration. It is also the reference for "how do I
+  react to a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the control arms
+  on click, latches on `HomeStore.isRefreshing()` going true, and confirms on it settling false with
+  `!hasError()`.
 - **`errorResource` in `HomePage`** shows the adapter pattern for exposing a store (rather than a
   raw resource) to the shared retry banner.
 
