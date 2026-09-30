@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from "@angular/core";
+import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
 import { form as createForm, FormField, required, schema, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import {
@@ -298,6 +298,11 @@ export class LinkFormComponent {
    * `_hydratedIncidentId` guard so `clear()`/close can't be undone by a stale effect. */
   private _hydratedLinkId: string | null = null;
 
+  /** True once the sheet's one-shot URL prefill has been consumed for the current open
+   * session — a late effect re-run (e.g. reference data arriving) must not re-apply it.
+   * Reset when the sheet is closed so the NEXT create-open re-applies a new prefill. */
+  private _prefillApplied = false;
+
   constructor() {
     effect(() => {
       const isOpen = this.sheet.isOpen();
@@ -310,11 +315,13 @@ export class LinkFormComponent {
     // Hydrate the form from the link being edited, once per open. The id guard handles both
     // imperatives: no re-hydration while the same link is targeted (mid-session reference
     // arrivals must not stomp user edits), and no hydration when the sheet closed (clear()
-    // nulls the target; the guard resets with it).
+    // nulls the target; the guard resets with it). Create mode instead applies the sheet's
+    // one-shot URL prefill below.
     effect(() => {
       const target = this.sheet.editTarget();
       if (!target) {
         this._hydratedLinkId = null;
+        this._applyCreatePrefill();
         return;
       }
       if (this._hydratedLinkId === target.id) {
@@ -359,6 +366,26 @@ export class LinkFormComponent {
       this.selectedLineIds.set(defaults.filter((id) => knownIds.includes(id)));
       this._defaultsApplied = true;
     });
+  }
+
+  /** Applies the sheet's one-shot URL prefill to a create-mode open (the home feed's quick
+   * form "Advanced Input"). Consume-once: `takePrefillUrl` nulls the service value and the
+   * `_prefillApplied` guard makes any later effect re-run a no-op — so a reopen without a new
+   * prefill stays blank. Edit mode never reaches here. */
+  private _applyCreatePrefill(): void {
+    if (!this.sheet.isOpen()) {
+      this._prefillApplied = false;
+      return;
+    }
+    if (this._prefillApplied) {
+      return;
+    }
+    this._prefillApplied = true;
+    const url = untracked(() => this.sheet.takePrefillUrl());
+    if (url) {
+      this.model.update((model) => ({ ...model, url }));
+      this.linkForm().reset();
+    }
   }
 
   async submit(): Promise<void> {

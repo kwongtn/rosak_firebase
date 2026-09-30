@@ -46,6 +46,8 @@ import {
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
 import { dateInputToIsoStart, dateInputToIsoEnd } from "../data/date-range.util";
+import { linkStatusInput } from "../data/link-status-input.util";
+import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
 
 type CompletedFilter = "any" | "pending" | "completed";
 
@@ -76,10 +78,14 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
  *
  * Approve is the publish gate for a row that isn't LIVE yet (a community
  * submission, or an auto-ingested operator post): it sends the same
- * `updateSocialMediaLink` with `status: "LIVE"`, then reloads. The console
- * route is already `adminOnlyGuard`-gated, and the backend refuses a
- * non-admin status change, so the row action carries no second permission
- * check.
+ * `updateSocialMediaLink` with `status: "LIVE"`, then reloads. Hide is its
+ * moderation counterpart (`status: "HIDDEN"`) for rows that must not appear in
+ * the feed at all — it is offered on every row that isn't already HIDDEN, and
+ * Approve stays available on a hidden row so un-hiding is just Approve. Both go
+ * through one private `setLinkStatus`, which re-sends the row's full payload
+ * (the input is replace-not-patch) and reloads. The console route is already
+ * `adminOnlyGuard`-gated, and the backend refuses a non-admin status change, so
+ * the row action carries no second permission check.
  */
 @Component({
   selector: "app-console-social-media-links",
@@ -395,37 +401,43 @@ export class SocialMediaLinksComponent {
    *  service assigns `title` and calls `.set()` on the four M2M tag relations
    *  unconditionally, so a status-only payload would blank the title and strip
    *  every tag. The row's current scalars and ids are therefore re-sent
-   *  alongside `status: "LIVE"`. Success reloads the list so the publish state
-   *  comes back as server truth; failures surface via the toast (never
-   *  swallowed) and leave the list untouched. */
+   *  alongside `status: "LIVE"` (see linkStatusInput). Success reloads the list
+   *  so the publish state comes back as server truth; failures surface via the
+   *  toast (never swallowed) and leave the list untouched. */
   protected async approveLink(link: SocialMediaLinkRow): Promise<boolean> {
+    return this.setLinkStatus(link, "LIVE", "Link approved", "Couldn't approve link");
+  }
+
+  /** Moderation counterpart of approveLink: pull a row out of the public feed
+   *  (`status: "HIDDEN"`) without deleting it — e.g. a celebratory update that
+   *  must not sit in the feed. The row keeps its title, tags and votes because
+   *  the same full payload is re-sent. Approve stays available on a hidden row,
+   *  which is how an admin puts it back (Approve → `LIVE`). */
+  protected async hideLink(link: SocialMediaLinkRow): Promise<boolean> {
+    return this.setLinkStatus(link, "HIDDEN", "Link hidden", "Couldn't hide link");
+  }
+
+  /** The single status-change path for the queue (Approve / Hide). Shared so the
+   *  replace-not-patch payload can never drift between the two verbs. */
+  private async setLinkStatus(
+    link: SocialMediaLinkRow,
+    status: SocialMediaLinkStatus,
+    successMessage: string,
+    errorTitle: string,
+  ): Promise<boolean> {
     this.isLoading.set(true);
     try {
       const idToken = await this.auth.idToken();
       await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
         UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
-        {
-          socialMediaLinkId: link.id,
-          input: {
-            url: link.url,
-            title: link.title || null,
-            lineIds: link.lines.map((line) => line.id),
-            vehicleIds: link.vehicles.map((vehicle) => vehicle.id),
-            stationIds: link.stations.map((station) => station.id),
-            categoryIds: link.categories.map((category) => category.id),
-            status: "LIVE",
-          },
-        },
+        { socialMediaLinkId: link.id, input: linkStatusInput(link, status) },
         idToken ? { "firebase-auth-key": idToken } : {},
       );
-      this.toast.success("Link approved", link.url);
+      this.toast.success(successMessage, link.url);
       await this.fetchLinks();
       return true;
     } catch (err) {
-      this.toast.error(
-        "Couldn't approve link",
-        err instanceof Error ? err.message : "Unknown error",
-      );
+      this.toast.error(errorTitle, err instanceof Error ? err.message : "Unknown error");
       return false;
     } finally {
       this.isLoading.set(false);

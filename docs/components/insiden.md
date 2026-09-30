@@ -33,7 +33,8 @@
   - `LinkFormComponent`: reads `LinkSheetService.context` (`{ incidentId, incidentTitle? }`) to
     target a submission at a specific incident; no-arg open is the just-dumping flow. Its edit target
     is the structural `LinkEditTarget` (vehicles/stations optional), so the home feed's node — which
-    selects neither — hydrates as an empty selection.
+    selects neither — hydrates as an empty selection. A create-mode open also applies the sheet's
+    one-shot URL prefill (home's "Advanced Input") once; edit mode never does.
   - `LinkCardComponent` (shared `app-link-card`): `link = input.required<LinkCardItem>()` — the
     structural contract both `PublicSocialMediaLink` and the home feed's `FeedLink` satisfy with no
     host mapping — `userVote = input(0)` (host overlay) and `editable = input(false)` (host-gated
@@ -155,11 +156,15 @@
     `PENDING_APPROVAL` — the contract field is `LinkCardItem.status?: string | null`, kept loose
     rather than narrowed to `SocialMediaLinkStatus` so both source node types satisfy it
     structurally; `completed` is the console's separate admin "mark handled" flag and does not drive
-    it) and a right rail carrying the vote button plus the relative time (`humanizeSince`
+    it), the Official chip (`title="Captured automatically from an official operator account"`,
+    rendered only when `LinkCardItem.isAutomated === true`; the home feed's `FEED_QUERY` is the
+    only query selecting the field, so the other hosts leave it undefined and show no chip), and a
+    right rail carrying the vote button plus the relative time (`humanizeSince`
     with an exact-timestamp + submitter tooltip) and the edit pencil.
     The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
     their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
-    `link-tags`, `link-pending`, `link-meta-rail`, `link-time` / `link-created`, `link-submitter` and
+    `link-tags`, `link-pending`, `link-official`, `link-meta-rail`, `link-time` / `link-created`,
+    `link-submitter` and
     `link-edit`. The host passes `userVote` (its authenticated overlay wins over the anonymous feed
     value) and `editable` (gated with `canEditLink`); the card re-emits votes as `voteChanged` and
     the edit pencil as `edit`.
@@ -179,6 +184,12 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
     header/footer labels ("Edit link"/"Save" vs "Submit a link"/"Submit"), an optional
     `defaultLineIds` input (line-prefilled submissions on the situasi tab) and
     `data-testid="submit-link"` on the submit button.
+  - `LinkSheetService` (root, `data/link-sheet.service.ts`): `open(context?, prefill?)` opens create
+    mode — the optional second arg `{ url? }` seeds a one-shot URL prefill (home's "Advanced
+    Input"); `openEdit(link)` opens edit mode and never prefills; `close()`/`setOpen(false)` clear
+    the pending prefill. The form consumes it through the consume-once `takePrefillUrl()` (returns
+    and clears), so a later reopen without a new `open(..., { url })` starts blank. Existing
+    `open()`/`open(context)` call sites are unchanged.
 - Pure helper modules carry the non-trivial domain logic outside the components:
   `calendar-date.util.ts` (`dateKeyOf`, `incidentCoversDate`), `elapsed-time.util.ts`
   (`getReadableTimeDifference`), `incident-to-form.util.ts` (edit hydration), `can-edit.incident.util.ts`

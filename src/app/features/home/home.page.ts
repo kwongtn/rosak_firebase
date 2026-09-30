@@ -88,7 +88,7 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
                 class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
                 data-testid="feed-empty"
               >
-                No links yet.
+                No links today yet.
               </p>
             }
             @for (link of store.feedLinks(); track link.id) {
@@ -119,6 +119,79 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
               }
             </div>
           }
+
+          <div class="flex flex-col gap-3">
+            <button
+              type="button"
+              class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1.5 self-start text-sm font-semibold tracking-wide uppercase"
+              data-testid="last-week-toggle"
+              [attr.aria-expanded]="_lastWeekExpanded()"
+              (click)="_lastWeekExpanded.set(!_lastWeekExpanded())"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                class="size-4 shrink-0 transition-transform"
+                [class.rotate-180]="_lastWeekExpanded()"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+              <span data-testid="last-week-count"
+                >Last Week ({{ store.lastWeekTotalCount() }})</span
+              >
+            </button>
+
+            @if (_lastWeekExpanded()) {
+              <div class="flex flex-col gap-3" data-testid="last-week-panel">
+                @if (store.isLoadingLastWeek() && store.lastWeekLinks().length === 0) {
+                  <div hlmSkeleton class="h-24 w-full" data-testid="last-week-skeleton"></div>
+                } @else if (store.lastWeekLinks().length === 0 && !store.hasError()) {
+                  <p
+                    class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
+                    data-testid="last-week-empty"
+                  >
+                    No links in the last week.
+                  </p>
+                }
+                @for (group of store.lastWeekDayGroups(); track group.key) {
+                  <div class="flex flex-col gap-2" data-testid="last-week-day-group">
+                    @if (group.label) {
+                      <h2
+                        class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+                      >
+                        {{ group.label }}
+                      </h2>
+                    }
+                    @for (link of group.links; track link.id) {
+                      <app-link-card
+                        [link]="link"
+                        [userVote]="store.userVoteFor(link.id)"
+                        [editable]="canEdit(link)"
+                        (voteChanged)="store.setUserVote(link.id, $event.value)"
+                        (edit)="openEdit($event)"
+                      />
+                    }
+                  </div>
+                }
+                @if (canLoadMoreLastWeek()) {
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    class="self-center"
+                    data-testid="last-week-load-more"
+                    (click)="loadMoreLastWeek()"
+                  >
+                    Load More
+                  </button>
+                }
+              </div>
+            }
+          </div>
         </section>
 
         <section class="flex flex-col gap-3" aria-label="Line status">
@@ -282,6 +355,23 @@ export class HomePage implements OnDestroy {
    * reveal step left to advance. */
   protected loadMore(): void {
     void this.store.loadMore();
+  }
+
+  /** Collapsed by default — the last-week window stays out of the way until requested. */
+  protected readonly _lastWeekExpanded = signal(false);
+
+  /** The last-week Load More: shown only while another day-aligned page exists and nothing is in
+   * flight. */
+  protected readonly canLoadMoreLastWeek = computed(
+    () =>
+      Boolean(this.store.lastWeekPageInfo()?.hasNextPage) &&
+      !this.store.isLoadingLastWeek() &&
+      !this.store.isLoadingMoreLastWeek(),
+  );
+
+  /** Pulls the next day-aligned last-week page. */
+  protected loadMoreLastWeek(): void {
+    void this.store.loadMoreLastWeek();
   }
 
   /** Previous shared-link-sheet state, so the effect can detect its open→closed edge. */

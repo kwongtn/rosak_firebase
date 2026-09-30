@@ -5,14 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
-import {
-  SUBMIT_FEED_LINK_MUTATION,
-  SubmitFeedLinkData,
-  type FeedLink,
-  type LinePulse,
-  type PassengerStatus,
-} from "../data/home.queries";
+import { SUBMIT_FEED_LINK_MUTATION, SubmitFeedLinkData, type FeedLink } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
+import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { LinkSubmitBoxComponent } from "./link-submit-box.component";
 
 interface LinkSubmitModel {
@@ -21,8 +16,6 @@ interface LinkSubmitModel {
 
 interface ComponentUnderTest {
   model: WritableSignal<LinkSubmitModel>;
-  selectedLineIds: WritableSignal<string[]>;
-  selectedStatus: WritableSignal<PassengerStatus | null>;
   isSubmitting: WritableSignal<boolean>;
   submit(): Promise<void>;
 }
@@ -40,6 +33,7 @@ function makeLink(): FeedLink {
     created: "2026-08-01T08:00:00Z",
     status: "LIVE",
     completed: false,
+    isAutomated: false,
     voteScore: 1,
     userVote: 1,
     voteBreakdown: { upvotes: 1, downvotes: 0 },
@@ -63,34 +57,15 @@ function submitResponse(
   };
 }
 
-function makeLine(): LinePulse {
-  return {
-    id: "L1",
-    code: "KJL",
-    displayName: "Kajang Line",
-    displayColor: "#008000",
-    status: "ACTIVE",
-    inServiceVehicleCount: 3,
-    totalVehicleCount: 5,
-    passengerStatus: null,
-    passengerStatusMessage: null,
-    statusReportCount: 0,
-    vehicleStatusCounts: [],
-    passengerStatusCount: 0,
-    statusWindowMinutes: 60,
-    pulseLinks: [],
-  };
-}
-
 describe("LinkSubmitBoxComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
   let idTokenMock: ReturnType<typeof vi.fn>;
   let toastMocks: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let storeMock: {
-    lines: WritableSignal<LinePulse[]>;
     setUserVote: ReturnType<typeof vi.fn>;
     reloadAll: ReturnType<typeof vi.fn>;
   };
+  let openSheetMock: ReturnType<typeof vi.fn>;
   let isLoggedIn: WritableSignal<boolean>;
   let loginMock: ReturnType<typeof vi.fn>;
   let fixture: ComponentFixture<LinkSubmitBoxComponent>;
@@ -99,11 +74,8 @@ describe("LinkSubmitBoxComponent", () => {
     requestMock = vi.fn();
     idTokenMock = vi.fn(async () => "token" as string | null);
     toastMocks = { success: vi.fn(), error: vi.fn() };
-    storeMock = {
-      lines: signal<LinePulse[]>([makeLine()]),
-      setUserVote: vi.fn(),
-      reloadAll: vi.fn(),
-    };
+    storeMock = { setUserVote: vi.fn(), reloadAll: vi.fn() };
+    openSheetMock = vi.fn();
     isLoggedIn = signal(true);
     loginMock = vi.fn();
 
@@ -118,6 +90,7 @@ describe("LinkSubmitBoxComponent", () => {
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },
         { provide: HomeStore, useValue: storeMock },
+        { provide: LinkSheetService, useValue: { open: openSheetMock } },
       ],
     }).compileComponents();
 
@@ -139,7 +112,7 @@ describe("LinkSubmitBoxComponent", () => {
     expect(loginMock).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the url field, the status dropdown and the line multi-select when logged in", async () => {
+  it("renders only the url field plus the submit and advanced buttons when logged in", async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -147,22 +120,19 @@ describe("LinkSubmitBoxComponent", () => {
     expect(urlInput).not.toBeNull();
     expect(urlInput.getAttribute("inputmode")).toBe("url");
 
-    const select = fixture.nativeElement.querySelector("select");
-    const labels: string[] = Array.from(select.options as HTMLOptionElement[]).map((option) =>
-      option.textContent.trim(),
+    expect(fixture.nativeElement.querySelector("select")).toBeNull();
+    expect(fixture.nativeElement.querySelector("app-asset-multi-select")).toBeNull();
+
+    expect(fixture.nativeElement.querySelector('button[type="submit"]').textContent).toContain(
+      "Submit Link",
     );
-    expect(labels[0]).toBe("Line status (optional)");
-    expect(labels).toHaveLength(8);
-    expect(labels).toContain("Extremely Crowded");
-    expect(fixture.nativeElement.textContent).toContain("KJL — Kajang Line");
+    expect(fixture.nativeElement.querySelector('[data-testid="advanced-input"]')).not.toBeNull();
   });
 
-  it("submits url, lines and status with the auth header, then resets and emits", async () => {
+  it("submits only the url with the auth header, then resets and emits", async () => {
     requestMock.mockResolvedValue(submitResponse());
     const component = asTestable(fixture);
     component.model.set({ url: "https://example.com/story" });
-    component.selectedLineIds.set(["L1"]);
-    component.selectedStatus.set("DELAYED");
     let submittedCount = 0;
     fixture.componentInstance.submitted.subscribe(() => submittedCount++);
 
@@ -171,17 +141,11 @@ describe("LinkSubmitBoxComponent", () => {
     expect(requestMock).toHaveBeenCalledTimes(1);
     const [mutation, vars, headers] = requestMock.mock.calls[0];
     expect(mutation).toBe(SUBMIT_FEED_LINK_MUTATION);
-    expect(vars.input).toEqual({
-      url: "https://example.com/story",
-      lineIds: ["L1"],
-      status: "DELAYED",
-    });
+    expect(vars.input).toEqual({ url: "https://example.com/story" });
     expect(headers).toEqual({ "firebase-auth-key": "token" });
     expect(toastMocks.success).toHaveBeenCalledTimes(1);
     expect(submittedCount).toBe(1);
     expect(component.model()).toEqual({ url: "" });
-    expect(component.selectedLineIds()).toEqual([]);
-    expect(component.selectedStatus()).toBeNull();
   });
 
   it("omits the auth header when there is no token", async () => {
@@ -223,18 +187,6 @@ describe("LinkSubmitBoxComponent", () => {
     );
     expect(storeMock.setUserVote).toHaveBeenCalledWith("42", 1);
     expect(toastMocks.success).not.toHaveBeenCalled();
-  });
-
-  it("blocks submission with an inline message when a status has no line", async () => {
-    const component = asTestable(fixture);
-    component.model.set({ url: "https://example.com/story" });
-    component.selectedStatus.set("CROWDED");
-
-    await component.submit();
-    fixture.detectChanges();
-
-    expect(requestMock).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.querySelector('[data-testid="status-line-error"]')).not.toBeNull();
   });
 
   it("normalizes a schemeless url to https before sending", async () => {
@@ -302,5 +254,25 @@ describe("LinkSubmitBoxComponent", () => {
 
     expect(fixture.nativeElement.querySelector('[data-testid="feed-submit-error"]')).toBeNull();
     expect(toastMocks.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the advanced sheet with the trimmed url typed so far", async () => {
+    const component = asTestable(fixture);
+    component.model.set({ url: "  example.com/story  " });
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid="advanced-input"]').click();
+
+    expect(openSheetMock).toHaveBeenCalledTimes(1);
+    expect(openSheetMock).toHaveBeenCalledWith(undefined, { url: "example.com/story" });
+  });
+
+  it("opens the advanced sheet with an undefined url when the field is empty", async () => {
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid="advanced-input"]').click();
+
+    expect(openSheetMock).toHaveBeenCalledTimes(1);
+    expect(openSheetMock).toHaveBeenCalledWith(undefined, { url: undefined });
   });
 });

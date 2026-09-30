@@ -25,6 +25,11 @@ import type { VoteValue } from "../vote-button/vote-state.util";
  *    stretches to the row height, so the time bottom-aligns with the body's last row instead of
  *    claiming a footer row of its own.
  *
+ * Provenance: the tag row carries two independent chips — the Pending pill (approval `status`,
+ * `PENDING_APPROVAL`) and the Official chip (`isAutomated`, i.e. an automatically captured
+ * operator post). Both are hidden when their axis says nothing, so a hand-submitted approved link
+ * shows neither.
+ *
  * Favicon comes from Google's s2 service; a URL whose hostname can't be extracted (or isn't
  * http/https) falls back to a plain link icon instead of a broken image. Edit gating (author or
  * admin) belongs to the host via canEditLink — this card only honours `editable`. SSR-safe: no
@@ -97,6 +102,17 @@ import type { VoteValue } from "../vote-button/vote-state.util";
                 title="Awaiting admin approval"
               >
                 Pending
+              </span>
+            }
+            @if (link().isAutomated === true) {
+              <span
+                hlmBadge
+                variant="info"
+                class="self-start px-1.5 py-0.5 text-xs"
+                data-testid="link-official"
+                title="Captured automatically from an official operator account"
+              >
+                Official
               </span>
             }
           </span>

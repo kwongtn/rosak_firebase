@@ -7,7 +7,7 @@ import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { FeedLink, FeedQueryData, FrontPageLinesQueryData } from "./home.queries";
-import { FEED_PAGE_SIZE, HomeStore } from "./home.store";
+import { FEED_PAGE_SIZE, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
 
 function makeLine(id: string): FrontPageLinesQueryData["lines"][number] {
   return {
@@ -37,6 +37,7 @@ function makeFeedLink(id: string, userVote = 0): FeedLink {
     created: "2026-08-01T08:00:00Z",
     status: "LIVE",
     completed: false,
+    isAutomated: false,
     voteScore: 2,
     userVote,
     voteBreakdown: { upvotes: 2, downvotes: 0 },
@@ -77,12 +78,31 @@ describe("HomeStore", () => {
   }
 
   function feedRequest() {
-    return httpMock.expectOne((r) => r.method === "POST" && r.body.query.includes("query Feed"));
+    return httpMock.expectOne(
+      (r) =>
+        r.method === "POST" &&
+        r.body.query.includes("query Feed") &&
+        r.body.variables?.lastWeekOnly !== true,
+    );
   }
 
-  function flushInitial(lines: FrontPageLinesQueryData["lines"], feed: FeedQueryData): void {
+  function lastWeekRequest() {
+    return httpMock.expectOne(
+      (r) =>
+        r.method === "POST" &&
+        r.body.query.includes("query Feed") &&
+        r.body.variables?.lastWeekOnly === true,
+    );
+  }
+
+  function flushInitial(
+    lines: FrontPageLinesQueryData["lines"],
+    feed: FeedQueryData,
+    lastWeek: FeedQueryData = feedData([], false, null),
+  ): void {
     linesRequest().flush({ data: { lines } });
     feedRequest().flush({ data: feed });
+    lastWeekRequest().flush({ data: lastWeek });
   }
 
   beforeEach(() => {
@@ -130,6 +150,15 @@ describe("HomeStore", () => {
       currentServiceDayOnly: true,
     });
     feedReq.flush({ data: feedData([makeFeedLink("x"), makeFeedLink("y")], false, null) });
+
+    const lastWeekReq = lastWeekRequest();
+    expect(lastWeekReq.request.body.variables).toEqual({
+      first: LAST_WEEK_PAGE_SIZE,
+      status: "LIVE",
+      lastWeekOnly: true,
+      alignPageToDay: true,
+    });
+    lastWeekReq.flush({ data: feedData([], false, null) });
 
     await Promise.resolve();
 
@@ -274,9 +303,146 @@ describe("HomeStore", () => {
 
     linesRequest().flush({ data: { lines: [] } });
     feedRequest().flush({ data: feedData([makeFeedLink("z")], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
     await Promise.resolve();
 
     expect(store.feedLinks().map((l) => l.id)).toEqual(["z"]);
     expect(store.linesRefreshTick()).toBe(0);
+  });
+
+  it("projects lastWeekLinks from the last-week resource", async () => {
+    const store = createStore();
+    flushInitial(
+      [],
+      feedData([makeFeedLink("t")], false, null),
+      feedData([makeFeedLink("w1"), makeFeedLink("w2")], true, "cursor-w"),
+    );
+    await Promise.resolve();
+
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
+    expect(store.lastWeekTotalCount()).toBe(2);
+    expect(store.lastWeekPageInfo()?.endCursor).toBe("cursor-w");
+  });
+
+  it("appends a second last-week page through the GraphQL client", async () => {
+    const store = createStore();
+    flushInitial([], feedData([], false, null), feedData([makeFeedLink("w1")], true, "cursor-w"));
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await store.loadMoreLastWeek();
+
+    expect(requestMock).toHaveBeenCalledWith(expect.stringContaining("query Feed"), {
+      first: LAST_WEEK_PAGE_SIZE,
+      after: "cursor-w",
+      status: "LIVE",
+      lastWeekOnly: true,
+      alignPageToDay: true,
+    });
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
+
+    requestMock.mockClear();
+    await store.loadMoreLastWeek();
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it("clears appended last-week pages and re-requests both on reloadAll", async () => {
+    const store = createStore();
+    flushInitial([], feedData([], false, null), feedData([makeFeedLink("w1")], true, "cursor-w"));
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await store.loadMoreLastWeek();
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
+
+    store.reloadAll();
+    TestBed.tick();
+
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w3")], false, null) });
+    await Promise.resolve();
+
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w3"]);
+  });
+
+  it("groups lastWeekLinks into local calendar days", async () => {
+    const store = createStore();
+    const dayOne = [makeFeedLink("w1"), makeFeedLink("w2")].map((link) => ({
+      ...link,
+      created: "2026-09-30T09:00:00",
+    }));
+    const dayTwo = { ...makeFeedLink("w3"), created: "2026-09-29T09:00:00" };
+    flushInitial([], feedData([], false, null), feedData([...dayOne, dayTwo], false, "cursor-w"));
+    await Promise.resolve();
+
+    const groups = store.lastWeekDayGroups();
+    expect(groups.map((g) => g.key)).toEqual(["2026-09-30", "2026-09-29"]);
+    expect(groups[0].links.map((l) => l.id)).toEqual(["w1", "w2"]);
+  });
+
+  it("issues two authenticated overlay reads and merges their votes", async () => {
+    isLoggedIn.set(true);
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("x", 1)], false, null));
+    requestMock.mockResolvedValueOnce(
+      feedData([makeFeedLink("w", 1), makeFeedLink("y", 0)], false, null),
+    );
+    const store = createStore();
+    flushInitial([], feedData([makeFeedLink("x", 0)], false, null));
+    await vi.waitFor(() => expect(store.userVoteFor("w")).toBe(1));
+
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("query Feed"),
+      { first: LAST_WEEK_PAGE_SIZE, status: "LIVE", lastWeekOnly: true, alignPageToDay: true },
+      { "firebase-auth-key": "token" },
+    );
+  });
+
+  it("keeps the last-week votes when the today overlay read rejects", async () => {
+    isLoggedIn.set(true);
+    requestMock.mockRejectedValueOnce(new Error("today overlay failed"));
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w", 1)], false, null));
+    const store = createStore();
+    flushInitial([], feedData([makeFeedLink("x", 0)], false, null));
+
+    await vi.waitFor(() => expect(store.userVoteFor("w")).toBe(1));
+    expect(store.userVoteFor("w")).toBe(1);
+  });
+
+  it("reports a last-week-only failure through hasError while the today feed keeps its data", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], false, null) });
+    lastWeekRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(store.hasError()).toBe(true);
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x"]);
+  });
+
+  it("coalesces concurrent loadMoreLastWeek calls into one request", async () => {
+    const store = createStore();
+    flushInitial([], feedData([], false, null), feedData([makeFeedLink("w1")], true, "cursor-w"));
+    await Promise.resolve();
+
+    requestMock.mockClear();
+    let resolveRequest: (value: FeedQueryData) => void = () => undefined;
+    requestMock.mockImplementationOnce(
+      () =>
+        new Promise<FeedQueryData>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+
+    const first = store.loadMoreLastWeek();
+    const second = store.loadMoreLastWeek();
+    resolveRequest(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await Promise.all([first, second]);
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
   });
 });

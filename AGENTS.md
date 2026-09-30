@@ -31,7 +31,7 @@ or Docker:
 
 ```bash
 cd /home/kwongtn/rosak/rosak_backend
-docker compose up                          # full stack: postgis, redis, granian app, nginx :8000,
+docker compose up                          # full stack: postgis, valkey, granian app, nginx :8000,
                                            # celery worker + beat
 .venv/bin/python manage.py makemigrations <app>   # then commit the migration WITH the model change
 .venv/bin/python manage.py migrate

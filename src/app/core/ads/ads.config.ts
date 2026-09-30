@@ -33,6 +33,18 @@ export const ADS_CONFIG = {
   },
 } as const;
 
+/**
+ * The single user-facing explanation of why the app carries ads, surfaced by `AdSlotComponent` as
+ * an info popover on its `"Advertisement"` disclosure caption — hover on pointer devices, tap on
+ * touch. Lives here (not in the component) so the wording is one constant for every slot, and
+ * carries no numbers, so it is not a methodology metric doc.
+ */
+export const AD_DISCLOSURE = {
+  /** Popover heading and the trigger's `aria-label` subject. */
+  label: "Advertisement",
+  body: "Why ads? This site mostly runs on free-tier hosting, but external API fees and LLM sub costs add up fast. Ads help offset those bills and keep the dev caffeinated ☕ (even if we're still far from breaking even!). Thanks for supporting!",
+} as const;
+
 /** Union of logical slot keys configured above — the parameter type for `resolveAdSlot`. */
 export type AdSlotKey = keyof typeof ADS_CONFIG.slots;
 

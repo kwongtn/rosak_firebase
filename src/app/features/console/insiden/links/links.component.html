@@ -166,11 +166,23 @@
                   {{ link.title || "—" }}
                 </td>
                 <td hlmTd class="py-3">
-                  @if (link.user; as submitter) {
-                    {{ submitter.nickname || submitter.shortId }}
-                  } @else {
-                    —
-                  }
+                  <div class="flex flex-col items-start gap-1">
+                    @if (link.user; as submitter) {
+                      <span>{{ submitter.nickname || submitter.shortId }}</span>
+                    } @else {
+                      <span>—</span>
+                    }
+                    @if (link.isAutomated) {
+                      <span
+                        hlmBadge
+                        variant="info"
+                        data-testid="link-official"
+                        title="Captured automatically from an official operator account"
+                      >
+                        Official
+                      </span>
+                    }
+                  </div>
                 </td>
                 <td hlmTd class="py-3">
                   @if (link.categories.length > 0) {
@@ -203,6 +215,17 @@
                         (click)="$event.stopPropagation(); approveLink(link)"
                       >
                         Approve
+                      </button>
+                    }
+                    @if (link.status !== "HIDDEN") {
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="outline"
+                        [disabled]="isLoading()"
+                        (click)="$event.stopPropagation(); hideLink(link)"
+                      >
+                        Hide
                       </button>
                     }
                     @if (!link.completed) {

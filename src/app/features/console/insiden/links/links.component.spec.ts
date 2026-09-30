@@ -39,6 +39,7 @@ function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkR
     completedAt: null,
     completedBy: null,
     status: "PENDING_APPROVAL",
+    isAutomated: false,
     user: { nickname: "Zul", shortId: "abcd1234" },
     lines: [{ id: "l1", code: "KJL", displayName: "Kelana Jaya Line" }],
     vehicles: [{ id: "v1", identificationNo: "V-123" }],
@@ -80,6 +81,7 @@ interface ComponentUnderTest {
   filterDateFrom: WritableSignal<string>;
   filterDateTo: WritableSignal<string>;
   approveLink(link: SocialMediaLinkRow): Promise<boolean>;
+  hideLink(link: SocialMediaLinkRow): Promise<boolean>;
   markCompleted(link: SocialMediaLinkRow): Promise<boolean>;
   openLinkDetail(link: SocialMediaLinkRow): void;
   closeLinkPanel(): void;
@@ -171,9 +173,18 @@ describe("SocialMediaLinksComponent", () => {
   }
 
   function approveButton(): HTMLButtonElement | null {
+    return rowButton("Approve");
+  }
+
+  function hideButton(): HTMLButtonElement | null {
+    return rowButton("Hide");
+  }
+
+  /** First tbody row button with the given label (the sheet's own buttons never match). */
+  function rowButton(label: string): HTMLButtonElement | null {
     for (const row of (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr")) {
       for (const button of Array.from(row.querySelectorAll("button"))) {
-        if (button.textContent?.trim() === "Approve") {
+        if (button.textContent?.trim() === label) {
           return button;
         }
       }
@@ -475,6 +486,165 @@ describe("SocialMediaLinksComponent", () => {
     expect(callsFor("socialMediaLinks")).toHaveLength(0);
     expect(toastMocks.error).toHaveBeenCalledWith("Couldn't approve link", "backend down");
     expect(component.links().map((l) => l.id)).toEqual(["pending-1"]);
+  });
+
+  it("offers Hide on every non-HIDDEN row and keeps Approve as the un-hide verb", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    component.links.set([
+      makeLink({ id: "pending-1" }),
+      makeLink({ id: "live-1", status: "LIVE" }),
+      makeLink({ id: "hidden-1", status: "HIDDEN" }),
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const labels = rowActionLabels();
+    expect(labels).toHaveLength(3);
+    expect(labels[0]).toContain("Hide");
+    expect(labels[1]).toContain("Hide");
+    // Already hidden: nothing to hide, but Approve stays so the row can be republished.
+    expect(labels[2]).not.toContain("Hide");
+    expect(labels[2]).toContain("Approve");
+  });
+
+  it("hideLink sends status HIDDEN with the row id and its current fields", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "live-1", status: "LIVE" })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    hideButton()?.click();
+    await vi.waitFor(() => expect(callsFor("updateSocialMediaLink")).toHaveLength(1));
+
+    // Same replace-not-patch payload as Approve: a status-only input would wipe the
+    // title and all four tag sets server-side.
+    const [, vars] = callsFor("updateSocialMediaLink")[0];
+    expect(vars).toEqual({
+      socialMediaLinkId: "live-1",
+      input: {
+        url: "https://x.com/prasarana/status/1",
+        title: "Service alert",
+        lineIds: ["l1"],
+        vehicleIds: ["v1"],
+        stationIds: ["s1"],
+        categoryIds: ["c1"],
+        status: "HIDDEN",
+      },
+    });
+    expect(component.selectedLink()).toBeNull();
+  });
+
+  it("reloads the list after a successful hide so the row comes back HIDDEN", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      if (query.includes("socialMediaLinks")) {
+        return Promise.resolve({
+          socialMediaLinks: [makeLink({ id: "live-1", status: "HIDDEN" })],
+        });
+      }
+      return Promise.resolve({ calendarIncidentCategories: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "live-1", status: "LIVE" })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    hideButton()?.click();
+    await vi.waitFor(() => expect(callsFor("updateSocialMediaLink")).toHaveLength(1));
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
+
+    expect(component.links().map((l) => l.status)).toEqual(["HIDDEN"]);
+    expect(component.isLoading()).toBe(false);
+    expect(toastMocks.success).toHaveBeenCalledWith(
+      "Link hidden",
+      "https://x.com/prasarana/status/1",
+    );
+  });
+
+  it("keeps the list untouched and toasts when the hide mutation fails", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.reject(new Error("backend down"));
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "live-1", status: "LIVE" })]);
+
+    const ok = await component.hideLink(makeLink({ id: "live-1", status: "LIVE" }));
+
+    expect(ok).toBe(false);
+    expect(callsFor("socialMediaLinks")).toHaveLength(0);
+    expect(toastMocks.error).toHaveBeenCalledWith("Couldn't hide link", "backend down");
+    expect(component.links().map((l) => l.status)).toEqual(["LIVE"]);
+  });
+
+  it("approveLink un-hides a HIDDEN row by sending status LIVE", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "hidden-1", status: "HIDDEN" })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    approveButton()?.click();
+    await vi.waitFor(() => expect(callsFor("updateSocialMediaLink")).toHaveLength(1));
+
+    const [, vars] = callsFor("updateSocialMediaLink")[0];
+    expect(vars).toMatchObject({
+      socialMediaLinkId: "hidden-1",
+      input: { status: "LIVE" },
+    });
+  });
+
+  it("badges an ingested row as Official and leaves a community row unbadged", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    component.links.set([
+      makeLink({ id: "auto-1", isAutomated: true }),
+      makeLink({ id: "human-1", isAutomated: false }),
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const chips = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="link-official"]',
+    );
+    expect(chips).toHaveLength(1);
+    expect(chips[0].textContent).toContain("Official");
+    expect(chips[0].getAttribute("title")).toBe(
+      "Captured automatically from an official operator account",
+    );
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr");
+    expect(rows[0].querySelector('[data-testid="link-official"]')).not.toBeNull();
+    expect(rows[1].querySelector('[data-testid="link-official"]')).toBeNull();
   });
 
   it("markCompleted calls the mutation and reloads the list", async () => {

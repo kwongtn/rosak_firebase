@@ -62,7 +62,10 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
   `updatePersonnel()` etc. update it immutably; `saveDraft()` calls `sanitizeDraft()` (to
   prevent Firestore rejecting undefined values or empty placeholder rows) then `setDoc()` on
   the same `public/about` doc. The live `onSnapshot` subscription picks up the save and
-  re-renders the page automatically; `cancelEdit()` discards the draft.
+  re-renders the page automatically; `cancelEdit()` discards the draft. Each entry list
+  (`projects`/`personnel`/`techStacks`) wraps its editor cards in the same responsive grid as the
+  public section below (`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3`), so an edit cell
+  lines up with the card it produces.
 - The Firestore `onSnapshot` subscription is opened in the constructor (browser only) and torn
   down in `ngOnDestroy` via the stored `Unsubscribe` handle — the only lifecycle hook
   implemented (`OnDestroy`).

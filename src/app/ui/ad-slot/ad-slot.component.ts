@@ -10,7 +10,8 @@ import {
   input,
   signal,
 } from "@angular/core";
-import { ADS_CONFIG } from "../../core/ads/ads.config";
+import { AD_DISCLOSURE, ADS_CONFIG } from "../../core/ads/ads.config";
+import { InfoPopover } from "../info-popover/info-popover";
 
 declare global {
   interface Window {
@@ -97,10 +98,20 @@ export function mapAdStatus(status: string | null | undefined): AdFillState {
  * ## Caps
  * Per the plan, no more than **2 ad units per page** — enforce that at the page level; this
  * component renders exactly one unit per instance.
+ *
+ * ## Disclosure tooltip
+ * The `label` caption ("Advertisement") is the trigger of a shared `app-info-popover` carrying
+ * `AD_DISCLOSURE` (`core/ads/ads.config.ts`) — the one place the "why we run ads" wording lives.
+ * The shared popover already owns the interaction: hover/focus on `(hover: hover) and (pointer:
+ * fine)` devices, tap toggle on touch, Escape and outside-click close. `align="center"` matters
+ * here rather than being cosmetic: the panel lives inside this unit's `overflow-hidden` block, so
+ * the edge-anchored defaults would clip it on narrow placements, while centered it stays inside
+ * every configured unit.
  */
 @Component({
   selector: "app-ad-slot",
   host: { class: "block" },
+  imports: [InfoPopover],
   template: `
     @if (shouldRender()) {
       <div
@@ -111,9 +122,18 @@ export function mapAdStatus(status: string | null | undefined): AdFillState {
         [class.hidden]="fillState() === 'unfilled' && !isPlaceholder()"
       >
         @if (label() && (isPlaceholder() || fillState() === "filled")) {
-          <span class="text-muted-foreground text-center text-[10px] tracking-wider uppercase">
-            {{ label() }}
-          </span>
+          <app-info-popover
+            class="justify-center"
+            [label]="disclosure.label"
+            [content]="disclosure.body"
+            align="center"
+            [showMethodologyLink]="false"
+            testId="ad-disclosure-popover"
+          >
+            <span class="text-muted-foreground text-[10px] tracking-wider uppercase">
+              {{ label() }}
+            </span>
+          </app-info-popover>
         }
         @if (isPlaceholder()) {
           <div
@@ -158,6 +178,8 @@ export class AdSlotComponent implements OnDestroy {
   private readonly adPreviewParam = this.isBrowser && isAdPreviewEnabled(window.location.search);
 
   protected readonly adClient = ADS_CONFIG.client;
+  /** The single "why we run ads" explanation, shown by the disclosure popover on the caption. */
+  protected readonly disclosure = AD_DISCLOSURE;
   protected readonly render = signal(false);
   protected readonly fillState = signal<AdFillState>("pending");
   protected readonly isPlaceholder = computed(() => this.placeholder() || this.adPreviewParam);

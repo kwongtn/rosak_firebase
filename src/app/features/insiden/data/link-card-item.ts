@@ -10,8 +10,9 @@ interface LinkCardItemLine {
  * `PublicSocialMediaLink`: the home feed's `FeedLink` node and the insiden/situasi
  * `PublicSocialMediaLink` node each satisfy this shape directly, which is what lets one card serve
  * every surface with no mapping at the host. Required fields are the ones every surface always
- * selects; `status`, `completed` and the vote triple are optional so a host that doesn't select them
- * (or a spec fixture) still satisfies the contract — the card falls back to `0`/hidden.
+ * selects; `status`, `completed`, `isAutomated` and the vote triple are optional so a host that
+ * doesn't select them (or a spec fixture) still satisfies the contract — the card falls back to
+ * `0`/hidden.
  */
 export interface LinkCardItem {
   id: string;
@@ -33,6 +34,14 @@ export interface LinkCardItem {
    * mark-completed action). It is NOT the approval state and must never drive the Pending pill.
    */
   completed?: boolean;
+  /**
+   * Provenance marker (backend `isAutomated`): true only for rows written by the official-post
+   * ingestion, false/absent for every hand-submitted link. Drives the card's "Official" chip, so
+   * a rider can tell an automatically captured operator post from a community submission. Only
+   * the home feed's `FEED_QUERY` selects it today — the other hosts leave it undefined and the
+   * chip simply stays hidden.
+   */
+  isAutomated?: boolean;
   voteScore?: number;
   userVote?: number;
   voteBreakdown?: { upvotes: number; downvotes: number };
