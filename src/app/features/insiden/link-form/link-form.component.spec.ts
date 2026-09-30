@@ -171,6 +171,44 @@ describe("LinkFormComponent", () => {
     expect(component.model()).toEqual({ url: link.url, title: link.title });
   });
 
+  it("pre-fills the url field from a create-open prefill", async () => {
+    sheet.open(undefined, { url: "https://example.com/prefilled" });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const component = asTestable(fixture);
+    expect(component.model().url).toBe("https://example.com/prefilled");
+  });
+
+  it("ignores the prefill when the sheet opens in edit mode", async () => {
+    const link = makeLink();
+    sheet.open(undefined, { url: "https://example.com/prefilled" });
+    sheet.openEdit(link);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const component = asTestable(fixture);
+    expect(component.model()).toEqual({ url: link.url, title: link.title });
+  });
+
+  it("consumes the prefill once: reopening after a close without a new prefill is blank", async () => {
+    sheet.open(undefined, { url: "https://example.com/prefilled" });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const component = asTestable(fixture);
+    expect(component.model().url).toBe("https://example.com/prefilled");
+
+    sheet.close();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    sheet.open();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.model()).toEqual({ url: "", title: "" });
+  });
+
   it("sends the UPDATE mutation with the link id for edits", async () => {
     const link = makeLink();
     sheet.openEdit(link);
