@@ -59,9 +59,11 @@ Directory map:
   The toolbar (`data-testid="thread-toolbar"`) renders
   only once the list is non-empty, with a per-row `hlm-checkbox` (`data-testid="select-link-<id>"` +
   a visually hidden accessible name), a count, a **Group into thread** button
-  (`data-testid="group-selected"`, disabled below two) wired by `aria-describedby` to one line of
-  discoverability prose (`data-testid="thread-hint"`, which names all three verbs — group, order,
-  nest), plus a page-level `thread-sequence-notice` that appears while more pages are still loading.
+  (`data-testid="group-selected"`, disabled below two — Nest ticked here needs only **one** tick,
+  because a targeted nest writes a real child while an untargeted one-link group is a no-op) wired by
+  `aria-describedby` to one line of
+  discoverability prose (`data-testid="thread-hint"`, which names all three verbs — nest, group,
+  order), plus a page-level `thread-sequence-notice` that appears while more pages are still loading.
   A ticked row tints via `hlm("rounded-lg", … && "bg-primary/5")`, and the
   row is a **card, not an anchor**, so a tick can never open the link.
 

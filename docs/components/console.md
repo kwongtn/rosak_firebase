@@ -298,11 +298,15 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
     `scopedSelection` — collapsing a conversation is a VIEW gesture, not an intent to forget. Tick a
     root, open it, tick two children, close it, and Group must still move all three. Scoping the
     mutation to the rendered set would make a collapse silently drop the admin's own selection.
-- The selection toolbar renders **always** (discoverability, and so "needs two" shows as a disabled
-  button with a stated reason rather than an absent one):
+- The selection toolbar renders **always** (discoverability, and so a blocked action shows as a
+  disabled button with a stated reason rather than an absent one):
   `data-testid="group-selected"`, a `selection-count` span, `Clear selection` once something is
-  ticked, the hint "Select at least two links to group them into one conversation, or to nest them
-  under one", and a `reorder-hint` paragraph whenever the queue is filtered. A node with descendants
+  ticked, a `selection-hint` while fewer than two rows are ticked — **two spellings**, because the
+  verbs have different minimums: with nothing ticked it says "tick a link to nest it under another,
+  or tick two or more to group them into one conversation", and at exactly one tick it points at the
+  enabled Nest-under rows and offers the second tick for grouping. A `reorder-hint` paragraph renders
+  whenever the queue is filtered and carries the one-click `reorder-show-all` action (see the gates
+  below). A node with descendants
   gets a chip whose **visible text is just the `threadLabel` count — `2 links`**, not a literal
   `Thread (N)` — (`data-testid="link-thread"`, `hlmBadge variant="special"`), with a `title` tooltip
   stating the coupling (and whether the row is the root); everything else renders an em dash. 🔴 That
@@ -317,7 +321,13 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
   it); **nesting** is the same mutation with `parentId` set to the clicked row, and it is a **row
   action rather than a target picker** because the row is the target and the ticks are the payload;
   asking the admin to pick from a dropdown the target they are already looking at adds a step and a
-  second source of truth. **Ungroup** sends `ungroupSocialMediaLinks` for the single row and is
+  second source of truth. 🔴 **The two verbs do NOT share a minimum, and must not be made to.**
+  Grouping needs two ticks (`canGroup`) because an untargeted one-link call elects that link as its
+  own root — a no-op that renders as no conversation. Nesting needs only **one** (`canNest`): with a
+  `parentId`, the ticked rows become that row's direct children, so a single link is a real write and
+  the only way to create an existing link's first child. The backend enforces only the empty list
+  (`_normalize_ids`) and its own tests nest single ids under a target throughout. **Ungroup** sends
+  `ungroupSocialMediaLinks` for the single row and is
   offered on sublinks only. The returned root `id` is deliberately unused: it is a GraphQL **`Int`**,
   unlike every other id in the feature, and this list reloads wholesale.
 - **🔴 THE ORDER THIS TABLE SHOWS IS NOT THE ORDER IT WRITES — that is the design, not a gap.** The
@@ -334,8 +344,9 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
 
 - Signals only, no RxJS. The selection is `selectedIds = signal<string[]>([])` and is built **only**
   through `link-thread-selection.util.ts` — the same module the profile's "My Submitted Links" uses,
-  so the two surfaces cannot drift on "may I group this?", "is Select-all checked?" or "does this row
-  show a chip?". The helpers are immutable by contract because their results are written straight
+  so the two surfaces cannot drift on "may I group this?", "may I nest this?", "is Select-all
+  checked?" or "does this row show a chip?". The helpers are immutable by contract because their
+  results are written straight
   back into this signal: an in-place mutation yields the same array reference, change detection never
   fires, and the checkbox silently stops updating.
 - The selection deliberately **survives a refetch** (narrowing a filter is not an intent to forget),
@@ -384,7 +395,14 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
     that built the query, so the flag and the rows it describes cannot disagree. "Complete" is strict:
     no search, no category, no line/vehicle/station, no date window, **and** Status on All (the queue
     defaults to Pending, which already hides completed rows). The console resolver has no pagination
-    and no row cap, so an unfiltered queue really is every link there is. Why it matters:
+    and no row cap, so an unfiltered queue really is every link there is.
+    🔴 **The default Pending view is itself a filter, so the raw gate made reordering unreachable in
+    practice** — the disabled buttons said "clear the filters", but `Reset` restores the queue default,
+    which IS Pending. The `reorder-hint` therefore carries `reorder-show-all`
+    (`showAllLinks()`): one click cancels the debounce, clears every live control and every applied
+    field, sets Status to All, and reloads, which is the only sequence that makes the flag true from
+    the default view. `resetFilters()` and `showAllLinks()` share the one `applyQueueFilters(completed)`
+    snapshot writer so the two cannot drift. Why the gate matters:
     `reorderSocialMediaLinks` permutes ONE sibling SET and **tolerates** a short list — the server
     writes the ids it was sent and appends the ones it was not told about, so a filtered page would
     succeed and silently shove a row the admin cannot see to the end of the conversation. Mark the

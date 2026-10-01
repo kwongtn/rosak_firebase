@@ -15,6 +15,31 @@
 
 ## Traps
 
+### [2026-10-02] console/profile links: a targeted nest was gated on the UNTARGETED verb's minimum, so the basic tree operation was impossible
+
+**Problem**: "Nest under…" was disabled for a one-link selection, so an admin could not nest a single
+link under another — the way a conversation gains its first child — and the whole feature read as
+"never clickable" in the browser. The same report covered Move up/down, which were disabled because the
+queue defaults to Status **Pending** and `queueIsComplete` refuses any filtered queue by design.
+**Root Cause**: `groupSocialMediaLinks` is ONE mutation with TWO modes, and the frontend inferred one
+shared precondition from that: `canGroup` (>= 2 distinct ids) was reused for `canNestUnder` /
+`_nestReason`. The two-tick minimum is only true of the **no-target** mode, where a single link has
+nothing to hang off, is elected as its own root, and renders as no conversation. WITH a `parentId`, one
+id is a real re-parent — the backend `_normalize_ids` refuses only the empty list, and its own tests
+nest single ids (`group_social_media_links(link_ids=[c.id], parent_id=b.id)`). The console's second half
+was reachability rather than correctness: the gate is a signal written from the applied filter snapshot,
+and the "clear the filters" copy described an action the UI did not offer — `Reset` restores the queue
+default, which IS Pending, so the enabled state was one dropdown change away and not discoverable.
+**Fix**: `84b9202` — `canNest` (>= 1 distinct id) added to `link-thread-selection.util.ts` and used by
+both surfaces; the console toolbar hint split into its zero-tick and one-tick spellings; the reorder
+hint gained `reorder-show-all` (`showAllLinks()`), which clears every filter, Status included, and
+reloads through the same `applyQueueFilters(completed)` writer `resetFilters()` uses.
+**Prevention**: When one mutation or method has modes, derive each mode's precondition from **that
+mode's** server contract rather than reusing the other mode's helper — a targeted write is usually
+satisfied by fewer inputs than an untargeted election. And when a precondition is a state the UI cannot
+reach from a default view, the gate needs a named ACTION, not prose: a disabled button with a reason is
+only honest if the reason describes something the admin can actually do.
+
 ### [2026-10-01] core/polling: re-applying the CURRENT `intervalMs()` restarts a paused beat by re-applying the pause — a disarmed timer needs a real `resume()`
 
 **Problem**: leaving the home page (`/` → about) and coming back **permanently deleted the refresh

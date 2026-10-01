@@ -457,12 +457,15 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
     link form, the console edit sheet, and anything that hydrates a `datetime-local` from
     `occurredAt`. Mirrors the incident form's `isoToDateTimeLocal` but lives in its own module so no
     link surface has to reach into the incident form to format a timestamp.
-  - `link-thread-selection.util.ts` (`toggleSelection`, `areAllSelected`, `canGroup`,
+  - `link-thread-selection.util.ts` (`toggleSelection`, `areAllSelected`, `canGroup`, `canNest`,
     `selectedWithin`, `threadLabel`) — the selection mechanics of the two grouping surfaces (the
     console triage table and the profile's "My Submitted Links"). Every function is a total,
     immutable function of its arguments (no Angular, no `signal`, no RxJS) and returns a NEW array,
     because the results are fed straight back into a signal: mutating in place yields the same
-    reference, change detection never fires, and the checkbox silently stops updating. `threadLabel`
+    reference, change detection never fires, and the checkbox silently stops updating. The two
+    minimums are separate on purpose — `canGroup` needs two (an untargeted one-link call elects that
+    link as its own root) while `canNest` needs one (with a target, that link becomes a real child).
+    `threadLabel`
     is the **single place pluralisation is decided for a link conversation anywhere in the app**, and
     its remit is **wider than those two surfaces** — its documented consumer list is exactly:
     1. the console triage chip (`/console/links`), whose thread cell falls back to an em dash

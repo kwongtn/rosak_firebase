@@ -592,12 +592,14 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   wall-time field (that shifts it 8 hours), and a value that does not match the control's shape is
   passed through unchanged rather than mapped to `null` — because `null` on the update path is a
   destructive "reset to submission time", so guessing there would turn a typo into silent data loss.
-- **`link-thread-selection.util.ts`** (`toggleSelection`, `areAllSelected`, `canGroup`,
+- **`link-thread-selection.util.ts`** (`toggleSelection`, `areAllSelected`, `canGroup`, `canNest`,
   `selectedWithin`, `threadLabel`) is the shared selection-mechanics seam for any future grouping
   surface — the console triage table, "My Submitted Links" **and** the shared `app-link-card` all
   read it, so their behaviour cannot drift. Every function is total, Angular-free and returns a NEW
   array (the results are fed straight back into a signal, where an in-place mutation is invisible to
-  change detection).
+  change detection). `canGroup` (≥ 2 distinct ids) and `canNest` (≥ 1) are deliberately separate: the
+  same `groupSocialMediaLinks` mutation is a no-op on one link without a target and a real re-parent
+  with one.
 - **`feed-day-groups.util.ts` (`groupFeedLinksByDay`)** is the Last Week section's day-bucketing
   seam — a new relative-day label or a different grouping key is a pure function change with its own
   spec. It is deliberately LOCAL-calendar (the backend's naive Asia/Kuala_Lumpur timestamps), unlike
