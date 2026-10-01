@@ -141,25 +141,25 @@
       <button hlmBtn class="self-start" [disabled]="isLoading()" (click)="search()">Search</button>
     </div>
 
-    <div class="flex items-center justify-between gap-3">
-      <label class="flex items-center gap-2.5 text-sm">
-        <hlm-checkbox [checked]="selectMode()" (checkedChange)="toggleSelectMode()" />
-        Select rows to mark as read
-      </label>
-      @if (selectMode() && checkedCount() > 0) {
-        <button hlmBtn size="sm" [disabled]="isLoading()" (click)="markAsRead()">
+    @if (checkedCount() > 0) {
+      <div class="flex items-center justify-end gap-3">
+        <button
+          hlmBtn
+          size="sm"
+          data-testid="mark-as-read"
+          [disabled]="isLoading()"
+          (click)="markAsRead()"
+        >
           Mark {{ checkedCount() }} as read
         </button>
-      }
-    </div>
+      </div>
+    }
 
     <div hlmTableContainer>
       <table hlmTable class="min-w-[900px]">
         <thead hlmTHead>
           <tr hlmTr>
-            @if (selectMode()) {
-              <th hlmTh class="w-10"></th>
-            }
+            <th hlmTh class="w-10"></th>
             <th hlmTh>Event</th>
             <th hlmTh>Reporter</th>
             <th hlmTh>Created</th>
@@ -172,20 +172,32 @@
         </thead>
         <tbody hlmTBody>
           @for (event of events(); track event.id) {
-            <tr hlmTr [class.bg-muted]="checkedIds().has(event.id)">
-              @if (selectMode()) {
-                <td hlmTd>
-                  <hlm-checkbox
-                    [checked]="checkedIds().has(event.id)"
-                    (checkedChange)="toggleChecked(event.id)"
-                  />
-                </td>
-              }
+            <tr
+              hlmTr
+              class="cursor-pointer hover:bg-muted"
+              [class.bg-muted]="checkedIds().has(event.id)"
+              (click)="onRowClick(event.id, $event)"
+            >
+              <td hlmTd>
+                <!--
+                  The checkbox is the row's own toggle, driven by the native click rather than
+                  `checkedChange`: only the click carries shiftKey, so shift-clicking the box has
+                  to run the same handler as shift-clicking the row. It stops propagation, and
+                  reads the row's state (not the box's) so the two paths can't disagree.
+                -->
+                <hlm-checkbox
+                  data-testid="row-checkbox"
+                  [checked]="checkedIds().has(event.id)"
+                  [attr.aria-label]="'Select event ' + event.id"
+                  (click)="onRowCheckboxClick(event.id, $event)"
+                />
+              </td>
               <td hlmTd class="py-3">
                 <a
                   [href]="backendUrl + 'admin/spotting/event/' + event.id"
                   target="_blank"
                   class="hover:underline"
+                  (click)="$event.stopPropagation()"
                 >
                   {{ event.id }}
                 </a>
@@ -196,6 +208,7 @@
                     [href]="backendUrl + 'admin/common/user/?q=' + event.reporter.shortId"
                     target="_blank"
                     class="hover:underline"
+                    (click)="$event.stopPropagation()"
                   >
                     {{ event.reporter.nickname || event.reporter.shortId }}
                   </a>
@@ -222,6 +235,7 @@
                   <a
                     [routerLink]="['/spotting', firstLine.id, 'vehicle', event.vehicle.id]"
                     class="hover:underline"
+                    (click)="$event.stopPropagation()"
                   >
                     {{ event.vehicle.identificationNo }}
                   </a>
