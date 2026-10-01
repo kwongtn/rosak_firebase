@@ -156,6 +156,17 @@ describe("ConsolePage selection UX", () => {
     return box;
   }
 
+  /** The control that actually takes focus: the `<button role="checkbox">` the Spartan
+   *  primitive renders inside the `<hlm-checkbox>` host. An accessible name only counts
+   *  on THIS element — the host is a `display: contents` wrapper with no role. */
+  function innerCheckbox(id: string): HTMLElement {
+    const button = checkbox(id).querySelector<HTMLElement>('button[role="checkbox"]');
+    if (!button) {
+      throw new Error(`event ${id} has no inner checkbox control`);
+    }
+    return button;
+  }
+
   function byTestId(id: string): HTMLElement | null {
     return host().querySelector(`[data-testid="${id}"]`);
   }
@@ -189,6 +200,16 @@ describe("ConsolePage selection UX", () => {
     expect(cell(rowFor("e1"), 0).querySelector('[data-testid="row-checkbox"]')).not.toBeNull();
     expect(rowFor("e1").querySelectorAll("td")).toHaveLength(9);
     expect(host().querySelectorAll("thead th")).toHaveLength(9);
+  });
+
+  // The row tick is a bare 16px box with no visible label, so the name is the ONLY thing
+  // that tells a screen reader which event it toggles. It has to reach the inner button:
+  // `[attr.aria-label]` on `<hlm-checkbox>` compiled to a host attribute on a role-less,
+  // `display: contents` wrapper and named nothing.
+  it("gives the focusable checkbox control an accessible name, on the control itself", () => {
+    for (const event of EVENTS) {
+      expect(innerCheckbox(event.id).getAttribute("aria-label")).toBe(`Select event ${event.id}`);
+    }
   });
 
   it("hides the bulk-action button until at least one row is checked", () => {

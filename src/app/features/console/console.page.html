@@ -184,11 +184,16 @@
                   `checkedChange`: only the click carries shiftKey, so shift-clicking the box has
                   to run the same handler as shift-clicking the row. It stops propagation, and
                   reads the row's state (not the box's) so the two paths can't disagree.
+
+                  `aria-label` (not `[attr.aria-label]`) is the binding that names it: it feeds the
+                  Helm wrapper's `ariaLabel` input, which forwards it to the inner
+                  `<button role="checkbox">` — the only focusable control here. As a host
+                  attribute it would sit on the `display: contents` wrapper and name nothing.
                 -->
                 <hlm-checkbox
                   data-testid="row-checkbox"
                   [checked]="checkedIds().has(event.id)"
-                  [attr.aria-label]="'Select event ' + event.id"
+                  [aria-label]="'Select event ' + event.id"
                   (click)="onRowCheckboxClick(event.id, $event)"
                 />
               </td>

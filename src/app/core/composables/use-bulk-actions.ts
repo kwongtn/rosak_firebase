@@ -14,8 +14,10 @@ interface BulkActions {
   toggleChecked(id: string): void;
   /**
    * Apply `targetState` to the inclusive range between the anchor and `targetId`
-   * (in `orderedIds` order). The anchor is deliberately left alone so a repeated
-   * shift-click can be retargeted; it is dropped only if the selection empties.
+   * (in `orderedIds` order). The range is inclusive of the anchor row's STATE — its
+   * tick is overwritten like any other row's — but the anchor POINTER is not moved
+   * onto `targetId`, so a repeated shift-click re-ranges from the same row; the anchor
+   * is dropped only if the selection empties.
    */
   toggleCheckedInRange(orderedIds: readonly string[], targetId: string, targetState: boolean): void;
   /** Clear all checked ids and the anchor. */
