@@ -469,6 +469,20 @@ describe("HomePage", () => {
     expect(children[1]?.getAttribute("aria-label")).toBe("Line status");
     expect(children[1]?.querySelector("app-line-pulse-list")).not.toBeNull();
 
+    // Mobile divider: stacked below lg the line panel follows the feed, so it draws its own rule
+    // and the matching top padding. From lg the two are grid COLUMNS side by side, so the rule and
+    // the padding are both dropped — a border there would draw a line down the middle of the gap.
+    // Pinned as discrete class tokens (not `toContain`, which would let `border-t` match inside
+    // `lg:border-t-0`), since jsdom cannot measure layout.
+    const lineSectionClasses = (children[1]?.className ?? "").split(/\s+/);
+    expect(lineSectionClasses).toContain("border-border");
+    expect(lineSectionClasses).toContain("border-t");
+    expect(lineSectionClasses).toContain("pt-6");
+    expect(lineSectionClasses).toContain("lg:border-t-0");
+    expect(lineSectionClasses).toContain("lg:pt-0");
+    // The feed section above it must not claim a rule of its own — the line panel draws the seam.
+    expect((children[0]?.className ?? "").split(/\s+/)).not.toContain("border-t");
+
     // The left column owns the submit box, ahead of the feed it feeds.
     const feedSection = children[0];
     expect(feedSection?.querySelector("app-link-submit-box")).not.toBeNull();
@@ -554,10 +568,11 @@ describe("HomePage", () => {
     expect(lineSection?.firstElementChild).toBe(desktopWrapper);
     expect(lineSection?.querySelector("app-line-pulse-list")).not.toBeNull();
 
-    // Right-alignment contract: each gate must be a justified flex row. The control used to be a
-    // direct flex child and stretched to the section's full width, its content sitting right via
-    // its own justify-end; extracting the breakpoint gate into a plain block wrapper killed that
-    // stretch and shrink-wrapped the button at the left edge. jsdom cannot measure layout, so
+    // Right-alignment contract: each gate must be a justified flex row. The control shrink-wraps to
+    // its own visible content (`:host` is `inline-block`, and the button carries no `w-full`), and a
+    // flex item's width is its content's — so `justify-end` in the gate is now the ONLY thing parking
+    // it at the right edge, and a plain block wrapper would leave the row flush left. That is why
+    // the gate stayed a flex row instead of being simplified away. jsdom cannot measure layout, so
     // pin the classes that produce the alignment instead.
     expect(mobileWrapper?.className).toContain("flex");
     expect(mobileWrapper?.className).toContain("justify-end");

@@ -98,6 +98,10 @@ describe("HomeRefreshControlComponent", () => {
     return host().querySelector<HTMLElement>('[data-testid="line-refresh-confirmation"]');
   }
 
+  function updatingLabel(): HTMLElement | null {
+    return host().querySelector<HTMLElement>('[data-testid="line-refresh-updating"]');
+  }
+
   function tooltip(): HTMLElement | null {
     return host().querySelector<HTMLElement>('[data-testid="line-refresh-tooltip"]');
   }
@@ -147,14 +151,17 @@ describe("HomeRefreshControlComponent", () => {
     fixture.detectChanges();
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
 
-    // In flight: still the countdown, nothing confirmed yet.
+    // In flight: the click's own request is out, so it reads "Updating" — and nothing is
+    // confirmed yet.
     store.isRefreshing.set(true);
     fixture.detectChanges();
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
     expect(confirmation()).toBeNull();
 
     // Settled with no error: the label is green…
     store.isRefreshing.set(false);
     fixture.detectChanges();
+    expect(updatingLabel()).toBeNull();
     const shown = confirmation();
     expect(shown?.textContent?.trim()).toBe("Updated");
     expect(shown?.getAttribute("role")).toBe("status");
@@ -186,7 +193,10 @@ describe("HomeRefreshControlComponent", () => {
     fixture.detectChanges();
 
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+    // The error settle confirmed nothing, but it must still have taken the label down — otherwise
+    // the control would sit on "Updating" for good and the banner would be the only honest story.
     expect(confirmation()).toBeNull();
+    expect(updatingLabel()).toBeNull();
   });
 
   it("confirms nothing for an automatic refresh — only a click arms it", async () => {
@@ -203,6 +213,9 @@ describe("HomeRefreshControlComponent", () => {
     fixture.detectChanges();
 
     expect(store.polling.refreshNow).not.toHaveBeenCalled();
+    // Neither half of the click's vocabulary: a tick the reader never asked for shows no
+    // "Updating" (it would claim their own action is running) and no "Updated" either.
+    expect(updatingLabel()).toBeNull();
     expect(confirmation()).toBeNull();
   });
 
@@ -215,11 +228,16 @@ describe("HomeRefreshControlComponent", () => {
 
     button().click();
     fixture.detectChanges();
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
+
     vi.advanceTimersByTime(5000);
     fixture.detectChanges();
 
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
     expect(confirmation()).toBeNull();
+    // The stale-arm expiry is the OTHER exit out of the armed window, so it has to take "Updating"
+    // with it — this is the case that would otherwise be stuck on the label for the whole session.
+    expect(updatingLabel()).toBeNull();
   });
 
   it("confirms once when the click lands while a request is already in flight", async () => {
@@ -236,12 +254,16 @@ describe("HomeRefreshControlComponent", () => {
     button().click();
     fixture.detectChanges();
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+    // The click owns the label even though the request was already up before it: the reader asked
+    // for a refresh, so the row says so.
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
 
     store.isRefreshing.set(false);
     fixture.detectChanges();
 
     expect(host().querySelectorAll('[data-testid="line-refresh-confirmation"]').length).toBe(1);
     expect(confirmation()?.textContent?.trim()).toBe("Updated");
+    expect(updatingLabel()).toBeNull();
 
     // Exactly one flash: a duplicated arm would leave a second timer to re-show it.
     vi.advanceTimersByTime(2000);
@@ -274,6 +296,9 @@ describe("HomeRefreshControlComponent", () => {
     store.isRefreshing.set(false);
     fixture.detectChanges();
     expect(host().querySelectorAll('[data-testid="line-refresh-confirmation"]').length).toBe(1);
+    // The double click armed twice but `_isUpdating` is ONE flag, so the settle clears it once and
+    // there is no second "Updating" to linger behind the confirmation.
+    expect(updatingLabel()).toBeNull();
 
     vi.advanceTimersByTime(2000);
     fixture.detectChanges();
@@ -288,6 +313,7 @@ describe("HomeRefreshControlComponent", () => {
     fixture.detectChanges();
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(2);
     expect(confirmation()).toBeNull();
+    expect(updatingLabel()).toBeNull();
   });
 
   it("expires a stale arm so a later automatic tick cannot confirm it", async () => {
@@ -305,6 +331,10 @@ describe("HomeRefreshControlComponent", () => {
     // Past ARM_EXPIRY_MS: the request never went in flight, so the arm is stale and now dropped.
     vi.advanceTimersByTime(5001);
     fixture.detectChanges();
+    // …and the label goes with it, in the same write that drops the arm. The expiry is the only
+    // other exit out of an armed window, so a teardown on the settle edge alone would leave this
+    // case — the no-op click — frozen on "Updating" with nothing in flight at all.
+    expect(updatingLabel()).toBeNull();
 
     // A LATER automatic beat cycles `isRefreshing`. With the arm still up, this would latch
     // `_refreshStarted`, consume the arm on the way down, and show a confirmation for a refresh
@@ -341,6 +371,10 @@ describe("HomeRefreshControlComponent", () => {
     store.hasError.set(true);
     fixture.detectChanges();
     expect(confirmation()).toBeNull();
+    // Write order inside the flush must not change the label's teardown either: the settle edge
+    // clears "Updating" before it looks at `hasError`, so an errored click reads as "it tried and
+    // failed" rather than staying on "Updating" or claiming success.
+    expect(updatingLabel()).toBeNull();
 
     vi.advanceTimersByTime(5000);
     fixture.detectChanges();
@@ -356,14 +390,76 @@ describe("HomeRefreshControlComponent", () => {
     expect(confirmation()).toBeNull();
   });
 
-  it("fills its gate wrapper so the whole row stays tappable", async () => {
+  it("shrink-wraps the trigger to its visible content instead of claiming the whole row", async () => {
     stubMatchMedia(true);
     await render();
 
-    // The page gates both instances with a CSS-only `flex justify-end` div, which shrink-wraps its
-    // child — so the button has to claim the full width itself. jsdom does no layout, so the class
-    // IS the assertion: it is what the wrapper hands its width to.
-    expect(button().className.split(/\s+/)).toContain("w-full");
+    // The page gates both instances with a CSS-only `flex justify-end` div, and a flex item's width
+    // is its CONTENT's — so the control shrink-wraps and the wrapper's `justify-end` is what parks
+    // it at the right edge. The button must therefore NOT claim the row: the `w-full` that used to
+    // sit here made the whole width tappable, an invisible hit area the reader had no reason to
+    // aim at (its own `:host` is `inline-block` now, so a full-width button would only put the old
+    // hit area back). jsdom does no layout, so the classes ARE the assertion.
+    expect(button().className.split(/\s+/)).not.toContain("w-full");
+    // The alignment the class above used to serve is the gate's job and still present in shape:
+    // the row itself is still a flex line, just no longer stretched.
+    expect(button().className.split(/\s+/)).toContain("flex");
+    expect(button().className.split(/\s+/)).toContain("items-center");
+  });
+
+  it("reads as Updating while the clicked refresh is in flight, then Updated, then the countdown", async () => {
+    // The whole click vocabulary, in order. The countdown cannot come first: `refreshNow()` has
+    // just RESET the beat, so an in-flight click that showed "Refreshing in 30s" would be claiming
+    // the page is idle while it is in fact working on the reader's request.
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    button().click();
+    fixture.detectChanges();
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+    const updating = updatingLabel();
+    expect(updating?.textContent?.trim()).toBe("Updating");
+    expect(updating?.getAttribute("role")).toBe("status");
+    expect(updating?.className).toContain("text-muted-foreground");
+    expect(confirmation()).toBeNull();
+    expect(button().textContent?.replace(/\s+/g, " ")).not.toContain("Refreshing in");
+
+    // The countdown's own spinner, spun SLOWLY (3s) and counter-clockwise — the same markup so the
+    // row does not change shape between the states, a different tempo so "you asked for this" can
+    // never be mistaken for "the beat is running". The countdown keeps its 1s.
+    //
+    // ⚠️ `reverse` must be asserted INSIDE the shorthand, not only as the Tailwind class: `animation`
+    // is a shorthand that resets every animation sub-property, so an inline one silently restores
+    // `animation-direction: normal` and beats `[animation-direction:reverse]`. Found by browser
+    // verification (computed value was "3s normal spin" — the class was dead markup); jsdom cannot
+    // see it, which is why the inline value itself is the assertion.
+    const icon = button().querySelector("svg");
+    expect(icon?.getAttribute("style")).toContain("3s");
+    expect(icon?.getAttribute("style")).toContain("reverse");
+    expect(icon?.getAttribute("class")).toContain("[animation-direction:reverse]");
+    expect(icon?.getAttribute("class")).toContain("text-muted-foreground");
+    expect(icon?.getAttribute("class")).not.toContain("text-green-600");
+
+    // Settled clean: "Updating" hands straight over to "Updated" — never both, never the countdown.
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+    expect(updatingLabel()).toBeNull();
+    expect(confirmation()?.textContent?.trim()).toBe("Updated");
+    expect(button().textContent?.replace(/\s+/g, " ")).not.toContain("Refreshing in");
+
+    // …and the confirmation is still the ordinary 2s transient, after which the countdown resumes.
+    vi.advanceTimersByTime(1999);
+    fixture.detectChanges();
+    expect(confirmation()).not.toBeNull();
+    vi.advanceTimersByTime(1);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+    expect(updatingLabel()).toBeNull();
+    expect(button().textContent?.replace(/\s+/g, " ")).toContain("Refreshing in 30s");
   });
 
   it("toggles the tooltip on a tap when the device has no hover", async () => {
@@ -512,6 +608,10 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
     return host().querySelector<HTMLElement>('[data-testid="line-refresh-confirmation"]');
   }
 
+  function updatingLabel(): HTMLElement | null {
+    return host().querySelector<HTMLElement>('[data-testid="line-refresh-updating"]');
+  }
+
   /** Answers every request `HomeStore` has on the wire — one per resource, on every refresh. */
   function flushAll(outcome: "success" | "error"): void {
     const reqs = httpMock.match((r) => r.method === "POST");
@@ -563,11 +663,13 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
     expect(confirmation()).toBeNull();
 
     // 2. Click #1 arms the confirmation and its refresh FAILS for real: every resource settles into
-    //    `hasError`, so the settle edge must confirm nothing.
+    //    `hasError`, so the settle edge must confirm nothing — while still taking "Updating" down,
+    //    because that teardown sits in front of the `hasError` gate in the effect.
     await clickAndSettleRequests("error");
     expect(store.isRefreshing()).toBe(false);
     expect(store.hasError()).toBe(true);
     expect(confirmation()).toBeNull();
+    expect(updatingLabel()).toBeNull();
 
     // 3. Click #2, and this time it SUCCEEDS. `isFetching` → false and `hasError` → false land in
     //    the same flush — the pin. A component that read `hasError` a microtask early would suppress

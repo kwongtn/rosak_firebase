@@ -44,24 +44,73 @@ const ARM_EXPIRY_MS = 5000;
  * pending-flag-plus-`isLoading` effect can never re-run. `HomeStore.isRefreshing` is built on the
  * raw `isFetching` flag and is the only member that can see a reload.
  *
+ * A click therefore reads as THREE states, in this order: "Updating" (from the click itself, for as
+ * long as THIS click's own request is outstanding) → "Updated" (only after that request settled
+ * clean) → the countdown again. `_isUpdating` is the first of them, and it is set by the CLICK
+ * rather than by `isRefreshing`: the beat's own automatic refreshes must leave a passive reader's
+ * countdown alone, and each of the page's two instances answers only for the click it received.
+ * The countdown branch sits LAST on purpose — `refreshNow()` resets the beat, so an in-flight click
+ * would otherwise flash a freshly-reset "Refreshing in 30s" that claims nothing is happening.
+ *
  * Three things this component owns because the page cannot: the arm's own EXPIRY (`ARM_EXPIRY_MS`
  * — an arm whose request never started would otherwise be consumed by a later automatic tick),
- * the settle-edge's deliberately conservative `hasError` suppression, and the full-width tap
- * target its CSS-only `flex justify-end` gates would otherwise shrink-wrap.
+ * the settle-edge's deliberately conservative `hasError` suppression, and the "Updating" label,
+ * which has to be torn down on BOTH exits from an armed window (the settle edge and the stale-arm
+ * expiry) or a no-op click would say "Updating" for the rest of the session.
  */
 @Component({
   selector: "app-home-refresh-control",
   template: `
     <button
       type="button"
-      class="relative flex w-full cursor-pointer flex-wrap items-center justify-end gap-2"
+      class="relative flex cursor-pointer flex-wrap items-center justify-end gap-2"
       data-testid="line-refresh-countdown"
       aria-label="Refresh page data now"
       (mouseenter)="onRefreshHoverEnter()"
       (mouseleave)="onRefreshHoverLeave()"
       (click)="onRefreshClick()"
     >
-      @if (_showRefreshed()) {
+      @if (_isUpdating()) {
+        <!-- Same spinner as the countdown below (identical markup, so the row does not change
+             shape or colour between the two states) but spun SLOWLY at 3s and reversed, i.e.
+             counter-clockwise: the one direction nothing else on the page animates in, so "the
+             page is working on it" never reads as "the countdown is running". The countdown's own
+             1s spin is deliberately left alone.
+             ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
+             every animation sub-property — an inline one drops animation-direction back to normal
+             and beats the [animation-direction:reverse] class, making that class dead markup.
+             Stating reverse in the shorthand is what actually turns it. (No backticks in this
+             comment: inside an inline template literal they would close it.) -->
+        <svg
+          class="text-muted-foreground size-3.5 [animation-direction:reverse]"
+          style="animation: spin 3s linear infinite reverse"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-opacity="0.25"
+          />
+          <path
+            d="M21 12a9 9 0 0 0-9-9"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span
+          class="text-muted-foreground text-xs"
+          data-testid="line-refresh-updating"
+          role="status"
+        >
+          Updating
+        </span>
+      } @else if (_showRefreshed()) {
         <svg
           class="text-green-600 dark:text-green-400 size-3.5"
           viewBox="0 0 24 24"
@@ -118,15 +167,18 @@ const ARM_EXPIRY_MS = 5000;
     </button>
   `,
   /**
-   * The page gates each instance with a CSS-ONLY `flex justify-end` wrapper, and that wrapper
-   * shrink-wraps its child: the control used to be a full-column-width flex child inline on the
-   * page, so the whole row was tappable, but the moment the gate wrapped it the tap target
-   * collapsed to the ~140px the label needs. Filling the host (and the button filling the host,
-   * hence `w-full` above) restores the full-width target WITHOUT touching the page template — the
-   * host's own `justify-end` keeps the countdown hugging the right edge, so the visible result is
-   * unchanged and only the hit area grows.
+   * The control shrink-wraps to its VISIBLE content — the spinner and the label — so the tap target
+   * is exactly what the reader can see instead of an invisible full-row strip. `:host` therefore
+   * goes `inline-block` in place of the `width: 100%` block it used to claim, and the `w-full` that
+   * used to sit on the button is gone with it: a full-width button inside a shrink-wrapped host
+   * would only put the invisible hit area back.
+   *
+   * Alignment is no longer this component's business. Each page gate is a `flex justify-end` row
+   * (`home.page.ts`), and a flex item's width is its CONTENT's — so the shrink-wrapped control still
+   * parks itself at the right edge of its section, without the control pretending to own a layout
+   * it no longer takes part in. The trigger is not a row, so it must not be styled like one.
    */
-  styles: [":host { display: block; width: 100%; }"],
+  styles: [":host { display: inline-block; }"],
 })
 export class HomeRefreshControlComponent implements OnDestroy {
   protected readonly store = inject(HomeStore);
@@ -135,6 +187,12 @@ export class HomeRefreshControlComponent implements OnDestroy {
 
   /** The transient "Updated" confirmation, shown only after a CLICK-armed refresh settles clean. */
   protected readonly _showRefreshed = signal(false);
+
+  /** The click's own "Updating" label: up from the click itself until this click's request settles
+   * (or its arm expires). Armed by the CLICK, not by `isRefreshing` — an automatic beat must leave
+   * a passive reader's countdown alone, and the page's two instances each speak only for their own
+   * click. Cleared on both exits from an armed window; see the effect and `_startArmExpiry`. */
+  protected readonly _isUpdating = signal(false);
 
   /** Armed by a click; cleared once the armed refresh has settled (clean or not). */
   private readonly _refreshPending = signal(false);
@@ -171,6 +229,12 @@ export class HomeRefreshControlComponent implements OnDestroy {
       }
       this._refreshPending.set(false);
       this._refreshStarted.set(false);
+      // "Updating" ends HERE, on the settle edge, and BEFORE the `hasError` gate below: an errored
+      // refresh confirms nothing, but the label still has to come down or it would stay up for
+      // good. This and the stale-arm expiry are the ONLY two exits out of an armed window, so both
+      // have to clear it — teardown on one edge only is how a no-op click ends up stuck saying
+      // "Updating" with nothing at all in flight.
+      this._isUpdating.set(false);
       // The arm is consumed HERE — on the settle edge, whether or not it confirms. The expiry
       // timer's only job is the never-started arm, so it has nothing left to guard.
       clearTimeout(this._armExpiryTimer);
@@ -213,9 +277,10 @@ export class HomeRefreshControlComponent implements OnDestroy {
     }
   }
 
-  /** Refresh the whole page and arm the "Updated" confirmation; a touch device additionally
+  /** Refresh the whole page and show "Updating" until it settles; a touch device additionally
    * toggles the "Click to Refresh Now" tooltip, which it can never hover into view. */
   protected onRefreshClick(): void {
+    this._isUpdating.set(true);
     this._refreshPending.set(true);
     this._refreshStarted.set(false);
     this._startArmExpiry();
@@ -238,6 +303,10 @@ export class HomeRefreshControlComponent implements OnDestroy {
         return;
       }
       this._refreshPending.set(false);
+      // Same teardown the settle edge does, minus the confirmation: nothing refreshed, so there is
+      // nothing to confirm — but the click must still stop saying "Updating", or the label would
+      // outlive the only window it describes.
+      this._isUpdating.set(false);
     }, ARM_EXPIRY_MS);
   }
 

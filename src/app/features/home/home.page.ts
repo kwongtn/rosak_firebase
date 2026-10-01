@@ -82,9 +82,9 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
         <section class="flex flex-col gap-3" aria-label="Community feed">
           <!-- The beat refreshes these links too, so on mobile the control heads the section it
                actually refreshes. CSS-only gate: SSR and hydration must see identical markup.
-               The gate wrapper is itself a flex row that justifies the control right: a plain
-               block wrapper would drop the flex-stretch the control relied on and shrink-wrap it
-               to the section's left edge. -->
+               The gate is a justified flex row because the control now shrink-wraps to its own
+               visible content: a flex item's width is its content's, so justify-end is what
+               parks it at the right edge. A plain block wrapper would leave it flush left. -->
           <div class="flex justify-end lg:hidden">
             <app-home-refresh-control />
           </div>
@@ -207,10 +207,17 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
           </div>
         </section>
 
-        <section class="flex flex-col gap-3" aria-label="Line status">
+        <section
+          class="border-border flex flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
+          aria-label="Line status"
+        >
           <!-- Same control as the feed section has, shown from lg up where the line panel is
                the one next to the feed; the hidden/lg:flex pair keeps one instance visible, and
-               justify-end keeps the control on the right now that the gate wraps it. -->
+               justify-end keeps the shrink-wrapped control on the right. Below lg this panel is
+               stacked UNDER the feed, so the section above it draws a rule to separate the two:
+               border-t plus the matching pt-6, both dropped from lg (lg:border-t-0 lg:pt-0)
+               where the two sections are grid columns side by side and a rule between them would
+               just draw a line down the middle of the gap. -->
           <div class="hidden lg:flex justify-end">
             <app-home-refresh-control />
           </div>
