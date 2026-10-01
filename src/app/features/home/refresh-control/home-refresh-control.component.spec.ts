@@ -1,7 +1,11 @@
 import { provideZonelessChangeDetection, signal, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AuthService } from "../../../core/auth/auth.service";
+import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { ToastService } from "../../../ui/toast/toast.service";
 import { HomeStore } from "../data/home.store";
 import { HomeRefreshControlComponent } from "./home-refresh-control.component";
 
@@ -36,9 +40,10 @@ interface StoreMock {
   hasError: WritableSignal<boolean>;
 }
 
-/** The private bits the "timer cleared on destroy" assertion reads back. */
+/** The private bits the destroy assertions read back. */
 interface ComponentUnderTest {
   _showRefreshed: () => boolean;
+  _refreshPending: () => boolean;
 }
 
 describe("HomeRefreshControlComponent", () => {
@@ -217,6 +222,150 @@ describe("HomeRefreshControlComponent", () => {
     expect(confirmation()).toBeNull();
   });
 
+  it("confirms once when the click lands while a request is already in flight", async () => {
+    // The beat (or a second instance of this control) can already have a request up when the user
+    // clicks. The arm must latch off the ALREADY-TRUE reading — not miss the edge and hang until
+    // the expiry — so the one real settle still confirms.
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+
+    button().click();
+    fixture.detectChanges();
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+
+    expect(host().querySelectorAll('[data-testid="line-refresh-confirmation"]').length).toBe(1);
+    expect(confirmation()?.textContent?.trim()).toBe("Updated");
+
+    // Exactly one flash: a duplicated arm would leave a second timer to re-show it.
+    vi.advanceTimersByTime(2000);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+  });
+
+  it("re-arms on a double click but still flashes exactly one confirmation", async () => {
+    // Two clicks, two `refreshNow`s, ONE confirmation. Pins both halves of the re-arm: the second
+    // click must not leave a second arm behind, and it must not leave a SECOND expiry timer whose
+    // firing would expire the live arm out from under an in-flight request.
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    button().click();
+    fixture.detectChanges();
+    button().click();
+    fixture.detectChanges();
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(2);
+
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+
+    // Past ARM_EXPIRY_MS with the request live: a leaked timer from the FIRST click would clear the
+    // arm here and swallow the confirmation below.
+    vi.advanceTimersByTime(5001);
+    fixture.detectChanges();
+
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+    expect(host().querySelectorAll('[data-testid="line-refresh-confirmation"]').length).toBe(1);
+
+    vi.advanceTimersByTime(2000);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+
+    // And the settle consumed the arm, so a following AUTOMATIC cycle flashes nothing.
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+    vi.advanceTimersByTime(2000);
+    fixture.detectChanges();
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(2);
+    expect(confirmation()).toBeNull();
+  });
+
+  it("expires a stale arm so a later automatic tick cannot confirm it", async () => {
+    // The leak this pins: a click whose refresh never put a request on the wire (nothing to fetch,
+    // a superseded beat) left the arm up FOREVER, and the next automatic 30s tick — which nobody
+    // asked for — consumed it and popped a green "Updated".
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    button().click();
+    fixture.detectChanges();
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+
+    // Past ARM_EXPIRY_MS: the request never went in flight, so the arm is stale and now dropped.
+    vi.advanceTimersByTime(5001);
+    fixture.detectChanges();
+
+    // A LATER automatic beat cycles `isRefreshing`. With the arm still up, this would latch
+    // `_refreshStarted`, consume the arm on the way down, and show a confirmation for a refresh
+    // the reader never requested. Asserted BEFORE any timer advance: 2s of fake time would hide a
+    // confirmation that wrongly appeared and make this assertion pass for the wrong reason.
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+
+    vi.advanceTimersByTime(5000);
+    fixture.detectChanges();
+
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+    expect(confirmation()).toBeNull();
+  });
+
+  it("confirms nothing when the error lands after the settle write, in the same flush", async () => {
+    // The INVERSE of `clickAndSettle(true)`: here `isRefreshing` goes false FIRST and `hasError`
+    // second, with the effect free to run only after both. Outcome must not depend on the write
+    // order inside one flush — `hasError` is read at the settle edge, and the arm is consumed there
+    // either way (so the follow-up below cannot resurrect it into a confirmation).
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    button().click();
+    fixture.detectChanges();
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+
+    store.isRefreshing.set(false);
+    store.hasError.set(true);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+
+    vi.advanceTimersByTime(5000);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+
+    // The error is gone and the page is healthy again, yet nothing is shown: the settle edge
+    // consumed the arm. That is the cost of the conservative rule, and it is deliberate.
+    store.hasError.set(false);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+    vi.advanceTimersByTime(5000);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
+  });
+
+  it("fills its gate wrapper so the whole row stays tappable", async () => {
+    stubMatchMedia(true);
+    await render();
+
+    // The page gates both instances with a CSS-only `flex justify-end` div, which shrink-wraps its
+    // child — so the button has to claim the full width itself. jsdom does no layout, so the class
+    // IS the assertion: it is what the wrapper hands its width to.
+    expect(button().className.split(/\s+/)).toContain("w-full");
+  });
+
   it("toggles the tooltip on a tap when the device has no hover", async () => {
     stubMatchMedia(false);
     await render();
@@ -264,5 +413,173 @@ describe("HomeRefreshControlComponent", () => {
 
     // Still true: the timer was cleared, so the pending hide never ran against a destroyed view.
     expect(component._showRefreshed()).toBe(true);
+  });
+
+  it("clears the arm-expiry timer on destroy", async () => {
+    // Paired with the confirmation timer: the arm-expiry timer is also a live handle that must not
+    // fire against a destroyed component.
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    button().click();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as ComponentUnderTest;
+    expect(component._refreshPending()).toBe(true);
+
+    fixture.destroy();
+    vi.advanceTimersByTime(5001);
+
+    // Still true: the timer was cleared, so the expiry never ran after teardown.
+    expect(component._refreshPending()).toBe(true);
+  });
+});
+
+/**
+ * The same component against a REAL `HomeStore`, because the mocked-store specs above pin the arm
+ * LOGIC but cannot pin the thing that actually decides the outcome: the ORDER in which a recovering
+ * `graphqlResource` publishes `isFetching` → false and `hasError` → false. Both settle in ONE
+ * flush, `hasError` is cleared by the resource's OWN effect (created in the store's constructor,
+ * hence before this component's effect), and this component reads the already-clean state. Nothing
+ * about that ordering is visible through a hand-driven mock — if the two effects ever swapped, every
+ * confirmation would silently disappear with no failing test anywhere.
+ */
+describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
+  const EMPTY_FEED = {
+    publicSocialMediaLinks: {
+      edges: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+      totalCount: 0,
+    },
+  };
+
+  let httpMock: HttpTestingController;
+  let fixture: ComponentFixture<HomeRefreshControlComponent>;
+  let store: HomeStore;
+
+  beforeEach(async () => {
+    stubMatchMedia(true);
+
+    await TestBed.configureTestingModule({
+      imports: [HomeRefreshControlComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
+        HomeStore,
+        {
+          provide: AuthService,
+          useValue: {
+            isLoggedIn: signal(false),
+            isAdmin: () => false,
+            idToken: async () => "token",
+            whenReady: Promise.resolve(),
+          },
+        },
+        {
+          provide: GraphQLClient,
+          useValue: {
+            request: vi.fn().mockResolvedValue(EMPTY_FEED),
+          },
+        },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    httpMock.verify();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function host(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function button(): HTMLButtonElement {
+    const el = host().querySelector<HTMLButtonElement>('[data-testid="line-refresh-countdown"]');
+    if (!el) {
+      throw new Error("refresh button not rendered");
+    }
+    return el;
+  }
+
+  function confirmation(): HTMLElement | null {
+    return host().querySelector<HTMLElement>('[data-testid="line-refresh-confirmation"]');
+  }
+
+  /** Answers every request `HomeStore` has on the wire — one per resource, on every refresh. */
+  function flushAll(outcome: "success" | "error"): void {
+    const reqs = httpMock.match((r) => r.method === "POST");
+    expect(reqs.length).toBe(3);
+    for (const req of reqs) {
+      if (outcome === "error") {
+        req.flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+      } else if (req.request.body.query.includes("FrontPageLines")) {
+        req.flush({ data: { lines: [] } });
+      } else {
+        req.flush({ data: EMPTY_FEED });
+      }
+    }
+  }
+
+  /** The store spec's own flush cadence: let `httpResource` publish, run the effects, let the
+   * effects' own signal writes settle. One `Promise.resolve()` is not enough — the resource's
+   * effect flips `hasError` during the tick, and the component reads it on the next microtask. */
+  async function settle(): Promise<void> {
+    await Promise.resolve();
+    TestBed.tick();
+    fixture.detectChanges();
+    await Promise.resolve();
+    TestBed.tick();
+    fixture.detectChanges();
+  }
+
+  async function clickAndSettleRequests(outcome: "success" | "error"): Promise<void> {
+    button().click();
+    fixture.detectChanges();
+    TestBed.tick();
+    flushAll(outcome);
+    await settle();
+  }
+
+  it("confirms a click-armed refresh that recovers from a real resource error", async () => {
+    vi.useFakeTimers();
+
+    fixture = TestBed.createComponent(HomeRefreshControlComponent);
+    store = TestBed.inject(HomeStore);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    // 1. Mount: the store's three resources fetch, and all three come back clean.
+    flushAll("success");
+    await settle();
+    expect(store.hasError()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+    expect(confirmation()).toBeNull();
+
+    // 2. Click #1 arms the confirmation and its refresh FAILS for real: every resource settles into
+    //    `hasError`, so the settle edge must confirm nothing.
+    await clickAndSettleRequests("error");
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.hasError()).toBe(true);
+    expect(confirmation()).toBeNull();
+
+    // 3. Click #2, and this time it SUCCEEDS. `isFetching` → false and `hasError` → false land in
+    //    the same flush — the pin. A component that read `hasError` a microtask early would suppress
+    //    the confirmation here and the user's successful retry would look like a failure.
+    await clickAndSettleRequests("success");
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.hasError()).toBe(false);
+    expect(confirmation()?.textContent?.trim()).toBe("Updated");
+
+    // …and it is still an ordinary transient confirmation, not a stuck one.
+    vi.advanceTimersByTime(2000);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
   });
 });
