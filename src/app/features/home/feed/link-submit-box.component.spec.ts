@@ -292,4 +292,43 @@ describe("LinkSubmitBoxComponent", () => {
     expect(openSheetMock).toHaveBeenCalledTimes(1);
     expect(openSheetMock).toHaveBeenCalledWith(undefined, { url: undefined });
   });
+
+  // Both entry points into submit() — the button and Enter — are covered by the reveal test below.
+  // Blur alone must stay silent: FormField marks a field touched on blur, so an error keyed off
+  // `touched()` would nag the user for merely tabbing through an empty box.
+  it("does not show the required error when the field is blurred", async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const input = fixture.nativeElement.querySelector('input[type="text"]');
+    input.focus();
+    input.blur();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).not.toContain("Enter a URL");
+    expect(input.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("reveals the required error only after clicking Submit Link", async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const input = fixture.nativeElement.querySelector('input[type="text"]');
+    fixture.nativeElement.querySelector('button[type="submit"]').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain("Enter a URL");
+    // The action must not have run: an empty field never reaches the network.
+    expect(requestMock).not.toHaveBeenCalled();
+
+    input.value = "https://example.com/story";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).not.toContain("Enter a URL");
+  });
 });

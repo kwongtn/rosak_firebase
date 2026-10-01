@@ -39,6 +39,18 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
  * "Advanced Input" opens the shared right-side link sheet (`LinkSheetService` — the same
  * component `/situasi` and `/insiden` host) with whatever URL is already typed passed as a
  * one-shot prefill, so the fuller form (title + asset tags) starts from the quick entry.
+ *
+ * Validation is submit-gated: the "Enter a URL" note and the input's `aria-invalid` state are
+ * driven by the local `submitAttempted` flag, not by `touched()`. The signal-forms `FormField`
+ * directive marks a field touched on blur and `submit()` marks it touched too, so `touched()`
+ * alone cannot tell "typed here and left" from "actually pressed Submit" — and nagging on blur
+ * is exactly what we do not want. Both entry points (the button and Enter) route through
+ * `submit()`, so flipping the flag first thing in there covers them both.
+ *
+ * The form is `novalidate` for the same reason. `FormField` reflects the schema's `required`
+ * onto the DOM as a native `required` attribute, and with it present the browser aborts the
+ * submission before firing `submit` — the native bubble would show and this component's own
+ * inline note would never appear. Turning native validation off leaves one error surface.
  */
 @Component({
   selector: "app-link-submit-box",
@@ -58,6 +70,7 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
     } @else {
       <form
         class="flex flex-col gap-2 sm:flex-row sm:items-start"
+        novalidate
         (submit)="$event.preventDefault(); submit()"
       >
         <div class="flex flex-col gap-1 sm:flex-1">
@@ -69,9 +82,10 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
             placeholder="Paste a link — news, post, thread…"
             aria-label="Link URL"
             [formField]="linkForm.url"
+            [errorVisible]="submitAttempted()"
             (keydown.enter)="$event.preventDefault(); submit()"
           />
-          @if (linkForm.url().invalid() && linkForm.url().touched()) {
+          @if (linkForm.url().invalid() && submitAttempted()) {
             <p class="text-destructive text-xs">{{ linkForm.url().errors()[0]?.message }}</p>
           }
 
@@ -135,6 +149,10 @@ export class LinkSubmitBoxComponent {
   /** Inline failure note for the last submit attempt; cleared on the next attempt and on reset. */
   protected readonly submitError = signal<string | null>(null);
 
+  /** Whether the user has actually pressed Submit (button or Enter). The required-URL error is
+   * gated on this rather than on `touched()`, so blurring an empty box stays quiet. */
+  protected readonly submitAttempted = signal(false);
+
   readonly isSubmitting = signal(false);
 
   /** Emitted after a successful submit (fresh or duplicate) so the host can reload the store. */
@@ -147,6 +165,9 @@ export class LinkSubmitBoxComponent {
   }
 
   async submit(): Promise<void> {
+    // Flipped before anything async so an invalid form shows its message on this tick — and so
+    // the message is up while `submit()` below decides not to run the mutation at all.
+    this.submitAttempted.set(true);
     this.duplicateOfId.set(null);
     this.submitError.set(null);
     this.isSubmitting.set(true);
@@ -198,6 +219,8 @@ export class LinkSubmitBoxComponent {
   private _reset(): void {
     this.model.set({ url: "" });
     this.submitError.set(null);
+    // A fresh box starts quiet again: the next submit attempt is what should surface errors.
+    this.submitAttempted.set(false);
     this.linkForm().reset();
   }
 }
