@@ -15,6 +15,46 @@
 
 ## Traps
 
+### [2026-10-01] core/polling: re-applying the CURRENT `intervalMs()` restarts a paused beat by re-applying the pause — a disarmed timer needs a real `resume()`
+
+**Problem**: leaving the home page (`/` → about) and coming back **permanently deleted the refresh
+control** — no spinner, no "Refreshing in Xs", for the rest of the session. Only a manual click still
+worked. Landing on `/` from somewhere else for the FIRST time was fine, which is what made it read as
+a rendering bug rather than a lifecycle one.
+**Root Cause**: a route-scoped provider does **not** die with the component that injects it. The
+router retains the `""` route's injector while `HomePage` is recreated on every visit, so the SAME
+`HomeStore` survived the visit: `HomePage.ngOnDestroy` → `store.stop()` → `polling.setIntervalMs(null)`
+paused the 30s beat, and the next `HomePage` constructor → `store.start()` re-applied the pause itself
+via `setIntervalMs(this.intervalMs())`. From then on nothing was ever scheduled, and because
+the countdown branch is `@if (store.polling.intervalMs() !== null)`, the paused state renders as
+_nothing at all_ — the control did not go stale, it was deleted, with no error and no failed request
+anywhere. The obvious spelling reads as "make sure it is running"; on a paused source it is exactly
+the statement that keeps it paused. `null` is overloaded in this API: "never" and "right now, not
+me" are the same value, so the round trip is indistinguishable from an intentional never.
+**Fix**: `7221ff6` — `PollingSource` tracks `lastEnabledIntervalMs` (the last non-null cadence,
+defaulting to 30s) in `setIntervalMs()` and gains **`resume()`**, documented as the only exit from the
+paused `null`: it re-arms at the last named cadence (the 30s default if none was named) and is safe on
+an already-running beat (it restarts the countdown, no duplicate timers). `HomeStore.start()` returns
+early on the server and, when `polling.intervalMs() === null` (i.e. the retained-store re-entry), calls
+`resume()` **and** `reloadFirstPages()` — so the returning reader gets a live countdown AND fresh
+first pages rather than the previous visit's rows. On a first mount it is deliberately a no-op:
+`PollingSource` schedules itself in its constructor and the resources' constructor reads are the
+initial fetch. `stop()` is unchanged. Pinned by `polling-source.spec.ts` (resume at the last named
+cadence, at the 30s default when none was named, and no duplicate timer on a running beat),
+`home.store.spec.ts` (start-after-stop resumes at 30s, re-reads page one of all three resources, and a
+first `start()` issues no second batch), and `home-refresh-control.component.spec.ts` (the countdown
+text returns against a real `HomeStore` after a stop→start).
+**Prevention**: a timer that can be disarmed must expose a **real resume** — a separate verb, with
+the paused value never round-tripped through the setter, because `null` means both "never" and "not
+me" and only one of those is a value you can pass back in. Corollary, and the half that was believed:
+**never assume a route-scoped service dies with the component that injects it.** The router keeps the
+route injector alive across visits of the same route, so `constructor`-time setup / `ngOnDestroy`-
+time teardown pairs are asymmetric — anything a `destroy` disarms, the next `create`-side call must
+re-arm, and it must also re-validate whatever it took for granted about the reader being new. Test the
+cycle, not the entry: `stop()` then `start()` on ONE instance is the only shape that exercises this
+(at least two specs here now do), and a "restart" spec that builds a fresh component each time passes
+against the broken code.
+
 ### [2026-10-01] ui/forms: signal-forms' `required` is a NATIVE `required` — a `<form>` without `novalidate` never fires `submit`
 
 **Problem**: clicking "Submit Link" on an empty URL field in the home feed's quick submit box showed

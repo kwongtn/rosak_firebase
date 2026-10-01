@@ -108,9 +108,14 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
 ## 🔌 Interface & Data Flow
 
 - **Route:** `""` in `src/app/app.routes.ts` — `loadComponent: HomePage` with
-  `providers: [HomeStore, LineStatusSheetService, SpottingLinesStore]`. Route-scoped on purpose: the
-  polling beat and the sheet state are created with the page and torn down with it
-  (`HomePage.ngOnDestroy` calls `store.stop()`). `SpottingLinesStore` is the spotting feature's
+  `providers: [HomeStore, LineStatusSheetService, SpottingLinesStore]`. Route-scoped rather than root
+  singletons, but 🔴 **the route injector — and therefore `HomeStore` — OUTLIVES a visit**: the router
+  retains it while `HomePage` is recreated on every navigation to `""`, so a return to `/` is handed
+  the SAME store, not a new one. The page's lifecycle edges are consequently asymmetric:
+  `HomePage.ngOnDestroy` calls `store.stop()` (pauses the beat, `polling.setIntervalMs(null)`) and the
+  next page's constructor calls `store.start()` (resumes it at the last cadence **and** revalidates the
+  first pages). Anything a `destroy` disarms must be re-armed by the next `start`, because it is not
+  a fresh store — see the polling bullet below. `SpottingLinesStore` is the spotting feature's
   route-scoped line list, provided here too because the spotting report form is hosted on this page.
 - **Hosted spotting sheet:** `<hlm-sheet data-testid="spotting-entry-sheet">` wraps
   `<app-report-form #reportFormRef (submitted)="onSpottingSubmitted()" />` plus a
@@ -310,12 +315,23 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     (`lastWeekAppended*`, `lastWeekNextCursor`, `lastWeekLoadingMore`) driven by
     `loadMoreLastWeek()` (same `lastWeekOnly`/`alignPageToDay`/`collapseThreads` vars + cursor,
     exposed as `isLoadingMoreLastWeek`).
-  - Polling: a public `new PollingSource(() => this.reloadFirstPages())`, armed by `start()` and
-    disarmed by `stop()` (both no-ops on the server, 30s default). `reloadFirstPages()` re-reads page
-    one of **all three** resources and bumps `linesRefreshTick` — the beat covers the whole page (line
-    statuses + Today feed + Last Week), because on mobile the countdown heads the links section and
-    would otherwise be lying about what it refreshes — but it touches **no** appended-page signal, so
-    a poll can never drop the reader's Load More progress. `reloadAll()` (full reset of both
+  - Polling: a public `new PollingSource(() => this.reloadFirstPages())`, 30s default.
+    🔴 `start()`/`stop()` are **not** a symmetric pair, because the store outlives the page component
+    (see Route above): `stop()` disarms with `polling.setIntervalMs(null)`, and `start()` is a no-op on
+    the server **and** on a first mount (the `PollingSource` constructor schedules the beat; the three
+    constructor reads are the initial fetch). Only on a **re-entry** — `polling.intervalMs() === null`
+    on a retained store — does it act, calling `polling.resume()` (the ONLY exit from the paused `null`;
+    `resume()` re-arms at the last named cadence, or the 30s default if none was named) **and**
+    `reloadFirstPages()`, so the returning reader gets both a live countdown and fresh first pages
+    instead of the previous visit's rows. 🔴 Never spell that resume as
+    `polling.setIntervalMs(polling.intervalMs())`: that re-applies the paused `null` and leaves the beat
+    permanently dead — the control's `@if (intervalMs() !== null)` then renders _nothing_ at all, which
+    is exactly how the refresh row disappeared for the rest of the session (fixed, `7221ff6`; the
+    rule is recorded in `MISTAKES.md`).
+    `reloadFirstPages()` re-reads page one of **all three** resources and bumps `linesRefreshTick` —
+    the beat covers the whole page (line statuses + Today feed + Last Week), because on mobile the
+    countdown heads the links section and would otherwise be lying about what it refreshes — but it
+    touches **no** appended-page signal, so a poll can never drop the reader's Load More progress. `reloadAll()` (full reset of both
     appended-page sets + all three resources) stays with the submit box, the sheets and the retry
     banner. The public beat is what the control's countdown renders
     (`intervalMs()`/`secondsRemaining()`) and what `refreshNow()` drives, so the automatic tick and
@@ -358,9 +374,11 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   `LinePulseCardComponent` calls `openFor`; the sheet reads `isOpen`/`lineId`.
 - **`HomePage`** — `sheetLine` computes the `LinePulse` for `lineStatusSheet.lineId()` from
   `store.lines()`; `errorResource` is a minimal `RetryableResource` adapter over `store.reloadAll()`
-  (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy`. The feed renders
-  `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page); below it
-  `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
+  (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy` — which is a **pause**, not a
+  teardown: the route injector keeps this `HomeStore` alive across visits, so the next page's `start()`
+  resumes the beat and revalidates (the store bullet above has the `null`-vs-cadence rule). The feed
+  renders `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page); below
+  it `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
   `canLoadMoreLastWeek` (`computed`) gates its Load More (`loadMoreLastWeek()`) on
   `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
   page itself holds no refresh state at all: it composes two `app-home-refresh-control` instances
