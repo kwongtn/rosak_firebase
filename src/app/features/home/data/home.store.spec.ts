@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
-import { FeedLink, FeedQueryData, FrontPageLinesQueryData } from "./home.queries";
+import { FeedLink, FeedLinkSublink, FeedQueryData, FrontPageLinesQueryData } from "./home.queries";
 import { FEED_PAGE_SIZE, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
 
 function makeLine(id: string): FrontPageLinesQueryData["lines"][number] {
@@ -36,10 +36,10 @@ function makeFeedLink(id: string, userVote = 0): FeedLink {
     title: `Link ${id}`,
     created: "2026-08-01T08:00:00",
     occurredAt: "2026-08-01T08:00:00",
-    threadId: null,
+    parentId: null,
     isThreadRoot: true,
-    threadSize: 1,
-    threadLinks: [],
+    sublinkCount: 0,
+    sublinks: [],
     status: "LIVE",
     completed: false,
     isAutomated: false,
@@ -48,6 +48,56 @@ function makeFeedLink(id: string, userVote = 0): FeedLink {
     voteBreakdown: { upvotes: 2, downvotes: 0 },
     lines: [],
     user: { shortId: "abc123", nickname: "Tester" },
+    // The three EDIT ROUND-TRIP relations `FEED_QUERY` selects at every level. The overlay walk
+    // ignores them; they are here so a fixture stays a row the backend can actually return.
+    vehicles: [],
+    stations: [],
+    categories: [],
+  };
+}
+
+/**
+ * One node of `FEED_QUERY`'s nested `sublinks` selection: the root's selection minus
+ * `normalizedUrl` (which the document deliberately does not request at any level below the root),
+ * plus that node's OWN tree scalars and its own children — because a level-1 sublink is itself the
+ * head of a nested conversation.
+ *
+ * Typed as the shallowest level on purpose. The four levels are four distinct types that differ
+ * only in how deep their `sublinks` go, and a fixture that grows its tree uniformly (or stops one
+ * level early) is exactly the shape the overlay walk has to survive, so there is nothing to gain
+ * from making the helper level-accurate and a cast to maintain.
+ */
+function makeSublink(
+  id: string,
+  userVote = 0,
+  sublinks: FeedLinkSublink[] = [],
+  parentId: string | null = null,
+): FeedLinkSublink {
+  return {
+    id,
+    url: `https://example.com/${id}`,
+    title: `Link ${id}`,
+    created: "2026-08-01T08:00:00",
+    occurredAt: "2026-08-01T08:00:00",
+    parentId,
+    isThreadRoot: parentId === null,
+    // This node's OWN descendant count, never the conversation's — the root of a 3-node tree
+    // reports 2 and each of its children reports its own, which is what the badge reads.
+    sublinkCount: sublinks.length,
+    sublinks,
+    status: "LIVE",
+    completed: false,
+    isAutomated: false,
+    voteScore: 2,
+    userVote,
+    voteBreakdown: { upvotes: 2, downvotes: 0 },
+    lines: [],
+    user: { shortId: "abc123", nickname: "Tester" },
+    // Same three relations as the root above — the document selects them at every level because
+    // a sublink is editable from the feed too, and its tags must survive that round trip.
+    vehicles: [],
+    stations: [],
+    categories: [],
   };
 }
 
@@ -178,8 +228,8 @@ describe("HomeStore", () => {
   it("asks BOTH feed resources to collapse threads, not just the today feed", async () => {
     // The requirement, not a nicety: `publicSocialMediaLinks` orders by `occurredAt DESC, id DESC`,
     // so a thread's members are not adjacent — client-side grouping of a flat page cannot work
-    // (a member's root may be on another page entirely). Only a collapsed read nests members under
-    // `threadLinks`, and only then does `totalCount` count what the page renders.
+    // (a sublink's root may be on another page entirely). Only a collapsed read nests the subtree
+    // under `sublinks`, and only then does `totalCount` count what the page renders.
     const store = createStore();
 
     // `expectOne` DEQUEUES, so both reads are captured before either is flushed.
@@ -230,22 +280,24 @@ describe("HomeStore", () => {
     });
   });
 
-  it("renders a collapsed root with its members nested and counts the root once", async () => {
+  it("renders a collapsed root with its subtree nested and counts the root once", async () => {
     const store = createStore();
-    const member = makeFeedLink("x2");
+    const child = makeSublink("x2", 0, [], "x");
     const root = {
       ...makeFeedLink("x"),
-      threadLinks: [member],
-      threadSize: 2,
-    };
+      sublinkCount: 1,
+      sublinks: [child],
+    } as FeedLink;
     // The backend's count while collapsing is the number of ROOTS, which is what the page's
-    // "Showing N of M" reports — so a 2-link thread contributes 1, not 2.
+    // "Showing N of M" reports — so a 2-link conversation contributes 1, not 2.
     flushInitial([], feedData([root], false, null));
     await Promise.resolve();
 
     expect(store.feedLinks()).toHaveLength(1);
-    expect(store.feedLinks()[0].threadLinks.map((l) => l.id)).toEqual(["x2"]);
-    expect(store.feedLinks()[0].threadSize).toBe(2);
+    expect(store.feedLinks()[0].sublinks.map((l) => l.id)).toEqual(["x2"]);
+    // `sublinkCount` is the root's OWN descendant count (1 child), not a conversation size of 2 —
+    // the count is what the "N links" chip derives from, via `threadLabel(sublinkCount + 1)`.
+    expect(store.feedLinks()[0].sublinkCount).toBe(1);
     expect(store.feedTotalCount()).toBe(1);
   });
 
@@ -255,15 +307,15 @@ describe("HomeStore", () => {
     // read is collapsed for the same reason the page is, and the loop walks the nesting — this
     // pins that the resulting map is keyed per id (root and member alike) and is exactly what the
     // page binds.
-    // A nested member is the root's selection minus the four thread fields (see
-    // `FeedLinkThreadMember`), so the fixture cannot carry a `threadId` either.
+    // A nested child is the root's selection minus `normalizedUrl` (see `FeedLinkSublink`), and it
+    // carries its OWN tree scalars, so the fixture builds it through `makeSublink`.
     requestMock.mockResolvedValueOnce(
       feedData(
         [
           {
             ...makeFeedLink("x", 1),
-            threadSize: 2,
-            threadLinks: [makeFeedLink("x2", -1)],
+            sublinkCount: 1,
+            sublinks: [makeSublink("x2", -1, [], "x")],
           } as FeedLink,
         ],
         false,
@@ -275,14 +327,14 @@ describe("HomeStore", () => {
     flushInitial([], feedData([makeFeedLink("x", 0)], false, null));
     await vi.waitFor(() => expect(store.userVotes()).toEqual({ x: 1, x2: -1 }));
 
-    // A member is NOT in `feedLinks` (it is nested under the root), so the map is the only channel
+    // A child is NOT in `feedLinks` (it is nested under the root), so the map is the only channel
     // that can carry its vote — and `userVoteFor` reaches it through the overlay, not the feed.
     expect(store.userVotes()["x2"]).toBe(-1);
     expect(store.userVoteFor("x2")).toBe(-1);
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x"]);
     // The overlay reads MUST collapse, exactly like the two resources: an uncollapsed read is the
     // `first` newest FLAT rows, which is a different id set from the rendered one and drops the
-    // members of every thread that does not fit in the window.
+    // sublinks of every conversation that does not fit in the window.
     expect(requestMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ collapseThreads: true }),
@@ -294,26 +346,26 @@ describe("HomeStore", () => {
     expect(store.userVoteFor("x")).toBe(1);
   });
 
-  it("records the votes of NESTED members the flat window would have dropped", async () => {
-    // The regression this pins: the rendered feed is 2 roots carrying 2 members each (4 votable
-    // ids per root, 8 in total), while the uncollapsed top-8 would return `r1,m1,r2,m2,r3,m3,r4,m4`
-    // — four of those eight ids are members of the SECOND and FOURTH roots and simply are not in
-    // it. `LinkThreadComponent.voteFor` falls back to `link.userVote ?? 0` for a missing id, so
-    // those members would render as the ANONYMOUS zero on an expanded thread: a rider's upvote,
-    // silently un-pressed, with no error anywhere.
+  it("records the votes of NESTED children the flat window would have dropped", async () => {
+    // The regression this pins: the rendered feed is 2 roots carrying 2 children each (3 votable
+    // ids per root, 6 in total), while the uncollapsed top-8 would return `r1,c1,r2,c2,r3,c3,...`
+    // — several of those ids are children of a LATER root and simply are not in it. The thread
+    // wrapper's `voteFor` falls back to `link.userVote ?? 0` for a missing id, so those children
+    // would render as the ANONYMOUS zero on an expanded conversation: a rider's upvote, silently
+    // un-pressed, with no error anywhere.
     isLoggedIn.set(true);
     requestMock.mockResolvedValueOnce(
       feedData(
         [
           {
             ...makeFeedLink("r1", 1),
-            threadSize: 3,
-            threadLinks: [makeFeedLink("m1", 1), makeFeedLink("m2", -1)],
+            sublinkCount: 2,
+            sublinks: [makeSublink("c1", 1, [], "r1"), makeSublink("c2", -1, [], "r1")],
           } as FeedLink,
           {
             ...makeFeedLink("r2", 1),
-            threadSize: 3,
-            threadLinks: [makeFeedLink("m3", 1), makeFeedLink("m4", 1)],
+            sublinkCount: 2,
+            sublinks: [makeSublink("c3", 1, [], "r2"), makeSublink("c4", 1, [], "r2")],
           } as FeedLink,
         ],
         false,
@@ -324,14 +376,50 @@ describe("HomeStore", () => {
     const store = createStore();
     flushInitial([], feedData([], false, null));
 
-    // Every id the page can actually draw — both roots and all four members.
+    // Every id the page can actually draw — both roots and all four children.
     await vi.waitFor(() =>
-      expect(Object.keys(store.userVotes()).sort()).toEqual(["m1", "m2", "m3", "m4", "r1", "r2"]),
+      expect(Object.keys(store.userVotes()).sort()).toEqual(["c1", "c2", "c3", "c4", "r1", "r2"]),
     );
-    expect(store.userVoteFor("m4")).toBe(1);
+    expect(store.userVoteFor("c4")).toBe(1);
     // An id the caller has no opinion on stays ABSENT rather than being recorded as 0, so the map
     // can never shadow a real value the anonymous read might one day supply.
-    expect(Object.prototype.hasOwnProperty.call(store.userVotes(), "m5")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(store.userVotes(), "c5")).toBe(false);
+  });
+
+  it("records the votes of a 3-LEVEL tree's leaves, whose ids appear nowhere in edges", async () => {
+    // The regression this pins, one level deeper than the case above, and the reason the walk is
+    // recursive rather than a loop over the roots and their direct children. The shipped bug read
+    // the roots' DIRECT children and stopped there: the reads were correctly collapsed and
+    // correctly
+    // window-matched, and yet every node BELOW a direct child still fell through to the anonymous
+    // `0`, because `LinkThreadComponent.voteFor` answers `voteValues[id] ?? link.userVote ?? 0`
+    // and `graphqlResource` data always carries the anonymous zero. The rider's own upvote then
+    // renders un-pressed on a card they did press, with no error and no failed request anywhere.
+    //
+    // The fixture is built so the failure cannot be a coincidence: `edges` carries exactly ONE
+    // node, and `g1` — the id whose vote the walk has to reach — is two `sublinks` hops below it
+    // and appears nowhere else in the payload. `sublinkCount` is set honestly per node (2 at the
+    // root, 1 at the child, 0 at the leaf) so the counts cannot be what carries the assertion.
+    isLoggedIn.set(true);
+    const leaf = makeSublink("g1", 1, [], "c1");
+    const child = makeSublink("c1", -1, [leaf], "r1");
+    const root = {
+      ...makeFeedLink("r1", 1),
+      sublinkCount: 2,
+      sublinks: [child],
+    } as FeedLink;
+    requestMock.mockResolvedValueOnce(feedData([root], false, null));
+    requestMock.mockResolvedValueOnce(feedData([], false, null));
+    const store = createStore();
+    flushInitial([], feedData([root], false, null));
+
+    // All three levels, so a walk that stops one level short is red on the grandchild alone.
+    await vi.waitFor(() => expect(store.userVotes()).toEqual({ r1: 1, c1: -1, g1: 1 }));
+    // Stated as the INVARIANT rather than as a value: the overlay's id set EQUALS the rendered id
+    // set, and the grandchild is rendered (nested two levels under the one root `edges` holds).
+    expect(store.userVoteFor("g1")).toBe(1);
+    // The rendered set is exactly those three ids — the overlay must not invent or lose any.
+    expect(Object.keys(store.userVotes()).sort()).toEqual(["c1", "g1", "r1"]);
   });
 
   it("falls back to the feed value when the vote overlay is empty", async () => {
@@ -382,7 +470,7 @@ describe("HomeStore", () => {
     // `graphqlResource` data always carries the ANONYMOUS 0, so a rider's own upvote renders
     // un-pressed with no error anywhere. Two ways to lose rows, both read as tidy-ups:
     //   SHAPE  — drop `collapseThreads` (the read returns the `first` newest FLAT rows, a different
-    //            id set from the collapsed render) or walk `edges` without `threadLinks`.
+    //            id set from the collapsed render) or walk `edges` without recursing `sublinks`.
     //   WINDOW — drop `currentServiceDayOnly` (the newest 8 rows OVERALL instead of the newest 8
     //            WITHIN THE SERVICE DAY). This test is the one that catches the second: it compares
     //            the two objects structurally, so any single added or removed key is red.
@@ -443,7 +531,7 @@ describe("HomeStore", () => {
     expect(requestMock).not.toHaveBeenCalled();
   });
 
-  it("reports the filtered total and lets a continuation page's totalCount win", async () => {
+  it("reports the filtered total and prefers a continuation page's LARGER totalCount", async () => {
     const store = createStore();
     expect(store.feedTotalCount()).toBe(0);
 
@@ -461,6 +549,54 @@ describe("HomeStore", () => {
     await store.loadMore();
 
     expect(store.feedTotalCount()).toBe(7);
+  });
+
+  it("takes the larger of the live first-page total and the beat-frozen appended total", async () => {
+    // `Math.max`, not a `??` chain: the beat refreshes page one while `appendedTotalCount` stays
+    // frozen, so the two sources disagree in BOTH directions and neither is authoritative alone.
+    const store = createStore();
+    flushInitial(
+      [],
+      feedData([makeFeedLink("x")], true, "cursor-x"),
+      feedData([makeFeedLink("w1")], true, "cursor-w"),
+    );
+    await Promise.resolve();
+    // A section with no continuation page yet falls back to its live first-page total, not to 0.
+    expect(store.lastWeekTotalCount()).toBe(1);
+
+    requestMock.mockResolvedValueOnce({
+      publicSocialMediaLinks: {
+        edges: [{ node: makeFeedLink("y"), cursor: "cursor-y" }],
+        pageInfo: { hasNextPage: false, endCursor: "cursor-y" },
+        totalCount: 7,
+      },
+    });
+    await store.loadMore();
+    // Direction one: the appended total outranks page one (7 vs 1).
+    expect(store.feedTotalCount()).toBe(7);
+
+    store.reloadFirstPages();
+    TestBed.tick();
+    linesRequest().flush({ data: { lines: [] } });
+    // Page one now carries 12 roots, while `appendedTotalCount` is still frozen at 7 because the
+    // beat leaves every appended signal alone.
+    feedRequest().flush({
+      data: {
+        publicSocialMediaLinks: {
+          edges: [makeFeedLink("x")].map((node) => ({ node, cursor: "c" })),
+          pageInfo: { hasNextPage: true, endCursor: "cursor-x" },
+          totalCount: 12,
+        },
+      },
+    });
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w1")], true, "cursor-w") });
+    await Promise.resolve();
+
+    // Direction two: the LIVE page one outranks the frozen appended total (12 vs 7). Between the two
+    // directions the rule is "never smaller than either source" — a denominator that shrinks under a
+    // reader who has already loaded more pages than the stale count knew about ("Showing 40 of 12")
+    // is the one visibly wrong reading, and `appendedTotalCount() ?? first` produced exactly that.
+    expect(store.feedTotalCount()).toBe(12);
   });
 
   it("exposes isLoadingMore only while a continuation page is in flight", async () => {
@@ -509,6 +645,10 @@ describe("HomeStore", () => {
     store.polling.refreshNow();
     TestBed.tick();
 
+    // The beat is observable as in-flight state, which `isLoading` (pristine-first-fetch-only) can
+    // never report for a reload — this is what a refresh confirmation actually watches.
+    expect(store.isRefreshing()).toBe(true);
+
     // All three are requested. `expectOne` DEQUEUES, so capture both feed reads before flushing —
     // FEED_QUERY serves the today feed AND the last-week section, split by the window variable.
     const linesReq = linesRequest();
@@ -519,6 +659,7 @@ describe("HomeStore", () => {
     lastWeekReq.flush({ data: feedData([makeFeedLink("w1")], true, "cursor-w") });
     await Promise.resolve();
 
+    expect(store.isRefreshing()).toBe(false);
     expect(store.linesRefreshTick()).toBe(1);
     expect(store.lines().map((l) => l.id)).toEqual(["a", "b"]);
     // The appended pages survive the beat — the whole point of not resetting them.
@@ -529,9 +670,9 @@ describe("HomeStore", () => {
   });
 
   it("drops a row the refetched first page and an appended page now both carry", async () => {
-    // The dedup guard `reloadFirstPages()` requires. An admin edit or deletion between the two
-    // reads shifts a row out of page one and into a position the appended pages already cover, so
-    // the same id lands in both. A duplicate id is fatal, not cosmetic: the page renders
+    // The dedup guard `reloadFirstPages()` requires. An admin edit between the two reads moves a
+    // row, so a row an appended page already holds comes back INTO page one and the same id lands
+    // in both. A duplicate id is fatal, not cosmetic: the page renders
     // `@for (link of store.feedLinks(); track link.id)` and a repeated track key throws.
     const store = createStore();
     flushInitial(
@@ -546,6 +687,12 @@ describe("HomeStore", () => {
     requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
     await store.loadMoreLastWeek();
 
+    // The refetched copies are made DISTINGUISHABLE from the appended duplicates (same id, a marker
+    // title). Without that the `["x","y"]` id assertion passes under BOTH first-wins and last-wins,
+    // so the declared rule would be unpinned — this is what actually holds the merge to first-wins.
+    const yFromPageOne = { ...makeFeedLink("y"), title: "from page one" };
+    const w2FromPageOne = { ...makeFeedLink("w2"), title: "from page one" };
+
     store.reloadFirstPages();
     TestBed.tick();
 
@@ -557,7 +704,7 @@ describe("HomeStore", () => {
     feedReq.flush({
       data: {
         publicSocialMediaLinks: {
-          edges: [makeFeedLink("x"), makeFeedLink("y")].map((node) => ({ node, cursor: "c" })),
+          edges: [makeFeedLink("x"), yFromPageOne].map((node) => ({ node, cursor: "c" })),
           pageInfo: { hasNextPage: true, endCursor: "cursor-x" },
           totalCount: 2,
         },
@@ -566,7 +713,7 @@ describe("HomeStore", () => {
     lastWeekReq.flush({
       data: {
         publicSocialMediaLinks: {
-          edges: [makeFeedLink("w1"), makeFeedLink("w2")].map((node) => ({ node, cursor: "c" })),
+          edges: [makeFeedLink("w1"), w2FromPageOne].map((node) => ({ node, cursor: "c" })),
           pageInfo: { hasNextPage: true, endCursor: "cursor-w" },
           totalCount: 2,
         },
@@ -574,10 +721,54 @@ describe("HomeStore", () => {
     });
     await Promise.resolve();
 
-    // First occurrence wins, so the refetched copy leads and the appended duplicate is dropped —
-    // backend order preserved, no repeated track key for either surface.
+    // First occurrence wins, so the REFETCHED copy survives for a row that is in both — backend
+    // order preserved, no repeated track key for either surface, and no stale appended copy left to
+    // win the next beat. The id list alone could not tell those two rules apart.
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.feedLinks()[1]?.title).toBe("from page one");
     expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
+    expect(store.lastWeekLinks()[1]?.title).toBe("from page one");
+  });
+
+  it("keeps feedLinks duplicate-free when a loadMore lands after a beat's page one", async () => {
+    // The race `dedupeEdges` also has to survive: a continuation page in flight when the beat fires
+    // resolves AFTER the refetched page one, appending a row the refresh already put on screen. The
+    // merge is a computed over both signals, so ordering cannot save it — dedupe is what does.
+    const store = createStore();
+    flushInitial(
+      [makeLine("a")],
+      feedData([makeFeedLink("x")], true, "cursor-x"),
+      feedData([], false, null),
+    );
+    await Promise.resolve();
+
+    let resolveRequest: (value: FeedQueryData) => void = () => undefined;
+    requestMock.mockImplementationOnce(
+      () =>
+        new Promise<FeedQueryData>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    const pending = store.loadMore();
+
+    store.reloadFirstPages();
+    TestBed.tick();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    // The refetched page one has already grown into the page the continuation is about to return.
+    feedRequest().flush({
+      data: feedData([makeFeedLink("x"), makeFeedLink("y")], true, "cursor-x"),
+    });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    resolveRequest(feedData([makeFeedLink("y")], false, "cursor-y"));
+    await pending;
+
+    const ids = store.feedLinks().map((l) => l.id);
+    expect(ids).toEqual(["x", "y"]);
+    // Stated as the invariant rather than as the list above: one row per id, which is what keeps
+    // `@for (link of store.feedLinks(); track link.id)` from throwing on the next render.
+    expect(new Set(ids).size).toBe(store.feedLinks().length);
   });
 
   it("reports isRefreshing for the first load and for every later reload", async () => {
