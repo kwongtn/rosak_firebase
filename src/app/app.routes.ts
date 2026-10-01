@@ -7,7 +7,9 @@ import { LineStatusSheetService } from "./features/home/data/line-status-sheet.s
 export const routes: Routes = [
   {
     // Route-scoped providers, not root singletons: the polling beat and the status sheet's
-    // state must be created with the page and torn down with it (HomePage calls stop()).
+    // state are created with the page and paused with it (HomePage calls stop()). The route's
+    // injector outlives the recreated page component, so HomeStore.start() resumes the beat and
+    // revalidates on re-entry rather than assuming a fresh store.
     // The shared line list used by the report form now comes from the root-provided
     // SpottingLinesStore.
     path: "",

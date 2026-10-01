@@ -34,10 +34,12 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
  * both sections.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
- * app.routes.ts, so their polling beat and sheet state are created with the page and die with
- * it — hence `start()` in the constructor and `stop()` in `ngOnDestroy` (the beat must not
- * outlive the page). Data fetching, loading/empty states, the vote overlay and the refresh
- * countdown's confirmation all live in the store and the control; this page only composes.
+ * app.routes.ts. The router retains that route injector while the page component is recreated on
+ * every visit, so the STORE outlives a visit: the constructor calls `start()` (resuming a paused
+ * beat and revalidating on re-entry) and `ngOnDestroy` calls `stop()` (the beat must not keep
+ * polling while the reader is elsewhere). Data fetching, loading/empty states, the vote overlay
+ * and the refresh countdown's confirmation all live in the store and the control; this page only
+ * composes.
  *
  * Every feed row renders through `app-link-thread` — the collapsible conversation wrapper — not
  * `app-link-card` directly, in BOTH the today feed and the Last Week day groups (the two

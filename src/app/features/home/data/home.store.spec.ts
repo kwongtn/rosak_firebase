@@ -621,6 +621,51 @@ describe("HomeStore", () => {
     expect(store.userVoteFor("x")).toBe(1);
   });
 
+  it("resumes the beat and revalidates the first pages when started after a stop", async () => {
+    // The route's injector outlives the page component, so HomePage's constructor calls start()
+    // on a store whose beat ngOnDestroy previously paused. A start() that re-applied that paused
+    // `null` left the countdown gone for good and no refresh ever scheduled again — the re-entry
+    // regression this test pins.
+    const store = createStore();
+    flushInitial([makeLine("a")], feedData([makeFeedLink("x")], false, null));
+    await Promise.resolve();
+    expect(store.polling.secondsRemaining()).toBe(30);
+
+    store.stop();
+    expect(store.polling.intervalMs()).toBeNull();
+    expect(store.polling.secondsRemaining()).toBe(0);
+
+    store.start();
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(store.polling.intervalMs()).toBe(30000);
+    expect(store.polling.secondsRemaining()).toBe(30);
+
+    // Re-entry revalidates page one of all three resources through the same beat.
+    const linesReq = linesRequest();
+    const feedReq = feedRequest();
+    const lastWeekReq = lastWeekRequest();
+    linesReq.flush({ data: { lines: [makeLine("b")] } });
+    feedReq.flush({ data: feedData([makeFeedLink("y")], false, null) });
+    lastWeekReq.flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    expect(store.lines().map((l) => l.id)).toEqual(["b"]);
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["y"]);
+  });
+
+  it("does not refetch on a first start — the constructor reads are the initial load", () => {
+    const store = createStore();
+
+    store.start();
+    TestBed.tick();
+
+    // Exactly one batch of the three reads; an unconditional reload in start() would leave a
+    // second pending batch behind and afterEach's httpMock.verify() would fail.
+    flushInitial([makeLine("a")], feedData([makeFeedLink("x")], false, null));
+  });
+
   it("refreshes every section's first page on the poll beat, keeping the appended pages", async () => {
     // The user-facing promise is "Refreshing in 12s" for the WHOLE page, so the beat must re-read
     // page one of all three resources — but it must NOT drop the appended Load More pages, or the

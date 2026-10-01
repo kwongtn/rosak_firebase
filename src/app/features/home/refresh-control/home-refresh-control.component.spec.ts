@@ -684,4 +684,31 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
     fixture.detectChanges();
     expect(confirmation()).toBeNull();
   });
+
+  it("restores the countdown when a retained store is restarted after a stop", async () => {
+    vi.useFakeTimers();
+
+    fixture = TestBed.createComponent(HomeRefreshControlComponent);
+    store = TestBed.inject(HomeStore);
+    fixture.detectChanges();
+    TestBed.tick();
+    flushAll("success");
+    await settle();
+    expect(button().textContent).toContain("Refreshing in");
+
+    // Leaving `/` runs HomePage.ngOnDestroy → stop(); the route injector retains the store, so
+    // the countdown must come back when the recreated page calls start() again — not stay blank
+    // for the rest of the session (the bug this pins).
+    store.stop();
+    fixture.detectChanges();
+    expect(button().textContent?.trim()).toBe("");
+
+    store.start();
+    fixture.detectChanges();
+    expect(button().textContent).toContain("Refreshing in");
+
+    // Re-entry also revalidates the first pages through the same beat.
+    flushAll("success");
+    await settle();
+  });
 });

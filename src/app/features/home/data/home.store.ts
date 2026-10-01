@@ -386,14 +386,29 @@ export class HomeStore {
     }
   }
 
-  /** Starts the shared polling beat (no-op on the server). */
+  /**
+   * (Re)starts the shared polling beat (no-op on the server).
+   *
+   * The store is route-scoped, but the router's injector for this route OUTLIVES the page
+   * component: on every return to `/`, Angular creates a fresh `HomePage` while handing it the
+   * SAME `HomeStore`, whose beat `ngOnDestroy` has just paused. So a first start (interval still
+   * at its default) has nothing to do — `PollingSource` schedules itself when constructed and the
+   * resources' constructor reads are the initial fetch — while a RE-entry must both re-arm the
+   * beat and revalidate the first pages, or the returning reader would get the previous visit's
+   * data with no countdown and no refresh ever scheduled. `resume()` is the only way back from
+   * the paused `null`; re-applying `intervalMs()` would just re-apply the pause.
+   */
   start(): void {
-    if (this.isBrowser) {
-      this.polling.setIntervalMs(this.polling.intervalMs());
+    if (!this.isBrowser) {
+      return;
+    }
+    if (this.polling.intervalMs() === null) {
+      this.polling.resume();
+      this.reloadFirstPages();
     }
   }
 
-  /** Stops the shared polling beat. */
+  /** Pauses the shared polling beat — re-armed by a later `start()` at the same cadence. */
   stop(): void {
     this.polling.setIntervalMs(null);
   }

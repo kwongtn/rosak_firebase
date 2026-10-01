@@ -34,6 +34,10 @@ export class PollingSource {
   private pollTimeout: ReturnType<typeof setTimeout> | undefined;
   private tickInterval: ReturnType<typeof setInterval> | undefined;
 
+  /** The cadence `resume()` returns to: the last non-null interval a caller named, or the 30s
+   *  default. Tracked separately from the signal because the signal itself is nulled while paused. */
+  private lastEnabledIntervalMs = DEFAULT_POLLING_INTERVAL_MS;
+
   constructor(onRefresh: () => void) {
     this.onRefresh = onRefresh;
     if (this.isBrowser) {
@@ -45,8 +49,26 @@ export class PollingSource {
   /** Changes the cadence and rescales the countdown from *now* — whatever was scheduled before
    * is canceled, so a slower interval can never race a stale faster deadline. */
   setIntervalMs(ms: PollingIntervalMs): void {
+    if (ms !== null) {
+      this.lastEnabledIntervalMs = ms;
+    }
     this.intervalMs.set(ms);
     this.scheduleNext(ms ?? Infinity);
+  }
+
+  /**
+   * Re-arms a beat paused with `setIntervalMs(null)`, at the cadence it last ran at (the 30s
+   * default if a caller never named one).
+   *
+   * This is the ONLY exit from the paused `null`, and it exists because the obvious spelling is a
+   * trap: `setIntervalMs(this.intervalMs())` re-applies the `null`, leaving the beat permanently
+   * dead — the countdown disappears and nothing is ever scheduled again. Anything that pauses a
+   * beat it may later need (`HomeStore.stop()` / `start()`) must resume it, not round-trip the
+   * current value. Safe on an already-running beat: like `setIntervalMs`, it restarts the
+   * countdown from now, clearing whatever deadline was pending.
+   */
+  resume(): void {
+    this.setIntervalMs(this.intervalMs() ?? this.lastEnabledIntervalMs);
   }
 
   /** Manual "refresh now": fires immediately, then restarts the countdown for the current
