@@ -39,20 +39,27 @@
     through the real server path to guard SSR/hydration).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
-    refresh row: countdown spinner, transient "Updated" confirmation and the `Click to Refresh Now`
-    tooltip). Rendered TWICE by the page — the countdown drives the whole-page beat, so it heads
-    whichever section the reader is actually looking at: the links section below `lg`, the line
-    panel from `lg` up. The two instances are gated with **CSS only** (`lg:hidden` /
-    `hidden lg:block`), never a `matchMedia` placement signal, so SSR and hydration emit identical
-    markup; the `data-testid`s are therefore duplicated in the DOM (two
-    `line-refresh-countdown` buttons, exactly one visible) and specs must scope to a section.
+    refresh row: countdown spinner, the click-armed **Updating** state, the transient "Updated"
+    confirmation and the `Click to Refresh Now` tooltip). Rendered TWICE by the page — the countdown
+    drives the whole-page beat, so it heads whichever section the reader is actually looking at: the
+    links section below `lg`, the line panel from `lg` up. The two instances are gated with **CSS
+    only** (`lg:hidden` / `hidden lg:block`), never a `matchMedia` placement signal, so SSR and
+    hydration emit identical markup; the `data-testid`s are therefore duplicated in the DOM (two
+    `line-refresh-countdown` buttons, exactly one visible) and specs must scope to a section. The
+    trigger **shrink-wraps to the row it draws** (`:host { display: inline-block }`, no `w-full`), so
+    the tap target is the spinner + label the reader can see and not an invisible full-width strip;
+    right-edge alignment is the host's `flex justify-end` gate doing that work, not the control.
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
     `ReportSheetService.openFor(lineId)`. The page's desktop layout is a two-panel split: the
     retry banner and footer stay full width, while the feed and the line-status
     sections share `data-testid="home-panels"` (`flex flex-col gap-6 lg:grid lg:grid-cols-2
-lg:items-start`) — stacked on mobile, URL feed left / line statuses right from `lg` up. The
-    submit box heads the feed column (full width on mobile, column-wide from `lg` up, ahead of
+lg:items-start`) — stacked on mobile, URL feed left / line statuses right from `lg` up. In the
+    stacked layout the line section draws its **own divider** (`border-border border-t pt-6
+lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`, and both halves
+    are dropped from `lg`, where a border between two grid columns would only draw a line down the
+    middle of the gap. The submit box heads the feed column (full width on mobile, column-wide from
+    `lg` up, ahead of
     the list in DOM order), and the feed renders **every loaded link** in an uncapped `feed-scroll` container (no inner scroll —
     the page scrolls) and owns the load-more continuation: the bottom-right `feed-footer`
     (`data-testid="feed-footer"`) holds a `feed-count` span reading `Showing X of Y`
@@ -80,11 +87,14 @@ lg:items-start`) — stacked on mobile, URL feed left / line statuses right from
     `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no hover —
     capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
-    (`data-testid="line-refresh-tooltip"`). After a manual refresh settles **without an error**, the
-    row swaps its spinner + countdown for a transient GREEN `Updated` confirmation
+    (`data-testid="line-refresh-tooltip"`). A click reads as **three** states, in this order:
+    **Updating** (`data-testid="line-refresh-updating"`, `role="status"`) for as long as THAT
+    click's own request is outstanding → a transient GREEN **Updated** confirmation
     (`data-testid="line-refresh-confirmation"`, `role="status"`, `text-green-600 dark:text-green-400`
-    on both the tick and the label, ~2s). There is no separate `Refresh now` button any more.
-    Deliberately no interval picker (unlike situasi), the 30s cadence is fixed.
+    on both the tick and the label, ~2s) once that request settles **without an error** → the
+    countdown again. There is no separate `Refresh now` button any more, and the trigger is only as
+    wide as the row it draws. Deliberately no interval picker (unlike situasi), the 30s cadence is
+    fixed.
     ⚠️ Already-loaded `Load More` pages are **never** dropped by that refresh — a 30-second reset of
     the appended pages would wipe the reader's place in a long feed — which is why the beat calls
     `reloadFirstPages()` and not `reloadAll()`; `reloadAll()` (full reset) stays with the submit box,
@@ -355,7 +365,8 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
   page itself holds no refresh state at all: it composes two `app-home-refresh-control` instances
   (links section below `lg`, line panel from `lg` up, each behind a CSS visibility class) and the
-  countdown, tooltip and transient "Updated" confirmation all live in that component.
+  countdown, tooltip, "Updating" label and transient "Updated" confirmation all live in that
+  component.
 - **`LinkThreadComponent`** (shared insiden `app-link-thread`) — the feed's row element, and
   **recursive**: it renders one `app-link-card` for its node, then, when expanded, one nested
   `app-link-thread` per child in a `border-l pl-3` indented container. `children` is
@@ -404,13 +415,29 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   (`data-testid="advanced-input"`, `type=button`) calls
   `linkSheet.open(undefined, { url: trimmed || undefined })`, opening the shared sheet in create
   mode with whatever is already typed as a one-shot prefill (the sheet's fuller form adds title +
-  asset tags). Local state is just `duplicateOfId`, `isSubmitting` and `submitError` (inline
-  `[data-testid="feed-submit-error"]`, set for a rejected or unreachable submit). The URL input is
+  asset tags). Local state is just `duplicateOfId`, `isSubmitting`, `submitError` (inline
+  `[data-testid="feed-submit-error"]`, set for a rejected or unreachable submit) and
+  `submitAttempted`. The URL input is
   `type="text"` + `inputmode="url"` and `normalizeFeedUrl` scheme-qualifies the value at submit
   time — native `type="url"` silently rejected schemeless input before the handler ran. On a
   duplicate response it stores `duplicateOfId` (used for the `#feed-link-<id>` anchor) and records
   the backend's auto-upvote via `store.setUserVote`. On a fresh submit it toasts success; either
   outcome resets the form and emits `submitted` so the host reloads.
+  **Validation is submit-gated, and blur stays quiet.** The "Enter a URL" note and the input's
+  destructive border + `aria-invalid` are driven by `submitAttempted` — set first thing in
+  `submit()`, cleared by `_reset()` — and not by the form field's `touched()`. `FormField` marks a
+  field touched on blur, so `touched()` cannot tell "typed here and left" from "actually pressed
+  Submit", and nagging on blur is not wanted; both entry points (the button and the
+  `(keydown.enter)` shortcut) route through `submit()`, so one flag covers them. The flag reaches
+  the border/`aria-invalid` through `HlmInput`'s optional `errorVisible` input, which **overrides**
+  `touched` as the visibility gate when supplied and leaves every other consumer's behaviour
+  untouched when it is `undefined`.
+  ⚠️ The `<form>` is **`novalidate`**, and that is load-bearing rather than cosmetic: `FormField`
+  reflects the schema's `required` onto the DOM as a native `required` attribute, and a
+  constraint-invalid `<form>` without `novalidate` aborts submission **before** the `submit` event
+  ever fires — the native bubble would show and this component's own inline note could never render,
+  in a real browser and in jsdom alike. Turning native validation off leaves exactly one error
+  surface.
 - **`LinePulseCardComponent`** — `_links` caps related `pulseLinks` at 5 (`MAX_PULSE_LINKS`); the
   passenger badge/label go through the pure `passengerLabel`/`passengerVariant` helpers. There is no
   standalone status-count badge (`passenger-status-count` was removed at the user's correction):
@@ -579,6 +606,24 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   react to a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the control arms
   on click, latches on `HomeStore.isRefreshing()` going true, and confirms on it settling false with
   `!hasError()`.
+  🔴 **The click's own `Updating` label is armed by the CLICK, not by `isRefreshing`**, and it has to
+  be torn down on **both** exits out of an armed window — the settle edge (placed _before_ the
+  `hasError` early-return, so an errored refresh still drops the label) and the stale-arm expiry
+  (`ARM_EXPIRY_MS`, the only exit for a click whose request never started). Clearing one edge only
+  is how a no-op click ends up saying "Updating" for the rest of the session. The Updating branch is
+  also the **first** template branch on purpose: `refreshNow()` resets the beat, so if the countdown
+  branch won, an in-flight click would flash a freshly-reset "Refreshing in 30s". A future host that
+  wants its own refresh affordance must answer the same three states in the same order.
+  🔴 The Updating spinner carries `reverse` **inside** the `animation` shorthand
+  (`style="animation: spin 3s linear infinite reverse"`), not only on the
+  `[animation-direction:reverse]` class: an inline shorthand resets every animation sub-property, so
+  the class alone is dead markup. jsdom computes no styles, so this cannot be caught by a spec — it
+  was found in a real browser, and the spec pins the string. The countdown's own 1s spinner still
+  carries the class-only form and must not be "fixed": its behaviour (clockwise 1s) is intended.
+- **The trigger is not a row, so it must not be styled like one.** The control shrink-wraps to its
+  visible content (`:host { display: inline-block }`, no `w-full` on the button) and each host gate
+  is a `flex justify-end` wrapper, which is what parks it at the right edge. Putting `w-full` or a
+  block host back makes the tap target an invisible full-width strip again.
 - **`errorResource` in `HomePage`** shows the adapter pattern for exposing a store (rather than a
   raw resource) to the shared retry banner.
 

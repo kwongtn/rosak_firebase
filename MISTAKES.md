@@ -15,6 +15,70 @@
 
 ## Traps
 
+### [2026-10-01] ui/forms: signal-forms' `required` is a NATIVE `required` — a `<form>` without `novalidate` never fires `submit`
+
+**Problem**: clicking "Submit Link" on an empty URL field in the home feed's quick submit box showed
+the browser's own validation bubble, and the component's `submit()` **never ran**. The change that
+had been asked for — reveal the "Enter a URL" note on submit, not on blur — was impossible to
+satisfy as specified until this was found, because the path to the handler was being cut off one
+layer below Angular.
+**Root Cause**: the signal-forms `FormField` directive mirrors the schema's `required(...)` onto the
+DOM, so the rendered input's `outerHTML` carries `name="…url"` **and** `required=""`. HTML
+constraint validation runs BEFORE the form's `submit` event: a form containing a constraint-invalid
+control does not dispatch `submit` at all — it fires an `invalid` event on the control and shows
+the bubble. The abort is therefore invisible from the component: no error, no rejected promise, no
+console message, and the handler's own error UI is simply unreachable. Verified empirically
+(throwaway spec + node/jsdom script): `input.checkValidity() === false`,
+`form.checkValidity() === false`, and `submit` events fired by a submit-button `.click()`: **0**;
+clear `required` first and it is 1. jsdom behaves the same way, so this one _does_ reproduce in a
+unit test — only the bubble itself is browser-only.
+**Fix**: `403bd1e` — `novalidate` on the `<form>`, so the submit-gated inline note owns the message
+and there is exactly one error surface. It went with submit-gating the message (a local
+`submitAttempted` signal in place of `touched()`, which `FormField` sets on blur) and with a new
+optional `errorVisible` input on `HlmInput` to carry that gate to the border/`aria-invalid`.
+**Prevention**: every signal-forms `<form>` with a manual `(submit)` handler needs `novalidate` (or
+the `FormRoot` directive, where that is the pattern). **Verified still missing** — same latent
+short-circuit, one word each, left alone on purpose:
+`insiden/link-form/link-form.component.ts:75`,
+`insiden/incident-form/incident-form.component.html:8`, and
+`console/insiden/pending/pending.component.html:258` (its panel edit binds the same
+`incidentFormSchema`, so `title`/`brief`/`startDatetime`/`severity` are all natively `required`).
+**Verified NOT affected**, so nobody has to re-derive it: `spotting/report-form` renders no `<form>`
+element at all — its host sheet's footer calls `reportFormRef.submit()` directly, which never goes
+through the browser's submit path — and both `console/insiden/links/links.component.html:666` and
+`home/line-status/line-status-sheet.component.ts:105` are plain `[value]`/`(input)` forms with their
+own state, not `FormField` ones, so nothing is reflected onto the DOM. ⚠️ Signature worth
+recognising: a form can work from the keyboard and be broken from the button, because Enter-in-a-field
+calls the handler directly and bypasses native validation entirely. If one entry point works and the
+other does nothing at all, suspect the form, not the handler.
+
+### [2026-10-01] ui/animation: an inline `animation` SHORTHAND resets `animation-direction` — the class beside it is dead markup
+
+**Problem**: the home refresh control's new "Updating" spinner rendered CLOCKWISE. The intent was a
+slow 3s counter-clockwise spin — the one direction nothing else on the page animates in, so "the page
+is working on it" never reads as "the countdown is running".
+**Root Cause**: `style="animation: spin 3s linear infinite"` is the **shorthand**, so it resets every
+animation sub-property it does not name — `animation-direction` included, back to `normal`. Being
+inline, it also outranks a class, so the `[animation-direction:reverse]` utility on the same element
+lost twice over and the computed value was `"3s normal spin"`. Nothing in the class list or the
+attribute was wrong; the class was never reached. ⚠️ **jsdom computes no styles**, so no spec, no
+snapshot and no class assertion can catch this class of defect — it was found by reading
+`getComputedStyle` in a real browser, and a green suite is not evidence either way.
+**Fix**: `86cae7e` states the direction **inside** the shorthand —
+`style="animation: spin 3s linear infinite reverse"` (computed `"3s reverse spin"`) — keeping the
+class for markup parity. The spec pins `reverse` inside the inline style string for exactly this
+reason: a class-only assertion would pass against the broken version.
+**Prevention**: never split one animation's direction (or fill mode, iteration, timing function)
+between an inline shorthand and a class — put everything in the shorthand, or use longhands **after**
+it. A shorthand plus a "just in case" class is two sources of truth for a single computed value and
+the inline one always wins. Still carrying the class-only pattern, all **deliberately unchanged** —
+check what each is meant to do before touching it: the countdown's own 1s spinner
+(`home/refresh-control/home-refresh-control.component.ts:133-134`, whose clockwise 1s IS the intended
+behaviour), `spotting/line-details/insiden-section/insiden-section.component.ts:70-71`,
+`spotting/line-details/situasi-section/situasi-section.component.ts:85-86`, and both spinners in
+`tracker/status-card/layer-checklist.component.ts:157-158,330-331`. (`tracker/map/tracker-map-skeleton.component.ts`
+uses `animation-delay` longhands and is not in this class at all.)
+
 ### [2026-10-01] insiden/vote-button: a `linkedSignal` display re-seeds from EVERY input, including the host's echo of your own value
 
 **Problem**: clicking upvote made the arrow light up and the score + breakdown **snap back** to
