@@ -54,7 +54,7 @@ const linkFormSchema = schema<LinkFormModel>((f) => {
  * "Submit a link" — the just-dumping path for social media posts, blog articles
  * and other sources. Only the URL is required; title, the "when did this happen" datetime and the
  * asset tags are optional, while the category dropdown is mandatory and pre-fills "Just
- * Reporting". Submissions land in the admin triage queue (/console/insiden/links).
+ * Reporting". Submissions land in the admin triage queue (/console/links).
  *
  * The optional datetime is the whole reason this form carries a clock at all: a rider reporting a
  * post from three days ago submits today, and the feed orders on the EVENT instant (`occurredAt`),

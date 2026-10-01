@@ -46,6 +46,14 @@ function optionValueToRefreshInterval(value: string): number | null {
  * layer-checklist). List rendering (day grouping, pending collapsible, edit pencils) and the
  * sheet are both shared components from the insiden feature — this host owns only polling,
  * the header row, and reload-on-sheet-close.
+ *
+ * 🔴 Deliberately FLAT, like its sibling /insiden tab: nested-thread UI is scoped to the home feed
+ * and the admin console. Two independent facts keep the shared card's in-card "N links" chip off
+ * this panel, and both are pinned by the spec — `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` does not select
+ * `sublinks` (nothing to expand), and `app-link-list` renders `app-link-card` without binding
+ * `[sublinkCount]` (the card gates on that input, never on `link.sublinkCount`, so it stays 0).
+ * A per-line filter wants a COMPLETE list of reports about the line; a row that advertised an
+ * expansion here would be pointing at a nesting this panel does not render.
  */
 @Component({
   selector: "app-situasi-section",
@@ -178,8 +186,8 @@ export class SituasiSectionComponent {
    *
    * The connection's first page is what this panel loads — matching the paginated contract of
    * the shared query (Task 16: no full-dataset link fetches). `collapseThreads` is deliberately
-   * NOT sent: thread UI is scoped to the home feed and the console, and a per-line filter needs a
-   * flat, COMPLETE list — collapsing here would silently hide every thread member. */
+   * NOT sent: nested-thread UI is scoped to the home feed and the console, and a per-line filter
+   * needs a flat, COMPLETE list — collapsing here would silently hide every sublink. */
   protected readonly sorted = computed(() =>
     [...(this.resource.data()?.publicSocialMediaLinks.edges ?? [])]
       .map((edge) => edge.node)

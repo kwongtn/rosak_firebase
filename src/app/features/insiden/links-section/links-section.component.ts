@@ -23,13 +23,25 @@ const PAGE_SIZE = 20;
  * (day grouping, pending collapsible, edit pencils); this host only owns pagination and
  * reload-on-sheet-close (dropping continuation pages of the stale dataset).
  *
- * Deliberately flat and thread-free: neither the first-page resource nor `loadMore` sends
- * `collapseThreads`, so every thread member stays a row of its own. Thread UI is scoped to the
+ * Deliberately flat and conversation-free: neither the first-page resource nor `loadMore` sends
+ * `collapseThreads`, so every sublink stays a row of its own. Nested-thread UI is scoped to the
  * home feed and the admin console, and this tab is a browsable "everything submitted" view
- * where hiding members behind a root would lose rows the reader came for. Grouping/labelling
+ * where hiding sublinks behind a root would lose rows the reader came for. Grouping/labelling
  * happens in the shared list (keyed on the DISPLAYED instant, `occurredAt ?? created` — the
  * backend orders this same connection by `-occurred_at, -id`), so there is no per-host date
  * logic here to drift out of sync.
+ *
+ * 🔴 WHY NO CARD EVER SHOWS A "N links" CHIP HERE, pinned by this file's spec. Two independent
+ * facts have to hold, and either one alone is enough:
+ *   1. `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` does not select `sublinks`, so a row carries no
+ *      expansion for a chip to reveal — the list is complete and flat by construction;
+ *   2. `app-link-list` renders `app-link-card` without binding `[sublinkCount]`, and the card
+ *      reads that INPUT (never `link.sublinkCount`) to gate the chip. The node may carry a real
+ *      descendant count — this document does select `sublinkCount` as a plain fact — and the chip
+ *      still stays off, because a list that already shows every link as its own row must not
+ *      offer an expansion pointing at a nesting that does not exist here.
+ * Adding the tree fields to the shared list would therefore be a product change, not a
+ * refactor, and the spec in links-section.component.spec.ts fails the moment it happens.
  */
 @Component({
   selector: "app-links-section",

@@ -62,6 +62,9 @@ import {
   GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
   GroupSocialMediaLinksData,
   GroupSocialMediaLinksVars,
+  REORDER_SOCIAL_MEDIA_LINKS_MUTATION,
+  ReorderSocialMediaLinksData,
+  ReorderSocialMediaLinksVars,
   UNGROUP_SOCIAL_MEDIA_LINKS_MUTATION,
   UngroupSocialMediaLinksData,
   UngroupSocialMediaLinksVars,
@@ -70,15 +73,83 @@ import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
 
 type CompletedFilter = "any" | "pending" | "completed";
 
+/** Pixels of left padding per level of conversation depth. A flat arithmetic
+ *  scale rather than a Tailwind class per level: the store bounds nesting at
+ *  `MAX_THREAD_DEPTH`, but a hand-edited row can be deeper than any ladder of
+ *  `pl-5` / `pl-10` classes, and an out-of-ladder row must still render indented
+ *  instead of snapping back to column zero and reading as a root. */
+const DEPTH_INDENT_PX = 16;
+
 const COMPLETED_LABEL: Record<CompletedFilter, string> = {
   any: "All",
   pending: "Pending",
   completed: "Completed",
 };
 
+/** A decimal id, the shape every link id in this feature has (GraphQL `ID`
+ *  serialised from an integer primary key). Used by the tie-break below to tell a
+ *  numeric key from a non-numeric one rather than trusting `Number()`. */
+const DECIMAL_ID = /^\d+$/;
+
 /**
- * /console/insiden/links — triage queue for crowd-submitted social media
- * posts. Text search (URL + title, matched server-side) is debounced; the
+ * The order ONE SIBLING RUN is in: `position` ASC, then `id` ASC. Total, and
+ * never the array's own order.
+ *
+ * WHY THIS IS THE WHOLE RULE: `reorderSocialMediaLinks` is a PERMUTATION of one
+ * existing sibling set (backend `social_link_threads.py::_reorder_sync` — it
+ * renumbers the ids it is given to `10, 20, 30, …` from the ORDER THEY ARRIVE IN
+ * and leaves every sibling it was not told about after them), so the list this
+ * comparator orders IS the list the server writes. A run taken from the queue's
+ * arrival order is a different ordering, and the first move would write the
+ * feed's `occurredAt DESC, id DESC` timeline over a conversation the backend
+ * assembled oldest-first — arriving, here, reversed.
+ *
+ * 🔴 WHY `id` IS A REQUIRED SECOND KEY, not a nicety: every structural write
+ * renumbers a run to the exact `10, 20, 30, …` series, EXCEPT ungrouping —
+ * backend `_ungroup_sync` writes `parent` ONLY ("inventing a root order nobody
+ * asked for is a presentation change disguised as a repair"), so a promoted link
+ * keeps the number it held under its old parent and can TIE with a root that
+ * already holds it. A root's `parentId` is `null`, so every root is a sibling of
+ * every other root and the ROOT run is where the collision is observable. A sort
+ * on `position` alone leaves that to the engine's sort stability, i.e. to the
+ * arrival order — which is the very thing this comparator exists to stop.
+ *
+ * The id comparison mirrors the backend's own `(position, pk)` (see
+ * `schema/loaders.py::batch_load_sublink_subtrees`, which is what renders
+ * `sublinks`), so a tie resolves the way the nested list is DRAWN rather than
+ * lexicographically — `"10"` would otherwise sort before `"9"`. Anything that is
+ * not a decimal id falls back to a code-unit compare, which is still total: the
+ * requirement is determinism, not numeric semantics.
+ *
+ * The `typeof` coercions below keep the comparison ANTISYMMETRIC over a payload
+ * that dropped the key, so a sort can never produce `NaN` from it — they do not
+ * decide anything. `position` is a required `number` here, and `runOrderIsKnown`
+ * refuses the whole run while any sibling lacks one, so no consumer of a sorted run
+ * can act on a row that landed by the fallback. It is spelled exactly as the
+ * profile surface's copy on purpose: the two components cannot share a module, and
+ * a rule written down twice has to be written down the same way twice.
+ */
+function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): number {
+  const leftPosition = typeof a.position === "number" ? a.position : 0;
+  const rightPosition = typeof b.position === "number" ? b.position : 0;
+  if (leftPosition !== rightPosition) {
+    return leftPosition - rightPosition;
+  }
+  if (DECIMAL_ID.test(a.id) && DECIMAL_ID.test(b.id)) {
+    const left = Number(a.id);
+    const right = Number(b.id);
+    if (left !== right) {
+      return left - right;
+    }
+  }
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/**
+ * /console/links — triage queue for crowd-submitted social media
+ * posts (its component still lives under `console/insiden/links/`; only the
+ * URL moved, and `/console/insiden/links` redirects here).
+ * Text search (URL + title, matched server-side) is debounced; the
  * category dropdown and the All/Pending/Completed status select refetch
  * immediately. The line/vehicle/station selects and the occurred-between
  * date range also refetch through the same trailing debounce (they map to the
@@ -119,15 +190,70 @@ const COMPLETED_LABEL: Record<CompletedFilter, string> = {
  * the row action carries no second permission check.
  *
  * THREAD GROUPING is a moderation/organisation tool here, NOT a display mode:
- * the list stays flat, every link gets its own row, and grouping is expressed
- * only as a `N links` chip on a root plus the per-row Ungroup. The chip is
- * load-bearing rather than decorative — a thread is public IFF its ROOT is, so
- * hiding a root silently pulls every member out of the feed with it. Nothing in
- * the row states that, so `hideLink` asks before doing it (see
- * `confirmThreadCoupling`). Selection itself is pure: `selectedIds` is only ever
- * built and judged through `link-thread-selection.util.ts`, the same module the
- * profile surface's "My Submitted Links" uses, so the two cannot drift on
- * questions like "may I group this?" and "does this row show a chip?".
+ * the list stays flat, every link gets its own row, and the hierarchy is
+ * expressed as a DEPTH INDENT plus a `N links` chip per row plus the per-row
+ * Ungroup / Move up / Move down / Nest under actions. The table stays one row
+ * per link deliberately: nesting a conversation inside a table cell is the
+ * single thing that makes a moderation queue unreadable, and an admin's job is
+ * to compare rows, not to expand one.
+ *
+ * The hierarchy is a TREE, not the old two-level thread: `parentId` points at
+ * any link, depth is arbitrary up to the store's cap, and every node keeps its
+ * own descendants (`sublinkCount` is a node's OWN count at ANY depth, so it is
+ * NOT the conversation's size — read the root's row for that, and never sum the
+ * column, which double-counts by exactly the depth). Two consequences run
+ * through this component:
+ *
+ * 1. THE CHIP, AND WHY ITS ARGUMENT IS `sublinkCount + 1`. `threadLabel`'s
+ *    parameter is a CONVERSATION SIZE and it answers `""` for anything `<= 1`,
+ *    so the raw descendant count must not be handed to it: a root with exactly
+ *    ONE sublink would lose its chip entirely (`1` → `""`), while every leaf
+ *    would keep it correctly absent (`0` → `""`) — which is exactly why the bug
+ *    hides. Do not "simplify" the `+ 1` away; it is the off-by-one
+ *    `threadLabel`'s own docstring is written around.
+ * 2. THE HIDE COUPLING IS RECURSIVE. A conversation is public iff its ROOT is,
+ *    so hiding a root pulls its whole subtree out of the feed — and under the
+ *    tree that is true at EVERY depth, not just one: hiding a mid-tree node
+ *    takes its own descendants with it, and the middle node that joins them is
+ *    how a deep conversation can be broken in half. Nothing in a row states any
+ *    of that, so `hideLink` asks before doing it (see `confirmThreadCoupling`).
+ *
+ * THE SEQUENCE (Move up / Move down) writes the stored sibling order through
+ * `reorderSocialMediaLinks`, which is a PERMUTATION of one existing sibling set
+ * and renumbers it `10, 20, 30, …` server-side. Two client rules follow and both
+ * are load-bearing: the payload is the WHOLE sibling run reordered (sending only
+ * the two swapped rows is a different, wrong request), and the `parentId` key is
+ * ALWAYS present, `null` being the meaningful "reorder the roots" case. The
+ * argument is `ID` — nullable with no SDL default, so in GraphQL "required" IS
+ * "non-null" and omitting the key is legal; the RESOLVER'S OWN GUARD
+ * (`interactions.py:287`) refuses the omission, deliberately, at execution time.
+ *
+ * ⚠️ THE ORDER THIS TABLE SHOWS IS NOT THE ORDER IT WRITES — and that is the
+ * design, not a gap. The queue is sorted `occurredAt DESC, id DESC`, which is a
+ * TRIAGE order ("what happened most recently") and stays exactly as it is. The
+ * stored sibling sequence is a DIFFERENT ordering, `position` ASC, and it is the
+ * one a conversation reads in. So every payload here is built from the STORED run
+ * with one row moved (see `siblingsOf` and `compareStoredSequence`), while the
+ * table keeps rendering the event-time order. The visible consequence is
+ * deliberate: a successful move can leave the table looking unchanged, because
+ * the two orders are not the same order, and the toast is what reports the write.
+ * The converse is deliberate too — a conversation the backend assembled
+ * oldest-first arrives here newest-first, so the move buttons answer from the
+ * stored run rather than from what happens to be on screen.
+ *
+ * ONE PRECONDITION COMES WITH THAT. A row whose `position` did not arrive is a
+ * row whose stored order is UNKNOWN, and a permutation of an unknown order is
+ * indistinguishable from a permutation of a wrong one: the server accepts either,
+ * renumbers it, and the guess becomes the stored truth. So the sequence actions
+ * refuse while any sibling's `position` is missing — and say so on the button —
+ * rather than inventing an order the admin never saw.
+ *
+ * Selection itself is pure: `selectedIds` is only ever built and judged through
+ * `link-thread-selection.util.ts`, the same module the profile surface's "My
+ * Submitted Links" uses, so the two cannot drift on questions like "may I group
+ * this?" and "does this row show a chip?". Reordering deliberately KEEPS the
+ * selection: a reorder is not a grouping change, so the rows an admin ticked to
+ * find the sequence are still the rows they ticked afterwards.
  */
 @Component({
   selector: "app-console-social-media-links",
@@ -214,10 +340,202 @@ export class SocialMediaLinksComponent {
   );
 
   /** Re-exposed, not re-implemented: an Angular template can only read members off
-   *  the component class, and the pluralisation of a thread size is decided in
+   *  the component class, and the pluralisation of a CONVERSATION SIZE is decided in
    *  exactly one module so this table and the profile surface's badge cannot end
    *  up disagreeing ("1 links" vs "2 link"). */
   protected readonly threadLabel = threadLabel;
+
+  /* ---- Hierarchy: depth, sequence, nesting ------------------------------- */
+
+  /** Is the loaded queue EVERY link there is?
+   *
+   *  🔴 This is the precondition for the sequence actions, and the reason they are
+   *  disabled under any filter: `reorderSocialMediaLinks` permutes ONE sibling
+   *  SET, so a payload built from a filtered page is a PARTIAL permutation. That
+   *  does not fail loudly — the server writes the named ids first and leaves every
+   *  unnamed sibling after them — so the call SUCCEEDS and silently shoves a row
+   *  the admin cannot see to the end of the conversation. Offering it here would
+   *  let the stored order quietly disagree with the order on screen, which is
+   *  worse than not offering the action at all.
+   *
+   *  Only an unfiltered queue proves otherwise: the console resolver has no
+   *  pagination and no row cap (backend `get_social_media_links`), so "no search,
+   *  no category, no line/vehicle/station, no date window, Status on All" means
+   *  the loaded set is the whole table and therefore the whole of every sibling
+   *  set in it. The status filter counts: the queue DEFAULTS to Pending, which
+   *  already hides every completed row.
+   *
+   *  It is a SIGNAL, not a computed over the filter controls, because the answer
+   *  belongs to the ROWS and not to the dials: a dial changes up to a trailing
+   *  debounce before any refetch, so a computed would re-enable the action while
+   *  a filtered page was still on screen. `fetchLinks` writes it from the same
+   *  applied filter snapshot that built the query, so the flag and the rows it
+   *  describes cannot disagree. */
+  protected readonly queueIsComplete = signal(false);
+
+  private readonly _rowsById = computed(() => new Map(this.links().map((l) => [l.id, l])));
+
+  /** Each loaded row's depth, computed by walking its `parentId` chain INSIDE the
+   *  loaded set.
+   *
+   *  The walk is bounded and cannot loop: it stops as soon as a `parentId` is not a
+   *  loaded row, and also on any id it has already visited, so hand-edited cyclic
+   *  data renders as "not nested" instead of hanging the queue. The store's
+   *  `MAX_THREAD_DEPTH` caps what can legitimately exist and this does not rely on
+   *  it: a chain deeper than any ladder of classes still indents.
+   *
+   *  🔴 A ROW WHOSE PARENT IS NOT IN THE LOADED SET IS TREATED AS A ROOT (depth 0),
+   *  and that is the rule for every case a filter causes — search for a phrase and
+   *  a sublink's parent is not in the result, so the sublink shows up flush with
+   *  the roots. The alternatives (indenting by a depth that cannot be derived, or
+   *  leaving a gap where an invisible parent would be) would render a hierarchy
+   *  the payload does not contain and make a filtered queue look like a corrupted
+   *  one. Every structural action a row offers is scoped to the loaded set anyway,
+   *  so the flattened depth costs nothing but an indentation.
+   *
+   *  Depth is a function of the `parentId` CHAIN and nothing else, which is why it
+   *  needs no ordering at all: no sequence of moves can change a row's depth, so
+   *  the indentation, the sibling run and the reorder payload cannot come to
+   *  disagree about it. (The run is ordered by `position` — see `siblingsOf` — and
+   *  the DISPLAY order is still the queue's `occurredAt DESC, id DESC`; three
+   *  orderings, each with one job.) */
+  private readonly _depths = computed(() => {
+    const byId = this._rowsById();
+    const depths = new Map<string, number>();
+    for (const link of this.links()) {
+      const visited = new Set<string>([link.id]);
+      let depth = 0;
+      let cursorId = link.parentId;
+      while (cursorId && byId.has(cursorId) && !visited.has(cursorId)) {
+        visited.add(cursorId);
+        depth += 1;
+        cursorId = byId.get(cursorId)?.parentId ?? null;
+      }
+      depths.set(link.id, depth);
+    }
+    return depths;
+  });
+
+  /** A method rather than a per-row signal: the map behind it is one computed over
+   *  the whole queue, and the template asks once per row. */
+  protected depthOf(link: SocialMediaLinkRow): number {
+    return this._depths().get(link.id) ?? 0;
+  }
+
+  /** The indent step the template multiplies a row's depth by. */
+  protected readonly depthIndentPx = DEPTH_INDENT_PX;
+
+  /** The row's sibling RUN: every loaded row sharing its `parentId`, in the STORED
+   *  order — `position` ASC, `id` as the tie-break (see `compareStoredSequence` for
+   *  why the second key is not optional). `?? null` normalises a payload that
+   *  omitted the key, so a real root and a row with an absent `parentId` land in ONE
+   *  run instead of two.
+   *
+   *  THIS ARRAY IS THE CONTRACT, and it is deliberately the ONLY place a run is
+   *  built: the reorder payload, the move index and the "already first / already
+   *  last" reasons all read off it, so they cannot disagree with each other. It is
+   *  NOT the order this table renders — the table stays `occurredAt DESC, id DESC`,
+   *  and a run permuted in the arrival order would write the queue's triage ordering
+   *  as the conversation's sequence. `filter` copies, so the in-place `sort` cannot
+   *  touch the `links` signal's own array. */
+  private siblingsOf(link: SocialMediaLinkRow): SocialMediaLinkRow[] {
+    const parentId = link.parentId ?? null;
+    return this.links()
+      .filter((row) => (row.parentId ?? null) === parentId)
+      .sort(compareStoredSequence);
+  }
+
+  /** Can the STORED order of this row's run be read at all? False as soon as any
+   *  sibling came back without a `position`.
+   *
+   *  🔴 A MISSING `position` IS NOT ZERO and must not be sorted as if it were. The
+   *  column is gap-spaced (`10, 20, 30, …`), so `0` is not "before 10" — it is only
+   *  the model's own default for a row written outside `save()`. A `?? 0` fallback
+   *  would float the unknown row to the head of the conversation and then WRITE
+   *  that as the stored sequence: a silent, permanent overwrite of an order nobody
+   *  read. Refusing is the same discipline as `queueIsComplete` — a precondition this
+   *  table cannot prove means no call, and the reason is stated rather than swallowed.
+   *
+   *  A `typeof` check, and deliberately not a type-driven one: `position` is a
+   *  required `number` on the row type, so this guards a payload that omitted the
+   *  key anyway (a stale cache, a host that stopped selecting it) — and
+   *  `strictNullChecks` is off, so the compiler would never report it. The profile
+   *  surface's identical check is load-bearing for real there, where the field is
+   *  genuinely optional. */
+  private runOrderIsKnown(link: SocialMediaLinkRow): boolean {
+    return this.siblingsOf(link).every((row) => typeof row.position === "number");
+  }
+
+  /** The row's own index in its sibling run — in the STORED order, because that is
+   *  what `siblingsOf` returns — or -1 if it is not in the run (a row re-fetched out
+   *  from under a click). Every move decision below is an index test against this
+   *  one array, which is what keeps a button's enabled state and the payload that
+   *  button produces in agreement. */
+  private siblingIndexOf(link: SocialMediaLinkRow): number {
+    return this.siblingsOf(link).findIndex((row) => row.id === link.id);
+  }
+
+  /** Offered at every row except the head of its run. A one-row run disables both
+   *  directions, which is the common case for an ungrouped link: there is no
+   *  sequence to put it in. */
+  protected canMoveUp(link: SocialMediaLinkRow): boolean {
+    return this.queueIsComplete() && this.runOrderIsKnown(link) && this.siblingIndexOf(link) > 0;
+  }
+
+  /** Offered at every row except the tail of its run — the mirror of `canMoveUp`,
+   *  kept as its own method so the template never computes an index to decide a
+   *  disabled state. */
+  protected canMoveDown(link: SocialMediaLinkRow): boolean {
+    if (!this.queueIsComplete() || !this.runOrderIsKnown(link)) {
+      return false;
+    }
+    const index = this.siblingIndexOf(link);
+    return index >= 0 && index < this.siblingsOf(link).length - 1;
+  }
+
+  /** Why a sequence action is off, as copy for the disabled button's tooltip, or
+   *  `null` when it IS available — so the template binds the title straight through
+   *  and never restates any of the conditions. Three reasons, and every one of them
+   *  is a silent-failure trap, which is why a disabled button says which it is. */
+  protected moveBlockedReason(link: SocialMediaLinkRow, direction: "up" | "down"): string | null {
+    if (!this.queueIsComplete()) {
+      return "Clear the filters to reorder: this page may be missing siblings of this link, and a partial sequence would push the hidden ones to the end of the conversation.";
+    }
+    if (!this.runOrderIsKnown(link)) {
+      // Direction-agnostic on purpose: the whole run is unorderable, so neither of
+      // its ends can honestly be named — "already first" would be a claim about an
+      // order this queue cannot read.
+      return "Can't reorder this conversation yet: one of these links arrived without its stored order (`position`), so the sequence they are in is unknown and reordering it would write a guess.";
+    }
+    const index = this.siblingIndexOf(link);
+    const atEnd =
+      direction === "up" ? index <= 0 : index < 0 || index >= this.siblingsOf(link).length - 1;
+    if (!atEnd) {
+      return null;
+    }
+    return direction === "up"
+      ? "Already first among the links sharing this parent."
+      : "Already last among the links sharing this parent.";
+  }
+
+  /** Nest-under consumes the selection, so it needs the same two ticks grouping
+   *  does, and the target must not be one of them. */
+  protected canNestUnder(link: SocialMediaLinkRow): boolean {
+    return this.canGroupSelection() && !this.selectedIds().includes(link.id);
+  }
+
+  /** Why Nest-under is off, or `null` when it is available. Both reasons are
+   *  things the server would REJECT THE WHOLE CALL for, so the copy names them
+   *  rather than showing a dead button. */
+  protected nestBlockedReason(link: SocialMediaLinkRow): string | null {
+    if (this.selectedIds().includes(link.id)) {
+      return "This link is ticked too — nesting a selection under one of its own links is a cycle, and the whole call is rejected.";
+    }
+    if (!this.canGroupSelection()) {
+      return "Tick at least two links to nest under this one.";
+    }
+    return null;
+  }
 
   /** Edit form state — same signals as LinkFormComponent's fields, driven by
    * the console's own sheet instead of LinkSheetService. */
@@ -478,7 +796,7 @@ export class SocialMediaLinksComponent {
     this.load();
   }
 
-  /* ---- Multi-select + thread grouping ---------------------------------- */
+  /* ---- Multi-select + conversation grouping ---------------------------- */
 
   /** One row's checkbox. Routed through the shared helper because the result is
    *  written straight back into a signal: an in-place `push`/`splice` would
@@ -501,65 +819,152 @@ export class SocialMediaLinksComponent {
     this.selectedIds.set([]);
   }
 
-  /** Start a NEW thread from the ticked rows (no `threadId` sent, so the backend
-   *  elects the root — the earliest `(occurredAt, id)` of the selection).
+  /** The selection scoped to what is on screen, blanks dropped. Applied by BOTH
+   *  group verbs before anything is sent: `linkIds` is `[ID!]!`, so an empty
+   *  element is a hard validation error, and the server rejects the whole call
+   *  if one id is not the admin's to touch — an id scrolled out of a filtered
+   *  page would make every grouping action fail for no visible reason. */
+  private scopedSelection(): string[] {
+    return selectedWithin(this.selectedIds(), this.visibleLinkIds()).filter(Boolean);
+  }
+
+  /** Start a NEW conversation from the ticked rows.
+   *
+   *  The `parentId` key is OMITTED here, which is what the backend reads as "no
+   *  target": it elects the root — the earliest `(occurredAt, id)` of the
+   *  selection — and hangs the rest off it. Sending an explicit `null` would
+   *  mean the same thing (the argument is `ID = null`, nullable WITH a default),
+   *  but omitting it is the spelling that stays correct if that default ever
+   *  becomes meaningful. Contrast `reorderSiblings`, where the key is ALWAYS
+   *  present because an omission is refused by the resolver's own guard
+   *  (`interactions.py:287`) — the argument is `ID`, nullable with no default,
+   *  so the SDL itself cannot require it.
    *
    *  Grouping is ALL-OR-NOTHING server-side: one link outside the admin's
-   *  permission rejects the entire selection, so there is no partial state to
-   *  render and nothing to roll back locally. A failure therefore toasts and
-   *  leaves both the list and the selection exactly as they were — keeping the
-   *  selection on failure is deliberate: the admin can adjust it and retry
-   *  instead of re-ticking from scratch. Success reloads (the list is flat, so
-   *  the server's `threadSize`/`threadId` truth is what drives the chips) and
-   *  clears the selection, which is otherwise a selection of rows that are now
-   *  members of one thread — i.e. a request that has already been made.
+   *  permission, a cycle or a depth-cap breach rejects the entire selection, so
+   *  there is no partial state to render and nothing to roll back locally. A
+   *  failure therefore toasts and leaves both the list and the selection exactly
+   *  as they were — keeping the selection on failure is deliberate: the admin can
+   *  adjust it and retry instead of re-ticking from scratch. Success reloads (the
+   *  list is flat, so the server's `parentId`/`sublinkCount` truth is what drives
+   *  the indentation and the chips) and clears the selection, which is otherwise
+   *  a selection of rows that are now one conversation — i.e. a request that has
+   *  already been made.
    *
    *  The returned root id is deliberately unused: it is an `Int` (every other id
    *  in this feature is a string `ID`) and exists so a COLLAPSED surface could
-   *  refetch exactly one thread. This list is flat and reloads wholesale, so
-   *  there is nothing to spend it on. */
+   *  refetch exactly one conversation. This list is flat and reloads wholesale,
+   *  so there is nothing to spend it on. */
   protected async groupSelected(): Promise<boolean> {
-    // Scoped to what's on screen, and filtered for blanks: `linkIds` is
-    // `[ID!]!`, so an empty element is a hard validation error.
-    const linkIds = selectedWithin(this.selectedIds(), this.visibleLinkIds()).filter(Boolean);
+    const linkIds = this.scopedSelection();
     if (!canGroup(linkIds)) {
       return false;
+    }
+    return this.sendGrouping(
+      linkIds,
+      undefined,
+      "Links grouped",
+      `${linkIds.length} links are now one conversation.`,
+      "Couldn't group links",
+    );
+  }
+
+  /** Nest the ticked rows as CHILDREN of the row this was clicked on — the same
+   *  verb as "Group into thread", with a target instead of an elected root.
+   *
+   *  WHY A ROW ACTION AND NOT A TARGET PICKER: the selection is the payload and
+   *  the row is the target, so the click that names both is the row whose
+   *  conversation the admin is looking at. A picker would ask them to choose,
+   *  from a list of rows that is ALREADY on screen in front of them, the exact
+   *  same target — one extra click and a second source of truth for "where does
+   *  this go", with the same cycle rules to enforce. The row's own Nest-under
+   *  button is disabled (with a stated reason) whenever the action cannot be
+   *  sent, so the affordance is never a live control that quietly does nothing.
+   *
+   *  The guards are the two the server would reject the whole call for:
+   *   - fewer than two ticked rows, which is `canGroup` — a one-link subtree is
+   *     a no-op that renders as no subtree at all;
+   *   - the target itself being in the selection, which is a CYCLE: a link cannot
+   *     be its own ancestor. The server rejects such a call as a unit, with
+   *     nothing written, so the client never sends one.
+   *  Both are re-checked here and not only in the template, so a programmatic
+   *  call cannot post a request the server will refuse wholesale. The depth cap
+   *  is the third server-side rejection and is NOT mirrored here: it depends on
+   *  where the target sits in a tree this table cannot fully see (a filtered page
+   *  hides ancestors), so the server stays the authority and its message is what
+   *  the admin reads.
+   *
+   *  Success clears the selection, exactly as grouping does: the ticked rows are
+   *  now one subtree, so re-ticking them would offer to nest them again. */
+  protected async nestSelectedUnder(link: SocialMediaLinkRow): Promise<boolean> {
+    if (!this.canNestUnder(link)) {
+      return false;
+    }
+    const linkIds = this.scopedSelection();
+    if (!canGroup(linkIds)) {
+      return false;
+    }
+    return this.sendGrouping(
+      linkIds,
+      link.id,
+      "Links nested",
+      `${linkIds.length} links are now under ${link.url}.`,
+      "Couldn't nest links",
+    );
+  }
+
+  /** The one call both group verbs make, so the tri-state `parentId` spelling, the
+   *  auth header, the reload and the all-or-nothing failure handling cannot drift
+   *  between them.
+   *
+   *  `parentId === undefined` OMITS the key (start a new conversation); a string
+   *  sends it (nest under that link). The two are not the same request, which is
+   *  why the parameter is optional rather than nullable. */
+  private async sendGrouping(
+    linkIds: string[],
+    parentId: string | undefined,
+    successTitle: string,
+    successBody: string,
+    errorTitle: string,
+  ): Promise<boolean> {
+    const vars: GroupSocialMediaLinksVars = { linkIds };
+    if (parentId) {
+      vars.parentId = parentId;
     }
     this.isLoading.set(true);
     try {
       const idToken = await this.auth.idToken();
       await this.graphql.request<GroupSocialMediaLinksData, GroupSocialMediaLinksVars>(
         GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
-        { linkIds },
+        vars,
         idToken ? { "firebase-auth-key": idToken } : {},
       );
-      this.toast.success("Links grouped", `${linkIds.length} links are now one thread.`);
+      this.toast.success(successTitle, successBody);
       await this.fetchLinks();
       this.clearSelection();
       return true;
     } catch (err) {
-      this.toast.error(
-        "Couldn't group links",
-        err instanceof Error ? err.message : "Unknown error",
-      );
+      this.toast.error(errorTitle, err instanceof Error ? err.message : "Unknown error");
       return false;
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  /** Detach ONE member from its thread. Offered only where `threadId` is
-   *  non-null, i.e. on a member — which is the only spelling of this action that
-   *  does anything: ungrouping a ROOT leaves its members attached (there is
-   *  nothing to detach), so a root's job here is to show the chip and the Ungroup
-   *  buttons of its members, not an Ungroup of its own.
+  /** Detach ONE link from whatever it hangs under. Offered only where
+   *  `parentId` is non-null, i.e. on a sublink — which is the only spelling of
+   *  this action that does anything: ungrouping a ROOT leaves its whole subtree
+   *  attached (there is nothing to detach), so a root's job here is to carry the
+   *  chip and its descendants' Ungroup buttons, not an Ungroup of its own.
    *
    *  The asymmetry is deliberate server-side (no cascade, no re-root election), so
-   *  the button detaches exactly the row it is on and the copy says so. Repeated
-   *  on every member, it dissolves the thread while leaving the original root
-   *  standing as a singleton — which is why the root is never re-pointed here. */
+   *  the button detaches exactly the row it is on and the copy says so. Under the
+   *  tree it also has a consequence the depth-1 design did not have: a PROMOTED
+   *  link keeps its own children, so ungrouping a middle node lifts a whole
+   *  subtree to the root level. The server deliberately does not flatten it and
+   *  neither does this row, which is why the copy stays about the one row. */
   protected async ungroupLink(link: SocialMediaLinkRow): Promise<boolean> {
-    if (!link.threadId) {
+    if (!link.parentId) {
       return false;
     }
     this.isLoading.set(true);
@@ -570,7 +975,7 @@ export class SocialMediaLinksComponent {
         { linkIds: [link.id].filter(Boolean) },
         idToken ? { "firebase-auth-key": idToken } : {},
       );
-      this.toast.success("Link removed from its thread", link.url);
+      this.toast.success("Link removed from its parent", link.url);
       await this.fetchLinks();
       return true;
     } catch (err) {
@@ -584,18 +989,169 @@ export class SocialMediaLinksComponent {
     }
   }
 
-  /** Publish a row that isn't LIVE yet (community submission or an
-   *  auto-ingested operator post) through the existing update mutation.
+  /* ---- Sequence (reorder) ---------------------------------------------- */
+
+  /** "Move up" in the row's sibling run. A named wrapper so the template reads as
+   *  an action rather than as an arithmetic shift into a shared verb. */
+  protected moveLinkUp(link: SocialMediaLinkRow): Promise<boolean> {
+    return this.reorderSiblings(link, -1);
+  }
+
+  /** "Move down" — the mirror. Same payload shape, opposite direction. */
+  protected moveLinkDown(link: SocialMediaLinkRow): Promise<boolean> {
+    return this.reorderSiblings(link, 1);
+  }
+
+  /** 🔴 THE SEQUENCE WRITE. Everything about this call is shaped by the fact that
+   *  `reorderSocialMediaLinks` is a PERMUTATION OF ONE SIBLING SET, not a move:
    *
-   *  `SocialMediaLinkInput` is not a patch: `url` is non-nullable and the
-   *  service assigns `title` and calls `.set()` on the four M2M tag relations
-   *  unconditionally, so a status-only payload would blank the title and strip
-   *  every tag. The row's current scalars and ids are therefore re-sent
-   *  alongside `status: "LIVE"` (see linkStatusInput). Success reloads the list
-   *  so the publish state comes back as server truth; failures surface via the
-   *  toast (never swallowed) and leave the list untouched. */
+   *  - `linkIds` is the WHOLE run with the row swapped one place, never the two
+   *    rows involved. The server renumbers the ids it is given `10, 20, 30, …` and
+   *    leaves every id it was NOT given after them, so sending a pair would be a
+   *    request to move those two to the front of the run and push everything else
+   *    back — the opposite of a swap, and a silent one.
+   *  - ⚠️ AND THE RUN MUST BE THE STORED ONE. `siblingsOf` returns it in
+   *    `position` ASC with `id` as the tie-break, and THIS payload is the stored
+   *    sibling order with one row moved — never the feed's `occurredAt` order,
+   *    never the order the table happens to render. The server writes the list it
+   *    is given verbatim as the new sequence, so a payload built from the arrival
+   *    order overwrites the stored story with the queue's triage timeline (and
+   *    reverses a conversation the backend assembled oldest-first, which is
+   *    therefore the order it ARRIVES in).
+   *  - `parentId` is the row's OWN `parentId`, and the key is ALWAYS present.
+   *    The argument is `ID` — NULLABLE, with no SDL default, so in GraphQL
+   *    "required" IS "non-null" and omitting the key is LEGAL GraphQL that
+   *    `ProvidedRequiredArgumentsRule` never refuses. What rejects an omitted key
+   *    is the RESOLVER'S OWN GUARD (`if not parent_id: raise GraphQLError`,
+   *    `interactions.py:287`), deliberately, at execution time. It cannot be
+   *    tightened to `ID!`, because the meaningful `null` ("reorder the roots")
+   *    would then become a hard error. `?? null` is what guarantees the key exists
+   *    even if a payload omitted the field entirely.
+   *  - the run comes from the loaded rows, so `queueIsComplete` is the gate: a
+   *    filtered page would send a PARTIAL permutation that succeeds and pushes
+   *    the unseen rows to the end. See that signal for why that is worse than a
+   *    rejection. `runOrderIsKnown` is the second gate and the same argument: a
+   *    run with an unreadable stored order would send a permutation of a GUESS.
+   *
+   *  Optimistic patching is NOT an option here and the reload is not optional
+   *  politeness: the order this table shows is not the order this table writes (it
+   *  shows `occurredAt DESC, id DESC`), so nothing on screen can confirm the new
+   *  sequence even in principle. A reload is what makes the next move a real swap
+   *  against the stored one — the rows come back with their new `position`, which
+   *  this document does select. The table therefore looks unchanged after a
+   *  successful move; that is the honest result, and the toast is what tells the
+   *  admin the write landed.
+   *
+   *  The SELECTION SURVIVES, unlike after grouping: a reorder changes no
+   *  membership, so the rows the admin ticked to find the sequence are still the
+   *  rows they ticked. A failure keeps everything — no reload, no local write, no
+   *  selection change — and toasts, because a swallowed rejection here would look
+   *  exactly like a successful no-op. */
+  private async reorderSiblings(link: SocialMediaLinkRow, delta: -1 | 1): Promise<boolean> {
+    // Both gates again, not just the buttons': this is reachable from a programmatic
+    // call, and a partial or a guess is worse than no call at all.
+    if (!this.queueIsComplete() || !this.runOrderIsKnown(link)) {
+      return false;
+    }
+    const siblings = this.siblingsOf(link);
+    const from = siblings.findIndex((row) => row.id === link.id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= siblings.length) {
+      return false;
+    }
+    // THE PAYLOAD IS THE STORED SIBLING ORDER (`position` ASC, `id` tie-break) WITH
+    // ONE ROW MOVED — never the feed's `occurredAt` order, and never `this.links()`'s
+    // arrival order. `siblings` is already in that order; this only swaps one element
+    // within it, so the whole run is preserved and permuted exactly once.
+    const reordered = [...siblings];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    const linkIds = reordered.map((row) => row.id);
+    this.isLoading.set(true);
+    try {
+      const idToken = await this.auth.idToken();
+      await this.graphql.request<ReorderSocialMediaLinksData, ReorderSocialMediaLinksVars>(
+        REORDER_SOCIAL_MEDIA_LINKS_MUTATION,
+        // ALWAYS both keys — see the note above.
+        { linkIds, parentId: link.parentId ?? null },
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      this.toast.success("Sequence updated", `${linkIds.length} links reordered.`);
+      await this.fetchLinks();
+      return true;
+    } catch (err) {
+      this.toast.error(
+        "Couldn't reorder links",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+      return false;
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  /** Publish a row that isn't LIVE yet (community submission or an
+   *  auto-ingested operator post) AND retire it: approving is the queue's
+   *  "handled it" gesture, so it runs TWO mutations in a fixed order —
+   *  `updateSocialMediaLink(status: "LIVE")` then
+   *  `markSocialMediaLinkCompleted(linkId:)` — and exactly ONE reload at the
+   *  end.
+   *
+   *  WHY TWO WRITES AND NOT ONE. The two fields are orthogonal axes and the
+   *  backend keeps both (no migration): `status` is FEED VISIBILITY
+   *  (`LIVE`/`PENDING_APPROVAL`/`HIDDEN`) and `completed`/`completedAt`/
+   *  `completedBy` is the GLOBAL triage flag. Before this, approving published a
+   *  row and left it sitting in the Pending queue forever, so the admin had to
+   *  find the same row again and press a second button for the thing they had
+   *  just done. Approve now means both, and the standalone "Mark completed"
+   *  action stays for a row that is already visible (e.g. an auto-ingested post
+   *  someone wants retired without a status change).
+   *
+   *  ⚠️ ORDER IS THE CONTRACT. The status write goes first because it is the one
+   *  that can fail on its own (the input is replace-not-patch and the backend
+   *  refuses a non-admin change); completing a row that is still `PENDING_APPROVAL`
+   *  would retire a link nobody can see, which is not what a failed publish meant.
+   *
+   *  🔴 A PARTIAL FAILURE IS NEVER SILENT, and it never rolls back. If the status
+   *  write fails: the existing error toast, NO completion request, and NO reload —
+   *  the list is exactly as it was. If the publish succeeds but the completion
+   *  fails, the row IS live and still pending, so the error toast says exactly
+   *  that in its title, and the reload still happens so the admin sees the true
+   *  state instead of an optimistic chip. The return value is the PUBLISH
+   *  outcome, which is what the detail panel's close-on-success reads.
+   *
+   *  ONE reload, not two: `markCompleted`'s own reload is deliberately not
+   *  reused here (see `sendMarkCompleted`) — a mid-sequence reload would render
+   *  the row as `LIVE` and still pending, and the second reload would race the
+   *  admin's next click. */
   protected async approveLink(link: SocialMediaLinkRow): Promise<boolean> {
-    return this.setLinkStatus(link, "LIVE", "Link approved", "Couldn't approve link");
+    this.isLoading.set(true);
+    try {
+      try {
+        await this.sendLinkStatus(link, "LIVE");
+        this.toast.success("Link approved", link.url);
+      } catch (err) {
+        this.toast.error(
+          "Couldn't approve link",
+          err instanceof Error ? err.message : "Unknown error",
+        );
+        return false;
+      }
+      try {
+        await this.sendMarkCompleted(link);
+      } catch (err) {
+        this.toast.error(
+          "Link approved, but not marked completed",
+          `The link is now published, but it is still waiting in the triage queue: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }. Use “Mark completed” to finish it.`,
+        );
+      }
+      await this.fetchLinks();
+      return true;
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   /** Moderation counterpart of approveLink: pull a row out of the public feed
@@ -604,10 +1160,11 @@ export class SocialMediaLinksComponent {
    *  the same full payload is re-sent. Approve stays available on a hidden row,
    *  which is how an admin puts it back (Approve → `LIVE`).
    *
-   *  On a thread ROOT the action is not confined to the row: the feed renders a
-   *  thread as its root and a thread is public IFF its root is, so hiding the
-   *  root pulls every member out of the feed too. That is a side effect on N
-   *  other rows that no badge states on its own, hence the guard. */
+   *  On any row that has links BELOW it the action is not confined to the row:
+   *  the feed renders a conversation as its root, a conversation is public IFF
+   *  its root is, and hiding a node takes its whole subtree with it at EVERY
+   *  depth — recursively, not just its direct children. That is a side effect on
+   *  N other rows that no badge states on its own, hence the guard. */
   protected async hideLink(link: SocialMediaLinkRow): Promise<boolean> {
     if (!this.confirmThreadCoupling(link)) {
       return false;
@@ -617,7 +1174,7 @@ export class SocialMediaLinksComponent {
 
   /** WHY A CONFIRM, AND WHY ONLY HERE.
    *
-   *  The coupling ("a thread is public iff its root is") is real, it is
+   *  The coupling ("a conversation is public iff its root is") is real, it is
    *  invisible in the row, and it is decided at the moment of the click — so the
    *  least intrusive thing that actually communicates it is a one-time native
    *  confirm naming the count, right where the destructive decision is made. A
@@ -625,24 +1182,90 @@ export class SocialMediaLinksComponent {
    *  hovered, absent on touch, and gone by the time the admin reaches the Hide
    *  button two cells to the right.
    *
-   *  It is NOT applied to every row. `threadLabel` returns "" for a size of 1
-   *  (which is every unthreaded link AND every thread member, since `threadSize`
-   *  counts only the members of the row's OWN thread), so ordinary Hide stays a
-   *  single click and only a genuine multi-link root is asked about. The native
-   *  `confirm()` matches the delete guard this component already uses, so the
-   *  console has one confirmation idiom rather than two. */
+   *  🔴 UNDER THE TREE THE BLAST RADIUS IS NOT ONE LEVEL, and this is the copy
+   *  that has to say so. `sublinkCount` counts a node's descendants AT ANY DEPTH,
+   *  so a root whose only sublink is itself a parent of two more reports a
+   *  conversation of four, and hiding it removes all four — not the two rows
+   *  directly under it. Saying "hides every member" would understate it, and the
+   *  admin would learn the rest of the subtree's fate by looking for it in the
+   *  feed afterwards. A MID-TREE node is asked about too, for the same reason one
+   *  level down: hiding the middle of a conversation takes the rest of it with it.
+   *
+   *  It is NOT applied to every row. `threadLabel` answers "" for a
+   *  conversation size of 1, which is every childless link (an ungrouped link and
+   *  a leaf are both a subtree of nothing), so ordinary Hide stays a single
+   *  click and only a row that really has links below it is asked about. The gate
+   *  is therefore `sublinkCount > 0` and NEVER `isThreadRoot` — the backend
+   *  defines a root as `parentId == null`, which is true of every ungrouped link
+   *  in the queue, so gating on it would interrupt every Hide on the page.
+   *
+   *  🔴 The `+ 1` below is the off-by-one `threadLabel`'s contract demands: its
+   *  parameter is a CONVERSATION SIZE (this node plus its descendants), not the
+   *  descendant count, and it answers "" for anything `<= 1` — so a raw
+   *  `sublinkCount` of 1 (a root with exactly one sublink) would SKIP the
+   *  confirm entirely. Same rule as the chip; the two must never diverge.
+   *
+   *  The native `confirm()` matches the delete guard this component already
+   *  uses, so the console has one confirmation idiom rather than two. */
   private confirmThreadCoupling(link: SocialMediaLinkRow): boolean {
-    const members = threadLabel(link.threadSize);
-    if (!members) {
+    const subtree = threadLabel(link.sublinkCount + 1);
+    if (!subtree) {
       return true;
     }
-    return confirm(
-      `This link is a thread root with ${members} in the thread. A thread is public only while its root is, so hiding this row hides every member too. Hide the whole thread?`,
+    return link.isThreadRoot
+      ? confirm(
+          `This link is the root of a conversation with ${subtree}. A conversation is public only while its root is, so hiding this row hides the whole thing below it — every link in that subtree, at any depth. Hide the whole conversation?`,
+        )
+      : confirm(
+          `This link has ${subtree} below it. Hiding this row hides that whole subtree with it, and a conversation is public only while its root is. Hide it and everything under it?`,
+        );
+  }
+
+  /** The ONE status-changing request the queue makes, for every verb that changes
+   *  one (Hide here, and Approve's publish step). Split out from the
+   *  toast-and-reload wrapper below so the two-step Approve can issue it as the
+   *  first half of its own sequence without dragging that reload along — one
+   *  request builder, one payload, and the replace-not-patch rule cannot drift
+   *  between the verbs.
+   *
+   *  `SocialMediaLinkInput` is not a patch: `url` is non-nullable and the service
+   *  assigns `title` and calls `.set()` on the four M2M tag relations
+   *  unconditionally, so a status-only payload would blank the title and strip
+   *  every tag. The row's current scalars and ids are therefore re-sent
+   *  alongside the new status (see `linkStatusInput`).
+   *
+   *  It REJECTS on failure and never catches: every caller decides what the
+   *  failure means (Hide's "leave it alone" vs Approve's "don't complete either"),
+   *  and a helper that swallowed the error would be exactly where that decision
+   *  got lost. */
+  private async sendLinkStatus(
+    link: SocialMediaLinkRow,
+    status: SocialMediaLinkStatus,
+  ): Promise<void> {
+    const idToken = await this.auth.idToken();
+    await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
+      UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
+      { socialMediaLinkId: link.id, input: linkStatusInput(link, status) },
+      idToken ? { "firebase-auth-key": idToken } : {},
     );
   }
 
-  /** The single status-change path for the queue (Approve / Hide). Shared so the
-   *  replace-not-patch payload can never drift between the two verbs. */
+  /** The one completion request, for the same reason as `sendLinkStatus` above:
+   *  `approveLink` needs the mutation WITHOUT the standalone action's reload, or
+   *  approving would refetch twice. Rejects on failure. */
+  private async sendMarkCompleted(link: SocialMediaLinkRow): Promise<void> {
+    const idToken = await this.auth.idToken();
+    await this.graphql.request<MarkLinkCompletedData, MarkLinkCompletedVars>(
+      MARK_LINK_COMPLETED_MUTATION,
+      { linkId: link.id },
+      idToken ? { "firebase-auth-key": idToken } : {},
+    );
+  }
+
+  /** The single-request status-change path, currently Hide's. Shared so the
+   *  replace-not-patch payload can never drift between the verbs, and so Hide
+   *  cannot grow a completion side effect: `completed` is a triage flag and
+   *  hiding a row is a FEED decision, not a decision that it was handled. */
   private async setLinkStatus(
     link: SocialMediaLinkRow,
     status: SocialMediaLinkStatus,
@@ -651,12 +1274,7 @@ export class SocialMediaLinksComponent {
   ): Promise<boolean> {
     this.isLoading.set(true);
     try {
-      const idToken = await this.auth.idToken();
-      await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
-        UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
-        { socialMediaLinkId: link.id, input: linkStatusInput(link, status) },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
+      await this.sendLinkStatus(link, status);
       this.toast.success(successMessage, link.url);
       await this.fetchLinks();
       return true;
@@ -668,15 +1286,15 @@ export class SocialMediaLinksComponent {
     }
   }
 
+  /** The standalone "Mark completed" action — retire a row WITHOUT touching its
+   *  visibility. Still needed after Approve grew its own completion step: a row
+   *  that is already `LIVE` (or was published by a previous session) can need
+   *  retiring on its own, and a partially-completed approve offers this as the
+   *  documented way to finish the job. */
   protected async markCompleted(link: SocialMediaLinkRow): Promise<boolean> {
     this.isLoading.set(true);
     try {
-      const idToken = await this.auth.idToken();
-      await this.graphql.request<MarkLinkCompletedData, MarkLinkCompletedVars>(
-        MARK_LINK_COMPLETED_MUTATION,
-        { linkId: link.id },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
+      await this.sendMarkCompleted(link);
       this.toast.success("Link marked completed", link.url);
       await this.fetchLinks();
       return true;
@@ -828,6 +1446,27 @@ export class SocialMediaLinksComponent {
     };
   }
 
+  /** The detail sheet's Approve — the SAME two-write sequence the row's Approve
+   *  runs, reached through the same `approveLink`, so the two surfaces cannot
+   *  disagree about what approving means (and there is deliberately no
+   *  panel-only variant to drift).
+   *
+   *  It closes the panel when the PUBLISH succeeded, including the partial-failure
+   *  case: the row is live either way, the toast has already said whether it was
+   *  also retired, and the sheet's `selectedLink` is a stale copy of a row the
+   *  reload has already replaced. `markCompletedFromPanel` closes on the same
+   *  rule. */
+  protected async approveFromPanel(): Promise<void> {
+    const link = this.selectedLink();
+    if (!link) {
+      return;
+    }
+    const ok = await this.approveLink(link);
+    if (ok) {
+      this.closeLinkPanel();
+    }
+  }
+
   protected async markCompletedFromPanel(): Promise<void> {
     const link = this.selectedLink();
     if (!link) {
@@ -867,6 +1506,28 @@ export class SocialMediaLinksComponent {
     } finally {
       this.isDeleting.set(false);
     }
+  }
+
+  /** Does the APPLIED filter snapshot describe the WHOLE table?
+   *
+   *  Read from the applied fields, never from the live controls: the dials change
+   *  up to a trailing debounce before a refetch, and the question is about the
+   *  rows currently on screen. Every axis counts, including the status select —
+   *  `completed: false` (the queue's default) already hides every completed row,
+   *  so "no search and no date range" is not enough to prove a complete sibling
+   *  set. The console resolver has no pagination and no row cap, so an unfiltered
+   *  result really is every link there is. See `queueIsComplete`. */
+  private appliedFiltersAreUnfiltered(): boolean {
+    return (
+      !this.appliedSearch &&
+      !this.appliedCategoryId &&
+      this.appliedCompleted === "any" &&
+      !this.appliedLineId &&
+      !this.appliedVehicleId &&
+      !this.appliedStationId &&
+      !this.appliedDateFrom &&
+      !this.appliedDateTo
+    );
   }
 
   private async load(): Promise<void> {
@@ -921,6 +1582,10 @@ export class SocialMediaLinksComponent {
         idToken ? { "firebase-auth-key": idToken } : {},
       );
       this.links.set(data.socialMediaLinks);
+      // Written from the SAME applied snapshot that built `vars`, and only on
+      // success, so the flag can never claim a whole queue over rows that a
+      // filtered query produced. This is what gates the sequence actions.
+      this.queueIsComplete.set(this.appliedFiltersAreUnfiltered());
     } catch (err) {
       this.toast.error("Couldn't load links", err instanceof Error ? err.message : "Unknown error");
     }

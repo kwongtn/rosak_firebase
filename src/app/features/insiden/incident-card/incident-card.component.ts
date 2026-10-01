@@ -210,7 +210,15 @@ export class IncidentCardComponent implements OnDestroy {
    * `loadMoreLinks`) — so a field the display path reads has to be selected by BOTH: a gap on
    * either side makes a single list label its top 10 rows by one instant and its rows below by
    * another. The invariant is invisible from either document alone; see the sub-select's own
-   * comment in insiden.queries.ts. */
+   * comment in insiden.queries.ts.
+   *
+   * 🔴 AND BOTH DOCUMENTS MUST STAY TREE-FREE, which is what keeps the shared card's in-card "N
+   * links" affordance off this surface. The rows here are not `app-link-card` at all — they are the
+   * compact `[datetime] favicon title` anchors — so a chip would have no host to render in even if
+   * the data carried a count, and an incident's links are a flat, complete list of reports: every
+   * link tagged to the incident gets its own row, and there is no nesting to expand. Neither
+   * document selects `sublinks` (the nested sub-select carries no tree field at all), which keeps
+   * page 1 and the continuation pages in agreement about being flat. Pinned by the spec. */
   protected readonly linkRows = computed(() =>
     this.linkEdges().map((edge) => ({ id: edge.node.id, ...incidentLinkLine(edge.node) })),
   );

@@ -15,6 +15,141 @@
 
 ## Traps
 
+### [2026-10-01] insiden/link-thread: a PERMUTATION API needs the STORED order, not the order the rows happen to arrive in
+
+**Problem**: `reorderSocialMediaLinks(linkIds, parentId)` is a **permutation of one existing sibling
+set**, not a move: backend `social_link_threads.py::_reorder_sync` renumbers the ids it is _sent_ to
+`10, 20, 30, …` in the order they arrive and leaves every sibling it was not told about after them.
+A payload built from the row array's own order is therefore a completely different request — and
+because the server writes the list verbatim, it **succeeds and reports OK**. The concrete failure
+shipped in both sequence surfaces (`/console/links` and My Submitted Links): the list arrives
+`occurredAt DESC, id DESC`, the backend assembles a conversation **oldest-first**, so the first
+"Move up" on a conversation reversed it and the round-trip changed nothing the user could see.
+**Root Cause**: Nothing marks the field that defines the permutation's domain order, so the nearest
+thing to hand is the array in front of you, and it happens to be a _different_ order than the stored
+one. A one-line `sort()` on whatever key the list arrived by is also not a fix: it makes the
+comparator total but still leaves it answering the wrong question. The same hazard as the renamed
+`occurredAfter`/`occurredBefore` filter, one layer up — a client using the wrong column is "working",
+and the damage is permanent because there is no server-side record of the order it should have had.
+**Fix**: both components sort each sibling run by the **stored** order before computing the payload
+_and_ the move-button state, from one shared array: `compareStoredSequence` = `position` ASC, then
+`id` ASC, mirroring the backend's own `(position, pk)` in `schema/loaders.py::batch_load_sublink_subtrees`
+so a tie resolves the way the nested list is _drawn_ (`"10"` must not sort before `"9"`). The console
+gates on `queueIsComplete` and the profile on `!_hasMore`; both also refuse while any sibling's
+`position` is missing (see the two entries below).
+**Prevention**: When a mutation is a permutation, identify the field that defines the permutation's
+**domain order** and sort by it explicitly, with an explicit tie-break. A stable sort is not a
+substitute — it is the arrival order wearing a determinism costume, and it is exactly the order you
+were trying not to send. State the rule where the run is built, and derive the payload, the move
+index and the "already first / already last" reason from that one array so they cannot disagree.
+
+### [2026-10-01] insiden/link-thread: a PARTIAL permutation is not rejected server-side — both clients must prove the sibling set is complete
+
+**Problem**: The same mutation tolerates a partial list instead of validating it. `_reorder_sync`
+renumbers the ids it was sent and **appends the siblings it was not told about**, so sending 3 of a
+run's 7 rows is accepted, pushes the 4 unseen rows to the end of the conversation, and reports
+success. On the console that is a filtered page; on My Links it is a cursor page boundary. The
+failure is silent and permanent — the stored order now disagrees with what the admin arranged.
+**Root Cause**: "Send the whole set" reads like a precondition, and the server's _tolerant_ handling
+of a short list looks like success. There is no error to notice and no id in the `ok`-only response
+to notice it with. Nothing type-checks completeness either: `linkIds: string[]` accepts any length.
+⚠️ Mark the boundary precisely, or you will over-generalise into "the server validates nothing": it
+**does** reject an id that is not already a child of the named parent ("permutes one set of
+siblings"), so **membership is validated and only absence is tolerated**. That asymmetry is exactly
+why a short list is the dangerous case — every id you send really is a sibling, the call is well
+formed, and the omission is the only thing wrong with it.
+**Fix**: both surfaces refuse to reorder until they can prove the set is complete. The console uses
+`queueIsComplete` — a **signal**, not a `computed` over the filter dials, because a dial changes up to
+a trailing debounce before any refetch, so a `computed` would re-enable the action while a filtered
+page was still on screen; `fetchLinks` writes it from the same applied-filter snapshot that built the
+query. "Complete" is strict: no search, no category, no line/vehicle/station, no date window, **and**
+Status on All (the queue defaults to Pending, which already hides rows). My Links uses `!_hasMore` and
+says so in one page-level sentence (`data-testid="thread-sequence-notice"`). Both also state the
+reason on the disabled button rather than showing a dead control.
+**Prevention**: For any "send the whole set" API, check whether the server **validates** completeness
+or merely **tolerates** absence. Toleration is silent data loss, so completeness is the client's
+problem and has to be a _provable_ precondition, not an assumption. Where the loaded set is a
+function of filters or pagination, make the gate derive from the applied snapshot that produced the
+rows, and give it a human-readable reason — "clear the filters" is a task the admin can do; a
+disabled button with no reason is a bug report.
+
+### [2026-10-01] insiden/link-thread: a MISSING `position` is not zero, and a synthesised order becomes the stored truth
+
+**Problem**: A row whose `position` did not arrive has an **unknown** stored order, and a permutation
+of an unknown order is indistinguishable from a permutation of a wrong one. The obvious `?? 0`
+fallback is actively harmful: positions are gap-spaced (`10, 20, 30, …`), so `0` is not "before 10" —
+it is only the model's own default for a row written outside `save()` — and the sort floats that row
+to the head of the conversation, where the next reorder **writes the guess as the sequence**. The
+same reasoning retires an ungrouped root's "position", which can _tie_ with a root that already holds
+that number.
+**Root Cause**: `position` is a required `number` on the console row type and an OPTIONAL one on
+`PublicSocialMediaLink`, and `strict`/`strictNullChecks` are OFF, so no compiler anywhere reports that
+it can be missing. A comparator must stay total over data that can be missing the key, and the
+tempting place to make it total is also the place a decision gets quietly taken.
+**Fix**: both surfaces have a `runOrderIsKnown`/`_runOrderIsKnown` guard — `every(row => typeof
+row.position === "number")` — and both refuse the whole run, with a **direction-agnostic** message
+("…the sequence they are in is unknown and reordering it would write a guess"), because "already
+first" would itself be a claim about an order the list cannot read. The comparators keep a `typeof`
+coercion purely to stay antisymmetric so a sort can never produce `NaN` from a dropped key; no
+decision is ever taken on that result. The runtime guard is a `typeof` check rather than a
+type-driven one on purpose: it guards a payload that omitted the key anyway (stale cache, a host that
+stopped selecting it).
+**Prevention**: Never coalesce a rank to `0` in a comparator whose output is sent to a server. A
+synthesised order is not a degraded answer, it is a **write**. Keep the sort total and the decision
+separate, and when the run is unreadable, say so in a sentence that names the consequence.
+
+### [2026-10-01] testing: a spec factory that spreads `Partial<T>` cannot produce a row satisfying a fully-required `T`
+
+**Problem**: `position` could not be promoted to a required `number` on `SocialMediaLinkRow` while
+the spec factories went on omitting it. The factories are the idiomatic shape —
+`function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkRow { return { …,
+...overrides }; }` — and TypeScript widens **every** property of an object literal through a
+`Partial<T>` spread to `T[k] | undefined`, so each one is a type error against the fully-required
+return type. The tempting fix is to make the field optional on the row type, which is a lie the
+production compiler cannot catch: the console document really does select it.
+**Root Cause**: A `Partial<T>` spread is a _widening_ operation dressed as a narrowing one — the
+overrides are optional but the result must not be. The result type has to be a **required** `T`, so
+every required key must be named in the literal before the spread, and a field the factory forgets
+becomes a compile error rather than a silently-optional one. The trap only surfaces when the
+production type tightens, so a factory written while everything was optional looks permanently fine.
+**Fix**: `makeLink` names `position` (and the other hierarchy fields) explicitly, which is what let
+the field be required. For the opposite case — a row that genuinely arrived **without** `position` —
+both `links.component.spec.ts` and `my-links.component.spec.ts` build it with a `withoutStoredOrder`
+helper that **deletes the key** from a real row and casts, with a comment saying why: loosening the
+factory would put the hole back into every other spec.
+**Prevention**: A factory taking `Partial<T>` cannot produce a row satisfying a fully-required `T`
+unless it names every required key — so write it that way from the start, and if a field is about to
+be promoted to required, the compile error you get is the reminder, not an obstacle. To construct a
+deliberately malformed row, delete the key; never widen the shared factory.
+
+### [2026-10-01] ui/checkbox: a row-level click handler plus a checkbox in that row needs `stopPropagation`, and the checkbox must be driven by `(click)` — not `(checkedChange)`
+
+**Problem**: Two console tables make a whole row the hit target for something and also put a real
+checkbox in it (`/console/spotting` selects rows, `/console/links` opens the detail sheet).
+Two failure modes: (1) the checkbox's toggle **silently undoes itself** — the checkbox handler writes
+the signal synchronously, the click keeps bubbling to the row, the row recomputes
+`targetState = !checkedIds().has(id)` against the just-updated signal and flips it back, so ticking
+appears to do nothing; (2) once a row wants a Shift-click **range**, `(checkedChange)` is unusable —
+only a native `click` carries `event.shiftKey`, and `checkedChange` carries only the new boolean, so
+a shift-click on the box would have to be reconstructed from stashed state.
+**Root Cause**: Angular event bindings are synchronous and `stopPropagation()` is not automatic; the
+trap is invisible because the _single-row_ case still works when both handlers compute the state
+differently (the checkbox from its own value, the row from the signal), so the bug only appears as
+"a row click right after a checkbox click cancels out".
+**Fix**: In `console.page.html` the checkbox binds `(click)="onRowCheckboxClick(event.id, $event)"`
+— which calls `event.stopPropagation()` first, then routes into the **same** private
+`applyRowToggle(id, shiftKey)` the row's `(click)` uses, computing the target state from the row
+(never from the box's emitted value). Verified: Spartan does not stop propagation, so a host-level
+`(click)` really does receive the click from the inner `<button role="checkbox" tabindex="0">`, and
+the keyboard-generated Space/Enter click carries the same modifiers — which is what makes
+Shift+Space range-select for free. Pinned by `console.page.spec.ts` (3 tests fail if the
+`stopPropagation()` is deleted).
+**Prevention**: Any "click the row" + control-in-the-row table: give the control a `(click)` handler
+that stops propagation FIRST, route both paths through one state-computing method, and never let two
+handlers derive the new state from different sources. Drive `(click)`, not `(checkedChange)`, as soon
+as modifiers (Shift/Ctrl/Meta) matter. Sibling pattern already in `links.component.html:220-234`,
+where the same trap is described inline for the sheet.
+
 ### [2026-10-01] core/graphql: `isLoading` is PRISTINE-ONLY — a refresh that completes can never be observed through it (FIXED)
 
 **Problem**: The home page's refresh confirmation ("Updated", transient) never appeared in practice,
@@ -49,6 +184,54 @@ so the effect actually re-runs. If the two flags are ever tempted back into one 
 skeleton gate and the in-flight state are different questions: `isLoading` answers "has this ever
 loaded?", `isFetching` answers "is a request on the wire right now?".
 
+### [2026-10-01] home/feed: a document that OMITS a replace-not-patch input is silent data loss, and an optional key is not a contract
+
+**Problem**: Saving the shared edit sheet on a front-page link silently deleted that link's
+`vehicles`, `stations` and `categories` — no error, no failed request, and nothing visibly different
+on the feed afterwards, because the feed had never been asked for the tags, so the card drew the same
+untagged row before and after. `FEED_QUERY` did not select the three relations, so the sheet hydrated
+them from a link carrying no tag data at all, and the save path sends the **complete** editable set
+with `[]` for each. The comment that licensed the line read that a missing list hydrates as `?? []`,
+_"which is exactly what a link with no tags looks like"_ — true of the **render**, misleading about
+the **write**: under replace-not-patch an absent relation and an empty one are different requests.
+What made it live rather than latent is the same wave's change making conversation **sublinks**
+editable from the front page; previously only a conversation's ROOT was reachable that way. A sublink
+is exactly the row most likely to carry a vehicle tag, and every descendant in a conversation became
+one click from being wiped.
+**Root Cause**: two holes stacked, each invisible on its own. (1) A query document is a hand-written
+string no compiler ever checks against the type it populates, and that type describes a **response**,
+so "the row type has `vehicles`" and "the server was asked for `vehicles`" are unrelated claims.
+(2) The three relations were OPTIONAL on the feed row type, which with `strict`/`strictNullChecks`
+**OFF** is not a contract at all: nothing reports the omission, `?? []` compiles, and the sheet's
+`string[]` payload accepts `[]` happily. A third layer hid it — a hand-written fixture can invent any
+field it likes, so every spec passed while the server was sending no tags. This is the 2026-09-26
+`incident/schema` entry seen from the client side: there the mistake was sending a partial payload,
+here it was reading from a document that could not supply one.
+**Fix**: select the three relations at the root node **and at every nested `sublinks` level**, and in
+`SUBMIT_FEED_LINK_MUTATION`'s mirrored `link` selection, whose declared payload type IS `FeedLink`.
+Each carries the **minimal identifying pair** (`vehicles { id identificationNo }`,
+`stations { id displayName }`, `categories { id name }`) — `Vehicle` also exposes `vehicleType`,
+`incidents`, `spottings` and `spottingTrends(...)`, and the whole scalar on every row of every feed
+page is a real fan-out cost — matching what the flat hosts already select. All three are now
+**required** on `FeedLink` rather than optional: the document selects them at every level, so an
+optional key would be a hole the compiler cannot report and the wrapper would have to `?? []` its way
+past. None of the three is rendered by the card or read by the vote overlay; they exist so a row can
+hand its own tags back to the sheet.
+**Prevention**: Ask which layer is _stating_ that a field is there, because a type is a claim about a
+response, never about a request. **A document that omits a replace-not-patch input is silent data
+loss**, and an **optional** key on a response type is not a contract: with `strict` off nothing reports
+the omission, and no fixture can invent data the query never asked for. If an editor round-trips a
+row, every relation the input `.set()`s must be selected at every level that can be edited. Then make
+the document's own field selection the thing under test: `home.queries.spec.ts` strips `#` comments,
+brace-matches the selection set, and asserts each relation is present with **exactly** its identifying
+pair at **every** level. Substring matching would have been useless here — the document explains itself
+in `#` prose that NAMES the fields, so `toContain("vehicles")` passes on a comment alone — and the
+level count is written as a number (`EXPECTED_LINK_LEVELS`) rather than counted off the document, so
+shortening the chain is red instead of quiet. That second half is not hypothetical: before this spec,
+deleting `sublinkCount` from one nesting level compiled, passed the whole suite, and silently rendered
+a 3-level conversation as 2 levels. A test standing in front of a contract only counts if you delete
+the contract and watch it go red.
+
 ### [2026-09-30] home/store: the authenticated vote overlay read must be the SAME READ as the feed it mirrors — window included
 
 **Problem**: `loadVoteOverlay()` re-reads the feed to fill the id-keyed vote overlay, because
@@ -60,17 +243,24 @@ overlay entry. `LinkThreadComponent.voteFor` then answers `link.userVote ?? 0` �
 zero — so a rider's own upvote renders un-pressed, with no error and no failed request anywhere.
 **Root Cause**: The overlay read was written as a _separate_ query instead of a copy of the
 resource's, and a copy of the resource is the only thing that keeps the two in step. An earlier
-pass fixed the read's SHAPE (it collapses, and the loop walks `threadLinks`) but left the WINDOW
-different, and each half looks like a self-contained decision in isolation. Nothing type-checks the
-agreement: `FeedQueryVars` is a bag of optional flags, so omitting one compiles and passes every
-existing test.
+pass fixed the read's SHAPE (it collapses, and the loop walks the nested children) but left the
+WINDOW different, and each half looks like a self-contained decision in isolation. Nothing
+type-checks the agreement: `FeedQueryVars` is a bag of optional flags, so omitting one compiles and
+passes every existing test.
 **Fix**: `currentServiceDayOnly: true` added to the today overlay read; the last-week overlay read
 was verified (not assumed) to already match `lastWeekResource` on `lastWeekOnly`, `alignPageToDay`
 and the same `first`. The invariant is now written on `loadVoteOverlay()`: same query, same
-variables (window, collapse, page size), auth header the only addition, and the loop walks
-`threadLinks` as well as the roots. `home.store.spec.ts` captures both resource requests' variable
+variables (window, collapse, page size), auth header the only addition, and the loop walks the
+nested children as well as the roots. `home.store.spec.ts` captures both resource requests' variable
 objects and compares them structurally to the two overlay reads' variables, so any added or removed
 key is red.
+**Sharpened 2026-10-01 (the tree)**: the field the walk descends is now `sublinks` (was `threadLinks`)
+and it is **recursive** — the read collapses, so `edges` alone holds only the ROOTS, and a walk that
+stopped at the roots plus one level shipped as a live bug: every node below that level read as the
+anonymous `0`. The full invariant now has three parts — same query, same variables, **and** walk
+every level of the nesting. A client that mirrors `MAX_THREAD_DEPTH` to "stay in step with the
+server" is the mistake: the write-side cap is not the client's business, and mirroring it silently
+loses a level the day the cap moves.
 **Prevention**: When a read exists only to fill a cache/overlay keyed by what another read RENDERS,
 copy the rendered read's variables verbatim instead of assembling them from the arguments at hand.
 Assert the equality structurally (`expect(overlayVars).toEqual(resourceVars)`) rather than
@@ -122,27 +312,72 @@ simply ended, and the following identifier became a syntax error. The reported f
 where the parser gave up, not where the mistake is.
 **Fix**: Use single/double quotes inside any comment that lives inside a template literal (component
 `template:` strings, `styles:`, and every hand-written GraphQL document in `*.queries.ts`).
+**Recurrences** (same root cause, same misattribution — the named file is a symptom):
+
+- 2026-09-30 (2nd): a `#` comment inside `INSIDEN_INCIDENTS_QUERY` (`features/insiden/data/insiden.queries.ts`)
+  wrote `` `created` `` and `` `occurredAt ?? created` ``.
+- 2026-10-01, link-thread tree wave (further instances of the same class): `#` comments in three
+  `/* GraphQL */` documents — the conversation-hierarchy block in the console queue's
+  `SOCIAL_MEDIA_LINKS_QUERY` (`features/console/insiden/data/insiden-console.queries.ts`), and the
+  "Conversation tree" blocks in `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` / `FEED_QUERY`
+  (`features/insiden/data/social-links.queries.ts`, `features/home/data/home.queries.ts`) — now spell
+  every quoted identifier in **double** quotes. The four are `"N links"`, `"does this row expand"`,
+  `"Unknown field"` and `"part of a 3-link report"`, which is the fix and doubles as the proof it
+  happened; all four live in those three documents and nowhere else — the first two in the console
+  queue, the third in the public one, the last in `FEED_QUERY`. `npx prettier --check .` caught it
+  immediately, again as a misleading `SyntaxError` pointing at an unrelated line.
+- The tell for a `#`-comment backtick: the comment reads as if it were documenting an identifier and
+  then the following **selection line** is what the parser complains about, several lines below the
+  real mistake.
+- Corollary worth knowing before you grep: a `templateUrl` component (e.g.
+  `links.component.html`) has **no literal to terminate**, so its HTML comments may use backticks
+  freely. The same comment text that is fatal inline is legal in a separate file — which is why the
+  console's large HTML comments and the card's inline `template:` comments are written differently and
+  both are correct.
+
 **Prevention**: Never put a backtick inside a comment that lives inside a template literal. When a
 repo-wide parse error names a file you have not touched, look at the files whose mtime changed most
 recently **first** — the named file is a symptom. Cheap guard: run `npx prettier --check .`
 immediately after adding a comment to a template literal or a GraphQL document; it catches this in
 seconds, and a full suite run tells you nothing more.
 
-### [2026-09-30] insiden/link-thread: `isThreadRoot` is `threadId == null`, which is ALSO true for every unthreaded link
+### [2026-09-30 → 2026-10-01] insiden/link-thread: two counts, one question — `isThreadRoot` is `parentId == null`, and `threadLabel` takes a conversation SIZE
 
 **Problem**: Gating the thread affordance on the backend's `isThreadRoot` boolean sprouts a
 "N links" badge on **every single row in the app** — every ordinary unthreaded link is a degenerate
-one-member thread and therefore already a "root".
-**Root Cause**: The backend defines a root as `thread == null`, so the flag is a _structural_
-property ("this row is not a member of anything"), not a _feature_ property ("this link has a
-thread"). Its default and its interesting case are the same value, so it cannot be used as a feature
-predicate.
-**Fix**: `app-link-thread` gates the affordance on `threadLinks.length > 0` — the list actually
-revealed. `threadSize` alone is not enough either (a host may select the count without the members),
-and `link-thread-selection.util.ts::threadLabel` returns `""` for a size `<= 1` for the same reason.
+one-member thread and therefore already a "root". Under the tree the flag's definition moved from
+`thread == null` to `parentId == null` and the trap is unchanged: the _structural_ marker and the
+_feature_ question are still different questions. Its second half is the same confusion one layer
+down: `link-thread-selection.util.ts::threadLabel` takes a **CONVERSATION SIZE** (the node plus its
+publicly-visible descendants, i.e. `sublinkCount + 1`) and answers `""` for anything `<= 1`, so
+passing a raw descendant count **silently deletes the chip on a root with exactly ONE sublink**
+(`1` → `""`) while every leaf stays correctly chip-less (`0` → `""`) — which is precisely why the bug
+hides. Three call sites each rediscovered this independently: `app-link-card`'s
+`conversationLabel`, the console's Thread cell + `confirmThreadCoupling`, and My Links'
+`_conversationLabel`.
+**Root Cause**: The backend defines a root as "nothing points at this link", so the flag is a
+_structural_ property ("this row is not a member of anything"), not a _feature_ property ("this link
+has links below it"). Its default and its interesting case are the same value, so it cannot be used
+as a feature predicate. The `threadLabel` half is the identical mistake in the string layer: a
+pluralisation helper whose EMPTY branch means "nothing to show" is a gate as much as a formatter, and
+a caller's unit is not the helper's unit unless the helper says so at every call site.
+**Fix**: the ONLY correct affordance gate is **`sublinkCount > 0`** (`app-link-card`'s own
+`hasSublinks` computed; the console cell and `confirmThreadCoupling`; My Links' badge). The card
+deliberately gates on its `sublinkCount` **input** rather than on `link.sublinkCount`, so a flat host
+that never binds the input cannot draw a chip even when its nodes carry a real count. Every caller of
+`threadLabel` passes `sublinkCount + 1`, and the rule is stated in `threadLabel`'s own docstring,
+whose consumer list is re-derived from the code rather than extended from memory. Under the tree the
+count is a node's OWN descendants **at any depth**, so a conversation is sized from the ROOT's count
+and the column is never summed (that double-counts by exactly the depth — a shape the old depth-1
+model could not produce, which is why nobody summed it then).
 **Prevention**: When a backend boolean is a _structural_ flag, check whether it can also be the
 null/default state of an unrelated case before trusting it as a feature predicate. Ask "what does this
-return for the most common row in the app?" — if the answer is `true`, it is not a gate.
+return for the most common row in the app?" — if the answer is `true`, it is not a gate; the honest
+predicate is "does this node have children?", which the backend already answers. And when a shared
+helper's empty branch means "render nothing", its **unit** belongs in its name, its docstring and its
+parameter type — a caller who has to remember `+ 1` will eventually forget it, and the failure is a
+missing chip rather than an error, so nothing catches it. Do not "tighten" the `""` branch either
+(`1` → `"1 link"`): a chip would sprout on every ordinary row in the app.
 
 ### [2026-09-30] console/insiden: the queue's date args were renamed `createdAfter`/`createdBefore` → `occurredAfter`/`occurredBefore`, with NO alias
 
@@ -167,37 +402,83 @@ deprecation window over a silent alias on a filter whose sort column is also cha
 error and no failed request. (a) A collapsed page 1 followed by an **uncollapsed** page 2 re-lists
 every root AND renders the members as loose rows. (b) The other half is the trap this entry got wrong
 the first time: the **authenticated vote-overlay** read must collapse too, because the overlay is
-id-keyed and `loadVoteOverlay()`'s loop walks `root.threadLinks` as well as `edges`. An earlier
-version of this entry argued the opposite — "send it on the list reads, not on the overlay" — on the
-reasoning that a collapsed read hides the member votes. It does not; the walk finds them.
+id-keyed and `loadVoteOverlay()`'s loop walks each root's nested `sublinks` as well as `edges`. An
+earlier version of this entry argued the opposite — "send it on the list reads, not on the overlay" —
+on the reasoning that a collapsed read hides the member votes. It does not; the walk finds them.
 **Root Cause**: `collapseThreads` changes the _shape_ of the connection, not just its content, and the
 old entry reasoned about which shape an id-keyed consumer "wants" instead of which shape it actually
 reads. The invariant is not "the overlay prefers flat rows"; it is **the overlay's id set must equal
-the RENDERED id set**, and the render is roots-with-members-nested. An uncollapsed read returns the
-`first` newest FLAT rows (`r1, m1, r2, m2, …`) — a top-N window over rows the collapsed render never
-shows, which drops exactly the members a rider voted on and adds roots that are not rendered. So the
-flattening "fix" lost the ids it was meant to recover. Client-side grouping of a flat page is unsound
-in the first place — under `-occurredAt, -id` a thread's members are not adjacent (an admin can group a
-09:00 post with an 11:00 one, possibly onto different pages) — so collapsing has to be the backend's
-decision, and the consumer's job is to walk the shape it asked for.
+the RENDERED id set**, and the render is roots-with-whole-trees-nested. An uncollapsed read returns
+the `first` newest FLAT rows (`r1, c1, g1, r2, c2, g2, …`) — a top-N window over rows the collapsed
+render never shows, which drops exactly the descendants a rider voted on and adds roots that are not
+rendered. So the flattening "fix" lost the ids it was meant to recover. Client-side grouping of a flat
+page is unsound in the first place — under `-occurredAt, -id` a conversation's members are not
+adjacent (an admin can nest a 09:00 post under an 11:00 one, possibly onto different pages) — so
+collapsing has to be the backend's decision, and the consumer's job is to walk the shape it asked for.
 **Fix**: `home.store.ts` folds `HOME_FEED_COLLAPSE_VARS = { collapseThreads: true }` into **all six**
 home reads — `feedResource`, `lastWeekResource`, `loadMore()`, `loadMoreLastWeek()` and both
-authenticated reads inside `loadVoteOverlay()` — and the overlay's loop iterates
-`root.threadLinks ?? []` as well as `edges`. `home.store.spec.ts` pins both halves ("the overlay reads
-MUST collapse"; the same-variables comparison). Every other surface (`/insiden`, situasi,
-per-incident cards, My Links) omits the key entirely, which is how it says "use the schema default
-(`false`)" — an explicit `null` is fatal on a `Boolean!` argument.
+authenticated reads inside `loadVoteOverlay()` — and the overlay's loop recurses through `sublinks`
+at every depth (`recordSubtreeVotes`), not just the roots. `home.store.spec.ts` pins both halves
+("the overlay reads MUST collapse"; the same-variables comparison). Every other surface (`/insiden`,
+situasi, per-incident cards, My Links) omits the key entirely, which is how it says "use the schema
+default (`false`)" — an explicit `null` is fatal on a `Boolean!` argument.
+**Sharpened 2026-10-01 (the tree)**: "walk the members" is no longer enough. The render nests an
+arbitrary-depth tree, so the walk has to recurse; a version that recursed one level shipped and left
+everything below it reading as the anonymous `0`. Enumerate the reads, then enumerate the DEPTHS.
 **Prevention**: For any new read of a connection whose arguments can change its SHAPE, enumerate
 **every** read of that connection — first page, every continuation, and every auxiliary read (overlays,
 exports, counts) — and answer two questions per read: (1) does it need the flag, and (2) does its key
-set match the set that surface **renders**? The test is the rendered set, not the read set and not the
-consumer's convenience: a read is wrong whenever an id the page draws can be missing from it, and
-absent ids are indistinguishable from a genuine zero on the card. (2) is the trap that bit the overlay
-again for the window axis; that half has its own entry above — do not answer a shape mismatch by
-changing the window, or a window mismatch by uncollapsing. Mind the neighbouring null-semantics
-split: `collapseThreads: Boolean!` rejects `null`, while `groupSocialMediaLinks(threadId: ID = null)`
-treats `null` as "start a new thread"; the two Vars types (`boolean | undefined` vs
-`string | null | undefined`) exist precisely to keep the fatal spellings unrepresentable.
+set match the set that surface **renders**, at every level it renders them? The test is the rendered
+set, not the read set and not the consumer's convenience: a read is wrong whenever an id the page draws
+can be missing from it, and absent ids are indistinguishable from a genuine zero on the card. (2) is
+the trap that bit the overlay again for the window axis; that half has its own entry above — do not
+answer a shape mismatch by changing the window, or a window mismatch by uncollapsing.
+
+**Sharpened 2026-10-01 (the null-semantics split — a THREE-way, and all three differ).** The
+difference is a property of the **SDL**, not of "optional arguments" in general:
+
+| argument                                 | SDL                | omitting the key                           | explicit `null`                |
+| ---------------------------------------- | ------------------ | ------------------------------------------ | ------------------------------ |
+| `reorderSocialMediaLinks.parentId`       | `ID`               | legal; the **resolver's guard** refuses it | **MEANINGFUL** — reorder roots |
+| `groupSocialMediaLinks.parentId`         | `ID = null`        | legal; "start a new conversation"          | same as omitting               |
+| `publicSocialMediaLinks.collapseThreads` | `Boolean! = false` | legal; means `false`                       | **HARD ERROR** — non-null      |
+
+🔴 **An earlier version of this passage called `reorderSocialMediaLinks.parentId` "required" and
+said the omission is rejected by validation before the resolver. That is wrong, and the way it is
+wrong is the whole point: in GraphQL **"required" IS "non-null"**, so "required, nullable, no
+default" is not a state the SDL can express at all. `parentId: ID` is nullable and defaultless,
+which makes it plain **OPTIONAL**. `is_required_argument` in graphql-core's
+`validation/rules/provided_required_arguments.py` is
+`is_non_null_type(arg.type) and arg.default_value is Undefined`, so `ProvidedRequiredArgumentsRule`
+never fires for it. Verified against the emitted schema
+(`rosak_backend/rosak/tests/snapshots/schema.graphql:678` → `parentId: ID`, with
+`groupSocialMediaLinks … parentId: ID = null` at `:676` and `collapseThreads: Boolean! = false` at
+`:777`) on graphql-core 3.2.6: the argument evaluates `is_required_argument=False`, and **all
+three** client spellings — key omitted from the selection, key omitted from a declared nullable
+variable, explicit `null` — come back **VALID** from `validate()` and **enter the resolver**, where
+`strawberry.Maybe` supplies `UNSET` and the deliberate guard at
+`incident/schema/mutations/interactions.py:287` raises the `GraphQLError`. The one spelling stopped
+earlier declares `$parentId: ID!` and omits it, and that is a **client-chosen type** caught by
+variable coercion (`Variable '$parentId' of required type 'ID!' was not provided`) — not a property
+of the field. `collapseThreads` is the clean contrast, refused by the type system itself:
+`Expected value of type 'Boolean!', found null.`
+
+So the omission is refused because a resolver **chose** to refuse it, and that is the design rather
+than a workaround: tightening `parentId` to `ID!` would turn the meaningful `null` ("reorder the
+ROOTS") into a hard error, so the schema cannot express the omitted/null distinction and the guard
+does it instead. The backend docstring (`interactions.py:271-286`) says exactly that, and the test
+that pins it (`tests/incident/test_social_link_threads.py:1250`) sends the argument **absent from
+the selection entirely** and asserts the tree is unchanged — a test that only passes because the
+guard sits in the resolver, and only for that reason. Both clients keep their types
+(`boolean | undefined`, `string | null | undefined`, and `parentId: string | null` with **no**
+`| undefined`) so a payload that omits the key is a compile error rather than a runtime
+`GraphQLError`: the types buy a louder failure than the server would have given you anyway. The
+generalisable half, and the cheapest guard in this file: **a test standing in front of a resolver
+guard proves the guard is on the path only if you DELETE the guard and watch it go red** — a test
+that stays green is passing on some _other_ layer's error, and here that other layer would be
+`is_required_argument`, whose `False` is precisely the mistake this entry exists to correct. A
+deliberate guard that a test appears to cover but does not is worse than no guard, because the next
+agent reads the test as permission to delete the code.
 
 ### [2026-09-30] insiden/link-thread: `GenericMutationReturn.id` is an `Int`, not an `ID`
 
@@ -205,13 +486,15 @@ treats `null` as "start a new thread"; the two Vars types (`boolean | undefined`
 (`common.schema.scalars.GenericMutationReturn.id: int | None`) while every other id on
 `SocialMediaLinkScalar` is an `ID` (a string). `String(result.id)` happens to round-trip fine, so the
 mismatch is invisible until the value is fed back into an `ID`-typed field (a `linkIds` array, a
-cursor, a `threadId` argument).
+cursor, a `parentId` argument).
 **Root Cause**: `strict` and `strictNullChecks` are **OFF** in this repo, so the compiler will happily
 accept a number where a string is declared, and a string where a number is declared.
-**Fix**: `GroupSocialMediaLinksData.id` is typed `number | null` with the reason inline, and both
-call sites (the console triage table and "My Submitted Links") deliberately **do not use** the
-returned value — they reload the flat list, because `threadId`/`threadSize` are server-computed and
-nothing on the page can patch them.
+**Fix**: `GroupSocialMediaLinksData.id` is typed `number | null` with the reason inline, and all three
+call sites (the console triage table, "My Submitted Links" and — since 2026-10-01 — the two nesting
+paths) deliberately **do not use** the returned value: they reload the flat list, because
+`parentId`/`sublinkCount`/`position` are server-computed and a mutation returns only `ok` and that
+one id, so nothing on the page can patch them. `reorderSocialMediaLinks` returns no id at all, for
+the same reason.
 **Prevention**: When reading a mutation's return payload, check the **backend scalar's** GraphQL
 type, not the feature's own convention. Any id-typed value in this app is a string unless a shared
 `GenericMutationReturn`-style scalar says otherwise.
@@ -290,6 +573,8 @@ preserve the string.
 - With `isolate: false`, never assert on a `vi.mock` module binding: an earlier file can bind the real module into the cached service. Own the seam through TestBed DI (`UPLOAD_ERROR_REPORTER` is the reference fix); `gtfs-static.service.spec.ts` is a known instance.
 - The unit-test build type-checks specs with **strict null checks on** regardless of the workspace tsconfig, so a typed `querySelector<T>(…)` deref fails (`TS18047`). Keep the `nativeElement.querySelector(…) as HTMLElement` idiom or null-guard.
 - A spec for a component using `graphqlResource()` must provide `provideHttpClientTesting()` and flush its reference POST — mocking `GraphQLClient.request` alone leaves the real `httpResource` hitting `localhost:8000` (CI `ECONNREFUSED`, hung `whenStable()`). Never instantiate services that import `firebase/*` in specs; stub them.
+- Bare `npx vitest run <file>` does **not** init the TestBed (`Need to call TestBed.initTestEnvironment()`) and has no globals (`describe is not defined`); only `ng test` does. It is still the fast path for a spec with **no** TestBed (a pure function/util) — but note it skips the unit-test build's spec type-check, so run the real gate before trusting it.
+- A spec that CLICKS a real `routerLink` must give the router a matching route (`provideRouter([{ path: "spotting/:lineId/vehicle/:vehicleId", children: [] }])`): an unmatched one rejects the navigation and Vitest reports it as an **unhandled rejection** that fails the whole run, even though the assertions passed. Clicking a plain `<a href>` only logs "navigation not implemented" in jsdom — suppress it with a `preventDefault()` listener on that anchor (which does not affect the propagation a `stopPropagation` assertion depends on).
 
 **Prevention**: Use `--include` for files and a correctly-cased anchored regex for `--filter`, and re-run unfiltered before trusting a green result; treat "passes alone, fails in suite" as module-cache contamination, not a flake; write specs hermetic.
 
@@ -322,12 +607,33 @@ preserve the string.
 **Fix**: The requestFn reads two `computed`s of primitives, `_stationLineId` and `_stationType`, so only a line/type change re-runs it (`6bbb2a0`); a spec asserts an unrelated `notes` write triggers no station POST.
 **Prevention**: A reactive resource's requestFn reads only the primitive fields its request depends on, projected through `computed`s. Mind the blind spot: jsdom/vitest flush resources synchronously and can't show the refetch-storm window — assert the projection, then reproduce in a browser.
 
-### [2026-09-22] insiden/link-card: interactive controls must stay outside the navigational `<a>`
+### [2026-09-22 → 2026-10-01] insiden/link-card: interactive controls must stay outside the navigational `<a>` — including the one that moved INTO the card
 
-**Problem**: The shared `app-link-card` row is one large external-link anchor carrying a vote control and an edit pencil; inside the `<a>`, clicks would navigate instead of activating the control (and interactives nested in an anchor are invalid HTML).
-**Root Cause**: When the whole row is the tap target, it is natural to drop controls into the body content.
-**Fix**: The anchor wraps only the non-interactive body (favicon, URL, title, tags, Pending pill); vote button and edit pencil are siblings in `link-meta-rail`; the spec asserts `closest("a") === null` for both (`46b0319`).
-**Prevention**: On any card whose row is a link, keep interactive children as siblings of the anchor and assert it in the spec — never nest a control in the anchor to widen its tap target.
+**Problem**: The shared `app-link-card` row is one large external-link anchor carrying a vote control
+and an edit pencil; inside the `<a>`, clicks would navigate instead of activating the control (and
+interactives nested in an anchor are invalid HTML). The same trap fired again this wave with a
+different symptom: the conversation affordance ("N links" + chevron) was asked to move **into the
+first link's card**, and its obvious home — the tag row beside the Pending/Official chips — sits
+**inside** that `<a>`. A `<button>` there is a control that navigates on every click, i.e. the expand
+control that opens a conversation would instead send the rider to the link.
+**Root Cause**: When the whole row is the tap target, it is natural to drop controls into the body
+content. "Inside the card" and "inside the anchor" are two different regions that happen to share a
+boundary, and only one of them is a legal home for a control; the boundary is not visible in a
+thumbnail of the design.
+**Fix**: The anchor wraps only the non-interactive body (favicon, URL, title, tags, Pending/Official
+chips); the vote button, edit pencil and the conversation toggle are siblings in `link-meta-rail`
+(`46b0319`; the new toggle pinned by `link-thread.component.spec.ts`, which asserts both
+`closest("a") === null` and `closest('[data-testid="link-meta-rail"]') !== null`). The rail is the one
+place in the card that is both the card's own chrome and free of the anchor, and it already hosts the
+row's other controls — so the chip reads as one more piece of this card's metadata rather than as a
+wrapper around it.
+**Prevention**: On any card whose row is a link, keep interactive children as siblings of the anchor
+and assert it in the spec — never nest a control in the anchor to widen its tap target, and never
+assume "inside the card" means "anywhere in the card". **Read the component's own stated constraints
+before choosing a slot**; this card's header comment already said "interactive controls as siblings,
+never children", and the constraint outranked the nicer-looking placement. Corollary for the reverse
+case: a `templateUrl` component file has no literal to break, so backticks are fine in its HTML
+comments — see the backtick entry above.
 
 ### [2026-09-22] graphql: `graphqlResource()` is anonymous-only — per-user fields need an authenticated read
 

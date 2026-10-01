@@ -45,17 +45,30 @@
   - `LinkCardComponent` (shared `app-link-card`): `link = input.required<LinkCardItem>()` — the
     structural contract both `PublicSocialMediaLink` and the home feed's `FeedLink` satisfy with no
     host mapping — `userVote = input(0)` (host overlay) and `editable = input(false)` (host-gated
-    with `canEditLink`, author or admin).
-  - `LinkThreadComponent` (shared `app-link-thread`, the collapsible thread wrapper): `link` is an
-    `input.required<LinkCardItem>()` holding the thread ROOT, plus
-    `userVote = input<number | null>(null)` (root-only scalar overlay; `null` means "not supplied"
-    so the per-id `voteValues` entry or the backend's own `link.userVote` still wins — a `0` default
-    would be indistinguishable from "the host removed my vote"),
-    `voteValues = input<Record<string, number>>({})` (the host's per-link
-    overlay, forwarded to **every** card in the group, same contract as `app-link-list`), and
-    `editable = input(false)` (root only — members are read-only, because a collapsed group is a
-    summary and the host's edit flow is root-driven). No recursion: depth is 1 by model invariant
-    (`thread` always points at a root), so members render with no thread UI of their own.
+    with `canEditLink`, author or admin). Plus the **conversation** inputs, added with the nested-thread
+    work: `sublinkCount = input(0)`, `sublinksExpanded = input(false)`, and the
+    `sublinkToggle = output<void>()` output (see Internal State for why the count is an INPUT and not
+    read off `link`).
+  - `LinkThreadComponent` (shared `app-link-thread`, the **recursive** conversation wrapper):
+
+    | member        | kind             | meaning                                                                                                                                                                                                             |
+    | ------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | `link`        | `input.required` | the node THIS instance renders — a host's conversation root, or a direct child reached through the recursion. `LinkCardItem`, so every host node binds straight in.                                                 |
+    | `userVote`    | `input`, `null`  | scalar optimistic-overlay vote, for a **host-rendered** root only. `null` (the default) = "not supplied", so a `0` cannot masquerade as "the host removed my vote". **Not forwarded to nested levels** (see below). |
+    | `voteValues`  | `input`, `{}`    | the host's per-link vote overlay keyed by id. Forwarded to **every** card at **every** depth — a sublink is votable too.                                                                                            |
+    | `editable`    | `input`, `false` | show the edit pencil — forwarded down the recursion, so a sublink gets one too.                                                                                                                                     |
+    | `voteChanged` | `output`         | `{ id, value }` — the **voted** node's own id, at any depth.                                                                                                                                                        |
+    | `edit`        | `output`         | the clicked **descendant's** own `LinkCardItem`, never the root's.                                                                                                                                                  |
+
+    **Recursion, not a branch component.** The component lists **itself** in `imports`
+    (`[LinkCardComponent, LinkThreadComponent]`), which Angular supports for standalone components:
+    the class binding exists by the time the decorator runs, and AOT resolves the self-reference
+    statically. The usual first instinct is to extract a sibling `app-link-branch`; that was not
+    needed here and would have left two definitions of "a node plus its children" free to drift.
+    Verified under both the vitest builder and AOT (`npm run build` exit 0).
+    **No depth parameter exists in this file** — the write side caps at `MAX_THREAD_DEPTH = 3` and the
+    read side is bounded by what the query fetched, so a leaf is simply a node with no `sublinks`.
+
   - `VoteButtonComponent`: `targetType = input<"incident" | "chronology" | "link">("incident")` — the
     same button drives incident, chronology and social-media-link votes (the shared link card hosts
     it with `targetType="link"`).
@@ -66,11 +79,15 @@
     than local-only UI state.
   - `LinkCardComponent.voteChanged = output<{ value: number }>()` — after a successful vote (the
     link-list host records it in its `voteValues` overlay); `edit = output<LinkCardItem>()` — the
-    edit pencil, host-gated with `canEditLink`. `LinkListComponent.voteChanged` re-emits it with
-    the voted link's id as `{ id: string; value: number }`.
+    edit pencil, host-gated with `canEditLink`; `sublinkToggle = output<void>()` — the conversation
+    affordance was clicked. The card has **no idea** what will be revealed; it only reports the click.
+    `LinkListComponent.voteChanged` re-emits it with the voted link's id as
+    `{ id: string; value: number }`.
   - `LinkThreadComponent.voteChanged = output<{ id: string; value: number }>()` — the same re-emit,
-    with the id added, because the wrapper renders N cards per row and a member is votable too;
-    `edit = output<LinkCardItem>()` from whichever card opened its pencil.
+    with the id added, because one thread renders N cards per row and every one of them is votable;
+    `edit = output<LinkCardItem>()` re-emitted with the clicked **descendant's own** `LinkCardItem`
+    at whatever depth it lives, because that object is what the host's edit sheet hydrates from and
+    a wrong one would open the wrong link.
   - GraphQL query `INSIDEN_INCIDENTS_QUERY` (`data/insiden.queries.ts`) accepts optional filters.
     `/insiden` fetches incidents overlapping the selected month plus 14 days on each side,
     OR unresolved incidents for the pinned section. Changing months reloads the window;
@@ -120,6 +137,39 @@
     identical server-side (both stamp the submission instant), so the submit path omits the key —
     the honest spelling — which is why `LinkFormComponent.submit` and the console's `saveLinkEdit`
     branch differently.
+
+  - **The conversation TREE on `LinkCardItem`** (backend `SocialMediaLinkScalar`; a link is either a
+    root or a sublink of another link, and a sublink can have sublinks of its own). Fields renamed
+    with the nested-thread work, and **none of the old names survives** — there is no server-side
+    alias, so a stale spelling is a hard "Unknown field" on the whole query:
+
+    | `LinkCardItem` (current)    | replaced         | meaning                                                                                                                                                                                                                                 |
+    | --------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | `parentId?: string \| null` | `threadId`       | the link this one hangs under; `null` **exactly** when it IS a root                                                                                                                                                                     |
+    | `isThreadRoot?: boolean`    | (unchanged name) | 🔴 a **ROOT MARKER**, true of every ordinary ungrouped link too — never an affordance gate                                                                                                                                              |
+    | `sublinkCount?: number`     | `threadSize`     | this node's OWN publicly-visible descendants **at any depth**; `0` for a leaf. **NOT** the conversation size                                                                                                                            |
+    | `sublinks?: LinkCardItem[]` | `threadLinks`    | this node's **direct** children, in stored sibling `position` order. **Recursive**: the element type is the interface itself                                                                                                            |
+    | (added)                     | —                | `position?: number` lives on the _row_ types (`PublicSocialMediaLink`, `SocialMediaLinkRow`) — the gap-spaced `10, 20, 30, …` sibling rank, selected by both flat documents so a reorder permutation can be built from the STORED order |
+
+    Four properties of these fields, all of which a caller gets wrong at least once:
+    - **Optional by design.** All four are optional on `LinkCardItem` because the flat surfaces do not
+      select them and a narrower host selection must still satisfy the contract. `created` stays
+      **required** alongside them: a nested child is itself a `LinkCardItem`, so a document that
+      forgets `created` at depth 2 fails the same contract the root does — which is the point of the
+      recursive type. The console's own `SocialMediaLinkRow` is the opposite case: it selects all
+      four, so there they are **required**.
+    - **`sublinkCount` is not a conversation size.** Read the ROOT's count to size a conversation;
+      never sum the column level by level — every node answers for itself and the recursion
+      terminates on `0`, so a sum double-counts by exactly the depth (root 2, child 1, leaf 0 → 3 for
+      a 3-link tree).
+    - **`sublinks` order ≠ every other link list's order.** It is `position` ASC, author-chosen and
+      not a timeline; every other list in the app is `occurredAt DESC, id DESC`. A group's members
+      need not be contiguous in time.
+    - **A conversation is public iff its ROOT is**, and the time windows resolve across the whole
+      subtree — so `sublinkCount`/`sublinks` count and list only **publicly-visible** descendants, and
+      a hidden sublink is not listed even on your OWN `mine` page. The asymmetry that survives is
+      moderation, which is root-only: hiding a middle node leaves it attached to the tree but takes it
+      (and its own descendants) out of both the count and the list.
 
   - Photo upload is fire-and-forget: `IncidentCardComponent.uploadPhotos()` pushes each pending
     file to `ImageUploadService.addToQueue(incidentId, file, "INCIDENT_CALENDAR_INCIDENT")`; no
@@ -184,7 +234,13 @@
     is the **displayed** instant, `occurredAt ?? created`, inside `incidentLinkLine`, so it agrees with
     the `-occurred_at, -id` order these rows arrive in; the nested `links(first: 10)` sub-select and
     the continuation query both select `occurredAt`, or the one list would label its first 10 rows by
-    submission time and the rest by event time. Pending rows with an amber clock icon + "Pending
+    submission time and the rest by event time. 🔴 And **both** documents must stay
+    **tree-free**, which is what keeps the shared card's conversation chip off this surface: the rows
+    here are not `app-link-card` at all (they are the compact `[datetime] favicon title` anchors, so
+    there is no host to render a chip in), and neither the nested sub-select nor the continuation
+    document selects any tree field. Keeping page 1 and the continuation pages in agreement about
+    being flat is the same two-document hazard one field over, and
+    `incident-card.component.spec.ts` pins both sides. Pending rows with an amber clock icon + "Pending
     approval" tooltip, continuation pages via the root
     `publicSocialMediaLinks(incidentId, first, after)` cursor — the same keyset the nested connection
     mints, so the cursor is forwarded verbatim and nothing here decodes it), the latest history entry
@@ -204,14 +260,21 @@
       and re-hydrates the form from the edit target instead of clearing the session.
   - `LinksSectionComponent`: first page through `graphqlResource` (retry banner kept), continuation
     pages via `GraphQLClient.request` + the infinite-scroll sentinel. **Deliberately flat and
-    thread-free**: neither the first-page resource nor `loadMore` sends `collapseThreads`, so every
-    thread member stays a row of its own. Thread UI is scoped to the home feed and the admin console,
-    and this tab is a browsable "everything submitted" view where hiding members behind a root would
-    lose rows the reader came for. Omitting the key (rather than sending an explicit `false`) is how
-    the tab says "use the schema default" — an explicit `null` is fatal on a `Boolean!` argument.
-    Rendering is delegated to the
-    shared `LinkListComponent` (see insiden shared components); this host only owns pagination and
-    reload-on-sheet-close (dropping appended continuation pages of the stale dataset).
+    conversation-free**: neither the first-page resource nor `loadMore` sends `collapseThreads`, so
+    every sublink stays a row of its own. Nested-conversation UI is scoped to the home feed and the
+    two management surfaces, and this tab is a browsable "everything submitted" view where hiding
+    sublinks behind a root would lose rows the reader came for. Omitting the key (rather than sending
+    an explicit `false`) is how the tab says "use the schema default" — an explicit `null` is fatal
+    on a `Boolean!` argument.
+    🔴 **Why no card here ever shows a "N links" chip — two independent facts, either one sufficient,
+    and both pinned by this host's spec:** (1) `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` does not select
+    `sublinks`, so a row carries no expansion for a chip to reveal; (2) `app-link-list` renders
+    `app-link-card` **without binding `[sublinkCount]`**, and the card gates on that INPUT (never on
+    `link.sublinkCount`, which this document _does_ select as a plain fact). Adding the tree fields
+    to the shared list would be a product change, not a refactor, and the spec fails the moment it
+    happens. Rendering is delegated to the shared `LinkListComponent` (see insiden shared components);
+    this host only owns pagination and reload-on-sheet-close (dropping appended continuation pages of
+    the stale dataset).
   - `LinkCardComponent` (shared, `app-link-card`): the single link-row element for every surface —
     home feed, /insiden links tab and situasi. Renders the favicon (Google S2, plain-link SVG
     fallback), the domain/path colour split (`linkUrlPartsOf`), the title, line badges, the Pending
@@ -224,7 +287,8 @@
     `FEED_QUERY` **and** by the console's `SOCIAL_MEDIA_LINKS_QUERY` (both need the Official
     marker), while every other host leaves it undefined and shows no chip — `isAutomated` is
     optional on `LinkCardItem` precisely so those hosts satisfy the structural contract without it),
-    and a right rail carrying the vote button plus the relative time and the edit pencil.
+    and a right rail carrying the vote button, the conversation chip, the relative time and the edit
+    pencil.
     **Two time axes:** the card _displays_ `occurredAt` ("when did this happen" — the instant
     every feed/queue orders on) through `occurredAt = computed(() => link().occurredAt ??
 link().created)` and `occurredLabel = humanizeSince(occurredAt())`. That fallback is
@@ -238,37 +302,78 @@ link().created)` and `occurredLabel = humanizeSince(occurredAt())`. That fallbac
     the backend serialises microseconds and `created` may arrive without a fractional part;
     both absent or both equal gives no second line, so nothing is lost by promoting
     `occurredAt` to the visible label.
-    The `<a>` wraps only the non-interactive body; both interactive controls are siblings of it, so
+    The `<a>` wraps only the non-interactive body; every interactive control is a sibling of it, so
     their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
-    `link-tags`, `link-pending`, `link-official`, `link-meta-rail`, `link-time` / `link-created` /
-    `link-submitted`, `link-submitter` and
+    `link-tags`, `link-pending`, `link-official`, `link-meta-rail`, `link-thread-toggle` /
+    `link-thread-size` / `link-time` / `link-created` / `link-submitted`, `link-submitter` and
     `link-edit`. The host passes `userVote` (its authenticated overlay wins over the anonymous feed
-    value) and `editable` (gated with `canEditLink`); the card re-emits votes as `voteChanged` and
-    the edit pencil as `edit`. **No thread UI lives in the card** — that belongs to the
-    `app-link-thread` wrapper, so every other surface of this shared card stays byte-for-byte a
-    flat list.
-  - `LinkThreadComponent` (shared, `app-link-thread`): the collapsible group wrapper, and the
-    **named extension point for any grouped row**. `members = computed(() => link().threadLinks ??
-[])`; `totalCount` prefers the backend's `threadSize` (`1 + publicly-visible members`, so it
-    already counts the root) and falls back to `members().length + 1` for a host that selected only
-    the members. The affordance is gated on `members().length > 0` — **not** on `isThreadRoot`,
-    because the backend defines a root as `thread == null`, which is also true of every ordinary
-    unthreaded link, so that gate would put a "1 links" badge on every row in the app. `expanded =
-signal(false)` — **collapsed by default**, the same pattern and reasoning as `app-link-list`'s
-    "Pending (N)" section. The toggle is a real `<button>` (`hlmBtn` ghost, chevron rotating
-    `rotate-180`) carrying `data-testid="link-thread-toggle"`, `aria-expanded`, an action-naming
-    `aria-label` ("Show/Hide the other N link(s) in this thread") and the count as **readable text**
-    in `data-testid="link-thread-size"` — the group size must be learnable without hovering. Expand
-    renders `data-testid="link-thread-members"`, a `border-l pl-3` indented column of one
-    `app-link-card` per member, `editable="false"`. `voteFor(link)` is the per-card fallback chain
-    `voteValues[id]`, then the root's scalar `userVote` (root only), then `link.userVote ?? 0` —
-    identical to `app-link-list`, so a link can move between the flat list and a thread without
-    changing how its vote renders. **The root is rendered through the same `app-link-card` with the
-    SAME inputs as a plain list row** — no wrapper class, no bold, no badge, no size change, and the
-    spec asserts `outerHTML` parity between a threaded and an unthreaded root. That is a product
-    decision, not an oversight: if the first link of a group looked different from every other link,
-    the feed would grow a second visual hierarchy for no gain. The affordance sits BESIDE the card in
-    its own `flex flex-col` row, never inside it. SSR-safe: no browser APIs.
+    value) and `editable` (gated with `canEditLink`); the card re-emits votes as `voteChanged` and the
+    edit pencil as `edit`.
+    **The conversation affordance lives in the card** (moved here with the nested-thread work): a
+    chevron plus a readable "N links" button (`data-testid="link-thread-toggle"` /
+    `link-thread-size`, `aria-expanded`, and an action-naming `aria-label` — "Show/Hide the other
+    links in this thread (N links)"). Four facts, all load-bearing:
+    - **The gate is `sublinkCount > 0`** (`hasSublinks`), never `isThreadRoot` — see the trap below.
+    - **`sublinkCount` is an INPUT, not read off `link`.** `LinkCardItem.sublinkCount` is optional
+      precisely because the flat hosts do not select it, and those hosts must not grow a chip. The
+      input defaults to `0`, so a flat host that passes nothing gets no affordance even when its nodes
+      carry a real count. `NaN > 0` is `false`, so a bad fixture degrades to "no chip" rather than to
+      "NaN links".
+    - **The label is `threadLabel(sublinkCount() + 1)` and the `+ 1` is load-bearing** — see the
+      off-by-one below.
+    - **The right rail, not the chip row.** The chip row beside Pending/Official is the ideal spot and
+      it lives INSIDE the `<a>`, where a `<button>` is invalid HTML whose click also navigates — so
+      the card's own "interactive controls are siblings, never children" constraint outranks the nicer
+      placement. `link-meta-rail` is the one region that is both the card's own chrome and free of the
+      anchor, and it already hosts the row's other controls, so the chip reads as one more piece of
+      this card's metadata rather than as a wrapper around it.
+      The card does **not** own the expansion state or the children: `app-link-thread` holds one
+      `expanded` signal per level and renders the nested cards. That split is what lets the same card
+      serve a flat host (no input bound → no chip, no wiring) and every depth of a tree, with no depth
+      parameter anywhere in the file.
+  - `LinkThreadComponent` (shared, `app-link-thread`): the **recursive** conversation wrapper, and the
+    **named extension point for any grouped row**. Structure: one `<app-link-card>` for this node,
+    then — only when `expanded() && children().length > 0` — a
+    `data-testid="link-thread-members"` container (`border-l pl-3`: the indent plus the left rule)
+    holding one nested `<app-link-thread>` per child, `track child.id`. The container renders **only
+    when there is something in it**, so a host that supplies a count without the nested selection (or a
+    leaf whose count is `0`) leaves no empty rule behind and the chip stays the only trace of the
+    affordance.
+    - `children = computed(() => link().sublinks ?? [])` — this node's **direct** children, in the
+      server's stored sibling `position` order. `?? []` because `sublinks` is optional: the flat
+      surfaces do not select it, a spec fixture may omit it, and `strict`/`strictNullChecks` are OFF.
+    - `sublinkCount = computed(() => link().sublinkCount ?? 0)` — handed to the card, which decides
+      whether to draw the chip. `?? 0` for the same optionality reason: an absent count means "this
+      host did not select it", which is exactly "draw no chip".
+    - `expanded = signal(false)` — **collapsed by default, per level and independently** (one
+      signal per component _instance_, which is what "each level expands on its own" means). Same
+      pattern and same reasoning as `app-link-list`'s "Pending (N)" section: a conversation stays out
+      of the way until a rider asks for it.
+    - `voteFor(link)`: the host's keyed `voteValues[id]` → the root's scalar `userVote` (**this node
+      only**, and only when the host supplied one) → `link.userVote ?? 0` — identical to
+      `app-link-list`, so a link can move between a flat list and a conversation without changing how
+      its vote renders. 🔴 `userVote` is deliberately **not** forwarded to nested levels: it is
+      an unkeyed number for "this row", and a nested instance would apply it to ITSELF (`voteFor`
+      matches `link.id === this.link().id`), painting the root's optimistic vote onto a child.
+      `voteValues` is keyed and therefore safe at every depth.
+    - 🔴 `editable` **is** forwarded to every level, and `edit` re-emits the clicked
+      descendant's own `LinkCardItem`. This **supersedes** the previous wave's rationale ("a collapsed
+      group is a summary, and the host's edit flow is root-driven"), which was defensible and wrong for
+      the product: a conversation is a set of ordinary, individually-approvable links, and a rider who
+      timestamped the follow-up photo is exactly the person who should be able to fix its wording.
+      ⚠️ `editable` is ONE boolean for the whole conversation, so a host that computes it from
+      the ROOT (which the home page does, via `canEditLink(root)`) also grants a pencil on a sublink
+      somebody else submitted. That is a **cosmetic over-permission only** — exactly as
+      `canEditLink`'s own docstring says, the backend re-checks permission on the target link and
+      rejects the write. Per-link authorship would need a predicate input; no host asks for one, so it
+      is deliberately absent rather than speculatively added.
+    - **The appearance rule is unchanged and still the point:** the root renders through the same
+      `app-link-card` with the SAME inputs as a plain list row — no wrapper class, no bold, no badge,
+      no size change — and the spec asserts `outerHTML` parity between a threaded and an unthreaded
+      root. The only legitimate difference is the one extra chip in the card's own rail, which the
+      card itself owns. If the first link of a conversation looked different from every other link, the
+      feed would grow a second visual hierarchy for no gain — a product decision, not an oversight.
+      SSR-safe: no browser APIs.
   - `LinkFormComponent`: the model gained `occurredAt` (a `datetime-local` value, `""` = unset,
     deliberately unvalidated — blank is the common, correct answer). The control is placed last in the
     "Link" section — after Title, before the whole Tags block — because a rider fills the form in
@@ -332,14 +437,30 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
     immutable function of its arguments (no Angular, no `signal`, no RxJS) and returns a NEW array,
     because the results are fed straight back into a signal: mutating in place yields the same
     reference, change detection never fires, and the checkbox silently stops updating. `threadLabel`
-    is the **single place pluralisation is decided for a link thread anywhere in the app** — it
-    backs the console triage chip, the "My Submitted Links" badge _and_ the `app-link-thread`
-    indicator, and none of the three may grow its own `${n} link${n === 1 ? "" : "s"}`. That is
-    not a style preference: one surface saying "1 links" while another says "2 link" is invisible to
-    `tsc` (no type carries the string) and invisible to the spec suite, so it ships. INVARIANT: a
-    new link-thread count joins the helper; nothing re-derives the noun. What legitimately differs
-    between sites is the **gate** that decides whether a count is shown at all, not the string —
-    see the extension point below.
+    is the **single place pluralisation is decided for a link conversation anywhere in the app**, and
+    its remit is **wider than those two surfaces** — its documented consumer list is exactly:
+    1. the console triage chip (`/console/links`), whose thread cell falls back to an em dash
+       on `""`, plus `confirmThreadCoupling`;
+    2. the "My Submitted Links" badge on the profile page;
+    3. `app-link-card`'s in-card indicator (`conversationLabel = threadLabel(sublinkCount() + 1)`),
+       which both the visible chip and the toggle's `aria-label` read.
+
+       ⚠️ **`app-link-thread` is NOT on that list.** The wrapper used to call the helper itself
+       (`groupLabel = threadLabel(...)`); the indicator **moved into the card**, so the card owns the
+       chip and the wrapper just renders cards. A consumer list that still names the wrapper sends the
+       next reader to grep the wrong file, which is why the helper's docstring says to **re-derive the
+       list from the code** rather than extend it from memory.
+
+       No consumer may grow its own `${n} link${n === 1 ? "" : "s"}` — that is exactly how one surface
+       ends up saying "1 links" while another says "2 link", which no type and no test can catch on its
+       own. INVARIANT: a new conversation count joins the helper. What legitimately differs between
+       sites is the **gate** that decides whether a count is shown at all, not the string. And
+       🔴 **`threadLabel`'s parameter is a CONVERSATION SIZE — `sublinkCount + 1` — not a descendant
+       count.** It answers `""` for anything `<= 1`, so passing a raw `sublinkCount` **silently
+       deletes the chip on a root with exactly ONE sublink** (`1` → `""`) while every leaf stays
+       correctly chip-less (`0` → `""`), which is precisely why the bug hides. All three consumers had
+       to rediscover that `+ 1` independently. Do not "tighten" the `""` branch either (`1` → `"1
+link"`): a chip would then sprout on every ordinary row in the app.
 
 ## 🧩 Extension Points & Hooks
 
@@ -361,29 +482,32 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
   `chronologyStatusLabel()`, `incidentLinkLine()`, `incidentToForm()`, `groupLinksByDay()`,
   `incidentMediaToViewerNode()` — each is a tested, isolated function a future feature can reuse
   or extend without touching component markup.
-- **`app-link-thread` is the named extension point for any grouped link row.** It takes the same
-  structural `LinkCardItem` the card takes, so a new host binds a `FeedLink`, a
-  `PublicSocialMediaLink` or a hand-built fixture straight in, and its internals (`expanded`
-  collapsed by default, the affordance gate on `threadLinks.length > 0`, its own `totalCount`) mean
-  a host cannot accidentally re-decide any of them. **Its count is `threadLabel`, not a copy of it**
-  — `groupLabel = computed(() => threadLabel(totalCount()))` is the component's only pluralisation,
-  and BOTH strings it shows read that one computed: the visible `link-thread-size` text and the
-  toggle's `aria-label`. Its `totalCount` (the server's `threadSize`, falling back to
-  `members().length + 1`) chooses only WHICH number to ask about, never how to phrase it.
-  The two kinds of caller genuinely differ, and the difference is in the gate, not the string:
-  `threadLabel` must be able to answer `""` because the console table's row and the profile badge
-  sit on rows that may be plain unthreaded links and DROP the chip on `""`, whereas the wrapper's
-  affordance only renders when `threadLinks.length > 0`, so its minimum is 2 and the `""` branch is
-  unreachable there. That is why one helper serves both — and why a future change must not "fix"
-  either half: inlining `${n} links` in the wrapper (safe today, so the temptation is real) forks
-  the one decision, while narrowing the helper to the wrapper's minimum (drop the `""`, or treat
-  `1` as `"1 link"`) would put a chip on every ordinary row in the app. Two further things a future
-  change must not "improve" away: the affordance is gated on `threadLinks.length > 0` and **not** on
-  `isThreadRoot` (a root is `thread == null`, which is also true of every unthreaded link — see
-  `MISTAKES.md`), and the root is rendered through the same `app-link-card` with the same inputs
-  (byte-identical DOM to a plain row), so the first link of a group looks exactly like any other
-  link. A host that wants threads open, or wants a specific one open, adds an input rather than
-  re-deriving the toggle.
+- **`app-link-thread` is the named extension point for any grouped link row, and it is RECURSIVE.**
+  It takes the same structural `LinkCardItem` the card takes, so a new host binds a `FeedLink`, a
+  `PublicSocialMediaLink` or a hand-built fixture straight in, at any depth. Its internals
+  (`expanded` collapsed by default **per level**, the affordance gate on `sublinkCount > 0`, the
+  per-level `sublinks` recursion) mean a host cannot accidentally re-decide any of them.
+  - **Keep the self-reference.** It lists itself in `imports`; that works under both the vitest
+    builder and AOT, and the first instinct — extract a sibling `app-link-branch` — would have
+    produced two definitions of "a node plus its children" free to drift. Verified in this repo.
+  - **The card owns the chip, the wrapper owns the state.** The card's gate is
+    `sublinkCount > 0` on its own INPUT, and the card's label is
+    `threadLabel(sublinkCount() + 1)`. The wrapper passes the count through and never reads
+    `isThreadRoot` and never pluralises anything. A host must not bind `[sublinkCount]` on
+    `app-link-list` unless it has a nesting to reveal: that is what keeps `/insiden`, the situasi tab
+    and the incident cards flat.
+  - **`editable` is forwarded to every level on purpose** (see the superseded rationale above), and
+    the re-emitted `edit` carries the clicked descendant's own `LinkCardItem`. A host that computes
+    `editable` from the root over-grants a pencil one level down; that is a cosmetic over-permission
+    the backend rejects, and the alternative (a per-link predicate input) has no caller.
+  - **Do not "improve" the root's presentation.** It renders through the same `app-link-card` with
+    the same inputs (byte-identical DOM to a plain row apart from the one rail chip), so the first
+    link of a conversation looks exactly like any other link; bolding, badging or resizing it would
+    grow a second visual hierarchy in the feed for no gain.
+  - `MAX_THREAD_DEPTH` (the server's write-side cap) is **not** mirrored here. The read side is
+    bounded by what the query fetched, so a host asking for deeper nesting simply gets `[]`; a client
+    that mirrors the cap silently loses a level the day the cap moves. A host that wants conversations
+    open by default, or one specific one open, adds an input rather than re-deriving the toggle.
 - **`link-occurred-at.util.ts` is the single datetime-local ↔ API conversion seam** for the link
   feature. Its contract is the thing to preserve: offset-free in and out, never `toISOString()` on a
   naive wall-time field (that shifts it 8 hours), and a value that does not match the control's shape
@@ -411,23 +535,31 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
 
 ## 💡 Potential Feature Opportunities
 
-- **Extend thread UI to the flat surfaces.** `app-link-thread` is deliberately shipped on the home
-  feed and the admin console only; `/insiden`'s Submitted Links tab, the situasi tab, the per-incident
-  cards and My Links stay flat and complete, because a reader browsing "everything submitted" would
-  lose rows the reader came for. The component is host-agnostic, but a host is **not** a one-line
-  swap. Exactly one selection gap has to be closed first, and it is the nested one: the per-incident
-  `links(first: 10)` sub-select in `insiden.queries.ts` selects **none** of
-  `threadId`/`isThreadRoot`/`threadSize`/`threadLinks` (only
-  `id url title occurredAt created status completed`), and the incident card builds its ONE list out
-  of that sub-select plus `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` continuations — so page 1 would arrive
-  with no thread fields at all. `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` itself (Submitted Links, situasi,
-  My Links, incident-card continuations) already selects `threadId`/`isThreadRoot`/`threadSize`, but
-  **not** `threadLinks`, which is the field the wrapper expands from. So the real work is: add the
-  nested `threadLinks` to both documents, keep the two selection sets in agreement (the existing
-  `occurredAt`/`created` pair is kept in sync for exactly this reason), then set
-  `collapseThreads: true` on the first page **and** every continuation — and make a deliberate
-  decision about `mine`, which the backend never collapses. Deliberately out of scope for this wave,
-  not blocked.
+- **Extend thread UI to the flat surfaces — still open, and narrower than it was.** `app-link-thread`
+  is deliberately shipped on the **home feed** (today + Last Week) and the two management surfaces
+  (the console triage table and My Submitted Links, both of which show hierarchy as an _indent_ in a
+  flat list rather than as an expansion). `/insiden`'s Submitted Links tab, the situasi tab and the
+  per-incident cards stay flat and complete, because a reader browsing "everything submitted" would
+  lose rows the reader came for, and a per-line filter wants a complete list of reports about that
+  line. The component is host-agnostic and now recursive, so a host is closer than it was — but it is
+  still **not** a one-line swap, and the remaining work is entirely about **selections**:
+  1. `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` (Submitted Links, situasi, My Links, incident-card
+     continuations) selects `parentId` / `isThreadRoot` / `sublinkCount` / `position` but
+     **deliberately not `sublinks`**, which is the field the wrapper expands from.
+  2. The per-incident `links(first: 10)` sub-select in `insiden.queries.ts` selects **no** tree field
+     at all (only `id url title occurredAt created status completed`), and the incident card builds its
+     ONE list out of that sub-select **plus** continuation pages from the document above — so page 1
+     would arrive with no tree fields while the rest of the list had them. That two-document hazard is
+     the same one the `occurredAt`/`created` pair already documents, one field over, and it is pinned
+     by `incident-card.component.spec.ts` on **both** documents.
+
+  So the real work is: add the nested `sublinks` to both documents (to the depth to be shown), keep
+  the two selection sets in agreement, then set `collapseThreads: true` on the first page **and every
+  continuation** — and make a deliberate decision about `mine`, which the backend never collapses
+  (a submitter must never lose their own sublinks behind a root). Each flat host's spec currently
+  **fails** if the tree leaks in, so closing this gap is a deliberate, spec-visible product change and
+  not a refactor. Deliberately out of scope for this wave, not blocked.
+
 - **Client-side filtering by line/vehicle/station/severity:** Ready now — `allIncidents`,
   `dayIncidents`, and `pinned` are already `computed()` signals derived from `incidentsResource`;
   adding a filter-criteria signal and folding it into those `computed()`s is a small additive

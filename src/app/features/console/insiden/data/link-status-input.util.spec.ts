@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { linkStatusInput } from "./link-status-input.util";
 import type { SocialMediaLinkRow } from "./insiden-console.queries";
 
+/** A row of the console queue, as `SOCIAL_MEDIA_LINKS_QUERY` returns it. Every
+ *  hierarchy field is set explicitly — including `position`, which is required on
+ *  the row type and used to be omitted here. It had to be: the factory spreads
+ *  `Partial<SocialMediaLinkRow>` into the literal, and that spread widens EVERY
+ *  property to `T[k] | undefined`, so a required field the factory did not name was
+ *  a type error in the suite. Setting it here (and in `links.component.spec.ts`) is
+ *  what let `position` be promoted to required. `position: 10` is a real stored
+ *  sibling rank, not a placeholder. */
 function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkRow {
   return {
     id: "1",
@@ -9,9 +17,10 @@ function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkR
     title: "Service alert",
     created: "2026-09-01T09:00:00",
     occurredAt: "2026-08-31T22:15:00",
-    threadId: null,
+    parentId: null,
     isThreadRoot: true,
-    threadSize: 1,
+    sublinkCount: 0,
+    position: 10,
     completed: false,
     completedAt: null,
     completedBy: null,

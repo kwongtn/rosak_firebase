@@ -22,12 +22,7 @@ import { LinkThreadComponent } from "../insiden/link-thread/link-thread.componen
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
-import type {
-  FeedLink,
-  FeedLinkPageInfo,
-  FeedLinkThreadMember,
-  LinePulse,
-} from "./data/home.queries";
+import type { FeedLink, FeedLinkPageInfo, FeedLinkSublink, LinePulse } from "./data/home.queries";
 import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
@@ -50,6 +45,15 @@ if (!window.matchMedia) {
   }));
 }
 
+/** A lone, ungrouped link — a root of its own conversation. This is the shape `FEED_QUERY` returns
+ *  for the overwhelming majority of rows, and it is the case the affordance gate has to keep
+ *  quiet: `parentId` null, `isThreadRoot` true (a ROOT MARKER, not "has sublinks"), and
+ *  `sublinkCount` **0** because a childless link has no descendants.
+ *
+ *  ⚠️ `0`, not `1`. `sublinkCount` is a DESCENDANT count, so the old flat fixture's
+ *  `threadSize: 1` ("a conversation of one, counting itself") became `sublinkCount: 0`. Writing
+ *  `1` here would put a "2 links" chip on every ordinary row in the feed — the exact regression
+ *  the card's gate note warns about. */
 function makeFeedLink(id: string): FeedLink {
   return {
     id,
@@ -58,10 +62,10 @@ function makeFeedLink(id: string): FeedLink {
     title: `Feed link ${id}`,
     created: "2026-08-01T08:00:00",
     occurredAt: "2026-08-01T08:00:00",
-    threadId: null,
+    parentId: null,
     isThreadRoot: true,
-    threadSize: 1,
-    threadLinks: [],
+    sublinkCount: 0,
+    sublinks: [],
     status: "LIVE",
     completed: false,
     isAutomated: false,
@@ -70,25 +74,82 @@ function makeFeedLink(id: string): FeedLink {
     voteBreakdown: { upvotes: 3, downvotes: 0 },
     lines: [{ id: "L1", code: "KJL", displayName: "Kajang Line" }],
     user: { shortId: "abc12345", nickname: "Ali" },
+    // The three EDIT ROUND-TRIP relations, which `FEED_QUERY` selects at EVERY level
+    // precisely because the edit sheet replaces them server-side. A fixture that omitted
+    // them would describe a row the server can never return, and would hand the edit
+    // sheet a form that looks untagged and saves as one.
+    vehicles: [],
+    stations: [],
+    categories: [{ id: "C1", name: "Just Reporting" }],
   };
 }
 
-/** A thread member: no thread fields of its own (depth is 1 by model invariant). Built by
- *  destructuring them OFF the root fixture rather than by re-spelling the type, so the fixture can
- *  never drift from `FeedLinkThreadMember` — the query's nested `threadLinks` selection. */
-function makeMember(id: string): FeedLinkThreadMember {
-  const { threadId, isThreadRoot, threadSize, threadLinks, ...member } = makeFeedLink(id);
-  return member;
+/** The recursion {@link descendantCount} needs, and the minimum a node must carry for a fixture to
+ *  be counted: a node plus its own children. Every `FeedLinkSublink` level is structurally a
+ *  `SublinkNode` (each deeper level adds nothing but another `sublinks` array), so the counter
+ *  accepts the real query types without a cast. */
+interface SublinkNode {
+  sublinkCount: number;
+  sublinks?: SublinkNode[];
 }
 
-/** A collapsed root as the backend returns it: members nested, `threadSize` counting the root. */
-function makeThreadedLink(id: string, memberIds: string[]): FeedLink {
-  const threadLinks = memberIds.map((memberId) => makeMember(memberId));
+/** How many descendants a list of sublinks holds, at EVERY depth — the value the backend's
+ *  `sublinkCount` carries for the node they hang under.
+ *
+ *  🔴 This is the rule a fixture that hand-writes the count gets wrong: a root with two children
+ *  where one of those has a child of its own is `3`, not `2` and not `1 + children.length`. The old
+ *  flat `threadSize` could be summed as `members.length + 1` because depth was 1 by model
+ *  invariant; the tree has no such invariant, so a fixture that assumes "children + 1" passes the
+ *  chip assertion for the wrong reason. Deriving the number from the tree the fixture actually
+ *  built makes that mistake unrepresentable. */
+function descendantCount(sublinks: readonly SublinkNode[]): number {
+  return sublinks.reduce((total, node) => total + 1 + descendantCount(node.sublinks ?? []), 0);
+}
+
+/** One SUBLINK, at any depth: a child of `parentId` that may itself carry sublinks. Unlike the old
+ *  "thread member" factory it keeps every tree field — a sublink can be the head of a nested
+ *  conversation of its own, which the depth-1 model made impossible — and it derives
+ *  `sublinkCount` from the children it is given rather than being handed one, so a node can never
+ *  claim a count its own subtree contradicts.
+ *
+ *  🔴 `isThreadRoot: false`, which the old factory could not express: `isThreadRoot` is defined as
+ *  `parentId == null`, so a sublink is never a root even when it is the only conversation of one. */
+function makeSublink(
+  id: string,
+  parentId: string,
+  sublinks: FeedLinkSublink[] = [],
+): FeedLinkSublink {
   return {
     ...makeFeedLink(id),
-    threadSize: threadLinks.length + 1,
-    threadLinks,
+    parentId,
+    isThreadRoot: false,
+    sublinkCount: descendantCount(sublinks),
+    sublinks,
   };
+}
+
+/** A collapsed root with one level of sublinks, as the backend returns it for a two-level
+ *  conversation: children nested under `sublinks`, and the root's own descendant count. The chip
+ *  then reads `count + 1` (the conversation size `threadLabel` is defined on), so two children read
+ *  "3 links". */
+function makeTreeLink(id: string, sublinkIds: string[]): FeedLink {
+  const sublinks = sublinkIds.map((sublinkId) => makeSublink(sublinkId, id));
+  return { ...makeFeedLink(id), sublinkCount: descendantCount(sublinks), sublinks };
+}
+
+/** A THREE-LEVEL conversation — root -> [c1, c2], where c1 carries a grandchild of its own. It
+ *  exists to pin the one thing the two-level fixture cannot: that the root's count spans ALL depths.
+ *  The subtree holds 3 nodes below the root, so the root's `sublinkCount` is 3 (a descendant count,
+ *  NOT the conversation size) and the chip must read "4 links".
+ *
+ *  If the count were "children + 1" the assertion would read "3 links", and a component that
+ *  mis-summed only one level would still pass every other test in this file. */
+function makeNestedTreeLink(id: string): FeedLink {
+  const grandchild = makeSublink(`${id}-c1-gc`, `${id}-c1`);
+  const c1 = makeSublink(`${id}-c1`, id, [grandchild]);
+  const c2 = makeSublink(`${id}-c2`, id);
+  const sublinks = [c1, c2];
+  return { ...makeFeedLink(id), sublinkCount: descendantCount(sublinks), sublinks };
 }
 
 function makeLine(id: string): LinePulse {
@@ -666,27 +727,28 @@ describe("HomePage", () => {
     expect(store.loadMoreLastWeek).toHaveBeenCalledTimes(1);
   });
 
-  /* ---- thread rendering (plan F4: the home feed collapses + renders app-link-thread) -------- */
+  /* ---- conversation rendering (plan F5: the home feed collapses + renders app-link-thread) ---- */
 
   it("renders every feed row through the thread wrapper, not a bare card", () => {
     const root = fixture.nativeElement as HTMLElement;
 
     // The wrapper renders the root itself, so `app-link-card` still appears exactly twice — but
     // only INSIDE a wrapper, which is what keeps the "first link looks like any other link" rule
-    // while giving a grouped row somewhere to hang its indicator.
+    // while giving a conversation somewhere to hang its indicator.
     expect(root.querySelectorAll("app-link-thread").length).toBe(2);
     expect(root.querySelectorAll("app-link-thread app-link-card").length).toBe(2);
     expect(root.querySelectorAll("app-link-card").length).toBe(2);
   });
 
-  it("gives a collapsed root the 'N links' indicator and reveals its members on expand", () => {
-    store.feedLinks.set([makeThreadedLink("a", ["m1", "m2"])]);
+  it("gives a collapsed root the 'N links' indicator and reveals its sublinks on expand", () => {
+    store.feedLinks.set([makeTreeLink("a", ["s1", "s2"])]);
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
     const thread = root.querySelector('[data-testid="link-thread"]') as HTMLElement;
 
-    // Collapsed by default: the root alone, exactly as a single link renders.
+    // Collapsed by default: the root alone, exactly as a single link renders. Two children means
+    // a descendant count of 2, and the chip prints the CONVERSATION SIZE (count + 1) — "3 links".
     expect(thread.querySelectorAll("app-link-card").length).toBe(1);
     expect(thread.querySelector('[data-testid="link-thread-size"]')?.textContent?.trim()).toBe(
       "3 links",
@@ -701,13 +763,67 @@ describe("HomePage", () => {
       thread.querySelectorAll("app-link-card") as NodeListOf<HTMLElement>,
     ).map((card) => card.textContent ?? "");
     expect(titles[0]).toContain("Feed link a");
-    expect(titles[1]).toContain("Feed link m1");
-    expect(titles[2]).toContain("Feed link m2");
+    expect(titles[1]).toContain("Feed link s1");
+    expect(titles[2]).toContain("Feed link s2");
   });
 
-  it("renders a plain unthreaded link as ONE card and no indicator", () => {
-    // `isThreadRoot` is true for an unthreaded link (thread == null IS the definition of a root),
-    // so a wrapper gated on it would sprout a "1 links" badge on every row in the feed.
+  it("counts a nested conversation at every depth, and nests the revealed cards", () => {
+    // root -> [c1, c2], c1 -> [c1-gc]. The gate is `sublinkCount > 0` and the label is
+    // `sublinkCount + 1`, so the chip MUST read "4 links": the root holds THREE descendants (two
+    // children plus one grandchild), not two. A "children + 1" count would render "3 links" here
+    // and pass every two-level test in this file while being wrong.
+    store.feedLinks.set([makeNestedTreeLink("a")]);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const thread = root.querySelector('[data-testid="link-thread"]') as HTMLElement;
+    expect(thread.querySelector('[data-testid="link-thread-size"]')?.textContent?.trim()).toBe(
+      "4 links",
+    );
+    // The grandchild sits two levels down, so it is not revealed by the root's own expand.
+    expect(thread.querySelectorAll("app-link-card").length).toBe(1);
+
+    (thread.querySelector('[data-testid="link-thread-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    // Root + 2 children. The child that is itself a conversation carries its OWN chip, labelled
+    // from its own count (1 descendant + 1 = "2 links"), not the root's.
+    const chips = Array.from(
+      thread.querySelectorAll('[data-testid="link-thread-size"]') as NodeListOf<HTMLElement>,
+    ).map((chip) => chip.textContent?.trim());
+    expect(chips).toEqual(["4 links", "2 links"]);
+    expect(thread.querySelectorAll("app-link-card").length).toBe(3);
+
+    // Expanding the middle child reveals the grandchild, one nesting level deeper: the wrapper
+    // recurses, and the deepest card has no chip of its own (a leaf's count is 0).
+    const members = thread.querySelector('[data-testid="link-thread-members"]') as HTMLElement;
+    const nestedToggles = members.querySelectorAll(
+      '[data-testid="link-thread-toggle"]',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(nestedToggles.length).toBe(1);
+    nestedToggles[0].click();
+    fixture.detectChanges();
+
+    expect(thread.querySelectorAll("app-link-card").length).toBe(4);
+    // The grandchild sits INSIDE c1's own members container, and c2 stays a sibling of c1 — the
+    // stronger statement than a document-order index, since it is the nesting that must hold.
+    const c1Members = members.querySelector('[data-testid="link-thread-members"]') as HTMLElement;
+    expect(c1Members.textContent).toContain("Feed link a-c1-gc");
+    expect(c1Members.textContent).not.toContain("Feed link a-c2");
+
+    // The deepest card is a leaf, so it carries no chip of its own: `sublinkCount` is 0 for a node
+    // with nothing under it, and the gate is `> 0`. Reached through c1's container rather than by
+    // index into the whole subtree, which would be sensitive to document order.
+    const leafThread = c1Members.querySelectorAll('[data-testid="link-thread"]')[0] as HTMLElement;
+    expect(leafThread.textContent).toContain("Feed link a-c1-gc");
+    expect(leafThread.querySelector('[data-testid="link-thread-size"]')).toBeNull();
+    expect(leafThread.querySelector('[data-testid="link-thread-toggle"]')).toBeNull();
+  });
+
+  it("renders a plain ungrouped link as ONE card and no indicator", () => {
+    // `isThreadRoot` is true for an ungrouped link (parentId == null IS the definition of a root),
+    // so a wrapper gated on it would sprout a "1 links" badge on every row in the feed. The gate is
+    // `sublinkCount > 0`, and this fixture's count is 0.
     const root = fixture.nativeElement as HTMLElement;
     const thread = root.querySelector('[data-testid="link-thread"]') as HTMLElement;
 
@@ -718,23 +834,23 @@ describe("HomePage", () => {
   });
 
   it("hands the wrapper the store's whole vote map, not a per-row number", () => {
-    store.userVotes.set({ a: -1, m1: 1 });
+    store.userVotes.set({ a: -1, s1: 1 });
     fixture.detectChanges();
 
     const threads = fixture.debugElement.queryAll(By.directive(LinkThreadComponent));
 
     // One map for every row: the overlay stays in the store, and the wrapper forwards it to each
-    // card (root and members) by id, which is the only way a member can render the caller's vote.
+    // card (root and sublinks) by id, which is the only way a sublink can render the caller's vote.
     expect(threads).toHaveLength(2);
     for (const thread of threads) {
-      expect(thread.componentInstance.voteValues()).toEqual({ a: -1, m1: 1 });
+      expect(thread.componentInstance.voteValues()).toEqual({ a: -1, s1: 1 });
     }
     // The root's scalar input stays wired for the no-overlay case (anonymous feed value).
     expect(threads[0].componentInstance.userVote()).toBe(1);
   });
 
-  it("records a member's vote through the store under the MEMBER's id", () => {
-    store.feedLinks.set([makeThreadedLink("a", ["m1"])]);
+  it("records a sublink's vote through the store under the SUBLINK's id", () => {
+    store.feedLinks.set([makeTreeLink("a", ["s1"])]);
     fixture.detectChanges();
 
     const thread = fixture.nativeElement.querySelector(
@@ -744,19 +860,19 @@ describe("HomePage", () => {
     fixture.detectChanges();
 
     // The wrapper re-emits with the VOTED card's id, so the optimistic overlay is filed against the
-    // member — hard-coding the root's id (all the old flat loop knew) would attribute it to `a`.
+    // sublink — hard-coding the root's id (all the old flat loop knew) would attribute it to `a`.
     const wrapper = fixture.debugElement.queryAll(By.directive(LinkThreadComponent))[0];
-    wrapper.componentInstance.voteChanged.emit({ id: "m1", value: 1 });
+    wrapper.componentInstance.voteChanged.emit({ id: "s1", value: 1 });
     wrapper.componentInstance.voteChanged.emit({ id: "a", value: -1 });
 
-    expect(store.setUserVote).toHaveBeenNthCalledWith(1, "m1", 1);
+    expect(store.setUserVote).toHaveBeenNthCalledWith(1, "s1", 1);
     expect(store.setUserVote).toHaveBeenNthCalledWith(2, "a", -1);
   });
 
-  it("opens the edit sheet from a thread's edit pencil", () => {
+  it("opens the edit sheet from a conversation's edit pencil", () => {
     auth.isLoggedIn.set(true);
     auth.user.set({ uid: "abc12345zzz" });
-    store.feedLinks.set([makeThreadedLink("a", ["m1"])]);
+    store.feedLinks.set([makeTreeLink("a", ["s1"])]);
     fixture.detectChanges();
 
     const thread = fixture.nativeElement.querySelector(
@@ -770,10 +886,52 @@ describe("HomePage", () => {
     expect(linkSheet.editTarget()?.id).toBe("a");
   });
 
+  it("hands the edit sheet a CONVERSATION MEMBER's own tags, not the root's", () => {
+    // The wave made every descendant editable from the front page, and a sublink is the row
+    // MOST likely to carry a vehicle/station tag — so this is the row whose tags a replace-
+    // not-patch save would blank. The root deliberately carries none, so a target that
+    // resolved to the root cannot pass by accident.
+    auth.isLoggedIn.set(true);
+    auth.user.set({ uid: "abc12345zzz" });
+    const taggedSublink: FeedLinkSublink = {
+      ...makeSublink("a-s1", "a"),
+      vehicles: [{ id: "V1", identificationNo: "TR-1" }],
+      stations: [{ id: "S1", displayName: "KL Sentral" }],
+      categories: [{ id: "C9", name: "Signal" }],
+    };
+    store.feedLinks.set([{ ...makeFeedLink("a"), sublinkCount: 1, sublinks: [taggedSublink] }]);
+    fixture.detectChanges();
+
+    const thread = fixture.nativeElement.querySelector(
+      '[data-testid="link-thread"]',
+    ) as HTMLElement;
+    (thread.querySelector('[data-testid="link-thread-toggle"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    // Root's pencil first, then the revealed member's.
+    const pencils = thread.querySelectorAll(
+      '[data-testid="link-edit"]',
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(pencils.length).toBe(2);
+    pencils[1].click();
+    fixture.detectChanges();
+
+    const linkSheet = TestBed.inject(LinkSheetService);
+    const target = linkSheet.editTarget();
+    expect(target?.id).toBe("a-s1");
+    // Asserted as ids, which is all the form hydrates (`target.vehicles.map(v => v.id)`) — and
+    // all the update payload sends. Before `FEED_QUERY` selected these relations, the server
+    // sent none of them and this target carried nothing, so the save below would have posted
+    // empty lists and deleted the tags.
+    expect(target?.vehicles?.map((vehicle) => vehicle.id)).toEqual(["V1"]);
+    expect(target?.stations?.map((station) => station.id)).toEqual(["S1"]);
+    expect(target?.categories?.map((category) => category.id)).toEqual(["C9"]);
+  });
+
   it("renders the last-week day groups through the thread wrapper too", () => {
     const root = fixture.nativeElement as HTMLElement;
     store.lastWeekDayGroups.set([
-      { key: "2026-09-30", label: "Today", links: [makeThreadedLink("w", ["wm1"])] },
+      { key: "2026-09-30", label: "Today", links: [makeTreeLink("w", ["ws1"])] },
     ]);
     fixture.detectChanges();
 

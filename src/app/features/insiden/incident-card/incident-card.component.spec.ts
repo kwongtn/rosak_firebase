@@ -87,6 +87,36 @@ function nestedLinksNodeSelection(): string[] {
     .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line));
 }
 
+/** The field names selected on the node of the ROOT publicSocialMediaLinks query — the document
+ *  this card's continuation pages come from, and the second half of its two-document link list.
+ *  Parsed (not substring-matched) because that document explains the flat decision in a `#` comment
+ *  that names `sublinks`, so a raw `toContain` would match the explanation. Duplicated from the
+ *  flat tabs' specs on purpose: each flat host pins the shared document from its own suite. */
+function publicLinkNodeSelection(): string[] {
+  const doc = PUBLIC_SOCIAL_MEDIA_LINKS_QUERY;
+  const nodeOpen = doc.indexOf("node {");
+  if (nodeOpen < 0) {
+    throw new Error("PUBLIC_SOCIAL_MEDIA_LINKS_QUERY has no node selection");
+  }
+  const bodyStart = nodeOpen + "node {".length;
+  let depth = 1;
+  let cursor = bodyStart;
+  while (cursor < doc.length && depth > 0) {
+    const ch = doc[cursor];
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+    }
+    cursor++;
+  }
+  return doc
+    .slice(bodyStart, cursor - 1)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line));
+}
+
 function makeIncident(overrides: Partial<CalendarIncident> = {}): CalendarIncident {
   return {
     id: "42",
@@ -661,6 +691,62 @@ describe("IncidentCardComponent incident links", () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[data-testid="retry-card-links"]')).not.toBeNull();
+  });
+
+  /* ---- flat-host regression (plan F5): the in-card conversation affordance must not leak here - */
+
+  it("renders the link list with no conversation chip, no chevron and no card at all", async () => {
+    // This surface does not host `app-link-card`: its rows are the compact
+    // `[datetime] favicon title` anchors, so the card's in-card "N links" affordance has no host to
+    // render in. The row below is deliberately a CONVERSATION ROOT carrying a real descendant count
+    // (3, which a naive read would print as "4 links") — the chip must still be absent, because this
+    // list shows every link tagged to the incident as its own row and offers no expansion.
+    fixture.componentRef.setInput(
+      "incident",
+      makeIncident({
+        links: {
+          edges: [
+            makeLinkEdge("root", { parentId: null, isThreadRoot: true, sublinkCount: 3 }),
+            makeLinkEdge("live-1"),
+            makeLinkEdge("pending-1", { status: "PENDING_APPROVAL" }),
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      }),
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(linkLines()).toHaveLength(3);
+    expect(root.querySelectorAll("app-link-card")).toHaveLength(0);
+    expect(root.querySelectorAll("app-link-thread")).toHaveLength(0);
+    expect(root.querySelector('[data-testid="link-thread-size"]')).toBeNull();
+    expect(root.querySelector('[data-testid="link-thread-toggle"]')).toBeNull();
+  });
+
+  it("stays flat on BOTH of its link documents: no sublinks selection on either", () => {
+    // This list is assembled from two documents, so "flat" has to be true of each of them — the
+    // page-1 sub-select AND the root query its continuation pages come from (the same
+    // two-document hazard the occurredAt/created pair already documents, one field over).
+    // Read off the documents rather than hand-copied: `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` discusses
+    // `sublinks` in a `#` comment, so a substring assertion would match the explanation.
+    const nested = nestedLinksNodeSelection();
+    expect(nested).not.toContain("sublinks");
+    // The nested sub-select carries no tree field at all — not even the scalars — so a row that IS
+    // a conversation root still arrives here with no count for anything to gate on. That is the
+    // cheapest place in the app to keep flat: seven fields, no tree, nothing to expand.
+    expect(nested).not.toContain("sublinkCount");
+    expect(nested).not.toContain("parentId");
+    expect(nested).not.toContain("isThreadRoot");
+    // …and it still keeps the occurredAt/created pair, whose absence is what made this list label
+    // its top ten rows by one instant and its rows below by another.
+    expect(nested).toContain("occurredAt");
+    expect(nested).toContain("created");
+
+    const continuation = publicLinkNodeSelection();
+    expect(continuation).not.toContain("sublinks");
+    expect(continuation).toContain("sublinkCount");
   });
 });
 

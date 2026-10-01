@@ -125,8 +125,10 @@
       Selection toolbar. Rendered ALWAYS (not only once something is ticked) so the
       affordance is discoverable, and so "needs two" shows up as a disabled button
       with a stated reason rather than as a button that is simply absent. The hint
-      is `canGroup`'s rule in plain words: a one-link thread is a no-op that still
-      renders as a thread.
+      is `canGroup`'s rule in plain words: a one-link conversation is a no-op that
+      still renders as a conversation. It covers BOTH selection-consuming actions:
+      "Group into thread" (a NEW conversation, no target) and the per-row
+      "Nest under…", which nests the same ticked rows under the row it sits on.
     -->
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -146,13 +148,30 @@
       }
       @if (!canGroupSelection()) {
         <span class="text-muted-foreground text-xs">
-          Select at least two links to group them into one thread.
+          Select at least two links to group them into one conversation, or to nest them under one.
+        </span>
+      }
+      <!--
+        Why the per-row sequence actions are greyed out. `reorderSocialMediaLinks`
+        permutes ONE sibling set, so a filtered page can only send part of it — and
+        the server would accept the part and leave the rows the admin cannot see at
+        the end of the conversation. Stating it here is the difference between "the
+        console is broken" and "clear the filters to use this"; each button repeats
+        it on hover.
+      -->
+      @if (!queueIsComplete()) {
+        <span class="text-muted-foreground text-xs" data-testid="reorder-hint">
+          Clear the filters to reorder links: a filtered page may be missing siblings, and a partial
+          sequence would push the hidden ones to the end.
         </span>
       }
     </div>
 
     <div hlmTableContainer>
-      <table hlmTable class="min-w-[1100px]">
+      <!-- min-w grew with the tree: the action cell now carries the sequence and
+           nesting verbs, and a table that squeezed them out of reach would make
+           the new features unreachable on a narrow screen. -->
+      <table hlmTable class="min-w-[1280px]">
         <thead hlmTHead>
           <tr hlmTr>
             <th hlmTh class="w-8">
@@ -234,18 +253,45 @@
                   />
                 </td>
                 <td hlmTd class="max-w-72 py-3">
-                  <a
-                    [href]="link.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="hover:underline"
-                    (click)="$event.stopPropagation()"
+                  <!--
+                    THE DEPTH INDENT: the whole hierarchy affordance, in one binding.
+                    `depthOf` walks the row's parentId chain inside the LOADED set,
+                    and a row whose parent is not loaded counts as a root — which is
+                    exactly what a filtered page does to a sublink (its parent is not
+                    in the result), and rendering it flush is honest rather than
+                    leaving a gap for a parent the payload does not contain.
+                    `data-depth` is the same number the padding is derived from, so
+                    a spec can assert the hierarchy without measuring pixels.
+
+                    ⚠️ `break-all` ON THE ANCHOR, and it is load-bearing: a URL is one
+                    unbroken token, so without it a long link runs past the cell's
+                    `max-w-72` and is clipped by the table's scroll container — the
+                    admin cannot read the tail of the very address they have to judge.
+                    Same reason the detail sheet's URL link (:545) is `break-all`. -->
+                  <div
+                    class="flex items-center gap-1"
+                    data-testid="link-depth"
+                    [attr.data-depth]="depthOf(link)"
+                    [style.padding-left.px]="depthOf(link) * depthIndentPx"
                   >
-                    {{ link.url }}
-                  </a>
+                    <a
+                      [href]="link.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="hover:underline break-all"
+                      (click)="$event.stopPropagation()"
+                    >
+                      {{ link.url }}
+                    </a>
+                  </div>
                 </td>
                 <td hlmTd class="max-w-64 py-3">
-                  {{ link.title || "—" }}
+                  <!--
+                    `break-words` (not `break-all`): a title is prose, so it should
+                    only break where the text has no other opportunity, and the same
+                    clipping argument as the URL cell applies — a long crowd-sourced
+                    headline must stay readable inside `max-w-64`. -->
+                  <span class="break-words">{{ link.title || "—" }}</span>
                 </td>
                 <td hlmTd class="py-3">
                   <div class="flex flex-col items-start gap-1">
@@ -292,29 +338,41 @@
                 </td>
                 <td hlmTd class="py-3 whitespace-nowrap">
                   <!--
-                    The thread chip, and the one place in the row that states the
-                    coupling an admin would otherwise discover only after the
-                    fact: a thread is public IFF its ROOT is, so this row's Hide
-                    is really a decision about every member too. `threadLabel`
-                    returns "" for a size of 1, so an unthreaded link AND a thread
-                    member both render an em dash — only a genuine multi-link root
-                    gets a chip, and the count is the number of publicly-visible
-                    members (backend `thread_size`), so a hidden member can never
-                    inflate it.
+                    The conversation chip: how many links hang BELOW this row, at any
+                    depth, so an admin can see a row's whole-subtree size before
+                    acting on it.
 
-                    The tooltip repeats the coupling; `hideLink` also confirms at
-                    the moment of the click, because a tooltip is only read if
-                    the admin happens to hover the one cell that carries it.
+                    🔴 THE `+ 1` IS LOAD-BEARING AND MUST NOT BE "SIMPLIFIED" AWAY.
+                    `threadLabel`'s parameter is a CONVERSATION SIZE — this node plus
+                    its publicly-visible descendants — and it answers "" for anything
+                    `<= 1`. `sublinkCount` is the DESCENDANT count (`0` for a leaf), so
+                    passing it raw would delete the chip on a root with exactly ONE
+                    sublink (`1` -> "") while leaving every ordinary row correctly
+                    chip-less (`0` -> ""), which is exactly why the bug hides. Same
+                    off-by-one as `confirmThreadCoupling`; the two must never diverge.
+
+                    The gate is therefore `sublinkCount > 0` and NEVER `isThreadRoot`:
+                    the backend calls every `parentId == null` link a root, so that
+                    flag is true for every ungrouped row in the queue and would print
+                    a chip on the whole page.
+
+                    The tooltip states the coupling a row otherwise hides: a
+                    conversation is public only while its root is, so hiding this row
+                    hides everything under it — recursively. `hideLink` also confirms
+                    at the moment of the click, because a tooltip is only read if the
+                    admin happens to hover the one cell that carries it.
                   -->
-                  @if (threadLabel(link.threadSize); as label) {
+                  @if (threadLabel(link.sublinkCount + 1); as label) {
                     <span
                       hlmBadge
                       variant="special"
                       data-testid="link-thread"
                       [title]="
-                        'Thread root — ' +
+                        (link.isThreadRoot
+                          ? 'Root of a conversation — '
+                          : 'Links below this row — ') +
                         label +
-                        ' in this thread. A thread is public only while its root is, so hiding this row hides every member too.'
+                        ' at any depth. A conversation is public only while its root is, so hiding this row hides that whole subtree too.'
                       "
                     >
                       {{ label }}
@@ -324,7 +382,12 @@
                   }
                 </td>
                 <td hlmTd class="py-3">
-                  <div class="flex items-center gap-2">
+                  <!--
+                    flex-wrap: the action set grew with the tree (sequence, nesting),
+                    and a wrapping cell degrades to a taller row instead of an
+                    action that has scrolled out of reach on a wide table.
+                  -->
+                  <div class="flex flex-wrap items-center gap-2">
                     @if (link.status !== "LIVE") {
                       <button
                         hlmBtn
@@ -357,12 +420,64 @@
                       </button>
                     }
                     <!--
-                      Members only. Ungrouping a ROOT is a server-side no-op (it is
-                      not a member of anything), so offering it there would be a
-                      button that succeeds and changes nothing; the root's own
-                      job is to carry the chip above.
+                      THE SEQUENCE. Offered at every row that has a sibling in the
+                      loaded set, and disabled at the two ends of the STORED run with
+                      the reason on hover. A swap needs an adjacent row, and this table
+                      shows the queue's `occurredAt DESC, id DESC` order while the write
+                      sets the STORED sibling order (`position` ASC, then `id`), so the
+                      payload is that whole run with this row moved one place - never the
+                      two rows alone, and never the order the table happens to show.
                     -->
-                    @if (link.threadId) {
+                    <button
+                      hlmBtn
+                      size="sm"
+                      variant="ghost"
+                      data-testid="move-link-up"
+                      [disabled]="isLoading() || !canMoveUp(link)"
+                      [title]="moveBlockedReason(link, 'up') ?? null"
+                      (click)="$event.stopPropagation(); moveLinkUp(link)"
+                    >
+                      Move up
+                    </button>
+                    <button
+                      hlmBtn
+                      size="sm"
+                      variant="ghost"
+                      data-testid="move-link-down"
+                      [disabled]="isLoading() || !canMoveDown(link)"
+                      [title]="moveBlockedReason(link, 'down') ?? null"
+                      (click)="$event.stopPropagation(); moveLinkDown(link)"
+                    >
+                      Move down
+                    </button>
+                    <!--
+                      NESTING: the ticked rows become this row's direct children. It
+                      is a ROW action rather than a target picker because the row is
+                      the target and the ticks are the payload — asking the admin to
+                      pick, from a dropdown, the target they are already looking at
+                      would add a step and a second source of truth for the same
+                      choice. Disabled (with a stated reason) below two ticks, and on
+                      a row that is itself ticked — nesting a selection under one of
+                      its own members is a cycle, which the server rejects as a unit.
+                    -->
+                    <button
+                      hlmBtn
+                      size="sm"
+                      variant="ghost"
+                      data-testid="nest-under"
+                      [disabled]="isLoading() || !canNestUnder(link)"
+                      [title]="nestBlockedReason(link) ?? 'Nest the ticked links under this one.'"
+                      (click)="$event.stopPropagation(); nestSelectedUnder(link)"
+                    >
+                      Nest under…
+                    </button>
+                    <!--
+                      Sublinks only. Ungrouping a ROOT is a server-side no-op (it is
+                      not a child of anything), so offering it there would be a
+                      button that succeeds and changes nothing; the root's own job is
+                      to carry the chip above.
+                    -->
+                    @if (link.parentId) {
                       <button
                         hlmBtn
                         size="sm"
@@ -619,6 +734,23 @@
           <button hlmBtn [disabled]="isSaving() || !canSave()" (click)="saveLinkEdit()">
             Save changes
           </button>
+          <!--
+            The sheet's mirror of the row's Approve, and the same two writes: publish
+            the row, then retire it, then one reload (see `approveLink`). Offered
+            only while the row is not LIVE, so this is the un-hide verb on a hidden
+            row and a no-op button is never rendered.
+          -->
+          @if (link.status !== "LIVE") {
+            <button
+              hlmBtn
+              variant="outline"
+              data-testid="panel-approve"
+              [disabled]="isSaving() || isLoading()"
+              (click)="approveFromPanel()"
+            >
+              Approve
+            </button>
+          }
           @if (!link.completed) {
             <button
               hlmBtn

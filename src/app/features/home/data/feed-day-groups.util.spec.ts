@@ -15,10 +15,10 @@ function makeLink(id: string, occurredAt: string): FeedLink {
     // `created` to a deliberately DISAGREEING value so any case that regresses to created-keying
     // fails loudly instead of passing by coincidence. Overrides below set both explicitly.
     occurredAt,
-    threadId: null,
+    parentId: null,
     isThreadRoot: true,
-    threadSize: 1,
-    threadLinks: [],
+    sublinkCount: 0,
+    sublinks: [],
     status: "LIVE",
     completed: false,
     isAutomated: false,
@@ -27,6 +27,11 @@ function makeLink(id: string, occurredAt: string): FeedLink {
     voteBreakdown: { upvotes: 0, downvotes: 0 },
     lines: [],
     user: null,
+    // The three EDIT ROUND-TRIP relations `FEED_QUERY` selects at every level. This util never
+    // reads them; they are here so the fixture stays a row the backend can actually return.
+    vehicles: [],
+    stations: [],
+    categories: [],
   };
 }
 

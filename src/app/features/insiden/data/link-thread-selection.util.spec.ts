@@ -160,7 +160,7 @@ describe("selectedWithin", () => {
 });
 
 describe("threadLabel", () => {
-  it("returns '' when the host did not select threadSize", () => {
+  it("returns '' when the host did not select a count at all", () => {
     expect(threadLabel(undefined)).toBe("");
   });
 
@@ -168,22 +168,35 @@ describe("threadLabel", () => {
     expect(threadLabel(null)).toBe("");
   });
 
-  it("returns '' for 0", () => {
-    // Not a real backend value (threadSize is 1 + visible members), but a host that computed a
-    // filtered count can produce it, and "0 links" must never reach a screen.
+  it("returns '' for 0 — the real descendant count of a childless link", () => {
+    // `0` is now a genuine backend value (`sublinkCount` on a leaf), and it is the case the
+    // `<= 1` branch exists for: no descendants, so nothing to expand and no chip. A host that
+    // passes a RAW `sublinkCount` therefore gets the right answer here, which is exactly why the
+    // off-by-one it introduces one level down (a single child reads as "no chip") is easy to
+    // miss — see the helper's docstring.
     expect(threadLabel(0)).toBe("");
   });
 
-  it("returns '' for 1 — every unthreaded link is already a one-member thread root", () => {
+  it("returns '' for 1 — an ordinary ungrouped link is already the whole conversation", () => {
     // The single most important branch: this is what makes an ordinary row show no chip at all.
+    // It is also why a caller reading a row's `sublinkCount` must pass `sublinkCount + 1`: passed
+    // raw, a root with exactly ONE child lands here and loses its chip.
     expect(threadLabel(1)).toBe("");
   });
 
-  it("returns '' for a negative size", () => {
+  it("keeps the `<= 1` rule when given a real conversation size", () => {
+    // The translation the three surfaces have to make now that the count excludes the node
+    // itself: a root with `sublinkCount` 0 or 1 is a 2-link or 1-link conversation, and 0/1 must
+    // still be silent rather than "0 links"/"1 links".
+    expect(threadLabel(0 + 1)).toBe("");
+    expect(threadLabel(1 + 1)).toBe("2 links");
+  });
+
+  it("returns '' for a negative count", () => {
     expect(threadLabel(-3)).toBe("");
   });
 
-  it("returns '' for a non-finite size rather than rendering 'NaN links'", () => {
+  it("returns '' for a non-finite count rather than rendering 'NaN links'", () => {
     expect(threadLabel(Number.NaN)).toBe("");
     expect(threadLabel(Number.POSITIVE_INFINITY)).toBe("");
   });
@@ -204,5 +217,17 @@ describe("threadLabel", () => {
     expect(threadLabel(1)).toBe("");
     expect(threadLabel(2)).not.toBe(threadLabel(1));
     expect(threadLabel(7)).toBe("7 links");
+  });
+
+  it("says nothing about DEPTH — a deep conversation is still one size", () => {
+    // The tree is four stored levels deep, and nothing in the app pluralises depth. If a second
+    // meaning ever crept in here, a 2-link root->child->grandchild would start claiming a
+    // different number from the root that holds the same two links.
+    // The load-bearing half is that the SIZE is the whole input: a root holding a
+    // root->child->grandchild claims the same "2 links" as the root holding any other
+    // two links, because the number a depth would change is not an argument here.
+    expect(threadLabel(2)).toBe("2 links");
+    expect(threadLabel(2)).not.toContain("level");
+    expect(threadLabel.length).toBe(1);
   });
 });

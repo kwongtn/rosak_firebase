@@ -1,14 +1,14 @@
 /**
  * Pure selection mechanics for the two thread-grouping surfaces: the admin console triage table
- * (`/console/insiden/links`) and "My Submitted Links" on the profile page. Both render a row
- * checkbox, a "Group into thread" action, a per-row "Ungroup" and a thread-size chip whose visible
- * text is the `threadLabel` count itself ("2 links" — not a literal `Thread (N)`), and both have to
- * behave identically on the empty case and the one-selection case.
+ * (`/console/links`) and "My Submitted Links" on the profile page. Both render a row
+ * checkbox, a "Group into thread" action, a per-row "Ungroup" and a conversation-size chip whose
+ * visible text is the `threadLabel` count itself ("2 links" — not a literal `Thread (N)`), and
+ * both have to behave identically on the empty case and the one-selection case.
  *
  * The fifth export, `threadLabel`, is the one with a wider remit than these two surfaces: it is the
- * app-wide pluralisation for a link thread and is also read by the feed's `app-link-thread`, so
- * changing its contract reaches three features. Its own docstring carries the exact consumer list;
- * keep it in step with the code if a surface moves.
+ * app-wide pluralisation for a link thread and is also read by the shared `app-link-card` (home
+ * feed AND the flat hosts alike), so changing its contract reaches three features. Its own
+ * docstring carries the exact consumer list; keep it in step with the code if a surface moves.
  *
  * WHY A SHARED MODULE, and why it is not a service: every function here is a total function of its
  * arguments — no Angular import, no `signal`, no RxJS (this repo has zero subjects in app code and
@@ -64,13 +64,14 @@ export function areAllSelected(selected: readonly string[], ids: readonly string
  * May the "Group into thread" action be enabled for this selection?
  *
  * FALSE below TWO links, and returning false for exactly one is the entire point of the function.
- * A one-link thread is a no-op that renders as NOTHING: the backend elects that single link as its
- * own root and its `threadSize` stays 1, so `threadLabel` — which every one of these surfaces reads
- * (see below) — answers `""`, the console row's thread cell falls through to its em dash, the
- * profile row's badge is skipped, and the console's `confirmThreadCoupling` (which also keys off
- * `threadLabel`) does not ask before hiding it. The user is left with a mutation that reported
- * success and a thread that is indistinguishable from an unthreaded link. A caller that enables the
- * button on a single row is handing the user a silent no-op.
+ * A one-link conversation is a no-op that renders as NOTHING: the backend leaves that single link
+ * as a root with `sublinkCount` 0, so a caller passing the conversation size (`sublinkCount + 1`)
+ * hands `threadLabel` a `1` — which every one of these surfaces reads (see below) — and it answers
+ * `""`, the console row's thread cell falls through to its em dash, the profile row's badge is
+ * skipped, and the console's `confirmThreadCoupling` (which also keys off `threadLabel`) does not
+ * ask before hiding it. The user is left with a mutation that reported success and a conversation
+ * that is indistinguishable from a lone link. A caller that enables the button on a single row is
+ * handing the user a silent no-op.
  *
  * Counts DISTINCT ids rather than `selected.length`: the backend rejects a repeated id outright
  * ("The selected social media links repeat an id."), so a selection that somehow acquired a
@@ -101,42 +102,72 @@ export function selectedWithin(selected: readonly string[], ids: readonly string
 }
 
 /**
- * The "N links" indicator text for a thread, or `""` for nothing at all.
+ * The "N links" indicator text for a conversation, or `""` for nothing at all.
  *
- * `""` for an absent size and for `<= 1`, which covers the degenerate case: EVERY unthreaded link
- * is already a thread root (the model defines a root as `thread == null`), so its `threadSize` is
- * `1`. Rendering "1 links" on every ordinary row would put a pluralisation bug on screen and train
- * riders to ignore the chip that actually means something. An empty string also lets a host drop
- * the chip with `@if (threadLabel(row.threadSize)) { … }` and get the right answer for free.
+ * 🔴 THE PARAMETER IS A **CONVERSATION SIZE** — the node plus its publicly-visible descendants,
+ * i.e. the backend's `sublinkCount + 1` — and NOT the raw `sublinkCount`. This is the single
+ * most important thing to know about this function, because the two are off by one and the
+ * `""`-for-`<= 1` rule below is calibrated to the first. `sublinkCount` is this node's OWN
+ * descendant count (`0` for a leaf), so a caller that passes it raw gets:
+ *   - `0` for a leaf → `""` → no chip ✓ (the common case, so the bug hides);
+ *   - `1` for a root with exactly ONE sublink → `""` → NO CHIP, even though the conversation
+ *     has something to expand — the one hole the previous count parameter could not have,
+ *     because a count that included the node itself (`1 + members`) is never `1` when there
+ *     is a child.
+ * Callers that read a row's `sublinkCount` therefore pass `row.sublinkCount + 1`. That is not
+ * busywork: it is what keeps the "1 links" pluralisation bug off every screen, which is the
+ * entire reason the `<= 1` branch exists.
+ *
+ * `""` for an absent count and for `<= 1`, which covers the degenerate case: EVERY ungrouped
+ * link is already a tree root (the backend defines a root as `parentId == null`) and has no
+ * descendants, so its conversation size is `1`. Rendering "1 links" on every ordinary row
+ * would put a pluralisation bug on screen and train riders to ignore the chip that actually
+ * means something. An empty string also lets a host drop the chip with
+ * `@if (threadLabel(row.sublinkCount + 1)) { … }` and get the right answer for free.
+ *
+ * 🔴 It says nothing about DEPTH. A conversation can be root -> child -> grandchild and still
+ * be a "2 links" conversation, because the count is a size and not a nesting level. Nothing in
+ * the app pluralises depth; do not let a second meaning creep in here.
  *
  * THE consumers, exactly (a stale list here is how a surface silently grows its own copy — re-derive
  * this list from the grep, do not add to it from memory):
- * - the console triage chip (`/console/insiden/links`, `links.component.ts` re-exposes it on the
+ * - the console triage chip (`/console/links`, `links.component.ts` re-exposes it on the
  *   class because a template can only read members — the row's thread cell falls back to an em dash
  *   on `""`), also read by `confirmThreadCoupling` to decide whether Hide needs the coupling confirm;
  * - the "My Submitted Links" badge on the profile page (same re-exposed-on-the-class idiom);
- * - the `app-link-thread` indicator — its only host today is the home page (today feed and the Last
- *   Week day groups): `groupLabel = threadLabel(totalCount())`, with both the visible count and the
- *   toggle's `aria-label` reading that one computed.
+ * - `app-link-card`'s in-card indicator: `conversationLabel = threadLabel(this.sublinkCount() + 1)`,
+ *   with both the visible chip and the toggle's `aria-label` reading that one computed.
+ *   ⚠️ NOT `app-link-thread`: the wrapper used to call this itself (`groupLabel = threadLabel(...)`)
+ *   and no longer does — the indicator MOVED INTO THE CARD this wave, so the card is the site that
+ *   owns the chip and the wrapper just renders cards. A consumer list that still names the wrapper
+ *   is a list that sends the next reader to grep the wrong file, so re-derive it.
+ *
+ * The `+ 1` at every one of those three sites is the SAME off-by-one the parameter contract above
+ * describes, and each of them had to rediscover it independently — passing the raw `sublinkCount`
+ * silently deletes the chip on a root with exactly ONE sublink (the `1` → `""` case). It is not a
+ * cosmetic offset: the three sites were all written against a `threadLabel` that had a different
+ * count parameter a wave earlier, and every migration back to the shared helper had to carry it.
  *
  * This is the SINGLE place pluralisation is decided, app-wide, so no caller may grow its own
  * `${n} link${n === 1 ? "" : "s"}` — that is exactly how one surface ends up saying "1 links" while
  * another says "2 link", which no type and no test can catch on its own.
  *
  * The callers do NOT all need the same thing, and that is the point of the `""` branch: the two
- * table/badge sites sit on rows that may be plain unthreaded links, so they MUST be able to answer
- * `""` and drop the chip; the feed wrapper's affordance only renders when `threadLinks.length > 0`,
- * so its minimum count is 2 and `""` is unreachable there. One helper serves both because the
- * "render nothing" decision lives in each site's gate, never in the string. Do not "tighten" it for
- * the wrapper (`1` → `"1 link"`) or a chip will sprout on every ordinary row in the app.
+ * table/badge sites sit on rows that may be plain ungrouped links, so they MUST be able to answer
+ * `""` and drop the chip. `app-link-card` is the same story from the other side — it gates its
+ * affordance on its OWN `sublinkCount` INPUT (default `0`), never on `link.sublinkCount`, and a
+ * flat host that never passes the input (or passes `0`) therefore reaches `""` through it. One
+ * helper serves all three because the "render nothing" decision lives in each site's gate, never in
+ * the string. Do not "tighten" the `""` branch (`1` → `"1 link"`) or a chip will sprout on every
+ * ordinary row in the app.
  *
- * A non-finite size (`NaN`, `Infinity`) also yields `""`: GraphQL `Int` cannot produce one, but
+ * A non-finite count (`NaN`, `Infinity`) also yields `""`: GraphQL `Int` cannot produce one, but
  * with `strict` OFF a hand-built fixture or a host that computed a count can, and "NaN links" in
  * the feed is the tell that something upstream did.
  */
-export function threadLabel(threadSize: number | null | undefined): string {
-  if (threadSize === undefined || threadSize === null || !Number.isFinite(threadSize)) {
+export function threadLabel(sublinkCount: number | null | undefined): string {
+  if (sublinkCount === undefined || sublinkCount === null || !Number.isFinite(sublinkCount)) {
     return "";
   }
-  return threadSize > 1 ? `${threadSize} links` : "";
+  return sublinkCount > 1 ? `${sublinkCount} links` : "";
 }

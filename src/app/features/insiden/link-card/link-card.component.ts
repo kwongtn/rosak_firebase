@@ -3,6 +3,7 @@ import { DatePipe } from "@angular/common";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
 import { LinkCardItem } from "../data/link-card-item";
+import { threadLabel } from "../data/link-thread-selection.util";
 import { faviconHostnameOf } from "../data/social-link.util";
 import { linkUrlPartsOf } from "../data/link-url.util";
 import { VoteButtonComponent } from "../vote-button/vote-button.component";
@@ -15,7 +16,7 @@ import type { VoteValue } from "../vote-button/vote-state.util";
  * vote control in a right rail) and the old insiden `app-link-card` (favicon + plain-link icon
  * fallback, Pending pill, edit pencil).
  *
- * Three deliberate constraints:
+ * FOUR deliberate constraints (the fourth is new with the nested-thread work):
  * 1. The `<a>` wraps ONLY the link body (favicon + URL + title + tags + Pending pill — all
  *    non-interactive). The vote control and edit pencil live in the right rail OUTSIDE the anchor,
  *    because a click inside an anchor navigates — interactive controls as siblings, never children.
@@ -24,11 +25,29 @@ import type { VoteValue } from "../vote-button/vote-state.util";
  * 3. The relative time keeps its hover/focus tooltip (exact timestamp + submitter) and the rail
  *    stretches to the row height, so the time bottom-aligns with the body's last row instead of
  *    claiming a footer row of its own.
+ * 4. 🔴 The conversation affordance ("N links" + expand chevron) is part of this card, so the
+ *    expansion is no longer a sibling element stacked BELOW the first link — it is now the first
+ *    link's own metadata, inside the card. It is placed in the RIGHT RAIL, NOT in the chip row,
+ *    because the chip row lives INSIDE the `<a>` (constraint 1) and a `<button>` inside an anchor is
+ *    invalid HTML whose click also navigates. "Inside the card, outside the anchor" is the rule; the
+ *    chip row was the ideal spot and constraint 1 outranks it. The rail is the one place in the card
+ *    that is both the card's own chrome and free of the anchor, and it already hosts the row's other
+ *    controls, so the chip reads as one more piece of this card's metadata rather than as a wrapper.
  *
  * Provenance: the tag row carries two independent chips — the Pending pill (approval `status`,
  * `PENDING_APPROVAL`) and the Official chip (`isAutomated`, i.e. an automatically captured
  * operator post). Both are hidden when their axis says nothing, so a hand-submitted approved link
  * shows neither.
+ *
+ * 🔴 THE AFFORDANCE GATE IS `sublinkCount > 0`, NEVER `isThreadRoot`. The backend defines a root as
+ * `parentId == null`, which is ALSO true of every ordinary ungrouped link (a lone link is a
+ * conversation of one), so gating on `isThreadRoot` would put a "1 links" chip on every row in the
+ * app. `sublinkCount` is this node's own publicly-visible descendant count at any depth, `0` for a
+ * leaf, and it is derived from the SAME server loader call as `sublinks`, so the chip can never
+ * advertise an expansion the host cannot reveal. The flat surfaces (the /insiden "Submitted Links"
+ * tab, the situasi tab, the per-incident card) deliberately do not select `sublinkCount`; they get no
+ * chip, which is correct — those lists show every link as its own row, so a "3 links" chip there
+ * would point at nothing.
  *
  * Two time axes: the card DISPLAYS `occurredAt` — "when did this happen", the instant a rider
  * actually cares about, and the column every feed/queue orders on. `created` — "when did someone
@@ -38,9 +57,13 @@ import type { VoteValue } from "../vote-button/vote-state.util";
  * per host, and `strict`/`strictNullChecks` are OFF, so a host that does not ask for it — or a
  * payload cached before the column existed — still renders a real time instead of a blank. The
  * tooltip is where the *other* axis stays reachable: when the two differ it also names the
- * submission time, so nothing is lost by promoting `occurredAt` to the visible label. No thread
- * UI lives here on purpose — the grouping wrapper `app-link-thread` owns it, so every other
- * surface of this shared card stays byte-for-byte a flat list.
+ * submission time, so nothing is lost by promoting `occurredAt` to the visible label.
+ *
+ * WHAT THE CARD DOES NOT OWN: the EXPANSION state and the CHILDREN. `app-link-thread` keeps the
+ * per-level `expanded` signal and renders the nested cards; this card only says "this link has N
+ * links below it" and reports the click through `sublinkToggle`. That split is why the same card
+ * works identically on a flat host (no `sublinkCount` selected → no chip, no wiring) and at every
+ * depth of a tree, with no depth parameter anywhere in this file.
  *
  * Favicon comes from Google's s2 service; a URL whose hostname can't be extracted (or isn't
  * http/https) falls back to a plain link icon instead of a broken image. Edit gating (author or
@@ -144,6 +167,38 @@ import type { VoteValue } from "../vote-button/vote-state.util";
             (voteChanged)="voteChanged.emit($event)"
           />
 
+          <!-- The conversation affordance: OUTSIDE the anchor (see constraint 4), INSIDE the card.
+               Gated on sublinkCount > 0, never on isThreadRoot, which is true of every ungrouped
+               link. Reads the SHARED threadLabel, which is the app's one pluralisation site; the
+               + 1 is the off-by-one that helper's contract demands (see conversationLabel). -->
+          @if (hasSublinks()) {
+            <button
+              type="button"
+              data-testid="link-thread-toggle"
+              class="text-muted-foreground hover:bg-muted/40 hover:text-foreground flex cursor-pointer items-center gap-1 self-end rounded-md px-1 py-0.5 text-xs transition-colors"
+              [attr.aria-expanded]="sublinksExpanded()"
+              [attr.aria-label]="conversationToggleLabel()"
+              (click)="sublinkToggle.emit()"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                class="size-3 shrink-0 transition-transform"
+                [class.rotate-180]="sublinksExpanded()"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+              <!-- Readable text, not a bare icon: the conversation size must be learnable without
+                   hovering. Pluralisation is NOT decided here — conversationLabel is threadLabel. -->
+              <span data-testid="link-thread-size">{{ conversationLabel() }}</span>
+            </button>
+          }
+
           <div class="flex items-center gap-1.5">
             <span
               class="group/time text-muted-foreground relative inline-flex text-xs"
@@ -220,6 +275,59 @@ export class LinkCardComponent {
 
   /** Emitted with the link when the edit pencil is clicked; the host opens the edit flow. */
   readonly edit = output<LinkCardItem>();
+
+  /* ---- Conversation tree (see the header's gate note) ---------------------------- *
+   * `sublinkCount` is the HOST's number for this node — it is NOT read off `link`,
+   * because `LinkCardItem.sublinkCount` is optional and the deliberately FLAT
+   * surfaces do not select it. A wrapper that has the tree passes the count down;
+   * a flat host passes nothing and gets no chip. Keeping it an explicit input also
+   * means this shared card never grows an implicit dependency on the tree fields. */
+  readonly sublinkCount = input(0);
+
+  /**
+   * Whether the sublinks of THIS link are currently revealed, so the chip can show the right
+   * chevron direction and the right `aria-expanded`. The card does NOT own this: the wrapper
+   * (`app-link-thread`) holds one signal per level, which is what makes nested levels independent.
+   */
+  readonly sublinksExpanded = input(false);
+
+  /** The wrapper's toggle click. The card has no idea what will be revealed — it just reports it. */
+  readonly sublinkToggle = output<void>();
+
+  /**
+   * THE gate for the affordance, and the only correct one. `sublinkCount > 0`.
+   *
+   * 🔴 NOT `isThreadRoot`: the backend sets that for every ungrouped link (`parentId == null`
+   * IS the definition of a root), so gating on it would print a "1 links" chip on every ordinary
+   * row in the app. `NaN > 0` is false, so a bad fixture degrades to "no chip" rather than to
+   * "NaN links" — and `threadLabel` rejects a non-finite count for the same reason.
+   */
+  protected readonly hasSublinks = computed(() => this.sublinkCount() > 0);
+
+  /**
+   * "N links" for the chip, read from the app's SINGLE pluralisation site (`threadLabel`) — the
+   * same helper the console chip, the My Links badge and the thread wrapper use, so no surface can
+   * say "1 links" while another says "2 link".
+   *
+   * 🔴 THE `+ 1` IS LOAD-BEARING. `threadLabel`'s parameter is a CONVERSATION SIZE, not a
+   * descendant count, and it answers `""` for anything `<= 1`. Passing the raw `sublinkCount`
+   * would therefore delete the chip for a root with exactly ONE sublink (`1` → `""`), while
+   * leaving every ordinary row correctly chip-less (`0` → `""` for free). That is the one hole the
+   * old count parameter could not have, and it is why the helper's own docstring carries the
+   * "callers pass `sublinkCount + 1`" rule. `hasSublinks()` has already established `>= 1` here,
+   * so this label is never empty in practice.
+   */
+  protected readonly conversationLabel = computed(() => threadLabel(this.sublinkCount() + 1));
+
+  /**
+   * Accessible name for the toggle. States the ACTION and quotes the shared label, so a screen
+   * reader hears both "collapse"/"expand" and the size — and the count it speaks is the very string
+   * on screen, because both read `conversationLabel()`.
+   */
+  protected readonly conversationToggleLabel = computed(
+    () =>
+      `${this.sublinksExpanded() ? "Hide" : "Show"} the other links in this thread (${this.conversationLabel()})`,
+  );
 
   /** Hostname for the Google favicon lookup — null when the URL is invalid or non-http(s). */
   protected readonly faviconDomain = computed(() => faviconHostnameOf(this.link().url));

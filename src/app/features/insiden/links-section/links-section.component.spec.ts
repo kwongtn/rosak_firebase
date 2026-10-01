@@ -7,8 +7,48 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LinkCardComponent } from "../link-card/link-card.component";
-import { PublicSocialMediaLinksQueryData } from "../data/social-links.queries";
+import {
+  PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
+  PublicSocialMediaLinksQueryData,
+} from "../data/social-links.queries";
 import { LinksSectionComponent } from "./links-section.component";
+
+/** The field names selected on the `node { … }` block of a links document, read straight out of the
+ *  document the host SENT rather than hand-copied or imported.
+ *
+ *  Why parse instead of `expect(query).not.toContain("sublinks")`: the document's `#` comment block
+ *  explains the flat decision IN PROSE, so the word "sublinks" appears in it several times and a
+ *  substring assertion could not tell a comment from a selection. Brace-matching the node block and
+ *  keeping only bare identifiers drops the comments and the sibling `cursor`/`pageInfo` selections
+ *  in one pass. Taking the document as an argument (rather than importing the constant) is what
+ *  ties the assertion to the request on the wire.
+ *
+ *  Duplicated per spec file rather than shared: each flat host pins the same shared document from
+ *  its own suite, and a shared test helper would be one more module to chase to find out what a
+ *  spec is really asserting. */
+function nodeSelectionOf(doc: string): string[] {
+  const nodeOpen = doc.indexOf("node {");
+  if (nodeOpen < 0) {
+    throw new Error("PUBLIC_SOCIAL_MEDIA_LINKS_QUERY has no node selection");
+  }
+  const bodyStart = nodeOpen + "node {".length;
+  let depth = 1;
+  let cursor = bodyStart;
+  while (cursor < doc.length && depth > 0) {
+    const ch = doc[cursor];
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+    }
+    cursor++;
+  }
+  return doc
+    .slice(bodyStart, cursor - 1)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line));
+}
 
 interface TestableLinksSection {
   loadMore(): Promise<void>;
@@ -210,9 +250,9 @@ describe("LinksSectionComponent pagination", () => {
     expect(card.componentInstance.userVote()).toBe(1);
   });
 
-  it("keeps the tab flat: never asks the backend to collapse threads", async () => {
+  it("keeps the tab flat: never asks the backend to collapse conversations", async () => {
     // Omitting the key is the only legal spelling on a `Boolean!` argument, and it is also what
-    // keeps every thread member a row of its own on this "see everything submitted" tab.
+    // keeps every sublink a row of its own on this "see everything submitted" tab.
     const first = httpMock.expectOne((r) => r.method === "POST");
     expect(first.request.body.variables).not.toHaveProperty("collapseThreads");
     first.flush({ data: connectionOf([makeLink("a", "LIVE")], true, "cursor-a") });
@@ -251,5 +291,77 @@ describe("LinksSectionComponent pagination", () => {
       (h) => h.textContent?.trim(),
     );
     expect(headers).toEqual(["Today"]);
+  });
+
+  /* ---- flat-host regression (plan F5): the in-card conversation affordance must not leak here - */
+
+  it("shows no conversation chip and no chevron on a row that IS a conversation root", async () => {
+    // The strongest form of this pin: the node carries everything a root carries, INCLUDING a
+    // non-zero descendant count (3 descendants, so a naive reading would print "4 links"), and the
+    // tab still shows neither the chip nor its toggle. That is correct, because this tab lists
+    // every link as its own row — an expansion affordance here would point at nothing.
+    //
+    // It works because the card gates on its own `[sublinkCount]` INPUT, which `app-link-list`
+    // never binds: a flat host passes nothing, the input stays 0, `hasSublinks()` is false. The
+    // count living on the node is not what the card reads, and a fixture that supplies one proves
+    // the chip does not fall back to it.
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: connectionOf(
+          [makeLink("root", "LIVE", { parentId: null, isThreadRoot: true, sublinkCount: 3 })],
+          false,
+          null,
+        ),
+      });
+    await fixture.whenStable();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain("Link root");
+    expect(root.querySelector('[data-testid="link-thread-size"]')).toBeNull();
+    expect(root.querySelector('[data-testid="link-thread-toggle"]')).toBeNull();
+    // No conversation wrapper either: this tab renders cards directly, so there is nowhere for a
+    // nested list to appear even if a count were passed down.
+    expect(root.querySelectorAll("app-link-thread")).toHaveLength(0);
+    expect(root.querySelectorAll("app-link-card")).toHaveLength(1);
+  });
+
+  it("keeps a sublink row chip-less too — a flat list has no expansion at any level", async () => {
+    // The mirror case: a node that is NOT a root, so `isThreadRoot` is false and it still gets no
+    // chip. Nothing here may ever gate on the tree fields, at any depth.
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: connectionOf(
+          [makeLink("child", "LIVE", { parentId: "root", isThreadRoot: false, sublinkCount: 0 })],
+          false,
+          null,
+        ),
+      });
+    await fixture.whenStable();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="link-thread-size"]')).toBeNull();
+    expect(root.querySelector('[data-testid="link-thread-toggle"]')).toBeNull();
+    // The card's toggle carries an aria-label naming the conversation, so the absence of ANY such
+    // label is a chip-independent second witness that the affordance did not render.
+    expect(root.querySelector('[aria-label*="thread"]')).toBeNull();
+  });
+
+  it("does not select sublinks: a flat, complete list must not offer an expansion", async () => {
+    // Read off the document this tab actually SENDS, so adding the nested selection to the shared
+    // query turns this red before a chip could ever render. The three SCALAR tree fields stay
+    // selected on purpose (a row may report "part of a 3-link report" as a plain fact); it is the
+    // LIST, and with it every expansion affordance, that must not follow.
+    const req = httpMock.expectOne((r) => r.method === "POST");
+    const selected = nodeSelectionOf(req.request.body.query);
+
+    expect(selected).not.toContain("sublinks");
+    expect(selected).toContain("parentId");
+    expect(selected).toContain("isThreadRoot");
+    expect(selected).toContain("sublinkCount");
+
+    req.flush({ data: connectionOf([], false, null) });
+    await fixture.whenStable();
   });
 });

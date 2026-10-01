@@ -24,6 +24,12 @@ function asTestable(fixture: ComponentFixture<LinkSubmitBoxComponent>): Componen
   return fixture.componentInstance as unknown as ComponentUnderTest;
 }
 
+/** The submit payload's `link` — the shape a brand-new submission answers with. It is by
+ *  definition a ROOT of its own conversation: `parentId` null, `isThreadRoot` true, and
+ *  `sublinkCount` **0** (a descendant count, so a childless link has none — the old flat fixture's
+ *  `threadSize: 1` meant "a conversation of one" and became `sublinkCount: 0` here). Nothing on
+ *  this surface renders the payload, so the tree fields are here to keep the fixture a state the
+ *  backend can actually produce. */
 function makeLink(): FeedLink {
   return {
     id: "42",
@@ -32,10 +38,10 @@ function makeLink(): FeedLink {
     title: "Story",
     created: "2026-08-01T08:00:00",
     occurredAt: "2026-08-01T08:00:00",
-    threadId: null,
+    parentId: null,
     isThreadRoot: true,
-    threadSize: 1,
-    threadLinks: [],
+    sublinkCount: 0,
+    sublinks: [],
     status: "LIVE",
     completed: false,
     isAutomated: false,
@@ -44,6 +50,12 @@ function makeLink(): FeedLink {
     voteBreakdown: { upvotes: 1, downvotes: 0 },
     lines: [],
     user: { shortId: "abc12345", nickname: "" },
+    // The three EDIT ROUND-TRIP relations. The payload's declared type is FeedLink and the
+    // mutation mirrors the feed's selection, so a row without them is one the server never
+    // returned — and it is the shape that would hand the edit sheet an empty tag selection.
+    vehicles: [],
+    stations: [],
+    categories: [],
   };
 }
 

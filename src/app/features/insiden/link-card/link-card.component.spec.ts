@@ -7,6 +7,7 @@ import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import type { LinkCardItem } from "../data/link-card-item";
+import { threadLabel } from "../data/link-thread-selection.util";
 import { VoteButtonComponent } from "../vote-button/vote-button.component";
 import { LinkCardComponent } from "./link-card.component";
 
@@ -150,6 +151,173 @@ describe("LinkCardComponent", () => {
     // Provenance is independent of the approval axis: an ingested post that is still
     // queued shows both chips.
     expect(chip.closest('[data-testid="link-tags"]')).not.toBeNull();
+  });
+
+  /* ---- the conversation affordance (moved inside the card in this wave) ---------- */
+
+  it("shows the conversation chip only when sublinkCount > 0, never on isThreadRoot", async () => {
+    // 🔴 THE TRAP, stated as an assertion: the backend's `isThreadRoot` is `parentId == null`, which
+    // is ALSO true of every ordinary ungrouped link (a lone link is a conversation of one). A chip
+    // gated on it would say "1 links" on every row of every surface this shared card serves.
+    expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
+    fixture.componentRef.setInput("link", makeLink({ isThreadRoot: true, sublinkCount: 0 }));
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
+    expect(query('[data-testid="link-thread-size"]')).toBeNull();
+
+    // Not a root, still nothing: the gate is the count, in both directions.
+    fixture.componentRef.setInput("link", makeLink({ isThreadRoot: false, sublinkCount: 0 }));
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
+
+    // The smallest real conversation: ONE sublink, and the chip still appears. Note the count
+    // arrives as the card's OWN input, not off `link` — the wrapper is what supplies it, which is
+    // how a flat host that never selects `sublinkCount` keeps its rows chip-less.
+    fixture.componentRef.setInput("link", makeLink());
+    fixture.componentRef.setInput("sublinkCount", 1);
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-toggle"]')).not.toBeNull();
+    expect(query('[data-testid="link-thread-size"]')?.textContent?.trim()).toBe("2 links");
+
+    // `link.sublinkCount` alone must NOT draw a chip — the input is the gate, so a caller that
+    // forgets to pass it gets no affordance rather than one the wrapper cannot reveal.
+    fixture.componentRef.setInput("sublinkCount", 0);
+    fixture.componentRef.setInput("link", makeLink({ sublinkCount: 5 }));
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
+
+    // A NaN count (only reachable from a hand-built fixture, but `strict` is OFF) degrades to no
+    // chip rather than to "NaN links".
+    fixture.componentRef.setInput("sublinkCount", Number.NaN);
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
+
+    // Hosts that do not select the field at all (the flat /insiden, situasi and incident surfaces)
+    // pass nothing and get no chip — which is correct there, since those lists show every link as
+    // its own row and a chip would point at a non-existent expansion.
+    fixture.componentRef.setInput("sublinkCount", 0);
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
+  });
+
+  it("places the affordance INSIDE the card but OUTSIDE the anchor", async () => {
+    fixture.componentRef.setInput("sublinkCount", 3);
+    await fixture.whenStable();
+
+    const article = query("article") as HTMLElement;
+    const anchor = query("a") as HTMLAnchorElement;
+    const toggle = query('[data-testid="link-thread-toggle"]') as HTMLButtonElement;
+
+    expect(toggle.tagName.toLowerCase()).toBe("button");
+    expect(toggle.getAttribute("type")).toBe("button");
+    // Structurally inside the card's own chrome…
+    expect(article.contains(toggle)).toBe(true);
+    expect(toggle.closest("article")).toBe(article);
+    // …and structurally outside the link anchor. A <button> inside an <a> is invalid HTML AND its
+    // click would navigate — the card's constraint 1, which outranks the chip-row placement.
+    expect(anchor.contains(toggle)).toBe(false);
+    expect(toggle.closest("a")).toBeNull();
+    // It shares the rail with the vote control, i.e. it reads as this card's own metadata.
+    expect(toggle.closest('[data-testid="link-meta-rail"]')).not.toBeNull();
+    // It is NOT in the chip row, which lives inside the anchor — asserted so a future "tidy up"
+    // cannot move it back in there.
+    expect(query('[data-testid="link-tags"]')?.contains(toggle)).toBe(false);
+  });
+
+  it("reports the toggle click without owning the expansion", async () => {
+    const clicks: number[] = [];
+    fixture.componentInstance.sublinkToggle.subscribe(() => clicks.push(1));
+    fixture.componentRef.setInput("sublinkCount", 2);
+    await fixture.whenStable();
+
+    // The card does NOT own expansion: it reflects the wrapper's signal and merely reports clicks.
+    const toggle = query('[data-testid="link-thread-toggle"]') as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    toggle.click();
+    await fixture.whenStable();
+
+    expect(clicks).toEqual([1]);
+    // Nothing expanded on its own — aria-expanded is still the wrapper's value (false).
+    expect(query('[data-testid="link-thread-toggle"]')?.getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+  });
+
+  it("mirrors the wrapper's expanded signal in aria-expanded and the chevron", async () => {
+    fixture.componentRef.setInput("sublinkCount", 2);
+    await fixture.whenStable();
+
+    let toggle = query('[data-testid="link-thread-toggle"]') as HTMLButtonElement;
+    const chevron = toggle.querySelector("svg") as SVGElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(chevron.classList.contains("rotate-180")).toBe(false);
+
+    fixture.componentRef.setInput("sublinksExpanded", true);
+    await fixture.whenStable();
+
+    toggle = query('[data-testid="link-thread-toggle"]') as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect((toggle.querySelector("svg") as SVGElement).classList.contains("rotate-180")).toBe(true);
+  });
+
+  it("pluralises the chip through the SHARED threadLabel, passed the conversation size", async () => {
+    // 🔴 THE OFF-BY-ONE. `threadLabel`'s parameter is a CONVERSATION SIZE (`sublinkCount + 1`), not a
+    // descendant count, and it answers "" for `<= 1`. Passing the raw count would delete the chip
+    // for a root with exactly ONE sublink while leaving ordinary rows correctly chip-less.
+    expect(threadLabel(0)).toBe("");
+    expect(threadLabel(1)).toBe("");
+
+    fixture.componentRef.setInput("sublinkCount", 1);
+    await fixture.whenStable();
+    expect(query('[data-testid="link-thread-size"]')?.textContent?.trim()).toBe(threadLabel(2));
+
+    fixture.componentRef.setInput("sublinkCount", 3);
+    await fixture.whenStable();
+    const chip = query('[data-testid="link-thread-size"]')?.textContent?.trim();
+    expect(chip).toBe(threadLabel(4));
+    expect(chip).toBe("4 links");
+    // Readable text, not a bare icon: the size must be learnable without hovering.
+    expect(query('[data-testid="link-thread-toggle"]')?.textContent?.trim()).toBe("4 links");
+  });
+
+  it("quotes the shared label in the toggle's accessible name, stating the action", async () => {
+    fixture.componentRef.setInput("sublinkCount", 3);
+    await fixture.whenStable();
+
+    let toggle = query('[data-testid="link-thread-toggle"]') as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-label")).toBe(
+      `Show the other links in this thread (${threadLabel(4)})`,
+    );
+    // NOT the raw descendant count (3), which is a different number for the same conversation.
+    expect(toggle.getAttribute("aria-label")).not.toContain("(3 links)");
+
+    fixture.componentRef.setInput("sublinksExpanded", true);
+    await fixture.whenStable();
+    toggle = query('[data-testid="link-thread-toggle"]') as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-label")).toBe(
+      `Hide the other links in this thread (${threadLabel(4)})`,
+    );
+  });
+
+  it("changes NOTHING else about the card when the chip is present", async () => {
+    // The appearance rule, reaffirmed twice: same size, same weight, same layout. Pinned as an
+    // exact markup comparison — the chip is the ONE permitted addition, so removing it must give
+    // back the byte-for-byte markup of a chip-less card with the same link.
+    fixture.componentRef.setInput("sublinkCount", 2);
+    await fixture.whenStable();
+    const withChip = (query("article") as HTMLElement).outerHTML;
+
+    fixture.componentRef.setInput("sublinkCount", 0);
+    await fixture.whenStable();
+    const withoutChip = (query("article") as HTMLElement).outerHTML;
+
+    // Same article class either way: no bold, no border, no background, no size change.
+    expect(withChip).not.toBe(withoutChip);
+    const stripped = new DOMParser()
+      .parseFromString(withChip, "text/html")
+      .querySelector("article") as HTMLElement;
+    stripped.querySelector('[data-testid="link-thread-toggle"]')?.remove();
+    expect(stripped.outerHTML).toBe(withoutChip);
   });
 
   it("keeps the vote control and edit pencil out of the anchor so their clicks never navigate", async () => {

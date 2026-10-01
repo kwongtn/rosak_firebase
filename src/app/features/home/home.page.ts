@@ -39,12 +39,13 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
  * outlive the page). Data fetching, loading/empty states, the vote overlay and the refresh
  * countdown's confirmation all live in the store and the control; this page only composes.
  *
- * Every feed row renders through `app-link-thread` — the collapsible group wrapper — not
+ * Every feed row renders through `app-link-thread` — the collapsible conversation wrapper — not
  * `app-link-card` directly, in BOTH the today feed and the Last Week day groups (the two
- * surfaces the plan ships thread UI on). The wrapper renders the root as an ordinary card, so an
- * unthreaded link looks exactly as it did; it only adds a "N links" + chevron affordance when the
- * backend nested members under `threadLinks`. `HomeStore` asks the backend to collapse threads for
- * that to be possible at all (see `HOME_FEED_COLLAPSE_VARS`).
+ * surfaces the plan ships conversation UI on). The wrapper renders the root as an ordinary card, so
+ * an ungrouped link looks exactly as it did; it only adds a "N links" + chevron affordance when the
+ * backend reports a non-zero `sublinkCount` on the root, with the children waiting inline under
+ * `sublinks`. `HomeStore` asks the backend to collapse conversations for that to be possible at all
+ * (see `HOME_FEED_COLLAPSE_VARS`).
  */
 @Component({
   selector: "app-home-page",
