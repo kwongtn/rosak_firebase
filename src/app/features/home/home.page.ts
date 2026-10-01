@@ -80,8 +80,11 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
       >
         <section class="flex flex-col gap-3" aria-label="Community feed">
           <!-- The beat refreshes these links too, so on mobile the control heads the section it
-               actually refreshes. CSS-only gate: SSR and hydration must see identical markup. -->
-          <div class="lg:hidden">
+               actually refreshes. CSS-only gate: SSR and hydration must see identical markup.
+               The gate wrapper is itself a flex row that justifies the control right: a plain
+               block wrapper would drop the flex-stretch the control relied on and shrink-wrap it
+               to the section's left edge. -->
+          <div class="flex justify-end lg:hidden">
             <app-home-refresh-control />
           </div>
 
@@ -205,8 +208,9 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
 
         <section class="flex flex-col gap-3" aria-label="Line status">
           <!-- Same control as the feed section has, shown from lg up where the line panel is
-               the one next to the feed; the hidden/lg:block pair keeps one instance visible. -->
-          <div class="hidden lg:block">
+               the one next to the feed; the hidden/lg:flex pair keeps one instance visible, and
+               justify-end keeps the control on the right now that the gate wraps it. -->
+          <div class="hidden lg:flex justify-end">
             <app-home-refresh-control />
           </div>
 

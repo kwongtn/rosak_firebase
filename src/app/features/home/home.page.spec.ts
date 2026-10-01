@@ -486,12 +486,22 @@ describe("HomePage", () => {
       feedHtml.indexOf("app-link-submit-box"),
     );
 
-    const desktopWrapper = lineSection?.querySelector<HTMLElement>('[class~="lg:block"]');
+    const desktopWrapper = lineSection?.querySelector<HTMLElement>('[class~="lg:flex"]');
     expect(desktopWrapper).not.toBeNull();
     expect(desktopWrapper?.className).toContain("hidden");
     expect(desktopWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
     expect(lineSection?.firstElementChild).toBe(desktopWrapper);
     expect(lineSection?.querySelector("app-line-pulse-list")).not.toBeNull();
+
+    // Right-alignment contract: each gate must be a justified flex row. The control used to be a
+    // direct flex child and stretched to the section's full width, its content sitting right via
+    // its own justify-end; extracting the breakpoint gate into a plain block wrapper killed that
+    // stretch and shrink-wrapped the button at the left edge. jsdom cannot measure layout, so
+    // pin the classes that produce the alignment instead.
+    expect(mobileWrapper?.className).toContain("flex");
+    expect(mobileWrapper?.className).toContain("justify-end");
+    expect(desktopWrapper?.className).toContain("flex");
+    expect(desktopWrapper?.className).toContain("justify-end");
 
     // Both instances render the same countdown row, and either one drives the store's beat.
     const countdowns = root.querySelectorAll('[data-testid="line-refresh-countdown"]');
