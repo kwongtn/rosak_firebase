@@ -12,7 +12,7 @@ interface ConsoleNavItem {
 const ITEMS: ConsoleNavItem[] = [
   { path: "/console/spotting", label: "Spotting Queue", exact: true },
   { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
-  { path: "/console/insiden/links", label: "Social Media Links", exact: false },
+  { path: "/console/links", label: "Social Media Links", exact: false },
 ];
 
 /**

@@ -174,7 +174,7 @@ for (const viewport of [
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/console-pending-${viewport.name}.png`, fullPage: true });
 
-  await page.goto("http://localhost:4300/console/insiden/links");
+  await page.goto("http://localhost:4300/console/links");
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/console-links-${viewport.name}.png`, fullPage: true });
 

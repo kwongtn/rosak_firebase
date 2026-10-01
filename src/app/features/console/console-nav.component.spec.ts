@@ -56,8 +56,15 @@ describe("ConsoleNavComponent", () => {
     expect(activeLabels(el)).toEqual(["Incident Approval"]);
   });
 
-  it("highlights Social Media Links on /console/insiden/links", async () => {
-    const el = await renderAt("/console/insiden/links");
+  it("highlights Social Media Links on /console/links", async () => {
+    const el = await renderAt("/console/links");
     expect(activeLabels(el)).toEqual(["Social Media Links"]);
+  });
+
+  it("links the Social Media Links pill to the new /console/links path", async () => {
+    const el = await renderAt("/console/spotting");
+    const hrefs = Array.from(el.querySelectorAll("nav a")).map((a) => a.getAttribute("href"));
+    expect(hrefs).toContain("/console/links");
+    expect(hrefs).not.toContain("/console/insiden/links");
   });
 });

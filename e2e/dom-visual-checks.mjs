@@ -198,8 +198,10 @@ for (const vp of [
   await page.keyboard.press("Escape");
 
   // --- console pages ---
-  for (const route of ["pending", "links"]) {
-    await page.goto(`http://localhost:4300/console/insiden/${route}`);
+  // `pending` stays under /console/insiden; the links queue moved to /console/links
+  // (its old URL still redirects there, so a bookmark keeps working).
+  for (const route of [{ path: "insiden/pending" }, { path: "links" }]) {
+    await page.goto(`http://localhost:4300/console/${route.path}`);
     await page.waitForTimeout(1200);
     const navPresent = await page.locator("app-nav").count();
     const footerPresent = await page.locator("app-footer").count();
@@ -209,7 +211,7 @@ for (const vp of [
       return container.scrollWidth > container.clientWidth;
     });
     results.push({
-      surface: `console-${route}-${vp.name}`,
+      surface: `console-${route.path.replace("/", "-")}-${vp.name}`,
       check: "nav+footer present; table scrollable on narrow viewports",
       pass:
         navPresent > 0 &&
