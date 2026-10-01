@@ -117,7 +117,11 @@ describe("LinkThreadComponent", () => {
   }
 
   beforeEach(async () => {
-    requestMock = vi.fn().mockResolvedValue({ upvoteSocialMediaLink: { ok: true } });
+    // A real `VoteMutationPayload`, because the control repaints from the acknowledgement
+    // rather than from its own projection — a `{ ok }`-only stub would make it fall back.
+    requestMock = vi.fn().mockResolvedValue({
+      upvoteSocialMediaLink: { ok: true, userVote: 1, voteScore: 8, upvotes: 3, downvotes: 1 },
+    });
     isLoggedIn = signal(true);
 
     await TestBed.configureTestingModule({
@@ -169,20 +173,23 @@ describe("LinkThreadComponent", () => {
 
   /* ---- the affordance moved INTO the card --------------------------------- */
 
-  it("puts the affordance INSIDE the card and OUTSIDE the anchor", async () => {
+  it("puts the affordance in the CHIP ROW and outside the anchor", async () => {
     await setLink(makeNodeWith("1", [makeChild("2")]));
 
     const toggle = rootToggle();
     expect(toggle).not.toBeNull();
     // Inside the card's own <article>…
     expect(toggle.closest("article")).toBe(rootCard().querySelector("article"));
+    // …in the chip row, beside the Official / line-code chips, which is where the request put it…
+    expect(toggle.closest('[data-testid="link-tags"]')).not.toBeNull();
     // …and NOT inside the link anchor, which would both be invalid HTML and navigate on click.
     expect(toggle.closest("a")).toBeNull();
     expect(rootCard().querySelector("a")?.querySelector('[data-testid="link-thread-toggle"]')).toBe(
       null,
     );
-    // Same treatment the vote control and edit pencil get — constraint 1 of the card.
-    expect(toggle.closest('[data-testid="link-meta-rail"]')).not.toBeNull();
+    // The chip row is hit-test-transparent, so the toggle has to opt back in or its click would
+    // fall through the stretched anchor and navigate instead of expanding.
+    expect(toggle.classList.contains("pointer-events-auto")).toBe(true);
   });
 
   it("leaves the root card's presentation identical to a plain unthreaded card", async () => {

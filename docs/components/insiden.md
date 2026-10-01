@@ -72,6 +72,19 @@
   - `VoteButtonComponent`: `targetType = input<"incident" | "chronology" | "link">("incident")` — the
     same button drives incident, chronology and social-media-link votes (the shared link card hosts
     it with `targetType="link"`).
+    🔴 **The displayed state is three layers, not a `linkedSignal`.** `optimistic` (the in-flight
+    projection from `nextVoteState`) → `confirmed` (the snapshot the mutation acknowledged with) →
+    `hostState` (the inputs). A `linkedSignal` re-seeds from its inputs on ANY change, and the host
+    writes the acknowledged `userVote` straight back down as its overlay — so the control reset to
+    the PRE-CLICK `netScore` and the arrow stayed lit. `confirmed` is honoured only while
+    `voteStatsKey(hostState())` still matches the triple it was computed against, and that key
+    deliberately **excludes `userVote`**: the host echoing our own value is not new data, while a
+    real refetch (the home feed polls) moves the counters and correctly supersedes the snapshot.
+    All six mutations acknowledge with the same `VoteMutationPayload` shape
+    (`userVote`/`voteScore`/`upvotes`/`downvotes`; `ok` is sent but never read — a rejected request
+    is the failure signal), and `voteStateFromAcknowledgement` degrades any field that is not a
+    finite number to the fallback, so a partial payload keeps the projection rather than painting
+    `undefined`.
 - **Outputs / Events / API Responses:**
   - `IncidentCalendarComponent.daySelected = output<string>()` — emits a `dateKey` on day click,
     "Today", month/year jump commit, or prev/next-month navigation; `InsidenPage` reacts by calling
@@ -287,8 +300,8 @@
     `FEED_QUERY` **and** by the console's `SOCIAL_MEDIA_LINKS_QUERY` (both need the Official
     marker), while every other host leaves it undefined and shows no chip — `isAutomated` is
     optional on `LinkCardItem` precisely so those hosts satisfy the structural contract without it),
-    and a right rail carrying the vote button, the conversation chip, the relative time and the edit
-    pencil.
+    and a right rail carrying the vote button, the relative time and the edit pencil (the
+    conversation chip now sits in the chip row, beside the line/Official chips).
     **Two time axes:** the card _displays_ `occurredAt` ("when did this happen" — the instant
     every feed/queue orders on) through `occurredAt = computed(() => link().occurredAt ??
 link().created)` and `occurredLabel = humanizeSince(occurredAt())`. That fallback is
@@ -302,8 +315,11 @@ link().created)` and `occurredLabel = humanizeSince(occurredAt())`. That fallbac
     the backend serialises microseconds and `created` may arrive without a fractional part;
     both absent or both equal gives no second line, so nothing is lost by promoting
     `occurredAt` to the visible label.
-    The `<a>` wraps only the non-interactive body; every interactive control is a sibling of it, so
-    their clicks can never navigate. Test ids: `link-url-domain` / `link-url-path` (the split URL),
+    The `<a>` is a stretched overlay (`absolute inset-0`) across the left column, not a wrapper
+    around the body: the visible body and chip row are `pointer-events-none` layers above it, and
+    every interactive control (vote, conversation toggle, edit pencil) is a SIBLING of the anchor —
+    the toggle re-enabling hit-testing with `pointer-events-auto` — so their clicks can never
+    navigate while the chips and the title still open the link. Test ids: `link-url-domain` / `link-url-path` (the split URL),
     `link-tags`, `link-pending`, `link-official`, `link-meta-rail`, `link-thread-toggle` /
     `link-thread-size` / `link-time` / `link-created` / `link-submitted`, `link-submitter` and
     `link-edit`. The host passes `userVote` (its authenticated overlay wins over the anonymous feed
@@ -321,12 +337,22 @@ link().created)` and `occurredLabel = humanizeSince(occurredAt())`. That fallbac
       "NaN links".
     - **The label is `threadLabel(sublinkCount() + 1)` and the `+ 1` is load-bearing** — see the
       off-by-one below.
-    - **The right rail, not the chip row.** The chip row beside Pending/Official is the ideal spot and
-      it lives INSIDE the `<a>`, where a `<button>` is invalid HTML whose click also navigates — so
-      the card's own "interactive controls are siblings, never children" constraint outranks the nicer
-      placement. `link-meta-rail` is the one region that is both the card's own chrome and free of the
-      anchor, and it already hosts the row's other controls, so the chip reads as one more piece of
-      this card's metadata rather than as a wrapper around it.
+    - **The CHIP ROW, beside Pending/Official — via a stretched link.** The chip row used to be
+      inside the `<a>`, where a `<button>` is invalid HTML whose click also navigates, which is why
+      the affordance sat in the right rail instead. The anchor is now an `absolute inset-0 z-0`
+      OVERLAY across the whole left column, with the visible body and the chip row as
+      `pointer-events-none` layers on top of it (`relative z-10`) and the toggle opting back in with
+      `pointer-events-auto`. So the chip row is a SIBLING of the anchor — which is what "controls are
+      siblings, never children" actually requires — and the chips stay clickable, because a click on
+      a `pointer-events-none` chip falls through to the anchor underneath. This supersedes the earlier
+      "the right rail, not the chip row" placement.
+      Two costs of the overlay, both deliberate and both stated in the component header: (1) an
+      element under an overlay cannot have a hover tooltip, so the chips' `title` explanations (the
+      line's full name, "awaiting admin approval", the Official provenance note) became `sr-only`
+      text — where they were doing their real work anyway; (2) the title is no longer selectable by
+      dragging, the same trade Bootstrap's `.stretched-link` makes. The link's accessible name is now
+      explicit (`anchorLabel()`: title, then the raw URL) because the overlay no longer wraps the
+      visible text.
       The card does **not** own the expansion state or the children: `app-link-thread` holds one
       `expanded` signal per level and renders the nested cards. That split is what lets the same card
       serve a flat host (no input bound → no chip, no wiring) and every depth of a tree, with no depth

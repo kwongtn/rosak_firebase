@@ -14,6 +14,7 @@ editable tree, with its "N links" count moved inside the first link's own card. 
 **links queue** moves to `/console/links` (the old URL redirects, and both nav lists followed it),
 wraps its long URLs and titles instead of clipping them, and now **retires the row when you approve
 it** — publishing and completing in one ordered, single-reload sequence.
+| Oct 1 | **insiden/home** the conversation chip joins the **chip row** and the vote repaints from the server. The card's anchor became a **stretched overlay** (`absolute inset-0`) with the body and chip row as `pointer-events-none` layers above it, so the chip row is a SIBLING of the anchor — the "controls are siblings, never children" rule the old right-rail placement was working around — and the toggle re-enables hit-testing with `pointer-events-auto`; chips stay clickable because a click on a `pointer-events-none` chip falls through to the anchor. Costs, documented in the component header: chips lost their hover tooltips (their `title` explanations became `sr-only` text) and the title is no longer mouse-selectable, both the trade Bootstrap's `.stretched-link` makes; the anchor's accessible name is now explicit. Separately, the nine vote mutations acknowledge with `VoteMutationPayload` and the button's display is three layers — `optimistic` → `confirmed` → `hostState` — instead of a `linkedSignal` that re-seeded from its inputs and reset to the PRE-CLICK score the moment the host echoed the vote back down. `confirmed` is honoured only while `voteStatsKey` (which **excludes `userVote`**) still matches the counters it was computed against, so the host's own echo is not new data while a real refetch is. The `voteChanged` contract is unchanged, so no host overlay moved |
 
 ---
 
@@ -42,7 +43,8 @@ it** — publishing and completing in one ordered, single-reload sequence.
 ## Tests & Gates
 
 - `npx prettier --check .` clean
-- `npm test -- --no-watch` — **105 test files / 1192 tests passed, 0 failed** at the accordion
+- `npm test -- --no-watch` — **105 test files / 1220 tests passed, 0 failed** at the
+  chip-row/vote close-out (1192 before it), and **105 / 1192 passed, 0 failed** at the accordion
   close-out (baselines on this branch: 100 files / 994 before the console work, 102 files / 1032
   before the conversation tree, 102 files / 1091 before the conversation tree's data-loss fix, 103
   files / 1115 at the earlier close of the day, 104 files / 1182 + 1 failed at the console/links

@@ -38,7 +38,11 @@ describe("LinkCardComponent", () => {
   }
 
   beforeEach(async () => {
-    requestMock = vi.fn().mockResolvedValue({ upvoteSocialMediaLink: { ok: true } });
+    // A real `VoteMutationPayload`: the control repaints from the acknowledgement rather than
+    // from its own projection, so a `{ ok }`-only stub would leave it on the fallback.
+    requestMock = vi.fn().mockResolvedValue({
+      upvoteSocialMediaLink: { ok: true, userVote: 1, voteScore: 8, upvotes: 3, downvotes: 1 },
+    });
     isLoggedIn = signal(true);
 
     await TestBed.configureTestingModule({
@@ -79,17 +83,50 @@ describe("LinkCardComponent", () => {
 
   it("renders the title, the line badge with its display name and the vote score", () => {
     const text = fixture.nativeElement.textContent as string;
-    const badge = fixture.nativeElement.querySelector(
-      '[data-testid="link-tags"] [title="Kajang Line"]',
-    );
+    const badge = query('[data-testid="link-tags"]')?.firstElementChild as HTMLElement;
 
     expect(text).toContain("Delays on the KJL");
     expect(badge?.textContent).toContain("KJL");
+    // The line's full name is `sr-only` text, not a `title` tooltip: the stretched-link
+    // overlay owns the pointer, so a hover tooltip could never fire again.
+    expect(badge?.textContent).toContain("Kajang Line");
+    expect(badge?.querySelector(".sr-only")?.textContent?.trim()).toBe("— Kajang Line");
     expect(text).toContain("+7");
   });
 
+  it("names the stretched link itself, since the overlay no longer wraps the visible text", () => {
+    const anchor = query("a") as HTMLAnchorElement;
+
+    expect(anchor.getAttribute("href")).toBe("https://www.example.com/story");
+    // Title leads, raw URL follows — a reader cannot see the domain/path line as part of the
+    // link's name any more, because the name is no longer its text content.
+    expect(anchor.textContent?.trim()).toBe("Delays on the KJL (https://www.example.com/story)");
+
+    // And it is genuinely an OVERLAY: absolutely positioned across the whole left column,
+    // which is what keeps the chips clickable while the toggle can sit beside them.
+    expect(anchor.classList.contains("absolute")).toBe(true);
+    expect(anchor.classList.contains("inset-0")).toBe(true);
+    // BOTH visible layers opt out of hit-testing — the text body AND the chip row — so a click
+    // anywhere on the card's left column, chips included, reaches the anchor underneath.
+    const column = anchor.parentElement as HTMLElement;
+    const layers = [...column.children].filter(
+      (child) => child !== anchor && !child.contains(anchor),
+    );
+    expect(layers.length).toBe(2);
+    for (const layer of layers) {
+      expect(layer.classList.contains("pointer-events-none")).toBe(true);
+    }
+  });
+
+  it("falls back to the bare URL as the link's name when the link has no title", async () => {
+    fixture.componentRef.setInput("link", makeLink({ title: "" }));
+    await fixture.whenStable();
+
+    expect(query("a")?.textContent?.trim()).toBe("https://www.example.com/story");
+  });
+
   it("renders the google favicon for an http(s) url and a plain-link icon otherwise", async () => {
-    const favicon = query("a img") as HTMLImageElement;
+    const favicon = query('img[src*="favicons"]') as HTMLImageElement;
 
     expect(favicon?.getAttribute("src")).toBe(
       "https://www.google.com/s2/favicons?domain=www.example.com",
@@ -98,12 +135,12 @@ describe("LinkCardComponent", () => {
     fixture.componentRef.setInput("link", makeLink({ url: "not a url" }));
     await fixture.whenStable();
 
-    expect(query("a img")).toBeNull();
-    expect(query("a svg")).not.toBeNull();
+    expect(query('img[src*="favicons"]')).toBeNull();
+    expect(query("article svg")).not.toBeNull();
     expect(query('[data-testid="link-url-domain"]')?.textContent).toBe("not a url");
   });
 
-  it("shows the Pending pill, tooltipped 'Awaiting admin approval', only while PENDING_APPROVAL", async () => {
+  it("shows the Pending pill, explained 'awaiting admin approval', only while PENDING_APPROVAL", async () => {
     // The regression: an approved (LIVE) link must show no pill even though the separate admin
     // "handled" flag is false, and likewise when the flag is absent entirely (legacy rows).
     expect(query('[data-testid="link-pending"]')).toBeNull();
@@ -121,7 +158,7 @@ describe("LinkCardComponent", () => {
 
     const pill = query('[data-testid="link-pending"]') as HTMLElement;
     expect(pill.textContent).toContain("Pending");
-    expect(pill.getAttribute("title")).toBe("Awaiting admin approval");
+    expect(pill.querySelector(".sr-only")?.textContent?.trim()).toBe("— awaiting admin approval");
 
     // The axes are independent: marking a still-unapproved link "handled" keeps the pill.
     fixture.componentRef.setInput(
@@ -145,8 +182,8 @@ describe("LinkCardComponent", () => {
 
     const chip = query('[data-testid="link-official"]') as HTMLElement;
     expect(chip.textContent).toContain("Official");
-    expect(chip.getAttribute("title")).toBe(
-      "Captured automatically from an official operator account",
+    expect(chip.querySelector(".sr-only")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+      "— captured automatically from an official operator account",
     );
     // Provenance is independent of the approval axis: an ingested post that is still
     // queued shows both chips.
@@ -200,7 +237,7 @@ describe("LinkCardComponent", () => {
     expect(query('[data-testid="link-thread-toggle"]')).toBeNull();
   });
 
-  it("places the affordance INSIDE the card but OUTSIDE the anchor", async () => {
+  it("places the affordance in the CHIP ROW, outside the anchor and off the rail", async () => {
     fixture.componentRef.setInput("sublinkCount", 3);
     await fixture.whenStable();
 
@@ -214,14 +251,21 @@ describe("LinkCardComponent", () => {
     expect(article.contains(toggle)).toBe(true);
     expect(toggle.closest("article")).toBe(article);
     // …and structurally outside the link anchor. A <button> inside an <a> is invalid HTML AND its
-    // click would navigate — the card's constraint 1, which outranks the chip-row placement.
+    // click would navigate — the card's constraint 1, which is why the anchor is a stretched
+    // overlay rather than a wrapper and the chip row is its sibling.
     expect(anchor.contains(toggle)).toBe(false);
     expect(toggle.closest("a")).toBeNull();
-    // It shares the rail with the vote control, i.e. it reads as this card's own metadata.
-    expect(toggle.closest('[data-testid="link-meta-rail"]')).not.toBeNull();
-    // It is NOT in the chip row, which lives inside the anchor — asserted so a future "tidy up"
-    // cannot move it back in there.
-    expect(query('[data-testid="link-tags"]')?.contains(toggle)).toBe(false);
+    // The request: it belongs in the chip row, beside the Official / line-code chips, and NOT in
+    // the right rail. Asserted both ways so a future "tidy up" cannot move it back out there.
+    expect(toggle.closest('[data-testid="link-tags"]')).not.toBeNull();
+    expect(toggle.closest('[data-testid="link-meta-rail"]')).toBeNull();
+    // And it must survive the stretched-link layer's `pointer-events-none`, or the click falls
+    // through to the anchor and navigates instead of expanding.
+    expect(toggle.classList.contains("pointer-events-auto")).toBe(true);
+    // The chip row it joins is itself inside the link's hit area, so the chips stay clickable.
+    const tags = query('[data-testid="link-tags"]') as HTMLElement;
+    expect(tags.closest("a")).toBeNull();
+    expect(tags.parentElement?.classList.contains("relative")).toBe(true);
   });
 
   it("reports the toggle click without owning the expansion", async () => {

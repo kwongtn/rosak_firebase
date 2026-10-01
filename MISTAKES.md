@@ -15,7 +15,55 @@
 
 ## Traps
 
-### [2026-10-01] insiden/link-thread: a PERMUTATION API needs the STORED order, not the order the rows happen to arrive in
+### [2026-10-01] insiden/vote-button: a `linkedSignal` display re-seeds from EVERY input, including the host's echo of your own value
+
+**Problem**: clicking upvote made the arrow light up and the score + breakdown **snap back** to
+their pre-click numbers ("the indicator updates weirdly"). Reproduced on the home feed, /insiden
+and the situasi tab, on all three vote targets.
+**Root Cause**: two causes compounding. (1) Every vote mutation returned `{ ok }`, so the client
+had to _project_ the new score — which races its own echo and every other voter. (2) The display was
+a `linkedSignal` seeded from the inputs, and `linkedSignal` re-seeds whenever **any** dependency
+changes. The hosts mirror the value they were just told back down as their `userVote` overlay, which
+changed an input whose siblings (`netScore`/`upvotes`/`downvotes`) still carried the pre-vote
+numbers — so the control threw away its own projection and re-read the stale half. A `linkedSignal`
+is the right tool for "the server refetched, re-seed from it" and the wrong tool for "I optimistically
+updated this and the host will echo the value back".
+**Fix**: the backend's nine vote mutations acknowledge with `VoteMutationPayload` (`ok` retained plus
+`userVote`/`voteScore`/`upvotes`/`downvotes`) and the display is three layers — `optimistic` →
+`confirmed` → `hostState` — a `computed` rather than a `linkedSignal`. `confirmed` is honoured only
+while `voteStatsKey(hostState())` matches the counters it was computed against, and that key
+**excludes `userVote`**. Backend: `rosak_backend` 2026-10-01, the same date.
+**Prevention**: when a control is fed BOTH a value it just emitted and the statistics that value
+implied, its staleness test must key on the statistics and must exclude the echoed value. Also: a
+mutation that changes a displayed aggregate should return the new value rather than `ok` — `ok`
+forces every client into the same race. `home.queries.spec.ts` now parses all nine documents'
+selection sets for the same reason: a document narrowed back to `{ ok }` compiles fine and every
+fixture mocks the response rather than reading it.
+
+## [2026-10-01] insiden/link-card: a chip row inside the `<a>` is why the conversation chip could not join it
+
+**Problem**: the "N links" conversation indicator sat alone in the right-hand rail, visually
+disconnected from the Official / line-code chips it belongs beside, even though the chip row was
+always the better slot.
+**Root Cause**: the chip row was a descendant of the card's `<a>`, and a `<button>` inside an anchor
+is invalid HTML whose click also navigates. The previous wave resolved this by moving the indicator
+to the rail and documenting the placement as deliberate — correct, and it hid the real cost: the
+whole link body had to be inside the anchor for the chips to be clickable at all, which is what
+forced the compromise.
+**Fix**: a **stretched link** — the anchor became an `absolute inset-0 z-0` overlay across the left
+column, the body and chip row became `pointer-events-none relative z-10` layers above it, and the
+toggle re-enabled hit-testing with `pointer-events-auto`. The chip row is now a sibling of the
+anchor, which is what the card's own "controls are siblings, never children" rule actually asks
+for, and the chips stay clickable because clicks fall through to the anchor. Two costs are
+documented in the component header and are not free: an element under an overlay cannot have a
+hover tooltip (the chips' `title` explanations became `sr-only` text) and the title is no longer
+mouse-selectable.
+**Prevention**: when a rule reads "X must be outside Y", check whether restructuring Y is cheaper
+than relocating X — the constraint usually names a symptom. And when a click-through overlay is
+introduced, audit the descendants for `title` tooltips and text selection: both are casualties, and
+the fix is to move the information into the accessibility tree rather than leave a dead attribute.
+
+## [2026-10-01] insiden/link-thread: a PERMUTATION API needs the STORED order, not the order the rows happen to arrive in
 
 **Problem**: `reorderSocialMediaLinks(linkIds, parentId)` is a **permutation of one existing sibling
 set**, not a move: backend `social_link_threads.py::_reorder_sync` renumbers the ids it is _sent_ to

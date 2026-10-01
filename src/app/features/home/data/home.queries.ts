@@ -5,6 +5,9 @@
  * features/insiden/data/social-links.queries.ts and features/spotting/data/spotting.queries.ts.
  */
 
+// Type-only, so it is erased at compile time and closes no module loop.
+import type { VoteAcknowledgement } from "../../insiden/vote-button/vote-state.util";
+
 /* ---------------------------------------------------------------------- *
  * Enums (mirrored from the schema)
  * ---------------------------------------------------------------------- */
@@ -1098,10 +1101,24 @@ export interface SubmitLineStatusReportData {
   submitLineStatusReport: { ok: boolean; id: number | null };
 }
 
+/* ---------------------------------------------------------------------- *
+ * Link vote mutations. 🔴 They acknowledge with the vote state the write
+ * produced — `userVote` / `voteScore` / `upvotes` / `downvotes` — and NOT with a
+ * bare `ok`. A client given only `ok` has to project the new score itself, and
+ * that projection then races its own echo (the host writes the value back down
+ * as `userVote`, which re-seeds the control) plus any other voter, so the score
+ * visibly snaps back to a pre-click number. Repainting from this response makes
+ * the mutation the single source of truth — see `voteStateFromAcknowledgement`.
+ * ---------------------------------------------------------------------- */
+
 export const UPVOTE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
   mutation UpvoteSocialMediaLink($id: ID!) {
     upvoteSocialMediaLink(socialMediaLinkId: $id) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -1110,6 +1127,10 @@ export const DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
   mutation DownvoteSocialMediaLink($id: ID!) {
     downvoteSocialMediaLink(socialMediaLinkId: $id) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -1118,6 +1139,10 @@ export const REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveSocialMediaLinkVote($id: ID!) {
     removeSocialMediaLinkVote(socialMediaLinkId: $id) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -1126,8 +1151,14 @@ export interface SocialMediaLinkVoteVars {
   id: string;
 }
 
+/** The `VoteMutationPayload` the three link vote mutations return — the same type
+ * the incident and chronology vote mutations acknowledge with. */
+export interface SocialMediaLinkVotePayload extends VoteAcknowledgement {
+  ok: boolean;
+}
+
 export interface SocialMediaLinkVoteData {
-  upvoteSocialMediaLink?: { ok: boolean };
-  downvoteSocialMediaLink?: { ok: boolean };
-  removeSocialMediaLinkVote?: { ok: boolean };
+  upvoteSocialMediaLink?: SocialMediaLinkVotePayload;
+  downvoteSocialMediaLink?: SocialMediaLinkVotePayload;
+  removeSocialMediaLinkVote?: SocialMediaLinkVotePayload;
 }

@@ -20,13 +20,18 @@ import {
 import { VoteButtonComponent } from "./vote-button.component";
 
 interface ComponentUnderTest {
-  state: WritableSignal<{ netScore: number; upvotes: number; downvotes: number; userVote: number }>;
+  state: () => { netScore: number; upvotes: number; downvotes: number; userVote: number };
   isVoting: WritableSignal<boolean>;
   onVoteClick(target: 1 | -1): Promise<void>;
 }
 
 function asTestable(fixture: ComponentFixture<VoteButtonComponent>): ComponentUnderTest {
   return fixture.componentInstance as unknown as ComponentUnderTest;
+}
+
+/** A `VoteMutationPayload` as the server would send it after the write. */
+function ack(userVote: number, voteScore: number, upvotes: number, downvotes: number) {
+  return { ok: true, userVote, voteScore, upvotes, downvotes };
 }
 
 describe("VoteButtonComponent", () => {
@@ -36,7 +41,23 @@ describe("VoteButtonComponent", () => {
   let fixture: ComponentFixture<VoteButtonComponent>;
 
   beforeEach(async () => {
-    requestMock = vi.fn().mockResolvedValue({ upvote: { ok: true } });
+    // 🔴 REAL payloads, not `{ ok: true }`: the control repaints from the acknowledgement, so a
+    // stub without the numbers would make every assertion below read the fallback instead. Every
+    // root field is answered, because the acknowledgement arrives under the mutation's own name —
+    // so each test exercises the true server path whichever of the three targets it clicks.
+    // The counters echo the optimistic projection (12/7, then ±1) so the pre-existing tests keep
+    // meaning "the click landed", and the server-wins cases below override this.
+    requestMock = vi.fn().mockResolvedValue({
+      upvote: ack(1, 6, 13, 7),
+      downvote: ack(-1, 4, 12, 8),
+      removeVote: ack(0, 5, 12, 7),
+      upvoteChronology: ack(1, 6, 13, 7),
+      downvoteChronology: ack(-1, 4, 12, 8),
+      removeChronologyVote: ack(0, 5, 12, 7),
+      upvoteSocialMediaLink: ack(1, 6, 13, 7),
+      downvoteSocialMediaLink: ack(-1, 4, 12, 8),
+      removeSocialMediaLinkVote: ack(0, 5, 12, 7),
+    });
     toastMocks = { error: vi.fn() };
     isLoggedIn = signal(true);
 
@@ -218,6 +239,71 @@ describe("VoteButtonComponent", () => {
     await component.onVoteClick(1);
 
     expect(emitted).toEqual({ value: 1 });
+  });
+
+  /* ---- the server's snapshot, not the client's arithmetic -------------------- */
+
+  it("repaints from the acknowledged snapshot even when it disagrees with the projection", async () => {
+    // Someone else voted in the same window, so the server's numbers are not the ones this
+    // client projected. The server is the truth: showing the projection here would leave the
+    // row permanently one vote behind until the next refetch.
+    requestMock.mockResolvedValue({ upvote: ack(1, 11, 15, 4) });
+    const component = asTestable(fixture);
+
+    await component.onVoteClick(1);
+
+    expect(component.state()).toEqual({ netScore: 11, upvotes: 15, downvotes: 4, userVote: 1 });
+  });
+
+  it("does NOT snap back when the host echoes the acknowledged vote back down", async () => {
+    // 🔴 THE RACE THIS FIX EXISTS FOR. The host mirrors the value it was just told into its own
+    // `userVote` overlay and re-renders this control. A display re-seeded from its inputs on any
+    // change resets to the PRE-CLICK counters here (5 / 12 / 7) while the arrow stays lit — the
+    // "indicator updates weirdly" symptom.
+    const component = asTestable(fixture);
+    await component.onVoteClick(1);
+
+    fixture.componentRef.setInput("userVote", 1);
+    await fixture.whenStable();
+
+    expect(component.state()).toEqual({ netScore: 6, upvotes: 13, downvotes: 7, userVote: 1 });
+  });
+
+  it("lets a genuine refetch supersede the acknowledged state", async () => {
+    // The home feed polls, so the host's counters DO move. They are then newer than the
+    // acknowledgement this control holds, and must win — otherwise a vote would pin its
+    // numbers forever and never notice anyone else's.
+    const component = asTestable(fixture);
+    await component.onVoteClick(1);
+
+    fixture.componentRef.setInput("netScore", 9);
+    fixture.componentRef.setInput("upvotes", 16);
+    fixture.componentRef.setInput("userVote", 1);
+    await fixture.whenStable();
+
+    expect(component.state()).toEqual({ netScore: 9, upvotes: 16, downvotes: 7, userVote: 1 });
+  });
+
+  it("keeps the projection when the acknowledgement carries no numbers", async () => {
+    // A cached or partially-shaped response must not paint `undefined` over a good projection.
+    requestMock.mockResolvedValue({ upvote: { ok: true } });
+    const component = asTestable(fixture);
+
+    await component.onVoteClick(1);
+
+    expect(component.state()).toEqual({ netScore: 6, upvotes: 13, downvotes: 7, userVote: 1 });
+  });
+
+  it("emits the value the SERVER acknowledged, not the one that was requested", async () => {
+    // The host's overlay must land on the number already on screen, so the emitted value is the
+    // acknowledged one — the requested one is only ever the optimistic guess.
+    requestMock.mockResolvedValue({ upvote: ack(0, 5, 12, 7) });
+    let emitted: { value: number } | null = null;
+    fixture.componentInstance.voteChanged.subscribe((event) => (emitted = event));
+
+    await asTestable(fixture).onVoteClick(1);
+
+    expect(emitted).toEqual({ value: 0 });
   });
 
   it("does not emit voteChanged when the mutation fails", async () => {

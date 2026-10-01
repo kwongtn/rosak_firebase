@@ -207,7 +207,11 @@ lastWeekOnly, alignPageToDay, collapseThreads)` connection
     link is **not** prepended to the feed — `link-submit-box` emits `submitted` and the page calls
     `store.reloadAll()`, which re-reads the collapsed feed.
   - `SUBMIT_LINE_STATUS_REPORT_MUTATION` (`submitLineStatusReport(input: LineStatusReportInput!)`).
-  - `UPVOTE`/`DOWNVOTE`/`REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION` — used by the shared vote button.
+  - `UPVOTE_SOCIAL_MEDIA_LINK_MUTATION` / `DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION` /
+    `REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION` — used by the shared vote button. Each selects
+    `{ ok userVote voteScore upvotes downvotes }`: the mutation acknowledges with the vote state
+    the write produced, and the button repaints from that instead of projecting the score itself
+    (see the vote-button note below).
   - Input types: `FeedLinkInput { url, title?, occurredAt?, lineIds?, stationIds?, status?,
 delayMinutes?, notes? }` and `LineStatusReportInput { lineId, status, stationIds?, delayMinutes?,
 notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a value: there is no edit
@@ -463,19 +467,24 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   string, because the backend serialises microseconds and `created` may arrive without a fractional
   part. The meta rail stretches to the row height so the relative timestamp bottom-aligns with the
   tag row (or the title row when the card has no tags) instead of claiming a footer row, and holds
-  the vote control, the **conversation chip** and the edit pencil — all three OUTSIDE the
-  navigational `<a>`. Its tag row carries
+  the vote control and the edit pencil, both OUTSIDE the navigational `<a>`. The `<a>` itself is a
+  **stretched overlay** (`absolute inset-0`) across the left column rather than a wrapper: the
+  visible body and the tag row are `pointer-events-none` layers above it, so a click on the title
+  or on any chip still opens the link, while the conversation toggle — a sibling of the anchor,
+  hit-testing restored with `pointer-events-auto` — expands instead of navigating. Its tag row
+  carries
   two independent chips: the Pending pill, driven by the link's approval `status`
   (`PENDING_APPROVAL`), never by the separate `completed` handled flag, and the **Official** chip,
   driven by the link's `isAutomated` provenance flag (only the home feed's `FEED_QUERY` selects it
   today, so the insiden and situasi hosts show no chip rather than a wrong one).
   The **conversation affordance lives here** (it moved out of the wrapper with the nested-thread
-  work): a chevron + readable "N links" button in the right rail, gated on the `sublinkCount`
-  **input** being `> 0` and labelled `threadLabel(sublinkCount() + 1)`. On this surface the wrapper
-  always passes the real count, so a conversation gets a chip and a lone link does not — and because
-  the gate is the input and never `link.sublinkCount`, the flat hosts (whose nodes _do_ carry a real
-  count) still render no chip. It sits in the rail rather than beside Pending/Official because the
-  tag row is inside the `<a>`, where a `<button>` would navigate instead of expanding.
+  work, then out of the right rail into the chip row): a chevron + readable "N links" button in the
+  **tag row beside Pending/Official**, gated on the `sublinkCount` **input** being `> 0` and labelled
+  `threadLabel(sublinkCount() + 1)`. On this surface the wrapper always passes the real count, so a
+  conversation gets a chip and a lone link does not — and because the gate is the input and never
+  `link.sublinkCount`, the flat hosts (whose nodes _do_ carry a real count) still render no chip.
+  Sitting in the tag row is what the stretched-link anchor bought: the row is now a SIBLING of the
+  anchor, so the `<button>` is valid HTML and its click expands rather than navigating.
 - **`HomePage`** — feed edit wiring: `canEdit(link)` calls `canEditLink` with the host's
   `isLoggedIn`/`isAdmin`/`user.uid` over `AuthService`; `openEdit(link)` calls
   `LinkSheetService.openEdit(link)`; the page hosts `<app-link-sheet>` and an effect on the sheet's

@@ -1,6 +1,9 @@
 export type CalendarIncidentSeverity = "MAJOR" | "MINOR" | "OTHERS";
 export type ChronologyIndicator = "GREEN" | "RED" | "BLUE" | "GRAY";
 
+// Type-only, so it is erased at compile time: the vote button imports the
+// documents below, and a runtime import here would close that loop for nothing.
+import type { VoteAcknowledgement } from "../vote-button/vote-state.util";
 import type { PublicSocialMediaLink } from "./social-links.queries";
 
 /** Approval lifecycle of a calendar incident (backend `CalendarIncidentStatus` TextChoices:
@@ -433,10 +436,23 @@ export interface UpdateCalendarIncidentData {
   updateCalendarIncident: { ok: boolean; id: string | null };
 }
 
+/* ---------------------------------------------------------------------- *
+ * Vote mutations. 🔴 EVERY vote mutation acknowledges with the vote state the
+ * write produced — `userVote` / `voteScore` / `upvotes` / `downvotes` — not
+ * with a bare `ok`, because a client given only `ok` has to project the new
+ * score itself, and that projection races its own echo of the value and every
+ * other voter. The control repaints from this response; see
+ * vote-state.util.ts's `voteStateFromAcknowledgement`.
+ * ---------------------------------------------------------------------- */
+
 export const UPVOTE_MUTATION = /* GraphQL */ `
   mutation Upvote($incidentId: ID!) {
     upvote(calendarIncidentId: $incidentId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -445,6 +461,10 @@ export const DOWNVOTE_MUTATION = /* GraphQL */ `
   mutation Downvote($incidentId: ID!) {
     downvote(calendarIncidentId: $incidentId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -453,14 +473,23 @@ export const REMOVE_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveVote($incidentId: ID!) {
     removeVote(calendarIncidentId: $incidentId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
 
+/** The `VoteMutationPayload` the three incident vote mutations return. */
+export interface VoteMutationPayload extends VoteAcknowledgement {
+  ok: boolean;
+}
+
 export interface VoteMutationData {
-  upvote?: { ok: boolean };
-  downvote?: { ok: boolean };
-  removeVote?: { ok: boolean };
+  upvote?: VoteMutationPayload;
+  downvote?: VoteMutationPayload;
+  removeVote?: VoteMutationPayload;
 }
 
 export interface VoteMutationVars {
@@ -472,13 +501,19 @@ export interface VoteMutationVars {
  * IsLoggedIn, idempotent update_or_create on switch, remove clears the vote —
  * but scoped to a single chronology row, whose id comes from the
  * `chronologies { id }` sub-select. VoteButtonComponent picks these when its
- * `targetType` input is "chronology".
+ * `targetType` input is "chronology". The SAME payload, deliberately: the three
+ * targets are one control, and a second response shape here would mean a second
+ * code path in it.
  * ---------------------------------------------------------------------- */
 
 export const UPVOTE_CHRONOLOGY_MUTATION = /* GraphQL */ `
   mutation UpvoteChronology($chronologyId: ID!) {
     upvoteChronology(chronologyId: $chronologyId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -487,6 +522,10 @@ export const DOWNVOTE_CHRONOLOGY_MUTATION = /* GraphQL */ `
   mutation DownvoteChronology($chronologyId: ID!) {
     downvoteChronology(chronologyId: $chronologyId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -495,14 +534,18 @@ export const REMOVE_CHRONOLOGY_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveChronologyVote($chronologyId: ID!) {
     removeChronologyVote(chronologyId: $chronologyId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
 
 export interface ChronologyVoteMutationData {
-  upvoteChronology?: { ok: boolean };
-  downvoteChronology?: { ok: boolean };
-  removeChronologyVote?: { ok: boolean };
+  upvoteChronology?: VoteMutationPayload;
+  downvoteChronology?: VoteMutationPayload;
+  removeChronologyVote?: VoteMutationPayload;
 }
 
 export interface ChronologyVoteMutationVars {

@@ -8,7 +8,21 @@ import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { LinkFormComponent } from "../../insiden/link-form/link-form.component";
-import { FEED_QUERY, SUBMIT_FEED_LINK_MUTATION } from "./home.queries";
+import {
+  DOWNVOTE_CHRONOLOGY_MUTATION,
+  DOWNVOTE_MUTATION,
+  REMOVE_CHRONOLOGY_VOTE_MUTATION,
+  REMOVE_VOTE_MUTATION,
+  UPVOTE_CHRONOLOGY_MUTATION,
+  UPVOTE_MUTATION,
+} from "../../insiden/data/insiden.queries";
+import {
+  DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+  FEED_QUERY,
+  REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
+  SUBMIT_FEED_LINK_MUTATION,
+  UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+} from "./home.queries";
 
 /* ---------------------------------------------------------------------- *
  * Why this file parses the document instead of trusting the types
@@ -124,6 +138,20 @@ function selectionUnder(rawDocument: string, parent: string): SelectionSet {
     throw new Error(`no "${marker}" selection in the document`);
   }
   const bodyStart = open + marker.length;
+  return parseSelectionSet(document.slice(bodyStart, closingBraceIndex(document, bodyStart)));
+}
+
+/** `selectionUnder` for a root field that takes ARGUMENTS.
+ *
+ *  `selectionUnder`'s marker is the literal `"<field> {"`, which a mutation root field with a
+ *  variable argument (`upvoteSocialMediaLink(socialMediaLinkId: $id) {`) never produces. */
+function selectionUnderArgs(rawDocument: string, field: string): SelectionSet {
+  const document = withoutComments(rawDocument);
+  const match = new RegExp(`\\b${field}\\s*(\\([^)]*\\))?\\s*\\{`).exec(document);
+  if (!match) {
+    throw new Error(`no "${field}" selection in the document`);
+  }
+  const bodyStart = match.index + match[0].length;
   return parseSelectionSet(document.slice(bodyStart, closingBraceIndex(document, bodyStart)));
 }
 
@@ -266,6 +294,110 @@ describe("SUBMIT_FEED_LINK_MUTATION selection", () => {
       }
     },
   );
+});
+
+/* ---------------------------------------------------------------------- *
+ * The vote mutations' acknowledgement
+ * ---------------------------------------------------------------------- *
+ *
+ * Same defect class as the sections above, and this is where it would bite hardest: a
+ * document narrowed back to `{ ok }` STILL COMPILES, because the `ok`-shaped payload type
+ * would still be structurally satisfied by `{ ok: true }`, and every fixture in the repo
+ * mocks the response rather than reading it. The control would then fall back to its own
+ * optimistic projection — silently reinstating the "the server only said ok, so work out
+ * the score yourself" path that made the vote indicator snap back.
+ *
+ * `ok` is asserted PRESENT, not just tolerated: the payload widened, it did not replace, so
+ * a `{ ok }` client keeps working and this is a widening rather than a rewrite.
+ */
+describe("link vote mutation selection", () => {
+  const VOTE_MUTATIONS: Array<{ name: string; document: string; rootField: string }> = [
+    {
+      name: "UPVOTE_SOCIAL_MEDIA_LINK_MUTATION",
+      document: UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+      rootField: "upvoteSocialMediaLink",
+    },
+    {
+      name: "DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION",
+      document: DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+      rootField: "downvoteSocialMediaLink",
+    },
+    {
+      name: "REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION",
+      document: REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
+      rootField: "removeSocialMediaLinkVote",
+    },
+  ];
+
+  it.each(VOTE_MUTATIONS)(
+    "$name asks for the whole vote state, not a bare ok",
+    ({ document, rootField }) => {
+      expect(selectionUnderArgs(document, rootField).fields).toEqual([
+        "ok",
+        "userVote",
+        "voteScore",
+        "upvotes",
+        "downvotes",
+      ]);
+    },
+  );
+
+  it("keeps all three documents in step — one shape, so the control has one code path", () => {
+    const shapes = new Set(
+      VOTE_MUTATIONS.map(({ document, rootField }) =>
+        selectionUnderArgs(document, rootField).fields.join(","),
+      ),
+    );
+    expect(shapes.size).toBe(1);
+  });
+});
+
+describe("incident/chronology vote mutation selection", () => {
+  const VOTE_MUTATIONS: Array<{ name: string; document: string; rootField: string }> = [
+    { name: "UPVOTE_MUTATION", document: UPVOTE_MUTATION, rootField: "upvote" },
+    { name: "DOWNVOTE_MUTATION", document: DOWNVOTE_MUTATION, rootField: "downvote" },
+    { name: "REMOVE_VOTE_MUTATION", document: REMOVE_VOTE_MUTATION, rootField: "removeVote" },
+    {
+      name: "UPVOTE_CHRONOLOGY_MUTATION",
+      document: UPVOTE_CHRONOLOGY_MUTATION,
+      rootField: "upvoteChronology",
+    },
+    {
+      name: "DOWNVOTE_CHRONOLOGY_MUTATION",
+      document: DOWNVOTE_CHRONOLOGY_MUTATION,
+      rootField: "downvoteChronology",
+    },
+    {
+      name: "REMOVE_CHRONOLOGY_VOTE_MUTATION",
+      document: REMOVE_CHRONOLOGY_VOTE_MUTATION,
+      rootField: "removeChronologyVote",
+    },
+  ];
+
+  it.each(VOTE_MUTATIONS)(
+    "$name asks for the whole vote state, not a bare ok",
+    ({ document, rootField }) => {
+      expect(selectionUnderArgs(document, rootField).fields).toEqual([
+        "ok",
+        "userVote",
+        "voteScore",
+        "upvotes",
+        "downvotes",
+      ]);
+    },
+  );
+
+  it("matches the link mutations' shape field-for-field", () => {
+    // All nine acknowledge identically on the server (`VoteMutationPayload`), so a divergence
+    // here would mean one target's control silently fell back to its own arithmetic.
+    const linkShape = selectionUnderArgs(
+      UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
+      "upvoteSocialMediaLink",
+    ).fields;
+    for (const { document, rootField } of VOTE_MUTATIONS) {
+      expect(selectionUnderArgs(document, rootField).fields).toEqual(linkShape);
+    }
+  });
 });
 
 /* ---------------------------------------------------------------------- *

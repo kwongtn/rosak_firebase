@@ -16,23 +16,34 @@ import type { VoteValue } from "../vote-button/vote-state.util";
  * vote control in a right rail) and the old insiden `app-link-card` (favicon + plain-link icon
  * fallback, Pending pill, edit pencil).
  *
- * FOUR deliberate constraints (the fourth is new with the nested-thread work):
- * 1. The `<a>` wraps ONLY the link body (favicon + URL + title + tags + Pending pill — all
- *    non-interactive). The vote control and edit pencil live in the right rail OUTSIDE the anchor,
- *    because a click inside an anchor navigates — interactive controls as siblings, never children.
+ * 🔴 THE ANCHOR IS A STRETCHED OVERLAY, NOT A WRAPPER. The left column is a `relative` box; the
+ * `<a>` is `absolute inset-0` across all of it, and the visible body sits on top as a
+ * `pointer-events-none` layer, so a click anywhere on the body — the URL line, the title, ANY chip
+ * — lands on the anchor and opens the link. The one thing that opts back into hit-testing is the
+ * conversation toggle (`pointer-events-auto`, raised with `z-10`), because its click must EXPAND
+ * rather than navigate.
+ *
+ * WHY IT IS BUILT THAT WAY: the chip row has to be a SIBLING of the anchor, not a descendant, or
+ * the conversation affordance cannot live in it — a `<button>` inside an `<a>` is invalid HTML
+ * whose click also navigates. The old card therefore parked the "N links" chip in the right rail,
+ * visually detached from the Official / line-code chips it belongs beside. A stretched link buys
+ * both: the chips stay clickable AND the toggle joins their row. The two costs are deliberate and
+ * are why the chips' `title` explanations became `sr-only` text (a hit-tested element under an
+ * overlay can have no hover tooltip, so the words moved into the accessibility tree, which is
+ * where they were doing their real work anyway) and why the title is no longer selectable (the
+ * overlay owns the pointer, the same trade Bootstrap's `.stretched-link` makes).
+ *
+ * FOUR deliberate constraints:
+ * 1. Interactive controls are SIBLINGS of the anchor, never children: the vote control, the edit
+ *    pencil and the conversation toggle. A click inside an anchor navigates.
  * 2. `link` is the structural `LinkCardItem`, so both the home feed node and the insiden/situasi
  *    node bind directly (no host-side mapping, no import from `features/home`).
  * 3. The relative time keeps its hover/focus tooltip (exact timestamp + submitter) and the rail
  *    stretches to the row height, so the time bottom-aligns with the body's last row instead of
  *    claiming a footer row of its own.
- * 4. 🔴 The conversation affordance ("N links" + expand chevron) is part of this card, so the
+ * 4. The conversation affordance ("N links" + expand chevron) is part of this card, so the
  *    expansion is no longer a sibling element stacked BELOW the first link — it is now the first
- *    link's own metadata, inside the card. It is placed in the RIGHT RAIL, NOT in the chip row,
- *    because the chip row lives INSIDE the `<a>` (constraint 1) and a `<button>` inside an anchor is
- *    invalid HTML whose click also navigates. "Inside the card, outside the anchor" is the rule; the
- *    chip row was the ideal spot and constraint 1 outranks it. The rail is the one place in the card
- *    that is both the card's own chrome and free of the anchor, and it already hosts the row's other
- *    controls, so the chip reads as one more piece of this card's metadata rather than as a wrapper.
+ *    link's own metadata, inside the card AND inside the chip row.
  *
  * Provenance: the tag row carries two independent chips — the Pending pill (approval `status`,
  * `PENDING_APPROVAL`) and the Official chip (`isAutomated`, i.e. an automatically captured
@@ -78,54 +89,69 @@ import type { VoteValue } from "../vote-button/vote-state.util";
       class="bg-card text-card-foreground border-border flex flex-col gap-2 rounded-xl border p-3 shadow-sm"
     >
       <div class="flex items-end gap-2">
-        <a
-          [href]="link().url"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex min-w-0 flex-1 flex-col gap-1"
-        >
-          <span class="flex min-w-0 items-center gap-1.5 text-xs font-medium">
-            @if (faviconDomain(); as domain) {
-              <img
-                [src]="'https://www.google.com/s2/favicons?domain=' + domain"
-                class="size-4 shrink-0 rounded-sm"
-                alt=""
-              />
-            } @else {
-              <svg
-                viewBox="0 0 24 24"
-                class="text-muted-foreground size-4 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M14 5h5v5M19 5 10 14M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"
+        <!-- The left column: a stretched-link box. The anchor is an absolutely positioned
+             overlay behind everything (see the header), so the body below can be a plain
+             non-interactive layer and the conversation toggle can sit in the chip row as a
+             SIBLING of the anchor rather than an invalid button-inside-a-link. -->
+        <div class="relative flex min-w-0 flex-1 flex-col gap-1">
+          <a
+            [href]="link().url"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="link-anchor"
+            class="absolute inset-0 z-0 rounded-sm"
+          >
+            <!-- The overlay is empty on screen, so the link needs a name of its own now that it
+                 no longer wraps the visible text. The chips stay in the reading order beside it. -->
+            <span class="sr-only">{{ anchorLabel() }}</span>
+          </a>
+
+          <div class="pointer-events-none relative z-10 flex min-w-0 flex-col gap-1">
+            <span class="flex min-w-0 items-center gap-1.5 text-xs font-medium">
+              @if (faviconDomain(); as domain) {
+                <img
+                  [src]="'https://www.google.com/s2/favicons?domain=' + domain"
+                  class="size-4 shrink-0 rounded-sm"
+                  alt=""
                 />
-              </svg>
-            }
-            <span class="min-w-0 truncate"
-              ><span data-testid="link-url-domain">{{ urlParts().domain }}</span
-              ><span class="text-muted-foreground" data-testid="link-url-path">{{
-                urlParts().restPath
-              }}</span></span
-            >
-          </span>
-          @if (link().title) {
-            <span class="line-clamp-2 text-sm font-semibold">{{ link().title }}</span>
-          }
-          <span class="flex flex-wrap items-center gap-1.5" data-testid="link-tags">
-            @for (line of link().lines; track line.id) {
-              <span
-                hlmBadge
-                variant="outline"
-                class="px-1.5 py-0.5 text-xs"
-                [title]="line.displayName"
+              } @else {
+                <svg
+                  viewBox="0 0 24 24"
+                  class="text-muted-foreground size-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M14 5h5v5M19 5 10 14M8 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"
+                  />
+                </svg>
+              }
+              <span class="min-w-0 truncate"
+                ><span data-testid="link-url-domain">{{ urlParts().domain }}</span
+                ><span class="text-muted-foreground" data-testid="link-url-path">{{
+                  urlParts().restPath
+                }}</span></span
               >
+            </span>
+            @if (link().title) {
+              <span class="line-clamp-2 text-sm font-semibold">{{ link().title }}</span>
+            }
+          </div>
+
+          <div
+            class="pointer-events-none relative z-10 flex flex-wrap items-center gap-1.5"
+            data-testid="link-tags"
+          >
+            @for (line of link().lines; track line.id) {
+              <span hlmBadge variant="outline" class="px-1.5 py-0.5 text-xs">
                 {{ line.code }}
+                <!-- Was a "title" tooltip; the stretched-link overlay owns the pointer, so the
+                     expansion moved into the accessibility tree where it still reads. -->
+                <span class="sr-only"> — {{ line.displayName }}</span>
               </span>
             }
             @if (link().status === "PENDING_APPROVAL") {
@@ -134,9 +160,9 @@ import type { VoteValue } from "../vote-button/vote-state.util";
                 variant="warning"
                 class="self-start px-1.5 py-0.5 text-xs"
                 data-testid="link-pending"
-                title="Awaiting admin approval"
               >
                 Pending
+                <span class="sr-only"> — awaiting admin approval</span>
               </span>
             }
             @if (link().isAutomated === true) {
@@ -145,13 +171,51 @@ import type { VoteValue } from "../vote-button/vote-state.util";
                 variant="info"
                 class="self-start px-1.5 py-0.5 text-xs"
                 data-testid="link-official"
-                title="Captured automatically from an official operator account"
               >
                 Official
+                <span class="sr-only">
+                  — captured automatically from an official operator account
+                </span>
               </span>
             }
-          </span>
-        </a>
+
+            <!-- The conversation affordance: in the CHIP ROW, and still outside the anchor
+                 (see the header). Gated on sublinkCount > 0, never on isThreadRoot, which is true
+                 of every ungrouped link. Reads the SHARED threadLabel, which is the app's one
+                 pluralisation site; the + 1 is the off-by-one that helper's contract demands (see
+                 conversationLabel). The pointer-events-auto below is load-bearing: the row inherits
+                 pointer-events-none from the stretched-link layer, and without it the click would
+                 fall through to the anchor and navigate instead of expanding. -->
+            @if (hasSublinks()) {
+              <button
+                type="button"
+                data-testid="link-thread-toggle"
+                class="text-muted-foreground hover:bg-muted/40 hover:text-foreground pointer-events-auto flex cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 text-xs transition-colors"
+                [attr.aria-expanded]="sublinksExpanded()"
+                [attr.aria-label]="conversationToggleLabel()"
+                (click)="sublinkToggle.emit()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  class="size-3 shrink-0 transition-transform"
+                  [class.rotate-180]="sublinksExpanded()"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+                <!-- Readable text, not a bare icon: the conversation size must be learnable
+                     without hovering. Pluralisation is NOT decided here — conversationLabel is
+                     threadLabel. -->
+                <span data-testid="link-thread-size">{{ conversationLabel() }}</span>
+              </button>
+            }
+          </div>
+        </div>
 
         <div
           class="flex shrink-0 flex-col items-end justify-between gap-2 self-stretch"
@@ -166,38 +230,6 @@ import type { VoteValue } from "../vote-button/vote-state.util";
             [userVote]="voteValue()"
             (voteChanged)="voteChanged.emit($event)"
           />
-
-          <!-- The conversation affordance: OUTSIDE the anchor (see constraint 4), INSIDE the card.
-               Gated on sublinkCount > 0, never on isThreadRoot, which is true of every ungrouped
-               link. Reads the SHARED threadLabel, which is the app's one pluralisation site; the
-               + 1 is the off-by-one that helper's contract demands (see conversationLabel). -->
-          @if (hasSublinks()) {
-            <button
-              type="button"
-              data-testid="link-thread-toggle"
-              class="text-muted-foreground hover:bg-muted/40 hover:text-foreground flex cursor-pointer items-center gap-1 self-end rounded-md px-1 py-0.5 text-xs transition-colors"
-              [attr.aria-expanded]="sublinksExpanded()"
-              [attr.aria-label]="conversationToggleLabel()"
-              (click)="sublinkToggle.emit()"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                class="size-3 shrink-0 transition-transform"
-                [class.rotate-180]="sublinksExpanded()"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-              <!-- Readable text, not a bare icon: the conversation size must be learnable without
-                   hovering. Pluralisation is NOT decided here — conversationLabel is threadLabel. -->
-              <span data-testid="link-thread-size">{{ conversationLabel() }}</span>
-            </button>
-          }
 
           <div class="flex items-center gap-1.5">
             <span
@@ -331,6 +363,19 @@ export class LinkCardComponent {
 
   /** Hostname for the Google favicon lookup — null when the URL is invalid or non-http(s). */
   protected readonly faviconDomain = computed(() => faviconHostnameOf(this.link().url));
+
+  /**
+   * The stretched link's accessible name. 🔴 IT IS EXPLICIT NOW because the anchor no longer
+   * wraps the visible text: an empty overlay would otherwise be announced as a bare URL-less
+   * "link". The title leads (it is what the row is about) and the raw URL follows, since a
+   * reader cannot see the domain/path line as part of the link's name. The chips deliberately
+   * stay OUT of it: they are separate elements in the reading order, and folding "KJL Official"
+   * into every link's name is noise on a list of links.
+   */
+  protected readonly anchorLabel = computed(() => {
+    const title = this.link().title?.trim();
+    return title ? `${title} (${this.link().url})` : this.link().url;
+  });
 
   /** Domain + path split for the URL line; the domain keeps the card's foreground colour and the
    * path is muted. Falls back to the raw URL as the domain when it can't be parsed. */
