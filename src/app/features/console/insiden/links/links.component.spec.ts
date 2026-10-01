@@ -106,6 +106,15 @@ interface ComponentUnderTest {
   ungroupLink(link: SocialMediaLinkRow): Promise<boolean>;
   /* Hierarchy: depth is per row, the rest are queue-wide. */
   depthOf(link: SocialMediaLinkRow): number;
+  /* The accordion: which conversations are open, and which rows that puts on
+   * screen. `renderedLinks`/`renderedLinkIds` are the DISPLAY set — deliberately
+   * not the same list the mutations scope to (`links()`), see the component. */
+  renderedLinks: () => SocialMediaLinkRow[];
+  renderedLinkIds: () => string[];
+  expandedIds: WritableSignal<ReadonlySet<string>>;
+  isExpanded(id: string): boolean;
+  toggleExpanded(id: string): void;
+  childCountOf(link: SocialMediaLinkRow): number;
   queueIsComplete: WritableSignal<boolean>;
   canMoveUp(link: SocialMediaLinkRow): boolean;
   canMoveDown(link: SocialMediaLinkRow): boolean;
@@ -302,6 +311,39 @@ describe("SocialMediaLinksComponent", () => {
     component.links.set(rows);
     await fixture.whenStable();
     fixture.detectChanges();
+  }
+
+  /** Open the given conversations. The accordion is COLLAPSED BY DEFAULT, so every
+   *  spec that asserts on a CHILD row has to open its root first — this helper
+   *  rather than a per-test chevron click, because "which rows is this test about"
+   *  is then one line and cannot drift from the fixture.
+   *
+   *  Pass every level needed for the assertion: `expand("root", "mid")` for a
+   *  grandchild, because a child only becomes reachable through its parent's own
+   *  expansion. */
+  async function expand(...ids: string[]): Promise<void> {
+    const component = asTestable(fixture);
+    for (const id of ids) {
+      component.toggleExpanded(id);
+    }
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  /** The rendered rows' URLs, in DOM order — the accordion's DISPLAY order read
+   *  off the markup rather than off the signal, so a spec cannot pass on a correct
+   *  `renderedLinks()` and a template that draws something else. */
+  function renderedUrls(): string[] {
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-depth"] a'),
+    ).map((anchor) => anchor.textContent?.trim() ?? "");
+  }
+
+  /** The rendered rows' ids, in DOM order. */
+  function renderedRowIds(): string[] {
+    return asTestable(fixture)
+      .renderedLinks()
+      .map((link) => link.id);
   }
 
   it("loads links and categories on init with the pending default filter", async () => {
@@ -1457,8 +1499,12 @@ describe("SocialMediaLinksComponent", () => {
       makeLink({ id: "b", parentId: "a", isThreadRoot: false }),
       makeLink({ id: "c", parentId: null }),
     ]);
+    // The accordion is collapsed by default, so the sublink's row only exists once
+    // its parent is open — the verb is per RENDERED row.
+    await expand("a");
 
     const labels = rowActionLabels();
+    expect(labels).toHaveLength(3);
     expect(labels[0]).not.toContain("Ungroup");
     expect(labels[1]).toContain("Ungroup");
     expect(labels[2]).not.toContain("Ungroup");
@@ -1475,6 +1521,9 @@ describe("SocialMediaLinksComponent", () => {
       makeLink({ id: "mid", parentId: "root", isThreadRoot: false, sublinkCount: 1 }),
       makeLink({ id: "leaf", parentId: "mid", isThreadRoot: false, sublinkCount: 0 }),
     ]);
+    // BOTH levels open: the mid-tree chip is a row of its own, so the accordion
+    // has to be told to draw it.
+    await expand("root", "mid");
 
     const chips = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-thread"]'),
@@ -1521,6 +1570,9 @@ describe("SocialMediaLinksComponent", () => {
     const mid = makeLink({ id: "mid", parentId: "root", isThreadRoot: false, sublinkCount: 1 });
     const leaf = makeLink({ id: "leaf", parentId: "mid", isThreadRoot: false });
     await renderRows([root, mid, leaf]);
+    // Every level open, so all three rows are rendered; the indentation itself is
+    // what this asserts, and it is asserted off `data-depth` rather than pixels.
+    await expand("root", "mid");
 
     expect([root, mid, leaf].map((row) => component.depthOf(row))).toEqual([0, 1, 2]);
     const depths = Array.from(
@@ -1546,6 +1598,253 @@ describe("SocialMediaLinksComponent", () => {
 
     expect(component.depthOf(a)).toBeGreaterThanOrEqual(0);
     expect(component.depthOf(b)).toBeGreaterThanOrEqual(0);
+    // 🔴 AND NO ROW MAY VANISH. Every row of a cycle HAS a loaded parent, so the
+    // accordion's walk skips all of them and the recursion never starts; whatever
+    // the walk did not place is appended at the END of the rendered list, in relative
+    // arrival order, because a queue that quietly swallows links is worse than one
+    // that shows them untidily.
+    expect(renderedRowIds()).toEqual(["a", "b"]);
+  });
+
+  /* ---- The accordion over the loaded tree ------------------------------ */
+
+  it("collapses every conversation by default — children are loaded but not drawn", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const component = asTestable(fixture);
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 1, url: "https://x.com/root" }),
+      makeLink({ id: "child", parentId: "root", isThreadRoot: false, url: "https://x.com/child" }),
+      makeLink({ id: "lonely", url: "https://x.com/lonely" }),
+    ]);
+
+    // Same rule as the public feed's `app-link-thread`, same reason: the queue is
+    // read for its newest rows, so nothing is open on arrival.
+    expect(component.isExpanded("root")).toBe(false);
+    expect(component.renderedLinkIds()).toEqual(["root", "lonely"]);
+    // …and the DOM agrees, so this is not a signal the template ignores.
+    expect(renderedUrls()).toEqual(["https://x.com/root", "https://x.com/lonely"]);
+    // The root's row and its own chip are untouched by having children: the chip
+    // still counts the WHOLE subtree, including the hidden rows.
+    expect(byTestId("link-thread")?.textContent).toContain("2 links");
+  });
+
+  it("puts the chevron only on a row with LOADED children, and reserves its width on the others", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 2 }),
+      makeLink({ id: "mid", parentId: "root", isThreadRoot: false, sublinkCount: 1 }),
+      makeLink({ id: "leaf", parentId: "mid", isThreadRoot: false }),
+      makeLink({ id: "lonely" }),
+    ]);
+    await expand("root", "mid");
+    fixture.detectChanges();
+
+    const toggles = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="thread-toggle"]',
+    );
+    // Root and mid are the two rows with loaded children, at two different
+    // levels — every level gets its own control, which is what makes a deep tree
+    // navigable one level at a time.
+    expect(toggles).toHaveLength(2);
+    expect((toggles[0] as HTMLButtonElement).getAttribute("aria-expanded")).toBe("true");
+    expect((toggles[1] as HTMLButtonElement).getAttribute("aria-expanded")).toBe("true");
+    // The chevron is inside the padded wrapper, so a childless row needs an
+    // equal-width stand-in or every open/close click shifts the columns.
+    const reserved = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-depth"]'),
+    ).map((wrapper) => wrapper.querySelector('span[aria-hidden="true"]') !== null);
+    expect(reserved).toEqual([false, false, true, true]);
+  });
+
+  it("reveals children directly beneath their parent, in STORED order", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    // 🔴 ARRIVED newest-first, STORED oldest-first — the conversation the backend
+    // assembled oldest-first therefore arrives reversed, which is exactly the case
+    // a flat queue got wrong. The root order below is still arrival order.
+    await renderRows([
+      makeLink({
+        id: "second",
+        parentId: "root",
+        isThreadRoot: false,
+        position: 20,
+        url: "https://x.com/second",
+      }),
+      makeLink({
+        id: "zebra",
+        parentId: "root",
+        isThreadRoot: false,
+        position: 10,
+        url: "https://x.com/zebra",
+      }),
+      makeLink({ id: "root", sublinkCount: 2, url: "https://x.com/root" }),
+      makeLink({ id: "other", url: "https://x.com/other" }),
+    ]);
+    await expand("root");
+
+    // Directly beneath the root — not where the arrival order put them — and in
+    // `position` order.
+    expect(renderedUrls()).toEqual([
+      "https://x.com/root",
+      "https://x.com/zebra",
+      "https://x.com/second",
+      "https://x.com/other",
+    ]);
+    // …and the root's own order is the queue's: untouched.
+    expect(renderedUrls()[0]).toContain("root");
+    expect(renderedUrls()[3]).toContain("other");
+  });
+
+  it("expands a nested level only once every level above it is open", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const component = asTestable(fixture);
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 2, url: "https://x.com/root" }),
+      makeLink({
+        id: "mid",
+        parentId: "root",
+        isThreadRoot: false,
+        sublinkCount: 1,
+        url: "https://x.com/mid",
+      }),
+      makeLink({ id: "leaf", parentId: "mid", isThreadRoot: false, url: "https://x.com/leaf" }),
+    ]);
+
+    await expand("root");
+    expect(renderedUrls()).toEqual(["https://x.com/root", "https://x.com/mid"]);
+    // Opening the middle level is independent — the same rule as the feed's
+    // per-instance expand signal, keyed here by id.
+    await expand("mid");
+    expect(renderedUrls()).toEqual([
+      "https://x.com/root",
+      "https://x.com/mid",
+      "https://x.com/leaf",
+    ]);
+    // Closing the ROOT hides the whole subtree, because the grandchild's own
+    // state survives the collapse: collapsing is not forgetting.
+    component.toggleExpanded("root");
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.isExpanded("mid")).toBe(true);
+    expect(renderedUrls()).toEqual(["https://x.com/root"]);
+  });
+
+  it("renders a row whose parent is not loaded as a root, at its flat position", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const component = asTestable(fixture);
+    // A filter that hides the parent: the payload cannot support an indent, and a
+    // gap where an invisible parent would be reads as a corrupted queue.
+    await renderRows([
+      makeLink({ id: "a", url: "https://x.com/a" }),
+      makeLink({
+        id: "orphan",
+        parentId: "not-loaded",
+        isThreadRoot: false,
+        url: "https://x.com/orphan",
+      }),
+      makeLink({ id: "b", url: "https://x.com/b" }),
+    ]);
+
+    expect(component.depthOf(component.links()[1])).toBe(0);
+    expect(component.renderedLinkIds()).toEqual(["a", "orphan", "b"]);
+    expect(renderedUrls()).toEqual(["https://x.com/a", "https://x.com/orphan", "https://x.com/b"]);
+    // And it is not mistaken for a conversation: nothing to expand.
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        'tbody [data-testid="thread-toggle"]',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("Select-all ticks the RENDERED rows and leaves a collapsed conversation's children alone", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const component = asTestable(fixture);
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 1 }),
+      makeLink({ id: "child", parentId: "root", isThreadRoot: false }),
+      makeLink({ id: "lonely" }),
+    ]);
+
+    byTestId("select-all")?.dispatchEvent(new Event("change"));
+
+    // The children are not on screen, so they are not ticked — otherwise the
+    // checkbox reads "all selected" while a whole conversation sits closed.
+    expect(component.selectedIds()).toEqual(["root", "lonely"]);
+    expect(component.allVisibleSelected()).toBe(true);
+
+    // Open the conversation and the checkbox is honest again, without re-ticking.
+    await expand("root");
+    expect(component.allVisibleSelected()).toBe(false);
+    component.toggleRowSelection("child");
+    expect(component.allVisibleSelected()).toBe(true);
+
+    // Second press clears what it can see — and leaves the closed-away rows as
+    // they were, because they were never part of it.
+    component.toggleSelectAll();
+    expect(component.selectedIds()).toEqual([]);
+  });
+
+  it("scopes a grouping mutation to the LOADED rows, so collapsing never forgets a tick", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("mutation GroupSocialMediaLinks")) {
+        return Promise.resolve({ groupSocialMediaLinks: { ok: true, id: 3 } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+    const component = asTestable(fixture);
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 2 }),
+      makeLink({ id: "a", parentId: "root", isThreadRoot: false }),
+      makeLink({ id: "b", parentId: "root", isThreadRoot: false }),
+    ]);
+    await expand("root");
+    component.toggleRowSelection("a");
+    component.toggleRowSelection("b");
+    // The admin closes the conversation again before pressing the verb.
+    component.toggleExpanded("root");
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // 🔴 Collapsing is a VIEW gesture. Scoping the payload to the rendered rows
+    // would drop the two children the admin just ticked and send only the root —
+    // and the server accepts that, so nothing would have looked wrong.
+    expect(component.renderedLinkIds()).toEqual(["root"]);
+    expect(groupCalls()).toHaveLength(0);
+    await component.groupSelected();
+    expect(groupCalls()[0][1]).toEqual({ linkIds: ["a", "b"] });
+  });
+
+  it("toggles a conversation from the chevron without opening the detail panel", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const component = asTestable(fixture);
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 1 }),
+      makeLink({ id: "child", parentId: "root", isThreadRoot: false }),
+    ]);
+    fixture.detectChanges();
+
+    const chevron = byTestId("thread-toggle") as HTMLButtonElement;
+    chevron.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.isExpanded("root")).toBe(true);
+    expect(renderedUrls()).toHaveLength(2);
+    // stopPropagation is load-bearing: the `<tr>` opens the editor on click, and
+    // "open the conversation" is not "open this row's editor".
+    expect(component.selectedLink()).toBeNull();
+
+    // …and clicking it again closes it, from the row it just revealed.
+    const again = (fixture.nativeElement as HTMLElement).querySelector(
+      'tbody [data-testid="thread-toggle"]',
+    ) as HTMLButtonElement;
+    again.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.isExpanded("root")).toBe(false);
+    expect(renderedUrls()).toHaveLength(1);
+    expect(component.selectedLink()).toBeNull();
   });
 
   /* ---- Sequence: move up / move down ---------------------------------- */

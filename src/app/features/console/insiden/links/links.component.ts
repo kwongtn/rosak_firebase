@@ -189,13 +189,56 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * `adminOnlyGuard`-gated, and the backend refuses a non-admin status change, so
  * the row action carries no second permission check.
  *
- * THREAD GROUPING is a moderation/organisation tool here, NOT a display mode:
- * the list stays flat, every link gets its own row, and the hierarchy is
- * expressed as a DEPTH INDENT plus a `N links` chip per row plus the per-row
- * Ungroup / Move up / Move down / Nest under actions. The table stays one row
- * per link deliberately: nesting a conversation inside a table cell is the
- * single thing that makes a moderation queue unreadable, and an admin's job is
- * to compare rows, not to expand one.
+ * THREAD GROUPING IS AN ACCORDION (2026-10-01), collapsed by default. This
+ * SUPERSEDES an earlier decision recorded here, and the reasoning behind it is
+ * kept because the rule it disagreed with still explains the parts that did not
+ * change. The flat-table rationale was: "the table stays one row per link
+ * deliberately — nesting a conversation inside a table cell is the single thing
+ * that makes a moderation queue unreadable, and an admin's job is to compare
+ * rows, not to expand one." That was sound about the ROW SET (an admin really
+ * does compare rows, and every link really should keep its own row, its own
+ * checkbox and its own action cell) and wrong about the VISIBLE ROW SET: a flat
+ * queue prints a four-link conversation as four unrelated lines separated by
+ * whatever else the triage order happened to interleave, so the admin cannot see
+ * that they are one conversation without re-deriving it from the indent. The
+ * accordion answers that without nesting anything inside a cell — it is still one
+ * row per link, one set of columns, one action cell; the only thing that changes
+ * is WHICH rows are on screen.
+ *
+ * So the queue renders an ACCORDION over the same flat, ordered TREE, exactly as
+ * the public feed's `app-link-thread` already does (which is also collapsed by
+ * default, per level and independently — the same rule, the same reason):
+ *   - a row is a PARENT iff it has LOADED children, and it then carries a
+ *     chevron (`data-testid="thread-toggle"`, `aria-expanded`, rotating icon) in
+ *     the URL cell's indented flex, with an equal-width placeholder on a
+ *     childless row so the columns cannot shift as rows open and close;
+ *   - expanding reveals a row's direct children DIRECTLY BENEATH IT in the
+ *     STORED order (`position` ASC, `id` tie-break — `compareStoredSequence`),
+ *     and recursively: a child with children of its own gets its own chevron, so
+ *     "each level expands on its own" holds at any depth;
+ *   - the ROOT order is unchanged — the queue's `occurredAt DESC, id DESC`. Only
+ *     the placement of children moves, from wherever the arrival order put them
+ *     to directly under their parent;
+ *   - COLLAPSED BY DEFAULT, because a triage queue is read for its newest rows,
+ *     and an admin opening the queue should not have to close anything first;
+ *   - the DEPTH INDENT, the `N links` chip and its coupling tooltip, and every
+ *     per-row verb (Ungroup / Move up / Move down / Nest under…) are unchanged
+ *     and still reachable on every RENDERED row.
+ *
+ * ⚠️ A DOCUMENTED DIVERGENCE, stated here because it contradicts a rule this repo has
+ * already written down. `MISTAKES.md` (2026-09-30, home/`collapseThreads`) rules that
+ * "client-side grouping of a flat page is unsound in the first place … so collapsing has
+ * to be the backend's decision, and the consumer's job is to walk the shape it asked for"
+ * — and this accordion groups a flat payload on the client. It is safe HERE because the
+ * console resolver has no pagination and no row cap (backend `get_social_media_links`), so
+ * whenever the applied filters are UNFILTERED — Status on All counts, it is a filter too —
+ * the loaded set IS the whole table, which is exactly the `queueIsComplete` precondition —
+ * and every structural action is refused outright when the loaded set cannot prove it is
+ * complete. So the walk never reconstructs a
+ * grouping the payload does not carry: a parent missing from a filtered result makes its
+ * child a root (see `_depths`), and the accordion only ever decides which rows of a
+ * COMPLETE set are DRAWN. It never loads less than the page did and never writes an order
+ * back.
  *
  * The hierarchy is a TREE, not the old two-level thread: `parentId` points at
  * any link, depth is arbitrary up to the store's cap, and every node keeps its
@@ -254,6 +297,18 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * this?" and "does this row show a chip?". Reordering deliberately KEEPS the
  * selection: a reorder is not a grouping change, so the rows an admin ticked to
  * find the sequence are still the rows they ticked afterwards.
+ *
+ * 🔴 SELECT-ALL READS THE RENDERED ROWS; THE MUTATIONS SCOPE TO THE LOADED ONES.
+ * Two different id lists exist on purpose, and they answer different questions:
+ * `renderedLinkIds` (what the accordion is showing) drives `toggleSelectAll` and
+ * `allVisibleSelected`, because "select all" must not tick rows the admin cannot
+ * see — the checkbox would then read as fully selected while N conversations sit
+ * closed, and a second press would clear those ticks. `visibleLinkIds` (every
+ * LOADED row, collapsed children included) stays the scope of `scopedSelection`,
+ * because collapsing a conversation is a VIEW gesture, not an intent to forget:
+ * tick a root, open it, tick two children, close it, and hitting Group must still
+ * move all three. Scoping the mutation to the rendered set instead would make a
+ * collapse silently drop the admin's own selection.
  */
 @Component({
   selector: "app-console-social-media-links",
@@ -323,7 +378,10 @@ export class SocialMediaLinksComponent {
    *  rejection would read as a plain "grouping failed". */
   protected readonly selectedIds = signal<string[]>([]);
 
-  /** The ids actually on screen — the scope of every grouping mutation. */
+  /** Every LOADED row's id, collapsed children included — the scope of every
+   *  grouping mutation. 🔴 NOT the rendered set: see the accordion note in the
+   *  class docstring. Collapsing a conversation is a view gesture, and a mutation
+   *  scoped to what happens to be open would quietly drop the admin's own ticks. */
   protected readonly visibleLinkIds = computed(() => this.links().map((link) => link.id));
 
   protected readonly selectedCount = computed(() => this.selectedIds().length);
@@ -333,10 +391,17 @@ export class SocialMediaLinksComponent {
    *  exactly one place — the one the profile surface's grouping UI also reads. */
   protected readonly canGroupSelection = computed(() => canGroup(this.selectedIds()));
 
+  /** The rows the ACCORDION is currently showing — `links()` minus every row
+   *  whose loaded ancestors are all collapsed. This is what Select-all and the
+   *  header's checked state read, so a closed conversation is never half-ticked
+   *  from under the admin; see the class docstring for why the MUTATIONS still
+   *  scope to `visibleLinkIds`. */
+  protected readonly renderedLinkIds = computed(() => this.renderedLinks().map((link) => link.id));
+
   /** Drives the header Select-all checkbox. False over an empty page on purpose
    *  (see `areAllSelected`). */
   protected readonly allVisibleSelected = computed(() =>
-    areAllSelected(this.selectedIds(), this.visibleLinkIds()),
+    areAllSelected(this.selectedIds(), this.renderedLinkIds()),
   );
 
   /** Re-exposed, not re-implemented: an Angular template can only read members off
@@ -425,24 +490,203 @@ export class SocialMediaLinksComponent {
   /** The indent step the template multiplies a row's depth by. */
   protected readonly depthIndentPx = DEPTH_INDENT_PX;
 
+  /* ---- Hierarchy: the accordion ---------------------------------------- */
+
+  /** Which conversations are open. COLLAPSED BY DEFAULT (an empty set), the same
+   *  rule and the same reason as the public feed's `app-link-thread`: a triage
+   *  queue is read for its newest rows, and nobody should have to close a
+   *  conversation before reading it.
+   *
+   *  IMMUTABLE UPDATES ARE LOAD-BEARING, not hygiene: a signal compares by
+   *  reference, so an in-place `add`/`delete` would produce the SAME `Set`, change
+   *  detection would never fire, and the chevron would stop responding. Every
+   *  toggle therefore copies (see `toggleExpanded`).
+   *
+   *  It is keyed by id and deliberately SURVIVES a refetch: ids are stable across
+   *  reloads, so a conversation the admin opened stays open through the reload a
+   *  grouping or a reorder triggers — collapsing it under them mid-write would be
+   *  the one thing the accordion could not plausibly explain. An id that no longer
+   *  exists is simply inert. */
+  protected readonly expandedIds = signal<ReadonlySet<string>>(new Set<string>());
+
+  /** Open/close one conversation. A NEW set every call, for the reason above. */
+  protected toggleExpanded(id: string): void {
+    const next = new Set(this.expandedIds());
+    if (!next.delete(id)) {
+      next.add(id);
+    }
+    this.expandedIds.set(next);
+  }
+
+  protected isExpanded(id: string): boolean {
+    return this.expandedIds().has(id);
+  }
+
+  /** Every loaded row grouped by the id of its PARENT, each group in the STORED
+   *  order — `position` ASC with `id` as the tie-break (`compareStoredSequence`).
+   *  The `null` key is the ROOT RUN: `parentId ?? null` normalises a payload that
+   *  omitted the key, so a real root and a row with an absent `parentId` land in
+   *  ONE group instead of two, exactly as they must for `siblingsOf`.
+   *
+   *  ONE MAP, THREE READERS, so the sequence can only be defined once: the
+   *  accordion's child runs, `siblingsOf`'s run (the same array — a row's
+   *  siblings ARE its parent's children), and `childCountOf`'s count. The groups
+   *  are built fresh here and sorted in place, so the in-place `sort` cannot touch
+   *  the `links` signal's own array; the returned arrays are MEMOISED and shared,
+   *  so a caller must copy before it reorders one (`reorderSiblings` does). */
+  private readonly _runsByParentId = computed(() => {
+    const runs = new Map<string | null, SocialMediaLinkRow[]>();
+    for (const link of this.links()) {
+      const key = link.parentId ?? null;
+      const run = runs.get(key);
+      if (run) {
+        run.push(link);
+      } else {
+        runs.set(key, [link]);
+      }
+    }
+    for (const run of runs.values()) {
+      run.sort(compareStoredSequence);
+    }
+    return runs;
+  });
+
+  /** The direct children of `parentId`, in the STORED order. `parentId` is the
+   *  node's OWN id when asking for a row's children, and its `parentId ?? null`
+   *  when asking for a row's sibling run. */
+  private runFor(parentId: string | null): SocialMediaLinkRow[] {
+    return this._runsByParentId().get(parentId) ?? [];
+  }
+
+  /** A row's direct children, in the STORED order. The chevron's gate: a row is a
+   *  PARENT iff it has LOADED children, which is the rule the whole accordion
+   *  hangs on — see `renderedLinks`.
+   *
+   *  ⚠️ LOADED, NOT `sublinkCount`. The two answer different questions and only one
+   *  of them can drive rendering: a filtered page can hold a row whose descendants
+   *  exist but are not in the result, and `sublinkCount > 0` would then draw a
+   *  chevron that expands to nothing. Conversely `sublinkCount: 0` with a loaded
+   *  child is hand-edited data, and refusing to draw the chevron would strand a
+   *  child that the payload does contain — unreachable from the queue entirely.
+   *  `sublinkCount` still owns the CHIP, which is a statement about the whole
+   *  conversation including rows this page cannot show. */
+  protected childCountOf(link: SocialMediaLinkRow): number {
+    return this.runFor(link.id).length;
+  }
+
+  /** The rows the accordion actually draws, in display order.
+   *
+   *  THE RULE, in one sentence: a row is rendered iff it has no loaded parent, or
+   *  every loaded ancestor of it is expanded.
+   *
+   *  How that falls out of the code, and why it is written as a walk rather than
+   *  as a per-row predicate: the top-level pass SKIPS a row iff its DIRECT parent
+   *  is loaded — such a row is emitted by the recursion below, from its parent's
+   *  own position, so "directly beneath it" is structural rather than something a
+   *  flat filter has to reconstruct. Recursion then emits each open row's children
+   *  in the STORED order, so a child of a collapsed row is never reached at all.
+   *  That is also why the order is: root order first (the queue's unchanged
+   *  `occurredAt DESC, id DESC` arrival order — the triage order is NOT the
+   *  conversation order, and only the second one is the accordion's business),
+   *  then each root's expanded subtree, then the next root.
+   *
+   *  🔴 A ROW THE WALK CANNOT PLACE IS STILL RENDERED — and the two reasons a row
+   *  is missing from `rendered` have to be told APART, or the safety net undoes the
+   *  accordion it is protecting. A row is unemitted either because a COLLAPSED
+   *  ancestor is hiding it (the whole point) or because nothing can reach it:
+   *  hand-edited or migrated data can be cyclic (`a → b → a`), and then every row of
+   *  the cycle has a loaded parent, so the top-level pass skips them all and the
+   *  recursion never starts. A queue that has silently swallowed rows is far worse
+   *  than one that shows them untidily — an admin cannot act on a link they cannot
+   *  see. So the net appends only the UNREACHABLE ones — AFTER everything the walk
+   *  placed, in their relative arrival order, because there is no parent position to put
+   *  them at; appending a merely-COLLAPSED child would be worse than
+   *  the bug it guards, because it would draw a closed conversation in full.
+   *  `hiddenByCollapse` is exactly that distinction.
+   *
+   *  Duplicates are impossible (`emitted` gates both the recursion and this loop),
+   *  and the walk cannot hang: `emit` returns on an id it has already placed, which
+   *  is also what bounds the cycle. `hiddenByCollapse`'s ancestor walk is bounded by
+   *  the same visited-set rule `_depths` uses, so a cycle terminates there too. */
+  protected readonly renderedLinks = computed<SocialMediaLinkRow[]>(() => {
+    const rows = this.links();
+    const loadedIds = this._rowsById();
+    const expanded = this.expandedIds();
+    const rendered: SocialMediaLinkRow[] = [];
+    const emitted = new Set<string>();
+
+    const emit = (link: SocialMediaLinkRow): void => {
+      if (emitted.has(link.id)) {
+        return;
+      }
+      emitted.add(link.id);
+      rendered.push(link);
+      if (!expanded.has(link.id)) {
+        return;
+      }
+      for (const child of this.runFor(link.id)) {
+        emit(child);
+      }
+    };
+
+    for (const link of rows) {
+      const parentId = link.parentId ?? null;
+      if (parentId !== null && loadedIds.has(parentId)) {
+        continue;
+      }
+      emit(link);
+    }
+
+    /** Is this row merely HIDDEN — i.e. is some rendered ancestor of it CLOSED —
+     *  as opposed to unreachable? Bounded and cycle-safe, by the same rule as
+     *  `_depths`.
+     *
+     *  ⚠️ The test is "emitted AND closed", never just "closed". A collapsed
+     *  ancestor that the walk never emitted (which is the case for every node
+     *  inside a closed conversation) must NOT count: under the plain test, closing
+     *  a conversation would hand the safety net every one of its descendants and
+     *  the accordion would draw a closed conversation in full. Walking to the TOP
+     *  of the chain and asking only about rows the walk actually placed gets both
+     *  cases right — a closed ancestor is always somewhere above, even when the
+     *  intermediate nodes were themselves never reached. */
+    const hiddenByCollapse = (link: SocialMediaLinkRow): boolean => {
+      const visited = new Set<string>([link.id]);
+      let cursorId: string | null = link.parentId ?? null;
+      while (cursorId && loadedIds.has(cursorId) && !visited.has(cursorId)) {
+        if (emitted.has(cursorId) && !expanded.has(cursorId)) {
+          return true;
+        }
+        visited.add(cursorId);
+        cursorId = loadedIds.get(cursorId)?.parentId ?? null;
+      }
+      return false;
+    };
+
+    for (const link of rows) {
+      if (!emitted.has(link.id) && !hiddenByCollapse(link)) {
+        rendered.push(link);
+      }
+    }
+    return rendered;
+  });
+
   /** The row's sibling RUN: every loaded row sharing its `parentId`, in the STORED
    *  order — `position` ASC, `id` as the tie-break (see `compareStoredSequence` for
-   *  why the second key is not optional). `?? null` normalises a payload that
-   *  omitted the key, so a real root and a row with an absent `parentId` land in ONE
-   *  run instead of two.
+   *  why the second key is not optional).
    *
    *  THIS ARRAY IS THE CONTRACT, and it is deliberately the ONLY place a run is
-   *  built: the reorder payload, the move index and the "already first / already
-   *  last" reasons all read off it, so they cannot disagree with each other. It is
-   *  NOT the order this table renders — the table stays `occurredAt DESC, id DESC`,
-   *  and a run permuted in the arrival order would write the queue's triage ordering
-   *  as the conversation's sequence. `filter` copies, so the in-place `sort` cannot
-   *  touch the `links` signal's own array. */
+   *  read: the reorder payload, the move index and the "already first / already
+   *  last" reasons all read off it, so they cannot disagree with each other — and
+   *  so it can be the SAME array the accordion expands, because a row's siblings
+   *  are exactly its parent's children. It is NOT the order the top of the table
+   *  renders — that stays the queue's `occurredAt DESC, id DESC`, and a run
+   *  permuted in the arrival order would write the queue's triage ordering as the
+   *  conversation's sequence.
+   *
+   *  ⚠️ It is memoised and SHARED now (it comes out of `_runsByParentId`), so a
+   *  caller that reorders it must copy first. `reorderSiblings` does. */
   private siblingsOf(link: SocialMediaLinkRow): SocialMediaLinkRow[] {
-    const parentId = link.parentId ?? null;
-    return this.links()
-      .filter((row) => (row.parentId ?? null) === parentId)
-      .sort(compareStoredSequence);
+    return this.runFor(link.parentId ?? null);
   }
 
   /** Can the STORED order of this row's run be read at all? False as soon as any
@@ -806,24 +1050,38 @@ export class SocialMediaLinksComponent {
     this.selectedIds.set(toggleSelection(this.selectedIds(), id));
   }
 
-  /** The header checkbox. Replaces the selection with the whole visible page, or
-   *  clears it when the page is already fully selected — never merges, so
-   *  repeated clicks can't accumulate a hidden selection from a previous filter.
-   *  Stays unchecked over an empty page: "select all" of nothing is a lie, and an
-   *  invitation to post an empty selection. */
+  /** The header checkbox. REPLACES the selection with every RENDERED row, or clears
+   *  it when they are all already selected — a replacement, never a merge, so repeated
+   *  clicks can't accumulate a hidden selection from a previous filter. Stays unchecked
+   *  over an empty page: "select all" of nothing is a lie, and an invitation to post an
+   *  empty selection.
+   *
+   *  🔴 REPLACING MEANS COLLAPSING CAN DROP TICKS. Tick a conversation's children, close
+   *  it, then press Select-all: those hidden ticks are gone, because the rendered set no
+   *  longer contains them. That is deliberate — a checkbox is a statement about what is on
+   *  screen, and preserving ticks the admin cannot see would make the header read
+   *  "all selected" over a list it does not describe. It is also the exact OPPOSITE of
+   *  `scopedSelection`, which scopes to every loaded row so a collapse cannot discard a
+   *  decision already made: a mutation is about what they had already decided. */
   protected toggleSelectAll(): void {
-    this.selectedIds.set(this.allVisibleSelected() ? [] : [...this.visibleLinkIds()]);
+    this.selectedIds.set(this.allVisibleSelected() ? [] : [...this.renderedLinkIds()]);
   }
 
   protected clearSelection(): void {
     this.selectedIds.set([]);
   }
 
-  /** The selection scoped to what is on screen, blanks dropped. Applied by BOTH
-   *  group verbs before anything is sent: `linkIds` is `[ID!]!`, so an empty
-   *  element is a hard validation error, and the server rejects the whole call
-   *  if one id is not the admin's to touch — an id scrolled out of a filtered
-   *  page would make every grouping action fail for no visible reason. */
+  /** The selection scoped to the LOADED rows, blanks dropped. Applied by BOTH group
+   *  verbs before anything is sent: `linkIds` is `[ID!]!`, so an empty element is a
+   *  hard validation error, and the server rejects the whole call if one id is not
+   *  the admin's to touch — an id filtered out would make every grouping action
+   *  fail for no visible reason.
+   *
+   *  ⚠️ NOT `renderedLinkIds`. The accordion can hide a loaded row the admin
+   *  already ticked (open a conversation, tick two children, close it again), and
+   *  scoping to the rendered set would silently drop those two from the payload —
+   *  a collapse reading as "those links are no longer selected". Collapsing is a
+   *  view gesture; the selection outlives it. */
   private scopedSelection(): string[] {
     return selectedWithin(this.selectedIds(), this.visibleLinkIds()).filter(Boolean);
   }
@@ -846,15 +1104,17 @@ export class SocialMediaLinksComponent {
    *  failure therefore toasts and leaves both the list and the selection exactly
    *  as they were — keeping the selection on failure is deliberate: the admin can
    *  adjust it and retry instead of re-ticking from scratch. Success reloads (the
-   *  list is flat, so the server's `parentId`/`sublinkCount` truth is what drives
-   *  the indentation and the chips) and clears the selection, which is otherwise
-   *  a selection of rows that are now one conversation — i.e. a request that has
-   *  already been made.
+   *  payload is a flat array — the accordion derives the hierarchy from `parentId`
+   *  client-side — so the server's `parentId`/`sublinkCount` truth is what drives
+   *  the indentation, the chips and the chevrons) and clears the selection, which is
+   *  otherwise a selection of rows that are now one conversation — i.e. a request
+   *  that has already been made.
    *
    *  The returned root id is deliberately unused: it is an `Int` (every other id
-   *  in this feature is a string `ID`) and exists so a COLLAPSED surface could
-   *  refetch exactly one conversation. This list is flat and reloads wholesale,
-   *  so there is nothing to spend it on. */
+   *  in this feature is a string `ID`) and exists so a surface that re-fetched ONE
+   *  conversation on demand could spend it. This queue fetches the whole flat
+   *  array with no pagination and reloads wholesale, so there is nothing to spend
+   *  it on — the accordion collapses what is already in memory instead. */
   protected async groupSelected(): Promise<boolean> {
     const linkIds = this.scopedSelection();
     if (!canGroup(linkIds)) {

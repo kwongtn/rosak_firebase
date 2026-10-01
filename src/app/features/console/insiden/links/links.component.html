@@ -227,7 +227,14 @@
               </td>
             </tr>
           } @else {
-            @for (link of links(); track link.id) {
+            <!--
+              THE ACCORDION. Iterates the RENDERED rows, not `links()`: an expanded
+              row's children are emitted directly beneath it (in stored order), so the
+              flat queue order survives untouched at the root level while a collapsed
+              conversation shows one row. Collapsed by default, exactly like the public
+              feed's `app-link-thread`.
+            -->
+            @for (link of renderedLinks(); track link.id) {
               <tr
                 hlmTr
                 class="cursor-pointer hover:bg-muted"
@@ -254,14 +261,23 @@
                 </td>
                 <td hlmTd class="max-w-72 py-3">
                   <!--
-                    THE DEPTH INDENT: the whole hierarchy affordance, in one binding.
-                    `depthOf` walks the row's parentId chain inside the LOADED set,
-                    and a row whose parent is not loaded counts as a root — which is
+                    THE DEPTH INDENT + THE CHEVRON: the two hierarchy affordances, and
+                    they live in ONE wrapper because they answer the same question.
+
+                    `depthOf` walks the row's parentId chain inside the LOADED set, and
+                    a row whose parent is not loaded counts as a root — which is
                     exactly what a filtered page does to a sublink (its parent is not
                     in the result), and rendering it flush is honest rather than
                     leaving a gap for a parent the payload does not contain.
                     `data-depth` is the same number the padding is derived from, so
                     a spec can assert the hierarchy without measuring pixels.
+
+                    ⚠️ THE PLACEHOLDER IS NOT COSMETIC. A childless row draws an
+                    invisible `size-4` span where the chevron would be, because the
+                    chevron is INSIDE the padded wrapper: without it every open/close
+                    click would shift the URL (and therefore every column after it)
+                    sideways, which is exactly what makes a table feel like it is
+                    being redrawn under you.
 
                     ⚠️ `break-all` ON THE ANCHOR, and it is load-bearing: a URL is one
                     unbroken token, so without it a long link runs past the cell's
@@ -274,6 +290,51 @@
                     [attr.data-depth]="depthOf(link)"
                     [style.padding-left.px]="depthOf(link) * depthIndentPx"
                   >
+                    <!--
+                      THE CHEVRON, on a row with LOADED children and nothing else
+                      (`childCountOf`, not `sublinkCount` — see that method's note for
+                      why the two must not be interchanged). `stopPropagation` because
+                      the `<tr>` opens the detail panel on click: without it, opening
+                      a conversation would also open the editor for that row, which is
+                      not what either button says it does.
+
+                      The label reuses `threadLabel` like every other conversation-size
+                      surface in the app, and passes `childCount + 1` for the same
+                      off-by-one reason the Thread chip does: the parameter is a
+                      CONVERSATION SIZE, and a conversation with exactly one link
+                      under it must still announce itself as "2 links".
+                    -->
+                    @if (childCountOf(link) > 0) {
+                      <button
+                        type="button"
+                        class="text-muted-foreground hover:text-foreground flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors"
+                        data-testid="thread-toggle"
+                        [attr.aria-expanded]="isExpanded(link.id)"
+                        [attr.aria-label]="
+                          (isExpanded(link.id) ? 'Hide' : 'Show') +
+                          ' the other links in this conversation (' +
+                          threadLabel(childCountOf(link) + 1) +
+                          ')'
+                        "
+                        (click)="$event.stopPropagation(); toggleExpanded(link.id)"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="size-3 shrink-0 transition-transform"
+                          [class.rotate-180]="isExpanded(link.id)"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </button>
+                    } @else {
+                      <span class="size-4 shrink-0" aria-hidden="true"></span>
+                    }
                     <a
                       [href]="link.url"
                       target="_blank"

@@ -106,10 +106,12 @@
 ### 📌 Purpose & Scope
 
 - **Core Responsibility:** the admin triage queue for every crowd-submitted social-media link — a
-  flat moderation table over `socialMediaLinks`, with server-side filters, per-row status actions
-  (Approve / Hide / Mark completed / Delete), a full editable panel, and the conversation hierarchy
-  as a moderation/organisation tool (multi-select → group, per-row Nest under / Ungroup / Move up /
-  Move down, and a depth indent + `N links` chip per row).
+  moderation table over `socialMediaLinks` rendered as an **accordion over the ordered link tree**
+  (collapsed by default, one row per link, children revealed beneath their parent), with server-side
+  filters, per-row status actions (Approve / Hide / Mark completed / Delete), a full editable panel,
+  and the conversation hierarchy as both a moderation/organisation tool (multi-select → group, per-row
+  Nest under / Ungroup / Move up / Move down) and a display mode (per-row chevron, depth indent,
+  `N links` chip).
 - **Location:** `src/app/features/console/insiden/links/links.component.ts` + `.html`; documents and
   DTOs in `../data/insiden-console.queries.ts`; pure helpers in `../data/date-range.util.ts`,
   `../data/link-status-input.util.ts`, `../data/search-debounce.util.ts` plus the two **shared**
@@ -167,9 +169,10 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
 - **Query:** `SOCIAL_MEDIA_LINKS_QUERY` (console-scoped `socialMediaLinks`), fetched imperatively
   through `GraphQLClient.request` with a freshly minted `firebase-auth-key`. The node selection adds
   `occurredAt` and the four conversation scalars `parentId` / `isThreadRoot` / `sublinkCount` /
-  `position`; `sublinks` is deliberately **not** selected — the queue is a flat table that expresses
-  hierarchy as a depth indent plus a per-row chip, and selecting them would let a HIDDEN row's
-  URL/title travel inside a nested field of an admin-gated query for no rendering benefit. All four
+  `position`; `sublinks` is deliberately **not** selected — the accordion derives the hierarchy from
+  `parentId` **client-side** over the flat loaded array (the same data the depth indent and the
+  reorder payload already use), so selecting the nested list would add nothing but let a HIDDEN row's
+  URL/title travel inside a nested field of an admin-gated query. All four
   are **required** on `SocialMediaLinkRow` (unlike on the structural `LinkCardItem`, where they are
   optional for the flat hosts), so the document and the row type cannot drift apart.
 - **Mutations** (all with the `firebase-auth-key` header; all reload the list on success):
@@ -240,11 +243,62 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
   `IsLoggedIn` `updateSocialMediaLink` with the **complete** form state (the backend replaces the
   M2M sets verbatim) and patches the row locally, mirroring the server's tri-state with
   `occurredAtInputToIso(...) ?? link.created` so a cleared box optimistically shows the fallback.
-- **Conversation hierarchy (moderation/organisation, not a display mode):** the list stays flat and
-  every link keeps its own row; the tree is expressed as a depth indent plus a per-row `N links` chip
-  plus the per-row verbs above. Nesting a conversation inside a table cell is the single thing that
-  makes a moderation queue unreadable, and an admin's job is to compare rows, not to expand one.
-  The selection toolbar renders **always** (discoverability, and so "needs two" shows as a disabled
+- **Conversation hierarchy: an ACCORDION over the loaded tree** (added 2026-10-01; ⚠️ this
+  **supersedes** the earlier "moderation/organisation, not a display mode — the list stays flat" rule
+  below, which was right about the row set and wrong about the visible set). Every link still gets
+  its own row, its own checkbox and its own action cell — nothing is nested inside a cell — but the
+  queue now renders the ordered TREE as an accordion, **collapsed by default**, matching the public
+  feed's `app-link-thread`:
+  - the `@for` iterates **`renderedLinks()`**, not `links()`. A row is drawn iff it has no loaded
+    parent, or every loaded ancestor of it is expanded;
+  - a row is a PARENT iff it has **LOADED children** (`childCountOf`), and it then carries a chevron
+    — `data-testid="thread-toggle"`, `aria-expanded`, a rotating chevron icon, `(click)` with
+    `$event.stopPropagation()` (the `<tr>` opens the detail panel on click) — inside the URL cell's
+    padded flex. A **childless row draws an equal-width `size-4` placeholder** there instead: the
+    chevron sits inside the padding, so without it every open/close would shift the URL and every
+    column after it;
+  - expanding reveals a row's direct children **directly beneath it, in the STORED order**
+    (`position` ASC, `id` tie-break — `compareStoredSequence`), **recursively**: a child with
+    children of its own gets its own chevron, so each level expands independently at any depth;
+  - the **root order is unchanged** — the queue's `occurredAt DESC, id DESC`. Only the _placement_
+    of children changes, from wherever the arrival order interleaved them to under their parent;
+  - the depth indent, the `N links` chip + its coupling tooltip, and every per-row verb (Ungroup /
+    Move up / Move down / Nest under… / Approve / Hide / Mark completed / Delete) are **unchanged**
+    and reachable on every rendered row. A collapsed conversation's descendants are simply not on
+    screen — which is the point;
+  - 🔴 **the chevron's gate is `childCountOf`, never `sublinkCount`.** `sublinkCount > 0` on a
+    filtered page describes descendants that are not in the result, and the chevron would expand to
+    nothing; conversely `sublinkCount: 0` with a loaded child is hand-edited data, and refusing the
+    chevron would strand a row the payload does contain. `sublinkCount` still owns the CHIP, which is
+    a statement about the whole conversation including rows this page cannot show;
+  - 🔴 **a row the walk cannot place is still rendered.** Hand-edited cyclic data (`a → b → a`) has
+    no root for the recursion to start from, so anything the walk did not emit is appended **at the
+    end of the rendered list, in its relative arrival order** (there is no parent position to put it
+    at) — a queue that silently swallowed links would be worse than one that shows them
+    untidily. The net distinguishes **unreachable** from **merely hidden behind a closed ancestor**
+    by asking whether a _rendered_ ancestor is closed, so closing a conversation can never feed its
+    own children back into the net;
+  - the ancestor walk and the recursion are both cycle-safe (`emit` returns on an already-placed id;
+    the collapse check uses the same visited-set rule as `depthOf`).
+  - ⚠️ **this diverges from a rule `MISTAKES.md` states**, which is recorded here rather than left
+    implicit: the 2026-09-30 `collapseThreads` entry rules that "client-side grouping of a flat page
+    is unsound in the first place … so collapsing has to be the backend's decision". It is safe on
+    this surface because the console resolver has **no pagination and no row cap**, so an unfiltered
+    queue's loaded set **is** the whole table — the `queueIsComplete` precondition — and every
+    structural action is refused outright when the loaded set cannot prove completeness. A parent
+    missing from a filtered result makes its child render as a root, never a fabricated grouping,
+    and the accordion only decides which rows of a complete set are **drawn**.
+- 🔴 **Select-all reads the RENDERED rows; the grouping mutations scope to the LOADED ones.** Two id
+  lists exist on purpose, answering different questions:
+  - `renderedLinkIds` (what the accordion is showing) drives `toggleSelectAll` and
+    `allVisibleSelected` — "select all" must not tick rows the admin cannot see, or the checkbox
+    reads as fully selected while whole conversations sit closed, and a second press clears those
+    ticks;
+  - `visibleLinkIds` (**every loaded row**, collapsed children included) stays the scope of
+    `scopedSelection` — collapsing a conversation is a VIEW gesture, not an intent to forget. Tick a
+    root, open it, tick two children, close it, and Group must still move all three. Scoping the
+    mutation to the rendered set would make a collapse silently drop the admin's own selection.
+- The selection toolbar renders **always** (discoverability, and so "needs two" shows as a disabled
   button with a stated reason rather than an absent one):
   `data-testid="group-selected"`, a `selection-count` span, `Clear selection` once something is
   ticked, the hint "Select at least two links to group them into one conversation, or to nest them
@@ -297,14 +351,23 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
   the same reason — it changes which rows are in a conversation — while a **reorder keeps it**: a
   reorder changes no membership, so the rows an admin ticked to find the sequence are still the rows
   they ticked afterwards.
-- **`siblingsOf` is the ONE place a sibling run is built**, and it is deliberately the only one. It
-  filters the loaded rows by `parentId ?? null` (so the roots are the `null` run) and sorts with
-  `compareStoredSequence`; the reorder payload, the move index and the "already first / already last"
-  reason all read that single array, so a button's enabled state and the payload that button produces
-  cannot come to disagree. `filter` copies, so the in-place `sort` cannot touch the `links` signal's
-  own array. ⚠️ **The run is NOT the order this table renders** — the table stays
+- **`_runsByParentId` is the ONE map a sibling run is built**, and it is deliberately the only one. It
+  groups the loaded rows by `parentId ?? null` (so the roots are the `null` run) and sorts each group
+  with `compareStoredSequence`. Three readers share it, which is what keeps the sequence defined in
+  one place: the accordion's child runs, `childCountOf`'s count, and `siblingsOf` — a row's siblings
+  ARE its parent's children, so the reorder payload, the move index and the "already first / already
+  last" reason all read that same array and cannot come to disagree with what the accordion expands.
+  The groups are built fresh, so the in-place `sort` cannot touch the `links` signal's own array, and
+  they are now **memoised and shared**: a caller that reorders a run must copy first (`reorderSiblings`
+  does). ⚠️ **The run is NOT the order the top of the table renders** — that stays
   `occurredAt DESC, id DESC` and a run permuted in the arrival order would write the queue's triage
   timeline as the conversation's sequence.
+- **`expandedIds` is a `signal<ReadonlySet<string>>`, and the immutability is load-bearing**: a
+  signal compares by reference, so an in-place `add`/`delete` would produce the SAME `Set`, change
+  detection would never fire and the chevron would silently stop responding. `toggleExpanded` copies
+  every call. It is keyed by id and deliberately **survives a refetch** — ids are stable across
+  reloads, so a conversation stays open through the reload a grouping or a reorder triggers, and an
+  id that no longer exists is simply inert.
 - **`compareStoredSequence` = `position` ASC, then `id` ASC**, mirroring the backend's own
   `(position, pk)` in `batch_load_sublink_subtrees` so a tie resolves the way the nested list is
   _drawn_ (`"10"` must not sort before `"9"`), with a code-unit compare as the non-decimal fallback
@@ -434,8 +497,12 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
   signal, one control, one payload key and one optimistic-patch key. The panel is driven by the
   console's own signals, not by `LinkSheetService` — deliberately, so the admin sheet is independent
   of the public form's open/close lifecycle.
-- **Thread UI is deliberately not a display mode here.** Any future "collapse conversations in the
-  console" toggle must remember two things: the queue shows a HIDDEN row as well as public ones, so a
-  node's `sublinkCount` counts only _publicly-visible_ descendants and the gap against the raw count
-  is exactly the hidden ones; and the tree is arbitrarily deep, so "a root and its members" is not a
-  shape any of this table's state can assume.
+- **The accordion is the display mode; two rules govern anything added under it.** First, the queue
+  shows HIDDEN rows as well as public ones, so a node's `sublinkCount` counts only _publicly-visible_
+  descendants and the gap against the raw count is exactly the hidden ones — which is why the chip
+  stays on `sublinkCount` while the chevron stays on `childCountOf`. Second, the tree is arbitrarily
+  deep, so "a root and its members" is not a shape any of this table's state can assume: any new
+  affordance that walks the tree (a "expand all", a bulk sequence, a per-level action) must go
+  through `renderedLinks` / `_runsByParentId` and must not assume one level. ⚠️ An "Expand all" would
+  have to write `expandedIds` for every row with loaded children in ONE `set` — a loop of
+  `toggleExpanded` calls is correct but re-renders per iteration.
