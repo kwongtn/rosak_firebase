@@ -136,6 +136,7 @@ interface ComponentUnderTest {
   onDateFromInput(value: string): void;
   onDateToInput(value: string): void;
   resetFilters(): void;
+  showAllLinks(): void;
   completedFilter: WritableSignal<"any" | "pending" | "completed">;
   filterLineId: WritableSignal<string>;
   filterVehicleId: WritableSignal<string>;
@@ -2107,15 +2108,54 @@ describe("SocialMediaLinksComponent", () => {
 
     expect(component.canMoveUp(rows[1])).toBe(false);
     expect(component.canMoveDown(rows[1])).toBe(false);
-    expect(component.moveBlockedReason(rows[1], "up")).toContain("Clear the filters");
-    // The hint is on screen too, so a disabled control is never a mystery.
+    expect(component.moveBlockedReason(rows[1], "up")).toContain("Show all links");
+    // The hint is on screen too, so a disabled control is never a mystery — and it
+    // carries the one-click action that reaches the enabled state from the default
+    // Pending view, because "Reset" cannot (it re-applies Pending).
     expect(byTestId("reorder-hint")).not.toBeNull();
+    expect(byTestId("reorder-show-all")).not.toBeNull();
 
     // And the method refuses, rather than sending a partial permutation the
     // server would accept and silently complete.
     requestMock.mockClear();
     expect(await component.moveLinkUp(rows[1])).toBe(false);
     expect(reorderCalls()).toHaveLength(0);
+  });
+
+  it("'Show all links' clears the Status filter in one click and turns reordering on", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    const rows = [makeLink({ id: "a", position: 10 }), makeLink({ id: "b", position: 20 })];
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("socialMediaLinks")) {
+        return Promise.resolve({ socialMediaLinks: rows });
+      }
+      return Promise.resolve({ calendarIncidentCategories: [] });
+    });
+    const component = asTestable(fixture);
+    // The default Pending snapshot is itself a filter, so the queue is not
+    // provably whole and every move is off — the state the user is stuck in.
+    expect(component.completedFilter()).toBe("pending");
+    expect(component.queueIsComplete()).toBe(false);
+    expect(component.canMoveDown(rows[0])).toBe(false);
+
+    const showAll = byTestId("reorder-show-all") as HTMLButtonElement;
+    expect(showAll).not.toBeNull();
+    showAll.click();
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
+    await vi.waitFor(() => expect(component.isLoading()).toBe(false));
+    fixture.detectChanges();
+
+    // Every axis dropped, Status included — `undefined` is the "no completed
+    // filter" spelling the resolver reads as All.
+    const [, vars] = callsFor("socialMediaLinks")[0];
+    expect(vars).toEqual({ search: undefined, categoryId: undefined, completed: undefined });
+    expect(component.completedFilter()).toBe("any");
+    expect(component.queueIsComplete()).toBe(true);
+    expect(component.canMoveDown(rows[0])).toBe(true);
+    // The hint and its action are gone once the queue is provably whole.
+    expect(byTestId("reorder-hint")).toBeNull();
+    expect(byTestId("reorder-show-all")).toBeNull();
   });
 
   it("toasts and leaves the table and the selection alone when a reorder fails", async () => {
@@ -2196,7 +2236,7 @@ describe("SocialMediaLinksComponent", () => {
     expect(component.selectedIds()).toEqual([]);
   });
 
-  it("disables nest-under below two ticks and on a row inside the selection", async () => {
+  it("enables nest-under with ONE tick and refuses a target inside the selection", async () => {
     await initialLoadsSettled(asTestable(fixture));
     const rows = [makeLink({ id: "target" }), makeLink({ id: "a" }), makeLink({ id: "b" })];
     await renderRows(rows);
@@ -2207,25 +2247,56 @@ describe("SocialMediaLinksComponent", () => {
       Array.from(
         (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="nest-under"]'),
       );
-    // Nothing ticked: a one-link subtree is a no-op.
+    // Nothing ticked: there is no payload to move.
     expect(component.canNestUnder(rows[0])).toBe(false);
-    expect(component.nestBlockedReason(rows[0])).toContain("at least two");
+    expect(component.nestBlockedReason(rows[0])).toContain("Tick a link");
     expect(nestButtons().every((b) => b.disabled)).toBe(true);
 
+    // ONE tick is enough, and that is the difference from "Group into thread":
+    // with a target the link becomes a REAL child, while an untargeted one-link
+    // group would elect the link as its own root and render no conversation.
     component.toggleRowSelection("a");
     fixture.detectChanges();
-    expect(component.canNestUnder(rows[0])).toBe(false);
-    expect(nestButtons().every((b) => b.disabled)).toBe(true);
+    expect(component.canNestUnder(rows[0])).toBe(true);
+    expect(component.nestBlockedReason(rows[0])).toBeNull();
+    expect(nestButtons()[0].disabled).toBe(false);
+    // The ticked row itself can never be the target — the server rejects the
+    // whole call for the cycle, so the client never sends one.
+    expect(component.canNestUnder(rows[1])).toBe(false);
 
     component.toggleRowSelection("b");
     fixture.detectChanges();
     expect(component.canNestUnder(rows[0])).toBe(true);
-    expect(component.nestBlockedReason(rows[0])).toBeNull();
-    // A cycle: the target is one of the links being moved.
     expect(component.canNestUnder(rows[2])).toBe(false);
     expect(component.nestBlockedReason(rows[2])).toContain("cycle");
     expect(nestButtons()[2].disabled).toBe(true);
     expect(nestButtons()[2].getAttribute("title")).toContain("cycle");
+  });
+
+  it("nests a SINGLE ticked link under a row — the first child of a conversation", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("mutation GroupSocialMediaLinks")) {
+        return Promise.resolve({ groupSocialMediaLinks: { ok: true, id: 7 } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+    const rows = [makeLink({ id: "target" }), makeLink({ id: "a" })];
+    await renderRows(rows);
+
+    const component = asTestable(fixture);
+    component.toggleRowSelection("a");
+    const ok = await component.nestSelectedUnder(rows[0]);
+
+    expect(ok).toBe(true);
+    // The same mutation as grouping, with a target: the backend accepts a one-id
+    // list and makes "a" a direct child of "target" (`_normalize_ids` refuses only
+    // the empty list; tests/incident/test_social_link_threads.py nests single ids).
+    // Gating this on two — as the UI did — made the operation impossible.
+    expect(groupCalls()[0][1]).toEqual({ linkIds: ["a"], parentId: "target" });
+    // Nesting consumed the selection, exactly as grouping does.
+    expect(component.selectedIds()).toEqual([]);
   });
 
   it("refuses to nest under a ticked row instead of posting a cycle", async () => {

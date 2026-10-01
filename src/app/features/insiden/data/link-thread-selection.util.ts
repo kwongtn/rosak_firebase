@@ -14,8 +14,8 @@
  * arguments — no Angular import, no `signal`, no RxJS (this repo has zero subjects in app code and
  * keeps it that way). The host owns the state (`private readonly selectedIds = signal<string[]>([])`)
  * and re-seeds it with whatever these return, so the two surfaces cannot drift on the questions
- * that actually matter: "may I group this?", "is Select-all checked?", "does this row show a
- * thread badge?".
+ * that actually matter: "may I group this?", "may I nest this?", "is Select-all checked?", "does
+ * this row show a thread badge?".
  *
  * IMMUTABILITY IS THE WHOLE POINT, not hygiene. These results are fed straight back into a
  * signal: `this.selectedIds.set(toggleSelection(this.selectedIds(), id))`. A signal compares by
@@ -81,6 +81,27 @@ export function areAllSelected(selected: readonly string[], ids: readonly string
  */
 export function canGroup(selected: readonly string[]): boolean {
   return new Set(selected).size >= 2;
+}
+
+/**
+ * May the "Nest under…" action be enabled for this selection?
+ *
+ * ONE id is enough, and that is the whole reason this exists separately from `canGroup` rather
+ * than being "the same precondition for the same call". It is the same MUTATION, but not the
+ * same REQUEST: `groupSocialMediaLinks` with NO `parentId` elects a root, so a single link has
+ * nothing to hang off and stays a lone root — a no-op, which is what `canGroup` encodes. The
+ * same call WITH a `parentId` makes the ticked rows direct children of that target, so moving
+ * one link under another is a real, first-class write (backend
+ * `tests/incident/test_social_link_threads.py` nests single ids under a target throughout, and
+ * `_normalize_ids` refuses only the EMPTY list). Gating it on two would make the basic
+ * tree-building operation impossible: to add B as the first child of A you would have to drag
+ * an unrelated second link along, or use "Group into thread" and accept the elected root.
+ *
+ * Counts DISTINCT ids for the same reason `canGroup` does, and the target-is-ticked cycle rule
+ * stays the caller's (one selection can be a valid nest under every row except its own).
+ */
+export function canNest(selected: readonly string[]): boolean {
+  return new Set(selected).size >= 1;
 }
 
 /**

@@ -37,6 +37,7 @@ import {
 import {
   areAllSelected,
   canGroup,
+  canNest,
   selectedWithin,
   threadLabel,
   toggleSelection,
@@ -248,19 +249,19 @@ function compareStoredSequence(a: PublicSocialMediaLink, b: PublicSocialMediaLin
             </button>
           </div>
           <!-- Discoverability for a power nobody has seen before: ONE line of prose, not a
-               tutorial and not a new route. It names the requirement (two or more), the scope
-               (your own submissions), all THREE verbs the backend now supports — group, order,
-               nest — and the payoff. Kept in step with the toolbar because a hint that
-               under-sells the row actions reads as a bug report. -->
+               tutorial and not a new route. It names both requirements (one to nest, two or
+               more to group), the scope (your own submissions), all THREE verbs the backend
+               supports — nest, group, order — and the payoff. Kept in step with the toolbar
+               because a hint that under-sells the row actions reads as a bug report. -->
           <p
             id="my-links-thread-hint"
             class="text-muted-foreground text-xs"
             data-testid="thread-hint"
           >
-            Tick two or more of your own submissions to group them into a thread, then use the
-            arrows on a row to set the order they read in, or nest ticked links under another of
-            your links — on the feed they read as one story, led by the link with the earliest event
-            time.
+            Tick one of your own submissions and nest it under another link with “Nest ticked here”
+            — or tick two or more to group them into a thread. Then use the arrows on a row to set
+            the order they read in; on the feed they read as one story, led by the link with the
+            earliest event time.
           </p>
           <!-- The one reason that is GLOBAL rather than per row, so it is stated once here
                instead of on every row's tooltip: while another page is still coming, a sibling
@@ -474,10 +475,9 @@ export class MyLinksComponent {
     selectedWithin(this.selectedIds(), this._visibleIds()).filter(Boolean),
   );
   /** >= 2 distinct ids, per the shared rule: a one-link "thread" is a no-op that only looks
-   * like a thread, so the action stays disabled for zero and for one. The nest action is gated
-   * on the SAME rule, deliberately — the two verbs send one call and differ only in whether a
-   * `parentId` key is present, and letting them disagree on "how many" would be a lie about
-   * a shared precondition. */
+   * like a thread, so the GROUP action stays disabled for zero and for one. NESTING answers
+   * to its own minimum (`canNest`, one id) because it sends a target: the same call with a
+   * `parentId` makes the ticked row a real child, which is a write rather than an election. */
   protected readonly _canGroupSelected = computed(() => canGroup(this.selectedIds()));
   protected readonly _allSelected = computed(() =>
     areAllSelected(this.selectedIds(), this._visibleIds()),
@@ -804,8 +804,8 @@ export class MyLinksComponent {
     if (this._isThreading()) {
       return "Saving another change…";
     }
-    if (!canGroup(this._scopedSelection())) {
-      return "Tick at least two of your own links first — nesting a single link under another only looks like a nesting.";
+    if (!canNest(this._scopedSelection())) {
+      return "Tick one of your own links first — it becomes a direct child of this one.";
     }
     const selected = this._selectedSet();
     if (selected.has(targetId)) {

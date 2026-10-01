@@ -123,12 +123,15 @@
 
     <!--
       Selection toolbar. Rendered ALWAYS (not only once something is ticked) so the
-      affordance is discoverable, and so "needs two" shows up as a disabled button
-      with a stated reason rather than as a button that is simply absent. The hint
-      is `canGroup`'s rule in plain words: a one-link conversation is a no-op that
-      still renders as a conversation. It covers BOTH selection-consuming actions:
-      "Group into thread" (a NEW conversation, no target) and the per-row
-      "Nest under…", which nests the same ticked rows under the row it sits on.
+      affordance is discoverable, and so a blocked action shows up as a disabled
+      button with a stated reason rather than as a button that is simply absent.
+      TWO different minimums live here on purpose: "Group into thread" needs two
+      (a one-link conversation is a no-op that still renders as a conversation),
+      while the per-row "Nest under…" needs only ONE — with a target, the same
+      call makes the ticked rows that row's direct children, so a single link is
+      the basic way a conversation gains its first child. The hint therefore has
+      a zero-selection and a one-selection spelling instead of one rule that
+      would under-sell nesting.
     -->
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -146,23 +149,49 @@
       @if (selectedCount() > 0) {
         <button hlmBtn size="sm" variant="ghost" (click)="clearSelection()">Clear selection</button>
       }
-      @if (!canGroupSelection()) {
-        <span class="text-muted-foreground text-xs">
-          Select at least two links to group them into one conversation, or to nest them under one.
+      @if (selectedCount() < 2) {
+        <span class="text-muted-foreground text-xs" data-testid="selection-hint">
+          @if (selectedCount() === 1) {
+            One link ticked — use Nest under… on the row it should sit beneath, or tick one more to
+            group them into a conversation.
+          } @else {
+            Tick a link to nest it under another, or tick two or more to group them into one
+            conversation.
+          }
         </span>
       }
       <!--
-        Why the per-row sequence actions are greyed out. `reorderSocialMediaLinks`
-        permutes ONE sibling set, so a filtered page can only send part of it — and
-        the server would accept the part and leave the rows the admin cannot see at
-        the end of the conversation. Stating it here is the difference between "the
-        console is broken" and "clear the filters to use this"; each button repeats
-        it on hover.
+        Why the per-row sequence actions are greyed out, and the ONE-CLICK way out.
+        `reorderSocialMediaLinks` permutes ONE sibling set, so a filtered page can
+        only send part of it — and the server would accept the part and leave the
+        rows the admin cannot see at the end of the conversation. The queue
+        DEFAULTS to Pending, which is already a filter that can hide completed
+        siblings, so stating the reason is not enough: without the action the
+        admin has no discoverable route to the enabled state ("Reset" re-applies
+        Pending). `showAllLinks` drops every filter, status included, so the
+        loaded set is provably the whole table.
       -->
       @if (!queueIsComplete()) {
-        <span class="text-muted-foreground text-xs" data-testid="reorder-hint">
-          Clear the filters to reorder links: a filtered page may be missing siblings, and a partial
-          sequence would push the hidden ones to the end.
+        <span
+          class="text-muted-foreground inline-flex flex-wrap items-center gap-2 text-xs"
+          data-testid="reorder-hint"
+        >
+          <span>
+            Reordering needs every link loaded: a filtered page may be missing siblings, and a
+            partial sequence would push the hidden ones to the end.
+          </span>
+          <button
+            hlmBtn
+            size="sm"
+            variant="outline"
+            type="button"
+            data-testid="reorder-show-all"
+            [disabled]="isLoading()"
+            title="Loads every link, including completed ones, so the queue is complete and reordering turns on."
+            (click)="showAllLinks()"
+          >
+            Show all links
+          </button>
         </span>
       }
     </div>
@@ -517,9 +546,12 @@
                       the target and the ticks are the payload — asking the admin to
                       pick, from a dropdown, the target they are already looking at
                       would add a step and a second source of truth for the same
-                      choice. Disabled (with a stated reason) below two ticks, and on
-                      a row that is itself ticked — nesting a selection under one of
-                      its own members is a cycle, which the server rejects as a unit.
+                      choice. Disabled (with a stated reason) on an empty selection
+                      — ONE tick is enough here, because a targeted nest is a real
+                      write rather than the no-op an untargeted one-link group is —
+                      and on a row that is itself ticked, since nesting a selection
+                      under one of its own members is a cycle the server rejects as
+                      a unit.
                     -->
                     <button
                       hlmBtn

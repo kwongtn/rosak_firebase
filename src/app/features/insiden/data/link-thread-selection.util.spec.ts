@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   areAllSelected,
   canGroup,
+  canNest,
   selectedWithin,
   threadLabel,
   toggleSelection,
@@ -118,6 +119,32 @@ describe("canGroup", () => {
     // id."), and the call is all-or-nothing — so `["1", "1"]` is not two links, it is a rejection.
     expect(canGroup(["1", "1"])).toBe(false);
     expect(canGroup(["1", "1", "2"])).toBe(true);
+  });
+});
+
+describe("canNest", () => {
+  it("is false for an empty selection", () => {
+    expect(canNest([])).toBe(false);
+  });
+
+  it("is true for exactly ONE link — the difference from canGroup", () => {
+    // With a target, the same mutation nests the ticked rows under it, so one link is a real
+    // write rather than the no-op the no-target spelling makes it. Blocking this would make
+    // "nest B under A" (the first child of a conversation) impossible.
+    expect(canNest(["1"])).toBe(true);
+  });
+
+  it("is true for larger selections", () => {
+    expect(canNest(["1", "2", "3"])).toBe(true);
+  });
+
+  it("counts DISTINCT ids: a duplicated id is still one link to nest", () => {
+    // `toggleSelection` cannot produce a duplicate — this only ever guards a selection that
+    // some future host assembled by concatenation. One distinct id is one link to nest, and
+    // the backend's own repeat check stays the authority on a malformed list (the same stance
+    // `canGroup` takes, which likewise only counts distinct ids).
+    expect(canNest(["1", "1"])).toBe(true);
+    expect(canNest(["1", "1", "2"])).toBe(true);
   });
 });
 

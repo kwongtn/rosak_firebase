@@ -54,6 +54,7 @@ import {
 import {
   areAllSelected,
   canGroup,
+  canNest,
   selectedWithin,
   threadLabel,
   toggleSelection,
@@ -294,9 +295,12 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * Selection itself is pure: `selectedIds` is only ever built and judged through
  * `link-thread-selection.util.ts`, the same module the profile surface's "My
  * Submitted Links" uses, so the two cannot drift on questions like "may I group
- * this?" and "does this row show a chip?". Reordering deliberately KEEPS the
- * selection: a reorder is not a grouping change, so the rows an admin ticked to
- * find the sequence are still the rows they ticked afterwards.
+ * this?", "may I nest this?" and "does this row show a chip?". Grouping needs two
+ * ticks; NESTING NEEDS ONE, because a targeted nest writes a real child while an
+ * untargeted one-link "group" would elect the link as its own root. Reordering
+ * deliberately KEEPS the selection: a reorder is not a grouping change, so the
+ * rows an admin ticked to find the sequence are still the rows they ticked
+ * afterwards.
  *
  * 🔴 SELECT-ALL READS THE RENDERED ROWS; THE MUTATIONS SCOPE TO THE LOADED ONES.
  * Two different id lists exist on purpose, and they answer different questions:
@@ -435,7 +439,9 @@ export class SocialMediaLinksComponent {
    *  debounce before any refetch, so a computed would re-enable the action while
    *  a filtered page was still on screen. `fetchLinks` writes it from the same
    *  applied filter snapshot that built the query, so the flag and the rows it
-   *  describes cannot disagree. */
+   *  describes cannot disagree. The toolbar's "Show all links" action
+   *  (`showAllLinks`) writes that unfiltered snapshot in one click, which is what
+   *  makes the state reachable from the default (Pending) queue. */
   protected readonly queueIsComplete = signal(false);
 
   private readonly _rowsById = computed(() => new Map(this.links().map((l) => [l.id, l])));
@@ -743,7 +749,7 @@ export class SocialMediaLinksComponent {
    *  is a silent-failure trap, which is why a disabled button says which it is. */
   protected moveBlockedReason(link: SocialMediaLinkRow, direction: "up" | "down"): string | null {
     if (!this.queueIsComplete()) {
-      return "Clear the filters to reorder: this page may be missing siblings of this link, and a partial sequence would push the hidden ones to the end of the conversation.";
+      return "Reordering needs every link loaded — a filtered page may be missing siblings of this link, and a partial sequence would push the hidden ones to the end of the conversation. Use “Show all links”.";
     }
     if (!this.runOrderIsKnown(link)) {
       // Direction-agnostic on purpose: the whole run is unorderable, so neither of
@@ -762,10 +768,12 @@ export class SocialMediaLinksComponent {
       : "Already last among the links sharing this parent.";
   }
 
-  /** Nest-under consumes the selection, so it needs the same two ticks grouping
-   *  does, and the target must not be one of them. */
+  /** May the ticked rows be nested under this row? ONE tick is enough — see `canNest`
+   *  for why the target mode differs from the no-target grouping minimum. The target
+   *  itself being ticked stays a cycle the server rejects wholesale, so it is refused
+   *  here rather than sent. */
   protected canNestUnder(link: SocialMediaLinkRow): boolean {
-    return this.canGroupSelection() && !this.selectedIds().includes(link.id);
+    return canNest(this.selectedIds()) && !this.selectedIds().includes(link.id);
   }
 
   /** Why Nest-under is off, or `null` when it is available. Both reasons are
@@ -775,8 +783,8 @@ export class SocialMediaLinksComponent {
     if (this.selectedIds().includes(link.id)) {
       return "This link is ticked too — nesting a selection under one of its own links is a cycle, and the whole call is rejected.";
     }
-    if (!this.canGroupSelection()) {
-      return "Tick at least two links to nest under this one.";
+    if (!canNest(this.selectedIds())) {
+      return "Tick a link first — the ticked links become the direct children of this one.";
     }
     return null;
   }
@@ -1020,24 +1028,49 @@ export class SocialMediaLinksComponent {
   }
 
   protected resetFilters(): void {
+    this.applyQueueFilters("pending");
+    this.load();
+  }
+
+  /** Drop EVERY filter and load the queue with Status on All — the state
+   *  `queueIsComplete` exists to certify, offered as one click because the
+   *  sequence actions are otherwise unreachable from the default (Pending) view:
+   *  the disabled buttons state the reason, and this is the action that reason
+   *  names. "Reset" deliberately cannot stand in for it — Reset restores the
+   *  QUEUE DEFAULT, which is Pending, and Pending is itself the filter that keeps
+   *  reordering off. The applied snapshot is written synchronously with the
+   *  controls (no debounce) so `fetchLinks` reads a complete, coherent state on
+   *  the very query this triggers. */
+  protected showAllLinks(): void {
+    this.applyQueueFilters("any");
+    this.load();
+  }
+
+  /** Write one coherent filter snapshot — live controls AND the applied fields
+   *  `fetchLinks` reads — for the two whole-queue actions above. `completed` is
+   *  the one axis they disagree on, which is exactly why it is the parameter:
+   *  every other axis is cleared in both. The trailing debounce the search and
+   *  the multi-selects otherwise sit behind is cancelled because a pending
+   *  keystroke firing after this write would re-apply a filter the admin just
+   *  cleared. */
+  private applyQueueFilters(completed: CompletedFilter): void {
+    this.queueDebouncer.cancel();
     this.searchTerm.set("");
     this.categoryId.set("");
-    this.completedFilter.set("pending");
+    this.completedFilter.set(completed);
     this.filterLineId.set("");
     this.filterVehicleId.set("");
     this.filterStationId.set("");
     this.filterDateFrom.set("");
     this.filterDateTo.set("");
-    this.queueDebouncer.cancel();
     this.appliedSearch = undefined;
     this.appliedCategoryId = "";
-    this.appliedCompleted = "pending";
+    this.appliedCompleted = completed;
     this.appliedLineId = undefined;
     this.appliedVehicleId = undefined;
     this.appliedStationId = undefined;
     this.appliedDateFrom = undefined;
     this.appliedDateTo = undefined;
-    this.load();
   }
 
   /* ---- Multi-select + conversation grouping ---------------------------- */
@@ -1142,8 +1175,10 @@ export class SocialMediaLinksComponent {
    *  sent, so the affordance is never a live control that quietly does nothing.
    *
    *  The guards are the two the server would reject the whole call for:
-   *   - fewer than two ticked rows, which is `canGroup` — a one-link subtree is
-   *     a no-op that renders as no subtree at all;
+   *   - an EMPTY selection, which is `canNest` — with a target, ONE ticked row is
+   *     already a real write (it becomes this row's child), unlike the no-target
+   *     grouping minimum of two that `canGroup` encodes. A nest is how a
+   *     conversation's first child is created, so one has to be enough;
    *   - the target itself being in the selection, which is a CYCLE: a link cannot
    *     be its own ancestor. The server rejects such a call as a unit, with
    *     nothing written, so the client never sends one.
@@ -1161,7 +1196,7 @@ export class SocialMediaLinksComponent {
       return false;
     }
     const linkIds = this.scopedSelection();
-    if (!canGroup(linkIds)) {
+    if (!canNest(linkIds)) {
       return false;
     }
     return this.sendGrouping(

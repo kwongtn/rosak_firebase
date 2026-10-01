@@ -690,20 +690,21 @@ describe("MyLinksComponent", () => {
     expect(textOf(fixture, "thread-badge-target")).toContain("4 links");
   });
 
-  it("disables every nest with no selection and with a self-nesting target", async () => {
+  it("enables every nest with ONE tick, and refuses a self-nesting target", async () => {
     await renderList(fixture, requestMock, [
       makeLink("a", "LIVE", true),
       makeLink("b", "LIVE", true),
       makeLink("c", "LIVE", true),
     ]);
 
-    // Nothing ticked: a one-link nest is a no-op that only looks like a nesting, so the shared
-    // two-or-more rule gates both verbs.
+    // Nothing ticked: there is no payload to move, so the one-or-more rule is off.
     expect(button(fixture, "nest-c").disabled).toBe(true);
-    expect(button(fixture, "nest-c").getAttribute("title")).toContain("Tick at least two");
+    expect(button(fixture, "nest-c").getAttribute("title")).toContain("Tick one");
 
+    // ONE tick is enough to nest — with a target, the same mutation makes the ticked row a
+    // real child, unlike the no-target grouping minimum of two.
     tickRow(fixture, "a");
-    expect(button(fixture, "nest-c").disabled).toBe(true);
+    expect(button(fixture, "nest-c").disabled).toBe(false);
     tickRow(fixture, "b");
     expect(button(fixture, "nest-c").disabled).toBe(false);
 
@@ -712,6 +713,38 @@ describe("MyLinksComponent", () => {
     expect(button(fixture, "nest-a").disabled).toBe(true);
     expect(button(fixture, "nest-a").getAttribute("title")).toContain("ticked too");
     expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("nests a SINGLE ticked row under the chosen row", async () => {
+    await renderList(fixture, requestMock, [
+      makeLink("a", "LIVE", true),
+      makeLink("target", "LIVE", true, { sublinkCount: 1 }),
+    ]);
+    requestMock
+      .mockResolvedValueOnce({ groupSocialMediaLinks: { ok: true, id: 9 } })
+      .mockResolvedValue(
+        connectionOf(
+          [
+            makeLink("a", "LIVE", true, { parentId: "target", isThreadRoot: false }),
+            makeLink("target", "LIVE", true, { sublinkCount: 2 }),
+          ],
+          false,
+          null,
+        ),
+      );
+
+    tickRow(fixture, "a");
+    button(fixture, "nest-target").click();
+    await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(3));
+    await fixture.whenStable();
+
+    const [query, vars] = requestMock.mock.calls[1];
+    // The basic tree-building write — one link becomes a direct child of another —
+    // which a two-tick minimum made impossible: the backend accepts a one-id list.
+    expect(query).toBe(GROUP_SOCIAL_MEDIA_LINKS_MUTATION);
+    expect(vars).toEqual({ linkIds: ["a"], parentId: "target" });
+    expect(textOf(fixture, "thread-selection-count")).toContain("0 selected");
+    expect(rowCard(fixture, "a").getAttribute("data-depth")).toBe("1");
   });
 
   it("disables nesting under a row that already sits under a ticked link (a cycle)", async () => {
