@@ -15,6 +15,30 @@
 
 ## Traps
 
+### [2026-10-02] build: a Tailwind arbitrary variant starting with `@` does not compile in an Angular template — and the dev server will serve you a STALE bundle while you chase it
+
+**Problem**: a short-viewport rule on the 404 page was written as the obvious utility,
+`[@media(max-height:640px)]:static` on the footer wrapper. The build failed with
+`TS1005: ',' expected` / `TS1135: Argument expression expected` and **no** line pointing at the class.
+Worse, the dev server did **not** reload — it kept serving the previous bundle with no HMR update
+logged, so two rounds of browser measurements confidently "verified" a class that was never in the
+DOM (`document.querySelector(...).className` came back without it, which was the only real clue).
+**Root Cause**: inside a template **Angular** parses the attribute, and `@media(...)` reads as an
+`@` control-flow block (`@if`/`@for`/`@switch`), not as text. The natural escape — writing `&#64;`
+so Angular decodes an entity instead of a block — then defeats **Tailwind**, whose scanner sees the
+entity rather than the variant and generates no rule. There is no spelling that satisfies both
+tools. (The same class of bug as the sibling entry below: a template is not a string.)
+**Fix**: the rule moved to the component's own `styles` array, scoped by emulated encapsulation —
+whose attribute selector is precisely what lets it beat the `fixed`/`pb-28` utilities it overrides
+(specificity 0-2-0 vs 0-1-0, not source order). Tailwind utilities stay the primary styling; the
+one case a utility cannot express is the one case that gets hand-written CSS.
+**Prevention**: never put `@`-leading syntax in a template attribute. For a **height**-based media
+query, reach for a component `styles` block (or `src/styles.css`) from the start — Tailwind has no
+built-in height variant, and `max-[600px]:`-style shorthands are **width**. When a dev server
+appears not to pick up a template edit, verify the class is actually on the element before drawing
+conclusions from what you measure; if it is missing, restart and clear `.angular/cache` rather than
+interpreting stale measurements.
+
 ### [2026-10-02] ui/ad-slot: `InfoPopover` tracks hover on its HOST, so a stretched flex child makes the WHOLE ROW a hover hotspot
 
 **Problem**: on every ad unit, hovering anywhere across the "Advertisement" caption row popped the
