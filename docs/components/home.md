@@ -36,7 +36,11 @@
     its root through the same card with the same inputs; a conversation adds exactly one thing, the
     card's own in-rail "N links" + chevron, and expanding it reveals each level indented beneath the
     one above. There is no home-local card.
-  - `hero/` — `home-hero.component.ts` (selector `app-home-hero`): the page's full-width headline
+  - `hero/` — `network-sparkline.component.ts` (selector `app-network-sparkline`: 24 bars, one per
+    service-day hour, tall by how many rider reports the WHOLE network received in that hour and
+    coloured by the status that dominated it; `network-sparkline` / `-bars` / `-popover` /
+    `sparkline-bar`, one `role="img"` sentence instead of 24 announced bars) and
+    `home-hero.component.ts` (selector `app-home-hero`): the page's full-width headline
     strip ABOVE the `home-panels` grid. It renders the plain-language headline (with an
     `app-info-popover` whose `content` is
     `renderMethodologyCopy(metricDoc("network.lines-normal").definition)`), the disruption callout
@@ -66,6 +70,9 @@
   - `line-pulse/` — `network-board.component.ts` (the three-group board: skeleton rows / empty state /
     the controls row / `Needs attention` cards / `My lines` + `All lines` rows),
     `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel),
+    `line-history-strip.component.ts` (`app-line-history-strip`: the row's own 24-cell service-day
+    strip — `row-history-strip` / `-popover` / `-cell` / `-label` — drawn ABOVE the disclosure and
+    served by the store's ONE per-line read, so sixteen rows cost one request),
     `line-pulse-card.component.ts` (one line's full live status plus the expand/collapse
     toggle), `line-status-chart.component.ts` (the expanded hourly report strip),
     `line-status-reports.component.ts` (the expanded report list + the per-station strip), and
@@ -76,6 +83,13 @@
     through the real server path to guard SSR/hydration).
     🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
     worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
+  - `pro/` — `network-heat-strip.component.ts` (selector `app-network-heat-strip`): the **Pro**
+    heat grid — one row per line, one column per service-day hour, colour = the status that dominated
+    that line-hour and opacity = how many reports it was (`network-heat-strip` / `-popover` /
+    `heat-row` / `heat-row-code` / `heat-row-total` / `heat-cell` / `heat-legend` / `heat-scale`).
+    Hand-rolled `<div>`s: this repo has no charting dependency, and the colour vocabulary is the same
+    `PASSENGER_BAR_CLASS` the expanded card's chart uses. It is mounted by `NetworkBoardComponent`
+    **only when the effective view is `pro`**, and hides itself on a failed or empty read.
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet, now **draft-first**:
     the form and its footer render whether or not anyone is signed in; see the Internal State bullet).
   - `report/` — `report-chooser.component.ts` (`app-report-chooser`, the sheet itself) plus its three
@@ -260,6 +274,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     provenance flag that is the ONLY thing separating "the operator announced it" from "N riders think
     so"; the board's confidence chip and the hero's official callout both read it, and
     `home.queries.spec.ts` pins the selection because a fixture can invent any field it likes).
+    `NETWORK_STATUS_HISTORY_QUERY` (`networkStatusHistory(dayStartHour)`) and
+    `LINES_STATUS_HISTORY_QUERY` (`linesStatusHistory(lineIds)`) back the three history widgets;
+    both select the same `LineStatusHourBucket` fields as `LINE_STATUS_HISTORY_QUERY` above, and
+    `home.queries.spec.ts` pins that shape field-for-field on both.
     `LINE_STATUS_HISTORY_QUERY` (hourly buckets,
     each carrying `count`, `dominantStatus` and the `statusCounts { status count }` breakdown the
     chart stacks) and `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list, each node carrying
@@ -309,6 +327,13 @@ lastWeekOnly, alignPageToDay, collapseThreads)` connection
       asking a variable an older schema rejects). The Today feed already carries the current service
       day, so a "Today" group in this section is always a duplicate of it.
       `alignPageToDay` lets a page overshoot `first` to finish the calendar day it ended on.
+      `lineId: $lineId` narrows the connection to links tagged with one line (the feed's line filter).
+      It is declared NULLABLE and every call site **omits the key** when no line is selected, so
+      "unfiltered" is the ABSENCE of the argument rather than one of two spellings — which is what
+      keeps the six reads' variables structurally identical between the server render and hydration.
+      `FeedQueryVars.lineId` is therefore `string | undefined` and **cannot** be written `null`: the
+      overlay reads deliberately never send it, so "omitted" has to be one ownable state. The filter
+      UI itself lands in a later phase; Phase 3 ships the plumbing and its specs.
       `collapseThreads: true` is the **only** surface that collapses (see the store below) and it is
       a compile-time constant, so SSR and hydration compute identical variables. `HIDDEN` rows never
       reach this query at all — the backend's public-feed resolver excludes them after the optional
@@ -370,6 +395,32 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     `lastWeekOnly: true`, `alignPageToDay: true`). The constructor reads all three once so the lazy
     `httpResource` fetches on store creation. **Both link resources also spread
     `HOME_FEED_COLLAPSE_VARS = { collapseThreads: true }`** — see the threading bullet below.
+  - 🔴 **The two SERVICE-DAY HISTORY reads are lazy, widget-opted-in, and deliberately ISOLATED from
+    the page's error state.** `networkHistoryResource` (`NETWORK_STATUS_HISTORY_QUERY`, variables
+    `{}`) and `linesHistoryResource` (`LINES_STATUS_HISTORY_QUERY`, variables
+    `{ lineIds }`) both stay inert until (a) a widget calls the store's `requestHistoryReads()` and
+    (b) `lines()` has data. The opt-in is **not** merely tidy — `graphqlResource` installs an effect
+    that reads the underlying `httpResource`, so a gate only the projections satisfied would not defer
+    the request at all; one explicit call from the surface that renders the answer is the only honest
+    gate, and it is the same arrangement `LineStatusChartComponent`'s `expanded` input uses.
+    `linesStatusHistory` is capped at `HISTORY_LINE_ID_CAP` (64, the backend's own limit) at the
+    variable, so a board that grew past it cannot take the read down. Projections: `networkHistory()`,
+    `linesHistoryFor(lineId)` (one O(1) map lookup per rendered row) plus `networkHistoryFailed` /
+    `linesHistoryFailed`. 🔴 **Neither resource feeds `hasError`, `isLoading`, `isLoadingLastWeek` or
+    `isRefreshing`** — those four drive the page-level retry banner, the board skeleton and the
+    refresh control's "Updating" label, so folding a decorative chart into them would replace a whole
+    working page with one banner. A failed history read hides ITS widget and nothing else; an empty
+    answer hides it too, because `[]` is the backend's "nothing reported this service day", not an
+    error. `reloadAll()` re-reads both (submit / report / retry is a full invalidation); the 30 s beat
+    deliberately does not — a chart that redraws every 30 seconds is noise.
+  - 🔴 **The feed's LINE FILTER** (`lineFilter` signal + `setLineFilter()`) derives from ONE signal,
+    so a filtered list can never be drawn beside an unfiltered denominator or continued by a cursor
+    from the wrong query: the two resources, both `loadMore*` continuations and — deliberately NOT —
+    the two overlay reads all read it. `setLineFilter` **clears every appended page for both feeds**:
+    a cursor is only meaningful inside the query that minted it, and keeping the appended rows would
+    leave the previous filter's links on screen beside the new one's. The 30 s beat, which does not
+    change the filter, still preserves Load More progress. An empty string is `null`; re-selecting the
+    current filter is a no-op.
   - **The board's derived views — a PARTITION, not three filters.** `networkSummary` (`summarizeNetwork`
     over the one lines read), `attentionLines`, `myLines`, `allLines`, and the `boardSort` signal
     (`"severity" | "name"`, default `severity`, `DEFAULT_BOARD_SORT`/`BOARD_SORTS` exported for the
@@ -471,6 +522,14 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
        resources' variable objects and compares them **structurally** to the two overlay reads'
        variables, so an added or removed key is red. A _wider_ window is harmless (an unused id costs
        nothing), a _different_ one is not.
+       🔴 **`lineId` is the ONE key the overlay may omit, and it is the key it MUST.** The feed's line
+       filter narrows what the page RENDERS, so the overlay reads stay unfiltered: a wider read is
+       harmless under this invariant, while a narrowed one would drop every id outside the selected
+       line — and since the overlay is a mount-time snapshot, a filtered read would freeze the filter's
+       answer at that instant. The structural compare now asserts exactly that asymmetry: the overlay's
+       variables equal the mirrored resource's variables with the single `lineId` key removed, and the
+       key sets are compared too, so a future variable is not quietly exempted alongside it. The spec
+       applies the filter BEFORE capturing, or the omission would be trivially true.
     2. **THE WALK.** The read is collapsed, so `edges` alone holds only the ROOTS. Every node below a
        root is rendered and votable, so the walk **recurses through `sublinks` at every depth**
        (`recordSubtreeVotes`) — with no depth limit and no `MAX_THREAD_DEPTH` mirror. A version that
@@ -629,6 +688,19 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   `message` to its chips. The
   title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated
   on `expanded`).
+- **`NetworkSparklineComponent` / `LineHistoryStripComponent` / `NetworkHeatStripComponent`** — the
+  three service-day widgets. All three read `HomeStore` (the store owns the reads), all three share
+  `status-history-display.util.ts` for their vocabulary, and all three follow the SAME two rules:
+  **hide entirely on a failed or empty read** (their own `networkHistoryFailed` /
+  `linesHistoryFailed`, never `HomeStore.hasError()` — a supporting widget must not put the retry
+  banner over a working page), and **opt in** with `store.requestHistoryReads()` so no store with an
+  unmounted history surface issues the reads at all. 🔴 `networkStatusHistory` is a NETWORK aggregate
+  and `linesStatusHistory` is per line: the sparkline's label says "across every line on the network"
+  for exactly that reason, because drawing the aggregate under one line's name would attribute other
+  lines' reports to it. Each widget hands its chart a single `role="img"` sentence
+  (`historySummaryLabel`) and keeps its cells `aria-hidden` with the hour detail in `title`; the grid
+  does it **per row**, because the comparison between lines is the whole point of that widget. Every
+  definition comes from the methodology registry through `InfoPopover` — never a literal.
 - **`LineStatusChartComponent`** — the expanded card's hourly strip: `bars`/`hasData`/`maxCount`
   computed over the lazy `LINE_STATUS_HISTORY_QUERY` (inert until `expanded`; a parent-driven
   `refreshTick` input reloads it while the accordion is open, via the same applied-tick guard as the
@@ -708,13 +780,29 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
 - **`home.queries.ts`** is the single GraphQL contract seam — new fields/queries/mutations are
   additive documents plus matching interfaces, keeping query strings out of components (mirrors
   `insiden.queries.ts`/`spotting.queries.ts`).
+- **`status-history-display.util.ts`** is the one place the three service-day history widgets are
+  allowed to describe an hour: `serviceHourLabel` / `serviceHourRangeLabel` (MYT, so a reader in
+  another timezone still lines the bars up with the backend's own hours), `reportsPhrase`,
+  `historyBarHeightPct` (scaled to the busiest hour **in the same series**, with a visible floor),
+  `historyBreakdownPhrase` / `historyBarTitle`, `historySummaryLabel` (the one accessible sentence
+  every widget hands its `role="img"`), and the heat grid's `heatIntensityStep` /
+  `heatIntensityClass` / `heatCellClass` / `heatLegendEntries`. 🔴 `HEAT_INTENSITY_CLASSES` is a list of
+  LITERAL Tailwind utilities rather than interpolated ones, because Tailwind v4 only compiles what it
+  finds as literal text in the source — `opacity-${n}` would emit nothing and every cell would render
+  at the browser's default. `historyBarHeightPct` scales per widget on purpose, and the two widgets
+  disagree there DELIBERATELY: a row strip scales to its own line (a quiet line must look quiet), the
+  grid to the busiest cell on screen (comparing lines is the grid's entire job).
 - **`HomeStore`** centralizes the page's data lifecycle: the polling beat (`PollingSource`), cursor
-  pagination (today feed + last week), `reloadAll()`, and the authenticated `userVote` overlay. New
-  derived views belong here as `computed()`s over the resources rather than in components. A new
-  _read_ of the feed connection must be copied from the resource it mirrors, not sketched:
-  `HOME_FEED_COLLAPSE_VARS` goes into all four list reads **and** into both vote-overlay reads,
-  which additionally carry the auth header and nothing else — the overlay is only complete if its
-  window, page size and collapse match the rendered one (see Internal State).
+  pagination (today feed + last week), `reloadAll()`, the two lazy service-day history reads behind
+  the history widgets, and the authenticated `userVote` overlay. New derived views belong here as
+  `computed()`s over the resources rather than in components. A new _read_ of the feed connection
+  must be copied from the resource it mirrors, not sketched: `HOME_FEED_COLLAPSE_VARS` goes into all
+  four list reads **and** into both vote-overlay reads, which additionally carry the auth header and
+  nothing else — the overlay is only complete if its window, page size and collapse match the rendered
+  one (see Internal State), and the feed's `lineId` filter is the ONE variable the overlay must NOT
+  copy. A new history-style read is the same shape: a `graphqlResource` gated on a signal the
+  SURFACE sets, constant variables, and an error signal that stays out of `hasError` unless the data
+  is page-critical.
 - **`LineStatusSheetService`** is the cross-component trigger seam: any future card or page can open
   the report sheet with `openFor(lineId)` — or `openFor(lineId, { presetStatus })` when it already
   knows which condition the rider meant — without wiring the sheet itself.
@@ -850,6 +938,12 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
     which is exactly when the rest of the board is showing nothing.
 
   Every row keeps the `line-board-row` wrapper (the stable order/partition hook from Phase 0).
+
+  - 🔴 **The Pro heat grid is mounted only when the effective view is `pro`** (`@if (_view() ===
+"pro")`), using the SAME `_view()` the controls row writes. It is the one widget here that compares
+    lines against each other rather than describing one, and it costs a screen of width, so a Rider
+    view must not pay for it. It hides itself on a failed or empty read rather than reaching the
+    page's error state.
 
 - **The controls row** is three labelled `role="group"` segmented controls, each an `aria-pressed`
   pair: `board-sort-severity` / `board-sort-name`, `board-view-rider` / `board-view-pro`, and —
@@ -989,12 +1083,14 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
 
 ## 💡 Potential Feature Opportunities
 
-- **Feed filters + a real permalink.** The today feed is scoped to the current service day (with a
-  collapsed last-week list below it) but otherwise unfiltered, and the only deep link is the in-page
-  `#feed-link-<id>` anchor the duplicate indicator
-  already emits. **Ready to implement, purely additive:** a line/status filter signal folded into
-  the feed request (or client-side over the resident page), plus a per-link route/fragment that
-  scrolls to and highlights a row, since the anchor id already exists for every row.
+- **Feed filter UI + a real permalink.** The line filter's **plumbing shipped in Phase 3** —
+  `HomeStore.lineFilter` / `setLineFilter()` derive `$lineId` for both resources and both `loadMore*`
+  continuations, and a filter change drops every appended page so a cursor from one filter can never
+  continue another — but nothing sets it yet, and the URL has no `?line=` binding. **Ready to
+  implement, purely additive:** a control that calls `setLineFilter()` (plus a `?line=` param through
+  `core/url-state`, and a search box client-side over the resident page), and a per-link
+  route/fragment that scrolls to and highlights a row — the `#feed-link-<id>` anchor the duplicate
+  indicator already emits exists for every row.
 - **Extend the `userVote` overlay past the first page.** Today `loadVoteOverlay()` reads only the
   first page of the today feed (8) and of the last-week resource (20), so a logged-in user's own
   vote on an appended page renders as `0` until they vote again. **Ready now:** either re-run the

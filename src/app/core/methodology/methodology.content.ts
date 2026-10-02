@@ -47,6 +47,17 @@ const REVIEWED_AT_SHIP = "2026-09-24";
 const REVIEWED_AT_NETWORK_BOARD = "2026-10-03";
 
 /**
+ * Bumped when the service-day history widgets landed — the hero's sparkline, the board's per-line
+ * strips and the Pro heat grid (2026-10-03).
+ *
+ * A separate constant from `REVIEWED_AT_NETWORK_BOARD` on purpose even though both currently hold
+ * the same date: these are a DIFFERENT review of the same section (the hour-bucket contract rather
+ * than the live-status rules), and collapsing them would make the next bump on one silently claim a
+ * review of the other.
+ */
+const REVIEWED_AT_HISTORY_WIDGETS = "2026-10-03";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -341,5 +352,45 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  /* ---- the SERVICE-DAY HISTORY widgets. Three surfaces draw the same 24 hourly buckets the backend
+     buckets rider reports into, so all three definitions are registered here rather than authored in
+     a template: the hero's sparkline, the compact row's mini strip and the Pro heat grid. The rule
+     itself is `features/home/data/status-history-display.util.ts`. ---- */
+  {
+    // The hero's app-network-sparkline. 🔴 The NETWORK AGGREGATE is the whole point of this wording:
+    // the read tallies EVERY line's reports into each hour, so a busy bar means "the network was
+    // busy" and never "this line was busy" — a reader who misreads it as one line's history will
+    // trust it about the wrong line.
+    id: "network.activity-sparkline",
+    sectionId: "line-status",
+    title: "Network activity by hour",
+    definition:
+      "One bar per hour of the community service day, which runs from {{SERVICE_DAY_START_HOUR}}:00 to 02:00 — {{SERVICE_DAY_HOURS}} hours in total. A bar's height is how many rider status reports EVERY line on the network received in that hour, and its colour is the passenger status most of those reports gave. This is a network-wide count, not one line's: per-line history is shown on the line itself. An hour nobody reported anything about has no colour rather than a “normal” one, because silence is not evidence that service was good.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
+  },
+  {
+    // The compact board row's app-line-history-strip.
+    id: "network.line-history-strip",
+    sectionId: "line-status",
+    title: "A line's reports by hour",
+    definition:
+      "The same {{SERVICE_DAY_HOURS}}-hour service day as the network sparkline, narrowed to one line: each cell is how many riders reported THAT line in that hour, coloured by the status they gave. Its height is scaled to that line's own busiest hour, so a quiet line looks quiet — a shared network scale would make one busy hour flatten every other row. The strip is hidden rather than drawn empty when the line reported nothing during the service day, or when the data could not be read.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
+  },
+  {
+    // The Pro board's app-network-heat-strip: the only widget here with TWO dimensions.
+    id: "network.heat-strip",
+    sectionId: "line-status",
+    title: "The heat grid (Pro view)",
+    definition:
+      "One row per line and one column per hour of the {{SERVICE_DAY_HOURS}}-hour service day, for every line at once. Each cell carries TWO readings: the colour is the passenger status that dominated that line in that hour, and the strength is how many reports that was, across {{HEAT_INTENSITY_STEPS}} steps relative to the busiest cell on screen. Colour alone would say “disrupted” without saying whether one person noticed or sixty did, and the strength alone would say “busy” without saying what kind of busy. The strength is shared across every row on purpose — a per-line scale would make a line with two reports look as dark as a line with two hundred, which is the comparison this grid exists for.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
   },
 ];

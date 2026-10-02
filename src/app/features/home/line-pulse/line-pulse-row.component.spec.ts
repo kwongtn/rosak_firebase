@@ -11,8 +11,9 @@ import {
 } from "../../../core/methodology/methodology-render.util";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
-import type { LinePulse } from "../data/home.queries";
+import type { LinePulse, LineStatusHourBucket } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { HomeStore } from "../data/home.store";
 import { LinePulseRowComponent } from "./line-pulse-row.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
@@ -75,6 +76,10 @@ describe("LinePulseRowComponent", () => {
     setOpen: ReturnType<typeof vi.fn>;
   };
   let reportSheetMock: { openFor: ReturnType<typeof vi.fn> };
+  /** The store's per-line history, keyed by line id — the strip's ONLY input. */
+  let historyByLine: Map<string, LineStatusHourBucket[]>;
+  let historyFailed: ReturnType<typeof signal<boolean>>;
+  let requestHistoryReads: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     sheetMock = {
@@ -84,6 +89,12 @@ describe("LinePulseRowComponent", () => {
       setOpen: vi.fn(),
     };
     reportSheetMock = { openFor: vi.fn() };
+    // The row now hosts `app-line-history-strip`, which reads the store's single service-day read for
+    // this line. A MOCK, not the real store: the read's own variables and gating belong to
+    // `home.store.spec.ts`, and this spec is about what the row draws from the answer.
+    historyByLine = new Map();
+    historyFailed = signal(false);
+    requestHistoryReads = vi.fn();
     // The pin is real state that outlives one fixture, so each test starts from a clean store.
     localStorage.clear();
 
@@ -99,6 +110,14 @@ describe("LinePulseRowComponent", () => {
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
         { provide: ReportSheetService, useValue: reportSheetMock },
+        {
+          provide: HomeStore,
+          useValue: {
+            linesHistoryFor: (lineId: string) => historyByLine.get(lineId) ?? [],
+            linesHistoryFailed: historyFailed,
+            requestHistoryReads,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -281,6 +300,94 @@ describe("LinePulseRowComponent", () => {
     expect(chart.componentInstance.refreshTick()).toBe(5);
     expect(reports.componentInstance.refreshTick()).toBe(5);
     flushPendingRequests();
+  });
+
+  describe("the service-day history strip", () => {
+    /** A full 24-hour service day with reports only in the first two hours. */
+    function serviceDay(): LineStatusHourBucket[] {
+      return Array.from({ length: 24 }, (_unused, index) => ({
+        hourStart: new Date(
+          new Date("2026-09-21T19:00:00+00:00").getTime() + index * 3600_000,
+        ).toISOString(),
+        hourEnd: new Date(
+          new Date("2026-09-21T19:00:00+00:00").getTime() + (index + 1) * 3600_000,
+        ).toISOString(),
+        count: index === 0 ? 2 : index === 1 ? 5 : 0,
+        dominantStatus: index < 2 ? "NORMAL" : null,
+        statusCounts:
+          index === 1
+            ? [{ status: "NORMAL", count: 5 }]
+            : index === 0
+              ? [{ status: "NORMAL", count: 2 }]
+              : [],
+      }));
+    }
+
+    it("draws nothing at all for a line with no reports this service day", () => {
+      const root = render(makeLine({ id: "line-9" }));
+
+      // Twenty-four empty cells would be noise on an already-dense compact row, and "no data" as a
+      // chip would be a claim the row has no room to qualify. Silence is drawn as silence.
+      expect(root.querySelector('[data-testid="row-history-strip"]')).toBeNull();
+      // …and the rest of the row is untouched.
+      expect(root.querySelector('[data-testid="line-row-title"]')).not.toBeNull();
+      expect(requestHistoryReads).toHaveBeenCalledTimes(1);
+    });
+
+    it("draws one cell per service-day hour for a line that reported", () => {
+      historyByLine.set("line-9", serviceDay());
+      const root = render(makeLine({ id: "line-9" }));
+
+      const strip = root.querySelector('[data-testid="row-history-strip"]');
+      expect(strip).not.toBeNull();
+      expect(strip?.querySelectorAll('[data-testid="row-history-cell"]')).toHaveLength(24);
+      // Scaled to THIS line's busiest hour, so a quiet line next to a busy one still looks quiet.
+      const cells = [
+        ...(strip?.querySelectorAll<HTMLElement>('[data-testid="row-history-cell"]') ?? []),
+      ];
+      expect(cells[1]?.style.height).toBe("100%");
+      expect(cells[0]?.style.height).toBe("40%");
+      expect(cells[2]?.style.height).toBe("0%");
+      expect(cells[1]?.getAttribute("title")).toBe("04:00–05:00 · 5 reports · Normal 5");
+    });
+
+    it("is aria-hidden with ONE text alternative, so 24 rectangles are not announced", () => {
+      historyByLine.set("line-9", serviceDay());
+      const root = render(makeLine({ id: "line-9" }));
+
+      // The cells carry nothing a screen reader can use, so the strip is hidden and the host carries
+      // a sentence instead — which is what keeps a decorative grid from being an inaccessible one.
+      const cells = root
+        .querySelector('[data-testid="row-history-strip"]')
+        ?.querySelector('[aria-hidden="true"]');
+      expect(cells).not.toBeNull();
+      const label = textOf(root, "row-history-label");
+      expect(label).toContain("7 reports in 2 of 24 hours");
+      expect(label).toContain("service day 03:00 to 02:00");
+    });
+
+    it("reads only ITS line's history, so two rows never show the same strip", () => {
+      historyByLine.set("line-9", serviceDay());
+      historyByLine.set("line-8", []);
+      const root = render(makeLine({ id: "line-9" }));
+      expect(root.querySelector('[data-testid="row-history-strip"]')).not.toBeNull();
+
+      fixture.componentRef.setInput("line", makeLine({ id: "line-8" }));
+      fixture.detectChanges();
+      expect(root.querySelector('[data-testid="row-history-strip"]')).toBeNull();
+    });
+
+    it("hides the strip when the per-line read failed, leaving the row working", () => {
+      historyByLine.set("line-9", serviceDay());
+      historyFailed.set(true);
+      const root = render(makeLine({ id: "line-9" }));
+
+      // Widget-level failure isolation: the store keeps `linesHistoryFailed` out of `hasError`, so the
+      // row just loses the strip — it does not lose its status, its chips or its actions.
+      expect(root.querySelector('[data-testid="row-history-strip"]')).toBeNull();
+      expect(textOf(root, "line-row-confidence")).toBe("No recent reports");
+      expect(root.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
+    });
   });
 
   it("keeps the pro detail and the Line HQ links off a rider row", () => {

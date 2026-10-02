@@ -20,6 +20,8 @@ import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
   FEED_QUERY,
   FRONT_PAGE_LINES_QUERY,
+  LINES_STATUS_HISTORY_QUERY,
+  NETWORK_STATUS_HISTORY_QUERY,
   REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
   SUBMIT_FEED_LINK_MUTATION,
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
@@ -303,6 +305,115 @@ describe("FEED_QUERY selection", () => {
     for (const level of LEVEL_INDEXES.slice(1)) {
       expect(feedLevel(level).fields).not.toContain("normalizedUrl");
     }
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The FEED's line filter argument
+ *
+ * `$lineId` is the ONE key the authenticated vote-overlay reads omit (a wider overlay read is
+ * complete; a narrower one loses votes), which `home.store.spec.ts` pins structurally. These
+ * assertions pin the other half: the document really declares the variable and really passes it, so
+ * the store's `lineId` in the variables is not silently a no-op. A document that declared `$lineId`
+ * without passing it would still compile, still type-check and still return the whole network — the
+ * filter would simply never do anything, with no error anywhere.
+ * ---------------------------------------------------------------------- */
+
+describe("FEED_QUERY line filter", () => {
+  /** The comment-stripped document, so a prose line cannot satisfy a field assertion. */
+  function bare(document: string): string {
+    return withoutComments(document);
+  }
+
+  it("declares $lineId and passes it to the connection", () => {
+    const document = bare(FEED_QUERY);
+    expect(document).toMatch(/\$lineId:\s*ID\b/);
+    // Passing it, not just declaring it: a declared-but-unused GraphQL variable is a validation
+    // error, so a document that declared it WITHOUT using it would be rejected outright — which is
+    // why the two assertions belong together.
+    expect(document).toMatch(/publicSocialMediaLinks\([\s\S]*?lineId:\s*\$lineId/);
+  });
+
+  it("keeps collapseThreads in the same argument list — the six-read invariant is untouched", () => {
+    const document = bare(FEED_QUERY);
+    expect(document).toMatch(
+      /publicSocialMediaLinks\([\s\S]*?collapseThreads:\s*\$collapseThreads/,
+    );
+  });
+
+  it("leaves the connection's SELECTION alone, because the filter is a window, not a shape", () => {
+    // `collapseThreads` decides the SHAPE the page renders (roots with whole subtrees under them) and
+    // the overlay walk depends on it. A line filter is a narrower WINDOW over the same connection, so
+    // it must not be allowed to change what a row is.
+    expect(selectionUnderArgs(FEED_QUERY, "publicSocialMediaLinks").fields).toEqual([
+      "edges",
+      "pageInfo",
+      "totalCount",
+    ]);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The service-day history documents
+ *
+ * Three widgets draw the same 24 hourly buckets, so the two new documents must select the bucket
+ * shape EXACTLY as `LINE_STATUS_HISTORY_QUERY` already does. A missing field would still compile —
+ * `LineStatusHourBucket` is a hand-written type, and a hand-written type will happily claim a key a
+ * document never asked for — and the widget would then render an undefined count as if it were a real
+ * one.
+ * ---------------------------------------------------------------------- */
+
+describe("the service-day history documents", () => {
+  /** Every field an hour bucket must carry, and nothing else. */
+  const BUCKET_FIELDS = ["hourStart", "hourEnd", "count", "dominantStatus", "statusCounts"];
+  const STATUS_COUNT_FIELDS = ["status", "count"];
+
+  it("networkStatusHistory selects the same bucket shape as the per-line chart", () => {
+    const buckets = selectionUnderArgs(NETWORK_STATUS_HISTORY_QUERY, "networkStatusHistory");
+    expect(buckets.fields).toEqual(BUCKET_FIELDS);
+    expect(buckets.nested["statusCounts"]?.fields).toEqual(STATUS_COUNT_FIELDS);
+  });
+
+  it("linesStatusHistory keys each entry by line and nests the same buckets", () => {
+    const entries = selectionUnderArgs(LINES_STATUS_HISTORY_QUERY, "linesStatusHistory");
+    expect(entries.fields).toEqual(["lineId", "buckets"]);
+    // `lineId` is what the store keys the per-line map by — a strip that could not tell which line a
+    // bucket belonged to would draw the same history on every row.
+    expect(entries.nested["buckets"]?.fields).toEqual(BUCKET_FIELDS);
+    expect(entries.nested["buckets"]?.nested["statusCounts"]?.fields).toEqual(STATUS_COUNT_FIELDS);
+  });
+
+  it("declares and passes dayStartHour on the network read, so the defaulting call is legal", () => {
+    // The variable is DECLARED AND PASSED but deliberately omitted from every variables object this
+    // side builds, so the backend's default of 3 (the 03:00→02:00 service day) applies. A declared
+    // variable nothing references is a validation error, so "we never send it" can never quietly
+    // become "we removed it" without the server rejecting the query.
+    const bare = withoutComments(NETWORK_STATUS_HISTORY_QUERY);
+    expect(bare).toMatch(/\$dayStartHour:\s*Int\b/);
+    expect(bare).toMatch(/dayStartHour:\s*\$dayStartHour/);
+  });
+
+  it("leaves dayStartHour off the multi-line read entirely, as the plan's document specifies", () => {
+    // Only the network document declares it. The per-line document has no use for the argument, and
+    // declaring a variable it never references would be a validation error — so the honest spelling is
+    // absence, and the backend's default covers both windows identically anyway.
+    expect(withoutComments(LINES_STATUS_HISTORY_QUERY)).not.toContain("dayStartHour");
+  });
+
+  it("declares lineIds as the only REQUIRED variable on the multi-line read", () => {
+    // `[ID!]!` is non-null on the backend, so it has to be non-null here: a nullable declaration would
+    // let a caller omit it and send the empty query the backend treats as "no lines at all".
+    expect(withoutComments(LINES_STATUS_HISTORY_QUERY)).toMatch(/\$lineIds:\s*\[ID!\]!/);
+  });
+
+  it("never asks for the history twice in one document — two roots would be a mistake", () => {
+    // Cheap guard against a copy-paste that left a second root field behind: the parser's root walk is
+    // per-field, so an extra root would simply be ignored by every consumer above.
+    expect(
+      selectionUnderArgs(NETWORK_STATUS_HISTORY_QUERY, "networkStatusHistory").fields.length,
+    ).toBe(BUCKET_FIELDS.length);
+    expect(NETWORK_STATUS_HISTORY_QUERY).not.toContain("linesStatusHistory");
+    expect(LINES_STATUS_HISTORY_QUERY).not.toContain("networkStatusHistory");
   });
 });
 

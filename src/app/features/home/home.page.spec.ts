@@ -23,7 +23,13 @@ import { LinkThreadComponent } from "../insiden/link-thread/link-thread.componen
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
-import type { FeedLink, FeedLinkPageInfo, FeedLinkSublink, LinePulse } from "./data/home.queries";
+import type {
+  FeedLink,
+  FeedLinkPageInfo,
+  FeedLinkSublink,
+  LinePulse,
+  LineStatusHourBucket,
+} from "./data/home.queries";
 import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import type { NetworkSummary } from "./data/network-summary.util";
 import { summarizeNetwork } from "./data/network-summary.util";
@@ -201,6 +207,12 @@ interface StoreMock {
   linesRefreshTick: WritableSignal<number>;
   highlightedLineId: WritableSignal<string | null>;
   highlightLine: ReturnType<typeof vi.fn>;
+  // The two service-day history reads, opted in by the widgets that draw them.
+  networkHistory: WritableSignal<LineStatusHourBucket[]>;
+  networkHistoryFailed: WritableSignal<boolean>;
+  linesHistoryFor: (lineId: string) => LineStatusHourBucket[];
+  linesHistoryFailed: WritableSignal<boolean>;
+  requestHistoryReads: ReturnType<typeof vi.fn>;
   polling: {
     intervalMs: WritableSignal<number | null>;
     secondsRemaining: WritableSignal<number>;
@@ -272,6 +284,14 @@ describe("HomePage", () => {
       hasError: signal(false),
       linesRefreshTick: signal(0),
       highlightedLineId: signal<string | null>(null),
+      // The two service-day history reads, owned by the store but OPTED IN by the widgets that draw
+      // them (the hero's sparkline and each board row's strip). Empty here so this spec's page renders
+      // without them; `network-sparkline.component.spec.ts` and the row's spec cover what they draw.
+      networkHistory: signal([]),
+      networkHistoryFailed: signal(false),
+      linesHistoryFor: () => [],
+      linesHistoryFailed: signal(false),
+      requestHistoryReads: vi.fn(),
       // The REAL rule (set the signal, then let the board's effect scroll the anchor) rather than a
       // spy that records the call — a spy would pass even if the board never drew the ring.
       highlightLine: vi.fn((lineId: string) => {

@@ -68,3 +68,39 @@ export function passengerVariant(
 ): BadgeVariants["variant"] {
   return status ? PASSENGER_VARIANT[status] : "neutral";
 }
+
+/**
+ * Fill colour per passenger status for every hand-rolled bar visual on this feature: the expanded
+ * card's hourly chart, the hero's network sparkline and the Pro heat grid's cells.
+ *
+ * 🔴 ONE table, three surfaces, on purpose. The first two widgets existed before this table (each
+ * with its own private copy) and the heat grid is the third reader: three near-identical palettes
+ * are three places a colour can be "tidied" one way, and the reader's eye then sees a Delayed hour
+ * in one widget as amber and in another as yellow. It is deliberately NOT the badge-variant table
+ * above — a badge is a tinted chip with a label beside it, and a bar is a fill with nothing beside
+ * it, so they need different contrast; the two are kept as separate tables rather than one mapping
+ * both, which would couple two things that have no reason to move together.
+ */
+export const PASSENGER_BAR_CLASS: Record<PassengerStatus, string> = {
+  NORMAL: "bg-emerald-500",
+  BUSY: "bg-blue-500",
+  CROWDED: "bg-amber-500",
+  EXTREMELY_CROWDED: "bg-red-500",
+  BACKLOGGED: "bg-orange-500",
+  DELAYED: "bg-yellow-500",
+  DISRUPTED: "bg-rose-600",
+};
+
+/** The muted fill for an hour or cell with no reports — a track, not a zero-valued datum. */
+export const PASSENGER_NO_DATA_BAR_CLASS = "bg-muted";
+
+/**
+ * The bar fill for a bucket's dominant status, or the muted track when the hour carried no reports.
+ *
+ * `dominantStatus` is nullable by design on the backend: an hour nobody reported anything about has
+ * `count: 0`, `statusCounts: []` and a null dominant status. Falling back to a status colour there
+ * would paint a "nothing happened" hour in Normal green, which reads as a confirmed good hour.
+ */
+export function passengerBarClass(status: PassengerStatus | null | undefined): string {
+  return status ? PASSENGER_BAR_CLASS[status] : PASSENGER_NO_DATA_BAR_CLASS;
+}

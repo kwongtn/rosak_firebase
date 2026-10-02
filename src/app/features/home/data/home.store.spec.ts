@@ -12,9 +12,10 @@ import {
   FeedQueryData,
   FrontPageLinesQueryData,
   LinePulse,
+  LineStatusHourBucket,
 } from "./home.queries";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
-import { FEED_PAGE_SIZE, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
+import { FEED_PAGE_SIZE, HISTORY_LINE_ID_CAP, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
 
 /** The preferences service's own storage key, restated so a rename breaks this spec loudly rather
  * than silently seeding a payload nothing reads. */
@@ -110,6 +111,21 @@ function makeSublink(
     stations: [],
     categories: [],
   };
+}
+
+/**
+ * Lets a store resource re-issue after one of its VARIABLES changed.
+ *
+ * `httpResource` holds a request and re-evaluates it through the effect queue rather than
+ * synchronously, so `signal.set` alone leaves nothing pending and the next `expectOne` throws
+ * "found none". The exact drain sequence is not the point; the point is that it is a real wait and
+ * not a guessed number of microtasks, so every filter spec below shares one definition of it.
+ */
+async function afterVariablesChange(): Promise<void> {
+  TestBed.tick();
+  await Promise.resolve();
+  await Promise.resolve();
+  TestBed.tick();
 }
 
 function feedData(
@@ -474,7 +490,7 @@ describe("HomeStore", () => {
     expect(store.userVoteFor("y")).toBe(0);
   });
 
-  it("sends each overlay read the SAME variables as the resource it mirrors", async () => {
+  it("keeps each overlay read EQUAL to the resource it mirrors, EXCEPT lineId", async () => {
     // The overlay is complete only if its read is the SAME READ the page renders: same window, same
     // collapse, same page size, with the auth header the only addition. The failure mode of getting
     // this wrong is silent — `LinkThreadComponent.voteFor` falls back to `link.userVote ?? 0`, and
@@ -484,34 +500,82 @@ describe("HomeStore", () => {
     //            id set from the collapsed render) or walk `edges` without recursing `sublinks`.
     //   WINDOW — drop `currentServiceDayOnly` (the newest 8 rows OVERALL instead of the newest 8
     //            WITHIN THE SERVICE DAY). This test is the one that catches the second: it compares
-    //            the two objects structurally, so any single added or removed key is red.
+    //   the two objects structurally, so any single added or removed key is red.
+    //
+    // 🔴 `lineId` is the ONE key the overlay may omit, and it is the one it MUST. The feed's line
+    // filter narrows what the page RENDERS, so an overlay read that copied the filter would cover
+    // only the selected line while the read stays wider and therefore still complete (an unused id
+    // costs nothing). Filtering the overlay instead would drop every id outside the selection, and
+    // since the overlay is a mount-time SNAPSHOT it would also freeze the filter's answer at that
+    // instant. So the assertion below is deliberately asymmetric, and `lineFilter` is set BEFORE the
+    // reads are captured — otherwise "the overlay omits lineId" would be trivially true.
     isLoggedIn.set(true);
     requestMock.mockResolvedValue(feedData([], false, null));
     const store = createStore();
 
-    // `expectOne` DEQUEUES, so the two resource requests are captured before either is flushed, and
-    // their variables are the reference the overlay reads are compared against.
-    const feedReq = feedRequest();
-    const lastWeekReq = lastWeekRequest();
-    const todayVars = feedReq.request.body.variables;
-    const lastWeekVars = lastWeekReq.request.body.variables;
-
+    // Settle the three first-page reads first. The filter is applied AFTER them deliberately:
+    // changing a resource's variables while its request is still in flight CANCELS that request,
+    // and flushing a cancelled one throws.
     linesRequest().flush({ data: { lines: [] } });
-    feedReq.flush({ data: feedData([], false, null) });
-    lastWeekReq.flush({ data: feedData([], false, null) });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
 
+    // The overlay is a MOUNT-TIME snapshot, so its two reads have to be observed before the filter
+    // changes — that is exactly the real sequence: mount, then narrow the feed.
     await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(2));
-    expect(requestMock).toHaveBeenNthCalledWith(1, expect.any(String), todayVars, {
+    const [, overlayToday] = requestMock.mock.calls[0];
+    const [, overlayLastWeek] = requestMock.mock.calls[1];
+
+    // Now narrow the feed. `expectOne` DEQUEUES, so the two re-issued resource requests are captured
+    // here and their variables are the reference the overlay reads are compared against.
+    store.setLineFilter("line-42");
+    // The re-issue is SCHEDULED, not synchronous: `httpResource` re-evaluates the request it holds
+    // only after the signal it reads has invalidated and the effect queue has drained, so a bare
+    // `tick()` finds nothing pending and `expectOne` throws.
+    await afterVariablesChange();
+    // `expectOne` DEQUEUES, so both re-issued requests are captured together and flushed through
+    // those same objects — calling `expectOne` again for the flush would find nothing.
+    const filteredTodayReq = feedRequest();
+    const filteredLastWeekReq = lastWeekRequest();
+    const filteredToday = filteredTodayReq.request.body.variables;
+    const filteredLastWeek = filteredLastWeekReq.request.body.variables;
+
+    // The RESOURCE really did send the filter, or the rest of this test would pass for the wrong
+    // reason.
+    expect(filteredToday).toMatchObject({ lineId: "line-42" });
+    expect(filteredLastWeek).toMatchObject({ lineId: "line-42" });
+
+    filteredTodayReq.flush({ data: feedData([], false, null) });
+    filteredLastWeekReq.flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    // The rule, stated as the rule: the overlay's variables are the mirrored resource's variables
+    // with EXACTLY ONE key absent, and that key is `lineId`.
+    const { lineId: omittedToday, ...todayWithoutFilter } = filteredToday;
+    const { lineId: omittedLastWeek, ...lastWeekWithoutFilter } = filteredLastWeek;
+    expect(omittedToday).toBe("line-42");
+    expect(omittedLastWeek).toBe("line-42");
+    expect(overlayToday).toEqual(todayWithoutFilter);
+    expect(overlayLastWeek).toEqual(lastWeekWithoutFilter);
+    // …and nothing else may differ, so a future key is not quietly exempted along with `lineId`.
+    expect(Object.keys(overlayToday).sort()).toEqual(Object.keys(todayWithoutFilter).sort());
+    expect(overlayToday).not.toHaveProperty("lineId");
+    expect(overlayLastWeek).not.toHaveProperty("lineId");
+
+    expect(requestMock).toHaveBeenNthCalledWith(1, expect.any(String), todayWithoutFilter, {
       "firebase-auth-key": "token",
     });
-    expect(requestMock).toHaveBeenNthCalledWith(2, expect.any(String), lastWeekVars, {
+    expect(requestMock).toHaveBeenNthCalledWith(2, expect.any(String), lastWeekWithoutFilter, {
       "firebase-auth-key": "token",
     });
     // Stated explicitly too, because a reader should not have to know that the equality above
     // happens to include it: the today overlay read is inside the service day, the last-week one is
     // inside the aligned 7-day window.
-    expect(todayVars).toMatchObject({ currentServiceDayOnly: true, collapseThreads: true });
-    expect(lastWeekVars).toMatchObject({
+    expect(todayWithoutFilter).toMatchObject({
+      currentServiceDayOnly: true,
+      collapseThreads: true,
+    });
+    expect(lastWeekWithoutFilter).toMatchObject({
       lastWeekOnly: true,
       alignPageToDay: true,
       collapseThreads: true,
@@ -664,6 +728,7 @@ describe("HomeStore", () => {
 
     expect(store.lines().map((l) => l.id)).toEqual(["b"]);
     expect(store.feedLinks().map((l) => l.id)).toEqual(["y"]);
+    expect(httpMock.match(() => true).map((r) => r.request.body.query.split("\n")[1])).toEqual([]);
   });
 
   it("does not refetch on a first start — the constructor reads are the initial load", () => {
@@ -1014,6 +1079,542 @@ describe("HomeStore", () => {
     await Promise.all([first, second]);
 
     expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The service-day HISTORY resources (Phase 3)
+ *
+ * Two rules this block exists to hold:
+ *   1. Their VARIABLES are compile-time constant — no `new Date()`, no client clock, and the line
+ *      ids SORTED — because a server render and a client hydration that disagree on variables throw
+ *      the TransferState payload away and refetch.
+ *   2. They are NOT page-critical. A failing history read hides its own widget and nothing else, so
+ *      it must never reach `hasError`, `isLoading` or `isRefreshing` — the three flags the retry
+ *      banner, the board skeleton and the refresh control read.
+ * ---------------------------------------------------------------------- */
+
+describe("HomeStore: the service-day history reads", () => {
+  let httpMock: HttpTestingController;
+  let requestMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    requestMock = vi
+      .fn()
+      .mockResolvedValue({ publicSocialMediaLinks: { edges: [], pageInfo: {} } });
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
+        HomeStore,
+        {
+          provide: AuthService,
+          useValue: {
+            isLoggedIn: signal(false),
+            isAdmin: () => false,
+            idToken: async () => "token",
+            whenReady: Promise.resolve(),
+          },
+        },
+        { provide: GraphQLClient, useValue: { request: requestMock } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    localStorage.clear();
+  });
+
+  /** The 03:00 MYT bucket the backend opens every service day with, and the 04:00 one after it. */
+  function hour(count: number, hourStart = "2026-09-21T19:00:00+00:00"): LineStatusHourBucket {
+    return {
+      hourStart,
+      hourEnd: hourStart,
+      count,
+      dominantStatus: count > 0 ? "NORMAL" : null,
+      statusCounts: count > 0 ? [{ status: "NORMAL", count }] : [],
+    };
+  }
+
+  /**
+   * The history read's own request, dequeued by `expectOne`.
+   *
+   * Deliberately NOT a `match()` probe: `HttpTestingBackend.match` REMOVES what it matches, so a
+   * `match` used as an assertion silently eats the request the next line is about to `expectOne`.
+   * Existence is asserted by capturing it.
+   */
+  function historyRequest(queryFragment: string) {
+    return httpMock.expectOne((r) => r.method === "POST" && r.body.query.includes(queryFragment));
+  }
+
+  /** Settles the three page reads and returns the store, with `lines` in hand. */
+  function settled(lines: FrontPageLinesQueryData["lines"] = []): HomeStore {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    flushPageReads(lines);
+    return store;
+  }
+
+  function flushPageReads(lines: FrontPageLinesQueryData["lines"]): void {
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("FrontPageLines"))
+      .flush({ data: { lines } });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly !== true,
+      )
+      .flush({ data: feedData([], false, null) });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly === true,
+      )
+      .flush({ data: feedData([], false, null) });
+  }
+
+  it("issues neither history read until a WIDGET opts in, and never before the lines read has data", async () => {
+    // Two gates, and both are load-bearing. The store holds the reads but does not ask for them: only
+    // the surface that renders the answer calls `requestHistoryReads()`, so a store with no mounted
+    // history widget (and every store spec that is about the feed) issues neither.
+    const store = settled([makeLine("a"), makeLine("b")]);
+    // Nothing pending at all: reading the projections is not what makes the request, opting in is.
+    expect(httpMock.match(() => true)).toHaveLength(0);
+
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    // `expectOne` IS the existence assertion: a gate that still returned `undefined` would leave
+    // nothing to capture.
+    const network = historyRequest("NetworkStatusHistory");
+    const perLine = historyRequest("LinesStatusHistory");
+    network.flush({ data: { networkStatusHistory: [] } });
+    perLine.flush({ data: { linesStatusHistory: [] } });
+    await Promise.resolve();
+    expect(httpMock.match(() => true)).toHaveLength(0);
+  });
+
+  it("asks for nothing while the lines read is still empty, then both reads once it lands", async () => {
+    // The lines gate is the second half of the laziness: an empty network has no history, and the
+    // request must not go out until the id list it would send actually exists.
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    flushPageReads([]);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    // An empty network has no history to ask about, and the id list the per-line read would send does
+    // not exist yet — so neither goes out.
+    expect(httpMock.match(() => true)).toHaveLength(0);
+
+    store.reloadFirstPages();
+    await afterVariablesChange();
+    flushPageReads([makeLine("a")]);
+    await afterVariablesChange();
+
+    // The lines gate opening is all it took: both reads fire as soon as there is something to ask
+    // about, without a widget having to ask twice.
+    historyRequest("NetworkStatusHistory").flush({ data: { networkStatusHistory: [] } });
+    historyRequest("LinesStatusHistory").flush({ data: { linesStatusHistory: [] } });
+    await Promise.resolve();
+  });
+
+  it("sends compile-time-constant variables: no dayStartHour, and the line ids SORTED", async () => {
+    // 🔴 The SSR contract. `retainDataIfEqual` / TransferState reuse the server's payload only when
+    // the client computes IDENTICAL variables, so anything derived from a clock or from a reactive
+    // view order here would silently refetch on every hydration. `dayStartHour` is therefore absent
+    // (the backend default of 3 applies) and the ids are sorted, so the board's sort cannot reorder
+    // the array and re-fire a read that asked for exactly the same lines.
+    const store = settled([makeLine("b"), makeLine("a"), makeLine("c")]);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    store.networkHistory();
+    const networkReq = httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("NetworkStatusHistory"),
+    );
+    expect(networkReq.request.body.variables).toEqual({});
+    networkReq.flush({ data: { networkStatusHistory: [hour(3)] } });
+
+    store.linesHistoryFor("a");
+    const linesReq = httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("LinesStatusHistory"),
+    );
+    expect(linesReq.request.body.variables).toEqual({ lineIds: ["a", "b", "c"] });
+    linesReq.flush({
+      data: {
+        linesStatusHistory: [
+          { lineId: "a", buckets: [hour(2)] },
+          { lineId: "b", buckets: [hour(0)] },
+          { lineId: "c", buckets: [hour(5)] },
+        ],
+      },
+    });
+    await Promise.resolve();
+
+    // The per-line lookup answers by id, in whatever order the server chose to answer.
+    expect(store.linesHistoryFor("a").map((b) => b.count)).toEqual([2]);
+    expect(store.linesHistoryFor("c").map((b) => b.count)).toEqual([5]);
+    expect(store.networkHistory().map((b) => b.count)).toEqual([3]);
+  });
+
+  it("never sends more line ids than the backend accepts", async () => {
+    // Above 64 ids the backend answers with a typed GraphQL error rather than a silent truncation, so
+    // a board that grew past the cap would take the whole per-line read — and every strip — down.
+    const many = Array.from({ length: 70 }, (_, index) =>
+      makeLine(`l${String(index).padStart(2, "0")}`),
+    );
+    const store = settled(many);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    // Both reads are on the wire now; this test is about the per-line one, so the network one is
+    // settled here rather than left for `verify()` to complain about.
+    historyRequest("NetworkStatusHistory").flush({ data: { networkStatusHistory: [] } });
+    const req = historyRequest("LinesStatusHistory");
+    const sent = req.request.body.variables.lineIds as string[];
+    expect(sent).toHaveLength(HISTORY_LINE_ID_CAP);
+    expect(sent).toEqual([...sent].sort());
+    req.flush({ data: { linesStatusHistory: [] } });
+    await Promise.resolve();
+  });
+
+  it("reads an EMPTY history as 'nothing reported', never as an error", async () => {
+    // `[]` is the backend's documented no-data answer for both reads. A widget that treated it as a
+    // failure would show an error state for a quiet service day.
+    const store = settled([makeLine("a")]);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    historyRequest("NetworkStatusHistory").flush({ data: { networkStatusHistory: [] } });
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(store.networkHistory()).toEqual([]);
+    expect(store.networkHistoryFailed()).toBe(false);
+
+    historyRequest("LinesStatusHistory").flush({
+      data: { linesStatusHistory: [{ lineId: "a", buckets: [] }] },
+    });
+    await Promise.resolve();
+
+    // An entry with no buckets is this line's "nothing reported", which is a DIFFERENT state from
+    // "the read never answered for this line" — and the two must not collapse.
+    expect(store.linesHistoryFor("a")).toEqual([]);
+    expect(store.linesHistoryFailed()).toBe(false);
+  });
+
+  it("isolates a FAILED history read to its own widget — never to hasError, isLoading or isRefreshing", async () => {
+    // 🔴 This phase's acceptance rule, and the reason the store keeps two separate error signals.
+    // `hasError` drives the page-level retry banner, `isLoading` the board skeleton and
+    // `isRefreshing` the control's "Updating" label. Folding a decorative chart into any of the three
+    // would replace a working page — statuses, feed, every row — with one banner because a sparkline
+    // would not load.
+    const store = settled([makeLine("a")]);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    historyRequest("NetworkStatusHistory").flush(
+      { message: "boom" },
+      { status: 500, statusText: "Server Error" },
+    );
+    historyRequest("LinesStatusHistory").flush(
+      { message: "boom" },
+      { status: 500, statusText: "Server Error" },
+    );
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+
+    // Each widget knows its own read failed, so each can hide itself.
+    expect(store.networkHistoryFailed()).toBe(true);
+    expect(store.linesHistoryFailed()).toBe(true);
+
+    // …and the page does not. Every one of the three page-level flags is a plain `false`, not merely
+    // "unchanged": the assertion is that a broken chart is invisible to the whole page.
+    expect(store.hasError()).toBe(false);
+    expect(store.isLoading()).toBe(false);
+    expect(store.isLoadingLastWeek()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+    // …and the data the page already had is untouched.
+    expect(store.lines().map((line) => line.id)).toEqual(["a"]);
+    expect(store.feedLinks()).toEqual([]);
+  });
+
+  it("keeps an in-flight history read out of isRefreshing, so 'Updating' tracks the page's data", async () => {
+    // The complement of the failure rule: a slow chart request must not hold the refresh
+    // confirmation open for a beat that already settled, and must not claim the page is updating.
+    const store = settled([makeLine("a")]);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    // Both reads are genuinely on the wire — `expectOne` is the existence assertion — and the page
+    // still reports itself as idle while they are.
+    const inFlight = historyRequest("NetworkStatusHistory");
+    const alsoInFlight = historyRequest("LinesStatusHistory");
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.hasError()).toBe(false);
+
+    inFlight.flush({ data: { networkStatusHistory: [hour(1)] } });
+    alsoInFlight.flush({ data: { linesStatusHistory: [] } });
+    await Promise.resolve();
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The feed's line filter (Phase 3)
+ *
+ * One signal derives every feed variable — the two resources, both continuations and (deliberately)
+ * neither overlay read — so a filtered list can never be drawn next to an unfiltered denominator, and
+ * a continuation page can never disagree with the first page it follows.
+ * ---------------------------------------------------------------------- */
+
+describe("HomeStore: the feed line filter", () => {
+  let httpMock: HttpTestingController;
+  let requestMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    requestMock = vi
+      .fn()
+      .mockResolvedValue({ publicSocialMediaLinks: { edges: [], pageInfo: {} } });
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
+        HomeStore,
+        {
+          provide: AuthService,
+          useValue: {
+            isLoggedIn: signal(false),
+            isAdmin: () => false,
+            idToken: async () => "token",
+            whenReady: Promise.resolve(),
+          },
+        },
+        { provide: GraphQLClient, useValue: { request: requestMock } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    localStorage.clear();
+  });
+
+  function feedRequest() {
+    return httpMock.expectOne(
+      (r) =>
+        r.method === "POST" &&
+        r.body.query.includes("query Feed") &&
+        r.body.variables?.lastWeekOnly !== true,
+    );
+  }
+
+  function lastWeekRequest() {
+    return httpMock.expectOne(
+      (r) =>
+        r.method === "POST" &&
+        r.body.query.includes("query Feed") &&
+        r.body.variables?.lastWeekOnly === true,
+    );
+  }
+
+  /**
+   * Creates the store and settles ONLY the lines read, leaving both feed requests pending for the
+   * test to flush with whatever window and page info it needs.
+   *
+   * Split that way deliberately: a helper that also flushed the feeds would leave a test that wants
+   * `hasNextPage: true` with nothing to flush, which is the shape a cursor-pagination assertion has to
+   * set up by hand anyway.
+   */
+  function started(): HomeStore {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("FrontPageLines"))
+      .flush({ data: { lines: [] } });
+    return store;
+  }
+
+  it("sends NO lineId at all when no line is selected", () => {
+    const store = started();
+    const todayReq = feedRequest();
+    const lastWeekReq = lastWeekRequest();
+    const unfilteredToday = todayReq.request.body.variables;
+    const unfilteredLastWeek = lastWeekReq.request.body.variables;
+    todayReq.flush({ data: feedData([], false, null) });
+    lastWeekReq.flush({ data: feedData([], false, null) });
+
+    // The key's ABSENCE is the unfiltered state, never an explicit `null` — `FeedQueryVars.lineId` is
+    // `string | undefined` so the null spelling cannot even be written.
+    expect(store.lineFilter()).toBeNull();
+    expect(unfilteredToday).not.toHaveProperty("lineId");
+    expect(unfilteredLastWeek).not.toHaveProperty("lineId");
+    expect(httpMock.match(() => true)).toHaveLength(0);
+  });
+
+  it("narrows BOTH feed resources to the selected line, and clears back to the whole network", async () => {
+    const store = started();
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+
+    store.setLineFilter("line-42");
+    await afterVariablesChange();
+
+    const today = feedRequest();
+    const lastWeek = lastWeekRequest();
+    expect(today.request.body.variables).toEqual({
+      first: FEED_PAGE_SIZE,
+      status: "LIVE",
+      currentServiceDayOnly: true,
+      collapseThreads: true,
+      lineId: "line-42",
+    });
+    expect(lastWeek.request.body.variables).toEqual({
+      first: LAST_WEEK_PAGE_SIZE,
+      status: "LIVE",
+      lastWeekOnly: true,
+      alignPageToDay: true,
+      collapseThreads: true,
+      lineId: "line-42",
+    });
+    today.flush({ data: feedData([makeFeedLink("x")], false, null) });
+    lastWeek.flush({ data: feedData([], false, null) });
+
+    // And back off it, which is what the filter's own "All lines" affordance does.
+    store.setLineFilter(null);
+    await afterVariablesChange();
+    const clearedToday = feedRequest();
+    const clearedLastWeek = lastWeekRequest();
+    expect(clearedToday.request.body.variables).not.toHaveProperty("lineId");
+    expect(clearedLastWeek.request.body.variables).not.toHaveProperty("lineId");
+    clearedToday.flush({ data: feedData([], false, null) });
+    clearedLastWeek.flush({ data: feedData([], false, null) });
+    expect(store.lineFilter()).toBeNull();
+  });
+
+  it("treats an empty string as 'no filter' rather than as a filter to nothing", () => {
+    const store = started();
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+
+    store.setLineFilter("");
+
+    expect(store.lineFilter()).toBeNull();
+    expect(httpMock.match(() => true)).toHaveLength(0);
+  });
+
+  it("carries the filter into BOTH continuation pages", async () => {
+    // A continuation is a fresh request with its own variables, so it must agree with the first page
+    // it follows in the filter as well as in the collapse flag — otherwise "Load More" silently
+    // switches the reader back to the whole network.
+    const store = started();
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], true, "cursor-x") });
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w1")], true, "cursor-w") });
+    await Promise.resolve();
+
+    store.setLineFilter("line-42");
+    await afterVariablesChange();
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], true, "cursor-x") });
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w1")], true, "cursor-w") });
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await store.loadMore();
+    await store.loadMoreLastWeek();
+
+    expect(requestMock).toHaveBeenNthCalledWith(1, expect.stringContaining("query Feed"), {
+      first: FEED_PAGE_SIZE,
+      after: "cursor-x",
+      status: "LIVE",
+      currentServiceDayOnly: true,
+      collapseThreads: true,
+      lineId: "line-42",
+    });
+    expect(requestMock).toHaveBeenNthCalledWith(2, expect.stringContaining("query Feed"), {
+      first: LAST_WEEK_PAGE_SIZE,
+      after: "cursor-w",
+      status: "LIVE",
+      lastWeekOnly: true,
+      alignPageToDay: true,
+      collapseThreads: true,
+      lineId: "line-42",
+    });
+  });
+
+  it("DROPS every appended page for both feeds when the filter changes", async () => {
+    // 🔴 The pagination correctness rule. A cursor is only meaningful inside the query that minted
+    // it: continuing an unfiltered `cursor-x` under a narrowed read returns an arbitrary slice of
+    // the network, and keeping the appended rows would render the previous filter's links next to the
+    // new one's. The reader loses their Load More place, which is the honest cost of changing WHAT
+    // they are reading — and the 30s beat, which does not change the filter, still preserves it.
+    const store = started();
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], true, "cursor-x") });
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w1")], true, "cursor-w") });
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
+    await store.loadMore();
+    await store.loadMoreLastWeek();
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
+    // One root per fixture page, so each feed's total is its own page's `totalCount`.
+    expect(store.feedTotalCount()).toBe(1);
+    expect(store.lastWeekTotalCount()).toBe(1);
+
+    store.setLineFilter("line-42");
+    await afterVariablesChange();
+
+    // Both feeds are re-read under the new filter, and neither response carries a row the previous
+    // filter had appended: "x"/"y" and "w1"/"w2" are simply not in the answer, so the appended sets
+    // had to be dropped for the page to be correct at all.
+    const todayReq = feedRequest();
+    const lastWeekReq = lastWeekRequest();
+    expect(todayReq.request.body.variables.lineId).toBe("line-42");
+    todayReq.flush({ data: feedData([makeFeedLink("z")], true, "cursor-z") });
+    lastWeekReq.flush({ data: feedData([makeFeedLink("w3")], true, "cursor-w3") });
+    await Promise.resolve();
+
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["z"]);
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w3"]);
+    // …and the denominator and the cursor come from THAT page, not from the frozen appended ones.
+    expect(store.feedTotalCount()).toBe(1);
+    expect(store.lastWeekTotalCount()).toBe(1);
+    expect(store.feedPageInfo()?.endCursor).toBe("cursor-z");
+    expect(store.lastWeekPageInfo()?.endCursor).toBe("cursor-w3");
+  });
+
+  it("is a no-op for an equal value, so re-selecting the current filter resets nothing", async () => {
+    const store = started();
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], true, "cursor-x") });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
+    await store.loadMore();
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
+
+    store.setLineFilter("line-42");
+    store.setLineFilter("line-42");
+    await afterVariablesChange();
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    expect(store.feedLinks()).toEqual([]);
   });
 });
 

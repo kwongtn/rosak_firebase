@@ -29,9 +29,22 @@ export interface MethodologyConstant {
  * "Unconfirmed". It counts reports the BACKEND already scopes per line, so it is a pure
  * corroboration threshold — the smallest number that means "several people, independently" — and
  * not a measurement of anything.
+ *
+ * The three history constants came with the service-day history widgets (`features/home/data/
+ * status-history-display.util.ts`, published as `network.activity-sparkline`, `network.heat-strip`
+ * and `network.line-history-strip`). All three MIRROR backend values rather than invent thresholds:
+ * the service day starts at hour `SERVICE_DAY_START_HOUR` and the backend zero-fills
+ * `SERVICE_DAY_HOURS` buckets from there, and the heat grid's opacity ladder has
+ * `HEAT_INTENSITY_STEPS` steps. They are here so a widget's label and its `/methodology` sentence
+ * cannot drift from the shape the backend actually returns — and `status-history-display.util.spec.ts`
+ * pins each of them against the code that uses it, so a backend change that is not mirrored here
+ * fails a test instead of quietly mislabelling a chart.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
   NEEDS_ATTENTION_PASSENGER_RANK: { value: 5, source: "LINE_STATUS_DERIVE.md" },
   CONFIRMED_MIN_REPORTS: { value: 3, source: "LINE_STATUS_DERIVE.md" },
+  SERVICE_DAY_START_HOUR: { value: 3, source: "LINE_STATUS_DERIVE.md" },
+  SERVICE_DAY_HOURS: { value: 24, source: "LINE_STATUS_DERIVE.md" },
+  HEAT_INTENSITY_STEPS: { value: 5, source: "LINE_STATUS_DERIVE.md" },
 };

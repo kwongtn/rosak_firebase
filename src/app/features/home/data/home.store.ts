@@ -16,7 +16,14 @@ import {
   FeedQueryVars,
   FRONT_PAGE_LINES_QUERY,
   FrontPageLinesQueryData,
+  LINES_STATUS_HISTORY_QUERY,
   LinePulse,
+  LineStatusHourBucket,
+  LinesStatusHistoryQueryData,
+  LinesStatusHistoryQueryVars,
+  NETWORK_STATUS_HISTORY_QUERY,
+  NetworkStatusHistoryQueryData,
+  NetworkStatusHistoryQueryVars,
 } from "./home.queries";
 import {
   NetworkSummary,
@@ -72,6 +79,16 @@ export const HIGHLIGHT_VISIBLE_MS = 2000;
  * window is a backend-computed boolean rather than a `new Date()` baked into the variables.
  */
 const HOME_FEED_COLLAPSE_VARS = { collapseThreads: true } as const;
+
+/**
+ * The most line ids `linesStatusHistory` accepts.
+ *
+ * The backend answers anything above this with a typed GraphQL error rather than a silent
+ * truncation, so a board that grew past 64 lines would take the whole per-line read down with it.
+ * The cap is enforced HERE, at the variable, rather than discovered in production — and it is
+ * declared next to the resource so a future backend cap bump has exactly one place to move.
+ */
+export const HISTORY_LINE_ID_CAP = 64;
 
 /**
  * How the board's "All lines" group orders the lines no higher group claimed.
@@ -181,20 +198,25 @@ function recordSubtreeVotes(node: VoteOverlayNode, overlay: Record<string, numbe
 
 /**
  * Route-scoped store for the community front page (provided by the route in a later wave —
- * deliberately NOT `providedIn: "root"`). Owns the two reads the page needs (the line pulse
- * list and the public feed), cursor pagination for the feed, a shared polling beat, and a
- * per-user vote overlay.
+ * deliberately NOT `providedIn: "root"`). Owns the three page-critical reads (the line pulse
+ * list and the two feed windows), the two LAZY service-day history reads behind the history
+ * widgets, cursor pagination for the feed, a shared polling beat, a per-user vote overlay, and the
+ * feed's line filter.
  *
  * The overlay exists because `graphqlResource()` sends no auth token, so `userVote` from the
  * feed is always 0. When logged in, two authenticated `GraphQLClient.request` reads — one per feed
- * resource, with the same variables each of those resources sends, plus the caller's idToken as a
- * header — record every non-zero vote; `userVoteFor()` prefers that overlay over the anonymous feed
- * value, and `userVotes` exposes the whole map for hosts that render one conversation (root plus
- * its whole tree) per row. The read's variables and its window are load-bearing, not a
- * convenience: see the invariant on `loadVoteOverlay()`.
+ * resource, with the same variables each of those resources sends EXCEPT the feed's `lineId`
+ * filter, plus the caller's idToken as a header — record every non-zero vote; `userVoteFor()`
+ * prefers that overlay over the anonymous feed value, and `userVotes` exposes the whole map for
+ * hosts that render one conversation (root plus its whole tree) per row. The read's variables and
+ * its window are load-bearing, not a convenience: see the invariant on `loadVoteOverlay()`.
  *
  * This is the one surface that collapses conversations — see `HOME_FEED_COLLAPSE_VARS` for why
  * that is a correctness requirement rather than a presentation choice.
+ *
+ * 🔴 **The history reads are NOT page-critical and are deliberately kept out of `hasError` /
+ * `isLoading` / `isRefreshing`.** See the block comment above `networkHistoryResource`: a chart
+ * that will not load hides itself, and never takes the page's retry banner with it.
  */
 @Injectable()
 export class HomeStore {
@@ -216,6 +238,70 @@ export class HomeStore {
     query: FRONT_PAGE_LINES_QUERY,
   }));
 
+  /**
+   * Which line the FEED is narrowed to, or `null` for the whole network.
+   *
+   * A signal rather than a page-local input for the reason every other piece of this page's view
+   * state is in the store: **one source derives every feed variable.** The two resources, both
+   * `loadMore*` continuations and — deliberately NOT — the two authenticated vote-overlay reads all
+   * derive from this one signal, so the page cannot end up with a filtered list drawn next to an
+   * unfiltered "Showing N of M", or a continuation page that disagrees with its own first page.
+   *
+   * `null` is the ABSENCE of the filter and is spread in conditionally, never sent as `null` — see
+   * `FeedQueryVars.lineId`.
+   *
+   * Phase 3 ships the plumbing only: the filter controls land in the next phase, so nothing sets
+   * this yet except a deep link that does so through `setLineFilter`.
+   */
+  private readonly _lineFilter = signal<string | null>(null);
+  readonly lineFilter = this._lineFilter.asReadonly();
+
+  /**
+   * Narrows BOTH feeds to one line, or clears the filter with `null`.
+   *
+   * 🔴 **Every appended-page signal for both feeds is cleared on the same edge**, and that is the
+   * whole point of doing this in the store rather than in a control. Appended pages carry a CURSOR,
+   * and a cursor is only meaningful inside the query that produced it: asking for "the page after
+   * `cursor-x` narrowed to LRT" when `cursor-x` was minted by an unfiltered read returns an
+   * arbitrary slice of the network rather than the continuation of what the reader is looking at.
+   * Keeping them would also leave rows the previous filter selected rendered next to rows the new
+   * one selected — the exact stale-page state `reloadAll()` exists to prevent. The reader loses
+   * their Load More place, which is the honest cost of changing WHAT they are reading; the poll
+   * beat's 30s refresh, which does not change the filter, still preserves it (see
+   * `reloadFirstPages()`).
+   *
+   * A no-op for an equal value, so a toggle that re-selects the current filter resets nothing.
+   */
+  setLineFilter(lineId: string | null): void {
+    const next = lineId === "" ? null : lineId;
+    if (next === this._lineFilter()) {
+      return;
+    }
+    this._lineFilter.set(next);
+    this.appendedEdges.set([]);
+    this.appendedHasNext.set(null);
+    this.appendedTotalCount.set(null);
+    this.nextCursor.set(null);
+    this.lastWeekAppendedEdges.set([]);
+    this.lastWeekAppendedHasNext.set(null);
+    this.lastWeekAppendedTotalCount.set(null);
+    this.lastWeekNextCursor.set(null);
+  }
+
+  /**
+   * The `lineId` key as a SPREADABLE object, present only while a filter is set.
+   *
+   * One narrowing site for four call sites (two resources + two continuations), and it is a
+   * `computed` rather than a helper so a filter change invalidates every one of them at once. The
+   * alternative — testing `this._lineFilter()` twice inside each variables literal — loses the
+   * narrowing on the second read and widens `lineId` back to `string | null`, which is precisely the
+   * spelling `FeedQueryVars.lineId` exists to make unrepresentable.
+   */
+  private readonly _lineFilterVars = computed<{ lineId?: string }>(() => {
+    const lineId = this._lineFilter();
+    return lineId === null ? {} : { lineId };
+  });
+
   private readonly feedResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => ({
     query: FEED_QUERY,
     variables: {
@@ -223,6 +309,8 @@ export class HomeStore {
       status: "LIVE",
       currentServiceDayOnly: true,
       ...HOME_FEED_COLLAPSE_VARS,
+      // Conditionally spread so "no filter" is the key's ABSENCE — see `FeedQueryVars.lineId`.
+      ...this._lineFilterVars(),
     },
   }));
 
@@ -240,10 +328,152 @@ export class HomeStore {
       lastWeekOnly: true,
       alignPageToDay: true,
       ...HOME_FEED_COLLAPSE_VARS,
+      ...this._lineFilterVars(),
     },
   }));
 
   readonly lines = computed<LinePulse[]>(() => this.linesResource.data()?.lines ?? []);
+
+  /* ------------------------------------------------------------------ *
+   * The service-day history widgets — two lazy reads, two widgets, and
+   * NEITHER of them is allowed to become a page-level error
+   * ------------------------------------------------------------------ *
+   *
+   * Both resources below are LAZY in the strict sense — nothing reads them until a WIDGET does, so a
+   * board with no mounted history surface issues neither read. They are additionally GATED on the
+   * lines read having data, because both are answers to "what has happened to the network" and a
+   * network with no lines has no history to ask about; that gate is the documented lazy precedent
+   * — `graphqlResource(() => { if (!gate()) return undefined; return { query, variables }; })` —
+   * and it also means a board whose lines read FAILED never fires two more requests that would fail
+   * the same way.
+   *
+   * 🔴 **FAILURE ISOLATION — the acceptance rule of this phase.** A failing history read hides its
+   * OWN widget and nothing else. It deliberately does NOT feed `hasError`, `isLoading`,
+   * `isRefreshing` or `isLoadingLastWeek`, because those four drive the page-level retry banner, the
+   * board skeleton and the refresh control's "Updating" label: folding a decorative sparkline into
+   * them would replace a whole working page — statuses, feed, every row — with one banner because a
+   * chart would not load. The widgets therefore read their OWN `hasError` (`networkHistoryFailed` /
+   * `linesHistoryFailed`) and render nothing. This is a deliberate asymmetry with the three
+   * page-critical reads, and `home.store.spec.ts` pins it by failing a history read and asserting
+   * every one of those four flags stayed false.
+   *
+   * 🔴 **THE WIDGETS ASK FOR THEM.** Both resources stay inert until `requestHistoryReads()` is
+   * called, which each history widget does in its own constructor. That is not only the lazy-resource
+   * convention — it is forced, and the reason is worth recording because it is invisible from the
+   * call site: `graphqlResource` installs an `effect` that reads `isLoading()`/`data()` on the
+   * underlying `httpResource`, so the moment the store is constructed the request function is
+   * ALREADY being evaluated and re-evaluated. A gate that only the projections satisfied would
+   * therefore not defer the request at all — only the `lines()` gate would, and it is the wrong gate:
+   * it would fire both reads for every store, including the ones whose widgets are never mounted
+   * (a Rider view has no heat grid) and including every store spec that is about the feed. One
+   * explicit opt-in from the surface that actually renders the data is the only gate that is honest
+   * about what is being requested, and it is the same arrangement `LineStatusChartComponent`'s
+   * `expanded` input and the station sheet's `open` state already use.
+   *
+   * `dayStartHour` is NEVER sent (the backend default of 3 applies), and `linesStatusHistory`'s id
+   * list is SORTED — both because the variables object has to be structurally identical between the
+   * server render and the client hydration for the TransferState payload to be reused instead of
+   * refetched. No `new Date()`, no client clock, and no board-order dependency: the same set of ids
+   * in the same order, whatever the sort is set to.
+   */
+
+  /**
+   * Set by the history widgets on mount. `false` until then, which is what keeps both reads — and
+   * every store spec that is not about them — completely untouched.
+   */
+  private readonly _historyReadsRequested = signal(false);
+
+  /**
+   * Asks the store to run the two service-day history reads. Called by the widgets that draw them,
+   * never by the page.
+   *
+   * Idempotent by construction: `signal.set` with an equal value does not notify, so a second row
+   * mounting adds nothing and re-entering `/` re-requests nothing.
+   */
+  requestHistoryReads(): void {
+    this._historyReadsRequested.set(true);
+  }
+
+  /** The network-wide hour tally behind the hero's sparkline. Inert until lines have landed. */
+  private readonly networkHistoryResource = graphqlResource<
+    NetworkStatusHistoryQueryData,
+    NetworkStatusHistoryQueryVars
+  >(() => {
+    if (!this._historyReadsRequested() || this.lines().length === 0) {
+      return undefined;
+    }
+    return { query: NETWORK_STATUS_HISTORY_QUERY, variables: {} };
+  });
+
+  /** The line ids the per-line read asks for: every line's id, sorted, capped at the backend limit. */
+  private readonly _historyLineIds = computed<string[]>(() =>
+    this.lines()
+      .map((line) => line.id)
+      .sort()
+      .slice(0, HISTORY_LINE_ID_CAP),
+  );
+
+  /**
+   * Every line's hour buckets in ONE request, behind the board's strips and the Pro heat grid.
+   *
+   * Inert while there are no lines. `.sort()` with no comparator rather than `localeCompare`, on
+   * purpose: this array must be byte-identical in every process that builds it, and a locale
+   * collation is not a total order the same everywhere.
+   */
+  private readonly linesHistoryResource = graphqlResource<
+    LinesStatusHistoryQueryData,
+    LinesStatusHistoryQueryVars
+  >(() => {
+    const lineIds = this._historyLineIds();
+    if (!this._historyReadsRequested() || lineIds.length === 0) {
+      return undefined;
+    }
+    return { query: LINES_STATUS_HISTORY_QUERY, variables: { lineIds } };
+  });
+
+  /**
+   * The network's hourly report tally for the hero's sparkline.
+   *
+   * `[]` is the documented "nothing reported in this service day" answer, not an error: the widget
+   * hides itself on an empty array exactly as it does on `hasError`, and neither state is ever
+   * rendered as a failure.
+   */
+  readonly networkHistory = computed<LineStatusHourBucket[]>(
+    () => this.networkHistoryResource.data()?.networkStatusHistory ?? [],
+  );
+
+  /** True when the NETWORK history read failed — its widget's own hide signal, never `hasError`. */
+  readonly networkHistoryFailed = this.networkHistoryResource.hasError;
+
+  /**
+   * Every line's buckets, keyed by line id, for the row strips and the Pro heat grid.
+   *
+   * A MAP rather than an array lookup per widget because there is one of these per rendered row and
+   * one per grid row: sixteen rows each scanning sixteen entries is a linear scan nobody can see
+   * until the board grows. An entry present with an EMPTY `buckets` array means the backend answered
+   * for that line and the line simply reported nothing this service day — the two states are
+   * distinguishable here and are NOT collapsed.
+   */
+  private readonly _linesHistoryById = computed<Map<string, LineStatusHourBucket[]>>(() => {
+    const byId = new Map<string, LineStatusHourBucket[]>();
+    for (const entry of this.linesHistoryResource.data()?.linesStatusHistory ?? []) {
+      byId.set(entry.lineId, entry.buckets);
+    }
+    return byId;
+  });
+
+  /**
+   * One line's hourly buckets for its row strip, or `[]` when nothing has landed for it.
+   *
+   * A method rather than a `computed()` per row because a component would then need a factory or a
+   * prebuilt list; reading a `Map` is already O(1) and the caller is a template binding.
+   */
+  linesHistoryFor(lineId: string): LineStatusHourBucket[] {
+    return this._linesHistoryById().get(lineId) ?? [];
+  }
+
+  /** True when the PER-LINE history read failed — its widgets' own hide signal, never `hasError`. */
+  readonly linesHistoryFailed = this.linesHistoryResource.hasError;
 
   /* ------------------------------------------------------------------ *
    * The board's derived views — a PARTITION of `lines()`, no new reads
@@ -435,6 +665,10 @@ export class HomeStore {
       this.linesResource.isFetching() ||
       this.feedResource.isFetching() ||
       this.lastWeekResource.isFetching(),
+    // The history resources are excluded here for the same reason they are excluded from
+    // `hasError`: "Updating…" describes the page's LIVE numbers, and a chart request in flight is
+    // not the reader's data changing. Its absence also keeps a slow history read from holding the
+    // confirmation open for a beat that already settled.
   );
 
   /** True while a `loadMore()` continuation page is in flight (the resources' own loading state
@@ -446,6 +680,11 @@ export class HomeStore {
       this.linesResource.hasError() ||
       this.feedResource.hasError() ||
       this.lastWeekResource.hasError(),
+    // 🔴 The two HISTORY resources are deliberately absent, and their exclusion is this phase's
+    // acceptance rule rather than an oversight: a sparkline that will not load must not replace a
+    // working page with the retry banner. Each history widget hides itself on its own
+    // `networkHistoryFailed` / `linesHistoryFailed` instead. `home.store.spec.ts` fails a history
+    // read and asserts this stays false.
   );
 
   /** Per-user vote overlay, keyed by link id. Populated only for logged-in callers. */
@@ -468,11 +707,14 @@ export class HomeStore {
    * difference; AND the loop must walk EVERY level of the nesting, not only the roots in `edges`
    * and not only their direct children. The page renders each root with its whole conversation
    * tree nested under it, so `loadVoteOverlay()` collapses its reads the same way and recurses
-   * through `sublinks` at every depth (`recordSubtreeVotes`). Do not "simplify" that walk back to
-   * `edges`, do not stop it at one level, and do not drop a window flag: an uncollapsed, a
-   * wider-windowed, or a shallower-walked read is a DIFFERENT id set, and the walk is the only
-   * thing standing between a collapsed render and an anonymous-zero fallback for every node the
-   * render shows but the walk never reaches.
+   * through `sublinks` at every depth (`recordSubtreeVotes`). 🔴 **The feed's line filter is the ONE
+   * key the overlay may omit** (and the one it must): the overlay reads stay unfiltered because a
+   * wider read is harmless under this invariant, while a narrowed one would drop every id outside
+   * the selected line. Do not "simplify" that walk back to `edges`, do not stop it at one level,
+   * do not drop a window flag, and do not copy the filter into the overlay: an uncollapsed, a
+   * wider-windowed, a filtered, or a shallower-walked read is a DIFFERENT id set, and the walk is
+   * the only thing standing between a collapsed render and an anonymous-zero fallback for every
+   * node the render shows but the walk never reaches.
    *
    * CADENCE — that equality is claimed at MOUNT TIME, and the overlay is deliberately a mount-time
    * SNAPSHOT rather than something re-read on the poll beat. Since the beat started refreshing page
@@ -548,8 +790,13 @@ export class HomeStore {
   }
 
   constructor() {
-    // httpResource is lazy until first read — read both so the store fetches on creation
+    // httpResource is lazy until first read — read each so the store fetches on creation
     // (the route-scoped store is created when the page mounts).
+    //
+    // 🔴 The two HISTORY resources are deliberately NOT read here: they wait for a widget's
+    // `requestHistoryReads()` (see the block above for why that gate is necessary rather than
+    // merely tidy), so a store with no mounted history surface — and every store spec that is about
+    // the feed rather than about the charts — issues neither read.
     this.lines();
     this.feedLinks();
     this.lastWeekLinks();
@@ -601,7 +848,13 @@ export class HomeStore {
   }
 
   /** Reloads all three resources and drops appended continuation pages (they belong to the stale
-   * dataset). */
+   * dataset).
+   *
+   * The two HISTORY resources are reloaded here too, because this is the "the whole dataset is
+   * invalid" path (submit / edit / report / the retry banner's "Try Now") and a reader who just
+   * filed a report should not have to reload to see the service-day bar they just moved. The 30s
+   * beat deliberately does NOT (`reloadFirstPages`) — a chart that redraws every 30 seconds is noise,
+   * and the service-day aggregate it draws barely changes inside one tick. */
   reloadAll(): void {
     this.appendedEdges.set([]);
     this.appendedHasNext.set(null);
@@ -614,6 +867,8 @@ export class HomeStore {
     this.linesResource.reload();
     this.feedResource.reload();
     this.lastWeekResource.reload();
+    this.networkHistoryResource.reload();
+    this.linesHistoryResource.reload();
   }
 
   /**
@@ -662,6 +917,10 @@ export class HomeStore {
         status: "LIVE",
         currentServiceDayOnly: true,
         ...HOME_FEED_COLLAPSE_VARS,
+        // The same conditional spread the resource uses, and for the same reason: a continuation
+        // page is a FRESH request with its own variables, so a cursor minted under one filter must
+        // not be continued under another (see `setLineFilter`).
+        ...this._lineFilterVars(),
       });
       const connection = data.publicSocialMediaLinks;
       this.appendedEdges.update((prev) => [...prev, ...connection.edges]);
@@ -691,6 +950,7 @@ export class HomeStore {
         lastWeekOnly: true,
         alignPageToDay: true,
         ...HOME_FEED_COLLAPSE_VARS,
+        ...this._lineFilterVars(),
       });
       const connection = data.publicSocialMediaLinks;
       this.lastWeekAppendedEdges.update((prev) => [...prev, ...connection.edges]);
@@ -726,6 +986,17 @@ export class HomeStore {
    *     last-week read likewise carries the same `lastWeekOnly` + `alignPageToDay` window as
    *     `lastWeekResource`. A *wider* read is harmless (an extra id costs nothing, and an absent id
    *     and an unused id behave identically); a *different* read is not.
+   *
+   *     🔴 **THE ONE KEY THE OVERLAY MAY OMIT IS `lineId`, AND IT IS THE ONLY ONE.** The feed's line
+   *     filter narrows the RENDERED rows (`FeedQueryVars.lineId`), so the overlay reads stay
+   *     UNFILTERED — deliberately, and in the direction that is safe: a wider read is harmless under
+   *     the rule above (an extra id costs nothing), while a narrowed one would drop every id outside
+   *     the selected line and render a rider's own vote as anonymous. It is also the only way that
+   *     stays true as the filter changes mid-session, since the overlay is a mount-time SNAPSHOT
+   *     (see CADENCE) and a filtered read would freeze the filter's answer at that instant.
+   *     `home.store.spec.ts` pins the asymmetry structurally: the overlay variables equal the
+   *     mirrored resource's variables EXACTLY, less the single `lineId` key — no more, no less.
+   *
    *  2. THE WALK. The read is collapsed, so `edges` alone holds only the roots. Every node below a
    *     root is also rendered and also votable, so the walk recurses through `sublinks` at EVERY
    *     depth — see `recordSubtreeVotes`. This is not hypothetical: a version that walked the roots
@@ -757,6 +1028,11 @@ export class HomeStore {
     // A per-request failure is already surfaced by `GraphQLClient` (toast + Sentry), so there is
     // nothing to rethrow — and swallowing it keeps the constructor's fire-and-forget
     // `void this.loadVoteOverlay()` from producing an unhandled rejection.
+    //
+    // 🔴 Neither variables object below spreads the feed's `lineId` filter, and that is the ONE
+    // documented asymmetry with the two resources. Do not "fix" it by copying the spread across:
+    // a filtered overlay is a NARROWER read than the render, which is the direction that loses
+    // votes (see the invariant above).
     const results = await Promise.allSettled([
       this.graphql.request<FeedQueryData, FeedQueryVars>(
         FEED_QUERY,

@@ -16,6 +16,7 @@ import {
 } from "../../../core/url-state/query-param.util";
 import { BOARD_SORTS, BoardSort, DEFAULT_BOARD_SORT, HomeStore } from "../data/home.store";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
+import { NetworkHeatStripComponent } from "../pro/network-heat-strip.component";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
 import { LinePulseRowComponent } from "./line-pulse-row.component";
 
@@ -75,7 +76,7 @@ const VIEW_PARAM = "view";
  */
 @Component({
   selector: "app-network-board",
-  imports: [HlmSkeleton, LinePulseCardComponent, LinePulseRowComponent],
+  imports: [HlmSkeleton, LinePulseCardComponent, LinePulseRowComponent, NetworkHeatStripComponent],
   template: `
     <div class="flex flex-col gap-4" data-testid="network-board">
       @if (_showSkeleton()) {
@@ -157,6 +158,17 @@ const VIEW_PARAM = "view";
             }
           </div>
         </div>
+
+        <!-- PRO ONLY. The heat grid is the one widget on this page that compares lines against each
+             OTHER rather than describing one, and that is a question a rider does not have; it also
+             takes a whole screen of the page's width, so a Rider view would be spending that on
+             something they never look at. The gate is the SAME effective view the controls row
+             writes, so a Pro reader arriving on ?view=pro sees the grid and a reader who never
+             switched does not pay for it. It hides itself on a failed read (see
+             NetworkHeatStripComponent) rather than tripping the page's retry banner. -->
+        @if (_view() === "pro") {
+          <app-network-heat-strip />
+        }
 
         <!-- The attention group is the only one that HIDES when empty: a reader with nothing broken
              must not scroll past a "Needs attention · 0" heading to find out there is nothing. -->

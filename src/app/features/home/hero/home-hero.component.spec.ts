@@ -9,7 +9,7 @@ import {
 } from "../../../core/methodology/methodology-render.util";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
-import type { LinePulse } from "../data/home.queries";
+import type { LinePulse, LineStatusHourBucket } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
 import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeHeroComponent } from "./home-hero.component";
@@ -95,6 +95,12 @@ describe("HomeHeroComponent", () => {
     isLoading: ReturnType<typeof signal<boolean>>;
     isLoadingLastWeek: ReturnType<typeof signal<boolean>>;
     hasError: ReturnType<typeof signal<boolean>>;
+    // The hosted sparkline reads the store's service-day history read. It is EMPTY here on purpose:
+    // this spec is about the hero's own numbers, and the sparkline has its own spec — what matters
+    // here is that hosting it adds no request of its own and no visible DOM when it has nothing.
+    networkHistory: ReturnType<typeof signal<LineStatusHourBucket[]>>;
+    networkHistoryFailed: ReturnType<typeof signal<boolean>>;
+    requestHistoryReads: ReturnType<typeof vi.fn>;
     polling: {
       intervalMs: ReturnType<typeof signal<number | null>>;
       secondsRemaining: ReturnType<typeof signal<number>>;
@@ -114,6 +120,9 @@ describe("HomeHeroComponent", () => {
       isLoading: signal(false),
       isLoadingLastWeek: signal(false),
       hasError: signal(false),
+      networkHistory: signal<LineStatusHourBucket[]>([]),
+      networkHistoryFailed: signal(false),
+      requestHistoryReads: vi.fn(),
       polling: {
         intervalMs: signal<number | null>(30000),
         secondsRemaining: signal(30),
@@ -147,9 +156,56 @@ describe("HomeHeroComponent", () => {
   it("reads only its inputs — the hero issues no request of its own", () => {
     render(networkLines());
     // Everything on screen is derived from `lines` + `linksToday`; the page passes both from reads
-    // it already has. A new request here would be the phase's acceptance criterion broken.
+    // it already has. A new request here would be the phase's acceptance criterion broken. The two
+    // hosted store-reading widgets (refresh control, sparkline) read the STORE's resources, not their
+    // own, so hosting them does not change that.
     expect(fixture.componentInstance.lines()).toHaveLength(16);
     expect(fixture.componentInstance.linksToday()).toBe(0);
+  });
+
+  it("hosts the network sparkline, and it stays invisible while the history read has no data", () => {
+    const root = render(networkLines());
+
+    // The hero asks the store for the read (the widget owns that opt-in) but draws nothing itself.
+    expect(storeMock.requestHistoryReads).toHaveBeenCalled();
+    expect(root.querySelector('[data-testid="network-sparkline"]')).toBeNull();
+  });
+
+  it("draws the sparkline once the store's network history has data", () => {
+    storeMock.networkHistory.set([
+      {
+        hourStart: "2026-09-21T19:00:00+00:00",
+        hourEnd: "2026-09-21T20:00:00+00:00",
+        count: 4,
+        dominantStatus: "NORMAL",
+        statusCounts: [{ status: "NORMAL", count: 4 }],
+      },
+    ]);
+    const root = render(networkLines());
+
+    expect(root.querySelector('[data-testid="network-sparkline"]')).not.toBeNull();
+    expect(root.querySelectorAll('[data-testid="sparkline-bar"]')).toHaveLength(1);
+  });
+
+  it("draws no sparkline when that read failed, and leaves the rest of the hero intact", () => {
+    storeMock.networkHistoryFailed.set(true);
+    storeMock.networkHistory.set([
+      {
+        hourStart: "2026-09-21T19:00:00+00:00",
+        hourEnd: "2026-09-21T20:00:00+00:00",
+        count: 4,
+        dominantStatus: "NORMAL",
+        statusCounts: [{ status: "NORMAL", count: 4 }],
+      },
+    ]);
+    const root = render(networkLines());
+
+    // Widget-level failure isolation, seen from the host: a broken chart does not blank the hero, and
+    // does not put the page's retry banner up either.
+    expect(root.querySelector('[data-testid="network-sparkline"]')).toBeNull();
+    expect(root.querySelector('[data-testid="hero-headline"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="hero-actions"]')).not.toBeNull();
+    expect(storeMock.hasError()).toBe(false);
   });
 
   it("renders the plain-language headline with the normal/attention counts", () => {

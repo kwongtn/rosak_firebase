@@ -14,6 +14,7 @@ import type { LinePulse } from "../data/home.queries";
 import { summarizeNetwork } from "../data/network-summary.util";
 import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeRefreshControlComponent } from "../refresh-control/home-refresh-control.component";
+import { NetworkSparklineComponent } from "./network-sparkline.component";
 
 /** One official (operator-sourced) post on the worst line, as the callout needs it. */
 interface OfficialUpdate {
@@ -30,12 +31,12 @@ interface OfficialUpdate {
  * It reads NOTHING of its own. `lines` and `linksToday` arrive as inputs from `HomePage`, which
  * already has both reads in flight (`linesResource` / the today feed's own `totalCount`), so the
  * hero costs zero additional network requests — the whole component is a projection over data the
- * page already had. The rolled-up numbers live in the pure `summarizeNetwork`, not here, so the same
- * rule can be reused by the board's ordering and unit-tested without a DOM. (It hosts
- * `app-home-refresh-control`, which injects `HomeStore` itself — the same arrangement as the
- * page's mobile copy, and likewise no read of its own.) The rolled-up numbers live in the pure
- * `summarizeNetwork`, not here, so the same rule can be reused by the board's ordering and
- * unit-tested without a DOM.
+ * page already had. It HOSTS two components that read the store themselves rather than through
+ * inputs, and both are the store's own reads rather than hero-authored ones:
+ * `app-home-refresh-control` (the poll beat's countdown) and `app-network-sparkline`
+ * (`HomeStore.networkHistory()` — the store's lazy service-day read, gated on the lines read having
+ * landed). The rolled-up numbers live in the pure `summarizeNetwork`, not here, so the same
+ * rule can be reused by the board's ordering and unit-tested without a DOM.
  *
  * The CTA row is **intent-based**, not feature-based: "Report a delay" is what somebody standing
  * on a platform is trying to do, and it is the one action this page is best at. It opens the
@@ -53,7 +54,14 @@ interface OfficialUpdate {
  */
 @Component({
   selector: "app-home-hero",
-  imports: [RouterLink, HlmBadge, HlmButton, HomeRefreshControlComponent, InfoPopover],
+  imports: [
+    RouterLink,
+    HlmBadge,
+    HlmButton,
+    HomeRefreshControlComponent,
+    InfoPopover,
+    NetworkSparklineComponent,
+  ],
   template: `
     <section
       class="bg-card text-card-foreground border-border relative flex flex-col gap-4 overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-6"
@@ -167,6 +175,13 @@ interface OfficialUpdate {
           <span class="text-muted-foreground text-xs">Links today</span>
         </div>
       </div>
+
+      <!-- The network's SHAPE over the service day, under the numbers that describe right now. It
+           reads HomeStore.networkHistory() — the store owns the lazy read — so the hero still
+           authors no request of its own, exactly like app-home-refresh-control below. It hides
+           itself entirely when that read fails or when nothing was reported today, because a
+           decorative chart is not worth a retry banner over a working page. -->
+      <app-network-sparkline />
 
       <div class="flex flex-wrap items-center gap-2" data-testid="hero-actions">
         <!-- 🔴 Opens the report CHOOSER, not the line-status sheet. "Report a delay" names an

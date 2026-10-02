@@ -113,6 +113,12 @@ function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSo
     // The post-submit highlight. A real `signal` (not a literal) because the board reacts to its
     // CHANGES — the mock has to be able to ring a line the way `HomeStore.highlightLine()` does.
     highlightedLineId: signal<string | null>(null),
+    // The Pro heat grid reads the store's per-line service-day history. Empty here so the rider-view
+    // specs are not about it; the grid's own spec covers its rendering, and the two Pro assertions
+    // below cover the gate.
+    linesHistoryFor: () => [],
+    linesHistoryFailed: signal(false),
+    requestHistoryReads: vi.fn(),
   };
   return store;
 }
@@ -408,6 +414,28 @@ describe("NetworkBoardComponent", () => {
     expect((rows[0].componentInstance as LinePulseRowComponent).density()).toBe("compact");
     expect((rows[0].componentInstance as LinePulseRowComponent).viewMode()).toBe("pro");
     expect(root.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+  });
+
+  it("mounts the heat grid for a PRO board only, never for a rider", async () => {
+    // The grid is the one widget here that compares lines against EACH OTHER and it costs a screen of
+    // width, so it is behind the same effective-view gate the controls row writes: a rider must not
+    // pay for it, and a Pro reader arriving on ?view=pro must get it.
+    const riderRoot = await board([makeLine("a")]);
+    expect(riderRoot.querySelector('[data-testid="network-heat-strip"]')).toBeNull();
+    // One read has already been asked for in a rider view — by the compact ROW's own history strip,
+    // which is a rider-facing widget. The grid adds no second read, because both read the same one.
+    expect(storeMock.requestHistoryReads).toHaveBeenCalledTimes(1);
+
+    riderRoot.querySelector<HTMLElement>('[data-testid="board-view-pro"]')?.click();
+    fixture.detectChanges();
+
+    // Pro with no history data: the grid is mounted but draws nothing, because "no data" is its own
+    // hidden state rather than an empty grid of quiet lines.
+    expect(riderRoot.querySelector('[data-testid="network-heat-strip"]')).toBeNull();
+    // Two widgets have now asked (the row's strip and the grid), and they still share ONE store read:
+    // the second opt-in is a `signal.set` with an equal value, which does not notify, so no second
+    // request goes out. The spy counts constructions, not reads — which is the property being pinned.
+    expect(storeMock.requestHistoryReads).toHaveBeenCalledTimes(2);
   });
 
   /* ---- URL state -------------------------------------------------------------------- */

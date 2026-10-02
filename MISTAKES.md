@@ -1106,3 +1106,41 @@ cleanup. Any spec that makes a lazy resource go live (opening a sheet with a kno
 it, even when the request is irrelevant to what it asserts. When a suite suddenly fails in files the
 change did not touch, read the FIRST failure in file order, not the last — and remember that a
 `TestBed.inject()` placed before `configureTestingModule()` throws the same misleading message.
+
+## [2026-10-03] core/graphql: a `graphqlResource` is NOT lazy until first read — it evaluates its request immediately
+
+**Problem**: the network board's two service-day history reads were added to `HomeStore` behind the
+documented lazy-resource precedent (`graphqlResource(() => { if (!gate()) return undefined; … })`, plus
+"the resource is lazy until first read — read it in the constructor"). Both reads still fired as soon as
+the **lines** read landed, in every store instance and in every store spec, whether or not a widget that
+renders them was mounted.
+**Root Cause**: `graphqlResource()` installs `effect(() => { raw.isLoading(); rawHasError(); data(); … })`
+at CALL time (`core/graphql/graphql-client.ts`). That effect subscribes to the underlying `httpResource`
+immediately, so the request function is being evaluated — and re-evaluated whenever its signals change —
+from the moment `graphqlResource()` is called. "Lazy until first read" is therefore only true for a
+resource whose signals nobody ever reads _and whose request function depends on nothing that changes_; a
+`lines()`-style gate still fires as soon as its own dependency resolves. A gate that only the exported
+projections satisfied defers nothing at all.
+**Fix**: an explicit opt-in from the surface that renders the data —
+`HomeStore.requestHistoryReads()`, called from each history widget's constructor. The store then holds two
+gates: the opt-in AND the data it needs (`lines().length > 0`). Side benefit: every store spec that is
+about the feed is untouched by the two extra queries, and a board in Rider view (no heat grid) never asks
+for them.
+**Prevention**: "lazy resource" in this codebase means _gated on a signal the DISPLAY sets_, not _read by
+nobody until a projection is read_. When adding a store-owned read, decide which component's lifetime
+should own it and put the gate on that component's existence; then check whether a store spec that
+constructs the store now needs to flush a request it does not care about. Related: `httpMock.match()`
+DEQUEUES, so it cannot be used to ask "is this request pending?" — `expectOne` and keep the object.
+
+## [2026-10-03] testing: `httpMock.match()` dequeues, so a "is it pending?" probe eats the request
+
+**Problem**: several new store specs asserted `expect(httpMock.match(() => true)).toHaveLength(1)` and
+then, on the next line, `expectOne(...)` the same request — which threw "Expected one matching request
+… found none". Several more failed in `afterEach` with "Expected no open requests", because the probe had
+already consumed them.
+**Root Cause**: `HttpClientTestingBackend.match()` REMOVES what it matches, exactly like `expectOne`. It is
+not a read-only probe, and its name suggests it is.
+**Prevention**: assert existence with `expectOne` and keep the returned request; use `match()` only when
+the test genuinely intends to consume everything still open (e.g. a final "nothing is pending" check).
+And when a variables change re-issues a request, capture BOTH resources' requests before flushing either
+— `expectOne` twice for the same predicate fails on the second call.

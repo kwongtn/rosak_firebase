@@ -21,6 +21,7 @@ import { passengerLabel, passengerVariant } from "../data/passenger-status.util"
 import { StatusInfo, lineStatusInfo } from "../data/status-info.util";
 import type { StatusConfidence } from "../data/status-confidence.util";
 import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
+import { LineHistoryStripComponent } from "./line-history-strip.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
 import { StatusInfoChipComponent } from "./status-info-chip.component";
@@ -51,6 +52,12 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * gated on the same `expanded` input the card passes — so an expanded row's chart and reports are
  * lazy in exactly the same way, and a `refreshTick` from the poll beat reloads them the same way.
  *
+ * `app-line-history-strip` sits ABOVE the disclosure and is NOT gated on it: it is the row's answer
+ * to "when was this line reported today", in 24 cells, always on screen. It reads the store's single
+ * `linesStatusHistory` request (which serves every row on the page), so sixteen rows cost one read
+ * rather than sixteen, and it hides itself entirely when this line reported nothing or that read
+ * failed.
+ *
  * `LineStatusSheetService.openFor` is the report action, the same cross-component trigger the card
  * uses. 🔴 That is the WHOLE of the report affordance here: the full "which line?" chooser is a
  * later phase, and until it lands the row's report button is exactly as honest as the card's — it
@@ -63,6 +70,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
     HlmButton,
     NgIcon,
     RouterLink,
+    LineHistoryStripComponent,
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
@@ -201,6 +209,12 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
           </a>
         </div>
       }
+
+      <!-- The line's own service-day shape, ABOVE the disclosure: 24 cells of "when was this line
+           reported", always visible from ONE store-level read. aria-hidden with a text alternative
+           (see LineHistoryStripComponent), and hidden entirely when the line reported nothing today
+           or that read failed. -->
+      <app-line-history-strip [lineId]="line().id" />
 
       @if (_expanded()) {
         <div
