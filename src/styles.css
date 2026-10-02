@@ -102,6 +102,18 @@
   }
 }
 
+/* Brand orange. The site's accent hue for the network board's hero ribbon and small highlights —
+   deliberately NOT a replacement for `--primary`, which stays the blue every action control uses.
+   Two values because an orange background needs its own legible foreground, and one white-on-orange
+   pair that fails contrast on the dark card.
+   `inline` rather than a default `@theme` entry on purpose: it makes `bg-brand` compile to
+   `background-color: var(--brand)`, so the `.dark` override below is picked up automatically with
+   no `dark:` utility and no chance of the two drifting apart. */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+}
+
 /* Dark mode is toggled by ThemeService adding/removing `.dark` on <html> — not by
    `prefers-color-scheme` — so `dark:` utilities need to key off that class. */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -215,6 +227,9 @@ body {
   --accent: oklch(0.93 0.03 255);
   --accent-foreground: oklch(0.25 0.03 255);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Brand orange (#ee7104) — accent only, never an action control's fill. */
+  --brand: #ee7104;
+  --brand-foreground: #ffffff;
   --border: oklch(0.9 0.02 255);
   --input: oklch(0.9 0.02 255);
   --ring: oklch(0.55 0.19 255);
@@ -246,6 +261,10 @@ body {
   --accent: oklch(0.32 0.045 255);
   --accent-foreground: oklch(0.96 0.01 255);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Lifted for the dark card: the light-mode orange is too close to the dark background's value
+     range to hold a solid fill, while this one still reads as the same hue. */
+  --brand: #f79331;
+  --brand-foreground: #1a0f04;
   --border: oklch(1 0.02 255 / 12%);
   --input: oklch(1 0.02 255 / 16%);
   --ring: oklch(0.6 0.12 255);

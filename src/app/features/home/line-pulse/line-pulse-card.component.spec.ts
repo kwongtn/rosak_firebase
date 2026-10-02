@@ -6,6 +6,7 @@ import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import {
   metricDoc,
   renderMethodologyCopy,
@@ -56,6 +57,7 @@ function textOf(root: HTMLElement, testId: string): string {
 describe("LinePulseCardComponent", () => {
   let fixture: ComponentFixture<LinePulseCardComponent>;
   let httpMock: HttpTestingController;
+  let preferences: PreferencesService;
   let sheetMock: {
     isOpen: ReturnType<typeof signal<boolean>>;
     lineId: ReturnType<typeof signal<string | null>>;
@@ -82,12 +84,20 @@ describe("LinePulseCardComponent", () => {
       openFor: vi.fn(),
       setOpen: vi.fn(),
     };
+    // The pin is real state that outlives one fixture, so each test starts from a clean store
+    // rather than inheriting whatever the previous card pinned.
+    localStorage.clear();
 
     await TestBed.configureTestingModule({
       imports: [LinePulseCardComponent],
       providers: [
         provideZonelessChangeDetection(),
-        provideRouter([]),
+        // The card's menu links OUT to the spotting feature, so the router must resolve
+        // `/spotting/:lineId` and its `details` child — with an empty route table the click in the
+        // "closes on choosing a link" spec rejects with NG04002 instead of navigating.
+        provideRouter([
+          { path: "spotting/:lineId", children: [{ path: "details", children: [] }] },
+        ]),
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
         { provide: ReportSheetService, useValue: reportSheetMock },
@@ -96,6 +106,7 @@ describe("LinePulseCardComponent", () => {
 
     fixture = TestBed.createComponent(LinePulseCardComponent);
     httpMock = TestBed.inject(HttpTestingController);
+    preferences = TestBed.inject(PreferencesService);
   });
 
   afterEach(() => {
@@ -190,6 +201,25 @@ describe("LinePulseCardComponent", () => {
       ?.parentElement as HTMLElement;
     expect(actions.className).not.toContain("items-stretch");
     expect(actions.className).toContain("items-start");
+  });
+
+  it("names the two actions as the reader's intent, not as internal nouns", () => {
+    const root = render(makeLine());
+
+    expect(textOf(root, "submit-line-status")).toBe("Report status");
+    expect(textOf(root, "add-spotting-entry")).toBe("Log spotting");
+  });
+
+  it("draws the line's own colour as a leading accent rail", () => {
+    const root = render(makeLine({ displayColor: "#00af91" }));
+
+    const rail = [...root.querySelectorAll<HTMLElement>("section > span")].find(
+      (span) => span.getAttribute("aria-hidden") === "true" && span.style.backgroundColor !== "",
+    );
+    expect(rail).toBeDefined();
+    // A backend hex rather than a themed token, so identification survives dark mode without a
+    // second, dark-only colour table.
+    expect(rail?.style.backgroundColor).toBe("rgb(0, 175, 145)");
   });
 
   it("lists the non-zero vehicle counts by status when the vehicle count is hovered", () => {
@@ -415,6 +445,84 @@ describe("LinePulseCardComponent", () => {
     expect(root.querySelector('[data-testid="line-status-chart"]')).not.toBeNull();
     expect(root.querySelectorAll('[data-testid="line-status-bar"]')).toHaveLength(1);
     expect(root.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(1);
+  });
+
+  describe("the kebab menu", () => {
+    function openMenu(root: HTMLElement): void {
+      const trigger = root.querySelector<HTMLButtonElement>('[data-testid="line-card-menu"]');
+      expect(trigger).not.toBeNull();
+      trigger?.click();
+      fixture.detectChanges();
+    }
+
+    it("keeps pin and the two Line HQ links behind a collapsed, labelled menu", () => {
+      const root = render(makeLine({ id: "line-42" }));
+
+      const trigger = root.querySelector('[data-testid="line-card-menu"]');
+      expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+      expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
+      expect(trigger?.getAttribute("aria-label")).toBe("More actions for KJL");
+      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
+      // The two reporting actions are the only visible buttons on a collapsed card.
+      expect(root.querySelectorAll("button[data-testid]").length).toBeGreaterThan(0);
+      expect(root.querySelector('[data-testid="line-card-pin"]')).toBeNull();
+      expect(root.querySelector('[data-testid="line-card-hq"]')).toBeNull();
+      expect(root.querySelector('[data-testid="line-card-hq-details"]')).toBeNull();
+
+      openMenu(root);
+
+      expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+      const panel = root.querySelector('[data-testid="line-card-menu-panel"]');
+      expect(panel?.getAttribute("role")).toBe("menu");
+      expect(panel?.querySelectorAll('[role="menuitem"]').length).toBe(3);
+    });
+
+    it("links out to this line's Line HQ and details pages", () => {
+      const root = render(makeLine({ id: "line-42" }));
+      openMenu(root);
+
+      expect(root.querySelector('[data-testid="line-card-hq"]')?.getAttribute("href")).toBe(
+        "/spotting/line-42",
+      );
+      expect(root.querySelector('[data-testid="line-card-hq-details"]')?.getAttribute("href")).toBe(
+        "/spotting/line-42/details",
+      );
+    });
+
+    it("pins through PreferencesService and closes", () => {
+      const root = render(makeLine({ id: "line-42" }));
+      expect(preferences.isPinned("line-42")).toBe(false);
+
+      openMenu(root);
+      expect(textOf(root, "line-card-pin")).toBe("Pin this line");
+      root.querySelector<HTMLButtonElement>('[data-testid="line-card-pin"]')?.click();
+      fixture.detectChanges();
+
+      expect(preferences.isPinned("line-42")).toBe(true);
+      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
+
+      openMenu(root);
+      expect(textOf(root, "line-card-pin")).toBe("Unpin this line");
+    });
+
+    it("closes on Escape, on an outside click, and on choosing a link", () => {
+      const root = render(makeLine());
+
+      openMenu(root);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      fixture.detectChanges();
+      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
+
+      openMenu(root);
+      document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      fixture.detectChanges();
+      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
+
+      openMenu(root);
+      root.querySelector<HTMLAnchorElement>('[data-testid="line-card-hq"]')?.click();
+      fixture.detectChanges();
+      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
+    });
   });
 
   it("forwards refreshTick to the expanded chart and reports", () => {

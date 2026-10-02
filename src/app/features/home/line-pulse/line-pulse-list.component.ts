@@ -1,21 +1,32 @@
 import { Component, computed, input } from "@angular/core";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { LinePulse } from "../data/home.queries";
+import { lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
 
 /** Matches the typical above-the-fold line count, so the first paint doesn't jump. */
 const SKELETON_ROWS = 3;
 
-/** Shared by the "Other lines" summary — the same disclosure idiom as the tracker's checklist. */
-const SUMMARY_CLASS =
-  "bg-card sticky top-0 z-10 flex cursor-pointer items-center justify-between gap-2 py-1 text-sm font-medium";
-
 /**
- * The front page's line list: skeleton rows while the first read settles, a friendly empty
- * state, otherwise one LinePulseCardComponent per line. Active lines lead the list; anything
- * not ACTIVE (testing, partial, disrupted…) folds into a collapsed "Other lines" disclosure at
- * the bottom, so a degraded line never reads as the page's primary signal. Purely
- * presentational — the host owns HomeStore.lines()/isLoading() and passes them in.
+ * The front page's line board: skeleton rows while the first read settles, a friendly empty state,
+ * otherwise one LinePulseCardComponent per line in a single **worst-first** order.
+ *
+ * ⚠️ The previous shape led with every ACTIVE line and folded everything else into a collapsed
+ * "Other lines" disclosure. That was the right instinct — a degraded line must not read as routine
+ * — and the wrong mechanism: hiding the two deadest lines behind a summary the reader has to go and
+ * open means the page's own hero, which just said "3 lines need attention", leads with a column of
+ * lines that are fine. The fold also inverted the priority it was meant to protect, because a
+ * rider scanning for a problem read the healthy majority first and the headline grew every time
+ * another line came back normal.
+ *
+ * So the ordering is the priority, applied to one flat list: everything needing attention
+ * (severity-sorted, worst first) and then the healthy lines, under one caption that names the
+ * count. The rule and the tiebreak live in the pure `sortLinesBySeverity`
+ * (`data/network-summary.util.ts`), and the caption counts with the SAME `lineNeedsAttention`
+ * predicate the hero's tiles use — so the hero, the callout and this board cannot disagree about
+ * which lines need attention or which is worse.
+ *
+ * Purely presentational — the host owns `HomeStore.lines()`/`isLoading()` and passes them in.
  */
 @Component({
   selector: "app-line-pulse-list",
@@ -33,40 +44,19 @@ const SUMMARY_CLASS =
           No lines yet.
         </p>
       } @else {
-        @for (line of _activeLines(); track line.id) {
-          <app-line-pulse-card [line]="line" [refreshTick]="refreshTick()" />
+        @if (_attentionCount() > 0) {
+          <h2
+            class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+            data-testid="line-board-attention-heading"
+          >
+            Needs attention · {{ _attentionCount() }}
+          </h2>
         }
 
-        @if (_otherLines().length > 0) {
-          <details class="group" data-testid="other-lines">
-            <summary data-testid="other-lines-summary" [class]="SUMMARY_CLASS">
-              <span class="flex items-center gap-1.5">
-                <svg
-                  viewBox="0 0 24 24"
-                  class="text-muted-foreground size-3.5 shrink-0 transition-transform duration-150 group-open:rotate-180"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-                Other lines
-                <span
-                  class="bg-primary text-primary-foreground inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-normal tabular-nums"
-                >
-                  {{ _otherLines().length }}
-                </span>
-              </span>
-            </summary>
-            <div class="mt-3 flex flex-col gap-3">
-              @for (line of _otherLines(); track line.id) {
-                <app-line-pulse-card [line]="line" [refreshTick]="refreshTick()" />
-              }
-            </div>
-          </details>
+        @for (line of _orderedLines(); track line.id) {
+          <div data-testid="line-board-row">
+            <app-line-pulse-card [line]="line" [refreshTick]="refreshTick()" />
+          </div>
         }
       }
     </div>
@@ -78,13 +68,13 @@ export class LinePulseListComponent {
   /** The host's poll beat, forwarded to every card so an open accordion re-reads its data. */
   readonly refreshTick = input(0);
 
-  protected readonly SUMMARY_CLASS = SUMMARY_CLASS;
   protected readonly _skeletons = Array.from({ length: SKELETON_ROWS });
 
-  protected readonly _activeLines = computed(() =>
-    this.lines().filter((line) => line.status === "ACTIVE"),
-  );
-  protected readonly _otherLines = computed(() =>
-    this.lines().filter((line) => line.status !== "ACTIVE"),
+  /** Worst first — see the component doc comment for why this replaced the "Other lines" fold. */
+  protected readonly _orderedLines = computed(() => sortLinesBySeverity(this.lines()));
+
+  /** The caption's count, from the hero's own predicate so the two can never disagree. */
+  protected readonly _attentionCount = computed(
+    () => this.lines().filter(lineNeedsAttention).length,
   );
 }

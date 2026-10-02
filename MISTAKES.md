@@ -15,6 +15,36 @@
 
 ## Traps
 
+### [2026-10-03] core/preferences: a storage-backed signal service has TWO races with hydration — one throws NG0500, the other silently destroys the stored state
+
+**Problem**: `PreferencesService` was built on the `ThemeService` pattern — signals plus a
+`localStorage` read in the constructor. Two separate failures follow from that shape in an SSR app:
+(1) reading storage in the constructor means the client's first paint already has the rider's
+pinned lines while the server HTML never could, so hydration throws `NG0500` for any rider who had
+ever pinned anything (and not at all for a fresh rider, which is the worst kind of bug); (2) the
+persist `effect` fires on its FIRST run, which happens _before_ the read has landed, so the service
+writes the empty defaults over the real stored payload — silent, no error, and it looked like the
+storage layer was simply not working.
+**Root Cause**: two different orderings, one trap. The constructor read is synchronous and
+unconditional, so it necessarily runs on the server; and an `effect`'s first run is not a
+"change", it is the initial scheduling — gating only on a signal _change_ (rather than on having
+hydrated at all) does not stop it. Neither `ThemeService` nor any other existing service in the repo
+hits this because none of them is written defensively: `ThemeService` reads storage in its
+constructor too, so it has the same first exposure and simply has not been caught yet (its stored
+value is a single enum, so a mismatch degrades to a wrong theme for one frame instead of throwing).
+**Fix**: the service constructs on the **defaults** and hydrates inside `afterNextRender`, which
+does not run on the server at all; the persist effect is gated on a private `_hydrated()` flag set at
+the end of that same pass. Stored fields are validated **independently** (corrupt JSON, a non-object
+payload, an unknown enum value and a wrong-typed id each fall back on their own) because a
+half-recognisable payload is the common case when a shape changes, not an edge case.
+**Prevention**: in an SSR app, a storage-backed service must treat the constructor as
+**server**-capable and the first effect run as **pre-hydration**. Read in `afterNextRender`
+(or `afterRenderEffect`), gate every write on "have I read yet", and **spec it with
+`{ provide: PLATFORM_ID, useValue: "server" }` plus `vi.spyOn(Storage.prototype, "getItem"/"setItem")`
+asserting NEITHER is ever called** — a jsdom TestBed runs as a browser by default and will never
+catch either failure. See also the sibling rule for anything a _reactive_ `router.navigate()` does
+during SSR: it hangs the render, so the browser guard belongs at the call site too.
+
 ### [2026-10-02] build: a Tailwind arbitrary variant starting with `@` does not compile in an Angular template — and the dev server will serve you a STALE bundle while you chase it
 
 **Problem**: a short-viewport rule on the 404 page was written as the obvious utility,

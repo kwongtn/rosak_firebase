@@ -43,6 +43,9 @@ export interface MetricDoc {
 /** The date every v1 entry was last checked against its owning spec. */
 const REVIEWED_AT_SHIP = "2026-09-24";
 
+/** Bumped when the network board's headline metrics landed on the front page (2026-10-03). */
+const REVIEWED_AT_NETWORK_BOARD = "2026-10-03";
+
 /**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
@@ -84,7 +87,7 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     body: "How line status is derived is owned by LINE_STATUS_DERIVE.md; this section renders once that rule ships.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_SHIP,
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
     inProgress: true,
   },
   {
@@ -261,5 +264,38 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_SHIP,
+  },
+  {
+    // The front page's own headline metric — features/home/hero/home-hero.component.ts reads it
+    // through the hero's InfoPopover. Registered here so the number in the tile and the sentence
+    // on /methodology can never be phrased differently.
+    id: "network.lines-normal",
+    sectionId: "line-status",
+    title: "Lines running normally",
+    definition:
+      "A line counts as running normally when its operational status is Active and no rider has reported it Delayed or Disrupted in the current window. The headline reads “N of M lines running normally”.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  {
+    id: "network.needs-attention",
+    sectionId: "line-status",
+    title: "Needs attention",
+    definition:
+      "A line needs attention when it is not fully operational, or when a rider has reported it at passenger severity {{NEEDS_ATTENTION_PASSENGER_RANK}} or above (Delayed and above) in the current window. Crowding reports below that level describe one carriage rather than the service, so they do not count against the line.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  {
+    id: "network.severity-order",
+    sectionId: "line-status",
+    title: "Worst line first",
+    definition:
+      "Lines needing attention are ordered by operational severity first — Total Disruption, then Partial Disruption, Partial Active, Defunct, Testing, Active — and by rider-reported severity second. Defunct and Testing sit below the partial states deliberately: they are settled facts a rider cannot act on, not something to wait out.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
   },
 ];

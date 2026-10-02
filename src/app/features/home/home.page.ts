@@ -1,4 +1,16 @@
-import { Component, computed, effect, inject, signal, type OnDestroy } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  PLATFORM_ID,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+  type OnDestroy,
+} from "@angular/core";
+import { isPlatformBrowser } from "@angular/common";
+import { Meta } from "@angular/platform-browser";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -21,9 +33,19 @@ import { LinePulse } from "./data/home.queries";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
+import { HomeHeroComponent } from "./hero/home-hero.component";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-control.component";
+
+/**
+ * One paragraph for crawlers and link previews. It names the mechanism and never a number — every
+ * figure on this page is derived from the line read, and each rule behind one is defined in the
+ * methodology registry (`core/methodology/`), which the hero's own info popover links to.
+ */
+const META_DESCRIPTION =
+  "MLPTF's live network board: how every rail line is doing right now, today's community links and " +
+  "reports, and one tap to report a delay, log a train sighting or open the live train map.";
 
 /**
  * The community front page — the site's root route. The feed and the per-line pulse list share a
@@ -54,6 +76,7 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
   imports: [
     AppNavComponent,
     AppFooterComponent,
+    HomeHeroComponent,
     LinkSubmitBoxComponent,
     LinkThreadComponent,
     LinkSheetComponent,
@@ -77,6 +100,17 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
         <app-retry-banner [resource]="errorResource" message="Couldn't load the front page." />
       }
 
+      <!-- Full width above the two-column split, not inside it: the headline and the tiles describe
+           the WHOLE page (both columns), so giving them one column would make half the summary lie.
+           It reads the same two signals the page already had (the lines resource and the feed's own
+           totalCount), so it adds no request, and its reportDelay output scrolls down to the board
+           below rather than opening a chooser up here. -->
+      <app-home-hero
+        [lines]="store.lines()"
+        [linksToday]="store.feedTotalCount()"
+        (reportDelay)="scrollToLineBoard()"
+      />
+
       <div
         class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
         data-testid="home-panels"
@@ -97,12 +131,21 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
             @if (store.isLoading() && store.feedLinks().length === 0) {
               <div hlmSkeleton class="h-24 w-full" data-testid="feed-skeleton"></div>
             } @else if (store.feedLinks().length === 0 && !store.hasError()) {
-              <p
-                class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
+              <div
+                class="text-muted-foreground border-border flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center text-sm"
                 data-testid="feed-empty"
               >
-                No links today yet.
-              </p>
+                <span data-testid="feed-empty-copy">No links yet today — be the first</span>
+                <button
+                  hlmBtn
+                  size="sm"
+                  variant="outline"
+                  data-testid="feed-empty-cta"
+                  (click)="openLinkSheet()"
+                >
+                  Share a link
+                </button>
+              </div>
             }
             @for (link of store.feedLinks(); track link.id) {
               <app-link-thread
@@ -210,8 +253,10 @@ import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-cont
         </section>
 
         <section
-          class="border-border flex flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
+          #lineBoard
+          class="border-border flex scroll-mt-24 flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
           aria-label="Line status"
+          data-testid="line-board"
         >
           <!-- Same control as the feed section has, shown from lg up where the line panel is
                the one next to the feed; the hidden/lg:flex pair keeps one instance visible, and
@@ -287,6 +332,10 @@ export class HomePage implements OnDestroy {
   private readonly lineStatusSheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);
   private readonly auth = inject(AuthService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** The board region the hero's "Report a delay" scrolls to; see `scrollToLineBoard`. */
+  private readonly lineBoard = viewChild<ElementRef<HTMLElement>>("lineBoard");
 
   /** Edit flow for feed links — the same shared sheet the insiden/situasi lists host. */
   protected readonly linkSheet = inject(LinkSheetService);
@@ -342,6 +391,11 @@ export class HomePage implements OnDestroy {
   private _wasLinkSheetOpen = false;
 
   constructor() {
+    // Set the route's description for crawlers and link previews. `Meta.updateTag` writes into the
+    // document the server rendered, so the tag is in the SSR HTML rather than only appearing after
+    // hydration — the same one-line call `MethodologyPage` makes.
+    inject(Meta).updateTag({ name: "description", content: META_DESCRIPTION });
+
     this.store.start();
     effect(() => {
       const isOpen = this.linkSheet.isOpen();
@@ -350,6 +404,30 @@ export class HomePage implements OnDestroy {
       }
       this._wasLinkSheetOpen = isOpen;
     });
+  }
+
+  /**
+   * What the hero's "Report a delay" owes the reader: take them to the board, where every line
+   * already carries its own "Report status" button. The chooser that will eventually open instead
+   * belongs to the board, not to a full-width summary strip, so this only scrolls.
+   *
+   * `scroll-mt-24` on the target section keeps the sticky nav from covering the first card's own
+   * header; `smooth` is dropped on a reduced-motion preference rather than fought.
+   */
+  protected scrollToLineBoard(): void {
+    const board = this.lineBoard()?.nativeElement;
+    if (!board || !this.isBrowser) {
+      return;
+    }
+    board.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
+  /** The empty feed's "Share a link" — the same shared sheet the card pencil and hero use. */
+  protected openLinkSheet(): void {
+    this.linkSheet.open();
   }
 
   /** Author-or-admin gate for the card's edit pencil (mirrors LinkListComponent; the home feed

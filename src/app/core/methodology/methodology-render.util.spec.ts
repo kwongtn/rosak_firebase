@@ -23,7 +23,21 @@ describe("methodology render util: renderMethodologyCopy", () => {
       value: 6,
       source: "METHODOLOGY_DOCS.md",
     });
-    expect(Object.keys(METHODOLOGY_CONSTANTS)).toEqual(["STALE_REVIEW_MONTHS"]);
+  });
+
+  it("adds exactly one frontend-owned constant: the needs-attention passenger rank", () => {
+    // Every OTHER methodology number is backend-owned, so this list is deliberately short. The one
+    // addition is a frontend RULE (when a rider-reported status counts against the line), and its
+    // value mirrors the backend enum's position rather than inventing a threshold —
+    // `network-summary.util.spec.ts` then pins the code against the same number.
+    expect(Object.keys(METHODOLOGY_CONSTANTS)).toEqual([
+      "STALE_REVIEW_MONTHS",
+      "NEEDS_ATTENTION_PASSENGER_RANK",
+    ]);
+    expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
+      value: 5,
+      source: "LINE_STATUS_DERIVE.md",
+    });
   });
 
   it("throws on an unknown token instead of leaving it in the output", () => {

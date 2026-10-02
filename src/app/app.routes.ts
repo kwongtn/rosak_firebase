@@ -13,6 +13,7 @@ export const routes: Routes = [
     // The shared line list used by the report form now comes from the root-provided
     // SpottingLinesStore.
     path: "",
+    title: "MLPTF | Live Network Board",
     loadComponent: () => import("./features/home/home.page").then((m) => m.HomePage),
     providers: [HomeStore, LineStatusSheetService],
   },

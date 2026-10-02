@@ -1,8 +1,12 @@
-import { Component, computed, inject, input, signal } from "@angular/core";
+import { Component, ElementRef, computed, inject, input, signal } from "@angular/core";
+import { NgIcon, provideIcons } from "@ng-icons/core";
+import { lucideEllipsisVertical, lucideExternalLink, lucidePin } from "@ng-icons/lucide";
+import { RouterLink } from "@angular/router";
 import {
   metricDoc,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -28,10 +32,22 @@ const MAX_PULSE_LINKS = 5;
 
 /**
  * The per-line pulse card of the community front page: what a line looks like right now
- * (vehicle counts + passenger status + the social entries behind it) plus the two actions that
- * keep the data fresh — "Submit line status" (mobile LineStatusSheetComponent via
- * LineStatusSheetService) and "Add spotting entry" (ReportSheetService, whose sheet the home
- * page hosts).
+ * (vehicle counts + passenger status + the social entries behind it) plus the actions that keep
+ * the data fresh and the ones that take the reader elsewhere.
+ *
+ * **Action hierarchy (deliberate).** Two buttons, one primary and one secondary: "Report status"
+ * (the thing this card exists for — the mobile `LineStatusSheetComponent` via
+ * `LineStatusSheetService`) and "Log spotting" (`ReportSheetService`, whose sheet the home page
+ * hosts). Everything else — pin, and the two links out to the spotting feature — moved INTO the
+ * kebab. That is the whole point of the change: a card whose two most prominent buttons were
+ * equally weighted asked the reader to choose between two things, one of which matters far more
+ * than the other, and put "navigate away from the board" at the same level as "tell us something".
+ *
+ * The kebab is built inline rather than from a shared primitive because `src/app/ui/` has no
+ * dropdown/menu today; it follows the same contract `app-info-popover` established (Escape and
+ * outside-click close, the trigger carries `aria-expanded`/`aria-haspopup`, the panel is
+ * `role="menu"` with `role="menuitem"` children) so a real primitive can replace it later without
+ * changing behaviour.
  *
  * The status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle-count
  * pill opens the per-status breakdown, the passenger chip carries the rolling window it covers
@@ -47,15 +63,30 @@ const MAX_PULSE_LINKS = 5;
   imports: [
     HlmBadge,
     HlmButton,
+    NgIcon,
+    RouterLink,
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
     StatusInfoChipComponent,
   ],
+  providers: [provideIcons({ lucideEllipsisVertical, lucideExternalLink, lucidePin })],
+  host: {
+    "(document:keydown.escape)": "closeMenu()",
+    "(document:click)": "onDocumentClick($event)",
+  },
   template: `
     <section
-      class="bg-card text-card-foreground border-border flex flex-col gap-3 rounded-xl border p-4 shadow-sm"
+      class="bg-card text-card-foreground border-border relative flex flex-col gap-3 overflow-hidden rounded-xl border p-4 pl-5 shadow-sm"
     >
+      <!-- The line's own colour as a rail down the leading edge: identification at a glance
+           without recolouring the card, and it survives dark mode because it is the backend's
+           hex rather than a themed token. -->
+      <span
+        class="absolute inset-y-0 left-0 w-1.5"
+        [style.background-color]="line().displayColor"
+        aria-hidden="true"
+      ></span>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div class="flex min-w-0 flex-col gap-3 sm:flex-1">
           <header class="flex items-start gap-3">
@@ -162,26 +193,85 @@ const MAX_PULSE_LINKS = 5;
           }
         </div>
 
-        <div class="flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row">
-          <button
-            hlmBtn
-            size="sm"
-            data-testid="submit-line-status"
-            class="w-full sm:w-auto"
-            (click)="sheet.openFor(line().id)"
-          >
-            Submit line status
-          </button>
-          <button
-            hlmBtn
-            size="sm"
-            variant="outline"
-            data-testid="add-spotting-entry"
-            class="w-full sm:w-auto"
-            (click)="reportSheet.openFor(line().id)"
-          >
-            Add spotting entry
-          </button>
+        <div class="flex items-start gap-2 sm:shrink-0">
+          <div class="flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row">
+            <button
+              hlmBtn
+              size="sm"
+              data-testid="submit-line-status"
+              class="w-full sm:w-auto"
+              (click)="sheet.openFor(line().id)"
+            >
+              Report status
+            </button>
+            <button
+              hlmBtn
+              size="sm"
+              variant="outline"
+              data-testid="add-spotting-entry"
+              class="w-full sm:w-auto"
+              (click)="reportSheet.openFor(line().id)"
+            >
+              Log spotting
+            </button>
+          </div>
+
+          <!-- Everything that is not one of the two reporting actions lives here, so the card's
+               visible buttons keep a single reading order: report, then log, then everything else. -->
+          <div class="relative">
+            <button
+              hlmBtn
+              size="icon-sm"
+              variant="ghost"
+              data-testid="line-card-menu"
+              [attr.aria-expanded]="_menuOpen()"
+              aria-haspopup="menu"
+              [attr.aria-label]="'More actions for ' + line().code"
+              (click)="toggleMenu()"
+            >
+              <ng-icon name="lucideEllipsisVertical" class="size-4" aria-hidden="true" />
+            </button>
+
+            @if (_menuOpen()) {
+              <div
+                role="menu"
+                aria-label="Line actions"
+                class="bg-popover text-popover-foreground border-border absolute right-0 top-full z-30 mt-1 flex min-w-48 flex-col rounded-lg border p-1 shadow-md"
+                data-testid="line-card-menu-panel"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+                  data-testid="line-card-pin"
+                  (click)="togglePin()"
+                >
+                  <ng-icon name="lucidePin" class="size-4 shrink-0" aria-hidden="true" />
+                  {{ _isPinned() ? "Unpin this line" : "Pin this line" }}
+                </button>
+                <a
+                  role="menuitem"
+                  class="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                  [routerLink]="['/spotting', line().id]"
+                  data-testid="line-card-hq"
+                  (click)="closeMenu()"
+                >
+                  <ng-icon name="lucideExternalLink" class="size-4 shrink-0" aria-hidden="true" />
+                  Line HQ
+                </a>
+                <a
+                  role="menuitem"
+                  class="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                  [routerLink]="['/spotting', line().id, 'details']"
+                  data-testid="line-card-hq-details"
+                  (click)="closeMenu()"
+                >
+                  <ng-icon name="lucideExternalLink" class="size-4 shrink-0" aria-hidden="true" />
+                  Line details
+                </a>
+              </div>
+            }
+          </div>
         </div>
       </div>
 
@@ -212,6 +302,8 @@ export class LinePulseCardComponent {
 
   protected readonly sheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);
+  private readonly preferences = inject(PreferencesService);
+  private readonly _host = inject(ElementRef<HTMLElement>);
 
   protected readonly passengerLabel = passengerLabel;
   protected readonly passengerVariant = passengerVariant;
@@ -222,6 +314,10 @@ export class LinePulseCardComponent {
   protected readonly _hostname = faviconHostnameOf;
 
   protected readonly _expanded = signal(false);
+  protected readonly _menuOpen = signal(false);
+
+  /** Reads the pin signal through a `computed`, so the kebab's label repaints on toggle. */
+  protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
 
@@ -252,6 +348,38 @@ export class LinePulseCardComponent {
   );
 
   protected toggleExpanded(): void {
-    this._expanded.update((open) => !open);
+    const opening = !this._expanded();
+    this._expanded.set(opening);
+    if (opening) {
+      // Opening the panel IS looking at this line, so it joins the recents list the board's later
+      // "jump back to a line you were reading" affordance will read. Recorded on the OPEN edge only,
+      // so collapsing does not push a line nobody is looking at any further up the list.
+      this.preferences.pushRecentLine(this.line().id);
+    }
+  }
+
+  protected toggleMenu(): void {
+    this._menuOpen.update((open) => !open);
+  }
+
+  protected closeMenu(): void {
+    this._menuOpen.set(false);
+  }
+
+  /** Outside-click close. Bound on the host, so a click elsewhere on the page dismisses the panel. */
+  protected onDocumentClick(event: Event): void {
+    if (!this._menuOpen()) {
+      return;
+    }
+    const target = event.target;
+    if (target instanceof Node && this._host.nativeElement.contains(target)) {
+      return;
+    }
+    this.closeMenu();
+  }
+
+  protected togglePin(): void {
+    this.preferences.togglePin(this.line().id);
+    this.closeMenu();
   }
 }

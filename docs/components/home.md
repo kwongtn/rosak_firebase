@@ -29,6 +29,19 @@
     its root through the same card with the same inputs; a conversation adds exactly one thing, the
     card's own in-rail "N links" + chevron, and expanding it reveals each level indented beneath the
     one above. There is no home-local card.
+  - `hero/` — `home-hero.component.ts` (selector `app-home-hero`): the page's full-width headline
+    strip ABOVE the `home-panels` grid. It renders the plain-language headline (with an
+    `app-info-popover` whose `content` is
+    `renderMethodologyCopy(metricDoc("network.lines-normal").definition)`), the disruption callout
+    naming the worst line, four stat tiles (lines normal · needs attention · reports now · links
+    today) and an **intent-based** CTA row — Report a delay · Spot a train · Share a link · Live map
+    (`routerLink="/tracker"`). It reads **nothing**: `lines = input.required<LinePulse[]>()` and
+    `linksToday = input(0)` are bound by `HomePage` from `store.lines()` and
+    `store.feedTotalCount()`, both already in flight, so the hero adds **zero** network reads.
+    Wiring: Spot a train → `ReportSheetService.open()`, Share a link → `LinkSheetService.open()`,
+    Live map → the router, and **Report a delay emits `reportDelay`**, which
+    `HomePage.scrollToLineBoard()` answers by scrolling to `data-testid="line-board"` (the chooser
+    itself belongs to the board, not to a full-width summary strip).
   - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status plus the expand/collapse
     toggle), `line-pulse-list.component.ts` (skeletons / empty state / the list),
     `line-status-chart.component.ts` (the expanded hourly report strip),
@@ -107,8 +120,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
     `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
-    (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders),
-    and the pure `passenger-status.util.ts` (no components).
+    (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders), `network-summary.util.ts` (the
+    pure board roll-up: severity tables, the needs-attention rule, the comparator, the headline and
+    the worst-line callout), and the pure `passenger-status.util.ts` (labels/variants +
+    `PASSENGER_SEVERITY_RANK`, no components).
 
 ## 🔌 Interface & Data Flow
 
@@ -657,6 +672,83 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   visible content (`:host { display: inline-block }`, no `w-full` on the button) and each host gate
   is a `flex justify-end` wrapper, which is what parks it at the right edge. Putting `w-full` or a
   block host back makes the tap target an invisible full-width strip again.
+- **`network-summary.util.ts` (`summarizeNetwork`)** is the one place the board's rule lives, and it
+  is **pure** — no Angular, no requests. Three exported values make the rule legible instead of
+  implicit: `LINE_STATUS_SEVERITY_RANK` (a **total order**, deliberately NOT the backend enum's:
+  `TOTAL_DISRUPTION` 6 > `PARTIAL_DISRUPTION` 5 > `PARTIAL_ACTIVE` 4 > `DEFUNCT` 3 > `TESTING` 2 >
+  ACTIVE 0, because DEFUNCT/TESTING are settled, un-actionable facts and must not outrank a line
+  that is only partly running), `NEEDS_ATTENTION_PASSENGER_RANK` (= `PASSENGER_SEVERITY_RANK.DELAYED`,
+  5), and `lineNeedsAttention` (`status !== "ACTIVE" || passengerSeverity >= that rank`). 🔴 The
+  threshold is `DELAYED` and not `CROWDED` on purpose: crowding reports describe one carriage, not
+  the service, and counting them would leave the headline reading "0 of 16 lines running normally"
+  on any busy evening. `compareLineSeverity` compares the operational axis **first** and the
+  passenger axis second (never sums them — a line that will not run outranks one that merely runs
+  badly), with `code` as the final tiebreak so the order is total and two boards with the same data
+  render identically. `summarizeNetwork` returns `{ total, normalCount, needsAttentionLines,
+needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read yields
+  `headline: "No live line data yet"` rather than the misleading "0 of 0 lines running normally", and
+  `reportsNow` sums each line's `statusReportCount` (over its OWN rolling `statusWindowMinutes`),
+  which is why the tile says "reports now" rather than claiming a distinct-report count. 🔴
+  **`PASSENGER_SEVERITY_RANK` mirrors the backend `PassengerStatus` enum order** (NORMAL 0 … DISRUPTED 6) — the schema exposes the enum in declaration order, so a higher rank IS a more severe status.
+  Do not "tidy" the numbers into a preferred order (DELAYED before CROWDED, say): they are the
+  server's order made numeric, and a backend reorder would make every consumer wrong at once.
+- **`LinePulseListComponent` is now ONE worst-first list, not two buckets.** The previous shape led
+  with every ACTIVE line and folded everything else into a collapsed "Other lines" `<details>`
+  (testids `other-lines` / `other-lines-summary`, both **retired**). That hid the two deadest lines
+  behind a summary the reader has to open, so a page whose hero just said "3 lines need attention"
+  led with a column of lines that are fine. Rows are now `sortLinesBySeverity(lines())` under a
+  `data-testid="line-board-attention-heading"` caption (`Needs attention · N`) that counts with the
+  hero's OWN `lineNeedsAttention` predicate — so the caption, the hero's tile and the row order can
+  never disagree about which lines need attention. Each row wraps its card in
+  `data-testid="line-board-row"`, the stable hook for order assertions.
+- **`LinePulseCardComponent`'s action hierarchy** is deliberate: two buttons, one primary and one
+  secondary — **Report status** (`submit-line-status`, default variant) and **Log spotting**
+  (`add-spotting-entry`, `outline`). Both testids and both class sets are unchanged; only the visible
+  copy moved off the internal nouns ("Submit line status" / "Add spotting entry"). Everything else
+  lives in a kebab: `line-card-menu` (the trigger; `aria-expanded`, `aria-haspopup="menu"`, an
+  action-naming `aria-label`) opening `line-card-menu-panel` (`role="menu"`) with three
+  `role="menuitem"` children — `line-card-pin` (through `PreferencesService`), `line-card-hq`
+  (`/spotting/<lineId>`) and `line-card-hq-details` (`/spotting/<lineId>/details`). The panel closes
+  on Escape, on an outside click and on choosing an item; host-level `document:` listeners do the
+  first two, and `src/app/ui/` has **no dropdown/menu primitive** to reuse, so it is built inline
+  against the contract `app-info-popover` established — a real primitive can replace it without a
+  behaviour change. Icons (`lucideEllipsisVertical` / `lucidePin` / `lucideExternalLink`) come from
+  `@ng-icons/lucide` through `NgIcon` + `provideIcons`, the FIRST usage of that library in `src/`
+  (previously zero); the existing chevron SVGs stay as they are. The card also draws the line's
+  `displayColor` as a leading accent rail (a backend hex, so it needs no dark-mode twin) and calls
+  `PreferencesService.pushRecentLine()` on the panel's **open** edge.
+- **`PreferencesService`** (`core/preferences/preferences.service.ts`, `providedIn: "root"`) is the
+  reader-owned display state the board needs — `pinnedLineIds`, `viewMode` (`"rider" | "pro"`),
+  `density`, `lastReportedLineId`, `recentLineIds` — persisted under the **versioned** key
+  `rosak:preferences:v1` (the `:v1` is the migration seam: a shape change bumps it, so a stale
+  payload is orphaned rather than half-read). API: `isPinned(lineId)`, `togglePin`, `setViewMode`,
+  `setDensity`, `setLastReportedLine`, `pushRecentLine` (most-recent-first, de-duplicated, capped at
+  `MAX_RECENT_LINES` = 5), `reset()`, `snapshot()` and `hydrated()`. 🔴 **Its constructor never reads
+  storage.** It builds on the defaults and hydrates inside `afterNextRender`, which does not run on
+  the server: a constructor read would make the client's first paint disagree with the server's HTML
+  and throw an `NG0500` hydration mismatch for any rider who had pinned anything. The persist
+  `effect` is gated on `hydrated()` for the same reason from the other direction — an ungated effect
+  fires on its first run, BEFORE the read, and would overwrite real preferences with the defaults
+  they are about to inherit. Every stored field is validated **independently** (corrupt JSON, a
+  non-object payload, an unknown enum value and a wrong-typed id each fall back on their own),
+  because a half-recognisable payload is the common case, not an edge case.
+- **`query-param.util.ts`** (`core/url-state/`) is the shared read/write seam for URL-owned view
+  state (`?view=`, `?sort=`, `?line=`, `?q=`). The READ half is pure over a `ParamMap`-shaped
+  record (`parseEnumQueryParam`, `parseTextQueryParam`, `readEnumQueryParam`,
+  `readTextQueryParam`), the WRITE half is one browser-gated `navigate()`
+  (`writeQueryParams(router, route, patch, isBrowser)`). Two rules both callers inherit instead of
+  re-deriving: **a default value never appears in the URL** (`queryParamForWrite(value, default)` →
+  `null`, so "no query params" and "the default view" are one state) and **writes merge and
+  replace, never push**. 🔴 The `isBrowser` flag is a parameter rather than an internal
+  `isPlatformBrowser` check because reading `PLATFORM_ID` needs an injection context a plain
+  function should not have; a _reactive_ `router.navigate()` during SSR hangs the render, exactly as
+  `line-overview.page.ts`'s sort write-back documents.
+- **`feed-empty` is now an invitation.** The old copy ("No links today yet.") stated a fact and left
+  the reader to work out what to do about it, which is how a page whose job is community reports ends
+  up reporting nothing. It now reads "No links yet today — be the first" with a `feed-empty-cta`
+  button that opens the same shared sheet the hero's "Share a link" does, so the page keeps exactly
+  ONE link-submission surface. The `feed-empty` testid and its dashed/muted shell (matching the
+  line-list empty state) are unchanged.
 - **`errorResource` in `HomePage`** shows the adapter pattern for exposing a store (rather than a
   raw resource) to the shared retry banner.
 
@@ -675,8 +767,10 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   authenticated query when `loadMore()`/`loadMoreLastWeek()` resolves.
 - **Optimistic voting.** `VoteButtonComponent` is reused as-is; the store's overlay makes optimistic
   score updates straightforward (record the overlay value first, roll back on a GraphQL error).
-- **A dedicated route `title` and share metadata.** The `""` route sets no `title` (unlike every
-  other route); a landing page deserves one for SSR/SEO.
+- **A dedicated route `title` and share metadata.** ✅ The `title` and `<meta name="description">`
+  landed with the network board's Phase 0 (`title: "MLPTF | Live Network Board"` on the `""` route;
+  `Meta.updateTag` in `HomePage`, so the tag is in the SSR HTML). Still missing: open-graph /
+  Twitter card tags and a per-route share image.
 - **Client-side search/sort over the resident feed page.** No new query needed for the current page;
   a text filter over `feedLinks()` is a small computed addition.
 

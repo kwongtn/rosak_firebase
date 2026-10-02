@@ -6,7 +6,8 @@ import {
 } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { By } from "@angular/platform-browser";
+import { By, Meta } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../core/auth/auth.service";
@@ -27,6 +28,7 @@ import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
+import { HomeHeroComponent } from "./hero/home-hero.component";
 import { HomePage } from "./home.page";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
@@ -202,6 +204,18 @@ interface StoreMock {
   stop: ReturnType<typeof vi.fn>;
 }
 
+/**
+ * A rendered testid's text with its whitespace collapsed. Read through this rather than off
+ * `element.textContent` so a Prettier re-wrap (which decides whether an interpolation gets its
+ * own text node) can never fail an assertion. Takes the fixture's root as an argument because the
+ * helper is declared before the `fixture` binding exists.
+ */
+function textOf(root: HTMLElement, testId: string): string {
+  return (
+    root.querySelector(`[data-testid="${testId}"]`)?.textContent?.replace(/\s+/g, " ").trim() ?? ""
+  );
+}
+
 describe("HomePage", () => {
   let store: StoreMock;
   let auth: {
@@ -266,6 +280,9 @@ describe("HomePage", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
+        // The hero's "Live map" is a RouterLink to /tracker, so a router must be present for the
+        // page to compose at all. An empty route table is enough — nothing navigates in these specs.
+        provideRouter([]),
         { provide: HomeStore, useValue: store },
         { provide: LineStatusSheetService, useValue: sheet },
         // Hosted spotting form injects this route-scoped store; its lines+vehicles POST is
@@ -490,6 +507,56 @@ describe("HomePage", () => {
     expect(feedHtml.indexOf("app-link-submit-box")).toBeLessThan(feedHtml.indexOf("app-link-card"));
   });
 
+  it("places the hero full width above the two-column split, fed by reads the page already had", () => {
+    const main = (fixture.nativeElement as HTMLElement).querySelector("main") as HTMLElement;
+    const hero = main.querySelector("app-home-hero") as HTMLElement;
+    const panels = main.querySelector('[data-testid="home-panels"]') as HTMLElement;
+
+    expect(hero).not.toBeNull();
+    expect(hero.querySelector('[data-testid="home-hero"]')).not.toBeNull();
+    // Full width ABOVE the grid, not in one of its columns: the headline and the four tiles
+    // describe both columns, so a single-column hero would make half the summary lie.
+    expect(hero.compareDocumentPosition(panels) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Bound straight to the store's own signals — the hero adds NO read of its own.
+    const heroComponent = fixture.debugElement.query(By.directive(HomeHeroComponent));
+    expect(heroComponent.componentInstance.lines()).toBe(store.lines());
+    expect(heroComponent.componentInstance.linksToday()).toBe(2);
+
+    store.feedTotalCount.set(9);
+    fixture.detectChanges();
+    expect(heroComponent.componentInstance.linksToday()).toBe(9);
+  });
+
+  it("sends the hero's report-delay output to the line board rather than to a sheet", () => {
+    const board = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="line-board"]',
+    ) as HTMLElement;
+    expect(board).not.toBeNull();
+    // `scroll-mt-24` keeps the sticky nav from covering the first card once the scroll lands.
+    expect(board.className.split(/\s+/)).toContain("scroll-mt-24");
+
+    const scrollIntoView = vi.fn();
+    // jsdom ships no layout, so `scrollIntoView` does not exist on the element at all.
+    board.scrollIntoView = scrollIntoView;
+
+    fixture.debugElement
+      .query(By.directive(HomeHeroComponent))
+      .componentInstance.reportDelay.emit();
+    fixture.detectChanges();
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: "start" });
+  });
+
+  it("publishes a description meta tag for crawlers and link previews", () => {
+    // Written through `Meta.updateTag`, so the tag lands in the SSR HTML rather than only appearing
+    // after hydration.
+    const description = TestBed.inject(Meta).getTag('name="description"');
+    expect(description?.content).toContain("live network board");
+    expect(description?.content).not.toMatch(/\d/);
+  });
+
   it("renders the feed in an uncapped container owned by the page scroll", () => {
     const container = fixture.nativeElement.querySelector(
       '[data-testid="feed-scroll"]',
@@ -510,10 +577,34 @@ describe("HomePage", () => {
 
     const empty = fixture.nativeElement.querySelector('[data-testid="feed-empty"]') as HTMLElement;
     expect(empty).not.toBeNull();
-    expect(empty.textContent?.replace(/\s+/g, " ").trim()).toBe("No links today yet.");
+    expect(textOf(fixture.nativeElement as HTMLElement, "feed-empty-copy")).toBe(
+      "No links yet today — be the first",
+    );
     // The same dashed/muted shell as the sibling line-list empty state, so the columns read alike.
     expect(empty.className).toContain("text-muted-foreground");
     expect(empty.className).toContain("border-dashed");
+  });
+
+  it("invites the first link from the empty state instead of only stating a fact", () => {
+    store.feedLinks.set([]);
+    store.isLoading.set(false);
+    fixture.detectChanges();
+
+    // An empty feed is an INVITATION: the CTA opens the same shared sheet the hero's "Share a
+    // link" does, so the page keeps exactly one link-submission surface.
+    const cta = fixture.nativeElement.querySelector(
+      '[data-testid="feed-empty-cta"]',
+    ) as HTMLButtonElement;
+    expect(cta).not.toBeNull();
+    expect(cta.textContent?.replace(/\s+/g, " ").trim()).toBe("Share a link");
+
+    const sheet = TestBed.inject(LinkSheetService);
+    // Stubbed rather than spy-through: a real open() flips the sheet signal, and the sheet's projected
+    // form would then read reference data this composition spec has not stubbed.
+    const open = vi.spyOn(sheet, "open").mockImplementation(() => {});
+    cta.click();
+
+    expect(open).toHaveBeenCalledTimes(1);
   });
 
   it("shows the feed skeleton, not the empty state, while the first page loads", () => {
