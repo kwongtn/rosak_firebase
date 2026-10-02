@@ -6,7 +6,7 @@ import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { LineStatusBadge } from "../../domain-ui/line-status-badge/line-status-badge";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
-import { NOT_FOUND_MESSAGES } from "./not-found-messages";
+import { NOT_FOUND_MESSAGES, hashString, scrollLineFor } from "./not-found-messages";
 
 interface PetPic {
   kind: "cat" | "dog";
@@ -25,16 +25,6 @@ async function fetchRandomPet(): Promise<PetPic> {
   const res = await fetch("https://dog.ceo/api/breeds/image/random");
   const photo = (await res.json()) as { message: string };
   return { kind, url: photo.message };
-}
-
-/** A small, deterministic string hash (djb2-ish) — not cryptographic, just needs to spread
- * different URLs across the message pool reasonably evenly. */
-function hashString(value: string): number {
-  let hash = 5381;
-  for (let i = 0; i < value.length; i++) {
-    hash = (hash * 33 + value.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
 }
 
 /**
@@ -60,6 +50,10 @@ function hashString(value: string): number {
  * client-side navigation to a dead link can't retroactively change the status of the document
  * response that already loaded) so this doesn't just *look* like a missing page to a person, it
  * *is* one to a crawler or an uptime check too.
+ *
+ * Layout: two viewport-tall screens rather than one. The 404 joke fills the first, and the pet
+ * photo is centred in a second, so the reward for scrolling a screen's length is finding a cat or
+ * a dog — see the template comment for the `dvh`-vs-`vh` and footer decisions.
  */
 @Component({
   selector: "app-not-found",
@@ -73,8 +67,16 @@ function hashString(value: string): number {
   ],
   template: `
     <app-nav />
-    <div class="mx-auto flex min-h-screen w-full flex-col p-4 sm:p-6 lg:w-[90%]">
-      <main class="flex flex-1 flex-col items-center justify-center gap-8 py-16 text-center">
+
+    <!-- Two full-height screens, not one: the joke fills the first, the pet photo is centred in
+         the second, so it only turns up once you've scrolled a screen's worth. dvh rather
+         than vh deliberately — on a phone vh is the viewport *including* the space behind
+         the browser chrome, which would push the pet off-centre by exactly the height of the
+         URL bar you can't see. -->
+    <main class="mx-auto flex w-full flex-col lg:w-[90%]">
+      <div
+        class="flex min-h-dvh flex-col items-center justify-center gap-8 p-4 py-16 text-center sm:px-6"
+      >
         <div class="flex flex-col items-center gap-4">
           <span class="text-muted-foreground text-xs font-semibold tracking-widest uppercase">{{
             message().eyebrow
@@ -113,27 +115,47 @@ function hashString(value: string): number {
           <a routerLink="/spotting" hlmBtn>Back to TranSPOT</a>
           <button type="button" hlmBtn variant="outline" (click)="goBack()">Go back</button>
         </div>
+      </div>
 
-        <!-- Browser-only, fetched once after hydration rather than during SSR — there's no
-                     reason to burn a server-side request on a decorative image that's different
-                     every single load anyway, and (same reasoning as about.page.ts's own
-                     Firestore listener) nothing here needs to exist in the server-rendered HTML
-                     for this to work correctly the moment the client takes over. -->
+      <!-- Browser-only, fetched once after hydration rather than during SSR — there's no
+                   reason to burn a server-side request on a decorative image that's different
+                   every single load anyway, and (same reasoning as about.page.ts's own
+                   Firestore listener) nothing here needs to exist in the server-rendered HTML
+                   for this to work correctly the moment the client takes over.
+
+                   pb-28 is not decoration: it's the reservation matching the viewport-pinned
+                   footer below, so the photo (centred, so within ~150px of this section's bottom
+                   edge once scrolled into view) can never end up behind it. -->
+      <div
+        class="flex min-h-dvh flex-col items-center justify-center gap-4 p-4 pb-28 sm:px-6"
+        data-testid="not-found-pet"
+      >
         @if (petPic(); as pet) {
-          <div class="flex flex-col items-center gap-2 pt-4">
-            <p class="text-muted-foreground text-sm">Meanwhile, here's a {{ pet.kind }}:</p>
-            <img
-              [src]="pet.url"
-              [alt]="'A random ' + pet.kind"
-              class="max-h-72 rounded-lg object-cover shadow-md"
-            />
-          </div>
+          <p class="text-muted-foreground max-w-md text-center text-sm">
+            {{ petCaption(pet.kind) }}
+          </p>
+          <img
+            [src]="pet.url"
+            [alt]="'A random ' + pet.kind"
+            class="max-h-72 rounded-lg object-cover shadow-md"
+          />
         } @else if (!petPicFailed()) {
           <div hlmSkeleton class="h-56 w-64 rounded-lg"></div>
         }
-      </main>
+      </div>
+    </main>
+
+    <!-- Every other page leaves the footer in normal flow at the end of a min-h-screen shell,
+         which is what pins it to the bottom of a short viewport. Here the page is deliberately
+         two screens tall, so a flow footer would sit two screens down and effectively never be
+         seen — pinned to the viewport instead, it stays put while the reader scrolls on to the
+         pet. Scoped to this page on purpose: no other page changes, and the shared
+         AppFooterComponent stays layout-agnostic. z-40 is below the nav's sticky bar (z-45) and
+         below the app's z-50 overlay layer, matching the z-index ladder app-nav.component.ts
+         documents. -->
+    <div class="bg-background fixed inset-x-0 bottom-0 z-40" data-testid="not-found-footer">
+      <app-footer />
     </div>
-    <app-footer />
   `,
 })
 export class NotFoundPage {
@@ -150,6 +172,13 @@ export class NotFoundPage {
 
   protected readonly petPic = signal<PetPic | null>(null);
   protected readonly petPicFailed = signal(false);
+
+  /** The line above the photo — hashed off the same dead URL as the message itself, so one URL
+   * keeps one joke, and the `{kind}` token inside it becomes the actual animal. A function
+   * reference rather than a `computed()` because it takes the pet as an argument: the line can
+   * only be picked once the browser-only fetch has resolved and told us cat or dog. */
+  protected readonly petCaption = (kind: string): string =>
+    scrollLineFor(this.attemptedPath(), kind);
 
   constructor() {
     // SSR only (RESPONSE_INIT is null in the browser): make genuinely unknown routes a real
