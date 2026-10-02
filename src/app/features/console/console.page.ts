@@ -1,4 +1,4 @@
-import { Component, inject, signal } from "@angular/core";
+import { Component, computed, inject, signal } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { firstValueFrom } from "rxjs";
@@ -133,12 +133,13 @@ export class ConsolePage {
   protected readonly hasMore = signal(true);
 
   private readonly bulkActions = useBulkActions();
-  protected readonly selectMode = this.bulkActions.selectMode;
   protected readonly checkedIds = this.bulkActions.checkedIds;
   protected readonly checkedCount = this.bulkActions.checkedCount;
-  protected readonly toggleSelectMode = this.bulkActions.toggleSelectMode;
   protected readonly toggleChecked = this.bulkActions.toggleChecked;
   protected readonly clearSelection = this.bulkActions.clearSelection;
+  /** Row order as rendered — a shift-click range is resolved against this, not against
+   *  Set insertion order (a Set has none). */
+  private readonly orderedIds = computed(() => this.events().map((e) => e.id));
   /** The filters actually in effect — only replaced on Search, so editing the form doesn't
    * refetch until the admin explicitly asks for it (matches the old app's onSearch button). */
   private appliedFilters: ConsoleEventFilters = { isRead: false };
@@ -196,6 +197,35 @@ export class ConsolePage {
     this.load();
   }
 
+  /**
+   * Any click on a row body toggles that row. Shift extends the selection over the inclusive
+   * range between the anchor (the last row clicked WITHOUT shift) and this row, applying this
+   * row's new state to the whole range — so Shift+click on a checked row un-checks the range.
+   */
+  protected onRowClick(id: string, event: MouseEvent): void {
+    this.applyRowToggle(id, event.shiftKey);
+  }
+
+  /**
+   * The row's checkbox is the same toggle, reached through its own click: it stops propagation
+   * so the row handler doesn't fire a second time, and reads `shiftKey` off the same native
+   * event, so Shift+click on the box behaves exactly like Shift+click on the row. A
+   * keyboard-generated click (Space/Enter on the inner button) carries the same modifiers.
+   */
+  protected onRowCheckboxClick(id: string, event: MouseEvent): void {
+    event.stopPropagation();
+    this.applyRowToggle(id, event.shiftKey);
+  }
+
+  private applyRowToggle(id: string, shiftKey: boolean): void {
+    const targetState = !this.checkedIds().has(id);
+    if (shiftKey) {
+      this.bulkActions.toggleCheckedInRange(this.orderedIds(), id, targetState);
+    } else {
+      this.toggleChecked(id);
+    }
+  }
+
   protected async markAsRead(): Promise<void> {
     const ids = [...this.checkedIds()];
     if (ids.length === 0) {
@@ -237,6 +267,10 @@ export class ConsolePage {
     if (this.isLoading()) {
       return;
     }
+    // Any reload (search reset or a "Load more" page) invalidates the anchor: the row order
+    // it indexed into is no longer the list the admin is looking at, so a later shift-click
+    // must fall back to a single-row toggle instead of sweeping an arbitrary span.
+    this.bulkActions.resetAnchor();
     this.isLoading.set(true);
     try {
       const idToken = await this.auth.idToken();

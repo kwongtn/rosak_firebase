@@ -117,10 +117,13 @@ page stays `RenderMode.Server`.
   `renderMethodologyCopy()`.
 - **`InfoPopover`** (`src/app/ui/info-popover/info-popover.ts`, selector `app-info-popover`):
   `label`, `content` (already-rendered text), optional `link`, `align: "start" | "end"`, `testId`,
-  `showIcon` (default `true`; `false` drops the "i" glyph so the projected content is the trigger)
-  and `showMethodologyLink` (default `true`; `false` drops the link and demotes the panel to a
-  tooltip) inputs. Content projection: default slot is the trigger label; `[popoverExtra]` is extra
-  panel blocks (the home chip's window/breakdown/legend).
+  `showIcon` (default `true`; `false` drops the "i" glyph so the projected content is the trigger),
+  `showMethodologyLink` (default `true`; `false` drops the link and demotes the panel to a
+  tooltip), `iconPosition: "start" | "end"` (default `"start"`; `"end"` renders the glyph **after**
+  the projected content instead of before it — the ad slot's "ADVERTISEMENT ⓘ" caption) and
+  `triggerClasses` (extra Tailwind classes merged onto the trigger `<button>`, e.g. the padding that
+  widens a tight hover target) inputs. Content projection: default slot is the trigger label;
+  `[popoverExtra]` is extra panel blocks (the home chip's window/breakdown/legend).
 - **`DisclaimerNote`** (`src/app/ui/disclaimer-note/disclaimer-note.ts`, selector
   `app-disclaimer-note`): one canonical disclaimer string, `variant: "inline" | "footer"`, no data
   dependencies and no browser APIs (renders identically on the server). The rail/schedule-derived
@@ -177,6 +180,11 @@ page stays `RenderMode.Server`.
   it; the `sources` section then drops its in-progress state. Never hardcode a license string.
 - **A new `InfoPopover` consumer:** compose `app-info-popover` rather than re-implementing
   hover/tap/Escape/outside-click; the panel, its a11y wiring and its SSR-safe id are already done.
+  Because hover is tracked on the **host**, put the popover in a shrink-wrapped position
+  (`self-center`, not a stretched flex child) when only a small pill should be the hotspot — the ad
+  slot does exactly that so the disclosure panel does not open from anywhere across the caption row.
+  Reach for `iconPosition` / `triggerClasses` instead of hand-rolling a second glyph or a
+  second pill's padding.
 - **The CMS overlay seam:** the `public/methodology` merge described above is the documented,
   unbuilt extension point for editorial prose.
 - **Route/chrome:** the route is registered through `loadComponent`, so it can be moved, guarded or

@@ -81,16 +81,45 @@ describe("incidentLinkLine", () => {
     expect(incidentLinkLine({ url: "https://x.com/1" }).isPending).toBe(false);
   });
 
-  it("documents the sort key: label comes from created, the row sorts by created DESC", () => {
+  it("labels the row with the event time, not the submission time", () => {
+    const line = incidentLinkLine({
+      url: "https://news.example.com/r/posts/1",
+      created: "2026-08-01T10:30:00Z",
+      occurredAt: "2026-07-30T23:15:00Z",
+    });
+    expect(line.datetimeLabel).toBe(toLocalDateTimeLabel("2026-07-30T23:15:00Z"));
+    // The fixture has to actually disagree, or this assertion would pass under either field.
+    expect(line.datetimeLabel).not.toBe(toLocalDateTimeLabel("2026-08-01T10:30:00Z"));
+  });
+
+  it("falls back to the submission time when the host did not select occurredAt", () => {
+    // `occurredAt` is optional on the shared structural type so any document, host or fixture that
+    // binds a link to a card type-checks, so a row without it must still carry a real timestamp.
+    // (This is NOT a licence to drop the nested per-incident `links` sub-select that DOES request
+    // it — see the case above, where the split labelled one list's first page by `created`.)
+    const line = incidentLinkLine({
+      url: "https://news.example.com/r/posts/1",
+      created: "2026-08-01T10:30:00Z",
+      occurredAt: undefined,
+    });
+    expect(line.datetimeLabel).toBe(toLocalDateTimeLabel("2026-08-01T10:30:00Z"));
+  });
+
+  it("documents the sort key: the label comes from the displayed instant, the row sorts by occurredAt DESC", () => {
     const older = incidentLinkLine({
       url: "https://a.example.com",
       created: "2026-08-01T08:00:00Z",
+      occurredAt: "2026-07-31T08:00:00Z",
     });
     const newer = incidentLinkLine({
       url: "https://b.example.com",
-      created: "2026-08-02T08:00:00Z",
+      created: "2026-07-31T08:00:00Z",
+      occurredAt: "2026-08-02T08:00:00Z",
     });
-    // The label is a plain string; the backend owns ordering (created DESC, id DESC).
+    // The label is a plain string; the backend owns ordering (occurredAt DESC, id DESC).
+    // `created` is deliberately inverted here — the labels must NOT follow it.
     expect(newer.datetimeLabel > older.datetimeLabel).toBe(true);
+    expect(newer.datetimeLabel).toBe(toLocalDateTimeLabel("2026-08-02T08:00:00Z"));
+    expect(newer.datetimeLabel).not.toBe(toLocalDateTimeLabel("2026-07-31T08:00:00Z"));
   });
 });

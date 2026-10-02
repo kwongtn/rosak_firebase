@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, linkedSignal, output, signal } from "@angular/core";
+import { Component, computed, inject, input, output, signal } from "@angular/core";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -25,8 +25,11 @@ import {
   formatBreakdown,
   formatNetScore,
   nextVoteState,
+  type VoteAcknowledgement,
   type VoteState,
   type VoteValue,
+  voteStateFromAcknowledgement,
+  voteStatsKey,
 } from "./vote-state.util";
 
 /**
@@ -36,12 +39,31 @@ import {
  * state and surfaces a toast. Switching votes sends the new-direction mutation —
  * the backend's update_or_create makes that idempotent.
  *
+ * 🔴 WHY THIS IS NOT A `linkedSignal` (the bug this replaced)
+ * -------------------------------------------------------
+ * The display used to be a `linkedSignal` seeded from the inputs, so ANY input
+ * change reset it from scratch. The host writes the vote it just received back
+ * down as its `userVote` overlay, which reset the control from inputs that still
+ * carried the PRE-CLICK `netScore` — so the arrow stayed lit while the score and
+ * the breakdown snapped back, and any refetch mid-flight clobbered it again. The
+ * race was between the acknowledgement and the control's own re-seed.
+ *
+ * Three layers fix it, in priority order:
+ * 1. `optimistic` — the in-flight projection, cleared the moment the request settles.
+ * 2. `confirmed` — the snapshot the SERVER acknowledged, honoured only while the
+ *    host's counters still match the ones it was computed against. `voteStatsKey`
+ *    deliberately excludes `userVote`, so the host echoing our own value back does
+ *    NOT count as new data; only a real refetch (the home feed polls) does, and then
+ *    the host's numbers are newer than ours and correctly win.
+ * 3. `hostState` — the inputs themselves, i.e. a plain server render.
+ *
  * Three callable targets: the default "incident" votes the calendar incident,
  * "chronology" votes a single chronology row through the Task 8 mutations, and
  * "link" votes a feed/insiden social-media link through the front-page feed's
  * upvoteSocialMediaLink/downvoteSocialMediaLink/removeSocialMediaLinkVote mutations.
- * The optimistic state, disabled-while-voting, and auth gating (logged-out users see
- * the buttons disabled) behave identically for all three.
+ * All six mutations acknowledge with the SAME `VoteMutationPayload` shape, so the
+ * optimistic state, the server repaint, disabled-while-voting, and auth gating
+ * (logged-out users see the buttons disabled) behave identically for all three.
  */
 @Component({
   selector: "app-vote-button",
@@ -130,20 +152,43 @@ export class VoteButtonComponent {
   readonly userVote = input<VoteValue>(0);
 
   /** Emitted with the caller's new vote value after a successful mutation, so the host can
-   * mirror it into its own store (e.g. HomeStore.setUserVote). Not emitted on failure — the
-   * display has already rolled back. */
+   * mirror it into its own store (e.g. HomeStore.setUserVote). The value is the SERVER's,
+   * not the requested one, so a host that re-feeds it lands on the number already displayed.
+   * Not emitted on failure — the display has already rolled back. */
   readonly voteChanged = output<{ value: number }>();
 
-  /** linkedSignal, not a plain signal seeded in a field initializer: input
-   * signals only carry their bound values after construction, so a plain seed
-   * would lock the display at 0 until the first click. linkedSignal tracks the
-   * inputs (server truth on refetch) while .set() applies optimistic updates. */
-  protected readonly state = linkedSignal<VoteState>(() => ({
+  /** What the host last handed us: the server's truth on first render, and a refetch
+   * of it later. Plain `computed`, not a `linkedSignal` — see the header for why a
+   * signal seeded from the inputs cannot be the display. */
+  private readonly hostState = computed<VoteState>(() => ({
     netScore: this.netScore(),
     upvotes: this.upvotes(),
     downvotes: this.downvotes(),
     userVote: this.userVote(),
   }));
+
+  /** The in-flight optimistic projection. `null` whenever nothing is in flight. */
+  private readonly optimistic = signal<VoteState | null>(null);
+
+  /**
+   * The snapshot the server acknowledged, kept together with the counter triple it was
+   * computed against. That key is what stops the host's echo of our own `userVote`
+   * from re-seeding the display with pre-click numbers — see `voteStatsKey`.
+   */
+  private readonly confirmed = signal<{ key: string; state: VoteState } | null>(null);
+
+  /** The displayed state: in-flight projection → acknowledged snapshot → host inputs. */
+  protected readonly state = computed<VoteState>(() => {
+    const optimistic = this.optimistic();
+    if (optimistic) {
+      return optimistic;
+    }
+    const confirmed = this.confirmed();
+    if (confirmed && confirmed.key === voteStatsKey(this.hostState())) {
+      return confirmed.state;
+    }
+    return this.hostState();
+  });
 
   protected readonly isVoting = signal(false);
 
@@ -167,58 +212,75 @@ export class VoteButtonComponent {
     const nextTarget: VoteValue = previous.userVote === target ? 0 : target;
 
     // Optimistic: show the projected numbers before the server confirms.
-    this.state.set(nextVoteState(previous, nextTarget));
+    this.optimistic.set(nextVoteState(previous, nextTarget));
     this.isVoting.set(true);
     try {
-      await this.requestVote(nextTarget);
-      this.voteChanged.emit({ value: nextTarget });
+      const ack = await this.requestVote(nextTarget);
+      // 🔴 THE SERVER WINS. Repaint from what the write produced, not from the
+      // projection — and record the value the host must mirror, which is the
+      // server's, so the echo lands on the same number that is already displayed.
+      const acknowledged = voteStateFromAcknowledgement(ack, this.optimistic() ?? previous);
+      this.confirmed.set({ key: voteStatsKey(this.hostState()), state: acknowledged });
+      this.optimistic.set(null);
+      this.voteChanged.emit({ value: acknowledged.userVote });
     } catch {
-      this.state.set(previous);
+      // Drop the projection: `state` falls back to the last acknowledged snapshot
+      // (or the host's numbers), which is the newest thing we know to be true.
+      this.optimistic.set(null);
       this.toast.error("Vote not recorded", "Please try again in a moment.");
     } finally {
       this.isVoting.set(false);
     }
   }
 
-  private async requestVote(target: VoteValue): Promise<void> {
+  /** Sends the mutation for `target` and returns the vote state it acknowledged with.
+   * Resolving to `null`/a partial payload is not a failure — the control simply keeps
+   * the projection it already showed (see `voteStateFromAcknowledgement`).
+   *
+   * Each branch pairs a document with the ROOT FIELD its payload lives under, so the
+   * response is read in one place instead of three near-identical `await`s. `as const` is
+   * what keeps `field` a literal union instead of widening to `string`. */
+  private async requestVote(target: VoteValue): Promise<VoteAcknowledgement | null> {
     const idToken = await this.auth.idToken();
     const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
     if (this.targetType() === "chronology") {
-      const mutation =
+      const [mutation, field] =
         target === 1
-          ? UPVOTE_CHRONOLOGY_MUTATION
+          ? ([UPVOTE_CHRONOLOGY_MUTATION, "upvoteChronology"] as const)
           : target === -1
-            ? DOWNVOTE_CHRONOLOGY_MUTATION
-            : REMOVE_CHRONOLOGY_VOTE_MUTATION;
-      await this.graphql.request<ChronologyVoteMutationData, ChronologyVoteMutationVars>(
-        mutation,
-        { chronologyId: this.incidentId() },
-        headers,
-      );
-      return;
+            ? ([DOWNVOTE_CHRONOLOGY_MUTATION, "downvoteChronology"] as const)
+            : ([REMOVE_CHRONOLOGY_VOTE_MUTATION, "removeChronologyVote"] as const);
+      const data = await this.graphql.request<
+        ChronologyVoteMutationData,
+        ChronologyVoteMutationVars
+      >(mutation, { chronologyId: this.incidentId() }, headers);
+      return data[field] ?? null;
     }
     if (this.targetType() === "link") {
-      const mutation =
+      const [mutation, field] =
         target === 1
-          ? UPVOTE_SOCIAL_MEDIA_LINK_MUTATION
+          ? ([UPVOTE_SOCIAL_MEDIA_LINK_MUTATION, "upvoteSocialMediaLink"] as const)
           : target === -1
-            ? DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION
-            : REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION;
-      await this.graphql.request<SocialMediaLinkVoteData, SocialMediaLinkVoteVars>(
+            ? ([DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION, "downvoteSocialMediaLink"] as const)
+            : ([REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION, "removeSocialMediaLinkVote"] as const);
+      const data = await this.graphql.request<SocialMediaLinkVoteData, SocialMediaLinkVoteVars>(
         mutation,
         { id: this.incidentId() },
         headers,
       );
-      return;
+      return data[field] ?? null;
     }
-    const mutation =
-      target === 1 ? UPVOTE_MUTATION : target === -1 ? DOWNVOTE_MUTATION : REMOVE_VOTE_MUTATION;
-    await this.graphql.request<VoteMutationData, VoteMutationVars>(
+    const [mutation, field] =
+      target === 1
+        ? ([UPVOTE_MUTATION, "upvote"] as const)
+        : target === -1
+          ? ([DOWNVOTE_MUTATION, "downvote"] as const)
+          : ([REMOVE_VOTE_MUTATION, "removeVote"] as const);
+    const data = await this.graphql.request<VoteMutationData, VoteMutationVars>(
       mutation,
-      {
-        incidentId: this.incidentId(),
-      },
+      { incidentId: this.incidentId() },
       headers,
     );
+    return data[field] ?? null;
   }
 }

@@ -5,6 +5,9 @@
  * features/insiden/data/social-links.queries.ts and features/spotting/data/spotting.queries.ts.
  */
 
+// Type-only, so it is erased at compile time and closes no module loop.
+import type { VoteAcknowledgement } from "../../insiden/vote-button/vote-state.util";
+
 /* ---------------------------------------------------------------------- *
  * Enums (mirrored from the schema)
  * ---------------------------------------------------------------------- */
@@ -62,6 +65,7 @@ export const FRONT_PAGE_LINES_QUERY = /* GraphQL */ `
         normalizedUrl
         title
         created
+        occurredAt
         voteScore
         userVote
         voteBreakdown {
@@ -85,13 +89,33 @@ export interface FrontPageLinesQueryData {
   lines: LinePulse[];
 }
 
-/** A pulse link nested under a line — the subset of SocialMediaLinkScalar the front page reads. */
+/** A pulse link nested under a line — the subset of SocialMediaLinkScalar the front page reads.
+ * Only `occurredAt` is added on this surface: a line pulse is a compact widget that shows one
+ * timestamp.
+ *
+ * 🔴 It is DELIBERATELY FLAT, and the conversation tree does NOT follow it in, even though the
+ * previous wave added `occurredAt` here and a reader will reasonably wonder whether the tree
+ * should too. Three reasons, all of which would have to be un-done otherwise:
+ *   - the widget renders ONE link row per report with a fixed, single-line budget; there is no
+ *     room for an indent gutter, an expand affordance, or a nested list;
+ *   - it is a LINE's report, not a conversation: a member of someone else's thread is still a
+ *     report about that line, and collapsing the widget by tree would hide reports the line
+ *     actually received;
+ *   - `parentId`/`isThreadRoot`/`sublinkCount`/`sublinks` are all OPTIONAL on the structural
+ *     `LinkCardItem`, so a flat node satisfies the card contract unchanged. Selecting them here
+ *     would add four fields per report across every line on the page and change nothing on screen.
+ * The link list the pulse reads is the same `occurredAt DESC, id DESC` ordering as every other
+ * list — never the sibling `position` order that `sublinks` uses. */
 interface LinePulseLink {
   id: string;
   url: string;
   normalizedUrl: string | null;
   title: string;
   created: string;
+  /** The instant the linked event happened (NOT NULL on the backend) — what a pulse shows in
+   * place of `created`, which is only "when someone reported it". Naive local wall time, no
+   * offset (backend `USE_TZ = False`); never re-format through UTC. */
+  occurredAt: string;
   voteScore: number;
   userVote: number;
   voteBreakdown: { upvotes: number; downvotes: number };
@@ -130,6 +154,7 @@ export const FEED_QUERY = /* GraphQL */ `
     $currentServiceDayOnly: Boolean
     $lastWeekOnly: Boolean
     $alignPageToDay: Boolean
+    $collapseThreads: Boolean
   ) {
     publicSocialMediaLinks(
       first: $first
@@ -138,6 +163,7 @@ export const FEED_QUERY = /* GraphQL */ `
       currentServiceDayOnly: $currentServiceDayOnly
       lastWeekOnly: $lastWeekOnly
       alignPageToDay: $alignPageToDay
+      collapseThreads: $collapseThreads
     ) {
       edges {
         node {
@@ -146,6 +172,235 @@ export const FEED_QUERY = /* GraphQL */ `
           normalizedUrl
           title
           created
+          # When the linked event HAPPENED, as opposed to created above ("when
+          # someone reported it"). NOT NULL on the backend and the leading key
+          # of this feed's -occurredAt, -id ordering, so it is what every day
+          # group, relative label and "Occurred" column must read. Naive local
+          # wall time (backend USE_TZ = False) — never re-format via UTC.
+          occurredAt
+          # Conversation tree. parentId/isThreadRoot/sublinkCount let the feed
+          # wrapper decide what to draw; sublinks carries the children so expanding
+          # a conversation needs no second request. All FOUR are required on the
+          # FeedLink type because this document selects all four — and unlike the
+          # removed grouping fields there is no alias on the server, so a stale
+          # spelling here is a hard "Unknown field" on the whole query.
+          parentId
+          isThreadRoot
+          sublinkCount
+          # Sublinks = DIRECT children only, ordered by the stored sibling
+          # position (NOT occurredAt, NOT id — every other link list in this app
+          # orders occurredAt DESC, id DESC). Recursive: each level below selects
+          # its own sublinks, and a level that the server stores nothing under comes
+          # back [] rather than erroring.
+          #
+          # NESTING DEPTH = FOUR sublinks blocks, i.e. root -> L1 -> L2 -> L3 ->
+          # L4. The server caps the WRITE side at MAX_THREAD_DEPTH = 3 with a root
+          # at depth 0, so the deepest STORED node is L3 and the L4 block is
+          # guaranteed to answer []. It is kept on purpose: the extra level costs
+          # one [] per node on a brand-new link, and it means raising the cap
+          # later needs no document change. The depth is written out in full so a
+          # reader can check it against the server constant rather than count
+          # braces.
+          #
+          # Every level selects what the card renders for a CHILD: the same fields
+          # the root node selects minus normalizedUrl (nothing renders it — see
+          # FeedLinkSublink), and that includes the three scalar tree fields. The
+          # tree scalars are NOT optional-at-depth: a child that has children of its
+          # own is itself the head of a nested conversation, and the in-card
+          # affordance reads sublinkCount, so a level that omitted it could not be
+          # expanded and a 3-level conversation would render 2. created is selected
+          # at every level even though it is not displayed, because LinkCardItem
+          # REQUIRES it (the card's fallback is occurredAt ?? created and a child
+          # without it renders a blank time). completed is here for symmetry with
+          # the root, not because the card reads it.
+          sublinks {
+            id
+            url
+            title
+            created
+            occurredAt
+            parentId
+            isThreadRoot
+            sublinkCount
+            status
+            completed
+            isAutomated
+            voteScore
+            userVote
+            voteBreakdown {
+              upvotes
+              downvotes
+            }
+            lines {
+              id
+              code
+              displayName
+            }
+            # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+            # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+            # is replace-not-patch, so a payload that omits a relation does not leave it
+            # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+            # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+            # spottings and spottingTrends(...), so selecting all of it would multiply
+            # payload and resolver fan-out on every row of every feed page.
+            vehicles {
+              id
+              identificationNo
+            }
+            stations {
+              id
+              displayName
+            }
+            categories {
+              id
+              name
+            }
+            user {
+              shortId
+              nickname
+            }
+            sublinks {
+              id
+              url
+              title
+              created
+              occurredAt
+              parentId
+              isThreadRoot
+              sublinkCount
+              status
+              completed
+              isAutomated
+              voteScore
+              userVote
+              voteBreakdown {
+                upvotes
+                downvotes
+              }
+              lines {
+                id
+                code
+                displayName
+              }
+              # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+              # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+              # is replace-not-patch, so a payload that omits a relation does not leave it
+              # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+              # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+              # spottings and spottingTrends(...), so selecting all of it would multiply
+              # payload and resolver fan-out on every row of every feed page.
+              vehicles {
+                id
+                identificationNo
+              }
+              stations {
+                id
+                displayName
+              }
+              categories {
+                id
+                name
+              }
+              user {
+                shortId
+                nickname
+              }
+              sublinks {
+                id
+                url
+                title
+                created
+                occurredAt
+                parentId
+                isThreadRoot
+                sublinkCount
+                status
+                completed
+                isAutomated
+                voteScore
+                userVote
+                voteBreakdown {
+                  upvotes
+                  downvotes
+                }
+                lines {
+                  id
+                  code
+                  displayName
+                }
+                # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+                # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+                # is replace-not-patch, so a payload that omits a relation does not leave it
+                # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+                # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+                # spottings and spottingTrends(...), so selecting all of it would multiply
+                # payload and resolver fan-out on every row of every feed page.
+                vehicles {
+                  id
+                  identificationNo
+                }
+                stations {
+                  id
+                  displayName
+                }
+                categories {
+                  id
+                  name
+                }
+                user {
+                  shortId
+                  nickname
+                }
+                sublinks {
+                  id
+                  url
+                  title
+                  created
+                  occurredAt
+                  parentId
+                  isThreadRoot
+                  sublinkCount
+                  status
+                  completed
+                  isAutomated
+                  voteScore
+                  userVote
+                  voteBreakdown {
+                    upvotes
+                    downvotes
+                  }
+                  lines {
+                    id
+                    code
+                    displayName
+                  }
+                  # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+                  # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+                  # is replace-not-patch, so a payload that omits a relation does not leave it
+                  # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+                  # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+                  # spottings and spottingTrends(...), so selecting all of it would multiply
+                  # payload and resolver fan-out on every row of every feed page.
+                  vehicles {
+                    id
+                    identificationNo
+                  }
+                  stations {
+                    id
+                    displayName
+                  }
+                  categories {
+                    id
+                    name
+                  }
+                  user {
+                    shortId
+                    nickname
+                  }
+                }
+              }
+            }
+          }
           status
           completed
           isAutomated
@@ -159,6 +414,25 @@ export const FEED_QUERY = /* GraphQL */ `
             id
             code
             displayName
+          }
+          # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+          # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+          # is replace-not-patch, so a payload that omits a relation does not leave it
+          # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+          # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+          # spottings and spottingTrends(...), so selecting all of it would multiply
+          # payload and resolver fan-out on every row of every feed page.
+          vehicles {
+            id
+            identificationNo
+          }
+          stations {
+            id
+            displayName
+          }
+          categories {
+            id
+            name
           }
           user {
             shortId
@@ -181,13 +455,39 @@ export interface FeedQueryVars {
   after?: string | null;
   status?: SocialMediaLinkStatus | null;
   currentServiceDayOnly?: boolean | null;
-  /** Window filter for the home page's collapsed "Last Week" section: keep only rows created
-   * since 00:00 (Asia/Kuala_Lumpur) six days before today. Computed backend-side so the frontend
-   * never bakes a date into query variables (SSR TransferState needs identical vars). */
+  /** Window filter for the home page's collapsed "Last Week" section: keep only links whose
+   * event instant (`occurredAt`) is since 00:00 (Asia/Kuala_Lumpur) six days before today.
+   * Computed backend-side so the frontend never bakes a date into query variables (SSR
+   * TransferState needs identical vars). Keys on `occurredAt`, NOT `created` — the ordering is
+   * `-occurredAt, -id`, and windowing one column while sorting another would drop a backdated
+   * report into a day it does not belong to.
+   *
+   * TODAY IS EXCLUDED, by the backend default rather than by an argument this side sends: the
+   * resolver's `display_today_in_last_week` defaults to `false`, so the window is closed at 00:00
+   * today and the newest day group the section can show is "Yesterday". This side deliberately does
+   * NOT send the flag — relying on the default keeps a frontend that deploys BEFORE the backend
+   * change correct, instead of asking for a variable an older schema rejects. */
   lastWeekOnly?: boolean | null;
   /** When true, a returned page never ends mid-calendar-day: the backend may exceed `first` to
    * finish the current day. Used by the last-week section's Load More so day groups stay whole. */
   alignPageToDay?: boolean | null;
+  /**
+   * Collapse each thread to its root row. Deliberately NOT defaulted in the document and NOT
+   * nullable here, because the backend argument is `collapseThreads: Boolean! = false` — a
+   * NON-NULL type.
+   *
+   * ⚠️ Verified against the deployed schema: omitting the key entirely is fine (Strawberry
+   * applies the `false` default), but sending an explicit `collapseThreads: null` fails the
+   * whole operation with "Argument 'collapseThreads' of non-null type 'Boolean!' must not be
+   * null". Hence `boolean | undefined`, not `boolean | null` — the type has to make the fatal
+   * spelling unrepresentable. (The three window flags above are equally non-null on the backend
+   * and already carry this exposure; they predate this wave and are left alone.)
+   *
+   * The nested `sublinks` selection above is what makes collapsing useful: only the root
+   * row appears in `edges`, and its whole subtree arrives inline. Ignored server-side when
+   * `mine` is set — this query never sends `mine`.
+   */
+  collapseThreads?: boolean;
 }
 
 export interface FeedQueryData {
@@ -201,6 +501,31 @@ export interface FeedLink {
   normalizedUrl: string | null;
   title: string;
   created: string;
+  /** "When did this happen" — the instant the card shows and every ordering in
+   * this file is built on (`publicSocialMediaLinks` orders `-occurredAt, -id`
+   * and keysets/aligns day pages on the same column). NOT NULL on the backend,
+   * backfilled from `COALESCE(posted_at, created)`, so every row has one.
+   * `created` is NOT a substitute: it is "when someone reported it" and stays
+   * the moderation provenance column. Naive local wall time, no offset. */
+  occurredAt: string;
+  /**
+   * The conversation tree this node sits in (see `LinkCardItem` for the full contract). Unlike the
+   * feed's other scalars, all four are REQUIRED here, because `FEED_QUERY` selects all four at
+   * every level — an optional field on this type would be a hole the compiler could not report
+   * (`strict`/`strictNullChecks` are OFF) and the wrapper would have to `?? 0` its way past.
+   *
+   * `parentId` is null exactly when this node IS a root, and `isThreadRoot` is defined as
+   * `parentId == null` — which is also true of every ordinary ungrouped link, so neither may
+   * decide whether to draw an expand affordance. `sublinkCount` is this node's OWN publicly-visible
+   * descendant count at any depth, NOT the size of the conversation: to size a conversation, read
+   * the ROOT's count. Summing it level by level double-counts by exactly the depth.
+   */
+  parentId: string | null;
+  isThreadRoot: boolean;
+  sublinkCount: number;
+  /** This node's DIRECT children, in stored sibling `position` order, recursively nested four
+   *  levels deep in the document. `[]` for a leaf — and a leaf is the common case. */
+  sublinks: FeedLinkSublink[];
   /** The approval axis (`LIVE` / `PENDING_APPROVAL` / `HIDDEN`) — drives the shared card's
    * Pending pill. `HIDDEN` never reaches the public feed, so it only shows up in an admin
    * context (the console queue) or the submitter's own `mine` list. */
@@ -215,7 +540,104 @@ export interface FeedLink {
   voteBreakdown: { upvotes: number; downvotes: number };
   lines: Array<{ id: string; code: string; displayName: string }>;
   user: { shortId: string; nickname: string } | null;
+
+  /* ---- The three EDIT ROUND-TRIP tag relations ------------------------------------ *
+   * None of these is rendered by the card, and none is read by the vote overlay. They
+   * are here for one reason, and it is a correctness reason rather than a display one.
+   *
+   * 🔴 `SocialMediaLinkInput` is REPLACE-NOT-PATCH. The update service assigns the title
+   * and calls `.set()` on lines / vehicles / stations / categories UNCONDITIONALLY, so a
+   * relation the payload does not carry is not left alone — it is BLANKED. The shared
+   * edit sheet (`link-form.component.ts`) sends the complete editable set on save and
+   * hydrates these three lists from the link being edited, which means a link that
+   * arrives here WITHOUT them hydrates as an empty selection. An empty selection is
+   * indistinguishable from "this link has no tags", so the save silently deletes the
+   * row's real tags.
+   *
+   * That is why these three are REQUIRED on this type rather than optional: `FEED_QUERY`
+   * selects all three at every level, and with `strict` OFF an optional key would be a
+   * hole the compiler cannot report — the fixture would keep compiling while the server
+   * sent nothing. `home.queries.spec.ts` pins the document itself (a type can say a key
+   * exists; only the document says the server was asked for it).
+   *
+   * Selected with the MINIMUM identifying pair, and the same pair the flat
+   * `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` and the console's `SocialMediaLinkRow` select for
+   * the same three relations. `Vehicle` also exposes `vehicleType`, `incidents`,
+   * `spottings` and `spottingTrends(...)`; widening the sub-selection to the whole
+   * scalar would multiply payload AND resolver fan-out on every row of every feed page
+   * for fields no consumer reads. `id` + the identifying field is exactly what the edit
+   * form hydrates (`target.vehicles?.map((vehicle) => vehicle.id)`).
+   *
+   * Cost: `[]` on an untagged row — three empty arrays per level, against the `lines`
+   * array already selected there — and `id` + one short string per tagged row. Small,
+   * and it is the same shape `/insiden` already pays on every one of its rows.
+   * Backend: `SocialMediaLinkScalar.vehicles: [Vehicle!]!`, `stations: [Station!]!`,
+   * `categories: [CalendarIncidentCategoryScalar!]!` — all non-null, so a present array
+   * is always a real value and `[]` genuinely means "no tags".
+   */
+  vehicles: Array<{ id: string; identificationNo: string }>;
+  stations: Array<{ id: string; displayName: string }>;
+  categories: Array<{ id: string; name: string }>;
 }
+
+/**
+ * Everything a `FEED_QUERY` sublink level shares with its parent: the root's own fields minus the
+ * two the nested selection does NOT request.
+ *
+ * `normalizedUrl` is dropped because the NESTED SELECTION DOES NOT REQUEST IT — nothing renders
+ * it, and the document says so at the call site. Leaving it inherited would have this type claim a
+ * REQUIRED key the document never sends, so a child could not be written by hand as a literal
+ * without inventing a value the server did not send. It is omitted from the TYPE rather than added
+ * to the query on purpose: adding a field no consumer reads to make a type look tidy trades a
+ * harmless inaccuracy for a permanent cost on the wire. The root keeps `normalizedUrl` because
+ * `FEED_QUERY` and `SUBMIT_FEED_LINK_MUTATION` both select it.
+ *
+ * `sublinks` is dropped here and re-added per level below, so each level's nesting depth is named
+ * by a type rather than implied.
+ */
+type FeedLinkSublinkScalars = Omit<FeedLink, "normalizedUrl" | "sublinks">;
+
+/**
+ * Level 1 — the DIRECT children of a feed root, as selected by `FEED_QUERY`'s outermost
+ * `sublinks` block.
+ *
+ * Spelled as an intersection over an `Omit<>` of the parent rather than as a hand-copied
+ * interface, so a child can never drift from its parent — the exact failure mode a structural
+ * contract like `LinkCardItem` is designed to make impossible: the moment a level forgets
+ * `voteBreakdown` or `created`, this type is what notices. It satisfies `LinkCardItem`
+ * structurally (every required field is present, and every tree field it declares optional), which
+ * is what lets the recursive thread wrapper render a child with no host-side mapping.
+ */
+export type FeedLinkSublink = FeedLinkSublinkScalars & {
+  sublinks: FeedLinkSublinkLevel2[];
+};
+
+/** Level 2 — the direct children of a level-1 sublink. Same selection, one block deeper. */
+export type FeedLinkSublinkLevel2 = FeedLinkSublinkScalars & {
+  sublinks: FeedLinkSublinkLevel3[];
+};
+
+/** Level 3 — the direct children of a level-2 sublink.
+ *
+ * This is the DEEPEST level the server stores: `MAX_THREAD_DEPTH = 3` counts a root as depth 0, so
+ * a level-3 sublink is a leaf whose `sublinks` is always `[]`. It is a real, reachable, votable
+ * card — the whole point of selecting this deep is that a 3-level conversation renders in full. */
+export type FeedLinkSublinkLevel3 = FeedLinkSublinkScalars & {
+  sublinks: FeedLinkSublinkLevel4[];
+};
+
+/**
+ * Level 4 — the level the document DOES select `sublinks` at, but the TYPE stops short of.
+ *
+ * That asymmetry is deliberate on both sides and each half is correct. The document keeps the
+ * fourth block so the nesting is one number a reader can check against `MAX_THREAD_DEPTH` and a
+ * future cap bump needs no document change; the type stops at level 3 because the server answers
+ * `[]` for a level it holds nothing under (verified, not just documented), so a level-4 node is
+ * never actually materialised and declaring a `sublinks` key it never receives would be a small
+ * lie. `LinkCardItem.sublinks` is optional, so a level-4 node would still satisfy the card
+ * contract and render as a plain card.
+ */
+export type FeedLinkSublinkLevel4 = FeedLinkSublinkScalars;
 
 export interface FeedLinkEdge {
   node: FeedLink;
@@ -358,12 +780,257 @@ export const SUBMIT_FEED_LINK_MUTATION = /* GraphQL */ `
         normalizedUrl
         title
         created
+        # The sub-select MIRRORS the FeedLink node selection, which is why it carries
+        # everything FeedLink declares: the payload's own type says the link IS a
+        # FeedLink, so a partial selection would make that type a lie, and any host
+        # that ever renders or optimistically patches this row (a link whose event
+        # time the user just chose, a thread wrapper reading counts) would find a hole
+        # in it. The feed is NOT prepended from here: the submit box emits "submitted"
+        # and the page calls store.reloadAll(), which re-reads the collapsed feed — so
+        # nothing renders this payload today and the shape is a contract, not a
+        # shortcut. A brand-new link is by definition a ROOT of its own: parentId
+        # null, isThreadRoot true, sublinkCount 0, sublinks []. The four-level
+        # nesting mirrors FEED_QUERY exactly, because the payload's declared type
+        # IS FeedLink and FeedLink.sublinks is a required four-level tree — a
+        # one-level mirror here would make the type a lie, and the day a host
+        # renders this payload through the recursive thread wrapper it would render
+        # a hole. The wire cost is one [] per level on a link that has no
+        # children yet.
+        #
+        # The three EDIT ROUND-TRIP relations are mirrored for the same reason and
+        # carry the same minimal identifying pairs: FeedLink declares all three as
+        # REQUIRED, so a payload without them describes a link the server never
+        # returned — and the tags are precisely what an edit round-trip reads (see the
+        # FeedLink doc comment; SocialMediaLinkInput is replace-not-patch, so an
+        # absent relation is a blanked one).
+        occurredAt
+        parentId
+        isThreadRoot
+        sublinkCount
+        sublinks {
+          id
+          url
+          title
+          created
+          occurredAt
+          parentId
+          isThreadRoot
+          sublinkCount
+          status
+          completed
+          isAutomated
+          voteScore
+          userVote
+          voteBreakdown {
+            upvotes
+            downvotes
+          }
+          lines {
+            id
+            code
+            displayName
+          }
+          # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+          # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+          # is replace-not-patch, so a payload that omits a relation does not leave it
+          # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+          # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+          # spottings and spottingTrends(...), so selecting all of it would multiply
+          # payload and resolver fan-out on every row of every feed page.
+          vehicles {
+            id
+            identificationNo
+          }
+          stations {
+            id
+            displayName
+          }
+          categories {
+            id
+            name
+          }
+          user {
+            shortId
+            nickname
+          }
+          sublinks {
+            id
+            url
+            title
+            created
+            occurredAt
+            parentId
+            isThreadRoot
+            sublinkCount
+            status
+            completed
+            isAutomated
+            voteScore
+            userVote
+            voteBreakdown {
+              upvotes
+              downvotes
+            }
+            lines {
+              id
+              code
+              displayName
+            }
+            # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+            # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+            # is replace-not-patch, so a payload that omits a relation does not leave it
+            # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+            # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+            # spottings and spottingTrends(...), so selecting all of it would multiply
+            # payload and resolver fan-out on every row of every feed page.
+            vehicles {
+              id
+              identificationNo
+            }
+            stations {
+              id
+              displayName
+            }
+            categories {
+              id
+              name
+            }
+            user {
+              shortId
+              nickname
+            }
+            sublinks {
+              id
+              url
+              title
+              created
+              occurredAt
+              parentId
+              isThreadRoot
+              sublinkCount
+              status
+              completed
+              isAutomated
+              voteScore
+              userVote
+              voteBreakdown {
+                upvotes
+                downvotes
+              }
+              lines {
+                id
+                code
+                displayName
+              }
+              # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+              # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+              # is replace-not-patch, so a payload that omits a relation does not leave it
+              # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+              # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+              # spottings and spottingTrends(...), so selecting all of it would multiply
+              # payload and resolver fan-out on every row of every feed page.
+              vehicles {
+                id
+                identificationNo
+              }
+              stations {
+                id
+                displayName
+              }
+              categories {
+                id
+                name
+              }
+              user {
+                shortId
+                nickname
+              }
+              sublinks {
+                id
+                url
+                title
+                created
+                occurredAt
+                parentId
+                isThreadRoot
+                sublinkCount
+                status
+                completed
+                isAutomated
+                voteScore
+                userVote
+                voteBreakdown {
+                  upvotes
+                  downvotes
+                }
+                lines {
+                  id
+                  code
+                  displayName
+                }
+                # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+                # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+                # is replace-not-patch, so a payload that omits a relation does not leave it
+                # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+                # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+                # spottings and spottingTrends(...), so selecting all of it would multiply
+                # payload and resolver fan-out on every row of every feed page.
+                vehicles {
+                  id
+                  identificationNo
+                }
+                stations {
+                  id
+                  displayName
+                }
+                categories {
+                  id
+                  name
+                }
+                user {
+                  shortId
+                  nickname
+                }
+              }
+            }
+          }
+        }
+        # Also the approval/provenance pair, which the card renders as its Pending
+        # pill and Official chip — a link submitted through the feed box lands
+        # PENDING_APPROVAL, so a payload that omitted these described a link that
+        # reads as already approved.
+        status
+        completed
+        isAutomated
         voteScore
         userVote
+        voteBreakdown {
+          upvotes
+          downvotes
+        }
         lines {
           id
           code
           displayName
+        }
+        # Edit round-trip tags — NOT rendered by the card, and selected ONLY so
+        # this row can hand its own tags back to the edit sheet. SocialMediaLinkInput
+        # is replace-not-patch, so a payload that omits a relation does not leave it
+        # alone, it BLANKS it — see the FeedLink doc comment. Minimal identifying pairs
+        # on purpose: the Vehicle scalar also carries vehicleType, incidents,
+        # spottings and spottingTrends(...), so selecting all of it would multiply
+        # payload and resolver fan-out on every row of every feed page.
+        vehicles {
+          id
+          identificationNo
+        }
+        stations {
+          id
+          displayName
+        }
+        categories {
+          id
+          name
         }
         user {
           shortId
@@ -374,9 +1041,20 @@ export const SUBMIT_FEED_LINK_MUTATION = /* GraphQL */ `
   }
 `;
 
+/** `FeedLinkInput` — the home feed's inline submit box. Mirrors the backend input's
+ *  optionality: every field past `url` may be omitted. */
 interface FeedLinkInput {
   url: string;
   title?: string | null;
+  /** "When did this happen". Backend `Maybe[datetime | None]`: OMIT or send `null` and the
+   *  backend stamps the submission instant; send a value and it is stored verbatim and becomes
+   *  the leading key of every feed ordering. There is deliberately NO update path here (the
+   *  feed has no edit — a repeat submission of the same canonical URL returns the existing
+   *  row untouched), so unlike `SocialMediaLinkInput.occurredAt` there is no "reset to
+   *  submitted" state to express. Naive local wall time: build the value with
+   *  `occurredAtInputToIso` (features/insiden/data/link-occurred-at.util.ts), never
+   *  `new Date(...).toISOString()`, which would convert to UTC and shift it 8 hours. */
+  occurredAt?: string | null;
   lineIds?: string[];
   stationIds?: string[];
   status?: PassengerStatus | null;
@@ -423,10 +1101,24 @@ export interface SubmitLineStatusReportData {
   submitLineStatusReport: { ok: boolean; id: number | null };
 }
 
+/* ---------------------------------------------------------------------- *
+ * Link vote mutations. 🔴 They acknowledge with the vote state the write
+ * produced — `userVote` / `voteScore` / `upvotes` / `downvotes` — and NOT with a
+ * bare `ok`. A client given only `ok` has to project the new score itself, and
+ * that projection then races its own echo (the host writes the value back down
+ * as `userVote`, which re-seeds the control) plus any other voter, so the score
+ * visibly snaps back to a pre-click number. Repainting from this response makes
+ * the mutation the single source of truth — see `voteStateFromAcknowledgement`.
+ * ---------------------------------------------------------------------- */
+
 export const UPVOTE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
   mutation UpvoteSocialMediaLink($id: ID!) {
     upvoteSocialMediaLink(socialMediaLinkId: $id) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -435,6 +1127,10 @@ export const DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION = /* GraphQL */ `
   mutation DownvoteSocialMediaLink($id: ID!) {
     downvoteSocialMediaLink(socialMediaLinkId: $id) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -443,6 +1139,10 @@ export const REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveSocialMediaLinkVote($id: ID!) {
     removeSocialMediaLinkVote(socialMediaLinkId: $id) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -451,8 +1151,14 @@ export interface SocialMediaLinkVoteVars {
   id: string;
 }
 
+/** The `VoteMutationPayload` the three link vote mutations return — the same type
+ * the incident and chronology vote mutations acknowledge with. */
+export interface SocialMediaLinkVotePayload extends VoteAcknowledgement {
+  ok: boolean;
+}
+
 export interface SocialMediaLinkVoteData {
-  upvoteSocialMediaLink?: { ok: boolean };
-  downvoteSocialMediaLink?: { ok: boolean };
-  removeSocialMediaLinkVote?: { ok: boolean };
+  upvoteSocialMediaLink?: SocialMediaLinkVotePayload;
+  downvoteSocialMediaLink?: SocialMediaLinkVotePayload;
+  removeSocialMediaLinkVote?: SocialMediaLinkVotePayload;
 }

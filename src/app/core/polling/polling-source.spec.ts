@@ -78,6 +78,47 @@ describe("PollingSource", () => {
     expect(source.secondsRemaining()).toBe(0);
   });
 
+  it("resumes a paused beat at the cadence it last ran at", () => {
+    const onRefresh = vi.fn();
+    const source = createSource(onRefresh);
+
+    source.setIntervalMs(60000);
+    source.setIntervalMs(null);
+    vi.advanceTimersByTime(120000);
+    expect(onRefresh).not.toHaveBeenCalled();
+
+    source.resume();
+
+    expect(source.intervalMs()).toBe(60000);
+    expect(source.secondsRemaining()).toBe(60);
+
+    vi.advanceTimersByTime(59000);
+    expect(onRefresh).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("resumes at the 30s default when no cadence was ever named", () => {
+    const source = createSource();
+    source.setIntervalMs(null);
+
+    source.resume();
+
+    expect(source.intervalMs()).toBe(30000);
+    expect(source.secondsRemaining()).toBe(30);
+  });
+
+  it("resume on a running beat restarts the countdown without duplicating timers", () => {
+    const onRefresh = vi.fn();
+    const source = createSource(onRefresh);
+
+    source.resume();
+    source.resume();
+    vi.advanceTimersByTime(30000);
+
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("refreshNow fires immediately and resets the countdown", () => {
     const onRefresh = vi.fn();
     const source = createSource(onRefresh);

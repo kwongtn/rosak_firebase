@@ -24,13 +24,24 @@ function asTestable(fixture: ComponentFixture<LinkSubmitBoxComponent>): Componen
   return fixture.componentInstance as unknown as ComponentUnderTest;
 }
 
+/** The submit payload's `link` — the shape a brand-new submission answers with. It is by
+ *  definition a ROOT of its own conversation: `parentId` null, `isThreadRoot` true, and
+ *  `sublinkCount` **0** (a descendant count, so a childless link has none — the old flat fixture's
+ *  `threadSize: 1` meant "a conversation of one" and became `sublinkCount: 0` here). Nothing on
+ *  this surface renders the payload, so the tree fields are here to keep the fixture a state the
+ *  backend can actually produce. */
 function makeLink(): FeedLink {
   return {
     id: "42",
     url: "https://example.com/story",
     normalizedUrl: "https://example.com/story",
     title: "Story",
-    created: "2026-08-01T08:00:00Z",
+    created: "2026-08-01T08:00:00",
+    occurredAt: "2026-08-01T08:00:00",
+    parentId: null,
+    isThreadRoot: true,
+    sublinkCount: 0,
+    sublinks: [],
     status: "LIVE",
     completed: false,
     isAutomated: false,
@@ -39,6 +50,12 @@ function makeLink(): FeedLink {
     voteBreakdown: { upvotes: 1, downvotes: 0 },
     lines: [],
     user: { shortId: "abc12345", nickname: "" },
+    // The three EDIT ROUND-TRIP relations. The payload's declared type is FeedLink and the
+    // mutation mirrors the feed's selection, so a row without them is one the server never
+    // returned — and it is the shape that would hand the edit sheet an empty tag selection.
+    vehicles: [],
+    stations: [],
+    categories: [],
   };
 }
 
@@ -274,5 +291,44 @@ describe("LinkSubmitBoxComponent", () => {
 
     expect(openSheetMock).toHaveBeenCalledTimes(1);
     expect(openSheetMock).toHaveBeenCalledWith(undefined, { url: undefined });
+  });
+
+  // Both entry points into submit() — the button and Enter — are covered by the reveal test below.
+  // Blur alone must stay silent: FormField marks a field touched on blur, so an error keyed off
+  // `touched()` would nag the user for merely tabbing through an empty box.
+  it("does not show the required error when the field is blurred", async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const input = fixture.nativeElement.querySelector('input[type="text"]');
+    input.focus();
+    input.blur();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).not.toContain("Enter a URL");
+    expect(input.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("reveals the required error only after clicking Submit Link", async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const input = fixture.nativeElement.querySelector('input[type="text"]');
+    fixture.nativeElement.querySelector('button[type="submit"]').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain("Enter a URL");
+    // The action must not have run: an empty field never reaches the network.
+    expect(requestMock).not.toHaveBeenCalled();
+
+    input.value = "https://example.com/story";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).not.toContain("Enter a URL");
   });
 });

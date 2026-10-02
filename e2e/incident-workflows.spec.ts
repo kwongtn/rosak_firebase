@@ -159,7 +159,7 @@ test.describe("incident workflows", () => {
     });
 
     await loginAs(page, { admin: true });
-    await page.goto("/console/insiden/links");
+    await page.goto("/console/links");
 
     const row = page.locator("tr").filter({ hasText: "prasarana" });
     await expect(row).toBeVisible();

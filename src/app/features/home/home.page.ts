@@ -1,14 +1,4 @@
-import { isPlatformBrowser } from "@angular/common";
-import {
-  Component,
-  PLATFORM_ID,
-  afterNextRender,
-  computed,
-  effect,
-  inject,
-  signal,
-  type OnDestroy,
-} from "@angular/core";
+import { Component, computed, effect, inject, signal, type OnDestroy } from "@angular/core";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -25,7 +15,7 @@ import { ReportFormComponent } from "../spotting/report-form/report-form.compone
 import { canEditLink } from "../insiden/data/can-edit.link.util";
 import { LinkCardItem } from "../insiden/data/link-card-item";
 import { LinkSheetService } from "../insiden/data/link-sheet.service";
-import { LinkCardComponent } from "../insiden/link-card/link-card.component";
+import { LinkThreadComponent } from "../insiden/link-thread/link-thread.component";
 import { LinkSheetComponent } from "../insiden/link-sheet/link-sheet.component";
 import { LinePulse } from "./data/home.queries";
 import { HomeStore } from "./data/home.store";
@@ -33,18 +23,31 @@ import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
+import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-control.component";
 
 /**
  * The community front page — the site's root route. The feed and the per-line pulse list share a
  * two-panel split (the URL list left, the line statuses right) from `lg` up, stacked on mobile;
- * the submit box heads the feed column and the retry banner and footer stay full width. The line
- * panel carries a 30s refresh countdown over the store's polling beat, above the list.
+ * the submit box heads the feed column and the retry banner and footer stay full width. The refresh
+ * control (`app-home-refresh-control`) heads the LINKS section on mobile and the line panel on
+ * desktop — one component, two visibility-gated instances, because the beat it drives refreshes
+ * both sections.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
- * app.routes.ts, so their polling beat and sheet state are created with the page and die with
- * it — hence `start()` in the constructor and `stop()` in `ngOnDestroy` (the beat must not
- * outlive the page). Data fetching, loading/empty states and the vote overlay all live in the
- * store; this page only composes.
+ * app.routes.ts. The router retains that route injector while the page component is recreated on
+ * every visit, so the STORE outlives a visit: the constructor calls `start()` (resuming a paused
+ * beat and revalidating on re-entry) and `ngOnDestroy` calls `stop()` (the beat must not keep
+ * polling while the reader is elsewhere). Data fetching, loading/empty states, the vote overlay
+ * and the refresh countdown's confirmation all live in the store and the control; this page only
+ * composes.
+ *
+ * Every feed row renders through `app-link-thread` — the collapsible conversation wrapper — not
+ * `app-link-card` directly, in BOTH the today feed and the Last Week day groups (the two
+ * surfaces the plan ships conversation UI on). The wrapper renders the root as an ordinary card, so
+ * an ungrouped link looks exactly as it did; it only adds a "N links" + chevron affordance when the
+ * backend reports a non-zero `sublinkCount` on the root, with the children waiting inline under
+ * `sublinks`. `HomeStore` asks the backend to collapse conversations for that to be possible at all
+ * (see `HOME_FEED_COLLAPSE_VARS`).
  */
 @Component({
   selector: "app-home-page",
@@ -52,10 +55,11 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
     AppNavComponent,
     AppFooterComponent,
     LinkSubmitBoxComponent,
-    LinkCardComponent,
+    LinkThreadComponent,
     LinkSheetComponent,
     LinePulseListComponent,
     LineStatusSheetComponent,
+    HomeRefreshControlComponent,
     ReportFormComponent,
     RetryBannerComponent,
     HlmButton,
@@ -78,6 +82,15 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
         data-testid="home-panels"
       >
         <section class="flex flex-col gap-3" aria-label="Community feed">
+          <!-- The beat refreshes these links too, so on mobile the control heads the section it
+               actually refreshes. CSS-only gate: SSR and hydration must see identical markup.
+               The gate is a justified flex row because the control now shrink-wraps to its own
+               visible content: a flex item's width is its content's, so justify-end is what
+               parks it at the right edge. A plain block wrapper would leave it flush left. -->
+          <div class="flex justify-end lg:hidden">
+            <app-home-refresh-control />
+          </div>
+
           <app-link-submit-box (submitted)="store.reloadAll()" />
 
           <div class="flex flex-col gap-3" data-testid="feed-scroll">
@@ -92,11 +105,12 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
               </p>
             }
             @for (link of store.feedLinks(); track link.id) {
-              <app-link-card
+              <app-link-thread
                 [link]="link"
                 [userVote]="store.userVoteFor(link.id)"
+                [voteValues]="store.userVotes()"
                 [editable]="canEdit(link)"
-                (voteChanged)="store.setUserVote(link.id, $event.value)"
+                (voteChanged)="onVoteChanged($event)"
                 (edit)="openEdit($event)"
               />
             }
@@ -168,11 +182,12 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
                       </h2>
                     }
                     @for (link of group.links; track link.id) {
-                      <app-link-card
+                      <app-link-thread
                         [link]="link"
                         [userVote]="store.userVoteFor(link.id)"
+                        [voteValues]="store.userVotes()"
                         [editable]="canEdit(link)"
-                        (voteChanged)="store.setUserVote(link.id, $event.value)"
+                        (voteChanged)="onVoteChanged($event)"
                         (edit)="openEdit($event)"
                       />
                     }
@@ -194,71 +209,20 @@ import { LineStatusSheetComponent } from "./line-status/line-status-sheet.compon
           </div>
         </section>
 
-        <section class="flex flex-col gap-3" aria-label="Line status">
-          <button
-            type="button"
-            class="relative flex cursor-pointer flex-wrap items-center justify-end gap-2"
-            data-testid="line-refresh-countdown"
-            aria-label="Refresh line statuses now"
-            (mouseenter)="onRefreshHoverEnter()"
-            (mouseleave)="onRefreshHoverLeave()"
-            (click)="onRefreshClick()"
-          >
-            @if (_showRefreshed()) {
-              <svg
-                class="text-muted-foreground size-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <span
-                class="text-muted-foreground text-xs"
-                data-testid="line-refresh-confirmation"
-                role="status"
-              >
-                Updated
-              </span>
-            } @else if (store.polling.intervalMs() !== null) {
-              <svg
-                class="text-muted-foreground size-3.5 [animation-direction:reverse]"
-                style="animation: spin 1s linear infinite"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-opacity="0.25"
-                />
-                <path
-                  d="M21 12a9 9 0 0 0-9-9"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <span class="text-muted-foreground text-xs">
-                Refreshing in {{ store.polling.secondsRemaining() }}s
-              </span>
-            }
-            @if (_refreshTooltipOpen()) {
-              <span
-                role="tooltip"
-                data-testid="line-refresh-tooltip"
-                class="bg-popover text-popover-foreground border-border pointer-events-none absolute top-full right-0 z-10 mt-1.5 rounded-md border px-2 py-1 text-xs font-normal whitespace-nowrap shadow-md"
-              >
-                Click to Refresh Now
-              </span>
-            }
-          </button>
+        <section
+          class="border-border flex flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
+          aria-label="Line status"
+        >
+          <!-- Same control as the feed section has, shown from lg up where the line panel is
+               the one next to the feed; the hidden/lg:flex pair keeps one instance visible, and
+               justify-end keeps the shrink-wrapped control on the right. Below lg this panel is
+               stacked UNDER the feed, so the section above it draws a rule to separate the two:
+               border-t plus the matching pt-6, both dropped from lg (lg:border-t-0 lg:pt-0)
+               where the two sections are grid columns side by side and a rule between them would
+               just draw a line down the middle of the gap. -->
+          <div class="hidden lg:flex justify-end">
+            <app-home-refresh-control />
+          </div>
 
           <app-line-pulse-list
             [lines]="store.lines()"
@@ -377,19 +341,6 @@ export class HomePage implements OnDestroy {
   /** Previous shared-link-sheet state, so the effect can detect its open→closed edge. */
   private _wasLinkSheetOpen = false;
 
-  /** Hover-capability of the refresh row's tooltip: measured (not guessed), the same way
-   * `StatusInfoChipComponent` does — pointer devices hover/focus, everything else taps. */
-  protected readonly _hoverCapable = signal(false);
-  protected readonly _refreshTooltipOpen = signal(false);
-
-  /** The transient "Updated" confirmation: shown once a manual refresh settles (see the effect
-   * below), then hidden again by `_refreshedTimer`. */
-  protected readonly _showRefreshed = signal(false);
-  private _refreshPending = false;
-  private _refreshedTimer: ReturnType<typeof setTimeout> | undefined;
-
-  private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-
   constructor() {
     this.store.start();
     effect(() => {
@@ -399,45 +350,6 @@ export class HomePage implements OnDestroy {
       }
       this._wasLinkSheetOpen = isOpen;
     });
-    effect(() => {
-      const isLoading = this.store.isLoading();
-      if (this._refreshPending && !isLoading) {
-        this._refreshPending = false;
-        this._showRefreshed.set(true);
-        clearTimeout(this._refreshedTimer);
-        this._refreshedTimer = setTimeout(() => this._showRefreshed.set(false), 2000);
-      }
-    });
-    if (this._isBrowser) {
-      afterNextRender(() => {
-        if (typeof window.matchMedia === "function") {
-          this._hoverCapable.set(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
-        }
-      });
-    }
-  }
-
-  protected onRefreshHoverEnter(): void {
-    if (this._hoverCapable()) {
-      this._refreshTooltipOpen.set(true);
-    }
-  }
-
-  protected onRefreshHoverLeave(): void {
-    if (this._hoverCapable()) {
-      this._refreshTooltipOpen.set(false);
-    }
-  }
-
-  /** The refresh row is the control now (the old separate button is gone): every click refreshes
-   * and arms the "Updated" confirmation, and touch devices toggle the "Click to Refresh Now"
-   * tooltip where they cannot hover. */
-  protected onRefreshClick(): void {
-    this._refreshPending = true;
-    this.store.polling.refreshNow();
-    if (!this._hoverCapable()) {
-      this._refreshTooltipOpen.update((open) => !open);
-    }
   }
 
   /** Author-or-admin gate for the card's edit pencil (mirrors LinkListComponent; the home feed
@@ -455,6 +367,20 @@ export class HomePage implements OnDestroy {
     this.linkSheet.openEdit(link);
   }
 
+  /**
+   * Records a vote against the VOTED card's id, which `app-link-thread` reports — a thread member
+   * is votable too, so hard-coding the root's id (as the old flat loop could, because it knew the
+   * row) would file a member's vote under the group.
+   *
+   * The vote OVERLAY lives in the store and reaches the wrapper as one `voteValues` map bound from
+   * `store.userVotes()` rather than as page-local state: the wrapper renders N cards per row (root
+   * + members), so a per-page map would have to be merged from the store's anyway — a copy that can
+   * only drift. `store.setUserVote` remains the single write path.
+   */
+  protected onVoteChanged(event: { id: string; value: number }): void {
+    this.store.setUserVote(event.id, event.value);
+  }
+
   /** The sheet closes on submit and the page data reloads so the new entry shows up. */
   protected onSpottingSubmitted(): void {
     this.reportSheet.setOpen(false);
@@ -462,7 +388,6 @@ export class HomePage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    clearTimeout(this._refreshedTimer);
     this.store.stop();
   }
 }

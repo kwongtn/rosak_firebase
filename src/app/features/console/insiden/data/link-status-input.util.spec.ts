@@ -2,12 +2,25 @@ import { describe, expect, it } from "vitest";
 import { linkStatusInput } from "./link-status-input.util";
 import type { SocialMediaLinkRow } from "./insiden-console.queries";
 
+/** A row of the console queue, as `SOCIAL_MEDIA_LINKS_QUERY` returns it. Every
+ *  hierarchy field is set explicitly — including `position`, which is required on
+ *  the row type and used to be omitted here. It had to be: the factory spreads
+ *  `Partial<SocialMediaLinkRow>` into the literal, and that spread widens EVERY
+ *  property to `T[k] | undefined`, so a required field the factory did not name was
+ *  a type error in the suite. Setting it here (and in `links.component.spec.ts`) is
+ *  what let `position` be promoted to required. `position: 10` is a real stored
+ *  sibling rank, not a placeholder. */
 function makeLink(overrides: Partial<SocialMediaLinkRow> = {}): SocialMediaLinkRow {
   return {
     id: "1",
     url: "https://x.com/prasarana/status/1",
     title: "Service alert",
-    created: "2026-09-01T09:00:00Z",
+    created: "2026-09-01T09:00:00",
+    occurredAt: "2026-08-31T22:15:00",
+    parentId: null,
+    isThreadRoot: true,
+    sublinkCount: 0,
+    position: 10,
     completed: false,
     completedAt: null,
     completedBy: null,
@@ -31,8 +44,26 @@ describe("linkStatusInput", () => {
       vehicleIds: ["v1"],
       stationIds: ["s1"],
       categoryIds: ["c1"],
+      occurredAt: "2026-08-31T22:15:00",
       status: "HIDDEN",
     });
+  });
+
+  it("round-trips occurredAt verbatim — never as null", () => {
+    // `occurredAt` is tri-state on the backend: omitted = unchanged, a value =
+    // set, explicit null = RESET to the row's created. `SocialMediaLinkInput` is
+    // replace-not-patch, so an Approve/Hide click that coerced a missing event
+    // time to null would silently rewrite the row's event time — and re-sort the
+    // public feed with it. Guarded here because the coercion is one `??` away.
+    expect(linkStatusInput(makeLink(), "LIVE").occurredAt).toBe("2026-08-31T22:15:00");
+    expect(linkStatusInput(makeLink(), "HIDDEN").occurredAt).not.toBeNull();
+  });
+
+  it("keeps the naive wall-time string exactly as the row carried it", () => {
+    // No offset to add, no UTC to convert to: the backend runs USE_TZ = False.
+    const input = linkStatusInput(makeLink({ occurredAt: "2026-08-31T22:15:00" }), "LIVE");
+    expect(input.occurredAt).toBe("2026-08-31T22:15:00");
+    expect(input.occurredAt).not.toContain("Z");
   });
 
   it("carries the LIVE status for the publish verb", () => {

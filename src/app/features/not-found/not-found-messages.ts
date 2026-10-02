@@ -1,5 +1,19 @@
 import { LineStatus } from "../../core/graphql/types";
 
+/**
+ * A small, deterministic string hash (djb2-ish) — not cryptographic, just needs to spread
+ * different URLs across a message pool reasonably evenly. Lives here rather than in
+ * `not-found.page.ts` because two different pickers share it: the 404 message itself and the
+ * scroll-gate line above the pet photo.
+ */
+export function hashString(value: string): number {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 33 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
 interface NotFoundMessage {
   /** The small uppercase label above the "404" — varies alongside the joke below it rather
    * than staying a single generic "Service Alert" forever. */
@@ -262,3 +276,33 @@ export const NOT_FOUND_MESSAGES: NotFoundMessage[] = [
     body: "Any route, really. Statistically, almost every other page on this site is more likely to exist than this one.",
   },
 ];
+
+/**
+ * The lines shown one screen *below* the 404 block, above the pet photo — the reward for
+ * scrolling past the joke. Each is kind-agnostic apart from a literal `{kind}` token (the cat/dog
+ * word), so a line can name the animal without being half-written for either one; `scrollLineFor`
+ * substitutes it. Same deadpan transit register as `NOT_FOUND_MESSAGES` on purpose, and the same
+ * hash-of-the-URL pick rather than `Math.random()` — the pet block itself is browser-only (fetched
+ * after hydration), so this copy is too, but keeping the mechanism identical means one rule to
+ * reason about instead of two.
+ */
+export const NOT_FOUND_SCROLL_LINES: string[] = [
+  "What are you doing scrolling here? Anyway, here's a {kind}.",
+  "You scrolled. Bold. Consider this your reward: one (1) {kind}, staring.",
+  "The 404 ends up here. So does this {kind}, which we are told is fine.",
+  "Nothing important lives down this page. Just a {kind}. You've been warned.",
+  "Congratulations — you've found the one part of this page we built on purpose. It's a {kind}.",
+  "You have reached the scenic route. Final stop: a {kind}, equally unbothered by all of this.",
+  "Terminal station for the {kind} line. The driver does not make eye contact.",
+  "Yes, there really is a {kind} down here. No, we are not taking further questions.",
+];
+
+/**
+ * Picks this dead link's scroll-gate line and fills in the animal. Deterministic for a given
+ * (path, kind) pair — the same arguments always produce the same sentence, so a re-render or a
+ * back-navigation can't reshuffle the joke under a reader who just read it.
+ */
+export function scrollLineFor(attemptedPath: string, kind: string): string {
+  const line = NOT_FOUND_SCROLL_LINES[hashString(attemptedPath) % NOT_FOUND_SCROLL_LINES.length];
+  return line.replaceAll("{kind}", kind);
+}

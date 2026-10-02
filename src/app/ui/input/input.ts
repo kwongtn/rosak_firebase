@@ -15,11 +15,18 @@ export class HlmInput {
    * (and the destructive border/ring it triggers) is only applied once the field has
    * actually been interacted with. */
   readonly touched = input(false);
+  /** Overrides `touched` as the gate for `aria-invalid` when supplied. For forms whose error
+   * messaging is submit-gated — where blurring an untouched-but-empty field should stay quiet
+   * and the field should only light up once a submit was actually attempted. Left `undefined`
+   * every consumer keeps the plain `touched` behaviour. */
+  readonly errorVisible = input<boolean | undefined>(undefined);
   readonly userClass = input<string>("", { alias: "class" });
 
   private readonly _elementRef = inject(ElementRef<HTMLInputElement | HTMLTextAreaElement>);
 
-  protected readonly _errorState = computed(() => this.invalid() && this.touched());
+  protected readonly _errorState = computed(
+    () => this.invalid() && (this.errorVisible() ?? this.touched()),
+  );
 
   protected readonly _computedClass = computed(() =>
     hlm(

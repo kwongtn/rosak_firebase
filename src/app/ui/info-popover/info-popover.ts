@@ -90,6 +90,9 @@ export class InfoPopoverRegistry {
  * `showIcon: false` drops the "i" glyph for consumers whose projected content is already the
  * trigger (the home status chips). `showMethodologyLink: false` drops the link for chips whose
  * metric has no method page section, demoting the panel from a dialog to a plain tooltip.
+ * `iconPosition: "end"` trails the glyph after the projected content instead of leading it (the ad
+ * slot's "ADVERTISEMENT ⓘ" caption), and `triggerClasses` merges consumer classes onto the trigger
+ * button — the ad slot uses it to pad the caption into a pill with a comfortable hover target.
  *
  * Capability is measured, not guessed: a `(hover: hover) and (pointer: fine)` device gets
  * hover/focus; anything else gets a tap toggle, and "no hover" is the default until the probe
@@ -118,6 +121,7 @@ export class InfoPopoverRegistry {
       #trigger
       type="button"
       class="focus-visible:ring-ring/50 inline-flex cursor-help items-center gap-1 rounded-full outline-none focus-visible:ring-3"
+      [class]="triggerClasses()"
       [attr.aria-label]="'What is ' + label() + '?'"
       [attr.aria-expanded]="_open()"
       [attr.aria-controls]="_panelId() || null"
@@ -125,14 +129,13 @@ export class InfoPopoverRegistry {
       (blur)="onBlur($event)"
       (click)="onClick()"
     >
-      @if (showIcon()) {
-        <span
-          class="border-border bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none font-semibold"
-          aria-hidden="true"
-          >i</span
-        >
+      @if (showIcon() && iconPosition() === "start") {
+        <span [class]="glyphClasses" aria-hidden="true">i</span>
       }
       <ng-content />
+      @if (showIcon() && iconPosition() === "end") {
+        <span [class]="glyphClasses" aria-hidden="true">i</span>
+      }
     </button>
     @if (_open()) {
       <div
@@ -175,10 +178,23 @@ export class InfoPopover {
   readonly align = input<"start" | "end" | "center">("start");
   /** `data-testid` of the panel — consumers needing back-compat pass their own id. */
   readonly testId = input("info-popover-panel");
-  /** Whether the "i" glyph leads the trigger; false when the projected content is the trigger. */
+  /** Whether an "i" glyph is rendered at all; false when the projected content is the trigger. */
   readonly showIcon = input(true);
   /** Whether the panel renders the "How this is counted" link; without it the panel is a tooltip. */
   readonly showMethodologyLink = input(true);
+  /**
+   * Which side of the projected content the glyph sits on: `"start"` (default) leads the trigger,
+   * `"end"` trails it — a caption that reads "ADVERTISEMENT ⓘ" rather than "ⓘ ADVERTISEMENT". The
+   * glyph is one of two branches around the projection slot, so the DOM order (and not just the
+   * painted order) matches what is read.
+   */
+  readonly iconPosition = input<"start" | "end">("start");
+  /**
+   * Extra Tailwind classes merged onto the trigger `<button>` after its base classes — e.g. the
+   * padding that turns a bare micro-caption into a comfortable hover pill. Merged, not replacing, so
+   * the interaction contract (`cursor-help`, the focus ring, `rounded-full`) is never lost.
+   */
+  readonly triggerClasses = input<string>("");
 
   /** A panel is a dialog only when it actually carries the methodology link. */
   protected readonly hasLink = computed(() => this.showMethodologyLink() && this.link() !== null);
@@ -193,6 +209,13 @@ export class InfoPopover {
         return "left-0";
     }
   });
+
+  /**
+   * The "i" glyph badge, bound on both placement branches so the leading and trailing glyph can
+   * never drift apart visually. One string, two render sites — the node itself is not duplicated.
+   */
+  protected readonly glyphClasses =
+    "border-border bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none font-semibold";
 
   protected readonly _open = signal(false);
   /** Measured client-side; defaults to "no hover" (tap toggle) until resolved, the safe default. */

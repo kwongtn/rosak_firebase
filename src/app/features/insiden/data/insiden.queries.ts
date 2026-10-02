@@ -1,6 +1,9 @@
 export type CalendarIncidentSeverity = "MAJOR" | "MINOR" | "OTHERS";
 export type ChronologyIndicator = "GREEN" | "RED" | "BLUE" | "GRAY";
 
+// Type-only, so it is erased at compile time: the vote button imports the
+// documents below, and a runtime import here would close that loop for nothing.
+import type { VoteAcknowledgement } from "../vote-button/vote-state.util";
 import type { PublicSocialMediaLink } from "./social-links.queries";
 
 /** Approval lifecycle of a calendar incident (backend `CalendarIncidentStatus` TextChoices:
@@ -105,7 +108,7 @@ export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
       }
       # Per-incident submitted links, first page inline (Task 15). The nested
       # field returns the SocialMediaLinkConnection — same keyset cursor +
-      # ordering (created DESC, id DESC) as the root publicSocialMediaLinks
+      # ordering (occurredAt DESC, id DESC) as the root publicSocialMediaLinks
       # query, so the card's continuation pages simply call
       # publicSocialMediaLinks(incidentId, first, after) with this page's
       # endCursor. DEPLOY ORDER: backend CalendarIncidentScalar.links landed
@@ -116,6 +119,18 @@ export const INSIDEN_INCIDENTS_QUERY = /* GraphQL */ `
             id
             url
             title
+            # "When it happened" — the DISPLAY instant, and the leading key of the
+            # -occurred_at, -id order BOTH this nested connection and the root query
+            # hand rows over in. It has to be selected here too: the card appends
+            # continuation pages onto this first page, so omitting it left the one
+            # list labelling its top 10 rows by submission time (created) and every
+            # row below it by event time. Naive local wall time with no offset
+            # (backend USE_TZ = False) — selected here, never reformatted.
+            occurredAt
+            # Fallback ONLY, not a duplicate: the display path is
+            # occurredAt ?? created (incidentLinkLine), and rows predating the column
+            # carry no event time. Removing it as "redundant with occurredAt" would
+            # render an empty timestamp on exactly those rows.
             created
             status
             completed
@@ -201,7 +216,22 @@ export interface CalendarIncidentMedia {
 
 /** Per-incident link connection (Task 15/16): first page arrives inline with the
  * incident; continuation pages go through the root publicSocialMediaLinks query
- * with the same cursor. */
+ * with the same cursor.
+ *
+ * The node is deliberately the SHARED `PublicSocialMediaLink` type rather than a local
+ * copy — but that means its two timestamps are load-bearing and must NOT be
+ * "deduplicated" out of the sub-select above:
+ *
+ * - `occurredAt` ("when it happened") is the DISPLAY field, and the leading key of the
+ *   `-occurred_at, -id` order every link list now sorts on. Optional on the type because
+ *   the column post-dates some rows and older payloads simply omit it.
+ * - `created` ("when someone reported it") is the documented FALLBACK: the display path
+ *   is `occurredAt ?? created` (see `incidentLinkLine`). Keep it selected alongside
+ *   `occurredAt`, or a legacy row with no event time renders an empty timestamp.
+ *
+ * Both being selected is what makes page 1 and the continuation pages appended under it
+ * label by the SAME instant — the gap this document's nested sub-select used to leave
+ * open, labelling its top 10 rows by submission time and every row below by event time. */
 export interface CalendarIncidentLinkEdge {
   node: PublicSocialMediaLink;
   cursor: string;
@@ -406,10 +436,23 @@ export interface UpdateCalendarIncidentData {
   updateCalendarIncident: { ok: boolean; id: string | null };
 }
 
+/* ---------------------------------------------------------------------- *
+ * Vote mutations. 🔴 EVERY vote mutation acknowledges with the vote state the
+ * write produced — `userVote` / `voteScore` / `upvotes` / `downvotes` — not
+ * with a bare `ok`, because a client given only `ok` has to project the new
+ * score itself, and that projection races its own echo of the value and every
+ * other voter. The control repaints from this response; see
+ * vote-state.util.ts's `voteStateFromAcknowledgement`.
+ * ---------------------------------------------------------------------- */
+
 export const UPVOTE_MUTATION = /* GraphQL */ `
   mutation Upvote($incidentId: ID!) {
     upvote(calendarIncidentId: $incidentId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -418,6 +461,10 @@ export const DOWNVOTE_MUTATION = /* GraphQL */ `
   mutation Downvote($incidentId: ID!) {
     downvote(calendarIncidentId: $incidentId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -426,14 +473,23 @@ export const REMOVE_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveVote($incidentId: ID!) {
     removeVote(calendarIncidentId: $incidentId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
 
+/** The `VoteMutationPayload` the three incident vote mutations return. */
+export interface VoteMutationPayload extends VoteAcknowledgement {
+  ok: boolean;
+}
+
 export interface VoteMutationData {
-  upvote?: { ok: boolean };
-  downvote?: { ok: boolean };
-  removeVote?: { ok: boolean };
+  upvote?: VoteMutationPayload;
+  downvote?: VoteMutationPayload;
+  removeVote?: VoteMutationPayload;
 }
 
 export interface VoteMutationVars {
@@ -445,13 +501,19 @@ export interface VoteMutationVars {
  * IsLoggedIn, idempotent update_or_create on switch, remove clears the vote —
  * but scoped to a single chronology row, whose id comes from the
  * `chronologies { id }` sub-select. VoteButtonComponent picks these when its
- * `targetType` input is "chronology".
+ * `targetType` input is "chronology". The SAME payload, deliberately: the three
+ * targets are one control, and a second response shape here would mean a second
+ * code path in it.
  * ---------------------------------------------------------------------- */
 
 export const UPVOTE_CHRONOLOGY_MUTATION = /* GraphQL */ `
   mutation UpvoteChronology($chronologyId: ID!) {
     upvoteChronology(chronologyId: $chronologyId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -460,6 +522,10 @@ export const DOWNVOTE_CHRONOLOGY_MUTATION = /* GraphQL */ `
   mutation DownvoteChronology($chronologyId: ID!) {
     downvoteChronology(chronologyId: $chronologyId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
@@ -468,14 +534,18 @@ export const REMOVE_CHRONOLOGY_VOTE_MUTATION = /* GraphQL */ `
   mutation RemoveChronologyVote($chronologyId: ID!) {
     removeChronologyVote(chronologyId: $chronologyId) {
       ok
+      userVote
+      voteScore
+      upvotes
+      downvotes
     }
   }
 `;
 
 export interface ChronologyVoteMutationData {
-  upvoteChronology?: { ok: boolean };
-  downvoteChronology?: { ok: boolean };
-  removeChronologyVote?: { ok: boolean };
+  upvoteChronology?: VoteMutationPayload;
+  downvoteChronology?: VoteMutationPayload;
+  removeChronologyVote?: VoteMutationPayload;
 }
 
 export interface ChronologyVoteMutationVars {
@@ -590,6 +660,15 @@ export interface SubmitSocialMediaLinkVars {
     lineIds?: string[];
     vehicleIds?: string[];
     stationIds?: string[];
+    /** "When did this happen" (NOT NULL on the backend). Backend
+     *  `Maybe[datetime | None]`: OMIT it and the backend stamps the submission
+     *  instant; send a value (naive local wall time, built by
+     *  `occurredAtInputToIso`) and it is stored verbatim as the leading key of
+     *  every feed/queue ordering. On this SUBMIT path an explicit `null` is
+     *  identical to omitting it — unlike the update path, where `null` is the
+     *  deliberate "reset to submitted time" escape hatch (see
+     *  UpdateSocialMediaLinkVars). */
+    occurredAt?: string | null;
     /** Per-incident targeting (Task 14): maps to backend `SocialMediaLinkInput.incident_id`
      * (strawberry.Maybe[ID | None]). Send the incident's id as a string; OMIT the key for
      * the just-dumping flow — never send `incidentId: null` explicitly (UNSET vs None is

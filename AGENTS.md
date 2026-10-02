@@ -140,6 +140,8 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
    (`src/app/core/auth/admin-only.guard.ts:8-14`, commit 29b5d6d). `/console` is genuinely
    admin-gated. Do not "re-fix" it.
 
+**Code Definitions** - Never attempt to open, grep, or search files inside `.venv` or `node_modules`. If you need library or framework documentation, use the LSP tools or ask/run python introspection directly.
+
 ---
 
 ## 📝 Documentation Maintenance Rules

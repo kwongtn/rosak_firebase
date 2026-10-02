@@ -125,7 +125,9 @@ export class LinkListComponent {
     this.links().filter((link) => link.status === "PENDING_APPROVAL"),
   );
 
-  /** Approved links bucketed by UTC day (created-DESC preserved within each day). */
+  /** Approved links bucketed by UTC day (the backend's `occurredAt DESC, id DESC` order is
+   * preserved within each day; the bucket key is the same displayed instant — see
+   * `groupLinksByDay`). */
   protected readonly approvedGroups = computed(() =>
     groupLinksByDay(this.approved(), linkDateKey(new Date().toISOString())),
   );

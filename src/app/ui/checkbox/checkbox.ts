@@ -23,6 +23,7 @@ import { hlm } from "../utils/hlm";
     <brn-checkbox
       [checked]="checked"
       [disabled]="disabled"
+      [aria-label]="ariaLabel()"
       [class]="_computedClass()"
       (checkedChange)="_handleChange($event)"
       (touched)="onTouched?.()"
@@ -45,6 +46,15 @@ export class HlmCheckbox implements ControlValueAccessor {
   readonly userClass = input<string>("", { alias: "class" });
   readonly checkedInput = input<boolean>(false, { alias: "checked" });
   readonly disabledInput = input<boolean>(false, { alias: "disabled" });
+  /**
+   * Accessible name for the control, forwarded to the Spartan input (the same
+   * `aria-label` alias `BrnCheckbox` declares) so it lands on the inner
+   * `<button role="checkbox">`. It MUST be bound rather than written as a bare
+   * `aria-label` attribute on `<hlm-checkbox>`: the host is a `display: contents`
+   * wrapper and carries no role, so a host attribute names nothing — the button
+   * inside is what assistive technology reaches, and only the input reaches it.
+   */
+  readonly ariaLabel = input<string | null>(null, { alias: "aria-label" });
   readonly checkedChange = output<boolean>();
 
   protected readonly _computedClass = computed(() =>

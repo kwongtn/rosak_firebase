@@ -52,6 +52,18 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  * on every retry attempt, which reads as the page restarting from scratch rather than quietly
  * trying again behind an already-shown error state.
  *
+ * `isFetching` is the COMPLEMENT of that narrowing, and exists because the narrowing hides the one
+ * thing a caller cannot get any other way: it is the raw `httpResource` in-flight flag, so it is
+ * `true` WHILE ANY REQUEST IS IN FLIGHT — the pristine first fetch, a `reload()`, or an automatic
+ * retry ATTEMPT alike — where `isLoading` goes `false` forever after the first success or failure.
+ * Read the word "in flight" literally: the exponential-backoff WAIT between two attempts is not a
+ * request, so `isFetching` is `false` for those seconds while `hasError` stays `true` and
+ * `retryCountdownSec` counts down. Anything that must react to a REFRESH completing (a "refreshed,
+ * no changes" confirmation, a spinner during a manual reload) has to key on `isFetching`, because a
+ * `_pending` boolean + `isLoading` effect can never observe a reload: the effect simply does not
+ * re-run. Keep the two apart — `isLoading` is the skeleton gate, `isFetching` is the in-flight
+ * state.
+ *
  * By default, a refresh whose GraphQL response is structurally equal to the current response
  * retains the previous object reference. That keeps computed signals, effects, and DOM bindings
  * from churning while route keep-alive pages revalidate silently in the background (see
@@ -167,6 +179,11 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
     errors,
     /** True only for the very first, pristine fetch — see the function's own doc comment. */
     isLoading: computed(() => raw.isLoading() && !hasEverLoaded() && !hasError()),
+    /** True while ANY request is in flight — the pristine first fetch, a `reload()`, or a retry
+     * attempt. Deliberately DISTINCT from `isLoading`, which is pristine-first-fetch-only and stays
+     * `false` for every later attempt; use this one to observe a refresh actually completing.
+     * FALSE during the backoff WAIT between attempts — nothing is on the wire then. */
+    isFetching: computed(() => raw.isLoading()),
     /** True on either a transport-level failure or a GraphQL-level `errors` array — stays
      * true across background retries until one definitively succeeds. */
     hasError: hasError.asReadonly(),
