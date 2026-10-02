@@ -1,0 +1,355 @@
+import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
+import { ReportSheetService } from "../../spotting/data/report-sheet.service";
+import type { LinePulse } from "../data/home.queries";
+import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { LinePulseRowComponent } from "./line-pulse-row.component";
+import { LineStatusChartComponent } from "./line-status-chart.component";
+import { LineStatusReportsComponent } from "./line-status-reports.component";
+
+/** The preferences service's own storage key — restated so a rename breaks this spec loudly. */
+const STORAGE_KEY = "rosak:preferences:v1";
+
+function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
+  return {
+    id: "line-1",
+    code: "KJL",
+    displayName: "Kelana Jaya Line",
+    displayColor: "#e11d48",
+    status: "ACTIVE",
+    inServiceVehicleCount: 12,
+    totalVehicleCount: 16,
+    passengerStatus: "NORMAL",
+    passengerStatusMessage: null,
+    statusReportCount: 0,
+    vehicleStatusCounts: [],
+    passengerStatusCount: 0,
+    statusWindowMinutes: 15,
+    pulseLinks: [],
+    ...overrides,
+  };
+}
+
+function pulseLink(overrides: Partial<LinePulse["pulseLinks"][number]> = {}) {
+  return {
+    id: "pl-1",
+    url: "https://operator.example/post/1",
+    normalizedUrl: "https://operator.example/post/1",
+    title: "Signal fault at Angkasapuri",
+    created: "2026-10-03T08:00:00",
+    occurredAt: "2026-10-03T08:00:00",
+    isAutomated: true,
+    voteScore: 0,
+    userVote: 0,
+    voteBreakdown: { upvotes: 0, downvotes: 0 },
+    lines: [],
+    user: null,
+    ...overrides,
+  };
+}
+
+function textOf(root: HTMLElement, testId: string): string {
+  return (root.querySelector(`[data-testid="${testId}"]`)?.textContent ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+describe("LinePulseRowComponent", () => {
+  let fixture: ComponentFixture<LinePulseRowComponent>;
+  let httpMock: HttpTestingController;
+  let preferences: PreferencesService;
+  let sheetMock: {
+    isOpen: ReturnType<typeof signal<boolean>>;
+    lineId: ReturnType<typeof signal<string | null>>;
+    openFor: ReturnType<typeof vi.fn>;
+    setOpen: ReturnType<typeof vi.fn>;
+  };
+  let reportSheetMock: { openFor: ReturnType<typeof vi.fn> };
+
+  beforeEach(async () => {
+    sheetMock = {
+      isOpen: signal(false),
+      lineId: signal<string | null>(null),
+      openFor: vi.fn(),
+      setOpen: vi.fn(),
+    };
+    reportSheetMock = { openFor: vi.fn() };
+    // The pin is real state that outlives one fixture, so each test starts from a clean store.
+    localStorage.clear();
+
+    await TestBed.configureTestingModule({
+      imports: [LinePulseRowComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        // The row's pro block links OUT to the spotting feature, so the router must resolve
+        // `/spotting/:lineId` and its `details` child or the href never resolves (NG04002).
+        provideRouter([
+          { path: "spotting/:lineId", children: [{ path: "details", children: [] }] },
+        ]),
+        provideHttpClientTesting(),
+        { provide: LineStatusSheetService, useValue: sheetMock },
+        { provide: ReportSheetService, useValue: reportSheetMock },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(LinePulseRowComponent);
+    httpMock = TestBed.inject(HttpTestingController);
+    preferences = TestBed.inject(PreferencesService);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    localStorage.clear();
+  });
+
+  function render(line: LinePulse, inputs: Record<string, unknown> = {}): HTMLElement {
+    fixture.componentRef.setInput("line", line);
+    for (const [name, value] of Object.entries(inputs)) {
+      fixture.componentRef.setInput(name, value);
+    }
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function flushPendingRequests(): void {
+    for (const request of httpMock.match(() => true)) {
+      request.flush({ data: {} });
+    }
+  }
+
+  it("renders the line's code, name, colour rail and compact operational facts", () => {
+    const root = render(makeLine({ displayColor: "#00af91" }));
+
+    expect(textOf(root, "line-row-title")).toBe("KJL");
+    // The name shares the title row, so the row's identity reads as one string.
+    expect(
+      (root.querySelector('[data-testid="line-row"]')?.textContent ?? "").replace(/\s+/g, " "),
+    ).toContain("Kelana Jaya Line");
+
+    const rail = [...root.querySelectorAll<HTMLElement>('[data-testid="line-row"] > span')].find(
+      (span) => span.getAttribute("aria-hidden") === "true" && span.style.backgroundColor !== "",
+    );
+    expect(rail?.style.backgroundColor).toBe("rgb(0, 175, 145)");
+
+    // The Active line gets NO operational pill — "Active" is the unremarkable default, and a pill
+    // that is on every healthy row is a pill nobody reads.
+    expect(root.querySelector('[data-testid="line-row-status"]')).toBeNull();
+    expect(textOf(root, "line-row-passenger")).toBe("Normal");
+    expect(textOf(root, "line-row-vehicles")).toBe("12/16 in service");
+    expect(textOf(root, "line-row-reports")).toBe("0 reports");
+  });
+
+  it("names the passenger status in plain language when there is no data at all", () => {
+    const root = render(makeLine({ passengerStatus: null }));
+    expect(textOf(root, "line-row-passenger")).toBe("No data");
+  });
+
+  it("shows the operational pill for a degraded line only", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
+    expect(textOf(root, "line-row-status")).toBe("Partial Disruption");
+  });
+
+  it("shows a confidence chip, and its popover copy comes from the methodology registry", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+
+    expect(textOf(root, "line-row-confidence")).toBe("Unconfirmed (1 reports)");
+    // The chip qualifies the status, so it must sit immediately after it in the same chip row.
+    const row = root.querySelector('[data-testid="line-row-chips"]');
+    const statusChip = root
+      .querySelector('[data-testid="line-row-status"]')
+      ?.closest("app-status-info-chip");
+    const confidenceChip = root
+      .querySelector('[data-testid="line-row-confidence"]')
+      ?.closest("app-status-info-chip");
+    expect(row?.contains(statusChip as Node)).toBe(true);
+    expect((statusChip as HTMLElement).compareDocumentPosition(confidenceChip as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    (confidenceChip?.querySelector("button") as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const panel = confidenceChip?.querySelector('[data-testid="status-info-popover"]');
+    expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+      renderMethodologyCopy(metricDoc("status-confidence.unconfirmed").definition),
+    );
+    expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
+  });
+
+  it("reads official from an operator-sourced pulse link rather than from the report tally", () => {
+    const root = render(
+      makeLine({ status: "TOTAL_DISRUPTION", statusReportCount: 40, pulseLinks: [pulseLink()] }),
+    );
+
+    // The load-bearing assertion of the ordering: a big rider tally must not outrank the operator.
+    expect(textOf(root, "line-row-confidence")).toBe("Official update");
+  });
+
+  it("says so when there is nothing to be confident about", () => {
+    const root = render(makeLine());
+    expect(textOf(root, "line-row-confidence")).toBe("No recent reports");
+  });
+
+  it("toggles the pin with an aria-pressed state", () => {
+    const root = render(makeLine({ id: "line-42" }));
+    const pin = root.querySelector<HTMLButtonElement>('[data-testid="line-row-pin"]');
+
+    expect(preferences.isPinned("line-42")).toBe(false);
+    expect(pin?.getAttribute("aria-pressed")).toBe("false");
+    expect(pin?.getAttribute("aria-label")).toBe("Pin KJL");
+
+    pin?.click();
+    fixture.detectChanges();
+
+    expect(preferences.isPinned("line-42")).toBe(true);
+    expect(pin?.getAttribute("aria-pressed")).toBe("true");
+    expect(pin?.getAttribute("aria-label")).toBe("Unpin KJL");
+
+    pin?.click();
+    fixture.detectChanges();
+    expect(preferences.isPinned("line-42")).toBe(false);
+  });
+
+  it("opens the line-status report sheet for THIS line, and nothing else", () => {
+    // The full "which line?" chooser is a later phase. Until it lands the row's report action is
+    // exactly as honest as the card's: it reports on the line the reader is looking at.
+    const root = render(makeLine({ id: "line-42" }));
+
+    root.querySelector<HTMLButtonElement>('[data-testid="line-row-report"]')?.click();
+
+    expect(sheetMock.openFor).toHaveBeenCalledWith("line-42");
+    expect(reportSheetMock.openFor).not.toHaveBeenCalled();
+  });
+
+  it("fetches nothing until expanded, then loads the chart and the report list", () => {
+    const root = render(makeLine({ id: "line-7" }));
+
+    expect(httpMock.match(() => true)).toHaveLength(0);
+    expect(root.querySelector('[data-testid="line-row-expanded"]')).toBeNull();
+
+    const toggle = root.querySelector<HTMLElement>('[data-testid="line-row-toggle"]');
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+    expect(httpMock.match((r) => r.body.query.includes("LineStatusHistory"))).toHaveLength(1);
+    expect(httpMock.match((r) => r.body.query.includes("LineStatusReports"))).toHaveLength(1);
+
+    flushPendingRequests();
+    fixture.detectChanges();
+    expect(root.querySelector('[data-testid="line-row-expanded"]')).not.toBeNull();
+  });
+
+  it("records the line as recently viewed on the OPEN edge only", () => {
+    const root = render(makeLine({ id: "line-7" }));
+    const toggle = root.querySelector<HTMLElement>('[data-testid="line-row-toggle"]');
+
+    toggle?.click();
+    fixture.detectChanges();
+    // Settled while still open: collapsing cancels the lazy reads, and a cancelled request cannot be
+    // flushed.
+    flushPendingRequests();
+    expect(preferences.recentLineIds()).toEqual(["line-7"]);
+
+    // Collapsing must not push a line nobody is looking at any further up the recents list.
+    toggle?.click();
+    fixture.detectChanges();
+    expect(preferences.recentLineIds()).toEqual(["line-7"]);
+  });
+
+  it("forwards refreshTick to the expanded chart and reports", () => {
+    const root = render(makeLine({ id: "line-7" }));
+    root.querySelector<HTMLElement>('[data-testid="line-row-toggle"]')?.click();
+    fixture.detectChanges();
+    flushPendingRequests();
+
+    fixture.componentRef.setInput("refreshTick", 5);
+    fixture.detectChanges();
+
+    const chart = fixture.debugElement.query(By.directive(LineStatusChartComponent));
+    const reports = fixture.debugElement.query(By.directive(LineStatusReportsComponent));
+    expect(chart.componentInstance.refreshTick()).toBe(5);
+    expect(reports.componentInstance.refreshTick()).toBe(5);
+    flushPendingRequests();
+  });
+
+  it("keeps the pro detail and the Line HQ links off a rider row", () => {
+    const root = render(makeLine({ id: "line-7" }));
+
+    // A rider has no use for a density or a Line HQ link; drawing them greyed would be noise.
+    expect(root.querySelector('[data-testid="line-row-pro"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-row-hq"]')).toBeNull();
+  });
+
+  it("adds the report window and both Line HQ links in pro view", () => {
+    const root = render(makeLine({ id: "line-7", statusReportCount: 4, statusWindowMinutes: 15 }), {
+      viewMode: "pro",
+    });
+
+    // The count WITH the span it covers: a bare number is what a pro reader is most likely to
+    // over-read, and the window is what makes "4 reports" interpretable.
+    expect(textOf(root, "line-row-report-window")).toBe("4 reports · 15 min window");
+    expect(root.querySelector('[data-testid="line-row-hq"]')?.getAttribute("href")).toBe(
+      "/spotting/line-7",
+    );
+    expect(root.querySelector('[data-testid="line-row-hq-details"]')?.getAttribute("href")).toBe(
+      "/spotting/line-7/details",
+    );
+  });
+
+  it("changes only the row's padding with the density, never what it shows", () => {
+    const comfortable = render(makeLine(), { density: "comfortable", viewMode: "pro" });
+    const comfortableRow = comfortable.querySelector<HTMLElement>('[data-testid="line-row"]');
+    const comfortableHtml = comfortableRow?.innerHTML ?? "";
+    expect(comfortableRow?.className.split(/\s+/)).toContain("p-3");
+
+    fixture.componentRef.setInput("density", "compact");
+    fixture.detectChanges();
+    const compactRoot = fixture.nativeElement as HTMLElement;
+    const compactRow = compactRoot.querySelector<HTMLElement>('[data-testid="line-row"]');
+
+    expect(compactRow?.className.split(/\s+/)).toContain("py-2");
+    expect(compactRow?.className.split(/\s+/)).not.toContain("p-3");
+    // Presentation ONLY: every fact and every action is still there.
+    expect(compactRow?.querySelector('[data-testid="line-row-confidence"]')).not.toBeNull();
+    expect(compactRow?.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
+    expect(compactRow?.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+    expect(compactRow?.innerHTML.length).toBeGreaterThan(comfortableHtml.length / 2);
+  });
+
+  it("reads a stored pin only after the browser hydration pass, so SSR and first paint agree", () => {
+    // Acceptance spec (b), half 2 — the hydration half. `PreferencesService` hydrates inside
+    // `afterNextRender`, which does NOT run on the server: a reader who had pinned a line gets the
+    // server's DEFAULT row (pin unpressed) and then the client's hydrated row (pin pressed). If a
+    // constructor read were ever added back, the two paints would disagree and Angular would throw
+    // an NG0500 hydration mismatch for every rider who had ever pinned anything. So this pins the
+    // ORDER: defaults first, stored values only after the tick.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["line-42"] }));
+    fixture.componentRef.setInput("line", makeLine({ id: "line-42" }));
+
+    // Before the render pass: the DEFAULT reading, which is exactly what the server rendered —
+    // `afterNextRender` does not run there, so nothing has read storage yet.
+    expect(preferences.hydrated()).toBe(false);
+    expect(preferences.isPinned("line-42")).toBe(false);
+
+    // The browser-only hydration pass, then the stored pin repaints the toggle.
+    fixture.detectChanges();
+    expect(preferences.hydrated()).toBe(true);
+    expect(preferences.isPinned("line-42")).toBe(true);
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="line-row-pin"]')
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+});

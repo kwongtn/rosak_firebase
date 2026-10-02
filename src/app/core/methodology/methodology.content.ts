@@ -298,4 +298,48 @@ export const METRIC_DOCS: MetricDoc[] = [
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_NETWORK_BOARD,
   },
+  /* ---- the board's CONFIDENCE chip (one MetricDoc per level, so a chip's popover explains the
+     level the reader is actually looking at rather than one generic paragraph). The rule itself is
+     `features/home/data/status-confidence.util.ts`; these strings are its published definition, and
+     the util's spec pins the level ordering and the constant against them. ---- */
+  {
+    id: "status-confidence.official",
+    sectionId: "line-status",
+    title: "Official update",
+    definition:
+      "The operator itself has published an update for this line, so it is taken as stated rather than counted. An official post outranks every rider report: the operator said so, and a tally of rider reports is not stronger evidence than that.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  {
+    id: "status-confidence.confirmed",
+    sectionId: "line-status",
+    title: "Confirmed",
+    definition:
+      "At least {{CONFIRMED_MIN_REPORTS}} riders reported this line inside its current reporting window, so the reading is corroborated by several people independently rather than resting on one of them.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  {
+    id: "status-confidence.unconfirmed",
+    sectionId: "line-status",
+    title: "Unconfirmed",
+    definition:
+      "There is something to report — the line's operational status is not Active, or a rider reported a passenger status above Normal — but fewer than {{CONFIRMED_MIN_REPORTS}} reports back it. The count in the chip is how many there were, so an unconfirmed reading can be weighed rather than taken on trust.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  {
+    id: "status-confidence.none",
+    sectionId: "line-status",
+    title: "No recent reports",
+    definition:
+      "Nothing points to a problem on this line right now: no rider reports in the current window, no rider-reported status above Normal, and the line itself is running normally. Absence of reports is not confirmation that service is good — it is only the absence of reports.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
 ];

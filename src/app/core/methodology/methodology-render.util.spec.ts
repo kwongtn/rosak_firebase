@@ -25,17 +25,24 @@ describe("methodology render util: renderMethodologyCopy", () => {
     });
   });
 
-  it("adds exactly one frontend-owned constant: the needs-attention passenger rank", () => {
-    // Every OTHER methodology number is backend-owned, so this list is deliberately short. The one
-    // addition is a frontend RULE (when a rider-reported status counts against the line), and its
-    // value mirrors the backend enum's position rather than inventing a threshold —
-    // `network-summary.util.spec.ts` then pins the code against the same number.
+  it("adds only the frontend-owned rules, and names the spec that owns each number", () => {
+    // Every OTHER methodology number is backend-owned, so this list is deliberately short. What is
+    // here are the frontend's own RULES, not measurements: the passenger rank at which a rider
+    // report counts against the line (a mirror of the backend enum's position rather than an
+    // invented threshold) and the report count that corroborates one (a pure rule, since the
+    // backend already scopes the window). `network-summary.util.spec.ts` and
+    // `status-confidence.util.spec.ts` each pin their code against the same number.
     expect(Object.keys(METHODOLOGY_CONSTANTS)).toEqual([
       "STALE_REVIEW_MONTHS",
       "NEEDS_ATTENTION_PASSENGER_RANK",
+      "CONFIRMED_MIN_REPORTS",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
+      source: "LINE_STATUS_DERIVE.md",
+    });
+    expect(METHODOLOGY_CONSTANTS["CONFIRMED_MIN_REPORTS"]).toEqual({
+      value: 3,
       source: "LINE_STATUS_DERIVE.md",
     });
   });

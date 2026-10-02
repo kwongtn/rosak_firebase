@@ -1,0 +1,528 @@
+import { Component, PLATFORM_ID, provideZonelessChangeDetection, signal } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { Router, provideRouter } from "@angular/router";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { PreferencesService } from "../../../core/preferences/preferences.service";
+import type { LinePulse } from "../data/home.queries";
+import type { BoardSort } from "../data/home.store";
+import { HomeStore } from "../data/home.store";
+import { lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";
+import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { LinePulseRowComponent } from "./line-pulse-row.component";
+import { NetworkBoardComponent } from "./network-board.component";
+
+/** The preferences service's own storage key — restated so a rename breaks this spec loudly. */
+const STORAGE_KEY = "rosak:preferences:v1";
+
+/**
+ * An inert host for the router's route table.
+ *
+ * The board reads its view state out of the REAL URL, so the specs navigate a real router rather
+ * than stubbing `ActivatedRoute`: a stubbed `queryParamMap` would let `RouterLink` (inside the rows'
+ * pro block and the popovers) resolve against a route snapshot that is not a route at all, and the
+ * deep-link specs would pass against a query-param stream the app never actually has.
+ */
+@Component({ selector: "app-board-host-stub", template: "" })
+class BoardHostStub {}
+
+function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
+  return {
+    id,
+    code: id.toUpperCase(),
+    displayName: `Line ${id}`,
+    displayColor: "#e11d48",
+    status: "ACTIVE",
+    inServiceVehicleCount: 12,
+    totalVehicleCount: 16,
+    passengerStatus: "NORMAL",
+    passengerStatusMessage: null,
+    statusReportCount: 0,
+    vehicleStatusCounts: [],
+    passengerStatusCount: 0,
+    statusWindowMinutes: 15,
+    pulseLinks: [],
+    ...overrides,
+  };
+}
+
+function textOf(root: HTMLElement, testId: string): string {
+  return (root.querySelector(`[data-testid="${testId}"]`)?.textContent ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The line codes rendered inside one group, in DOM order.
+ *
+ * Read per ROW rather than per group, and from whichever row element the group uses: the attention
+ * group renders the full `LinePulseCardComponent` (whose code lives in `line-card-toggle`) while the
+ * other two render the compact `LinePulseRowComponent` (`line-row-title`). Reading one and assuming
+ * the other would make the partition specs pass for the wrong reason on exactly the group that
+ * matters most.
+ */
+function codesIn(root: HTMLElement, group: "attention" | "mine" | "all"): string[] {
+  const section = root.querySelector<HTMLElement>(`[data-testid="line-board-${group}"]`);
+  const rows = [
+    ...(section?.querySelectorAll<HTMLElement>('[data-testid="line-board-row"]') ?? []),
+  ];
+  return rows.map((row) => {
+    const rowTitle = row.querySelector('[data-testid="line-row-title"]');
+    if (rowTitle) {
+      return rowTitle.textContent?.trim() ?? "";
+    }
+    const cardToggle = row.querySelector('[data-testid="line-card-toggle"]');
+    return (cardToggle?.textContent ?? "").replace(/\s+/g, " ").trim().split(" ·")[0] ?? "";
+  });
+}
+
+/**
+ * The board reads the store's own derived views rather than filtering the lines itself, so the mock
+ * has to provide the SAME shapes the real store does — and it computes them with the REAL pure rules
+ * (`lineNeedsAttention` / `sortLinesBySeverity` from `network-summary.util`), never a hand-rolled
+ * comparator. That is the whole point: a mock with its own idea of "worst" could agree with a broken
+ * partition, and then every group spec below would pass for the wrong reason — which is the one thing
+ * a composition spec must never be.
+ */
+function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSort = "severity") {
+  const byCode = (a: LinePulse, b: LinePulse): number => a.code.localeCompare(b.code);
+  const inSort = (list: LinePulse[]): LinePulse[] =>
+    sort === "name" ? [...list].sort(byCode) : sortLinesBySeverity(list);
+
+  const attention = sortLinesBySeverity(lines.filter(lineNeedsAttention));
+  const attentionIds = new Set(attention.map((line) => line.id));
+  const mine = sortLinesBySeverity(
+    lines.filter((line) => pinned.includes(line.id) && !attentionIds.has(line.id)),
+  );
+  const claimed = new Set([...attentionIds, ...mine.map((line) => line.id)]);
+  const rest = lines.filter((line) => !claimed.has(line.id));
+
+  const store = {
+    lines: signal(lines),
+    attentionLines: signal(attention),
+    myLines: signal(mine),
+    allLines: signal(inSort(rest)),
+    boardSort: signal<BoardSort>(sort),
+    setBoardSort: vi.fn((next: BoardSort) => {
+      store.boardSort.set(next);
+      store.allLines.set(next === "name" ? [...rest].sort(byCode) : sortLinesBySeverity([...rest]));
+    }),
+    isLoading: signal(false),
+    linesRefreshTick: signal(0),
+  };
+  return store;
+}
+
+type BoardStoreMock = ReturnType<typeof makeBoardStore>;
+
+interface BoardOptions {
+  pinned?: string[];
+  sort?: BoardSort;
+  url?: string;
+  platform?: string;
+}
+
+describe("NetworkBoardComponent", () => {
+  let fixture: ComponentFixture<NetworkBoardComponent>;
+  let preferences: PreferencesService;
+  let navigate: ReturnType<typeof vi.fn>;
+  let storeMock: BoardStoreMock;
+  let lineStatusSheet: { openFor: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    localStorage.clear();
+    navigate = vi.fn().mockResolvedValue(true);
+    lineStatusSheet = { openFor: vi.fn() };
+  });
+
+  /**
+   * Boots a board against the given lines, pins and URL.
+   *
+   * A full TestBed per call rather than one shared fixture, because the URL state IS part of what is
+   * under test: the board reads `route.queryParamMap`, and only a real navigation puts a real value
+   * there. `navigate` is stubbed BEFORE the component is created so the board's own write half can
+   * be asserted without the router actually re-activating anything.
+   */
+  async function board(lines: LinePulse[], options: BoardOptions = {}): Promise<HTMLElement> {
+    storeMock = makeBoardStore(lines, options.pinned ?? [], options.sort ?? "severity");
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [NetworkBoardComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([{ path: "", component: BoardHostStub }]),
+        { provide: HomeStore, useValue: storeMock },
+        // Both row elements route their report button through the route-scoped status-sheet service,
+        // which the page (not the board) provides in the app's route table.
+        { provide: LineStatusSheetService, useValue: lineStatusSheet },
+        ...(options.platform ? [{ provide: PLATFORM_ID, useValue: options.platform }] : []),
+      ],
+    });
+    await TestBed.compileComponents();
+    preferences = TestBed.inject(PreferencesService);
+    // Spied THROUGH the real router rather than replaced: `RouterLink` (the rows' Line HQ links and
+    // every popover's methodology link) needs the genuine `Router`, and only `navigate` — the one
+    // method the board's write half calls — has to be inert so an asserted write cannot re-activate
+    // the route table mid-test.
+    navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+    fixture = TestBed.createComponent(NetworkBoardComponent);
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  /** Navigates the REAL router so the board's next read sees the new query params. */
+  async function gotoUrl(url: string): Promise<void> {
+    navigate.mockClear();
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl(url);
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+  }
+
+  it("renders skeleton placeholders while the first read is in flight", async () => {
+    const root = await board([]);
+    storeMock.isLoading.set(true);
+    fixture.detectChanges();
+
+    expect(root.querySelectorAll('[data-testid="line-skeleton"]').length).toBeGreaterThan(0);
+    expect(root.querySelector("app-line-pulse-card")).toBeNull();
+  });
+
+  it("prefers real rows over skeletons once there is anything to show", async () => {
+    // A later reload must never blank the board: dropping every row for a fraction of a second
+    // every 30 seconds would be worse than stale data.
+    const root = await board([makeLine("a")]);
+    storeMock.isLoading.set(true);
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="line-skeleton"]')).toBeNull();
+    expect(codesIn(root, "all")).toEqual(["A"]);
+  });
+
+  it("renders a friendly empty state when the read settles with no lines", async () => {
+    const root = await board([]);
+
+    expect(textOf(root, "line-board-empty")).toBe("No lines yet.");
+    expect(root.querySelector('[data-testid="board-controls"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-board-row"]')).toBeNull();
+  });
+
+  /* ---- the partition, on screen ---------------------------------------------------- */
+
+  it("puts a disrupted or degraded line ABOVE an active one whatever the backend order", async () => {
+    // Acceptance spec (a). The backend returns the lines in whatever order its query produces, and
+    // that order is not a severity one — so reading it straight through is the whole defect this
+    // board exists to fix.
+    const root = await board([
+      makeLine("ok1"),
+      makeLine("ok2"),
+      makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+      makeLine("late", { passengerStatus: "DELAYED" }),
+      makeLine("partial", { status: "PARTIAL_ACTIVE" }),
+      makeLine("ok3"),
+    ]);
+
+    const attention = codesIn(root, "attention");
+    // Operational severity first (TOTAL_DISRUPTION > PARTIAL_ACTIVE), and only then the rider axis —
+    // a line that will not run outranks one that merely runs badly.
+    expect(attention).toEqual(["DEAD", "PARTIAL", "LATE"]);
+    // …and the healthy lines are all BELOW the attention group on the page, not interleaved with it.
+    const all = codesIn(root, "all");
+    expect(all).toEqual(["OK1", "OK2", "OK3"]);
+    expect(
+      root
+        .querySelector('[data-testid="line-board-attention"]')
+        ?.compareDocumentPosition(root.querySelector('[data-testid="line-board-all"]') as Node),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(textOf(root, "line-board-attention-heading")).toBe("Needs attention · 3");
+  });
+
+  it("renders every line in EXACTLY one group, so none duplicates and none disappears", async () => {
+    // Acceptance spec (c). The partition has an invisible failure mode — a pinned-but-broken line
+    // printed twice, or a line quietly vanishing because two independently-written filters each
+    // claimed it — and the only assertion that catches both is counting.
+    const root = await board(
+      [
+        makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+        makeLine("pinned-ok"),
+        makeLine("broken-pinned", { status: "PARTIAL_DISRUPTION" }),
+        makeLine("plain-a"),
+        makeLine("plain-b"),
+        makeLine("crowded", { passengerStatus: "CROWDED" }),
+      ],
+      { pinned: ["pinned-ok", "broken-pinned", "ghost-line"] },
+    );
+
+    expect(codesIn(root, "attention")).toEqual(["DEAD", "BROKEN-PINNED"]);
+    expect(codesIn(root, "mine")).toEqual(["PINNED-OK"]);
+    expect(codesIn(root, "all")).toEqual(["CROWDED", "PLAIN-A", "PLAIN-B"]);
+
+    // Counted across the WHOLE board, from the row wrappers rather than one group, so a line that
+    // landed in two groups cannot hide behind the other group's element type.
+    const titles = [
+      ...codesIn(root, "attention"),
+      ...codesIn(root, "mine"),
+      ...codesIn(root, "all"),
+    ];
+    expect(titles).toHaveLength(6);
+    expect(new Set(titles).size).toBe(6);
+    expect(root.querySelectorAll('[data-testid="line-board-row"]')).toHaveLength(6);
+    // A pin for a line this read does not contain must never invent a row.
+    expect(root.textContent).not.toContain("GHOST-LINE");
+  });
+
+  it("shows the full card for a line needing attention and the compact row for the rest", async () => {
+    const root = await board(
+      [makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("plain")],
+      {
+        pinned: ["plain"],
+      },
+    );
+
+    const attention = root.querySelector('[data-testid="line-board-attention"]');
+    const mine = root.querySelector('[data-testid="line-board-mine"]');
+    // A broken line earns the whole card; the healthy ones stop being chrome and become rows.
+    expect(attention?.querySelector("app-line-pulse-card")).not.toBeNull();
+    expect(attention?.querySelector("app-line-pulse-row")).toBeNull();
+    expect(mine?.querySelector("app-line-pulse-row")).not.toBeNull();
+    expect(mine?.querySelector("app-line-pulse-card")).toBeNull();
+  });
+
+  it("hides the attention group entirely when nothing needs attention", async () => {
+    // A reader with nothing broken must not scroll past a "Needs attention · 0" heading to learn
+    // there is nothing.
+    const root = await board([makeLine("a"), makeLine("b")]);
+
+    expect(root.querySelector('[data-testid="line-board-attention"]')).toBeNull();
+    expect(codesIn(root, "all")).toEqual(["A", "B"]);
+  });
+
+  it("always draws My lines, with the pin invitation when it is empty", async () => {
+    // An empty pin list is an INVITATION, not a gap in the page.
+    const root = await board([makeLine("a")]);
+
+    expect(textOf(root, "line-board-mine-heading")).toBe("My lines");
+    expect(textOf(root, "line-board-mine-empty")).toBe("Pin a line to keep it here.");
+    // Scoped to the group: the "All lines" rows are still on screen, and that is the point.
+    expect(
+      root.querySelector('[data-testid="line-board-mine"]')?.querySelector("app-line-pulse-row"),
+    ).toBeNull();
+  });
+
+  it("hides the All lines group only when it has nothing left to say", async () => {
+    const root = await board([makeLine("a")]);
+    expect(root.querySelector('[data-testid="line-board-all"]')).not.toBeNull();
+
+    // Every line claimed by a higher group → the group disappears and the board still stands.
+    storeMock.myLines.set([makeLine("a")]);
+    storeMock.allLines.set([]);
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="line-board-all"]')).toBeNull();
+    expect(codesIn(root, "mine")).toEqual(["A"]);
+  });
+
+  /* ---- the controls ---------------------------------------------------------------- */
+
+  it("marks the active sort with aria-pressed, and toggles it through the store", async () => {
+    const root = await board([makeLine("a")]);
+
+    const severity = root.querySelector<HTMLElement>('[data-testid="board-sort-severity"]');
+    const name = root.querySelector<HTMLElement>('[data-testid="board-sort-name"]');
+    expect(severity?.getAttribute("aria-pressed")).toBe("true");
+    expect(name?.getAttribute("aria-pressed")).toBe("false");
+
+    name?.click();
+    fixture.detectChanges();
+
+    expect(storeMock.setBoardSort).toHaveBeenCalledWith("name");
+    expect(name?.getAttribute("aria-pressed")).toBe("true");
+    expect(severity?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("keeps the sort switch and the view switch in labelled groups", async () => {
+    const root = await board([makeLine("a")]);
+
+    const groups = [...root.querySelectorAll('[data-testid="board-controls"] [role="group"]')];
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
+      "Sort lines",
+      "Board view",
+    ]);
+    expect(textOf(root, "board-sort-severity")).toBe("Severity");
+    expect(textOf(root, "board-sort-name")).toBe("Name");
+    expect(textOf(root, "board-view-rider")).toBe("Rider");
+    expect(textOf(root, "board-view-pro")).toBe("Pro");
+  });
+
+  it("writes both the preference and the URL when the view is toggled", async () => {
+    const root = await board([makeLine("a")]);
+
+    root.querySelector<HTMLElement>('[data-testid="board-view-pro"]')?.click();
+    fixture.detectChanges();
+
+    // The preference makes it survive a reload; the URL makes it shareable. A toggle that wrote only
+    // one of the two would give away one of those promises.
+    expect(preferences.viewMode()).toBe("pro");
+    expect(navigate).toHaveBeenCalled();
+    const patch = navigate.mock.calls.at(-1)?.[1]?.queryParams as Record<string, unknown>;
+    expect(patch["view"]).toBe("pro");
+    // The default sort is never spelled out in the URL — "no param" and "severity" are one state.
+    expect(patch["sort"]).toBeNull();
+  });
+
+  it("keeps the density control to pro readers, and writes it to the preference only", async () => {
+    const root = await board([makeLine("a")]);
+    expect(root.querySelector('[data-testid="board-density-compact"]')).toBeNull();
+
+    root.querySelector<HTMLElement>('[data-testid="board-view-pro"]')?.click();
+    fixture.detectChanges();
+    expect(root.querySelector('[data-testid="board-density-comfortable"]')).not.toBeNull();
+
+    navigate.mockClear();
+    root.querySelector<HTMLElement>('[data-testid="board-density-compact"]')?.click();
+    fixture.detectChanges();
+
+    expect(preferences.density()).toBe("compact");
+    // Density is a per-device reading habit, never something a shared link should impose.
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("forwards the density and the view to the compact rows it renders", async () => {
+    const root = await board([makeLine("a")], { pinned: ["a"] });
+
+    root.querySelector<HTMLElement>('[data-testid="board-view-pro"]')?.click();
+    fixture.detectChanges();
+    root.querySelector<HTMLElement>('[data-testid="board-density-compact"]')?.click();
+    fixture.detectChanges();
+
+    const rows = fixture.debugElement.queryAll(By.directive(LinePulseRowComponent));
+    expect(rows).toHaveLength(1);
+    expect((rows[0].componentInstance as LinePulseRowComponent).density()).toBe("compact");
+    expect((rows[0].componentInstance as LinePulseRowComponent).viewMode()).toBe("pro");
+    expect(root.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+  });
+
+  /* ---- URL state -------------------------------------------------------------------- */
+
+  it("reads ?sort= and ?view= from the URL over the stored defaults", async () => {
+    const root = await board([makeLine("a"), makeLine("b")]);
+    await gotoUrl("/?sort=name&view=pro");
+
+    expect(
+      root.querySelector('[data-testid="board-sort-name"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(root.querySelector('[data-testid="board-view-pro"]')?.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    // The URL wins, so the pro-only density control is available on a shared link.
+    expect(root.querySelector('[data-testid="board-density-comfortable"]')).not.toBeNull();
+    // And it reached the rows, not just the control.
+    expect(root.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+  });
+
+  it("falls back to the stored preference when the URL carries no view", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ pinnedLineIds: [], viewMode: "pro", density: "comfortable" }),
+    );
+    const root = await board([makeLine("a")]);
+    fixture.detectChanges();
+
+    expect(preferences.viewMode()).toBe("pro");
+    expect(root.querySelector('[data-testid="board-view-pro"]')?.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+
+  it("mirrors a stored pro view into the URL, so the address bar is always shareable", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ pinnedLineIds: [], viewMode: "pro", density: "comfortable" }),
+    );
+    await board([makeLine("a")]);
+
+    const patch = navigate.mock.calls.at(-1)?.[1]?.queryParams as Record<string, unknown>;
+    expect(patch["view"]).toBe("pro");
+    expect(patch["sort"]).toBeNull();
+  });
+
+  it("writes nothing when the URL already says what the board shows", async () => {
+    // The guard that stops a back/forward from immediately re-navigating onto the params it left —
+    // without it every browser back on this page would bounce.
+    await board([makeLine("a")], { sort: "name" });
+    navigate.mockClear();
+    await gotoUrl("/?sort=name");
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("degrades an unrecognised URL value to the shared default rather than the preference", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ pinnedLineIds: [], viewMode: "pro", density: "comfortable" }),
+    );
+    const root = await board([makeLine("a")]);
+    await gotoUrl("/?view=wizard");
+
+    // A URL is user input. An unknown value must resolve to a view the UI actually offers rather
+    // than silently becoming "whatever this reader last chose".
+    expect(
+      root.querySelector('[data-testid="board-view-rider"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("never navigates on the server, where a reactive navigate() hangs the render", async () => {
+    // The board's write half is browser-gated. `?view=pro` in a server-rendered URL must still
+    // render (the read half is pure param parsing) but must not ask the server's router for
+    // anything.
+    const root = await board([makeLine("a")], { platform: "server" });
+    await gotoUrl("/?view=pro");
+
+    expect(root.querySelector('[data-testid="board-view-pro"]')?.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("propagates a deep-linked sort into the store, so it survives losing the URL", async () => {
+    await board([makeLine("a"), makeLine("b")]);
+    await gotoUrl("/?sort=name");
+
+    // Otherwise the board would render alphabetically from a link and revert to severity the moment
+    // the reader edited the URL away — the store is the durable half of the sort.
+    expect(storeMock.setBoardSort).toHaveBeenCalledWith("name");
+    expect(storeMock.boardSort()).toBe("name");
+  });
+
+  /* ---- the store's beat -------------------------------------------------------------- */
+
+  it("forwards the store's poll tick to every row so an open accordion re-reads", async () => {
+    await board([makeLine("a"), makeLine("b")]);
+    storeMock.linesRefreshTick.set(9);
+    fixture.detectChanges();
+
+    const rows = fixture.debugElement.queryAll(By.directive(LinePulseRowComponent));
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect((row.componentInstance as LinePulseRowComponent).refreshTick()).toBe(9);
+    }
+  });
+
+  it("recomputes the whole board off the same read when the lines change", async () => {
+    const root = await board([makeLine("a"), makeLine("b")]);
+    expect(codesIn(root, "all")).toEqual(["A", "B"]);
+
+    // A real `reloadFirstPages` swaps the resource's data; every group follows in the same tick.
+    storeMock.attentionLines.set([makeLine("b", { status: "TOTAL_DISRUPTION" })]);
+    storeMock.allLines.set([makeLine("a")]);
+    fixture.detectChanges();
+
+    expect(codesIn(root, "attention")).toEqual(["B"]);
+    expect(codesIn(root, "all")).toEqual(["A"]);
+  });
+});

@@ -17,6 +17,15 @@ import { passengerLabel, passengerVariant } from "../data/passenger-status.util"
 const REPORTS_PAGE_SIZE = 10;
 const SKELETON_ROWS = 3;
 
+/** One chip of the per-station strip: the station's display name and how many loaded reports named
+ * it. `key` is the name too — the strip groups by display name, so the two are the same string and
+ * `track` can use either. */
+export interface StationStripEntry {
+  key: string;
+  label: string;
+  count: number;
+}
+
 /**
  * The expanded line card's recent community reports: each row is the passenger-status badge, an
  * optional delay and the related stations on the left, with the relative time pinned right (its
@@ -44,6 +53,33 @@ const SKELETON_ROWS = 3;
             No community reports for this line yet.
           </p>
         } @else {
+          <!-- Station strip: the SAME rows the list below already has, tallied by station. It adds
+               no request and no fields — the stations selection was already there — and
+               it answers the question the list cannot at a glance: WHERE. A line with nine reports
+               and nine station names in the rows is a line-wide problem; the same nine piled on two
+               stations is a platform problem, and those call for different reactions.
+
+               v1 aggregates ONLY the pages this reader has loaded (the first page of ten). A
+               report naming a station that did not make the page is not counted, so the strip is a
+               "where, among the reports you can see", never a total. Making it complete would mean
+               an additive backend aggregate over the status-report table (per-line station counts
+               in the rolling window) — a documented option for a later phase, deliberately NOT taken
+               here: this phase ships zero new network reads, and a client-side total over a truncated
+               page would be a lie the reader cannot detect. The strip therefore HIDES itself rather
+               than showing a partial count when there is no station data at all. -->
+          @if (_stations().length > 0) {
+            <div class="flex flex-wrap items-center gap-1.5" data-testid="station-strip">
+              @for (station of _stations(); track station.key) {
+                <span hlmBadge variant="neutral" class="gap-1">
+                  <span class="truncate">{{ station.label }}</span>
+                  <span class="tabular-nums" data-testid="station-strip-count">
+                    {{ station.count }}
+                  </span>
+                </span>
+              }
+            </div>
+          }
+
           <!-- Capped at ~5 one-line rows; rows carrying notes run taller, so this is approximate. -->
           <div class="max-h-56 overflow-y-auto pr-1" data-testid="line-status-reports-scroll">
             <ul class="flex flex-col gap-1.5">
@@ -128,6 +164,34 @@ export class LineStatusReportsComponent {
   protected readonly reports = computed(
     () => this.resource.data()?.lineStatusReports?.edges?.map((edge) => edge.node) ?? [],
   );
+
+  /**
+   * The loaded reports tallied by station, busiest first with the name as the tiebreak so the strip
+   * is stable between reads.
+   *
+   * Grouped by `displayName` rather than by `id` because that is what the reader sees in the rows
+   * below and what the chip prints; two station rows sharing a display name are one place as far as
+   * this surface is concerned. `?? []` on both the report's stations and the report list, because
+   * `strictNullChecks` is OFF and a hand-built fixture must not throw inside a computed.
+   *
+   * Only the LOADED page is counted — see the template comment for why that is a documented v1 limit
+   * rather than an omission, and why the strip hides itself instead of showing a partial total.
+   */
+  protected readonly _stations = computed<StationStripEntry[]>(() => {
+    const counts = new Map<string, number>();
+    for (const report of this.reports()) {
+      for (const station of report.stations ?? []) {
+        const key = station?.displayName ?? "";
+        if (key === "") {
+          continue;
+        }
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .map(([key, count]) => ({ key, label: key, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  });
 
   constructor() {
     effect(() => {

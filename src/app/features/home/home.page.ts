@@ -34,7 +34,7 @@ import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { HomeHeroComponent } from "./hero/home-hero.component";
-import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
+import { NetworkBoardComponent } from "./line-pulse/network-board.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-control.component";
 
@@ -48,20 +48,20 @@ const META_DESCRIPTION =
   "reports, and one tap to report a delay, log a train sighting or open the live train map.";
 
 /**
- * The community front page — the site's root route. The feed and the per-line pulse list share a
- * two-panel split (the URL list left, the line statuses right) from `lg` up, stacked on mobile;
- * the submit box heads the feed column and the retry banner and footer stay full width. The refresh
- * control (`app-home-refresh-control`) heads the LINKS section on mobile and the line panel on
+ * The community front page — the site's root route. The feed and the network board share a
+ * two-panel split (the URL list left, the line board right) from `lg` up, stacked on mobile; the
+ * submit box heads the feed column and the retry banner and footer stay full width. The refresh
+ * control (`app-home-refresh-control`) heads the LINKS section on mobile and now the HERO on
  * desktop — one component, two visibility-gated instances, because the beat it drives refreshes
- * both sections.
+ * both sections and the hero is the page's live strip.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
  * app.routes.ts. The router retains that route injector while the page component is recreated on
  * every visit, so the STORE outlives a visit: the constructor calls `start()` (resuming a paused
  * beat and revalidating on re-entry) and `ngOnDestroy` calls `stop()` (the beat must not keep
- * polling while the reader is elsewhere). Data fetching, loading/empty states, the vote overlay
- * and the refresh countdown's confirmation all live in the store and the control; this page only
- * composes.
+ * polling while the reader is elsewhere). Data fetching, loading/empty states, the vote overlay,
+ * the board's line partition and the refresh countdown's confirmation all live in the store and the
+ * control; this page only composes.
  *
  * Every feed row renders through `app-link-thread` — the collapsible conversation wrapper — not
  * `app-link-card` directly, in BOTH the today feed and the Last Week day groups (the two
@@ -70,6 +70,11 @@ const META_DESCRIPTION =
  * backend reports a non-zero `sublinkCount` on the root, with the children waiting inline under
  * `sublinks`. `HomeStore` asks the backend to collapse conversations for that to be possible at all
  * (see `HOME_FEED_COLLAPSE_VARS`).
+ *
+ * `app-network-board` takes no inputs: it reads `HomeStore` for the lines, the poll tick and its own
+ * three-group partition, the same way `app-home-refresh-control` reads the store's beat. That is
+ * deliberate — the partition RULE belongs to the store, and passing the groups in as inputs would
+ * mean re-deriving them here for no gain.
  */
 @Component({
   selector: "app-home-page",
@@ -80,7 +85,7 @@ const META_DESCRIPTION =
     LinkSubmitBoxComponent,
     LinkThreadComponent,
     LinkSheetComponent,
-    LinePulseListComponent,
+    NetworkBoardComponent,
     LineStatusSheetComponent,
     HomeRefreshControlComponent,
     ReportFormComponent,
@@ -258,22 +263,18 @@ const META_DESCRIPTION =
           aria-label="Line status"
           data-testid="line-board"
         >
-          <!-- Same control as the feed section has, shown from lg up where the line panel is
-               the one next to the feed; the hidden/lg:flex pair keeps one instance visible, and
-               justify-end keeps the shrink-wrapped control on the right. Below lg this panel is
-               stacked UNDER the feed, so the section above it draws a rule to separate the two:
-               border-t plus the matching pt-6, both dropped from lg (lg:border-t-0 lg:pt-0)
-               where the two sections are grid columns side by side and a rule between them would
-               just draw a line down the middle of the gap. -->
-          <div class="hidden lg:flex justify-end">
-            <app-home-refresh-control />
-          </div>
+          <!-- Below lg this panel is stacked UNDER the feed, so the section above it draws a rule to
+               separate the two: border-t plus the matching pt-6, both dropped from lg
+               (lg:border-t-0 lg:pt-0) where the two sections are grid columns side by side and a
+               rule between them would just draw a line down the middle of the gap.
 
-          <app-line-pulse-list
-            [lines]="store.lines()"
-            [isLoading]="store.isLoading()"
-            [refreshTick]="store.linesRefreshTick()"
-          />
+               🔴 The refresh control that used to head this section from lg up has moved INTO the
+               hero, which is full width and reads as the page's live strip — so the live indicator
+               now sits above the fold on every layout instead of only on desktop. The lg:hidden
+               copy above the feed column is unchanged, which keeps exactly one visible countdown at
+               any width and keeps the two instances on the store's single beat. The control's own
+               state machine is untouched: only the wrapper moved. -->
+          <app-network-board />
         </section>
       </div>
 

@@ -25,12 +25,15 @@ import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
 import type { FeedLink, FeedLinkPageInfo, FeedLinkSublink, LinePulse } from "./data/home.queries";
 import type { FeedDayGroup } from "./data/feed-day-groups.util";
+import type { NetworkSummary } from "./data/network-summary.util";
+import { summarizeNetwork } from "./data/network-summary.util";
+import type { BoardSort } from "./data/home.store";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { HomeHeroComponent } from "./hero/home-hero.component";
 import { HomePage } from "./home.page";
-import { LinePulseListComponent } from "./line-pulse/line-pulse-list.component";
+import { NetworkBoardComponent } from "./line-pulse/network-board.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 
 // LineStatusSheetComponent reads window.matchMedia in its constructor; the test DOM doesn't provide it.
@@ -154,13 +157,13 @@ function makeNestedTreeLink(id: string): FeedLink {
   return { ...makeFeedLink(id), sublinkCount: descendantCount(sublinks), sublinks };
 }
 
-function makeLine(id: string): LinePulse {
+function makeLine(id: string, status: LinePulse["status"] = "ACTIVE"): LinePulse {
   return {
     id,
     code: id.toUpperCase(),
     displayName: `Line ${id}`,
     displayColor: "#e11d48",
-    status: "ACTIVE",
+    status,
     inServiceVehicleCount: 1,
     totalVehicleCount: 2,
     passengerStatus: "NORMAL",
@@ -175,6 +178,12 @@ function makeLine(id: string): LinePulse {
 
 interface StoreMock {
   lines: WritableSignal<LinePulse[]>;
+  networkSummary: ReturnType<typeof signal<NetworkSummary>>;
+  attentionLines: WritableSignal<LinePulse[]>;
+  myLines: WritableSignal<LinePulse[]>;
+  allLines: WritableSignal<LinePulse[]>;
+  boardSort: WritableSignal<BoardSort>;
+  setBoardSort: ReturnType<typeof vi.fn>;
   feedLinks: WritableSignal<FeedLink[]>;
   feedPageInfo: WritableSignal<FeedLinkPageInfo | null>;
   feedTotalCount: WritableSignal<number>;
@@ -233,8 +242,18 @@ describe("HomePage", () => {
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
+    // The store's partition is REAL here rather than three hand-written arrays, so the composition
+    // spec exercises the same grouping the board's own spec asserts on — a hand-written mock could
+    // agree with a broken rule.
+    const seededLines = [makeLine("a")];
     store = {
-      lines: signal<LinePulse[]>([makeLine("a")]),
+      lines: signal<LinePulse[]>(seededLines),
+      networkSummary: signal<NetworkSummary>(summarizeNetwork(seededLines)),
+      attentionLines: signal<LinePulse[]>([]),
+      myLines: signal<LinePulse[]>([]),
+      allLines: signal<LinePulse[]>(seededLines),
+      boardSort: signal<BoardSort>("severity"),
+      setBoardSort: vi.fn(),
       feedLinks: signal<FeedLink[]>([makeFeedLink("a"), makeFeedLink("b")]),
       feedPageInfo: signal<FeedLinkPageInfo | null>({ hasNextPage: true, endCursor: "cursor-a" }),
       feedTotalCount: signal(2),
@@ -337,23 +356,24 @@ describe("HomePage", () => {
     httpMock.verify();
   });
 
-  it("renders the submit box, then the feed cards, then the line list", () => {
+  it("renders the submit box, then the feed cards, then the network board", () => {
     const root = fixture.nativeElement as HTMLElement;
 
     expect(root.querySelector("app-link-submit-box")).not.toBeNull();
     expect(root.querySelectorAll("app-link-card").length).toBe(2);
     expect(root.textContent).toContain("Feed link a");
-    expect(root.querySelector("app-line-pulse-list")).not.toBeNull();
-    expect(root.querySelectorAll("app-line-pulse-card").length).toBe(1);
+    expect(root.querySelector("app-network-board")).not.toBeNull();
     expect(root.textContent).toContain("Line a");
 
-    // The composition order the page exists to enforce: submit box → global feed → line list.
+    // The composition order the page exists to enforce: submit box → global feed → line board.
     // The box lives inside the feed section (top of the left column) and still precedes the cards.
     const feedSection = root.querySelector('section[aria-label="Community feed"]');
     expect(feedSection?.querySelector("app-link-submit-box")).not.toBeNull();
     const html = root.innerHTML;
     expect(html.indexOf("app-link-submit-box")).toBeLessThan(html.indexOf("app-link-card"));
-    expect(html.indexOf("app-link-card")).toBeLessThan(html.indexOf("app-line-pulse-list"));
+    expect(html.indexOf("app-link-card")).toBeLessThan(html.indexOf("app-network-board"));
+    // The retired one-list component is gone, not merely unrendered.
+    expect(root.querySelector("app-line-pulse-list")).toBeNull();
   });
 
   it("passes the store's per-link vote into each feed card", () => {
@@ -484,7 +504,7 @@ describe("HomePage", () => {
     expect(children[0]?.getAttribute("aria-label")).toBe("Community feed");
     expect(children[0]?.querySelector("app-link-card")).not.toBeNull();
     expect(children[1]?.getAttribute("aria-label")).toBe("Line status");
-    expect(children[1]?.querySelector("app-line-pulse-list")).not.toBeNull();
+    expect(children[1]?.querySelector("app-network-board")).not.toBeNull();
 
     // Mobile divider: stacked below lg the line panel follows the feed, so it draws its own rule
     // and the matching top padding. From lg the two are grid COLUMNS side by side, so the rule and
@@ -631,16 +651,25 @@ describe("HomePage", () => {
     expect(fixture.debugElement.query(By.directive(RetryBannerComponent))).not.toBeNull();
   });
 
-  it("mounts one refresh control atop each section, gated by breakpoint classes", () => {
+  it("mounts one refresh control on the mobile feed column and one in the hero, breakpoint-gated", () => {
     const root = fixture.nativeElement as HTMLElement;
     const feedSection = root.querySelector<HTMLElement>('section[aria-label="Community feed"]');
     const lineSection = root.querySelector<HTMLElement>('section[aria-label="Line status"]');
+    const hero = root.querySelector<HTMLElement>('[data-testid="home-hero"]');
 
-    // The beat refreshes BOTH sections, so the control heads the links section on mobile and the
-    // line panel on desktop — one component, two instances, CSS-only visibility (no matchMedia
-    // placement signal, which would desync SSR from hydration).
+    // The beat refreshes BOTH sections, so exactly one countdown is visible at any width: the
+    // links section's below `lg`, the hero's from `lg` up. The hero is where the live indicator
+    // belongs now — it is the page's full-width summary and sits above the fold on every layout —
+    // so the DESKTOP instance moved there and the mobile one stayed put. CSS-only visibility (no
+    // matchMedia placement signal, which would desync SSR from hydration), so both copies are in
+    // the DOM and exactly one is shown.
     const controls = root.querySelectorAll("app-home-refresh-control");
     expect(controls.length).toBe(2);
+    expect(hero?.querySelector("app-home-refresh-control")).not.toBeNull();
+    // The line panel no longer heads its own section with the control…
+    expect(lineSection?.querySelector("app-home-refresh-control")).toBeNull();
+    // …it heads the board instead.
+    expect(lineSection?.querySelector("app-network-board")).not.toBeNull();
 
     const mobileWrapper = feedSection?.querySelector<HTMLElement>('[class~="lg:hidden"]');
     expect(mobileWrapper).not.toBeNull();
@@ -652,12 +681,10 @@ describe("HomePage", () => {
       feedHtml.indexOf("app-link-submit-box"),
     );
 
-    const desktopWrapper = lineSection?.querySelector<HTMLElement>('[class~="lg:flex"]');
-    expect(desktopWrapper).not.toBeNull();
-    expect(desktopWrapper?.className).toContain("hidden");
-    expect(desktopWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
-    expect(lineSection?.firstElementChild).toBe(desktopWrapper);
-    expect(lineSection?.querySelector("app-line-pulse-list")).not.toBeNull();
+    const heroWrapper = hero?.querySelector<HTMLElement>('[class~="lg:flex"]');
+    expect(heroWrapper).not.toBeNull();
+    expect(heroWrapper?.className.split(/\s+/)).toContain("hidden");
+    expect(heroWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
 
     // Right-alignment contract: each gate must be a justified flex row. The control shrink-wraps to
     // its own visible content (`:host` is `inline-block`, and the button carries no `w-full`), and a
@@ -665,10 +692,10 @@ describe("HomePage", () => {
     // it at the right edge, and a plain block wrapper would leave the row flush left. That is why
     // the gate stayed a flex row instead of being simplified away. jsdom cannot measure layout, so
     // pin the classes that produce the alignment instead.
-    expect(mobileWrapper?.className).toContain("flex");
-    expect(mobileWrapper?.className).toContain("justify-end");
-    expect(desktopWrapper?.className).toContain("flex");
-    expect(desktopWrapper?.className).toContain("justify-end");
+    for (const gate of [mobileWrapper, heroWrapper]) {
+      expect(gate?.className).toContain("flex");
+      expect(gate?.className).toContain("justify-end");
+    }
 
     // Both instances render the same countdown row, and either one drives the store's beat.
     const countdowns = root.querySelectorAll('[data-testid="line-refresh-countdown"]');
@@ -746,15 +773,53 @@ describe("HomePage", () => {
     expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(10);
   });
 
-  it("hands the store's lines and refresh tick to the line list", () => {
+  it("hands the store's refresh tick to the network board, which owns the line rows", () => {
     store.linesRefreshTick.set(4);
     fixture.detectChanges();
 
-    const list = fixture.debugElement.query(By.directive(LinePulseListComponent));
+    const board = fixture.debugElement.query(By.directive(NetworkBoardComponent));
 
-    expect(list.componentInstance.lines().map((line: LinePulse) => line.id)).toEqual(["a"]);
-    expect(list.componentInstance.isLoading()).toBe(false);
-    expect(list.componentInstance.refreshTick()).toBe(4);
+    expect(board).not.toBeNull();
+    expect(board.componentInstance).toBeTruthy();
+    // The board reads the store itself (like the refresh control reads its beat), so the page's only
+    // job is to mount it — the tick travels board → card/row → the open accordion's chart/reports.
+    const root = fixture.nativeElement as HTMLElement;
+    const rows = root.querySelectorAll('[data-testid="line-board-row"]');
+    expect(rows.length).toBe(1);
+    expect((rows[0]?.textContent ?? "").replace(/\s+/g, " ")).toContain("Line a");
+  });
+
+  it("renders each line in exactly one board group, whatever the backend order", () => {
+    // Acceptance spec (c) at the page level: the partition is what keeps the board honest, and the
+    // page is where the board is mounted. Deliberately awkward input — a dead line FIRST (as the
+    // backend is free to return it), two healthy ones, one of them pinned by the mock.
+    const lines = [
+      makeLine("dead", "TOTAL_DISRUPTION"),
+      makeLine("healthy-a"),
+      makeLine("healthy-b"),
+    ];
+    store.lines.set(lines);
+    store.attentionLines.set([lines[0]]);
+    store.myLines.set([lines[1]]);
+    store.allLines.set([lines[2]]);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const groupOf = (lineId: string): string => {
+      for (const group of ["attention", "mine", "all"]) {
+        const section = root.querySelector<HTMLElement>(`[data-testid="line-board-${group}"]`);
+        if (section?.textContent?.includes(`Line ${lineId}`)) {
+          return group;
+        }
+      }
+      return "none";
+    };
+
+    expect(groupOf("dead")).toBe("attention");
+    expect(groupOf("healthy-a")).toBe("mine");
+    expect(groupOf("healthy-b")).toBe("all");
+    // And exactly once: one row per line, no duplicates across the three sections.
+    expect(root.querySelectorAll('[data-testid="line-board-row"]').length).toBe(3);
   });
 
   it("hosts the spotting entry sheet and closes it + reloads the store on submit", async () => {

@@ -4,10 +4,12 @@
 
 - **Core Responsibility:** The community front page and the app's landing route (root `""`). It
   composes three things: a login-gated box that submits a community link, a global rolling **feed**
-  of approved links (with voting), and a per-line **pulse** list showing each line's live
-  operational + passenger status alongside the social entries behind it. Tapping a line's pulse card
-  opens a **line-status bottom sheet** for a link-less live report (status, optional delay/notes,
-  affected stations). It also hosts the spotting feature's **"Add a Spotting Entry" sheet**, opened
+  of approved links (with voting), and the **network board** — a per-line status panel grouped the
+  way a reader reads it (`Needs attention` as full pulse cards, then `My lines` and `All lines` as
+  compact rows) showing each line's live operational + passenger status, how much to trust it, and the
+  social entries behind it. Tapping a line's report button opens a **line-status bottom sheet** for a
+  link-less live report (status, optional delay/notes, affected stations). It also hosts the spotting
+  feature's **"Add a Spotting Entry" sheet**, opened
   via `ReportSheetService.openFor(lineId)` from a line card and pre-scoped to that line. It replaces
   the old default-route redirect to `/spotting`. One fixed-cadence refresh beat (30s) keeps the whole
   page current — line statuses, the Today feed and the Last Week first page — and its countdown /
@@ -35,31 +37,53 @@
     `renderMethodologyCopy(metricDoc("network.lines-normal").definition)`), the disruption callout
     naming the worst line, four stat tiles (lines normal · needs attention · reports now · links
     today) and an **intent-based** CTA row — Report a delay · Spot a train · Share a link · Live map
-    (`routerLink="/tracker"`). It reads **nothing**: `lines = input.required<LinePulse[]>()` and
+    (`routerLink="/tracker"`). It reads **no request of its own**: `lines = input.required<LinePulse[]>()` and
     `linksToday = input(0)` are bound by `HomePage` from `store.lines()` and
-    `store.feedTotalCount()`, both already in flight, so the hero adds **zero** network reads.
+    `store.feedTotalCount()`, both already in flight, so the hero adds **zero** network reads. Two
+    decorative/detail additions sit on top of the Phase 0 shape: the network's own **colour ribbon**
+    (`hero-ribbon`, one flex segment per line's `displayColor` along the bottom edge, `aria-hidden` and
+    hidden when there are no lines — a fingerprint of the read, not information; a blank colour is
+    DROPPED so a line without one cannot leave a hole), and the **official-update callout**
+    (`hero-official-callout` / `hero-official-badge` / `hero-official-link`), which appears **above**
+    the disruption callout when — and only when — the SAME worst line `summarizeNetwork` already
+    names has an `isAutomated` pulse link. It shows that post's title and links the ORIGINAL with
+    `target="_blank" rel="noopener noreferrer"` and the words "Open original": a community page
+    quoting an operator must never look like the operator said it here. Scoping it to the worst line
+    is what keeps it from contradicting the sentence underneath. The hero also hosts the page's
+    **live refresh indicator** (`app-home-refresh-control`, `hidden lg:flex`) — see the
+    refresh-control bullet.
     Wiring: Spot a train → `ReportSheetService.open()`, Share a link → `LinkSheetService.open()`,
     Live map → the router, and **Report a delay emits `reportDelay`**, which
     `HomePage.scrollToLineBoard()` answers by scrolling to `data-testid="line-board"` (the chooser
     itself belongs to the board, not to a full-width summary strip).
-  - `line-pulse/` — `line-pulse-card.component.ts` (one line's live status plus the expand/collapse
-    toggle), `line-pulse-list.component.ts` (skeletons / empty state / the list),
-    `line-status-chart.component.ts` (the expanded hourly report strip),
-    `line-status-reports.component.ts` (the expanded report list), and
-    `status-info-chip.component.ts` (the hover/tap info popover shared by the card's chips — a thin
+  - `line-pulse/` — `network-board.component.ts` (the three-group board: skeleton rows / empty state /
+    the controls row / `Needs attention` cards / `My lines` + `All lines` rows),
+    `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel),
+    `line-pulse-card.component.ts` (one line's full live status plus the expand/collapse
+    toggle), `line-status-chart.component.ts` (the expanded hourly report strip),
+    `line-status-reports.component.ts` (the expanded report list + the per-station strip), and
+    `status-info-chip.component.ts` (the hover/tap info popover shared by the card's and the row's
+    chips — a thin
     wrapper over the shared `app-info-popover` that passes `showIcon=false` (the projected badge is
     the trigger) and forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
     through the real server path to guard SSR/hydration).
+    🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
+    worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
     refresh row: countdown spinner, the **Updating** state (up while ANY non-initial refresh is in
     flight), the click-armed transient "Updated" confirmation and the `Click to Refresh Now`
     tooltip). Rendered TWICE by the page — the countdown
-    drives the whole-page beat, so it heads whichever section the reader is actually looking at: the
-    links section below `lg`, the line panel from `lg` up. The two instances are gated with **CSS
-    only** (`lg:hidden` / `hidden lg:block`), never a `matchMedia` placement signal, so SSR and
+    drives the whole-page beat, so it heads whichever region the reader is actually looking at: the
+    links section below `lg`, and the **HERO** from `lg` up (it moved there with the network board,
+    because the hero is the page's full-width live strip and sits above the fold on every layout).
+    The two instances are gated with **CSS
+    only** (`lg:hidden` / `hidden lg:flex`), never a `matchMedia` placement signal, so SSR and
     hydration emit identical markup; the `data-testid`s are therefore duplicated in the DOM (two
-    `line-refresh-countdown` buttons, exactly one visible) and specs must scope to a section. The
+    `line-refresh-countdown` buttons, exactly one visible) and specs must scope to a section. 🔴 Only
+    the WRAPPER moved into the hero — a second copy of the countdown/updating/confirmed state machine
+    there would double every confirmation and desync the two instances from the one beat they share;
+    Phase 2's FAB will revisit whether the mobile copy is still needed. The
     trigger **shrink-wraps to the row it draws** (`:host { display: inline-block }`, no `w-full`), so
     the tap target is the spinner + label the reader can see and not an invisible full-width strip;
     right-edge alignment is the host's `flex justify-end` gate doing that work, not the control.
@@ -122,8 +146,9 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders), `network-summary.util.ts` (the
     pure board roll-up: severity tables, the needs-attention rule, the comparator, the headline and
-    the worst-line callout), and the pure `passenger-status.util.ts` (labels/variants +
-    `PASSENGER_SEVERITY_RANK`, no components).
+    the worst-line callout), `status-confidence.util.ts` (the pure **confidence** rule: how much to
+    trust a line's reported status, and the operator-post test), and the pure
+    `passenger-status.util.ts` (labels/variants + `PASSENGER_SEVERITY_RANK`, no components).
 
 ## 🔌 Interface & Data Flow
 
@@ -146,8 +171,14 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
 - **Component `input()`/`input.required()` signals:**
   - `LinePulseCardComponent.line = input.required<LinePulse>()`, `refreshTick = input(0)` (the
     host's poll beat, forwarded to the expanded panel's chart and reports).
-  - `LinePulseListComponent.lines = input.required<LinePulse[]>()`, `isLoading = input(false)`,
-    `refreshTick = input(0)` (forwarded to every card, active and "Other lines").
+  - `LinePulseRowComponent.line = input.required<LinePulse>()`, `refreshTick = input(0)`,
+    `density = input<PreferencesDensity>("comfortable")`, `viewMode = input<PreferencesViewMode>("rider")`.
+    🔴 Density is PRESENTATION ONLY: it changes the row's padding and nothing else — never what is
+    counted, never which actions exist, never whether a group renders.
+  - `NetworkBoardComponent` has **no inputs at all**. It injects `HomeStore` for `lines()`,
+    `isLoading()`, `linesRefreshTick()` and its own three group views, exactly the way
+    `HomeRefreshControlComponent` injects the store's beat. The partition RULE belongs to the store;
+    passing the groups down as inputs would mean re-deriving them on the page for no gain.
   - `LinkThreadComponent` (the shared insiden `app-link-thread`, the feed's row wrapper — **recursive**,
     it renders its own children as nested threads at every depth):
     `link = input.required<LinkCardItem>()` — the node this instance renders; the feed's `FeedLink`
@@ -183,7 +214,11 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     breakdown), `passengerStatus`/`passengerStatusMessage` (both nullable), `statusReportCount`,
     `passengerStatusCount`/`passengerStatusCounts` (the per-category report breakdown the passenger
     chip's severity legend reads), `statusWindowMinutes` (the rolling window), and nested
-    `pulseLinks` (a `SocialMediaLinkScalar` subset). `LINE_STATUS_HISTORY_QUERY` (hourly buckets,
+    `pulseLinks` (a `SocialMediaLinkScalar` subset — including **`isAutomated`**, the backend
+    provenance flag that is the ONLY thing separating "the operator announced it" from "N riders think
+    so"; the board's confidence chip and the hero's official callout both read it, and
+    `home.queries.spec.ts` pins the selection because a fixture can invent any field it likes).
+    `LINE_STATUS_HISTORY_QUERY` (hourly buckets,
     each carrying `count`, `dominantStatus` and the `statusCounts { status count }` breakdown the
     chart stacks) and `LINE_STATUS_REPORTS_QUERY` (keyset-paginated report list, each node carrying
     its `stations { id displayName }`) back the expanded card panel.
@@ -293,6 +328,21 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     `lastWeekOnly: true`, `alignPageToDay: true`). The constructor reads all three once so the lazy
     `httpResource` fetches on store creation. **Both link resources also spread
     `HOME_FEED_COLLAPSE_VARS = { collapseThreads: true }`** — see the threading bullet below.
+  - **The board's derived views — a PARTITION, not three filters.** `networkSummary` (`summarizeNetwork`
+    over the one lines read), `attentionLines`, `myLines`, `allLines`, and the `boardSort` signal
+    (`"severity" | "name"`, default `severity`, `DEFAULT_BOARD_SORT`/`BOARD_SORTS` exported for the
+    URL's own parse, `setBoardSort()` a no-op for an unrecognised value). 🔴 **Every line appears in
+    EXACTLY ONE of the three groups**, and that is achieved by ONE decision applied in one order:
+    **attention membership always wins** — a line needing attention sits in `attentionLines` even when
+    it is PINNED, because pinning says "I care about this line", not "hide a broken one further down",
+    and duplicating a dead line onto the page would be worse than the group it gives up. So `myLines`
+    is "pinned AND NOT already in attention", and `allLines` is "everything neither claimed". Each
+    group subtracts the ids the previous one CLAIMED rather than re-deriving its own predicate —
+    three independently-written filters is exactly how a line ends up in two groups or in none.
+    `attentionLines` and `myLines` are ALWAYS severity-sorted; only `allLines` follows `boardSort`
+    (severity, or `code` via `localeCompare`, so `K10` does not sort before `K2`). `PreferencesService`
+    is injected (root-provided, so it deliberately outlives this route-scoped store) — the store reads
+    `pinnedLineIds()` and nothing else about it, and no new read is involved anywhere in this.
   - **Conversation collapsing (`HOME_FEED_COLLAPSE_VARS`)** is folded into **all four** home link list
     reads — `feedResource`, `lastWeekResource`, `loadMore()` and `loadMoreLastWeek()` — **and** into
     both authenticated vote-overlay reads inside `loadVoteOverlay()` (see the overlay bullet below),
@@ -403,10 +453,11 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   it `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
   `canLoadMoreLastWeek` (`computed`) gates its Load More (`loadMoreLastWeek()`) on
   `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
-  page itself holds no refresh state at all: it composes two `app-home-refresh-control` instances
-  (links section below `lg`, line panel from `lg` up, each behind a CSS visibility class) and the
-  countdown, tooltip, "Updating" label and transient "Updated" confirmation all live in that
-  component.
+  page itself holds no refresh state and no line data at all: it composes two
+  `app-home-refresh-control` instances (links section below `lg`, HERO from `lg` up, each behind a
+  CSS visibility class) and mounts `<app-network-board>` with **no inputs** — the countdown, tooltip,
+  "Updating" label, transient "Updated" confirmation, the lines read and the board's partition all
+  live in the store and its components.
 - **`LinkThreadComponent`** (shared insiden `app-link-thread`) — the feed's row element, and
   **recursive**: it renders one `app-link-card` for its node, then, when expanded, one nested
   `app-link-thread` per child in a `border-l pl-3` indented container. `children` is
@@ -692,15 +743,99 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   **`PASSENGER_SEVERITY_RANK` mirrors the backend `PassengerStatus` enum order** (NORMAL 0 … DISRUPTED 6) — the schema exposes the enum in declaration order, so a higher rank IS a more severe status.
   Do not "tidy" the numbers into a preferred order (DELAYED before CROWDED, say): they are the
   server's order made numeric, and a backend reorder would make every consumer wrong at once.
-- **`LinePulseListComponent` is now ONE worst-first list, not two buckets.** The previous shape led
-  with every ACTIVE line and folded everything else into a collapsed "Other lines" `<details>`
-  (testids `other-lines` / `other-lines-summary`, both **retired**). That hid the two deadest lines
-  behind a summary the reader has to open, so a page whose hero just said "3 lines need attention"
-  led with a column of lines that are fine. Rows are now `sortLinesBySeverity(lines())` under a
-  `data-testid="line-board-attention-heading"` caption (`Needs attention · N`) that counts with the
-  hero's OWN `lineNeedsAttention` predicate — so the caption, the hero's tile and the row order can
-  never disagree about which lines need attention. Each row wraps its card in
-  `data-testid="line-board-row"`, the stable hook for order assertions.
+- **`NetworkBoardComponent` is the board: three groups over ONE partition.** It replaces the deleted
+  `LinePulseListComponent` (one worst-first list) and takes over its job of NOT folding a dead line
+  away — while adding the grouping the plan asks for. Structure: skeleton rows
+  (`line-skeleton`, kept from the old list) while the first read is in flight AND there is nothing to
+  show (a later reload never blanks the board), the dashed/muted `line-board-empty` ("No lines yet."),
+  then the `board-controls` row and three groups.
+  - `Needs attention · N` (`line-board-attention` / `line-board-attention-heading`, the testid KEPT
+    from the old list) — full `app-line-pulse-card`s, and **hidden entirely when empty**: a reader with
+    nothing broken must not scroll past a "· 0" heading to learn there is nothing.
+  - `My lines` (`line-board-mine` / `-mine-heading`) — compact rows; when empty it shows the invitation
+    `line-board-mine-empty` ("Pin a line to keep it here.") rather than a gap in the page.
+  - `All lines` (`line-board-all` / `-all-heading`) — compact rows; rendered whenever it has any,
+    which is exactly when the rest of the board is showing nothing.
+
+  Every row keeps the `line-board-row` wrapper (the stable order/partition hook from Phase 0).
+
+- **The controls row** is three labelled `role="group"` segmented controls, each an `aria-pressed`
+  pair: `board-sort-severity` / `board-sort-name`, `board-view-rider` / `board-view-pro`, and —
+  **pro only**, because a rider has no use for a density control and a greyed one is noise —
+  `board-density-comfortable` / `board-density-compact`.
+- 🔴 **URL state** (`?sort=` / `?view=`), all through `core/url-state/query-param.util`:
+  - READ half: `toSignal(route.queryParamMap, { initialValue: route.snapshot.queryParamMap })` —
+    seeded from the SNAPSHOT, so the server render itself reads the server's URL and a deep link
+    cannot render the default on the server and the linked value on the client. `readTextQueryParam`
+    is what distinguishes "absent" from "present but unrecognised"; `readEnumQueryParam` then narrows
+    it, so `?view=wizard` degrades to the shared DEFAULT rather than to the reader's stored preference
+    (a URL is user input and must resolve to something the UI actually offers).
+  - Effective values: **URL when present, else the stored state** — `view` falls back to
+    `PreferencesService.viewMode()`, `sort` to `HomeStore.boardSort()`. That is what makes
+    `?view=pro` a shareable link while a returning Pro reader still gets Pro without one.
+  - WRITE half: one browser-gated `effect` (a reactive `router.navigate()` during SSR hangs the
+    render) that mirrors BOTH effective values through `writeQueryParams`, guarded on the URL already
+    saying the same thing — otherwise a browser back/forward would immediately re-navigate onto the
+    exact parameters it just left. Defaults are written as `null`, so `sort=severity` /
+    `view=rider` never appear and "no query params" is one state with "the default". A **stored** Pro
+    view IS mirrored into the URL on load — that is the shareable part.
+  - Two more effects push a deep link DOWN into the durable state (`store.setBoardSort` /
+    `preferences.setViewMode`), because otherwise the board would revert the moment the reader edited
+    the URL away. `signal.set` with an equal value does not notify, so this never fights a toggle
+    that already wrote both halves.
+  - **Density is preference-only.** It is a per-device reading habit, not something a shared link
+    should impose, so it never reaches the URL.
+- **`LinePulseRowComponent`** is the compact row: the backend-hex colour rail, `code · name`,
+  `line-row-status` (the operational `LineStatusBadge`, non-ACTIVE lines only — "Active" is the
+  unremarkable default), `line-row-confidence`, `line-row-passenger`, `line-row-vehicles`
+  ("12/16 in service"), `line-row-reports` ("N reports"), a `line-row-pin` toggle (`aria-pressed`,
+  action-naming `aria-label`) and a `line-row-report` button that calls
+  `LineStatusSheetService.openFor(line.id)`. The expand toggle is `line-row-toggle`
+  (`aria-expanded`) and its panel is `line-row-expanded`, holding the SAME lazy
+  `app-line-status-chart` + `app-line-status-reports` the card shows, both gated on the same
+  `expanded` input. **Pro view adds `line-row-pro`**: `line-row-report-window` ("N reports · 15 min
+  window" — a bare count is what a pro reader is most likely to over-read, and the window is what
+  makes it interpretable) plus `line-row-hq` / `line-row-hq-details`. Opening the panel pushes the
+  line into `PreferencesService.pushRecentLine()` on the OPEN edge only, exactly like the card.
+  🔴 The row's report button is the WHOLE of the report affordance here: the full "which line?" chooser
+  is Phase 2, and until it lands this is exactly as honest as the card's — it reports on the line the
+  reader is looking at.
+- **`status-confidence.util.ts` (`statusConfidence`, `hasOfficialPulseLink`)** is the pure rule behind
+  the confidence chip both row elements show next to the status, because "what does the page know, and
+  how do we know it?" was being answered three different ways on one screen (a backend state, a derived
+  crowd, a raw count). Four levels, **first match wins**, and the order IS the design:
+  1. `official` — any pulse link with `isAutomated === true`. Checked FIRST, so a line that is both
+     officially announced and heavily reported still reads as official: a rider tally is not stronger
+     evidence than the operator saying so.
+  2. `none` — no status evidence at all → "No recent reports". Its own label, because claiming
+     confirmation from zero reports is the exact failure the chip exists to prevent.
+  3. `confirmed` — evidence exists and `statusReportCount >= CONFIRMED_MIN_REPORTS` (3; the frontend's
+     own rule, published as `METHODOLOGY_CONSTANTS.CONFIRMED_MIN_REPORTS` with the
+     `status-confidence.confirmed` metric doc — one number, two readers, pinned together by
+     `status-confidence.util.spec.ts`).
+  4. `unconfirmed` — evidence but too few reports → "Unconfirmed (N reports)", the count in the LABEL
+     so the reader can weigh it without opening the popover.
+
+  **Evidence** = a report in the line's own window, OR a rider status above `NORMAL`, OR a non-`ACTIVE`
+  operational status. That last one is deliberately evidence with a count of zero — a
+  `PARTIAL_DISRUPTION` line with no rider reports is honestly "Unconfirmed (0 reports)" — while
+  `passengerStatus: "NORMAL"` is NOT evidence, because it is the derived "nothing notable" reading and
+  treating it as one would put a confident green chip on a line nobody has reported.
+  `hasOfficialPulseLink` tests `=== true`, never truthiness: an absent or stale field must never claim
+  provenance that was not sent. The chip's popover content comes from the resolved level's OWN registry
+  entry (`status-confidence.*`), so the panel explains the level on screen rather than one generic
+  paragraph, and `/methodology` cannot drift from the chip.
+
+- **`LineStatusReportsComponent`'s per-station strip** (`station-strip`, counts in
+  `station-strip-count`) tallies the reports the reader has ALREADY loaded by `station.displayName` and
+  renders them above the list — no request, no new fields, and it answers WHERE, which the list cannot
+  at a glance (nine stations is a line problem; nine reports on two stations is a platform problem).
+  Busiest first, name as the tiebreak so the strip is stable between reads; hidden entirely when no
+  loaded report names a station. 🔴 v1 aggregates ONLY the loaded pages (the first page of ten), so the
+  strip is "where, among the reports you can see", never a total — making it complete needs an additive
+  backend aggregate over the status-report table, a documented option deliberately NOT taken here
+  because this phase ships zero new reads and a client-side total over a truncated page would be a lie
+  the reader cannot detect.
 - **`LinePulseCardComponent`'s action hierarchy** is deliberate: two buttons, one primary and one
   secondary — **Report status** (`submit-line-status`, default variant) and **Log spotting**
   (`add-spotting-entry`, `outline`). Both testids and both class sets are unchanged; only the visible

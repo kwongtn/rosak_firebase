@@ -19,6 +19,7 @@ import {
 import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
   FEED_QUERY,
+  FRONT_PAGE_LINES_QUERY,
   REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
   SUBMIT_FEED_LINK_MUTATION,
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
@@ -226,6 +227,30 @@ const EDIT_ROUND_TRIP_SELECTIONS: Array<{ relation: string; fields: string[] }> 
  *  `LinkCardItem` REQUIRES it — the card's displayed instant falls back to it — so a level
  *  that grew the tree without it renders a blank time rather than failing to compile. */
 const TREE_FIELDS = ["parentId", "isThreadRoot", "sublinkCount", "created"];
+
+/** `FRONT_PAGE_LINES_QUERY`'s per-line selection. */
+function lineLevel(): SelectionSet {
+  return selectionUnder(FRONT_PAGE_LINES_QUERY, "lines");
+}
+
+describe("FRONT_PAGE_LINES_QUERY selection", () => {
+  it("asks for isAutomated on every pulse link, which is what makes 'official' possible", () => {
+    // The board's confidence chip and the hero's official-update callout are both built on ONE
+    // fact: is any of this line's pulse links an operator-sourced post? `LinePulseLink` declares
+    // `isAutomated` as a required boolean, and a fixture can invent any field it likes — so the
+    // only thing that knows whether the SERVER was asked is the document itself. Without this
+    // selection the field is `undefined` at runtime and every line silently degrades to "confirmed
+    // by riders" with no error anywhere.
+    expect(lineLevel().nested["pulseLinks"]?.fields).toContain("isAutomated");
+  });
+
+  it("keeps the pulse link a single flat level — no conversation tree follows it in", () => {
+    // The card renders one fixed-height row per related link, so the nested `sublinks` chain the
+    // feed carries is deliberately NOT selected here. Asserted so a future copy-paste of the feed's
+    // node selection into this one is a red test rather than a payload-size surprise.
+    expect(lineLevel().nested["pulseLinks"]?.nested["sublinks"]).toBeUndefined();
+  });
+});
 
 describe("FEED_QUERY selection", () => {
   it("nests sublinks exactly as deep as the document documents (root plus four levels)", () => {

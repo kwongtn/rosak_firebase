@@ -16,6 +16,8 @@ import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
+import type { StatusConfidence } from "../data/status-confidence.util";
+import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
 import {
   StatusInfo,
   lineStatusInfo,
@@ -51,7 +53,10 @@ const MAX_PULSE_LINKS = 5;
  *
  * The status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle-count
  * pill opens the per-status breakdown, the passenger chip carries the rolling window it covers
- * and the severity legend with the per-status report counts folded in. The line-status pill is
+ * and the severity legend with the per-status report counts folded in. The **confidence** chip sits
+ * between the status pill and the passenger chip and answers a question the other three never did —
+ * how much to trust any of this: an operator-sourced post, several corroborating riders, one
+ * person's guess, or nothing at all (the pure rule is `statusConfidence`). The line-status pill is
  * rendered only for non-active lines — "Active" is the unremarkable default. The title row is
  * the expand/collapse toggle for the lazy detail panel — the hourly report chart
  * and the recent reports list, both of which only read once expanded. Mobile-first: the card is a
@@ -132,6 +137,21 @@ const MAX_PULSE_LINKS = 5;
                     <line-status-badge [status]="line().status" />
                   </app-status-info-chip>
                 }
+                <!-- The confidence chip qualifies the status above it, so it sits immediately after
+                     it: "Partial Disruption · Unconfirmed (1 report)" has to read as one sentence,
+                     and a confidence number parked on the far side of the row is a number the reader
+                     never connects to the status. Always rendered — including the "No recent
+                     reports" state — because "we know nothing" is itself something a reader acting
+                     on this card needs to be told. -->
+                <app-status-info-chip [info]="_confidenceInfo()">
+                  <span
+                    hlmBadge
+                    data-testid="line-card-confidence"
+                    [variant]="_confidence().variant"
+                  >
+                    {{ _confidence().label }}
+                  </span>
+                </app-status-info-chip>
                 <app-status-info-chip
                   [info]="passengerInfo(line().passengerStatus)"
                   [scale]="passengerScale(line().passengerStatus, line().passengerStatusCounts)"
@@ -346,6 +366,29 @@ export class LinePulseCardComponent {
   protected readonly _passengerWindowMinutes = computed(() =>
     this.line().passengerStatus ? this.line().statusWindowMinutes : null,
   );
+
+  /**
+   * How much this line's reported status can be trusted. The rule (and its four levels) is the pure
+   * `statusConfidence`, so the card and the compact row cannot spell the same evidence differently.
+   */
+  protected readonly _confidence = computed<StatusConfidence>(() =>
+    statusConfidence({
+      reportCount: this.line().statusReportCount,
+      passengerStatus: this.line().passengerStatus,
+      status: this.line().status,
+      hasOfficialPost: hasOfficialPulseLink(this.line().pulseLinks),
+    }),
+  );
+
+  /**
+   * The chip's popover copy, read from the methodology registry through the resolved level's own
+   * `metricId` — so the panel explains the level actually on screen (an official post is explained
+   * differently from a three-rider tally) and `/methodology` cannot drift from the chip.
+   */
+  protected readonly _confidenceInfo = computed<StatusInfo>(() => {
+    const doc = metricDoc(this._confidence().metricId);
+    return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
+  });
 
   protected toggleExpanded(): void {
     const opening = !this._expanded();

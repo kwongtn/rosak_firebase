@@ -4,6 +4,7 @@ import { Injectable, PLATFORM_ID, computed, inject, signal } from "@angular/core
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, graphqlResource } from "../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../core/polling/polling-source";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { FeedDayGroup, groupFeedLinksByDay } from "./feed-day-groups.util";
 import {
   FEED_QUERY,
@@ -16,6 +17,12 @@ import {
   FrontPageLinesQueryData,
   LinePulse,
 } from "./home.queries";
+import {
+  NetworkSummary,
+  lineNeedsAttention,
+  sortLinesBySeverity,
+  summarizeNetwork,
+} from "./network-summary.util";
 
 /** Links per GraphQL page: the initial read and every `loadMore()` continuation ask for this
  * many. A fetch size only — the page renders every loaded link and "Load More" pulls one
@@ -54,6 +61,33 @@ export const LAST_WEEK_PAGE_SIZE = 20;
  * window is a backend-computed boolean rather than a `new Date()` baked into the variables.
  */
 const HOME_FEED_COLLAPSE_VARS = { collapseThreads: true } as const;
+
+/**
+ * How the board's "All lines" group orders the lines no higher group claimed.
+ *
+ * `severity` is the default because the board's entire job is "what is broken first", and it is the
+ * same order the hero's callout and the "Needs attention" group use — one reader, one order, so the
+ * page can never claim a line is fine while listing it below a worse one. `name` is the alphabetical
+ * fallback for a reader who wants the network as a list of names.
+ *
+ * 🔴 This sorts ONLY the "All lines" group. "Needs attention" and "My lines" are always
+ * severity-sorted, deliberately: both are short, both are the reason the reader came to the page,
+ * and re-ordering them alphabetically would put a dead line under a healthy one for no gain.
+ */
+export type BoardSort = "severity" | "name";
+
+/** The board's sort with nothing chosen — also the value the URL omits. */
+export const DEFAULT_BOARD_SORT: BoardSort = "severity";
+
+/** Every accepted `?sort=` value, for the URL's own parse-and-degrade. */
+export const BOARD_SORTS: readonly BoardSort[] = ["severity", "name"];
+
+/** Local name compare for `code`, the last tiebreak of the severity order as well as the whole of
+ * the `name` order. `localeCompare` rather than `<`: MRT line codes mix letters and digits, and a
+ * raw character-code compare sorts "K10" before "K2". */
+function byCode(a: LinePulse, b: LinePulse): number {
+  return a.code.localeCompare(b.code);
+}
 
 /**
  * Merge helper for a refetched first page + already-appended continuation pages, de-duplicated by
@@ -157,6 +191,16 @@ export class HomeStore {
   private readonly auth = inject(AuthService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
+  /**
+   * Reader-owned display state (which lines are pinned, which view/density the reader chose).
+   *
+   * Root-provided, so it deliberately OUTLIVES this route-scoped store — a pin survives navigating
+   * away from `/` and back, which is the whole point of persisting it. Nothing about it is read at
+   * construction time and no host gates visible UI on its `hydrated()`: it hydrates in
+   * `afterNextRender`, so the server HTML and the client's first paint agree (see the service).
+   */
+  private readonly preferences = inject(PreferencesService);
+
   private readonly linesResource = graphqlResource<FrontPageLinesQueryData>(() => ({
     query: FRONT_PAGE_LINES_QUERY,
   }));
@@ -189,6 +233,81 @@ export class HomeStore {
   }));
 
   readonly lines = computed<LinePulse[]>(() => this.linesResource.data()?.lines ?? []);
+
+  /* ------------------------------------------------------------------ *
+   * The board's derived views — a PARTITION of `lines()`, no new reads
+   * ------------------------------------------------------------------ *
+   *
+   * 🔴 **The three groups partition `lines()`: every line appears in EXACTLY ONE of
+   * `attentionLines` / `myLines` / `allLines`.** That is the property the whole board rests on, and
+   * it is achieved by ONE decision, applied in one order:
+   *
+   *  - **Attention membership always wins.** A line that needs attention is in `attentionLines` even
+   *    when the reader has pinned it. Pinning is a way of saying "I care about this line", not a way
+   *    of hiding a broken one further down the page — a pinned line with a `TOTAL_DISRUPTION` status
+   *    is exactly the line the reader most wants at the top, and duplicating it into "My lines" would
+   *    print it twice on one page.
+   *  - `myLines` is therefore "pinned AND NOT already in attention".
+   *  - `allLines` is "everything neither of the above claimed", so it cannot overlap either.
+   *
+   * The consequence is the point: no line renders twice, and no line disappears — a reader who pins
+   * three lines still sees every other line, and one bad report can never make a line vanish from a
+   * group it belonged to. Each group subtracts the ids the previous one CLAIMED rather than
+   * re-deriving its own predicate, because three independently-written filters is how a line ends up
+   * in two groups or in none.
+   *
+   * The counts and the headline come from the SAME pure `summarizeNetwork` the hero reads, so the
+   * hero's tiles and the board's groups cannot disagree about which lines need attention.
+   */
+
+  /** The rolled-up network state (headline, counts, worst line) over the one lines read. */
+  readonly networkSummary = computed<NetworkSummary>(() => summarizeNetwork(this.lines()));
+
+  /**
+   * The board's sort. A signal rather than a preference because it is view state the URL also owns
+   * (`?sort=`) — `NetworkBoardComponent` reads the URL first and falls back to this, and a toggle
+   * writes both. Defaults to {@link DEFAULT_BOARD_SORT}, which is also the value the URL OMITS, so
+   * "no query param" and "severity" are one state.
+   *
+   * Declared ABOVE the groups below purely so a reader never has to wonder whether a `computed()`
+   * reading a later field is safe; the dependency would be fine either way, but the order costs
+   * nothing to make obvious.
+   */
+  private readonly _boardSort = signal<BoardSort>(DEFAULT_BOARD_SORT);
+  readonly boardSort = this._boardSort.asReadonly();
+
+  /** Sets the board's sort. A no-op for an unrecognised value rather than a thrown error, matching
+   * the URL parse's own degrade-to-default rule. */
+  setBoardSort(sort: BoardSort): void {
+    if (!(BOARD_SORTS as readonly string[]).includes(sort)) {
+      return;
+    }
+    this._boardSort.set(sort);
+  }
+
+  /** Lines needing attention, worst first — the board's full `LinePulseCardComponent` group. */
+  readonly attentionLines = computed<LinePulse[]>(() =>
+    sortLinesBySeverity(this.lines().filter(lineNeedsAttention)),
+  );
+
+  /** The reader's pinned lines that no higher group claimed, worst first. */
+  readonly myLines = computed<LinePulse[]>(() => {
+    const claimed = new Set(this.attentionLines().map((line) => line.id));
+    const pinned = new Set(this.preferences.pinnedLineIds());
+    return sortLinesBySeverity(
+      this.lines().filter((line) => pinned.has(line.id) && !claimed.has(line.id)),
+    );
+  });
+
+  /** Everything neither of the above claimed, in the board's current sort. */
+  readonly allLines = computed<LinePulse[]>(() => {
+    const claimed = new Set([
+      ...this.attentionLines().map((line) => line.id),
+      ...this.myLines().map((line) => line.id),
+    ]);
+    const rest = this.lines().filter((line) => !claimed.has(line.id));
+    return this.boardSort() === "name" ? [...rest].sort(byCode) : sortLinesBySeverity(rest);
+  });
 
   private readonly appendedEdges = signal<FeedLinkEdge[]>([]);
   private readonly appendedHasNext = signal<boolean | null>(null);
@@ -359,6 +478,9 @@ export class HomeStore {
 
   /** Bumped on every lines-only poll so the line cards' open accordions can re-read their own
    * data (`LinePulseListComponent` → `LinePulseCardComponent` → chart/reports). */
+  /** Bumped on every lines-only poll so the line cards' open accordions can re-read their own
+   * data (`NetworkBoardComponent` → `LinePulseCardComponent` / `LinePulseRowComponent` →
+   * chart/reports). */
   readonly linesRefreshTick = signal(0);
 
   /**

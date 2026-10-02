@@ -8,6 +8,24 @@ import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.comp
 import { LineStatusReportItem } from "../data/home.queries";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
 
+/** One report row. `stations` defaults to none so a strip spec can be explicit about its own. */
+function report(
+  id: string,
+  stations: LineStatusReportItem["stations"] = [],
+  overrides: Partial<LineStatusReportItem> = {},
+): LineStatusReportItem {
+  return {
+    id,
+    status: "CROWDED",
+    delayMinutes: null,
+    notes: "",
+    created: new Date().toISOString(),
+    stations,
+    user: null,
+    ...overrides,
+  };
+}
+
 function makeReports(): LineStatusReportItem[] {
   return [
     {
@@ -251,5 +269,71 @@ describe("LineStatusReportsComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.debugElement.query(By.directive(RetryBannerComponent))).not.toBeNull();
+  });
+
+  /* ---- the per-station strip ------------------------------------------------------- */
+
+  it("tallies the loaded reports by station above the list, busiest first", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, [
+      report("r1", [{ id: "s1", displayName: "KLCC" }]),
+      report("r2", [{ id: "s2", displayName: "Masjid Jamek" }]),
+      report("r3", [{ id: "s1", displayName: "KLCC" }]),
+      report("r4", [{ id: "s3", displayName: "Bukit Jalil" }]),
+      report("r5", [
+        { id: "s1", displayName: "KLCC" },
+        { id: "s4", displayName: "Sri Petaling" },
+      ]),
+    ]);
+
+    const root = fixture.nativeElement as HTMLElement;
+    const strip = root.querySelector<HTMLElement>('[data-testid="station-strip"]');
+    expect(strip).not.toBeNull();
+    const chips = [...(strip as HTMLElement).querySelectorAll('[data-slot="badge"]')].map(
+      (chip) => chip.textContent?.replace(/\s+/g, " ").trim() ?? "",
+    );
+    // KLCC 3, then the single-report stations by name so the strip is stable between reads.
+    expect(chips).toEqual(["KLCC 3", "Bukit Jalil 1", "Masjid Jamek 1", "Sri Petaling 1"]);
+    // It answers WHERE, which the list itself cannot at a glance — so it sits above the list.
+    expect(
+      (strip as HTMLElement).compareDocumentPosition(
+        root.querySelector('[data-testid="line-status-reports-scroll"]') as Node,
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("groups two station rows sharing a display name into one chip", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, [
+      report("r1", [{ id: "s1", displayName: "KLCC" }]),
+      report("r2", [{ id: "s2", displayName: "KLCC" }]),
+    ]);
+
+    const root = fixture.nativeElement as HTMLElement;
+    // Display name is what the reader sees in the rows and what the chip prints, so two rows with
+    // the same name are one place as far as this surface is concerned.
+    const chips = [...root.querySelectorAll('[data-testid="station-strip"] [data-slot="badge"]')];
+    expect(chips).toHaveLength(1);
+    expect(chips[0]?.textContent?.replace(/\s+/g, " ").trim()).toBe("KLCC 2");
+  });
+
+  it("hides the strip entirely when no loaded report names a station", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, [report("r1"), report("r2", [])]);
+
+    // A strip reading "0 reports · · ·" would be worse than no strip: it would look like the page
+    // had station data and there was none.
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="station-strip"]')).toBeNull();
+    expect(root.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(2);
+  });
+
+  it("shows no strip for an empty report list", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, []);
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="station-strip"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-status-reports-empty"]')).not.toBeNull();
   });
 });

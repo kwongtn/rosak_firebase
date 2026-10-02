@@ -6,8 +6,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
-import { FeedLink, FeedLinkSublink, FeedQueryData, FrontPageLinesQueryData } from "./home.queries";
+import {
+  FeedLink,
+  FeedLinkSublink,
+  FeedQueryData,
+  FrontPageLinesQueryData,
+  LinePulse,
+} from "./home.queries";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { FEED_PAGE_SIZE, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
+
+/** The preferences service's own storage key, restated so a rename breaks this spec loudly rather
+ * than silently seeding a payload nothing reads. */
+const STORAGE_KEY = "rosak:preferences:v1";
 
 function makeLine(id: string): FrontPageLinesQueryData["lines"][number] {
   return {
@@ -1003,5 +1014,306 @@ describe("HomeStore", () => {
     await Promise.all([first, second]);
 
     expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The network board's derived views (Phase 1)
+ *
+ * These live on the STORE rather than in the board component on purpose: the partition is a rule,
+ * not a rendering, and a rule that only exists inside a template cannot be tested without a DOM or
+ * reasoned about by a reader of the markup. `network-board.component.spec.ts` then checks the same
+ * views reach the screen in the right groups.
+ * ---------------------------------------------------------------------- */
+
+describe("HomeStore: the board partition", () => {
+  let httpMock: HttpTestingController;
+  let preferences: PreferencesService;
+
+  /** A line fixture with the two axes the partition reads: `status` and `passengerStatus`. */
+  function boardLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
+    return { ...makeLine(id), code: id.toUpperCase(), ...overrides };
+  }
+
+  /** Creates a store whose three reads have settled on `lines` and nothing else. */
+  async function withLines(lines: LinePulse[]): Promise<HomeStore> {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("FrontPageLines"))
+      .flush({ data: { lines } });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly !== true,
+      )
+      .flush({ data: feedData([], false, null) });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly === true,
+      )
+      .flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+    return store;
+  }
+
+  /**
+   * Seeds the reader's PINS the way a previous session left them, in the service's own storage key.
+   *
+   * Poking `togglePin()` directly would be a lie: `PreferencesService` hydrates inside
+   * `afterNextRender`, and the `TestBed.tick()` inside `withLines()` is what runs that pass — so a
+   * pin set before it is read straight back out of an EMPTY `localStorage` and wiped. Seeding the
+   * payload means the store reads the pins through the same hydration the page does.
+   */
+  function storedPins(...ids: string[]): void {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        pinnedLineIds: ids,
+        viewMode: "rider",
+        density: "comfortable",
+        lastReportedLineId: null,
+        recentLineIds: [],
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
+        HomeStore,
+        {
+          provide: AuthService,
+          useValue: {
+            isLoggedIn: signal(false),
+            isAdmin: () => false,
+            idToken: async () => "token",
+            whenReady: Promise.resolve(),
+          },
+        },
+        { provide: GraphQLClient, useValue: { request: vi.fn() } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+    preferences = TestBed.inject(PreferencesService);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    localStorage.clear();
+  });
+
+  it("puts every line needing attention in the attention group, worst first", async () => {
+    const store = await withLines([
+      boardLine("healthy"),
+      boardLine("testing", { status: "TESTING" }),
+      boardLine("dead", { status: "TOTAL_DISRUPTION" }),
+      boardLine("partial", { status: "PARTIAL_ACTIVE" }),
+      boardLine("late", { passengerStatus: "DELAYED" }),
+    ]);
+
+    // The reader's FIRST question is what is broken; the partition must answer it in the same order
+    // the hero's callout uses, or the two disagree about which line is worst.
+    expect(store.attentionLines().map((l) => l.id)).toEqual(["dead", "partial", "testing", "late"]);
+    expect(store.myLines()).toEqual([]);
+    expect(store.allLines().map((l) => l.id)).toEqual(["healthy"]);
+  });
+
+  it("counts the attention group with the hero's own needs-attention rule", async () => {
+    const store = await withLines([
+      boardLine("ok"),
+      boardLine("broken", { status: "PARTIAL_DISRUPTION" }),
+      boardLine("late", { passengerStatus: "DELAYED" }),
+      // Crowding describes one carriage, not the service — it must NOT inflate the group.
+      boardLine("busy", { passengerStatus: "CROWDED" }),
+    ]);
+
+    expect(store.networkSummary().needsAttentionCount).toBe(2);
+    expect(store.attentionLines().map((l) => l.id)).toEqual(["broken", "late"]);
+  });
+
+  it("collects pinned lines that no higher group claimed into myLines", async () => {
+    storedPins("pinned-a", "pinned-b");
+
+    const store = await withLines([
+      boardLine("pinned-a"),
+      boardLine("pinned-b"),
+      boardLine("plain"),
+      boardLine("broken", { status: "PARTIAL_DISRUPTION" }),
+    ]);
+
+    expect(store.myLines().map((l) => l.id)).toEqual(["pinned-a", "pinned-b"]);
+    expect(store.attentionLines().map((l) => l.id)).toEqual(["broken"]);
+    expect(store.allLines().map((l) => l.id)).toEqual(["plain"]);
+  });
+
+  it("keeps a pinned-but-broken line in ATTENTION only, so it never renders twice", async () => {
+    storedPins("dead");
+
+    const store = await withLines([
+      boardLine("dead", { status: "TOTAL_DISRUPTION" }),
+      boardLine("ok"),
+    ]);
+
+    // Attention membership always wins. Pinning says "I care about this line"; it is not a licence
+    // to print a dead line twice on one page, and the group it gives up is the compact one.
+    expect(store.attentionLines().map((l) => l.id)).toEqual(["dead"]);
+    expect(store.myLines()).toEqual([]);
+    expect(store.allLines().map((l) => l.id)).toEqual(["ok"]);
+  });
+
+  it("moves a pinned line out of myLines the moment it starts needing attention", async () => {
+    storedPins("kjl");
+
+    const store = await withLines([boardLine("kjl"), boardLine("ok")]);
+    expect(store.myLines().map((l) => l.id)).toEqual(["kjl"]);
+
+    store.reloadFirstPages();
+    TestBed.tick();
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("FrontPageLines"))
+      .flush({
+        data: { lines: [boardLine("kjl", { passengerStatus: "DISRUPTED" }), boardLine("ok")] },
+      });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly !== true,
+      )
+      .flush({ data: feedData([], false, null) });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly === true,
+      )
+      .flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    // The partition recomputes off the SAME read, so no group can keep a stale membership.
+    expect(store.attentionLines().map((l) => l.id)).toEqual(["kjl"]);
+    expect(store.myLines()).toEqual([]);
+  });
+
+  it.each([
+    ["an empty read", []],
+    ["all healthy", ["a", "b", "c"]],
+    ["all broken", ["a", "b", "c"]],
+    ["a mix", ["a", "b", "c"]],
+  ])("renders every line in EXACTLY one group — %s", async (_label, ids) => {
+    storedPins("b");
+    const lineIds = ids as string[];
+
+    const store = await withLines(
+      lineIds.map((id, index) =>
+        // Every other line is degraded, so both directions of the partition are exercised at once.
+        boardLine(id, { status: index % 2 === 0 ? "PARTIAL_DISRUPTION" : "ACTIVE" }),
+      ),
+    );
+
+    const grouped = [
+      ...store.attentionLines().map((l) => l.id),
+      ...store.myLines().map((l) => l.id),
+      ...store.allLines().map((l) => l.id),
+    ];
+
+    expect(grouped).toHaveLength(lineIds.length);
+    expect(new Set(grouped).size).toBe(lineIds.length);
+    expect([...grouped].sort()).toEqual([...lineIds].sort());
+  });
+
+  it("ignores a pin for a line this read does not contain", async () => {
+    // The stored pin list outlives any single read, so an id for a line that was retired (or simply
+    // not in this payload) must simply not appear anywhere — never as a phantom row.
+    storedPins("retired-line");
+
+    const store = await withLines([boardLine("a"), boardLine("b")]);
+
+    expect(store.myLines()).toEqual([]);
+    expect([...store.attentionLines(), ...store.allLines()].map((l) => l.id)).toEqual(["a", "b"]);
+  });
+
+  it("never re-orders the reader's own line list", async () => {
+    const lines = [boardLine("b"), boardLine("a", { status: "TOTAL_DISRUPTION" })];
+    const store = await withLines(lines);
+
+    store.setBoardSort("name");
+
+    // `sortLinesBySeverity` copies before sorting. `lines()` is what the hero's ribbon reads, and
+    // re-ordering it under the hero would make the colours jump on every sort toggle.
+    expect(store.lines().map((l) => l.id)).toEqual(["b", "a"]);
+    expect(lines.map((l) => l.id)).toEqual(["b", "a"]);
+  });
+
+  describe("the sort", () => {
+    /**
+     * Four lines that are ALL below the needs-attention threshold, whose severity order and code
+     * order disagree — so the sort is observable on a group nothing is competing with.
+     *
+     * DELAYED would not do here: it is at the needs-attention rank, so such a line would be claimed
+     * by the attention group and this group would lose it before the sort could be read.
+     */
+    function sortedLines(): LinePulse[] {
+      return [
+        boardLine("spl", { passengerStatus: "CROWDED" }),
+        boardLine("kjl"),
+        boardLine("bdr", { passengerStatus: "BACKLOGGED" }),
+        boardLine("xtr", { passengerStatus: "EXTREMELY_CROWDED" }),
+      ];
+    }
+
+    it("defaults to severity, so the board agrees with the hero about what is worst", async () => {
+      const store = await withLines(sortedLines());
+
+      expect(store.boardSort()).toBe("severity");
+      // BACKLOGGED above EXTREMELY_CROWDED above CROWDED above unreported, by passenger severity.
+      expect(store.allLines().map((l) => l.id)).toEqual(["bdr", "xtr", "spl", "kjl"]);
+    });
+
+    it("switches the remaining group to a code compare when asked for Name", async () => {
+      const store = await withLines(sortedLines());
+
+      store.setBoardSort("name");
+
+      expect(store.allLines().map((l) => l.id)).toEqual(["bdr", "kjl", "spl", "xtr"]);
+    });
+
+    it("ignores an unrecognised sort instead of throwing or blanking the group", async () => {
+      const store = await withLines(sortedLines());
+
+      store.setBoardSort("colour" as never);
+
+      expect(store.boardSort()).toBe("severity");
+      expect(store.allLines()).toHaveLength(4);
+    });
+
+    it("leaves the attention and my-lines groups on severity order whatever the sort", async () => {
+      storedPins("spl");
+      const store = await withLines([
+        ...sortedLines(),
+        boardLine("kel", { status: "PARTIAL_DISRUPTION" }),
+      ]);
+
+      store.setBoardSort("name");
+
+      // Only the "All lines" group is re-orderable. The other two are short and are the reason the
+      // reader is on the page, so putting a dead line under a healthy one alphabetically would cost
+      // more than the alphabetical reading is worth.
+      expect(store.attentionLines().map((l) => l.id)).toEqual(["kel"]);
+      expect(store.myLines().map((l) => l.id)).toEqual(["spl"]);
+      expect(store.allLines().map((l) => l.id)).toEqual(["bdr", "kjl", "xtr"]);
+    });
   });
 });

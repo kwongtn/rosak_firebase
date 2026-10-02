@@ -545,4 +545,95 @@ describe("LinePulseCardComponent", () => {
     // The forwarded tick re-issues the children's own reads, so settle them before teardown.
     flushPendingRequests();
   });
+
+  describe("the confidence chip", () => {
+    /** One `pulseLinks` entry; `isAutomated` is what makes a post operator-sourced. */
+    function pulseLink(overrides: Partial<LinePulse["pulseLinks"][number]> = {}) {
+      return {
+        id: "pl-1",
+        url: "https://operator.example/post/1",
+        normalizedUrl: "https://operator.example/post/1",
+        title: "Signal fault at Angkasapuri",
+        created: "2026-10-03T08:00:00",
+        occurredAt: "2026-10-03T08:00:00",
+        isAutomated: true,
+        voteScore: 0,
+        userVote: 0,
+        voteBreakdown: { upvotes: 0, downvotes: 0 },
+        lines: [],
+        user: null,
+        ...overrides,
+      };
+    }
+
+    it("says so plainly when a line has no reports at all", () => {
+      const root = render(makeLine({ statusReportCount: 0 }));
+
+      // The baseline fixture carries NORMAL and no reports, so the chip must NOT claim confidence it
+      // does not have — "we know nothing" is its own state, not an optimistic "Confirmed".
+      expect(textOf(root, "line-card-confidence")).toBe("No recent reports");
+    });
+
+    it("prints the report count in the unconfirmed label", () => {
+      const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+      expect(textOf(root, "line-card-confidence")).toBe("Unconfirmed (1 reports)");
+    });
+
+    it("confirms once enough riders corroborate", () => {
+      const root = render(makeLine({ passengerStatus: "DELAYED", statusReportCount: 3 }));
+      expect(textOf(root, "line-card-confidence")).toBe("Confirmed");
+    });
+
+    it("prefers an operator-sourced post over any rider tally", () => {
+      const root = render(
+        makeLine({
+          status: "TOTAL_DISRUPTION",
+          statusReportCount: 40,
+          pulseLinks: [pulseLink({ isAutomated: false, id: "rider" }), pulseLink()],
+        }),
+      );
+
+      expect(textOf(root, "line-card-confidence")).toBe("Official update");
+    });
+
+    it("sits immediately after the operational pill, so the two read as one sentence", () => {
+      const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+
+      const statusChip = root.querySelector("line-status-badge")?.closest("app-status-info-chip");
+      const confidenceChip = root
+        .querySelector('[data-testid="line-card-confidence"]')
+        ?.closest("app-status-info-chip");
+      expect(statusChip).not.toBeNull();
+      expect(confidenceChip).not.toBeNull();
+      // It also precedes the passenger chip: "Partial Disruption · Unconfirmed (1 report) · Crowded"
+      // is the reading order a rider scans.
+      const passengerChip = root
+        .querySelector('[data-testid="passenger-status"]')
+        ?.closest("app-status-info-chip");
+      expect((statusChip as HTMLElement).compareDocumentPosition(confidenceChip as Node)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      expect((confidenceChip as HTMLElement).compareDocumentPosition(passengerChip as Node)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+
+    it("explains its own level from the methodology registry, and deep-links to it", () => {
+      const root = render(makeLine({ passengerStatus: "DELAYED", statusReportCount: 4 }));
+
+      const chip = root
+        .querySelector('[data-testid="line-card-confidence"]')
+        ?.closest("app-status-info-chip") as HTMLElement;
+      (chip.querySelector("button") as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      const panel = chip.querySelector('[data-testid="status-info-popover"]');
+      // The panel names the level ON SCREEN — a confirmed tally is explained differently from an
+      // operator post — so the metric id travels with the resolved level.
+      expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+        renderMethodologyCopy(metricDoc("status-confidence.confirmed").definition),
+      );
+      expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
+    });
+  });
 });

@@ -66,6 +66,12 @@ export const FRONT_PAGE_LINES_QUERY = /* GraphQL */ `
         title
         created
         occurredAt
+        # The provenance flag: true for a post the OFFICIAL-post ingestion wrote, false for every
+        # hand-submitted link. The board's confidence chip and the hero's official callout both
+        # read it, so a line the operator has announced itself never reads as merely "confirmed by
+        # riders". The field already exists on SocialMediaLinkScalar server-side — selecting it here
+        # is additive and costs no new request.
+        isAutomated
         voteScore
         userVote
         voteBreakdown {
@@ -116,6 +122,11 @@ interface LinePulseLink {
    * place of `created`, which is only "when someone reported it". Naive local wall time, no
    * offset (backend `USE_TZ = False`); never re-format through UTC. */
   occurredAt: string;
+  /** True for a post the official-post ingestion wrote (backend `is_automated`). Drives the board's
+   * `status-confidence.official` reading and the hero's official-update callout — the ONLY thing
+   * that separates "the operator said so" from "N riders think so", so it is read as `=== true` and
+   * never as truthiness. */
+  isAutomated: boolean;
   voteScore: number;
   userVote: number;
   voteBreakdown: { upvotes: number; downvotes: number };

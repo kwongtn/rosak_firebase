@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection } from "@angular/core";
+import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +10,29 @@ import {
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home.queries";
+import { HomeStore } from "../data/home.store";
 import { HomeHeroComponent } from "./home-hero.component";
+
+/** One `pulseLinks` entry. `isAutomated` is what separates an operator-sourced post from a rider's. */
+function pulseLink(
+  overrides: Partial<LinePulse["pulseLinks"][number]> = {},
+): LinePulse["pulseLinks"][number] {
+  return {
+    id: "pl-1",
+    url: "https://operator.example/post/1",
+    normalizedUrl: "https://operator.example/post/1",
+    title: "Signal fault at Angkasapuri",
+    created: "2026-10-03T08:00:00",
+    occurredAt: "2026-10-03T08:00:00",
+    isAutomated: true,
+    voteScore: 0,
+    userVote: 0,
+    voteBreakdown: { upvotes: 0, downvotes: 0 },
+    lines: [],
+    user: null,
+    ...overrides,
+  };
+}
 
 function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
   return {
@@ -66,10 +88,35 @@ describe("HomeHeroComponent", () => {
   let fixture: ComponentFixture<HomeHeroComponent>;
   let reportSheet: { open: ReturnType<typeof vi.fn>; openFor: ReturnType<typeof vi.fn> };
   let linkSheet: { open: ReturnType<typeof vi.fn>; openEdit: ReturnType<typeof vi.fn> };
+  let storeMock: {
+    isRefreshing: ReturnType<typeof signal<boolean>>;
+    isLoading: ReturnType<typeof signal<boolean>>;
+    isLoadingLastWeek: ReturnType<typeof signal<boolean>>;
+    hasError: ReturnType<typeof signal<boolean>>;
+    polling: {
+      intervalMs: ReturnType<typeof signal<number | null>>;
+      secondsRemaining: ReturnType<typeof signal<number>>;
+      refreshNow: ReturnType<typeof vi.fn>;
+    };
+  };
 
   beforeEach(async () => {
     reportSheet = { open: vi.fn(), openFor: vi.fn() };
     linkSheet = { open: vi.fn(), openEdit: vi.fn() };
+    // The hero hosts the page's live refresh indicator, which injects `HomeStore` itself — so the
+    // hero's own "reads nothing" claim is about REQUESTS, and the store it renders against is the
+    // same route-scoped one the page already has.
+    storeMock = {
+      isRefreshing: signal(false),
+      isLoading: signal(false),
+      isLoadingLastWeek: signal(false),
+      hasError: signal(false),
+      polling: {
+        intervalMs: signal<number | null>(30000),
+        secondsRemaining: signal(30),
+        refreshNow: vi.fn(),
+      },
+    };
 
     await TestBed.configureTestingModule({
       imports: [HomeHeroComponent],
@@ -78,6 +125,7 @@ describe("HomeHeroComponent", () => {
         provideRouter([]),
         { provide: ReportSheetService, useValue: reportSheet },
         { provide: LinkSheetService, useValue: linkSheet },
+        { provide: HomeStore, useValue: storeMock },
       ],
     }).compileComponents();
 
@@ -183,5 +231,123 @@ describe("HomeHeroComponent", () => {
     const cta = root.querySelector('[data-testid="hero-report-delay"]');
     expect(cta?.className).toContain("bg-brand");
     expect(cta?.className).toContain("text-brand-foreground");
+  });
+
+  it("draws the network's own colours as a decorative, hidden ribbon", () => {
+    const root = render([
+      makeLine({ id: "a", code: "A", displayColor: "#00af91" }),
+      makeLine({ id: "b", code: "B", displayColor: "#e11d48" }),
+    ]);
+
+    const ribbon = root.querySelector<HTMLElement>('[data-testid="hero-ribbon"]');
+    expect(ribbon).not.toBeNull();
+    // Decorative: sixteen colour swatches are not information, and announcing them would drown the
+    // headline the screen reader is actually here for.
+    expect(ribbon?.getAttribute("aria-hidden")).toBe("true");
+    const segments = ribbon?.querySelectorAll("span") ?? [];
+    expect(segments).toHaveLength(2);
+    expect((segments[0] as HTMLElement).style.backgroundColor).toBe("rgb(0, 175, 145)");
+    expect((segments[1] as HTMLElement).style.backgroundColor).toBe("rgb(225, 29, 72)");
+  });
+
+  it("drops a blank line colour instead of leaving a hole in the ribbon", () => {
+    const root = render([
+      makeLine({ id: "a", code: "A", displayColor: "#00af91" }),
+      makeLine({ id: "b", code: "B", displayColor: "" }),
+    ]);
+
+    const ribbon = root.querySelector<HTMLElement>('[data-testid="hero-ribbon"]');
+    expect(ribbon?.querySelectorAll("span")).toHaveLength(1);
+  });
+
+  it("draws no ribbon at all before the first read lands", () => {
+    const root = render([]);
+    expect(root.querySelector('[data-testid="hero-ribbon"]')).toBeNull();
+  });
+
+  it("calls out an operator-sourced post on the worst line, and opens the original safely", () => {
+    const root = render([
+      makeLine({
+        id: "dead",
+        code: "KJL",
+        status: "TOTAL_DISRUPTION",
+        pulseLinks: [pulseLink({ isAutomated: false, id: "rider" }), pulseLink()],
+      }),
+      makeLine({ id: "ok", code: "SPL" }),
+    ]);
+
+    const callout = root.querySelector<HTMLElement>('[data-testid="hero-official-callout"]');
+    expect(callout).not.toBeNull();
+    expect(textOf(root, "hero-official-badge")).toBe("Official update");
+    expect(callout?.textContent).toContain("Signal fault at Angkasapuri");
+
+    const link = root.querySelector<HTMLAnchorElement>('[data-testid="hero-official-link"]');
+    expect(link?.getAttribute("href")).toBe("https://operator.example/post/1");
+    expect(link?.textContent?.trim()).toBe("Open original");
+    // A community page quoting an operator must never look like the operator said it here.
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("puts the official callout ABOVE the disruption callout", () => {
+    const root = render([
+      makeLine({ id: "dead", code: "KJL", status: "TOTAL_DISRUPTION", pulseLinks: [pulseLink()] }),
+    ]);
+
+    // "The operator has announced something" is a stronger claim than "a summary of reports says a
+    // line is broken"; reading them the other way round inverts the reader's confidence.
+    const official = root.querySelector('[data-testid="hero-official-callout"]');
+    const disruption = root.querySelector('[data-testid="hero-disruption-callout"]');
+    expect(official?.compareDocumentPosition(disruption as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("shows no official callout when the worst line has no operator post", () => {
+    const root = render([
+      makeLine({
+        id: "dead",
+        code: "KJL",
+        status: "TOTAL_DISRUPTION",
+        pulseLinks: [pulseLink({ isAutomated: false })],
+      }),
+    ]);
+
+    expect(root.querySelector('[data-testid="hero-official-callout"]')).toBeNull();
+    // …and the plain disruption callout is untouched, which is the point of scoping the official
+    // one to the line the summary is already talking about.
+    expect(textOf(root, "hero-disruption-callout")).toBe("KJL — Total Disruption");
+  });
+
+  it("does not raise an official callout about a HEALTHIER line while a worse one is broken", () => {
+    const root = render([
+      makeLine({ id: "dead", code: "KJL", status: "TOTAL_DISRUPTION" }),
+      makeLine({ id: "late", code: "SPL", passengerStatus: "DELAYED", pulseLinks: [pulseLink()] }),
+    ]);
+
+    // `summarizeNetwork` names ONE worst line; a callout about any other would contradict the
+    // sentence right underneath it.
+    expect(textOf(root, "hero-disruption-callout")).toBe("KJL — Total Disruption");
+    expect(root.querySelector('[data-testid="hero-official-callout"]')).toBeNull();
+  });
+
+  it("hosts the page's live refresh indicator, gated to desktop like the copy it replaced", () => {
+    const root = render(networkLines());
+
+    const wrapper = root.querySelector<HTMLElement>('[data-testid="home-hero"] > div.hidden');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper?.className.split(/\s+/)).toContain("lg:flex");
+    expect(wrapper?.className.split(/\s+/)).toContain("justify-end");
+    expect(wrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
+
+    // Only the WRAPPER moved: the control itself still owns the countdown and the click, so clicking
+    // the indicator the hero now shows still drives the store's single beat.
+    const countdown = root.querySelector<HTMLButtonElement>(
+      '[data-testid="line-refresh-countdown"]',
+    );
+    expect((countdown?.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
+    countdown?.click();
+    fixture.detectChanges();
+    expect(storeMock.polling.refreshNow).toHaveBeenCalledTimes(1);
   });
 });
