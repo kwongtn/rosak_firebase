@@ -313,7 +313,9 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * ALWAYS present, `null` being the meaningful "reorder the roots" case. The
  * argument is `ID` — nullable with no SDL default, so in GraphQL "required" IS
  * "non-null" and omitting the key is legal; the RESOLVER'S OWN GUARD
- * (`interactions.py:287`) refuses the omission, deliberately, at execution time.
+ * (`reorder_social_media_links`'s own `if not parent_id` in
+ * `incident/schema/mutations/interactions.py`) refuses the omission, deliberately,
+ * at execution time.
  *
  * ⚠️ THE ORDER THIS TABLE SHOWS IS NOT THE ORDER IT WRITES — and that is the
  * design, not a gap. The queue is sorted `occurredAt DESC, id DESC`, which is a
@@ -1250,8 +1252,9 @@ export class SocialMediaLinksComponent {
    *  but omitting it is the spelling that stays correct if that default ever
    *  becomes meaningful. Contrast `reorderSiblings`, where the key is ALWAYS
    *  present because an omission is refused by the resolver's own guard
-   *  (`interactions.py:287`) — the argument is `ID`, nullable with no default,
-   *  so the SDL itself cannot require it.
+   *  (`reorder_social_media_links`'s own `if not parent_id` in
+   *  `incident/schema/mutations/interactions.py`) — the argument is `ID`, nullable
+   *  with no default, so the SDL itself cannot require it.
    *
    *  Grouping is ALL-OR-NOTHING server-side: one link outside the admin's
    *  permission, a cycle or a depth-cap breach rejects the entire selection, so
@@ -1439,11 +1442,12 @@ export class SocialMediaLinksComponent {
    *    The argument is `ID` — NULLABLE, with no SDL default, so in GraphQL
    *    "required" IS "non-null" and omitting the key is LEGAL GraphQL that
    *    `ProvidedRequiredArgumentsRule` never refuses. What rejects an omitted key
-   *    is the RESOLVER'S OWN GUARD (`if not parent_id: raise GraphQLError`,
-   *    `interactions.py:287`), deliberately, at execution time. It cannot be
-   *    tightened to `ID!`, because the meaningful `null` ("reorder the roots")
-   *    would then become a hard error. `?? null` is what guarantees the key exists
-   *    even if a payload omitted the field entirely.
+   *    is the RESOLVER'S OWN GUARD (`reorder_social_media_links`'s own
+   *    `if not parent_id: raise GraphQLError` in
+   *    `incident/schema/mutations/interactions.py`), deliberately, at execution
+   *    time. It cannot be tightened to `ID!`, because the meaningful `null`
+   *    ("reorder the roots") would then become a hard error. `?? null` is what
+   *    guarantees the key exists even if a payload omitted the field entirely.
    *  - the run comes from the loaded rows, so `queueIsComplete` is the gate: a
    *    filtered page would send a PARTIAL permutation that succeeds and pushes
    *    the unseen rows to the end. See that signal for why that is worse than a

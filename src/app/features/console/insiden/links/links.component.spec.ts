@@ -2135,7 +2135,8 @@ describe("SocialMediaLinksComponent", () => {
     // 🔴 The key must be present even when its value is null. An omitted key IS an operation
     // error, but the argument is `ID` — nullable with no SDL default, so in GraphQL "required"
     // IS "non-null" and the omission is legal GraphQL; what refuses it is the RESOLVER'S OWN
-    // GUARD (`interactions.py:287`), deliberately, at execution time.
+    // GUARD (`reorder_social_media_links`'s own `if not parent_id` in
+    // `incident/schema/mutations/interactions.py`), deliberately, at execution time.
     expect("parentId" in vars).toBe(true);
   });
 
