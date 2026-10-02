@@ -44,18 +44,20 @@ const ARM_EXPIRY_MS = 5000;
  * pending-flag-plus-`isLoading` effect can never re-run. `HomeStore.isRefreshing` is built on the
  * raw `isFetching` flag and is the only member that can see a reload.
  *
- * A click therefore reads as THREE states, in this order: "Updating" (from the click itself, for as
- * long as THIS click's own request is outstanding) → "Updated" (only after that request settled
- * clean) → the countdown again. `_isUpdating` is the first of them, and it is set by the CLICK
- * rather than by `isRefreshing`: the beat's own automatic refreshes must leave a passive reader's
- * countdown alone, and each of the page's two instances answers only for the click it received.
- * The countdown branch sits LAST on purpose — `refreshNow()` resets the beat, so an in-flight click
- * would otherwise flash a freshly-reset "Refreshing in 30s" that claims nothing is happening.
+ * A click therefore reads as THREE states, in this order: "Updating" (while the refresh runs) →
+ * "Updated" (only after a CLICK-armed refresh settled clean) → the countdown again. `_isUpdating`
+ * is the first of them, and it tracks `isRefreshing` rather than the click: any refresh the page is
+ * visibly doing says so — the beat's, a click's, a reload the edit sheet triggers — with the
+ * PRISTINE initial load as the only exclusion, since that is a first paint and not a refresh. What stays
+ * click-only is the CONFIRMATION: `_showRefreshed` is armed by a click alone, so a reader watching
+ * the 30s beat is never told "just refreshed" on a timer they did not set. The countdown branch sits
+ * LAST on purpose — `refreshNow()` resets the beat, so an in-flight click would otherwise flash a
+ * freshly-reset "Refreshing in 30s" that claims nothing is happening.
  *
  * Three things this component owns because the page cannot: the arm's own EXPIRY (`ARM_EXPIRY_MS`
  * — an arm whose request never started would otherwise be consumed by a later automatic tick),
  * the settle-edge's deliberately conservative `hasError` suppression, and the "Updating" label,
- * which has to be torn down on BOTH exits from an armed window (the settle edge and the stale-arm
+ * which has to be torn down on BOTH exits out of an armed window (the settle edge and the stale-arm
  * expiry) or a no-op click would say "Updating" for the rest of the session.
  */
 @Component({
@@ -188,10 +190,16 @@ export class HomeRefreshControlComponent implements OnDestroy {
   /** The transient "Updated" confirmation, shown only after a CLICK-armed refresh settles clean. */
   protected readonly _showRefreshed = signal(false);
 
-  /** The click's own "Updating" label: up from the click itself until this click's request settles
-   * (or its arm expires). Armed by the CLICK, not by `isRefreshing` — an automatic beat must leave
-   * a passive reader's countdown alone, and the page's two instances each speak only for their own
-   * click. Cleared on both exits from an armed window; see the effect and `_startArmExpiry`. */
+  /** "Updating" — up while ANY refresh the page is doing is in flight (a click, the beat, any
+   * other reload), and down on that refresh's settle edge or on a click arm's expiry. The PRISTINE
+   * initial load is the one exclusion: it is not a refresh, and the page's first paint stays on its
+   * countdown. See the effect for how the exclusion is derived.
+   *
+   *  ⚠️ Not the same signal as the confirmation, and deliberately not click-armed: telling a passive
+   * reader that a refresh they did not ask for is running is honest, while telling them "Updated"
+   * every 30 seconds is noise — `_showRefreshed` keeps the click-only rule. Both instances of this
+   * control show the label (they share the store's one beat; only one is visible per breakpoint),
+   * and each still arms the CONFIRMATION off its own click alone. */
   protected readonly _isUpdating = signal(false);
 
   /** Armed by a click; cleared once the armed refresh has settled (clean or not). */
@@ -215,8 +223,25 @@ export class HomeRefreshControlComponent implements OnDestroy {
   constructor() {
     effect(() => {
       const isRefreshing = this.store.isRefreshing();
+
+      // The pristine initial load is not a refresh: the stores' loading flags are
+      // pristine-first-fetch-only across all three resources, so they are true exactly while the
+      // page's first fetch is in flight and never again. Excluding that window keeps the very first
+      // paint on its countdown; every LATER refresh — the beat, a click, any reload — is work the
+      // reader can see, so every one of them says "Updating" while it runs.
+      const pristineInitialLoad = this.store.isLoading() || this.store.isLoadingLastWeek();
+      if (isRefreshing && (this._refreshPending() || !pristineInitialLoad)) {
+        this._isUpdating.set(true);
+      }
+
       if (!this._refreshPending()) {
-        // Not armed by a click: an automatic poll tick never confirms anything.
+        // Not armed by a click. The beat's own refresh says "Updating" too now, but it must NEVER
+        // confirm: "Updated" stays click-armed so a passive reader is not told "just refreshed"
+        // every 30 seconds. This branch only has to end the label on its settle edge — clearing it
+        // while `isRefreshing` is still true would flicker the label off mid-flight.
+        if (!isRefreshing) {
+          this._isUpdating.set(false);
+        }
         return;
       }
       if (isRefreshing) {
@@ -278,7 +303,12 @@ export class HomeRefreshControlComponent implements OnDestroy {
   }
 
   /** Refresh the whole page and show "Updating" until it settles; a touch device additionally
-   * toggles the "Click to Refresh Now" tooltip, which it can never hover into view. */
+   * toggles the "Click to Refresh Now" tooltip, which it can never hover into view.
+   *
+   *  The label is raised HERE rather than waiting for the effect to notice `isRefreshing`: the beat
+   *  only flips once the request is actually on the wire, which is a round trip after the click the
+   *  reader is watching for an answer to. This write is the one that is gated on being a click at
+   *  all — everything after it is driven by `isRefreshing`, beat refreshes included. */
   protected onRefreshClick(): void {
     this._isUpdating.set(true);
     this._refreshPending.set(true);

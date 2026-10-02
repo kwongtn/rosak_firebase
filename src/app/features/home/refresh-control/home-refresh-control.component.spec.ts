@@ -38,6 +38,10 @@ interface StoreMock {
   };
   isRefreshing: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
+  /** Pristine-first-fetch-only across lines + the Today feed; the initial-load exclusion ORs it
+   * with `isLoadingLastWeek` (the third resource), which is why both are in the mock. */
+  isLoading: WritableSignal<boolean>;
+  isLoadingLastWeek: WritableSignal<boolean>;
 }
 
 /** The private bits the destroy assertions read back. */
@@ -59,6 +63,8 @@ describe("HomeRefreshControlComponent", () => {
       },
       isRefreshing: signal(false),
       hasError: signal(false),
+      isLoading: signal(false),
+      isLoadingLastWeek: signal(false),
     };
 
     await TestBed.configureTestingModule({
@@ -199,24 +205,74 @@ describe("HomeRefreshControlComponent", () => {
     expect(updatingLabel()).toBeNull();
   });
 
-  it("confirms nothing for an automatic refresh — only a click arms it", async () => {
-    // The beat fires every 30s; a passive reader must not get a "Updated" popup each time.
+  it("shows Updating while an automatic refresh is in flight, but confirms nothing", async () => {
+    // The beat fires every 30s. Saying "Updating" while it works is honest — the reader can see the
+    // page change under them — but the CONFIRMATION stays click-only: a passive reader must not be
+    // told "just refreshed" on a timer they never set.
     stubMatchMedia(false);
     await render();
     vi.useFakeTimers();
 
     store.isRefreshing.set(true);
     fixture.detectChanges();
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
+    expect(updatingLabel()?.getAttribute("role")).toBe("status");
+    expect(confirmation()).toBeNull();
+    // The countdown is displaced while the beat runs, for the same reason a click displaces it.
+    expect(button().textContent?.replace(/\s+/g, " ")).not.toContain("Refreshing in");
+
+    // Settled: the label comes down and the countdown comes back. No confirmation ever.
     store.isRefreshing.set(false);
     fixture.detectChanges();
-    vi.advanceTimersByTime(5000);
-    fixture.detectChanges();
-
-    expect(store.polling.refreshNow).not.toHaveBeenCalled();
-    // Neither half of the click's vocabulary: a tick the reader never asked for shows no
-    // "Updating" (it would claim their own action is running) and no "Updated" either.
     expect(updatingLabel()).toBeNull();
     expect(confirmation()).toBeNull();
+    expect(button().textContent?.replace(/\s+/g, " ")).toContain("Refreshing in 30s");
+
+    // And still nothing 2s later, which is the window a confirmation would have occupied: asserted
+    // after a long advance so a wrongly-shown one could not have hidden itself before this read.
+    vi.advanceTimersByTime(2000);
+    fixture.detectChanges();
+    expect(store.polling.refreshNow).not.toHaveBeenCalled();
+    expect(confirmation()).toBeNull();
+  });
+
+  it("keeps the countdown through the pristine initial load, then updates like any other refresh", async () => {
+    // The one exclusion: the page's FIRST fetch is not a refresh, so the first paint stays on its
+    // countdown. The store's loading flags are pristine-first-fetch-only, so they are true exactly
+    // during that window and never again — and the exclusion has to cover ALL THREE resources, which
+    // is why it is the OR of `isLoading` (lines + Today feed) and `isLoadingLastWeek`. Pinned phase by
+    // phase: dropping the OR would show "Updating" on a last-week-only initial load.
+    stubMatchMedia(false);
+    await render();
+    vi.useFakeTimers();
+
+    // Phase 1: lines + feed still on their first fetch.
+    store.isLoading.set(true);
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+    expect(updatingLabel()).toBeNull();
+    expect(button().textContent?.replace(/\s+/g, " ")).toContain("Refreshing in 30s");
+
+    // Phase 2: those two have settled but Last Week's own first fetch is still up — the store's
+    // combined `isLoading` is already false here, so this is the half an OR-less check would miss.
+    store.isLoading.set(false);
+    store.isLoadingLastWeek.set(true);
+    fixture.detectChanges();
+    expect(updatingLabel()).toBeNull();
+
+    // Phase 3: every resource has fetched once; this `isRefreshing` is a REFRESH (the beat), and the
+    // page is expected to say so.
+    store.isLoadingLastWeek.set(false);
+    fixture.detectChanges();
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
+    expect(confirmation()).toBeNull();
+
+    // Phase 4: it settles like any other — label down, countdown back, still no confirmation.
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+    expect(updatingLabel()).toBeNull();
+    expect(confirmation()).toBeNull();
+    expect(button().textContent?.replace(/\s+/g, " ")).toContain("Refreshing in 30s");
   });
 
   it("confirms nothing when a click armed it but no request ever went out", async () => {
@@ -703,12 +759,63 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
     fixture.detectChanges();
     expect(button().textContent?.trim()).toBe("");
 
+    // Re-entry also revalidates the first pages through the same beat, so the row says "Updating"
+    // while that runs — a re-entry is a REFRESH, not a first paint, and only the pristine initial
+    // load is exempt. The countdown is back underneath it (that is what `start()` restored), it just
+    // is not the branch on screen until the revalidation settles.
     store.start();
     fixture.detectChanges();
-    expect(button().textContent).toContain("Refreshing in");
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
 
-    // Re-entry also revalidates the first pages through the same beat.
+    // …and it takes the row back once the beat's revalidation lands.
     flushAll("success");
     await settle();
+    expect(updatingLabel()).toBeNull();
+    expect(button().textContent).toContain("Refreshing in");
+  });
+
+  it("says Updating for the beat's own refresh, and never confirms it", async () => {
+    // The two halves of the split, against the REAL store rather than a mock: the pristine first
+    // load must stay on its countdown even though the store really is refreshing, and the BEAT's own
+    // refresh must say "Updating" while it runs. The exclusion is decided by the store's real
+    // pristine-first-fetch-only flags, so a mock agreeing by accident is not possible here.
+    vi.useFakeTimers();
+
+    fixture = TestBed.createComponent(HomeRefreshControlComponent);
+    store = TestBed.inject(HomeStore);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    // 1. Mount: three first fetches on the wire, so `isRefreshing` is genuinely true — and the row
+    //    must still be the countdown. A first paint is not a refresh.
+    expect(store.isRefreshing()).toBe(true);
+    expect(updatingLabel()).toBeNull();
+
+    flushAll("success");
+    await settle();
+    expect(store.isRefreshing()).toBe(false);
+    expect(updatingLabel()).toBeNull();
+
+    // 2. The beat, with no click anywhere: `PollingSource` self-schedules from its constructor, so
+    //    advancing past its 30s deadline fires the store's own reload callback — the real timer, not
+    //    a stand-in for it.
+    vi.advanceTimersByTime(30000);
+    TestBed.tick();
+    expect(store.isRefreshing()).toBe(true);
+    expect(updatingLabel()?.textContent?.trim()).toBe("Updating");
+    expect(confirmation()).toBeNull();
+
+    // 3. It settles like any other refresh: the label comes down and the countdown comes back.
+    flushAll("success");
+    await settle();
+    expect(store.isRefreshing()).toBe(false);
+    expect(updatingLabel()).toBeNull();
+    expect(button().textContent).toContain("Refreshing in");
+
+    // …and nothing is left waiting to pop: the beat is not a click, so "Updated" stays click-only
+    // and a 30s timer the reader never set gets no confirmation.
+    vi.advanceTimersByTime(2000);
+    fixture.detectChanges();
+    expect(confirmation()).toBeNull();
   });
 });
