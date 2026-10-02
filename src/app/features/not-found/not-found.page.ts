@@ -125,7 +125,9 @@ async function fetchRandomPet(): Promise<PetPic> {
 
                    pb-28 is not decoration: it's the reservation matching the viewport-pinned
                    footer below, so the photo (centred, so within ~150px of this section's bottom
-                   edge once scrolled into view) can never end up behind it. -->
+                   edge once scrolled into view) can never end up behind it. Both that reservation
+                   and the pin are dropped on a viewport too short to hold the 404 block — see the
+                   component's styles block and the footer's own comment. -->
       <div
         class="flex min-h-dvh flex-col items-center justify-center gap-4 p-4 pb-28 sm:px-6"
         data-testid="not-found-pet"
@@ -152,11 +154,45 @@ async function fetchRandomPet(): Promise<PetPic> {
          pet. Scoped to this page on purpose: no other page changes, and the shared
          AppFooterComponent stays layout-agnostic. z-40 is below the nav's sticky bar (z-45) and
          below the app's z-50 overlay layer, matching the z-index ladder app-nav.component.ts
-         documents. -->
+         documents. styles unpins it again on a viewport too short to hold the 404 block. -->
     <div class="bg-background fixed inset-x-0 bottom-0 z-40" data-testid="not-found-footer">
       <app-footer />
     </div>
   `,
+  /**
+   * The short-viewport escape hatch, and the reason it can't be a Tailwind arbitrary variant:
+   * `[@media(max-height:640px)]:static` in a template attribute is parsed by **Angular**, not
+   * Tailwind — `@media(...)` reads as an `@` control-flow block and the template fails to compile
+   * (TS1005/TS1135). Writing `&#64;` instead fixes the parser but then Tailwind's scanner sees
+   * the entity, not the variant, and generates no rule. So the one case a utility class can't
+   * express lives here instead, in the component's own scoped styles.
+   *
+   * The threshold is measured, not guessed. Below ~640px tall, this page's first section can't
+   * hold the 404 block (its own content is ~404px, before any padding), so it overflows its
+   * `min-h-dvh` and shoves the photo section further down than one screen — far enough that a
+   * pinned bar lands on top of the photo. Measured on a 1280px-wide window: 222px of the photo
+   * hidden behind the footer at 400px tall, 122px at 450px, and only 21px of clearance at 550px.
+   * A pinned bar and a fully visible photo are mutually exclusive that short, so below the
+   * threshold the footer goes back to normal flow — where it sat before, at the end of the
+   * document, which cannot overlap anything — and the photo's reservation goes with it. Every
+   * phone in portrait and every ordinary window is well above 640px, so the pin is what almost
+   * everyone sees.
+   *
+   * Emulated encapsulation's attribute selector is what lets these beat the `fixed`/`pb-28`
+   * utilities they override (specificity 0-2-0 vs 0-1-0), not source order.
+   */
+  styles: [
+    `
+      @media (max-height: 640px) {
+        [data-testid="not-found-footer"] {
+          position: static;
+        }
+        [data-testid="not-found-pet"] {
+          padding-bottom: 1.5rem;
+        }
+      }
+    `,
+  ],
 })
 export class NotFoundPage {
   private readonly router = inject(Router);
