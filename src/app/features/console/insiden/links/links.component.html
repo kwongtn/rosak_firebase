@@ -337,29 +337,33 @@
                     a spec can assert the hierarchy without measuring pixels.
 
                     ⚠️ THE RAILS ARE THE INDENT. `depthRails` returns one entry per
-                    ancestor level and the wrapper renders that many `w-5` guides,
-                    each `self-stretch` so it runs the full height of the row whatever
+                    ancestor level and the wrapper renders that many guides, each
+                    `self-stretch` so it runs the full height of the row whatever
                     that height is. The rails REPLACED the old
                     `[style.padding-left.px]` rather than joining it: an empty gap at
                     the left of a row says "indented" only while you are looking at
                     that gap, and three levels of nothing read as three unrelated
-                    offsets. `DEPTH_INDENT_PX` is still the rail's width, so the
-                    geometry has exactly one number in it. NO `gap` ON THE WRAPPER —
-                    a gap would fall BETWEEN two rails and break the line a reader
-                    follows downward — so every gap here is an explicit `ml-1` on the
-                    one element that needs it.
+                    offsets. Their width is `[style.width.px]="depthIndentPx"` and
+                    NOT a `w-5`, so `DEPTH_INDENT_PX` really is the one number the
+                    geometry is defined by — a class here would render identically
+                    and be a second place to change the rail step that no grep for
+                    the constant would find. NO `gap` ON THE WRAPPER — a gap would
+                    fall BETWEEN two rails and break the line a reader follows
+                    downward — so every gap here is an explicit `ml-1` on the one
+                    element that needs it.
 
                     ⚠️ THE ELBOW IS WHAT MAKES A RAIL MEAN SOMETHING. Without it a
                     rail is a bare vertical rule and nothing says the row hangs off
                     IT; with it, the last rail and one `border-t` stub form the ⌐ an
                     admin reads as "this one". It is emitted only for the LAST rail
                     (`$last`), because one per level would draw a row of ticks with
-                    no row to attach the first of them to. `-ml-5` pulls it back under
-                    the last rail so the stub starts exactly on the rail's own line:
-                    a depth-1 row gets ONE rail and ONE tick from it, not a rail plus
-                    a floating dash. `h-6` is the height of one line of URL text, so
-                    the tick sits at the URL's own vertical centre rather than at the
-                    centre of a cell that the chip below has made taller.
+                    no row to attach the first of them to. Its `-depthIndentPx`
+                    margin pulls it back under the last rail so the stub starts
+                    exactly on the rail's own line — a depth-1 row gets ONE rail and
+                    ONE tick from it, not a rail plus a floating dash a full
+                    rail-width to its right. `h-6` is the height of one line of URL
+                    text, so the tick sits at the URL's own vertical centre rather
+                    than at the centre of a cell that the chip below has made taller.
 
                     ⚠️ THE PLACEHOLDER IS NOT COSMETIC. A childless row draws an
                     invisible `size-4` span where the chevron would be, because the
@@ -385,13 +389,16 @@
                       <span
                         data-testid="link-rail"
                         aria-hidden="true"
-                        class="border-border/60 w-5 shrink-0 self-stretch border-l"
+                        class="border-border/60 shrink-0 self-stretch border-l"
+                        [style.width.px]="depthIndentPx"
                       ></span>
                       @if (isLast) {
                         <span
                           data-testid="link-elbow"
                           aria-hidden="true"
-                          class="border-border/60 -ml-5 h-6 w-5 shrink-0 self-start border-t"
+                          class="border-border/60 h-6 shrink-0 self-start border-t"
+                          [style.width.px]="depthIndentPx"
+                          [style.margin-left.px]="-depthIndentPx"
                         ></span>
                       }
                     }

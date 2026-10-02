@@ -74,9 +74,19 @@ import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
 
 type CompletedFilter = "any" | "pending" | "completed";
 
-/** Width in pixels of ONE depth rail — i.e. the pixels a row is pushed right per
- *  level of conversation depth, because the rail STACK is the indent (see
- *  `depthRails` and the URL cell's markup).
+/** Width in pixels of ONE depth rail — which is also, because the rail STACK is
+ *  the indent, the pixels a row is pushed right per level of conversation depth
+ *  (see `depthRails` and the URL cell's markup).
+ *
+ *  🔴 THIS NUMBER IS THE ONLY DEFINITION OF THE RAIL STEP, and the template binds
+ *  it rather than restating it in a class: the rail span gets
+ *  `[style.width.px]="depthIndentPx"` and the elbow the same width plus
+ *  `[style.margin-left.px]="-depthIndentPx"` (the negative margin is what pulls
+ *  the elbow back so its stub starts ON the last rail's own line instead of
+ *  floating a rail-width to the right of it). A `w-5` on either span would render
+ *  identically and be a SECOND place to change the geometry — which is exactly the
+ *  drift this constant exists to prevent, and why `depthIndentPx` is read in the
+ *  template at all.
  *
  *  WHY A RAIL AND NOT JUST PADDING. A bare `padding-left` reads as an indent
  *  only while the admin is looking at the gap beside the URL; the moment a
@@ -86,12 +96,12 @@ type CompletedFilter = "any" | "pending" | "completed";
  *  drawn from the same number the padding was, so the two cannot disagree — the
  *  rails REPLACED `[style.padding-left.px]` rather than joining it.
  *
- *  🔴 A FLAT ARITHMETIC SCALE, not a Tailwind class per level, for the same
+ *  ⚠️ AND A FLAT ARITHMETIC SCALE, not a Tailwind class per level, for the same
  *  reason the old padding used one: the store bounds nesting at
  *  `MAX_THREAD_DEPTH`, but a hand-edited row can be deeper than any ladder of
- *  `w-5` classes, and an out-of-ladder row must still render NESTED rather than
- *  snapping back to column zero and reading as a root. `@for` over an array of
- *  the row's depth renders an unbounded number of rails; a class ladder cannot. */
+ *  classes, and an out-of-ladder row must still render NESTED rather than snapping
+ *  back to column zero and reading as a root. `@for` over an array of the row's
+ *  depth renders an unbounded number of rails; a class ladder cannot. */
 const DEPTH_INDENT_PX = 20;
 
 const COMPLETED_LABEL: Record<CompletedFilter, string> = {
@@ -553,9 +563,22 @@ export class SocialMediaLinksComponent {
     return this._depths().get(link.id) ?? 0;
   }
 
-  /** The width of ONE rail — the pixels a row is pushed right per level. The
-   *  template multiplies a row's depth by it only to size the chip/anchor column
-   *  offset; the indent itself is the rail stack `depthRails` renders. */
+  /** The width of ONE rail, which the template Binds rather than restates: the rail
+   *  span takes `[style.width.px]="depthIndentPx"` and the elbow the same width
+   *  with `[style.margin-left.px]="-depthIndentPx"`.
+   *
+   *  ⚠️ The template does NOT multiply a row's depth by this — the indent is the
+   *  rail STACK `depthRails` renders, one rail per level, and this number is how
+   *  wide each of them is. So the correct reading is "pixels per level", and the
+   *  two uses are the same thing: N rails of `depthIndentPx` shift the row's
+   *  content right by `N * depthIndentPx`.
+   *
+   *  It is exposed on the class (rather than the template importing the constant)
+   *  because a template can only read members off the component, and keeping the
+   *  constant private is what makes this the ONLY place the rail step can be
+   *  changed: `DEPTH_INDENT_PX` is not referenced from the markup, so a `w-5` on
+   *  the rail span would render identically and be a second definition nobody
+   *  would find by grepping. */
   protected readonly depthIndentPx = DEPTH_INDENT_PX;
 
   /** One entry per ancestor level, so the URL cell can draw that many vertical
@@ -1574,7 +1597,10 @@ export class SocialMediaLinksComponent {
    *  confirm naming the count, right where the destructive decision is made. A
    *  static tooltip on the chip is not enough on its own: it is invisible until
    *  hovered, absent on touch, and gone by the time the admin reaches the Hide
-   *  button two cells to the right.
+   *  button at the other end of the row. (The chip sits under the URL in the
+   *  row's FIRST cell and Hide is in the action cell at the far end, so it is not
+   *  even adjacent any more — which is a second, cheaper reason the confirm earns
+   *  its place beside the click.)
    *
    *  🔴 UNDER THE TREE THE BLAST RADIUS IS NOT ONE LEVEL, and this is the copy
    *  that has to say so. `sublinkCount` counts a node's descendants AT ANY DEPTH,

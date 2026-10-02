@@ -1755,6 +1755,27 @@ describe("SocialMediaLinksComponent", () => {
     // `depthRails` is the one definition of the count the template reads.
     expect(component.depthRails(component.links()[0])).toEqual([]);
     expect(component.depthRails(component.links()[2])).toEqual([0, 1]);
+
+    // 🔴 AND `depthIndentPx` REACHES THE DOM, or the constant is decoration. The
+    // widths are style-bound rather than `w-5`/`-ml-5` classes precisely so that
+    // `DEPTH_INDENT_PX` is the ONE place the rail step is defined; a class would
+    // render identically and be a second definition nobody finds by grepping the
+    // constant. The elbow's margin is the NEGATIVE of the same number because it
+    // is what pulls the stub back onto the last rail's own line.
+    const rails = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-rail"]'),
+    ) as HTMLElement[];
+    expect(rails).toHaveLength(3);
+    for (const rail of rails) {
+      expect(rail.style.width).toBe("20px");
+    }
+    const elbows = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-elbow"]'),
+    ) as HTMLElement[];
+    for (const elbow of elbows) {
+      expect(elbow.style.width).toBe("20px");
+      expect(elbow.style.marginLeft).toBe("-20px");
+    }
   });
 
   it("tints a child row and connects it to its rail with a single elbow", async () => {
