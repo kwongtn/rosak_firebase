@@ -98,7 +98,9 @@
         not apply, and collided with the "Submitted" column one screen lower,
         which is a different clock entirely. An admin chasing a report that
         arrived this morning but happened last week now has an honest control.
-        The `Submitted` column is untouched: it stays the queue's triage clock.
+        The `Submitted` column is untouched: it still leads with `created`, the
+        queue's triage clock, and now carries `occurredAt` as a second line only
+        where the two differ.
       -->
       <div class="flex flex-col gap-1.5 text-sm sm:col-span-2">
         Occurred between
@@ -125,13 +127,20 @@
       Selection toolbar. Rendered ALWAYS (not only once something is ticked) so the
       affordance is discoverable, and so a blocked action shows up as a disabled
       button with a stated reason rather than as a button that is simply absent.
+
+      ⚠️ THAT RULE IS NOW NARROWER, AND ONLY FOR "Group into thread": it is the ONE
+      action this toolbar owns, it needs TWO ticks, and a dead single button in a
+      toolbar of its own does not read as broken — a dead PAIR on every row of the
+      table does, which is why the per-row "Nest under…" waits for the first tick
+      instead (`nestSelectionReady`). The hint below is what carries the discovery
+      either way, and it has a zero-selection and a one-selection spelling so it
+      cannot under-sell nesting's one-tick minimum.
+
       TWO different minimums live here on purpose: "Group into thread" needs two
       (a one-link conversation is a no-op that still renders as a conversation),
       while the per-row "Nest under…" needs only ONE — with a target, the same
       call makes the ticked rows that row's direct children, so a single link is
-      the basic way a conversation gains its first child. The hint therefore has
-      a zero-selection and a one-selection spelling instead of one rule that
-      would under-sell nesting.
+      the basic way a conversation gains its first child.
     -->
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -161,7 +170,7 @@
         </span>
       }
       <!--
-        Why the per-row sequence actions are greyed out, and the ONE-CLICK way out.
+        Why the per-row sequence actions are ABSENT, and the ONE-CLICK way out.
         `reorderSocialMediaLinks` permutes ONE sibling set, so a filtered page can
         only send part of it — and the server would accept the part and leave the
         rows the admin cannot see at the end of the conversation. The queue
@@ -170,13 +179,25 @@
         admin has no discoverable route to the enabled state ("Reset" re-applies
         Pending). `showAllLinks` drops every filter, status included, so the
         loaded set is provably the whole table.
+
+        ⚠️ NO `[disabled]` ON "Show all links", DELIBERATELY. It used to grey itself
+        out mid-load, which made the one action that can unblock the queue look
+        unavailable exactly when an admin reaches for it. `load()` now queues a
+        mid-flight arrival and replays it, so a click during the first load really
+        does produce the unfiltered queue — a never-disabled button backed by a
+        handler that cannot swallow the click is the whole pair. See `load()`.
+
+        `w-full` + `flex-1 min-w-0` on the sentence + `ml-auto` on the button: the
+        hint is a full-width aside of this toolbar and the action is its
+        resolution, so the action belongs at the RIGHT edge where the eye lands
+        after reading the reason, and the sentence wraps under nothing.
       -->
       @if (!queueIsComplete()) {
         <span
-          class="text-muted-foreground inline-flex flex-wrap items-center gap-2 text-xs"
+          class="text-muted-foreground flex w-full items-center gap-2 text-xs"
           data-testid="reorder-hint"
         >
-          <span>
+          <span class="flex-1 min-w-0">
             Reordering needs every link loaded: a filtered page may be missing siblings, and a
             partial sequence would push the hidden ones to the end.
           </span>
@@ -186,7 +207,7 @@
             variant="outline"
             type="button"
             data-testid="reorder-show-all"
-            [disabled]="isLoading()"
+            class="ml-auto shrink-0"
             title="Loads every link, including completed ones, so the queue is complete and reordering turns on."
             (click)="showAllLinks()"
           >
@@ -218,25 +239,29 @@
             <th hlmTh>Submitter</th>
             <th hlmTh>Categories</th>
             <th hlmTh>Status</th>
-            <th hlmTh>Submitted</th>
             <!--
-              The event instant, kept beside the report instant because an admin
-              needs both and cannot tell which is which without the labels: the
-              queue is SORTED by this one, while the column next to it answers
-              "how long has this been waiting?". `link.occurredAt` is naive local
-              wall time (backend USE_TZ = False, no offset) and Angular's date
-              pipe renders an offset-free ISO string in the viewer's own zone, so
-              the value shown is the server's wall time, unshifted — the same
-              contract the existing `created` column already relies on.
+              TWO CLOCKS, ONE COLUMN. An admin needs both the report instant
+              (`created`, how long this has been waiting) and the event instant
+              (`occurredAt`, which is what the queue is SORTED on and what the
+              range filter windows) — but only one of the two is ever a second
+              line, because `occurredAt !== created` is the back-dated-report case
+              and nothing else. `link.occurredAt` is naive local wall time
+              (backend USE_TZ = False, no offset) and Angular's date pipe renders
+              an offset-free ISO string in the viewer's own zone, so the value
+              shown is the server's wall time, unshifted — the same contract the
+              `created` line already relies on.
             -->
-            <th hlmTh>Occurred</th>
-            <th hlmTh>Thread</th>
+            <th hlmTh>Submitted</th>
             <th hlmTh>Actions</th>
           </tr>
         </thead>
         <tbody hlmTBody [attr.aria-busy]="isLoading()">
           @if (isLoading() && links().length === 0) {
             @for (row of skeletonRows; track row) {
+              <!-- 8 cells, one per column — the same count the header above and both
+                 colspans below use. A skeleton that is a cell out of step with
+                 the table draws a ragged right edge, which is the one thing a
+                 loading state must not do. -->
               <tr hlmTr>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-4"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-full"></div></td>
@@ -245,13 +270,11 @@
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-16"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
-                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-24"></div></td>
-                <td hlmTd class="py-3"><div hlmSkeleton class="h-4 w-16"></div></td>
                 <td hlmTd class="py-3"><div hlmSkeleton class="h-8 w-28"></div></td>
               </tr>
             }
             <tr hlmTr>
-              <td hlmTd colspan="10" class="sr-only py-8 text-center" role="status">
+              <td hlmTd colspan="8" class="sr-only py-8 text-center" role="status">
                 Loading links…
               </td>
             </tr>
@@ -264,9 +287,21 @@
               feed's `app-link-thread`.
             -->
             @for (link of renderedLinks(); track link.id) {
+              <!--
+                `bg-muted/40` ON DEPTH ≥ 1 ROWS, over `hover:bg-muted`. The rails
+                say WHICH ancestor a row hangs under; the tint says the weaker, row-
+                wide thing that they cannot — "this is not a root, it belongs to a
+                conversation above" — and it survives the row being scanned rather
+                than its left margin being counted. Hover still wins: `bg-muted` is
+                a stronger value of the same token, and it comes later in the class
+                list, so a pointer over a tinted row darkens it instead of
+                cancelling the hover, which is what a conflicting/opaque tint
+                would do.
+              -->
               <tr
                 hlmTr
                 class="cursor-pointer hover:bg-muted"
+                [class.bg-muted/40]="depthOf(link) > 0"
                 [attr.tabindex]="0"
                 (click)="openLinkDetail(link)"
                 (keydown.enter)="openLinkDetail(link)"
@@ -290,23 +325,51 @@
                 </td>
                 <td hlmTd class="max-w-72 py-3">
                   <!--
-                    THE DEPTH INDENT + THE CHEVRON: the two hierarchy affordances, and
-                    they live in ONE wrapper because they answer the same question.
+                    THE RAILS, THE CHEVRON AND THE CHIP: three hierarchy facts about
+                    ONE row, which is why they share one cell and one wrapper.
 
                     `depthOf` walks the row's parentId chain inside the LOADED set, and
                     a row whose parent is not loaded counts as a root — which is
                     exactly what a filtered page does to a sublink (its parent is not
                     in the result), and rendering it flush is honest rather than
                     leaving a gap for a parent the payload does not contain.
-                    `data-depth` is the same number the padding is derived from, so
+                    `data-depth` is the same number the rail count is derived from, so
                     a spec can assert the hierarchy without measuring pixels.
+
+                    ⚠️ THE RAILS ARE THE INDENT. `depthRails` returns one entry per
+                    ancestor level and the wrapper renders that many `w-5` guides,
+                    each `self-stretch` so it runs the full height of the row whatever
+                    that height is. The rails REPLACED the old
+                    `[style.padding-left.px]` rather than joining it: an empty gap at
+                    the left of a row says "indented" only while you are looking at
+                    that gap, and three levels of nothing read as three unrelated
+                    offsets. `DEPTH_INDENT_PX` is still the rail's width, so the
+                    geometry has exactly one number in it. NO `gap` ON THE WRAPPER —
+                    a gap would fall BETWEEN two rails and break the line a reader
+                    follows downward — so every gap here is an explicit `ml-1` on the
+                    one element that needs it.
+
+                    ⚠️ THE ELBOW IS WHAT MAKES A RAIL MEAN SOMETHING. Without it a
+                    rail is a bare vertical rule and nothing says the row hangs off
+                    IT; with it, the last rail and one `border-t` stub form the ⌐ an
+                    admin reads as "this one". It is emitted only for the LAST rail
+                    (`$last`), because one per level would draw a row of ticks with
+                    no row to attach the first of them to. `-ml-5` pulls it back under
+                    the last rail so the stub starts exactly on the rail's own line:
+                    a depth-1 row gets ONE rail and ONE tick from it, not a rail plus
+                    a floating dash. `h-6` is the height of one line of URL text, so
+                    the tick sits at the URL's own vertical centre rather than at the
+                    centre of a cell that the chip below has made taller.
 
                     ⚠️ THE PLACEHOLDER IS NOT COSMETIC. A childless row draws an
                     invisible `size-4` span where the chevron would be, because the
-                    chevron is INSIDE the padded wrapper: without it every open/close
+                    chevron is INSIDE the rail stack: without it every open/close
                     click would shift the URL (and therefore every column after it)
                     sideways, which is exactly what makes a table feel like it is
-                    being redrawn under you.
+                    being redrawn under you. It carries `data-testid` because the
+                    rails are `aria-hidden` spans too, and a spec asking "is the
+                    chevron's width reserved here?" cannot ask for `aria-hidden` and
+                    mean one specific element.
 
                     ⚠️ `break-all` ON THE ANCHOR, and it is load-bearing: a URL is one
                     unbroken token, so without it a long link runs past the cell's
@@ -314,11 +377,24 @@
                     admin cannot read the tail of the very address they have to judge.
                     Same reason the detail sheet's URL link (:545) is `break-all`. -->
                   <div
-                    class="flex items-center gap-1"
+                    class="flex items-stretch"
                     data-testid="link-depth"
                     [attr.data-depth]="depthOf(link)"
-                    [style.padding-left.px]="depthOf(link) * depthIndentPx"
                   >
+                    @for (rail of depthRails(link); track $index; let isLast = $last) {
+                      <span
+                        data-testid="link-rail"
+                        aria-hidden="true"
+                        class="border-border/60 w-5 shrink-0 self-stretch border-l"
+                      ></span>
+                      @if (isLast) {
+                        <span
+                          data-testid="link-elbow"
+                          aria-hidden="true"
+                          class="border-border/60 -ml-5 h-6 w-5 shrink-0 self-start border-t"
+                        ></span>
+                      }
+                    }
                     <!--
                       THE CHEVRON, on a row with LOADED children and nothing else
                       (`childCountOf`, not `sublinkCount` — see that method's note for
@@ -329,50 +405,115 @@
 
                       The label reuses `threadLabel` like every other conversation-size
                       surface in the app, and passes `childCount + 1` for the same
-                      off-by-one reason the Thread chip does: the parameter is a
+                      off-by-one reason the chip below does: the parameter is a
                       CONVERSATION SIZE, and a conversation with exactly one link
                       under it must still announce itself as "2 links".
                     -->
-                    @if (childCountOf(link) > 0) {
-                      <button
-                        type="button"
-                        class="text-muted-foreground hover:text-foreground flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors"
-                        data-testid="thread-toggle"
-                        [attr.aria-expanded]="isExpanded(link.id)"
-                        [attr.aria-label]="
-                          (isExpanded(link.id) ? 'Hide' : 'Show') +
-                          ' the other links in this conversation (' +
-                          threadLabel(childCountOf(link) + 1) +
-                          ')'
-                        "
-                        (click)="$event.stopPropagation(); toggleExpanded(link.id)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="size-3 shrink-0 transition-transform"
-                          [class.rotate-180]="isExpanded(link.id)"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
+                    <div class="flex min-w-0 flex-1 items-start">
+                      @if (childCountOf(link) > 0) {
+                        <button
+                          type="button"
+                          class="text-muted-foreground hover:text-foreground ml-1 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors"
+                          data-testid="thread-toggle"
+                          [attr.aria-expanded]="isExpanded(link.id)"
+                          [attr.aria-label]="
+                            (isExpanded(link.id) ? 'Hide' : 'Show') +
+                            ' the other links in this conversation (' +
+                            threadLabel(childCountOf(link) + 1) +
+                            ')'
+                          "
+                          (click)="$event.stopPropagation(); toggleExpanded(link.id)"
                         >
-                          <path d="m6 9 6 6 6-6" />
-                        </svg>
-                      </button>
-                    } @else {
-                      <span class="size-4 shrink-0" aria-hidden="true"></span>
-                    }
-                    <a
-                      [href]="link.url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="hover:underline break-all"
-                      (click)="$event.stopPropagation()"
-                    >
-                      {{ link.url }}
-                    </a>
+                          <svg
+                            viewBox="0 0 24 24"
+                            class="size-3 shrink-0 transition-transform"
+                            [class.rotate-180]="isExpanded(link.id)"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                      } @else {
+                        <span
+                          data-testid="chevron-placeholder"
+                          class="ml-1 size-4 shrink-0"
+                          aria-hidden="true"
+                        ></span>
+                      }
+                      <!--
+                        ONE COLUMN, NOT A CELL EACH. The anchor and the chip are
+                        siblings in a `flex-col items-start`, so the chip's left edge IS
+                        the URL text's left edge by construction — no `margin-left` to
+                        compute, and therefore nothing that can drift when the rail
+                        width, the chevron reserve or the gap changes. A pixel offset
+                        here would have to be re-derived from all three on every
+                        layout change; this cannot.
+                      -->
+                      <div class="ml-1 flex min-w-0 flex-1 flex-col items-start gap-1">
+                        <a
+                          [href]="link.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="hover:underline min-w-0 break-all"
+                          (click)="$event.stopPropagation()"
+                        >
+                          {{ link.url }}
+                        </a>
+                        <!--
+                          THE CONVERSATION CHIP, and it moved HERE from a column of its
+                          own: it is a statement about the row whose URL is above it, and
+                          as a column of its own it spent a tenth of the table's width
+                          saying what the URL cell's second line says better — beside the
+                          link it counts. `threadLabel`'s `""` answer renders NOTHING
+                          here, not an em dash, because a lone ungrouped link is the
+                          overwhelming majority of the queue and a column of dashes would
+                          have been the loudest thing on the row.
+
+                          🔴 THE `+ 1` IS LOAD-BEARING AND MUST NOT BE "SIMPLIFIED" AWAY.
+                          `threadLabel`'s parameter is a CONVERSATION SIZE — this node
+                          plus its publicly-visible descendants — and it answers "" for
+                          anything `<= 1`. `sublinkCount` is the DESCENDANT count (`0` for
+                          a leaf), so passing it raw would delete the chip on a root with
+                          exactly ONE sublink (`1` -> "") while leaving every ordinary
+                          row correctly chip-less (`0` -> ""), which is exactly why the
+                          bug hides. Same off-by-one as `confirmThreadCoupling`; the two
+                          must never diverge.
+
+                          The gate is therefore `sublinkCount > 0` in effect (via
+                          `threadLabel`) and NEVER `isThreadRoot`: the backend calls
+                          every `parentId == null` link a root, so that flag is true for
+                          every ungrouped row in the queue and would print a chip on the
+                          whole page.
+
+                          The tooltip states the coupling a row otherwise hides: a
+                          conversation is public only while its root is, so hiding this
+                          row hides everything under it — recursively. `hideLink` also
+                          confirms at the moment of the click, because a tooltip is only
+                          read if the admin happens to hover the badge that carries it.
+                        -->
+                        @if (threadLabel(link.sublinkCount + 1); as label) {
+                          <span
+                            hlmBadge
+                            variant="special"
+                            data-testid="link-thread"
+                            [title]="
+                              (link.isThreadRoot
+                                ? 'Root of a conversation — '
+                                : 'Links below this row — ') +
+                              label +
+                              ' at any depth. A conversation is public only while its root is, so hiding this row hides that whole subtree too.'
+                            "
+                          >
+                            {{ label }}
+                          </span>
+                        }
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td hlmTd class="max-w-64 py-3">
@@ -420,56 +561,43 @@
                     <span hlmBadge variant="warning">Pending</span>
                   }
                 </td>
-                <td hlmTd class="py-3 whitespace-nowrap">
-                  {{ link.created | date: "MMM d, y HH:mm" }}
-                </td>
-                <td hlmTd class="py-3 whitespace-nowrap">
-                  {{ link.occurredAt | date: "MMM d, y HH:mm" }}
-                </td>
-                <td hlmTd class="py-3 whitespace-nowrap">
-                  <!--
-                    The conversation chip: how many links hang BELOW this row, at any
-                    depth, so an admin can see a row's whole-subtree size before
-                    acting on it.
+                <!--
+                  THE TWO CLOCKS, IN ONE CELL. `created` (when it was REPORTED) is
+                  the line this column is named for and the one an admin moderates
+                  against; the event instant `occurredAt` — which is what the queue
+                  is SORTED on and what "Occurred between" windows — becomes a second,
+                  quieter line UNDER it.
 
-                    🔴 THE `+ 1` IS LOAD-BEARING AND MUST NOT BE "SIMPLIFIED" AWAY.
-                    `threadLabel`'s parameter is a CONVERSATION SIZE — this node plus
-                    its publicly-visible descendants — and it answers "" for anything
-                    `<= 1`. `sublinkCount` is the DESCENDANT count (`0` for a leaf), so
-                    passing it raw would delete the chip on a root with exactly ONE
-                    sublink (`1` -> "") while leaving every ordinary row correctly
-                    chip-less (`0` -> ""), which is exactly why the bug hides. Same
-                    off-by-one as `confirmThreadCoupling`; the two must never diverge.
+                  🔴 EXACT STRING COMPARISON IS THE CORRECT "SAME INSTANT" TEST HERE,
+                  and it is deliberate rather than a shortcut. Both fields arrive as
+                  naive local ISO strings from the backend (USE_TZ = False, no offset
+                  and no `Z`), and the backend writes `occurred_at = created` whenever
+                  a submitter does not state an event time — so for the overwhelming
+                  majority of rows the two strings are byte-identical, and there is
+                  no second fact to show. Parsing both through `new Date()` and
+                  comparing instants would be strictly worse: `strictNullChecks` is
+                  off in this repo, so a payload missing `occurredAt` would parse to
+                  `NaN`, `NaN !== NaN` would be TRUE, and the cell would print
+                  "Occurred Invalid Date" on exactly the rows a test fixture
+                  under-specified. A back-dated report is the ONE case the two clocks
+                  disagree and the only case worth the extra line, and it is now the
+                  only case that gets one.
 
-                    The gate is therefore `sublinkCount > 0` and NEVER `isThreadRoot`:
-                    the backend calls every `parentId == null` link a root, so that
-                    flag is true for every ungrouped row in the queue and would print
-                    a chip on the whole page.
-
-                    The tooltip states the coupling a row otherwise hides: a
-                    conversation is public only while its root is, so hiding this row
-                    hides everything under it — recursively. `hideLink` also confirms
-                    at the moment of the click, because a tooltip is only read if the
-                    admin happens to hover the one cell that carries it.
-                  -->
-                  @if (threadLabel(link.sublinkCount + 1); as label) {
-                    <span
-                      hlmBadge
-                      variant="special"
-                      data-testid="link-thread"
-                      [title]="
-                        (link.isThreadRoot
-                          ? 'Root of a conversation — '
-                          : 'Links below this row — ') +
-                        label +
-                        ' at any depth. A conversation is public only while its root is, so hiding this row hides that whole subtree too.'
-                      "
-                    >
-                      {{ label }}
-                    </span>
-                  } @else {
-                    <span class="text-muted-foreground">—</span>
-                  }
+                  `whitespace-nowrap` STAYS on the cell: the two lines must each
+                  read as a single value, and a wrapped "Aug 1, 2026 08:30" reads as
+                  two. `text-xs text-muted-foreground` is what makes the second line
+                  subordinate — it is there to be read when it differs and skimmed
+                  when it does not exist.
+                -->
+                <td hlmTd class="py-3 whitespace-nowrap" data-testid="link-submitted">
+                  <div class="flex flex-col items-start gap-0.5">
+                    <span>{{ link.created | date: "MMM d, y HH:mm" }}</span>
+                    @if (link.created !== link.occurredAt) {
+                      <span class="text-muted-foreground text-xs" data-testid="link-occurred">
+                        Occurred {{ link.occurredAt | date: "MMM d, y HH:mm" }}
+                      </span>
+                    }
+                  </div>
                 </td>
                 <td hlmTd class="py-3">
                   <!--
@@ -510,65 +638,95 @@
                       </button>
                     }
                     <!--
-                      THE SEQUENCE. Offered at every row that has a sibling in the
-                      loaded set, and disabled at the two ends of the STORED run with
-                      the reason on hover. A swap needs an adjacent row, and this table
-                      shows the queue's `occurredAt DESC, id DESC` order while the write
-                      sets the STORED sibling order (`position` ASC, then `id`), so the
-                      payload is that whole run with this row moved one place - never the
+                      THE SEQUENCE — DRAWN ONLY ON A COMPLETE QUEUE. `reorderSocialMediaLinks`
+                      permutes ONE sibling SET, so a filtered page can send only part of it
+                      and the server will accept the part and leave the rows the admin
+                      cannot see at the end of the conversation. The gate is UNCHANGED
+                      (`canMoveUp`/`canMoveDown` and `reorderSiblings` both refuse on
+                      `!queueIsComplete()`); what changed is that under the default Pending
+                      queue the two buttons are not rendered AT ALL rather than being greyed
+                      out on every row — a permanently dead pair reads as a broken table,
+                      and the toolbar's "Show all links" is the one click that turns them on.
+
+                      ONCE THE QUEUE IS COMPLETE they come back with everything else:
+                      disabled at the two ends of the STORED run, with that reason on hover
+                      and NO title at all when they work. `attr.title`, not `[title]`:
+                      a property binding coerces the `?? null` to the literal string
+                      "null", so a live button would show a tooltip reading "null" on
+                      hover — which is what an attribute binding's null-removal exists
+                      to prevent, and what "this button has no reason" has to mean. A
+                      swap needs an adjacent row,
+                      and this table shows the queue's `occurredAt DESC, id DESC` order while
+                      the write sets the STORED sibling order (`position` ASC, then `id`), so
+                      the payload is that whole run with this row moved one place — never the
                       two rows alone, and never the order the table happens to show.
                     -->
-                    <button
-                      hlmBtn
-                      size="sm"
-                      variant="ghost"
-                      data-testid="move-link-up"
-                      [disabled]="isLoading() || !canMoveUp(link)"
-                      [title]="moveBlockedReason(link, 'up') ?? null"
-                      (click)="$event.stopPropagation(); moveLinkUp(link)"
-                    >
-                      Move up
-                    </button>
-                    <button
-                      hlmBtn
-                      size="sm"
-                      variant="ghost"
-                      data-testid="move-link-down"
-                      [disabled]="isLoading() || !canMoveDown(link)"
-                      [title]="moveBlockedReason(link, 'down') ?? null"
-                      (click)="$event.stopPropagation(); moveLinkDown(link)"
-                    >
-                      Move down
-                    </button>
+                    @if (queueIsComplete()) {
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="ghost"
+                        data-testid="move-link-up"
+                        [disabled]="isLoading() || !canMoveUp(link)"
+                        [attr.title]="moveBlockedReason(link, 'up') ?? null"
+                        (click)="$event.stopPropagation(); moveLinkUp(link)"
+                      >
+                        Move up
+                      </button>
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="ghost"
+                        data-testid="move-link-down"
+                        [disabled]="isLoading() || !canMoveDown(link)"
+                        [attr.title]="moveBlockedReason(link, 'down') ?? null"
+                        (click)="$event.stopPropagation(); moveLinkDown(link)"
+                      >
+                        Move down
+                      </button>
+                    }
                     <!--
-                      NESTING: the ticked rows become this row's direct children. It
-                      is a ROW action rather than a target picker because the row is
-                      the target and the ticks are the payload — asking the admin to
-                      pick, from a dropdown, the target they are already looking at
-                      would add a step and a second source of truth for the same
-                      choice. Disabled (with a stated reason) on an empty selection
-                      — ONE tick is enough here, because a targeted nest is a real
-                      write rather than the no-op an untargeted one-link group is —
-                      and on a row that is itself ticked, since nesting a selection
-                      under one of its own members is a cycle the server rejects as
-                      a unit.
+                      NESTING — DRAWN ONCE SOMETHING IS TICKED, THEN DISABLED WHERE IT
+                      CANNOT BE SENT. The ticked rows become this row's direct children.
+                      It is a ROW action rather than a target picker because the row is
+                      the target and the ticks are the payload — asking the admin to pick,
+                      from a dropdown, the target they are already looking at would add a
+                      step and a second source of truth for the same choice.
+
+                      ONE tick is enough (`canNest`): with a target, the ticked link
+                      becomes a REAL child, which is how a conversation gains its first
+                      one — unlike the no-target grouping minimum of two. The toolbar hint
+                      already says so, so the button appearing on the first tick is the
+                      hint being discharged rather than a new thing to discover.
+
+                      Once drawn it is DISABLED, with the reason on hover, on every row
+                      that cannot be the target — the ticked rows themselves, since
+                      nesting a selection under one of its own members is a CYCLE the
+                      server rejects as a unit. `canNestUnder` stays the per-row
+                      authority; `nestSelectionReady` is only the queue-wide gate for
+                      whether the button exists at all.
                     -->
-                    <button
-                      hlmBtn
-                      size="sm"
-                      variant="ghost"
-                      data-testid="nest-under"
-                      [disabled]="isLoading() || !canNestUnder(link)"
-                      [title]="nestBlockedReason(link) ?? 'Nest the ticked links under this one.'"
-                      (click)="$event.stopPropagation(); nestSelectedUnder(link)"
-                    >
-                      Nest under…
-                    </button>
+                    @if (nestSelectionReady()) {
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="ghost"
+                        data-testid="nest-under"
+                        [disabled]="isLoading() || !canNestUnder(link)"
+                        [attr.title]="
+                          nestBlockedReason(link) ?? 'Nest the ticked links under this one.'
+                        "
+                        (click)="$event.stopPropagation(); nestSelectedUnder(link)"
+                      >
+                        Nest under…
+                      </button>
+                    }
                     <!--
                       Sublinks only. Ungrouping a ROOT is a server-side no-op (it is
                       not a child of anything), so offering it there would be a
                       button that succeeds and changes nothing; the root's own job is
-                      to carry the chip above.
+                      to carry the chip and the descendants' Ungroup buttons, which is
+                      why its "N links" chip now lives in the URL cell next to it.
                     -->
                     @if (link.parentId) {
                       <button
@@ -597,7 +755,7 @@
               </tr>
             } @empty {
               <tr hlmTr>
-                <td hlmTd colspan="10" class="text-muted-foreground py-8 text-center">
+                <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">
                   No social media links match the current filters.
                 </td>
               </tr>

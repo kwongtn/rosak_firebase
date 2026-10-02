@@ -93,6 +93,7 @@ interface ComponentUnderTest {
   isEditing: WritableSignal<boolean>;
   canSave: () => boolean;
   canGroupSelection: () => boolean;
+  nestSelectionReady: () => boolean;
   allVisibleSelected: () => boolean;
   selectedIds: WritableSignal<string[]>;
   selectedCount: () => number;
@@ -106,6 +107,7 @@ interface ComponentUnderTest {
   ungroupLink(link: SocialMediaLinkRow): Promise<boolean>;
   /* Hierarchy: depth is per row, the rest are queue-wide. */
   depthOf(link: SocialMediaLinkRow): number;
+  depthRails(link: SocialMediaLinkRow): number[];
   /* The accordion: which conversations are open, and which rows that puts on
    * screen. `renderedLinks`/`renderedLinkIds` are the DISPLAY set — deliberately
    * not the same list the mutations scope to (`links()`), see the component. */
@@ -345,6 +347,37 @@ describe("SocialMediaLinksComponent", () => {
     return asTestable(fixture)
       .renderedLinks()
       .map((link) => link.id);
+  }
+
+  /** The header labels, in column order. The select-all `<th>` is empty by
+   *  design, so it reads as "" — which is what makes an exact-equality assertion
+   *  on the whole list a COLUMN COUNT check as well as a naming one. */
+  function headerLabels(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll("thead th")).map(
+      (th) => th.textContent?.trim() ?? "",
+    );
+  }
+
+  /** One rendered row's cells. Off the MARKUP rather than off the signal, so a
+   *  spec cannot pass on a correct row model and a template that draws fewer
+   *  cells than the header declares. */
+  function rowCells(index: number): HTMLTableCellElement[] {
+    const row = (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr")[index];
+    return Array.from(row?.querySelectorAll("td") ?? []);
+  }
+
+  /** One cell of one rendered row — reads better than `rowCells(n)[m]` in the
+   *  assertions about what a specific column CONTAINS, as opposed to how many
+   *  columns there are. */
+  function rowCell(row: number, cell: number): HTMLTableCellElement {
+    return rowCells(row)[cell];
+  }
+
+  /** Every rendered `[data-testid="link-depth"]` wrapper, in DOM order. */
+  function depthWrappers(): HTMLElement[] {
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-depth"]'),
+    );
   }
 
   it("loads links and categories on init with the pending default filter", async () => {
@@ -1240,45 +1273,98 @@ describe("SocialMediaLinksComponent", () => {
     expect(titleCell.className).not.toMatch(/truncate|whitespace-nowrap|overflow-hidden/);
   });
 
-  it("keeps the two date columns on one line", async () => {
-    await initialLoadsSettled(asTestable(fixture));
-    await renderRows([makeLink()]);
-
-    const headers = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll("thead th"),
-    ).map((th) => th.textContent?.trim() ?? "");
-    const cells = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr")[0].querySelectorAll("td"),
-    );
-    // The wrap fix must not leak into the instants: a wrapped "Aug 1, 2026 08:30"
-    // reads as two values, and the whole point of the two clocks is that they are
-    // each legible at a glance.
-    for (const label of ["Submitted", "Occurred"]) {
-      expect(cells[headers.indexOf(label)].className).toContain("whitespace-nowrap");
-    }
-  });
-
-  /* ---- Occurred column + relabelled date filter ----------------------- */
-
-  it("shows the event instant beside the report instant, in its own column", async () => {
+  it("keeps each instant in the date cell on one line", async () => {
     await initialLoadsSettled(asTestable(fixture));
     await renderRows([
       makeLink({ created: "2026-08-01T09:00:00", occurredAt: "2026-08-01T08:30:00" }),
     ]);
 
-    const headers = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll("thead th"),
-    ).map((th) => th.textContent?.trim() ?? "");
-    // Adjacent, and both explicitly named: neither instant is guessable from
-    // the other, and the queue is sorted by the Occurred one.
-    expect(headers.indexOf("Occurred")).toBe(headers.indexOf("Submitted") + 1);
+    const headers = headerLabels();
+    const cells = rowCells(0);
+    // The wrap fix must not leak into the instants: a wrapped "Aug 1, 2026 08:30"
+    // reads as two values, and the whole point of the two clocks is that each is
+    // legible at a glance. Both are now lines of ONE cell, and the cell keeps the
+    // utility.
+    expect(headers.indexOf("Submitted")).toBe(6);
+    expect(cells[headers.indexOf("Submitted")].className).toContain("whitespace-nowrap");
+  });
 
-    const cells = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr")[0].querySelectorAll("td"),
-    ).map((td) => td.textContent?.trim() ?? "");
-    const occurred = cells[headers.indexOf("Occurred")];
-    expect(occurred).toContain("8:30");
-    expect(cells[headers.indexOf("Submitted")]).toContain("9:00");
+  /* ---- The two clocks, merged into one cell ---------------------------- */
+
+  it("puts the event instant under the report instant only when they differ", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([
+      makeLink({
+        id: "backdated",
+        created: "2026-08-01T09:00:00",
+        occurredAt: "2026-07-28T21:15:00",
+      }),
+      makeLink({ id: "same", created: "2026-08-01T09:00:00", occurredAt: "2026-08-01T09:00:00" }),
+    ]);
+
+    const dates = rowCell(0, 6).querySelectorAll("[data-testid='link-occurred']");
+    // 🔴 The back-dated report is the ONE case the two clocks disagree about, and
+    // it is the only case that earns a second line — labelled in full, because
+    // "which of these two is the event time" is not answerable from position.
+    expect(dates).toHaveLength(1);
+    expect(dates[0].textContent?.replace(/\s+/g, " ").trim()).toBe("Occurred Jul 28, 2026 21:15");
+    // Quieter than the line above it, so a scan reads the report instant first.
+    expect(dates[0].className).toContain("text-xs");
+    expect(dates[0].className).toContain("text-muted-foreground");
+
+    // Equal instants: one line, and no "Occurred" at all. The backend writes
+    // `occurred_at = created` whenever the submitter stated no event time, so this
+    // is the common case and a second identical line on every row would be noise.
+    expect(rowCell(1, 6).querySelector("[data-testid='link-occurred']")).toBeNull();
+    expect(rowCell(1, 6).textContent).toContain("9:00");
+    expect(rowCell(1, 6).textContent).not.toContain("Occurred");
+  });
+
+  it("merged the two date columns into one and the Thread chip into the URL cell", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([makeLink()]);
+
+    // Ten columns → eight: Thread moved under the URL it describes, Occurred under
+    // Submitted. Neither is a column of its own any more.
+    expect(headerLabels()).toEqual([
+      "",
+      "URL",
+      "Title",
+      "Submitter",
+      "Categories",
+      "Status",
+      "Submitted",
+      "Actions",
+    ]);
+    // …and the row agrees with the header: a cell count that disagrees is what
+    // makes a table read as broken.
+    expect(rowCells(0).length).toBe(8);
+  });
+
+  it("skeleton rows and the loading/empty messages span eight columns", async () => {
+    const component = asTestable(fixture);
+    // The loading branch draws only skeletons, so the flag has to be raised for
+    // the assertions — and `links()` is empty, which is exactly what it gates.
+    component.isLoading.set(true);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr"));
+    // 5 skeleton rows plus the screen-reader-only "Loading links…" row.
+    expect(rows).toHaveLength(6);
+    for (const row of rows.slice(0, -1)) {
+      expect(row.querySelectorAll("td").length).toBe(8);
+    }
+    expect(rows.at(-1)?.querySelector("td")?.getAttribute("colspan")).toBe("8");
+
+    // The empty branch shares the same colspan.
+    component.isLoading.set(false);
+    component.links.set([]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector("tbody tr td")?.getAttribute("colspan"),
+    ).toBe("8");
   });
 
   it("labels the date-range filter for the instant it actually windows", async () => {
@@ -1553,6 +1639,38 @@ describe("SocialMediaLinksComponent", () => {
     expect(chips[0].textContent).toContain("2 links");
   });
 
+  it("renders the conversation chip INSIDE the URL cell, under the anchor it belongs to", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 1 }),
+      makeLink({ id: "child", parentId: "root", isThreadRoot: false }),
+    ]);
+    await expand("root");
+
+    // 🔴 THE CHIP BELONGS TO THE LINK, NOT TO A COLUMN OF ITS OWN. It is a
+    // statement about the row whose URL is above it, and as a tenth column it spent
+    // a tenth of the table's width saying what the URL cell's second line says
+    // better — beside the link it counts. Asserted by CELL, not by testid alone:
+    // a chip anywhere in the row would pass a testid-only check.
+    const rootCell = rowCell(0, 1);
+    const chip = rootCell.querySelector("[data-testid='link-thread']");
+    expect(chip).not.toBeNull();
+    // …and below its anchor, not beside or above it: the two share one `flex-col`,
+    // so the chip's left edge IS the URL text's left edge by construction — there is
+    // no `margin-left` to compute and therefore nothing that can drift when the
+    // rail width, the chevron reserve or the gap changes.
+    const anchor = rootCell.querySelector("a");
+    expect(anchor).not.toBeNull();
+    const siblings = Array.from(rootCell.querySelectorAll("[data-testid='link-thread'], a"));
+    expect(siblings.map((el) => el.tagName)).toEqual(["A", "SPAN"]);
+    expect((chip as HTMLElement).parentElement?.querySelector("a") === anchor).toBe(true);
+    // No em dash where there is no chip: a lone ungrouped link is the overwhelming
+    // majority of the queue, and a column of dashes would have been the loudest
+    // thing on the row.
+    expect(rowCell(1, 1).querySelector("[data-testid='link-thread']")).toBeNull();
+    expect(rowCell(1, 1).textContent?.trim()).toBe("https://x.com/prasarana/status/1");
+  });
+
   it("leaves a childless ROOT unbadged even though isThreadRoot is true", async () => {
     await initialLoadsSettled(asTestable(fixture));
     // The other half of the trap: `isThreadRoot` is a ROOT MARKER, true for every
@@ -1607,6 +1725,73 @@ describe("SocialMediaLinksComponent", () => {
     expect(renderedRowIds()).toEqual(["a", "b"]);
   });
 
+  /* ---- Rails and tint: making a child row LOOK nested ------------------- */
+
+  it("draws one rail per ancestor level, and no rail at all on a root", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const component = asTestable(fixture);
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 2 }),
+      makeLink({ id: "mid", parentId: "root", isThreadRoot: false, sublinkCount: 1 }),
+      makeLink({ id: "leaf", parentId: "mid", isThreadRoot: false }),
+      makeLink({ id: "lonely" }),
+    ]);
+    await expand("root", "mid");
+
+    // 🔴 THE RAILS ARE THE INDENT. The old `[style.padding-left.px]` is gone, and a
+    // rail per level replaced it: a bare gap at the left of a row reads as indented
+    // only while you are looking at that gap, whereas a guide line an eye can follow
+    // downward still says "this hangs off THAT" three levels deep.
+    const railCounts = depthWrappers().map(
+      (wrapper) => wrapper.querySelectorAll("span[data-testid='link-rail']").length,
+    );
+    expect(railCounts).toEqual([0, 1, 2, 0]);
+    expect(depthWrappers().map((w) => w.getAttribute("data-depth"))).toEqual(["0", "1", "2", "0"]);
+    // The padding is really gone — a rail drawn *beside* the old padding would
+    // double the offset and push the deepest row out of its cell.
+    for (const wrapper of depthWrappers()) {
+      expect(wrapper.style.paddingLeft).toBe("");
+    }
+    // `depthRails` is the one definition of the count the template reads.
+    expect(component.depthRails(component.links()[0])).toEqual([]);
+    expect(component.depthRails(component.links()[2])).toEqual([0, 1]);
+  });
+
+  it("tints a child row and connects it to its rail with a single elbow", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([
+      makeLink({ id: "root", sublinkCount: 2 }),
+      makeLink({ id: "mid", parentId: "root", isThreadRoot: false, sublinkCount: 1 }),
+      makeLink({ id: "leaf", parentId: "mid", isThreadRoot: false }),
+      makeLink({ id: "lonely" }),
+    ]);
+    await expand("root", "mid");
+
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr"));
+    // 🔴 THE TINT IS THE ROW-WIDE HALF OF THE CUE. The rails say WHICH ancestor;
+    // the tint says the weaker, scan-level fact that the row is not a root at all.
+    // Only depth ≥ 1 rows carry it — a tinted root would make every row look nested
+    // and the whole cue worthless.
+    expect(rows[0].className).not.toContain("bg-muted/40");
+    expect(rows[1].className).toContain("bg-muted/40");
+    expect(rows[2].className).toContain("bg-muted/40");
+    expect(rows[3].className).not.toContain("bg-muted/40");
+    // Hover must survive the tint: `hover:bg-muted` is a stronger value of the same
+    // token, so a pointer over a tinted row darkens it instead of cancelling it.
+    for (const row of rows) {
+      expect(row.className).toContain("hover:bg-muted");
+    }
+
+    // One elbow per NESTED row — the tick that turns a bare vertical rule into
+    // "this row hangs off it". A root has nothing to connect to, so it has none,
+    // and a row two levels down gets ONE, not one per level: a tick per level would
+    // draw stubs that attach to nothing.
+    const elbows = depthWrappers().map(
+      (wrapper) => wrapper.querySelectorAll("span[data-testid='link-elbow']").length,
+    );
+    expect(elbows).toEqual([0, 1, 1, 0]);
+  });
+
   /* ---- The accordion over the loaded tree ------------------------------ */
 
   it("collapses every conversation by default — children are loaded but not drawn", async () => {
@@ -1649,11 +1834,15 @@ describe("SocialMediaLinksComponent", () => {
     expect(toggles).toHaveLength(2);
     expect((toggles[0] as HTMLButtonElement).getAttribute("aria-expanded")).toBe("true");
     expect((toggles[1] as HTMLButtonElement).getAttribute("aria-expanded")).toBe("true");
-    // The chevron is inside the padded wrapper, so a childless row needs an
-    // equal-width stand-in or every open/close click shifts the columns.
-    const reserved = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="link-depth"]'),
-    ).map((wrapper) => wrapper.querySelector('span[aria-hidden="true"]') !== null);
+    // The chevron sits inside the rail stack, so a childless row needs an
+    // equal-width stand-in or every open/close click shifts the columns. The
+    // query is the placeholder's OWN testid and NOT `aria-hidden`: the rails and
+    // the elbow are aria-hidden spans as well, so asking for aria-hidden here
+    // would silently answer "is there any decoration on this row", which is true
+    // on a root too — the query below would pass for the wrong reason.
+    const reserved = depthWrappers().map(
+      (wrapper) => wrapper.querySelector('[data-testid="chevron-placeholder"]') !== null,
+    );
     expect(reserved).toEqual([false, false, true, true]);
   });
 
@@ -2097,7 +2286,7 @@ describe("SocialMediaLinksComponent", () => {
     ]);
   });
 
-  it("disables both moves when a filter may have hidden a sibling", async () => {
+  it("refuses to move while a filter may have hidden a sibling, and does not DRAW the buttons", async () => {
     await initialLoadsSettled(asTestable(fixture));
     // The queue loaded under a filter is NOT complete — the default status
     // filter (Pending) already proves it — so nothing may be reordered.
@@ -2115,8 +2304,18 @@ describe("SocialMediaLinksComponent", () => {
     expect(byTestId("reorder-hint")).not.toBeNull();
     expect(byTestId("reorder-show-all")).not.toBeNull();
 
-    // And the method refuses, rather than sending a partial permutation the
-    // server would accept and silently complete.
+    // 🔴 ABSENT, NOT GREYED. Two permanently dead buttons on all three rows of the
+    // default Pending queue read as a broken table rather than as unavailable. The
+    // gate is untouched underneath, so the method still refuses — a programmatic
+    // call cannot post the partial permutation the server would silently complete.
+    const up = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="move-link-up"]',
+    );
+    const down = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="move-link-down"]',
+    );
+    expect(up).toHaveLength(0);
+    expect(down).toHaveLength(0);
     requestMock.mockClear();
     expect(await component.moveLinkUp(rows[1])).toBe(false);
     expect(reorderCalls()).toHaveLength(0);
@@ -2156,6 +2355,56 @@ describe("SocialMediaLinksComponent", () => {
     // The hint and its action are gone once the queue is provably whole.
     expect(byTestId("reorder-hint")).toBeNull();
     expect(byTestId("reorder-show-all")).toBeNull();
+    // …and the sequence actions are now ON THE PAGE rather than merely enabled,
+    // which is the whole point of hiding them: the enabled state the admin was
+    // told to click towards actually arrives.
+    expect(byTestId("move-link-up")).not.toBeNull();
+    expect(byTestId("move-link-down")).not.toBeNull();
+  });
+
+  it("'Show all links' is never disabled and is pinned to the right of the hint row", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const hint = byTestId("reorder-hint") as HTMLElement;
+    const showAll = byTestId("reorder-show-all") as HTMLButtonElement;
+    expect(hint).not.toBeNull();
+    expect(showAll).not.toBeNull();
+    // A dead-looking version of the one action that unblocks the queue is the
+    // complaint this replaced; it carries no `[disabled]` binding at all now.
+    expect(showAll.hasAttribute("disabled")).toBe(false);
+    // `ml-auto` on the button, over a `flex-1 min-w-0` sentence: the hint is a
+    // full-width aside of the toolbar and the action belongs at the right edge,
+    // where the eye lands after reading the reason.
+    expect(hint.className).toContain("w-full");
+    expect(hint.className).toContain("flex");
+    const sentence = hint.firstElementChild as HTMLElement;
+    expect(sentence.className).toContain("flex-1");
+    expect(sentence.className).toContain("min-w-0");
+    expect(showAll.className).toContain("ml-auto");
+    expect(showAll.className).toContain("shrink-0");
+  });
+
+  it("keeps the move pair on every row and disables only the run ends once complete", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([makeLink({ id: "a" }), makeLink({ id: "b" })]);
+    fixture.detectChanges();
+    expect(byTestId("move-link-up")).toBeNull();
+    expect(byTestId("move-link-down")).toBeNull();
+
+    withCompleteQueue();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const up = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="move-link-up"]',
+    );
+    expect(up).toHaveLength(2);
+    // The two reasons that SURVIVE the gate are the run ends, and they still say
+    // which end they are.
+    expect((up[0] as HTMLButtonElement).getAttribute("title")).toContain("Already first");
+    expect((up[0] as HTMLButtonElement).disabled).toBe(true);
+    // A live button carries NO title at all — `?? null` really does remove it.
+    expect((up[1] as HTMLButtonElement).getAttribute("title")).toBeNull();
+    expect((up[1] as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("toasts and leaves the table and the selection alone when a reorder fails", async () => {
@@ -2247,10 +2496,11 @@ describe("SocialMediaLinksComponent", () => {
       Array.from(
         (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="nest-under"]'),
       );
-    // Nothing ticked: there is no payload to move.
+    // Nothing ticked: there is no payload to move, so the button is NOT DRAWN at
+    // all rather than sitting dead on every row of an untouched queue.
     expect(component.canNestUnder(rows[0])).toBe(false);
     expect(component.nestBlockedReason(rows[0])).toContain("Tick a link");
-    expect(nestButtons().every((b) => b.disabled)).toBe(true);
+    expect(nestButtons()).toHaveLength(0);
 
     // ONE tick is enough, and that is the difference from "Group into thread":
     // with a target the link becomes a REAL child, while an untargeted one-link
@@ -2271,6 +2521,37 @@ describe("SocialMediaLinksComponent", () => {
     expect(component.nestBlockedReason(rows[2])).toContain("cycle");
     expect(nestButtons()[2].disabled).toBe(true);
     expect(nestButtons()[2].getAttribute("title")).toContain("cycle");
+  });
+
+  it("draws nest-under on every row after one tick, and withdraws it when the ticks go", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const rows = [makeLink({ id: "target" }), makeLink({ id: "a" })];
+    await renderRows(rows);
+    const component = asTestable(fixture);
+    fixture.detectChanges();
+    const nestButtons = (): HTMLButtonElement[] =>
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('tbody [data-testid="nest-under"]'),
+      );
+
+    // 🔴 THE GATE IS THE SELECTION, NOT THE TARGET. `nestSelectionReady` asks
+    // `canNest` — ONE tick — and not the per-row `canNestUnder`, because a target
+    // that happens to be ticked is still a row the admin is looking at: it is drawn
+    // and disabled with the cycle reason, not hidden. Hiding it there would hide
+    // the very row whose state is the interesting part.
+    expect(component.nestSelectionReady()).toBe(false);
+    component.toggleRowSelection("a");
+    expect(component.nestSelectionReady()).toBe(true);
+    fixture.detectChanges();
+    expect(nestButtons()).toHaveLength(2);
+    expect(nestButtons().map((b) => b.disabled)).toEqual([false, true]);
+
+    // Clearing the selection takes the affordance away again — the ticks are the
+    // payload, so with no payload there is nothing for the button to do.
+    component.clearSelection();
+    fixture.detectChanges();
+    expect(component.nestSelectionReady()).toBe(false);
+    expect(nestButtons()).toHaveLength(0);
   });
 
   it("nests a SINGLE ticked link under a row — the first child of a conversation", async () => {
@@ -2526,5 +2807,216 @@ describe("SocialMediaLinksComponent", () => {
     component.closeLinkPanel();
 
     expect(component.editOccurredAt()).toBe("");
+  });
+});
+
+/**
+ * The mid-load window, in its own TOP-LEVEL describe because it has to own the
+ * mock before the component is even constructed: the very first `socialMediaLinks`
+ * request has to still be open while "Show all links" is clicked, and the outer
+ * `beforeEach` resolves its requests immediately. Nesting it would also give the
+ * outer `beforeEach`'s `httpMock.expectOne` two reference-data requests to match.
+ *
+ * This is the bug the whole change is about, in two halves:
+ *   1. `load()`'s re-entrancy guard used to SWALLOW the click, while
+ *      `showAllLinks` had already moved the filter controls — the admin clicks,
+ *      the dials change, and nothing happens. It is now queued and replayed.
+ *   2. `queueIsComplete` used to be read from the applied filters AFTER the await,
+ *      so the PENDING query resolving after "Show all links" had rewritten them
+ *      would set the flag true over pending-only rows and flash the move pair. It
+ *      is now captured before the first await.
+ */
+describe("'Show all links' clicked while the first load is still in flight", () => {
+  let requestMock: ReturnType<typeof vi.fn>;
+  let httpMock: HttpTestingController;
+  let fixture: ComponentFixture<SocialMediaLinksComponent>;
+  /** One resolver per in-flight `socialMediaLinks` request, oldest first. */
+  let pending: ((value: unknown) => void)[];
+
+  beforeEach(async () => {
+    pending = [];
+    requestMock = vi.fn().mockImplementation((query: string) => {
+      // Every links query is DEFERRED and released by the test, so the loading flag
+      // really is held open across the click rather than raced past it.
+      if (query.includes("socialMediaLinks")) {
+        return new Promise((resolve) => {
+          pending.push(resolve);
+        });
+      }
+      return Promise.resolve({ calendarIncidentCategories: [] });
+    });
+    await TestBed.configureTestingModule({
+      imports: [SocialMediaLinksComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        provideHttpClientTesting(),
+        { provide: GraphQLClient, useValue: { request: requestMock } },
+        { provide: AuthService, useValue: { idToken: async () => "token" } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    }).compileComponents();
+
+    TestBed.overrideComponent(SocialMediaLinksComponent, {
+      remove: { imports: [AppNavComponent, AppFooterComponent] },
+      add: { imports: [StubNav, StubFooter] },
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(SocialMediaLinksComponent);
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({ data: { lines: [], stations: [], calendarIncidentCategories: [] } });
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("is not disabled, is queued rather than swallowed, and the queued reload carries the unfiltered snapshot", async () => {
+    const component = asTestable(fixture);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    fixture.detectChanges();
+
+    // The window the old `[disabled]="isLoading()"` closed on the admin: the queue
+    // is genuinely mid-flight and the one unblocking action is on screen.
+    expect(component.isLoading()).toBe(true);
+    const showAll = fixture.nativeElement.querySelector(
+      '[data-testid="reorder-show-all"]',
+    ) as HTMLButtonElement;
+    expect(showAll).not.toBeNull();
+    expect(showAll.hasAttribute("disabled")).toBe(false);
+
+    showAll.click();
+
+    // The click is PARKED, not lost: the snapshot has moved but no second query has
+    // gone out yet, because the first still holds the loading flag.
+    expect(component.completedFilter()).toBe("any");
+    expect(pending).toHaveLength(1);
+
+    // Release the PENDING query — the one whose rows cannot prove a whole queue.
+    pending[0]({ socialMediaLinks: [makeLink({ id: "pending-only", position: 10 })] });
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    fixture.detectChanges();
+
+    // 🔴 AND THE FLAG STILL SAYS FALSE over those rows. Read after the await it
+    // would have seen the snapshot "Show all links" just wrote and claimed a
+    // complete queue over pending-only rows, flashing the move pair over rows whose
+    // siblings are not loaded — the exact state the flag exists to prevent.
+    expect(component.links().map((l) => l.id)).toEqual(["pending-only"]);
+    expect(component.queueIsComplete()).toBe(false);
+    expect(fixture.nativeElement.querySelector('[data-testid="move-link-up"]')).toBeNull();
+
+    // The replay went out with every axis dropped, status included — `undefined`
+    // being the "no completed filter" spelling the resolver reads as All.
+    const replay = requestMock.mock.calls.filter((call) =>
+      (call[0] as string).includes("socialMediaLinks"),
+    ) as [string, Record<string, unknown>][];
+    expect(replay).toHaveLength(2);
+    expect(replay[1][1]).toEqual({
+      search: undefined,
+      categoryId: undefined,
+      completed: undefined,
+    });
+
+    pending[1]({
+      socialMediaLinks: [makeLink({ id: "a", position: 10 }), makeLink({ id: "b", position: 20 })],
+    });
+    await vi.waitFor(() => expect(component.queueIsComplete()).toBe(true));
+    await vi.waitFor(() => expect(component.isLoading()).toBe(false));
+    fixture.detectChanges();
+
+    // The state the admin clicked for: provably whole, and the sequence actions on
+    // the page rather than merely enabled somewhere.
+    expect(component.queueIsComplete()).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="reorder-show-all"]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="move-link-up"]')).toHaveLength(2);
+  });
+
+  /**
+   * 🔴 THE WINDOW THE FIRST TEST CANNOT REACH, and the reason `isLoading` has a
+   * single owner.
+   *
+   * Every load-bearing verb except `load()` sets `isLoading` itself and runs
+   * `fetchLinks()` directly, so none of them passes through `load()`'s `finally`.
+   * An admin who clicks "Show all links" during one of THEIR post-write refetches
+   * therefore parks a reload somewhere that would never be drained: the dials read
+   * "All" over the PENDING rows the refetch returned, the hint stays on screen, and
+   * the click appears to do nothing until it is pressed a second time — the exact
+   * swallowed click this change exists to remove, relocated by one window. The
+   * drain lives in `finishLoading()`, which every verb's `finally` calls, so no
+   * in-flight request can strand it.
+   */
+  it("drains a click parked during a MUTATION's own refetch, when that mutation finishes", async () => {
+    const component = asTestable(fixture);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+
+    // Settle the component's OWN constructor load first, or the in-flight request
+    // under test would be the page's first paint rather than the mutation's
+    // refetch — and the drain would then fire from `load()`'s own `finally`, which
+    // is the path that already worked and therefore proves nothing.
+    pending[0]({ socialMediaLinks: [makeLink({ id: "initial", position: 10 })] });
+    await vi.waitFor(() => expect(component.isLoading()).toBe(false));
+    expect(component.queueIsComplete()).toBe(false);
+    fixture.detectChanges();
+
+    // Start a mutation WITHOUT awaiting: its mutation request resolves at once
+    // (the harness defers only `socialMediaLinks`), so the very next thing it does
+    // is park a PENDING refetch — the in-flight request the admin clicks into.
+    const completion = component.markCompleted(makeLink({ id: "a" }));
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    expect(component.isLoading()).toBe(true);
+
+    // The click, through the DOM. The button carries no `[disabled]`, so it is
+    // genuinely clickable in exactly the window that used to grey it out.
+    const showAll = fixture.nativeElement.querySelector(
+      '[data-testid="reorder-show-all"]',
+    ) as HTMLButtonElement;
+    expect(showAll.hasAttribute("disabled")).toBe(false);
+    showAll.click();
+
+    // Parked: the snapshot has moved, no new query has gone out, because the
+    // mutation's refetch — not a `load()` — is holding the flag.
+    expect(component.completedFilter()).toBe("any");
+    expect(pending).toHaveLength(2);
+    expect(component.queueIsComplete()).toBe(false);
+
+    // Let the mutation's own refetch land, still carrying the PENDING snapshot it
+    // captured before the click. It must NOT claim a complete queue.
+    pending[1]({ socialMediaLinks: [makeLink({ id: "pending-only", position: 10 })] });
+    // …and THAT is what has to release the parked reload. A drain that lived in
+    // `load()`'s own `finally` would leave `pending` stuck at 2 here forever.
+    await vi.waitFor(() => expect(pending).toHaveLength(3));
+    expect(component.links().map((l) => l.id)).toEqual(["pending-only"]);
+
+    const linkQueries = requestMock.mock.calls.filter((call) =>
+      (call[0] as string).includes("socialMediaLinks"),
+    ) as [string, Record<string, unknown>][];
+    expect(linkQueries).toHaveLength(3);
+    // The mutation's refetch asked for Pending…
+    expect(linkQueries[1][1]).toEqual({
+      search: undefined,
+      categoryId: undefined,
+      completed: false,
+    });
+    // …and the drained replay asked for All, which is what certifies the queue.
+    expect(linkQueries[2][1]).toEqual({
+      search: undefined,
+      categoryId: undefined,
+      completed: undefined,
+    });
+
+    pending[2]({
+      socialMediaLinks: [makeLink({ id: "a", position: 10 }), makeLink({ id: "b", position: 20 })],
+    });
+    expect(await completion).toBe(true);
+    await vi.waitFor(() => expect(component.queueIsComplete()).toBe(true));
+    await vi.waitFor(() => expect(component.isLoading()).toBe(false));
+    fixture.detectChanges();
+
+    // The admin's single click resolved the state: hint gone, sequence actions on.
+    expect(fixture.nativeElement.querySelector('[data-testid="reorder-hint"]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="move-link-up"]')).toHaveLength(2);
   });
 });

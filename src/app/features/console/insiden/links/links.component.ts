@@ -74,12 +74,25 @@ import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
 
 type CompletedFilter = "any" | "pending" | "completed";
 
-/** Pixels of left padding per level of conversation depth. A flat arithmetic
- *  scale rather than a Tailwind class per level: the store bounds nesting at
+/** Width in pixels of ONE depth rail — i.e. the pixels a row is pushed right per
+ *  level of conversation depth, because the rail STACK is the indent (see
+ *  `depthRails` and the URL cell's markup).
+ *
+ *  WHY A RAIL AND NOT JUST PADDING. A bare `padding-left` reads as an indent
+ *  only while the admin is looking at the gap beside the URL; the moment a
+ *  conversation is three levels deep the offsets are a set of unrelated
+ *  distances and nothing on the row says which link hangs under which. A vertical
+ *  guide per ancestor level is the one cue that survives scanning, and it is
+ *  drawn from the same number the padding was, so the two cannot disagree — the
+ *  rails REPLACED `[style.padding-left.px]` rather than joining it.
+ *
+ *  🔴 A FLAT ARITHMETIC SCALE, not a Tailwind class per level, for the same
+ *  reason the old padding used one: the store bounds nesting at
  *  `MAX_THREAD_DEPTH`, but a hand-edited row can be deeper than any ladder of
- *  `pl-5` / `pl-10` classes, and an out-of-ladder row must still render indented
- *  instead of snapping back to column zero and reading as a root. */
-const DEPTH_INDENT_PX = 16;
+ *  `w-5` classes, and an out-of-ladder row must still render NESTED rather than
+ *  snapping back to column zero and reading as a root. `@for` over an array of
+ *  the row's depth renders an unbounded number of rails; a class ladder cannot. */
+const DEPTH_INDENT_PX = 20;
 
 const COMPLETED_LABEL: Record<CompletedFilter, string> = {
   any: "All",
@@ -162,13 +175,18 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * (`occurredAt`, `-occurredAt, -id`) and the range filter windows the same
  * column, but an admin moderates against the REPORT instant (`created`) — "how
  * long has this been sitting un-reviewed" is a `created` question, and "is this
- * report back-dated" is an `occurredAt` one. So the table shows BOTH columns
- * side by side and the filter is labelled "Occurred between" rather than
- * "Submitted between": one filter label cannot honestly describe a window over
- * `occurredAt` any more. This is also why the two instants are never conflated
- * in the payload — see `linkStatusInput` and the `occurredAt` note in
- * `saveLinkEdit` for the tri-state that keeps a save from silently rewriting one
- * as the other.
+ * report back-dated" is an `occurredAt` one. So the cell shows BOTH instants,
+ * the event one on a second, quieter line under the report one and labelled in
+ * full (`Occurred Aug 1, 2026 08:30`) rather than by position or a tooltip, and
+ * the filter is labelled "Occurred between" rather than "Submitted between":
+ * one filter label cannot honestly describe a window over `occurredAt` any more.
+ * The second line is drawn ONLY when the two instants differ (`created !==
+ * occurredAt` on the naive local ISO strings the backend sends), because a
+ * back-dated report is the ONLY case where the two clocks disagree and a second
+ * identical line on every ordinary row would be noise an admin learns to skip.
+ * This is also why the two instants are never conflated in the payload — see
+ * `linkStatusInput` and the `occurredAt` note in `saveLinkEdit` for the
+ * tri-state that keeps a save from silently rewriting one as the other.
  *
  * Row click opens a fully editable panel: the same field set as "Submit a
  * link" (URL required, title optional, the optional "when did this happen?"
@@ -211,8 +229,9 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * default, per level and independently — the same rule, the same reason):
  *   - a row is a PARENT iff it has LOADED children, and it then carries a
  *     chevron (`data-testid="thread-toggle"`, `aria-expanded`, rotating icon) in
- *     the URL cell's indented flex, with an equal-width placeholder on a
- *     childless row so the columns cannot shift as rows open and close;
+ *     the URL cell's indented flex, with an equal-width placeholder
+ *     (`data-testid="chevron-placeholder"`) on a childless row so the columns
+ *     cannot shift as rows open and close;
  *   - expanding reveals a row's direct children DIRECTLY BENEATH IT in the
  *     STORED order (`position` ASC, `id` tie-break — `compareStoredSequence`),
  *     and recursively: a child with children of its own gets its own chevron, so
@@ -222,9 +241,23 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  *     to directly under their parent;
  *   - COLLAPSED BY DEFAULT, because a triage queue is read for its newest rows,
  *     and an admin opening the queue should not have to close anything first;
- *   - the DEPTH INDENT, the `N links` chip and its coupling tooltip, and every
- *     per-row verb (Ungroup / Move up / Move down / Nest under…) are unchanged
- *     and still reachable on every RENDERED row.
+ *   - NESTING IS LEGIBLE FROM THE ROW ALONE: one vertical rail per ancestor
+ *     level (`data-testid="link-rail"`, `depthRails`) plus a muted background
+ *     tint on the child row, on top of the rails being the indent themselves
+ *     (`DEPTH_INDENT_PX`). The `N links` chip now sits under the URL inside the
+ *     same cell — it is a statement about the row the URL belongs to, and a
+ *     column of its own made the table ten wide to say what the URL cell could
+ *     say in its second line;
+ *   - every per-row verb is reachable on every RENDERED row, but the two that
+ *     have a PRECONDITION are not rendered until it holds: Move up / Move down
+ *     appear only once `queueIsComplete()`, and Nest under… only once something is
+ *     ticked (`nestSelectionReady`). Greyed-out controls on the default queue read
+ *     as broken, and "Show all links" — the one-click way to the state the
+ *     sequence actions need — is a discoverable substitute for a tooltip that
+ *     explains why two buttons on every row do nothing. The GATE ITSELF IS
+ *     UNCHANGED: nothing re-enables on a filtered queue (see `reorderSiblings`,
+ *     which re-checks both conditions because it is reachable programmatically
+ *     too).
  *
  * ⚠️ A DOCUMENTED DIVERGENCE, stated here because it contradicts a rule this repo has
  * already written down. `MISTAKES.md` (2026-09-30, home/`collapseThreads`) rules that
@@ -395,6 +428,24 @@ export class SocialMediaLinksComponent {
    *  exactly one place — the one the profile surface's grouping UI also reads. */
   protected readonly canGroupSelection = computed(() => canGroup(this.selectedIds()));
 
+  /** Is there any payload at all to nest? ONE tick is enough (see `canNest`), and
+   *  this is the ROW-BUTTON's gate rather than the per-row one.
+   *
+   *  🔴 WHY THE PER-ROW BUTTON IS DRAWN ONLY PAST THIS POINT, while the toolbar's
+   *  "Group into thread" stays permanently visible and merely disabled. Two
+   *  buttons that are dead on every row of an untouched queue are read as broken,
+   *  not as unavailable — and nesting is the one tree-building verb an admin uses
+   *  on a SINGLE link, so it is the one that has to look ready. The toolbar hint
+   *  already spells out the gate ("Tick a link to nest it under another"), so the
+   *  affordance appears with the first tick and the discovery cost is the one
+   *  sentence already on screen.
+   *
+   *  `canNestUnder` (per row) stays the authority on whether a PARTICULAR row can
+   *  be the target: a row inside the selection is a cycle the server rejects
+   *  wholesale, so once a selection exists the button is drawn there too — disabled,
+   *  with that reason on hover. Hidden-until-ticked is not hidden-forever-disabled. */
+  protected readonly nestSelectionReady = computed(() => canNest(this.selectedIds()));
+
   /** The rows the ACCORDION is currently showing — `links()` minus every row
    *  whose loaded ancestors are all collapsed. This is what Select-all and the
    *  header's checked state read, so a closed conversation is never half-ticked
@@ -438,10 +489,19 @@ export class SocialMediaLinksComponent {
    *  belongs to the ROWS and not to the dials: a dial changes up to a trailing
    *  debounce before any refetch, so a computed would re-enable the action while
    *  a filtered page was still on screen. `fetchLinks` writes it from the same
-   *  applied filter snapshot that built the query, so the flag and the rows it
-   *  describes cannot disagree. The toolbar's "Show all links" action
+   *  applied filter snapshot that built the query — SNAPSHOT BEFORE that query is
+   *  awaited, not read back after it, see that method — so the flag and the rows
+   *  it describes cannot disagree. The toolbar's "Show all links" action
    *  (`showAllLinks`) writes that unfiltered snapshot in one click, which is what
-   *  makes the state reachable from the default (Pending) queue. */
+   *  makes the state reachable from the default (Pending) queue.
+   *
+   *  🔴 READ AS A RENDER GATE, NOT ONLY AS A DISABLED STATE. The per-row Move up /
+   *  Move down buttons are not drawn at all while this is false. Nothing is
+   *  weakened by that — `reorderSiblings` refuses on the same condition, and the
+   *  per-button `[disabled]` keeps the run-end reasons once the queue IS whole —
+   *  but two permanently greyed buttons on every row of the default Pending queue
+   *  read as BROKEN rather than as unavailable, and the toolbar hint names the one
+   *  click that resolves them. */
   protected readonly queueIsComplete = signal(false);
 
   private readonly _rowsById = computed(() => new Map(this.links().map((l) => [l.id, l])));
@@ -493,8 +553,29 @@ export class SocialMediaLinksComponent {
     return this._depths().get(link.id) ?? 0;
   }
 
-  /** The indent step the template multiplies a row's depth by. */
+  /** The width of ONE rail — the pixels a row is pushed right per level. The
+   *  template multiplies a row's depth by it only to size the chip/anchor column
+   *  offset; the indent itself is the rail stack `depthRails` renders. */
   protected readonly depthIndentPx = DEPTH_INDENT_PX;
+
+  /** One entry per ancestor level, so the URL cell can draw that many vertical
+   *  rails with `@for (rail of depthRails(link); track $index)`.
+   *
+   *  A method for the same reason `depthOf` is one: the depths live in a single
+   *  computed map over the whole queue, and materialising an array per row on
+   *  every render would be a second source of the same number. What comes back is
+   *  `[0, 1, 2, …]` — the VALUES are never read, only the LENGTH — so the depth
+   *  still has exactly one definition.
+   *
+   *  `Array.from({ length }, …)` rather than a fixed ladder of classes, for the
+   *  unbounded-depth reason on `DEPTH_INDENT_PX`: a hand-edited chain deeper than
+   *  any class ladder still draws a rail per level instead of snapping back to
+   *  column zero and reading as a root. A depth-0 row gets an empty array and
+   *  therefore no rail and no elbow at all, which is what makes a root look
+   *  like a root. */
+  protected depthRails(link: SocialMediaLinkRow): number[] {
+    return Array.from({ length: this.depthOf(link) }, (_unused, index) => index);
+  }
 
   /* ---- Hierarchy: the accordion ---------------------------------------- */
 
@@ -746,7 +827,13 @@ export class SocialMediaLinksComponent {
   /** Why a sequence action is off, as copy for the disabled button's tooltip, or
    *  `null` when it IS available — so the template binds the title straight through
    *  and never restates any of the conditions. Three reasons, and every one of them
-   *  is a silent-failure trap, which is why a disabled button says which it is. */
+   *  is a silent-failure trap, which is why a disabled button says which it is.
+   *
+   *  ⚠️ The `!queueIsComplete()` reason below is now DEFENSIVE, not rendered: while
+   *  the queue is filtered the buttons are not drawn at all (see `queueIsComplete`).
+   *  It is kept because this is a total function of the row — a programmatic caller
+   *  or a future template that wants to show a disabled button again gets the honest
+   *  reason instead of a `null` title on a control that cannot work. */
   protected moveBlockedReason(link: SocialMediaLinkRow, direction: "up" | "down"): string | null {
     if (!this.queueIsComplete()) {
       return "Reordering needs every link loaded — a filtered page may be missing siblings of this link, and a partial sequence would push the hidden ones to the end of the conversation. Use “Show all links”.";
@@ -963,6 +1050,12 @@ export class SocialMediaLinksComponent {
   private appliedDateFrom: string | undefined;
   private appliedDateTo: string | undefined;
 
+  /** Is a `load()` waiting for the current one to finish before it runs? A plain
+   *  field, not a signal: nothing renders from it, it is read and written only
+   *  inside `load()`. See that method for why a mid-load call is queued rather
+   *  than dropped. */
+  private reloadQueued = false;
+
   constructor() {
     this.load();
     this.loadCategories();
@@ -1035,12 +1128,18 @@ export class SocialMediaLinksComponent {
   /** Drop EVERY filter and load the queue with Status on All — the state
    *  `queueIsComplete` exists to certify, offered as one click because the
    *  sequence actions are otherwise unreachable from the default (Pending) view:
-   *  the disabled buttons state the reason, and this is the action that reason
-   *  names. "Reset" deliberately cannot stand in for it — Reset restores the
-   *  QUEUE DEFAULT, which is Pending, and Pending is itself the filter that keeps
-   *  reordering off. The applied snapshot is written synchronously with the
+   *  they are NOT DRAWN there at all, so this button is the whole route to the
+   *  enabled state. "Reset" deliberately cannot stand in for it — Reset restores
+   *  the QUEUE DEFAULT, which is Pending, and Pending is itself the filter that
+   *  keeps reordering off. The applied snapshot is written synchronously with the
    *  controls (no debounce) so `fetchLinks` reads a complete, coherent state on
-   *  the very query this triggers. */
+   *  the very query this triggers.
+   *
+   *  ⚠️ IT IS NEVER DISABLED, not even while a load is in flight, and that is a
+   *  deliberate combination with `load()`'s queue-and-replay: an admin who clicks
+   *  it during the first load gets the unfiltered queue, not a dropped click over
+   *  controls that have already moved. The snapshot written above is the one the
+   *  replayed (or the in-flight mutation's own) `fetchLinks` reads. */
   protected showAllLinks(): void {
     this.applyQueueFilters("any");
     this.load();
@@ -1242,7 +1341,7 @@ export class SocialMediaLinksComponent {
       this.toast.error(errorTitle, err instanceof Error ? err.message : "Unknown error");
       return false;
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
     }
   }
 
@@ -1280,7 +1379,7 @@ export class SocialMediaLinksComponent {
       );
       return false;
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
     }
   }
 
@@ -1381,7 +1480,7 @@ export class SocialMediaLinksComponent {
       );
       return false;
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
     }
   }
 
@@ -1445,7 +1544,7 @@ export class SocialMediaLinksComponent {
       await this.fetchLinks();
       return true;
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
     }
   }
 
@@ -1577,7 +1676,7 @@ export class SocialMediaLinksComponent {
       this.toast.error(errorTitle, err instanceof Error ? err.message : "Unknown error");
       return false;
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
     }
   }
 
@@ -1600,7 +1699,7 @@ export class SocialMediaLinksComponent {
       );
       return false;
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
     }
   }
 
@@ -1825,21 +1924,99 @@ export class SocialMediaLinksComponent {
     );
   }
 
+  /** 🔴 A `load()` ARRIVING MID-LOAD IS QUEUED, NOT SWALLOWED.
+   *
+   *  The re-entrancy guard below exists so two filter changes cannot interleave
+   *  two queries, and it does that job. What it used to do to the toolbar's "Show
+   *  all links" was drop the click on the floor, and the drop was SILENT: the
+   *  button had been disabled while `isLoading()` (the reason it was greyed), so
+   *  the click could not land at all; the button is no longer disabled — it is the
+   *  one action that must look ready — and `showAllLinks` has ALREADY rewritten
+   *  the applied filter snapshot by the time it calls this. Swallowing the call
+   *  would therefore leave the controls showing "All" over the PENDING rows that
+   *  the in-flight query is still returning: the admin clicks "Show all links",
+   *  the dials visibly change, and nothing happens.
+   *
+   *  So a second arrival parks a reload and `finishLoading()` replays it once the
+   *  flag drops. The replay is what makes the click take effect; the filter
+   *  snapshot it reads is already the unfiltered one.
+   *
+   *  ⚠️ THE DRAIN IS IN `finishLoading()`, NOT HERE, and that is load-bearing
+   *  rather than tidiness. Six of the seven verbs that hold this flag — grouping,
+   *  ungrouping, reordering, approve, hide, mark-completed — set it themselves and
+   *  run `fetchLinks()` directly, so they never pass through this method. An admin
+   *  who clicks "Show all links" while one of THEIR refetches is in flight parks a
+   *  reload here, and if the drain lived in this `finally` it would sit unclaimed
+   *  until some later unrelated `load()` spent it: the dials would read "All" over
+   *  the PENDING rows the refetch returned, the hint would still be on screen, and
+   *  the admin's click would appear to do nothing until they pressed it a second
+   *  time — the swallowed click, relocated by one window. `finishLoading` is called
+   *  from every site that drops the flag, so no in-flight request can strand it. */
   private async load(): Promise<void> {
     if (this.isLoading()) {
+      this.reloadQueued = true;
       return;
     }
     this.isLoading.set(true);
     try {
       await this.fetchLinks();
     } finally {
-      this.isLoading.set(false);
+      this.finishLoading();
+    }
+  }
+
+  /** 🔴 THE ONE PLACE `isLoading` DROPS, and therefore the one place a reload
+   *  parked by `load()` is drained.
+   *
+   *  Every verb that occupies the queue — `load()` itself and all six mutations —
+   *  ends in a `finally` that hands off here, which is what makes the guarantee
+   *  "a 'Show all links' click is never silently dropped" hold for ALL of them and
+   *  not just for the one that goes through `load()`. The window that needs this is
+   *  spelled out on `load()`: a mutation's own post-write refetch holds the flag
+   *  long enough for the admin to click, and that refetch never returns here.
+   *
+   *  A METHOD RATHER THAN INLINE CODE in seven `finally` blocks because the rule has
+   *  to hold for the NEXT verb too. An eighth site that cleared the flag directly
+   *  would compile, pass every spec, and strand the next parked reload — the failure
+   *  is invisible until an admin hits that exact window, so it belongs in one place
+   *  a reader can check rather than in seven places a reader has to.
+   *
+   *  `void this.load()` is deliberate: the caller is inside its own `finally` and
+   *  must not have its return value (the mutation's success/failure) overwritten by
+   *  a follow-up query's outcome. It is fire-and-forget because `load()` is a pure
+   *  side effect on signals, and re-entering it here is exactly the mid-load case it
+   *  handles — `isLoading` is already false, so this is a normal fresh load, not a
+   *  second arrival.
+   *
+   *  ⚠️ NOT FOR `isSaving` / `isDeleting`. Those are the DETAIL SHEET's two flags
+   *  with their own lifecycles and their own buttons; routing them here would make a
+   *  save replay a queued "Show all links", which no click asked for. */
+  private finishLoading(): void {
+    this.isLoading.set(false);
+    if (this.reloadQueued) {
+      this.reloadQueued = false;
+      void this.load();
     }
   }
 
   /** The actual links query, without load()'s re-entrancy guard — callers
    * that already hold the loading flag (markCompleted) use this directly. */
   private async fetchLinks(): Promise<void> {
+    /* 🔴 SNAPSHOT THE COMPLETENESS ANSWER BEFORE THE FIRST `await`, never read it
+     * back after the request. `vars` below is built from the applied filter fields
+     * in the same synchronous run, so the flag has to describe THAT query — and the
+     * fields are mutable plain properties, not a signal, so a later read describes
+     * whatever the admin has done since.
+     *
+     * The window is real: `showAllLinks` rewrites every applied field to the
+     * unfiltered snapshot and calls `load()` while a FILTERED request is still in
+     * flight. Reading `appliedFiltersAreUnfiltered()` after that request resolves
+     * would read the NEW snapshot over rows the FILTERED query produced — the flag
+     * would claim a whole queue over a partial page, and the sequence buttons would
+     * light up over rows whose siblings are not loaded, which is precisely the state
+     * the flag exists to prevent. Capturing it here is what keeps the flag and the
+     * rows it describes from ever disagreeing. */
+    const queueIsComplete = this.appliedFiltersAreUnfiltered();
     try {
       const idToken = await this.auth.idToken();
       const vars: SocialMediaLinksQueryVars = {
@@ -1877,10 +2054,10 @@ export class SocialMediaLinksComponent {
         idToken ? { "firebase-auth-key": idToken } : {},
       );
       this.links.set(data.socialMediaLinks);
-      // Written from the SAME applied snapshot that built `vars`, and only on
-      // success, so the flag can never claim a whole queue over rows that a
-      // filtered query produced. This is what gates the sequence actions.
-      this.queueIsComplete.set(this.appliedFiltersAreUnfiltered());
+      // The CAPTURED answer, not a fresh read — see the note above. Written only on
+      // success, so the flag can never claim a whole queue over rows a failed query
+      // never replaced. This is what gates the sequence actions.
+      this.queueIsComplete.set(queueIsComplete);
     } catch (err) {
       this.toast.error("Couldn't load links", err instanceof Error ? err.message : "Unknown error");
     }
