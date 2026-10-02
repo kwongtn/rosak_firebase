@@ -39,8 +39,9 @@
     through the real server path to guard SSR/hydration).
   - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
-    refresh row: countdown spinner, the click-armed **Updating** state, the transient "Updated"
-    confirmation and the `Click to Refresh Now` tooltip). Rendered TWICE by the page — the countdown
+    refresh row: countdown spinner, the **Updating** state (up while ANY non-initial refresh is in
+    flight), the click-armed transient "Updated" confirmation and the `Click to Refresh Now`
+    tooltip). Rendered TWICE by the page — the countdown
     drives the whole-page beat, so it heads whichever section the reader is actually looking at: the
     links section below `lg`, the line panel from `lg` up. The two instances are gated with **CSS
     only** (`lg:hidden` / `hidden lg:block`), never a `matchMedia` placement signal, so SSR and
@@ -88,13 +89,17 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
     (`data-testid="line-refresh-tooltip"`). A click reads as **three** states, in this order:
-    **Updating** (`data-testid="line-refresh-updating"`, `role="status"`) for as long as THAT
-    click's own request is outstanding → a transient GREEN **Updated** confirmation
-    (`data-testid="line-refresh-confirmation"`, `role="status"`, `text-green-600 dark:text-green-400`
-    on both the tick and the label, ~2s) once that request settles **without an error** → the
-    countdown again. There is no separate `Refresh now` button any more, and the trigger is only as
-    wide as the row it draws. Deliberately no interval picker (unlike situasi), the 30s cadence is
-    fixed.
+    **Updating** (`data-testid="line-refresh-updating"`, `role="status"`) → a transient GREEN
+    **Updated** confirmation (`data-testid="line-refresh-confirmation"`, `role="status"`,
+    `text-green-600 dark:text-green-400` on both the tick and the label, ~2s) → the countdown again.
+    Only the FIRST of the three is not click-gated: "Updating" tracks `HomeStore.isRefreshing`, so
+    it is up while ANY non-initial refresh is in flight — a click, the 30s beat, any other reload —
+    and its one exclusion is the **pristine initial load** (a first paint is not a refresh), derived
+    from `isLoading() || isLoadingLastWeek()`. "Updated" stays **click-armed**: it appears only once
+    a clicked request settles **without an error**, so a reader watching the beat is never told
+    "just refreshed" on a timer they did not set. There is no separate `Refresh now` button any
+    more, and the trigger is only as wide as the row it draws. Deliberately no interval picker
+    (unlike situasi), the 30s cadence is fixed.
     ⚠️ Already-loaded `Load More` pages are **never** dropped by that refresh — a 30-second reset of
     the appended pages would wipe the reader's place in a long feed — which is why the beat calls
     `reloadFirstPages()` and not `reloadAll()`; `reloadAll()` (full reset) stays with the submit box,
@@ -302,7 +307,9 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     `hasError` ORs in all three resources (the retry banner covers a last-week failure too);
     `isRefreshing` ORs in all three resources' **`isFetching`** — the raw in-flight flag, which
     unlike `isLoading` is observable for every reload — and is what the refresh control watches to
-    know a refresh actually started and finished.
+    know a refresh actually started and finished. Its ONE consumer-side exclusion is the pristine
+    first fetch: the control ANDs the two loading flags (`isLoading() || isLoadingLastWeek()`), and
+    because both are pristine-only that exclusion can never fire again after the first load.
     ⚠️ `edges`/`lastWeekEdges` de-duplicate by `edge.node.id` on merge, first occurrence wins. That
     is a correctness requirement, not tidiness: `reloadFirstPages()` refetches page one while leaving
     the appended pages in place, and an admin edit or deletion between the two reads can shift a row
@@ -623,11 +630,17 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   and is rendered twice with a CSS visibility class rather than a JS breakpoint probe. Keep it that
   way — a second copy of this markup (or a `matchMedia`-driven placement) would either duplicate the
   confirmation state machine or desync SSR from hydration. It is also the reference for "how do I
-  react to a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the control arms
-  on click, latches on `HomeStore.isRefreshing()` going true, and confirms on it settling false with
-  `!hasError()`.
-  🔴 **The click's own `Updating` label is armed by the CLICK, not by `isRefreshing`**, and it has to
-  be torn down on **both** exits out of an armed window — the settle edge (placed _before_ the
+  react to a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the control latches
+  on `HomeStore.isRefreshing()` going true and CONFIRMS on it settling false with `!hasError()`.
+  🔴 **The `Updating` label tracks `isRefreshing`, NOT the click** — so the beat's own refreshes say
+  "Updating" too (`35b8c08`), and the **pristine initial load is the only exclusion**, derived from
+  the two pristine-first-fetch-only flags (`isLoading() || isLoadingLastWeek()`). The **"Updated"
+  confirmation is still click-armed**, because a passive reader must never be told "just refreshed"
+  on a 30s timer they did not set. Both instances of the control show the label (they share the
+  store's one beat; only one is visible per breakpoint) while each arms the confirmation off its own
+  click alone. The click-arm machinery therefore still belongs to the **confirmation**, and a click's
+  arm still has to be torn down on **both** exits out of an armed window — the settle edge (placed
+  _before_ the
   `hasError` early-return, so an errored refresh still drops the label) and the stale-arm expiry
   (`ARM_EXPIRY_MS`, the only exit for a click whose request never started). Clearing one edge only
   is how a no-op click ends up saying "Updating" for the rest of the session. The Updating branch is
