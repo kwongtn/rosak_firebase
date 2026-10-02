@@ -46,6 +46,7 @@ import {
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
 import { dateInputToIsoStart, dateInputToIsoEnd } from "../data/date-range.util";
+import { isSameMinute } from "../data/same-minute.util";
 import { linkStatusInput } from "../data/link-status-input.util";
 import {
   isoToOccurredAtInput,
@@ -190,13 +191,18 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
  * full (`Occurred Aug 1, 2026 08:30`) rather than by position or a tooltip, and
  * the filter is labelled "Occurred between" rather than "Submitted between":
  * one filter label cannot honestly describe a window over `occurredAt` any more.
- * The second line is drawn ONLY when the two instants differ (`created !==
- * occurredAt` on the naive local ISO strings the backend sends), because a
- * back-dated report is the ONLY case where the two clocks disagree and a second
- * identical line on every ordinary row would be noise an admin learns to skip.
- * This is also why the two instants are never conflated in the payload — see
- * `linkStatusInput` and the `occurredAt` note in `saveLinkEdit` for the
- * tri-state that keeps a save from silently rewriting one as the other.
+ * The second line is drawn ONLY when the two instants fall in DIFFERENT MINUTES —
+ * `isSameMinute(created, occurredAt)`, a rule about DISPLAY PRECISION and not
+ * about the data, because both lines are rendered `MMM d, y HH:mm` and the
+ * seconds are truncated away before anyone sees them. An exact-instant test would
+ * print `Aug 1, 2026 09:00` directly under an identical `Aug 1, 2026 09:00` for
+ * any payload whose two instants differ only below the minute, which is strictly
+ * worse than either showing one line or showing two that genuinely differ. A
+ * back-dated report is the case that still earns the line, and it is the only one
+ * an admin is meant to act on. This is also why the two instants are never
+ * conflated in the payload — see `linkStatusInput` and the `occurredAt` note in
+ * `saveLinkEdit` for the tri-state that keeps a save from silently rewriting one
+ * as the other.
  *
  * Row click opens a fully editable panel: the same field set as "Submit a
  * link" (URL required, title optional, the optional "when did this happen?"
@@ -476,6 +482,31 @@ export class SocialMediaLinksComponent {
    *  exactly one module so this table and the profile surface's badge cannot end
    *  up disagreeing ("1 links" vs "2 link"). */
   protected readonly threadLabel = threadLabel;
+
+  /** Re-exposed for the same reason, and with the same "one definition" rule: the
+   *  minute-bucketing that decides whether the Submitted cell needs a second line
+   *  lives in `same-minute.util.ts`, so its NaN guard and truncation rule cannot
+   *  be re-invented inline in a template binding. */
+  protected readonly isSameMinute = isSameMinute;
+
+  /* ---- Icon-only row verbs: the hover copy ------------------------------- */
+
+  /** 🔴 THE HOVER/AT HELP COPY, DECLARED ONCE EACH, and that is the whole point of
+   *  this block. The three tree verbs are icon-only buttons (see the action cell),
+   *  so a label can no longer be read off the button's own text: an icon has to
+   *  carry its meaning in `aria-label` AND `title`, and those two are set from the
+   *  SAME field precisely so a screen reader and a mouse user cannot be told
+   *  different things by a copy change. Literal strings in the template would drift
+   *  the moment one of the two was edited.
+   *
+   *  Each is the `?? ` FALLBACK of its button's title — what the tooltip says when
+   *  the action is AVAILABLE. The blocked case is the other branch of the same
+   *  binding and it stays a `null`-returning method (`moveBlockedReason`,
+   *  `nestBlockedReason`), because the reason is per ROW and per QUEUE STATE while
+   *  this is constant. */
+  protected readonly moveUpHelp = "Move this link one place earlier in the conversation.";
+  protected readonly moveDownHelp = "Move this link one place later in the conversation.";
+  protected readonly nestHelp = "Nest the ticked links under this one.";
 
   /* ---- Hierarchy: depth, sequence, nesting ------------------------------- */
 

@@ -20,6 +20,7 @@ import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { SocialMediaLinksComponent } from "./links.component";
 import { dateInputToIsoStart, dateInputToIsoEnd } from "../data/date-range.util";
+import { isSameMinute } from "../data/same-minute.util";
 /* The real app-nav/footer pull in browser-only services (ThemeService needs
  * matchMedia); the shell chrome is irrelevant to these specs, so swap in
  * empty stand-ins. */
@@ -121,6 +122,14 @@ interface ComponentUnderTest {
   canMoveUp(link: SocialMediaLinkRow): boolean;
   canMoveDown(link: SocialMediaLinkRow): boolean;
   moveBlockedReason(link: SocialMediaLinkRow, direction: "up" | "down"): string | null;
+  /* The icon-only verbs' help copy. Read through the component rather than
+   * repeated as literals here, so a copy change cannot fail these specs for the
+   * wrong reason — and so an `aria-label`/`title` mismatch stays the real thing
+   * they test. */
+  moveUpHelp: string;
+  moveDownHelp: string;
+  nestHelp: string;
+  isSameMinute: (a: string | null | undefined, b: string | null | undefined) => boolean;
   moveLinkUp(link: SocialMediaLinkRow): Promise<boolean>;
   moveLinkDown(link: SocialMediaLinkRow): Promise<boolean>;
   editOccurredAt: WritableSignal<string>;
@@ -1291,33 +1300,81 @@ describe("SocialMediaLinksComponent", () => {
 
   /* ---- The two clocks, merged into one cell ---------------------------- */
 
-  it("puts the event instant under the report instant only when they differ", async () => {
+  it("puts the event instant under the report instant only across DIFFERENT minutes", async () => {
     await initialLoadsSettled(asTestable(fixture));
-    await renderRows([
+    // Three rows, and the fixtures are chosen so the MINUTES provably differ —
+    // not merely the strings. The middle one is the regression: same displayed
+    // minute, different seconds, which an exact-string gate would print as a second
+    // line reading identically to the first.
+    const rows = [
       makeLink({
         id: "backdated",
         created: "2026-08-01T09:00:00",
         occurredAt: "2026-07-28T21:15:00",
       }),
-      makeLink({ id: "same", created: "2026-08-01T09:00:00", occurredAt: "2026-08-01T09:00:00" }),
-    ]);
+      makeLink({
+        id: "sub-minute",
+        created: "2026-08-01T09:00:00",
+        occurredAt: "2026-08-01T09:00:45",
+      }),
+      makeLink({
+        id: "same",
+        created: "2026-08-01T09:00:00",
+        occurredAt: "2026-08-01T09:00:00",
+      }),
+      makeLink({
+        id: "next-minute",
+        created: "2026-08-01T09:00:59",
+        occurredAt: "2026-08-01T09:01:00",
+      }),
+    ];
+    await renderRows(rows);
+    const component = asTestable(fixture);
 
+    // 🔴 THE BACK-DATED REPORT is the case the line exists for — labelled in full,
+    // because "which of these two is the event time" is not answerable from
+    // position alone.
     const dates = rowCell(0, 6).querySelectorAll("[data-testid='link-occurred']");
-    // 🔴 The back-dated report is the ONE case the two clocks disagree about, and
-    // it is the only case that earns a second line — labelled in full, because
-    // "which of these two is the event time" is not answerable from position.
     expect(dates).toHaveLength(1);
     expect(dates[0].textContent?.replace(/\s+/g, " ").trim()).toBe("Occurred Jul 28, 2026 21:15");
     // Quieter than the line above it, so a scan reads the report instant first.
     expect(dates[0].className).toContain("text-xs");
     expect(dates[0].className).toContain("text-muted-foreground");
 
-    // Equal instants: one line, and no "Occurred" at all. The backend writes
-    // `occurred_at = created` whenever the submitter stated no event time, so this
-    // is the common case and a second identical line on every row would be noise.
+    // 🔴 SAME MINUTE, DIFFERENT SECONDS: no line. Both would render as the identical
+    // "Aug 1, 2026 09:00", so two lines here are two indistinguishable values — worse
+    // than either one line or two genuinely different ones. Nothing about this
+    // payload is broken; two DateTimes written microseconds apart produce it.
     expect(rowCell(1, 6).querySelector("[data-testid='link-occurred']")).toBeNull();
-    expect(rowCell(1, 6).textContent).toContain("9:00");
     expect(rowCell(1, 6).textContent).not.toContain("Occurred");
+    // …and on screen it is INDISTINGUISHABLE from the byte-identical row below it,
+    // which is the premise: if this row printed a second line it would read as the
+    // same value twice, because `09:00` and `09:00:45` both render `Aug 1, 2026 09:00`.
+    const shownMinute = (row: number): string | undefined =>
+      rowCell(row, 6).querySelector("span")?.textContent?.trim();
+    expect(shownMinute(1)).toBe("Aug 1, 2026 09:00");
+    expect(shownMinute(1)).toBe(shownMinute(2));
+    expect(shownMinute(0)).toBe(shownMinute(1));
+
+    // Byte-identical: one line. The backend writes `occurred_at = created` whenever
+    // the submitter stated no event time, so this is the overwhelming common case and
+    // a second identical line on every row would be noise an admin learns to skip.
+    expect(rowCell(2, 6).querySelector("[data-testid='link-occurred']")).toBeNull();
+    expect(rowCell(2, 6).textContent).not.toContain("Occurred");
+
+    // 🔴 AND THE MINUTE BOUNDARY IS A BOUNDARY: 09:00:59 and 09:01:00 render as
+    // 09:00 and 09:01, so the second line DOES appear. Truncation, not rounding —
+    // a `Math.round` bucket would put the first in 09:01 and suppress this line.
+    expect(rowCell(3, 6).querySelector("[data-testid='link-occurred']")).not.toBeNull();
+    expect(rowCell(3, 6).querySelector("[data-testid='link-occurred']")?.textContent?.trim()).toBe(
+      "Occurred Aug 1, 2026 09:01",
+    );
+
+    // The gate is the shared util, re-exposed rather than re-implemented, so its NaN
+    // guard and truncation rule cannot be re-invented inside a binding.
+    expect(component.isSameMinute("2026-08-01T09:00:00", "2026-08-01T09:00:45")).toBe(true);
+    expect(component.isSameMinute("2026-08-01T09:00:59", "2026-08-01T09:01:00")).toBe(false);
+    expect(component.isSameMinute).toBe(isSameMinute);
   });
 
   it("merged the two date columns into one and the Thread chip into the URL cell", async () => {
@@ -2424,8 +2481,14 @@ describe("SocialMediaLinksComponent", () => {
     // which end they are.
     expect((up[0] as HTMLButtonElement).getAttribute("title")).toContain("Already first");
     expect((up[0] as HTMLButtonElement).disabled).toBe(true);
-    // A live button carries NO title at all — `?? null` really does remove it.
-    expect((up[1] as HTMLButtonElement).getAttribute("title")).toBeNull();
+    // A LIVE icon-only button carries the help copy instead of the reason — it is
+    // icon-only, so nothing on it says what it does and a mute live button would be
+    // an unlabelled affordance. Same field as its `aria-label`, read here through
+    // the component so the spec states the COPY once rather than duplicating it.
+    expect((up[1] as HTMLButtonElement).getAttribute("title")).toBe(asTestable(fixture).moveUpHelp);
+    expect((up[1] as HTMLButtonElement).getAttribute("aria-label")).toBe(
+      asTestable(fixture).moveUpHelp,
+    );
     expect((up[1] as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -2543,6 +2606,123 @@ describe("SocialMediaLinksComponent", () => {
     expect(component.nestBlockedReason(rows[2])).toContain("cycle");
     expect(nestButtons()[2].disabled).toBe(true);
     expect(nestButtons()[2].getAttribute("title")).toContain("cycle");
+  });
+
+  /* ---- Icon-only row verbs ---------------------------------------------- */
+
+  it("renders the three tree verbs as icon-only buttons whose text is empty BY CONSTRUCTION", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const rows = [makeLink({ id: "a" }), makeLink({ id: "b" })];
+    await renderRows(rows);
+    const component = asTestable(fixture);
+    withCompleteQueue();
+    component.toggleRowSelection("a");
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Indexed by which of the two rows carries an ENABLED instance of that verb, so
+    // every assertion here is about the LIVE state: `a` heads the root run and is
+    // the ticked row, so its up and its nest are blocked and `b`'s are not.
+    const verbs = [
+      { id: "move-link-up", help: component.moveUpHelp, index: 1 },
+      { id: "move-link-down", help: component.moveDownHelp, index: 0 },
+      { id: "nest-under", help: component.nestHelp, index: 1 },
+    ];
+    for (const verb of verbs) {
+      const button = (fixture.nativeElement as HTMLElement).querySelectorAll(
+        `tbody [data-testid="${verb.id}"]`,
+      )[verb.index] as HTMLButtonElement;
+      expect(button).not.toBeNull();
+      expect(button.disabled).toBe(false);
+      // 🔴 ICON-ONLY MEANS NO LABEL TEXT, BY CONSTRUCTION: the button's children are
+      // a single `<svg>` and nothing else, so there is no node that could hold a
+      // word. `trim()` because the template's whitespace between the tags is real
+      // text content; the SVG is not trimmed away by the DOM but whitespace-only
+      // content is what this assertion is actually about.
+      expect(button.querySelector("svg")).not.toBeNull();
+      expect(button.textContent?.trim()).toBe("");
+      expect(button.innerHTML.includes("Move up")).toBe(false);
+      expect(button.innerHTML.includes("Nest under")).toBe(false);
+      // The glyph is decoration beside a labelled control: announcing the arrow's
+      // shape after the sentence that already names the action would read the icon
+      // out loud a second time.
+      expect(button.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+      expect(button.querySelector("svg")?.getAttribute("viewBox")).toBe("0 0 24 24");
+      // And the help copy is stated TWICE from ONE source — `aria-label` for a
+      // screen reader, `title` for a mouse — so the two cannot drift.
+      expect(button.getAttribute("aria-label")).toBe(verb.help);
+      expect(button.getAttribute("title")).toBe(verb.help);
+    }
+  });
+
+  it("swaps an icon verb's tooltip to its blocked reason, keeping the aria-label stable", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    const rows = [makeLink({ id: "a" }), makeLink({ id: "b" })];
+    await renderRows(rows);
+    const component = asTestable(fixture);
+    withCompleteQueue();
+    component.toggleRowSelection("a");
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const up = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="move-link-up"]',
+    );
+    const down = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="move-link-down"]',
+    );
+    const nest = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="nest-under"]',
+    );
+
+    // `a` heads the root run, so its up is blocked; `b` is last, so its down is.
+    expect((up[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((up[0] as HTMLButtonElement).getAttribute("title")).toContain("Already first");
+    expect((down[1] as HTMLButtonElement).disabled).toBe(true);
+    expect((down[1] as HTMLButtonElement).getAttribute("title")).toContain("Already last");
+
+    // 🔴 REASON AND HELP ARE MUTUALLY EXCLUSIVE, and the `aria-label` NEVER changes
+    // with them: the accessible NAME is what the button is, which is constant, while
+    // the tooltip is what is happening to it right now, which is not. Binding the
+    // reason to `aria-label` would announce "Already first among the links sharing
+    // this parent" as the control's name.
+    expect((up[0] as HTMLButtonElement).getAttribute("aria-label")).toBe(component.moveUpHelp);
+    expect((down[1] as HTMLButtonElement).getAttribute("aria-label")).toBe(component.moveDownHelp);
+    // The ticked row's own nest is a cycle: disabled, cycle reason, same label.
+    expect((nest[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((nest[0] as HTMLButtonElement).getAttribute("title")).toContain("cycle");
+    expect((nest[0] as HTMLButtonElement).getAttribute("aria-label")).toBe(component.nestHelp);
+
+    // And an enabled button gets the help copy back, never a stale reason.
+    expect((down[0] as HTMLButtonElement).disabled).toBe(false);
+    expect((down[0] as HTMLButtonElement).getAttribute("title")).toBe(component.moveDownHelp);
+  });
+
+  it("keeps the icon verbs' gates: absent until their precondition, and stopPropagation intact", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    await renderRows([makeLink({ id: "a" }), makeLink({ id: "b" })]);
+    fixture.detectChanges();
+
+    // Neither gate moved: icon-only changed how the buttons LOOK, never WHEN they
+    // are drawn. A filtered queue still shows no move pair at all, and no ticks
+    // still shows no nest.
+    expect(byTestId("move-link-up")).toBeNull();
+    expect(byTestId("move-link-down")).toBeNull();
+    expect(byTestId("nest-under")).toBeNull();
+
+    // One tick admits nest only; the move pair still needs a complete queue.
+    asTestable(fixture).toggleRowSelection("a");
+    fixture.detectChanges();
+    expect(byTestId("nest-under")).not.toBeNull();
+    expect(byTestId("move-link-up")).toBeNull();
+
+    // `stopPropagation` is the other half of an icon button: the row opens its
+    // editor on click, and "move this row" is not "open this row's editor". A
+    // full-row click still must not reach the `<tr>`.
+    byTestId("nest-under")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(asTestable(fixture).selectedLink()).toBeNull();
   });
 
   it("draws nest-under on every row after one tick, and withdraws it when the ticks go", async () => {

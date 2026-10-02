@@ -576,20 +576,35 @@
                   is SORTED on and what "Occurred between" windows — becomes a second,
                   quieter line UNDER it.
 
-                  🔴 EXACT STRING COMPARISON IS THE CORRECT "SAME INSTANT" TEST HERE,
-                  and it is deliberate rather than a shortcut. Both fields arrive as
+                  🔴 THE GATE IS THE MINUTE, NOT THE INSTANT, because the RENDERING
+                  is minute-precision: both lines go through `MMM d, y HH:mm`, so the
+                  seconds are gone before the admin sees either one. An exact-instant
+                  test would print `Aug 1, 2026 09:00` directly under an identical
+                  `Aug 1, 2026 09:00` on any row whose two clocks differ only below
+                  the minute — and two indistinguishable lines are worse than either
+                  showing one line or showing two that genuinely differ, because the
+                  admin cannot tell which mistake they are looking at. Nothing about
+                  the payload needs to be broken to produce that: two `DateTime`s
+                  written microseconds apart, or a value re-serialised through a path
+                  that normalised the seconds, are enough. So "same minute ⇒ same
+                  line", which is `isSameMinute` — and it buckets by TRUNCATION
+                  (`Math.floor(ms / 60_000)`), so `09:00:59` and `09:01:00` are
+                  different minutes. A rounding implementation would push the first up
+                  into the second and report a whole-minute disagreement as agreement.
+
+                  🔴 AND `isSameMinute` NEVER LETS `NaN` DECIDE IT. Both fields are
                   naive local ISO strings from the backend (USE_TZ = False, no offset
-                  and no `Z`), and the backend writes `occurred_at = created` whenever
-                  a submitter does not state an event time — so for the overwhelming
-                  majority of rows the two strings are byte-identical, and there is
-                  no second fact to show. Parsing both through `new Date()` and
-                  comparing instants would be strictly worse: `strictNullChecks` is
-                  off in this repo, so a payload missing `occurredAt` would parse to
-                  `NaN`, `NaN !== NaN` would be TRUE, and the cell would print
-                  "Occurred Invalid Date" on exactly the rows a test fixture
-                  under-specified. A back-dated report is the ONE case the two clocks
-                  disagree and the only case worth the extra line, and it is now the
-                  only case that gets one.
+                  and no `Z`), `strict`/`strictNullChecks` are off, so an
+                  under-specified fixture or a payload that dropped the key can hand
+                  the comparison two unparseable values — and `NaN !== NaN` is TRUE,
+                  which would report DIFFERENT instants as the same and render the
+                  line through the same date pipe as `Invalid Date`. The util returns
+                  `false` for any unparseable side, so a broken payload can only ever
+                  ADD a (harmless, redundant) line, never suppress a real one or print
+                  a broken one. Its exact-string fast path covers the common case —
+                  the backend writes `occurred_at = created` whenever a submitter
+                  states no event time, so most rows are byte-identical — without
+                  parsing at all.
 
                   `whitespace-nowrap` STAYS on the cell: the two lines must each
                   read as a single value, and a wrapped "Aug 1, 2026 08:30" reads as
@@ -600,7 +615,7 @@
                 <td hlmTd class="py-3 whitespace-nowrap" data-testid="link-submitted">
                   <div class="flex flex-col items-start gap-0.5">
                     <span>{{ link.created | date: "MMM d, y HH:mm" }}</span>
-                    @if (link.created !== link.occurredAt) {
+                    @if (!isSameMinute(link.created, link.occurredAt)) {
                       <span class="text-muted-foreground text-xs" data-testid="link-occurred">
                         Occurred {{ link.occurredAt | date: "MMM d, y HH:mm" }}
                       </span>
@@ -611,7 +626,10 @@
                   <!--
                     flex-wrap: the action set grew with the tree (sequence, nesting),
                     and a wrapping cell degrades to a taller row instead of an
-                    action that has scrolled out of reach on a wide table.
+                    action that has scrolled out of reach on a wide table. The three
+                    tree verbs are now icon-only `size-7` squares rather than
+                    `size="sm"` buttons with three-to-four words each, which is what
+                    keeps the row to one line now that the sequence actions appear.
                   -->
                   <div class="flex flex-wrap items-center gap-2">
                     @if (link.status !== "LIVE") {
@@ -657,40 +675,89 @@
                       and the toolbar's "Show all links" is the one click that turns them on.
 
                       ONCE THE QUEUE IS COMPLETE they come back with everything else:
-                      disabled at the two ends of the STORED run, with that reason on hover
-                      and NO title at all when they work. `attr.title`, not `[title]`:
-                      a property binding coerces the `?? null` to the literal string
-                      "null", so a live button would show a tooltip reading "null" on
-                      hover — which is what an attribute binding's null-removal exists
-                      to prevent, and what "this button has no reason" has to mean. A
-                      swap needs an adjacent row,
-                      and this table shows the queue's `occurredAt DESC, id DESC` order while
-                      the write sets the STORED sibling order (`position` ASC, then `id`), so
-                      the payload is that whole run with this row moved one place — never the
-                      two rows alone, and never the order the table happens to show.
+                      disabled at the two ends of the STORED run. A swap needs an
+                      adjacent row, and this table shows the queue's
+                      `occurredAt DESC, id DESC` order while the write sets the STORED
+                      sibling order (`position` ASC, then `id`), so the payload is
+                      that whole run with this row moved one place — never the two
+                      rows alone, and never the order the table happens to show.
+
+                      ⚠️ ICON-ONLY, SO THE TOOLTIP IS NOT OPTIONAL AND NOT DECORATIVE.
+                      These three buttons used to spell out their labels, which is what
+                      made the action cell wrap to two lines and pushed Delete toward
+                      the edge. An arrow glyph carries none of that meaning on its
+                      own, so each button now states it TWICE and from ONE source:
+                      `aria-label` (what a screen reader announces) and `title` (what a
+                      mouse user reads on hover) are both bound to the same field on
+                      the class — `moveUpHelp` / `moveDownHelp` / `nestHelp`. The
+                      `title` is the blocked reason whenever there IS one
+                      (`moveBlockedReason` / `nestBlockedReason`), and the help copy
+                      only when the action is live, so the two states are mutually
+                      exclusive and a live button is never silently mute.
+
+                      `attr.title`, NOT `[title]` — deliberately kept even though both
+                      branches are now non-null strings, because `moveBlockedReason`
+                      returns `string | null` and the guard has to survive whoever
+                      widens it next. A property binding coerces a null to the literal
+                      string "null", which is a tooltip reading "null" on hover;
+                      attribute binding removes the attribute instead. The same
+                      reasoning covers the `aria-hidden` on each `<svg>`: the glyph is
+                      decoration beside a labelled control, so announcing it twice
+                      would read the icon's shape out loud after the sentence that
+                      already names the action.
+
+                      `size="icon-sm"` (size-7) rather than `size="sm"`: an icon
+                      button has no text to give it width, and the square keeps the
+                      row height and the neighbouring buttons' height identical.
                     -->
                     @if (queueIsComplete()) {
                       <button
                         hlmBtn
-                        size="sm"
+                        size="icon-sm"
                         variant="ghost"
                         data-testid="move-link-up"
                         [disabled]="isLoading() || !canMoveUp(link)"
-                        [attr.title]="moveBlockedReason(link, 'up') ?? null"
+                        [attr.aria-label]="moveUpHelp"
+                        [attr.title]="moveBlockedReason(link, 'up') ?? moveUpHelp"
                         (click)="$event.stopPropagation(); moveLinkUp(link)"
                       >
-                        Move up
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="size-4"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="m5 12 7-7 7 7" />
+                          <path d="M12 19V5" />
+                        </svg>
                       </button>
                       <button
                         hlmBtn
-                        size="sm"
+                        size="icon-sm"
                         variant="ghost"
                         data-testid="move-link-down"
                         [disabled]="isLoading() || !canMoveDown(link)"
-                        [attr.title]="moveBlockedReason(link, 'down') ?? null"
+                        [attr.aria-label]="moveDownHelp"
+                        [attr.title]="moveBlockedReason(link, 'down') ?? moveDownHelp"
                         (click)="$event.stopPropagation(); moveLinkDown(link)"
                       >
-                        Move down
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="size-4"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 5v14" />
+                          <path d="m19 12-7 7-7-7" />
+                        </svg>
                       </button>
                     }
                     <!--
@@ -713,20 +780,38 @@
                       server rejects as a unit. `canNestUnder` stays the per-row
                       authority; `nestSelectionReady` is only the queue-wide gate for
                       whether the button exists at all.
+
+                      ICON-ONLY, and for THIS one the glyph carries a second job: a
+                      corner-down-right indent arrow is the conventional "make this a
+                      child of the thing above it", which a word could not say in a
+                      cell this size. The tooltip is the cycle reason where there is
+                      one and `nestHelp` otherwise, sharing its `aria-label` — see
+                      the block above for why `attr.title` and not `[title]`.
                     -->
                     @if (nestSelectionReady()) {
                       <button
                         hlmBtn
-                        size="sm"
+                        size="icon-sm"
                         variant="ghost"
                         data-testid="nest-under"
                         [disabled]="isLoading() || !canNestUnder(link)"
-                        [attr.title]="
-                          nestBlockedReason(link) ?? 'Nest the ticked links under this one.'
-                        "
+                        [attr.aria-label]="nestHelp"
+                        [attr.title]="nestBlockedReason(link) ?? nestHelp"
                         (click)="$event.stopPropagation(); nestSelectedUnder(link)"
                       >
-                        Nest under…
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="size-4"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="m15 10 5 5-5 5" />
+                          <path d="M4 4v7a4 4 0 0 0 4 4h12" />
+                        </svg>
                       </button>
                     }
                     <!--
