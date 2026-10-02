@@ -89,6 +89,11 @@ is drawn only when its precondition holds and a target-less row still deserves a
 `string | null`, the null branch is a **rendering** decision, and `attr.` is the spelling that can make
 it. Worth a look whenever a tooltip reads as a word rather than a sentence: a stray `null`/`undefined`
 in user-visible text almost always means a property binding where an attribute binding was needed.
+**Follow-up (2f5bd09)**: the move/nest verbs are **icon-only** buttons now, and each `title` binds
+`reason ?? help` — so both branches are non-null strings and the bug above can no longer show through
+them. `attr.title` is **retained anyway**, because `moveBlockedReason` still returns `string | null`
+and the guard has to survive whoever widens it next; that is the durable form of the rule, since a
+binding is only as safe as the type it is handed.
 
 ### [2026-10-02] console/profile links: a targeted nest was gated on the UNTARGETED verb's minimum, so the basic tree operation was impossible
 

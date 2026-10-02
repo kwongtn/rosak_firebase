@@ -110,11 +110,13 @@
   (collapsed by default, one row per link, children revealed beneath their parent), with server-side
   filters, per-row status actions (Approve / Hide / Mark completed / Delete), a full editable panel,
   and the conversation hierarchy as both a moderation/organisation tool (multi-select → group, per-row
-  Nest under / Ungroup / Move up / Move down) and a display mode (per-row chevron, one **rail** per
+  Nest under / Ungroup / Move up / Move down — the three tree verbs are **icon-only** buttons with
+  hover help) and a display mode (per-row chevron, one **rail** per
   ancestor level plus a child-row tint, and the `N links` chip as the URL cell's second line).
 - **Location:** `src/app/features/console/insiden/links/links.component.ts` + `.html`; documents and
   DTOs in `../data/insiden-console.queries.ts`; pure helpers in `../data/date-range.util.ts`,
-  `../data/link-status-input.util.ts`, `../data/search-debounce.util.ts` plus the two **shared**
+  `../data/link-status-input.util.ts`, `../data/search-debounce.util.ts`,
+  `../data/same-minute.util.ts` (the Submitted cell's same-minute rule) plus the two **shared**
   insiden utils `insiden/data/link-occurred-at.util.ts` and
   `insiden/data/link-thread-selection.util.ts`.
 - **Route:** `CONSOLE_ROUTES` → `{ path: "links", canActivate: [adminOnlyGuard],
@@ -135,10 +137,18 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   `-occurredAt, -id`) and the range filter windows the same column, but an admin _moderates_ against
   the report instant (`created`) — "how long has this been sitting un-reviewed" is a `created`
   question, "is this report back-dated" is an `occurredAt` one. So the **Submitted** cell shows
-  `created` and, **only where the two instants actually differ**, a quieter `Occurred {date}` line
-  under it (2026-10-02) — a back-dated report is the one case where the clocks disagree, and a
-  second identical line on every ordinary row is noise an admin learns to skip. Two columns of their
-  own was the same answer costing a tenth of the table's width; the filter is labelled "Occurred
+  `created` and, **only across different MINUTES**, a quieter `Occurred {date}` line
+  under it — a back-dated report is the case where the clocks genuinely disagree and the only one an
+  admin is meant to act on. 🔴 **The granularity is the MINUTE because that is the rendered precision**:
+  both lines go through `MMM d, y HH:mm`, so the seconds are gone before anyone sees either one, and an
+  exact-instant test would print `Aug 1, 2026 09:00` directly under an identical `Aug 1, 2026 09:00` on
+  any row whose two clocks differ only below the minute — worse than either showing one line or showing
+  two that genuinely differ, because the admin cannot tell which mistake they are looking at. Nothing
+  about a payload has to be broken to produce that: two `DateTime`s written microseconds apart, or a
+  value re-serialised through a path that normalised the seconds, are enough. It is a rule about
+  **rendering**, not about the data, and it is `isSameMinute` in
+  `../data/same-minute.util.ts` (2026-10-02). Two columns of their own was the same answer costing a
+  tenth of the table's width; the filter is labelled "Occurred
   between", because no single label can honestly describe a window over `occurredAt` any more. The
   instants stay separate in the **payload** (`linkStatusInput`, the `occurredAt` note in
   `saveLinkEdit`), because a save must not silently rewrite one as the other.
@@ -209,13 +219,30 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   rows and both `colspan`s are 8.
   - ⚠️ **Two pairs of columns merged (2026-10-02), so the table is eight wide rather than ten.**
     `Thread` moved **into the URL cell** as the anchor's second line, and `Occurred` merged into the
-    Submitted cell as a second line drawn **only** when `link.created !== link.occurredAt` on the naive
-    local ISO strings the backend sends. The exact-string test is deliberate and _not_ a shortcut:
-    parsing both sides through `new Date()` would be strictly worse here, because `strictNullChecks` is
-    off in this repo, so a payload missing `occurredAt` would parse to `NaN`, `NaN !== NaN` is **true**,
-    and the cell would print "Occurred Invalid Date" on exactly the under-specified fixture rows. Both
-    fields arrive naive local wall time (`USE_TZ = False`, no offset) and the date pipe renders an
-    offset-free string in the viewer's own zone, so the value shown is the server's wall time, unshifted.
+    Submitted cell as a second line gated on **`!isSameMinute(link.created, link.occurredAt)`** — the
+    rule is stated once above; the mechanics are `same-minute.util.ts`'s, mirrored here because this
+    bullet is what a reader arrives looking for:
+    - 🔴 **The exact-string fast path comes FIRST, and it is not a micro-optimisation.** It is the only
+      branch that can be right about a payload it CANNOT parse. The backend's `USE_TZ = False` columns
+      send naive local wall time (`2026-08-01T09:00:00`, no offset and no `Z`) and `Date.parse` is the
+      one place that resolves such a string in the viewer's zone; when both sides are byte-identical the
+      answer is `true` whatever that resolution produced — and a pair of equal strings is also how the
+      backend spells "the submitter stated no event time", i.e. the overwhelming majority of rows.
+      Comparing first means those rows never depend on the host TZ at all.
+    - ⚠️ **TRUNCATION, not rounding**: `Math.floor(ms / 60_000)` buckets each instant into the minute it
+      falls in, so `09:00:59` and `09:01:00` are **different** minutes. Rounding would push the first up
+      into the second and report a whole-minute disagreement as agreement — the exact boundary this
+      exists to get right.
+    - 🔴 **Every unparseable side returns `false`, so `NaN` never decides it.** `strict` /
+      `strictNullChecks` are off in this repo, so a hand-built fixture, a stale cache or a host that
+      stopped selecting the field can hand the comparison two unparseable values — and `NaN !== NaN` is
+      **true**, so a naive `a === b || parse(a) === parse(b)` would report DIFFERENT instants as the
+      same and render the line through the same date pipe as `Invalid Date`. Returning `false` can only
+      ever **ADD** a (harmless, redundant) line, never suppress a real one or print a broken one; the
+      identical-strings fast path is deliberately exempt, because two identical invalid strings really are
+      the same value. The util is pure and total (no Angular, no `signal`, no clock read, no `any`) and
+      re-exposed on the class as `isSameMinute`, so the NaN guard and the truncation rule cannot be
+      re-invented inline in a template binding.
   - The chip's new home is a `flex-col items-start` **inside the URL cell** (`data-testid="link-thread"`,
     unchanged testid / gate / tooltip), so its left edge **is** the URL text's left edge by construction
     — no `margin-left` to compute and therefore nothing that can drift when the rail width, the chevron
@@ -281,9 +308,11 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   is legible at a glance next to the report one. The detail sheet's URL anchor already used `break-all`
   and is the precedent.
 - **Row actions:** Approve (when `status !== "LIVE"`), Hide (when `status !== "HIDDEN"`), Mark
-  completed (when not `completed`), **Move up** / **Move down**
-  (`data-testid="move-link-up"` / `move-link-down`), **Nest under…** (`data-testid="nest-under"`),
-  **Ungroup** (`data-testid="ungroup-link"`, **sublinks only** — a root has nothing to detach), Delete.
+  completed (when not `completed`), the **icon-only** tree verbs **Move up** / **Move down** /
+  **Nest under…** (`data-testid="move-link-up"` / `move-link-down` / `nest-under` — arrow-up, arrow-down,
+  corner-down-right), **Ungroup** (`data-testid="ungroup-link"`, **sublinks only** — a root has nothing
+  to detach), Delete. The cell is `flex-wrap`, so a wider set degrades to a taller row rather than an
+  unreachable control.
   - 🔴 **The two that have a PRECONDITION are not DRAWN until it holds** (2026-10-02), and this is a
     rendering gate, not a weakened one. Move up / Move down are inside `@if (queueIsComplete())`, and
     Nest under… inside `@if (nestSelectionReady())` — so the default **Pending** queue shows no dead pair
@@ -295,13 +324,27 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
     run with that reason on hover, and Nest under… is disabled on every row that cannot be the target —
     the ticked rows themselves, since nesting a selection under one of its own links is a cycle the
     server rejects as a unit.
-  - The move pair's title is bound with **`[attr.title]`**, not `[title]`: a property binding coerces the
-    `moveBlockedReason(…) ?? null` to the literal string `"null"`, so every _enabled_ button showed a
-    "null" tooltip. An attribute binding's null **removes** the attribute, which is what "this button has
-    no reason" has to mean.
-  - Every one calls `$event.stopPropagation()` so activating it does not also open the detail panel, and
-    the cell is `flex-wrap` so a wider action set degrades to a taller row rather than an unreachable
-    control. Row click / `Enter` opens the detail panel; the row's own checkbox stops propagation
+  - 🔴 **The three tree verbs are ICON-ONLY, so their meaning is stated TWICE from ONE source**
+    (2026-10-02). They used to spell out their labels, which is what made the action cell wrap to two
+    lines and pushed Delete toward the edge; an arrow glyph carries none of that meaning on its own, so
+    each button binds `[attr.aria-label]` (what a screen reader announces) and `[attr.title]` (what a
+    mouse user reads on hover) to the **same field on the class** — `moveUpHelp` / `moveDownHelp` /
+    `nestHelp` — declared once each as the `??` fallback of its title. The title is the blocked reason
+    whenever there IS one (`moveBlockedReason` / `nestBlockedReason`) and the help copy only while the
+    action is live, so the two states are mutually exclusive and a live button is never silently mute;
+    the reason stays a `null`-returning method because it is per ROW and per QUEUE STATE while the help
+    copy is constant. `attr.title` is **kept even though both branches are now non-null**, because
+    `moveBlockedReason` is typed `string | null` and the guard has to survive whoever widens it next —
+    a property binding coerces that null to the literal string `"null"`, which is a tooltip reading
+    "null" on hover, while an attribute binding removes the attribute. Each `<svg>` carries
+    `aria-hidden`: the glyph is decoration beside a labelled control, so announcing it would read the
+    icon's shape out loud after the sentence that already names the action.
+  - `size="icon-sm"` (a `size-7` square) rather than `size="sm"`: an icon button has no text to give it
+    width, and the square keeps the row height and its neighbours' height identical. The glyphs are
+    feather-style inline strokes (`viewBox="0 0 24 24"`, `stroke="currentColor"`, `size-4`), so they
+    inherit the button's own colour in every variant rather than shipping two sets of assets.
+  - Every one calls `$event.stopPropagation()` so activating it does not also open the detail panel. Row
+    click / `Enter` opens the detail panel; the row's own checkbox stops propagation
     (`(click)`, not `(change)` — `change` only fires after the click has already bubbled, so without
     this, ticking a row would also open its editor).
 - **Detail panel** (row click): the URL, title, the **"When did this happen?"** control
@@ -336,7 +379,8 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
     of children changes, from wherever the arrival order interleaved them to under their parent;
   - the **rails + child-row tint** (which are the indent itself), the `N links` chip + its coupling
     tooltip — now the URL cell's second line rather than a column of its own — and every per-row verb
-    (Ungroup / Move up / Move down / Nest under… / Approve / Hide / Mark completed / Delete) are reachable
+    (Ungroup / the icon-only Move up / Move down / Nest under… / Approve / Hide / Mark completed /
+    Delete) are reachable
     on every rendered row, the two that need a precondition only once it holds (see Row actions above). A
     collapsed conversation's descendants are simply not on screen — which is the point;
   - 🔴 **the chevron's gate is `childCountOf`, never `sublinkCount`.** `sublinkCount > 0` on a
@@ -377,7 +421,9 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   ticked, a `selection-hint` while fewer than two rows are ticked — **two spellings**, because the
   verbs have different minimums: with nothing ticked it says "tick a link to nest it under another,
   or tick two or more to group them into one conversation", and at exactly one tick it points at the
-  enabled Nest-under rows and offers the second tick for grouping. A `reorder-hint` paragraph renders
+  enabled Nest-under rows and offers the second tick for grouping. ⚠️ That hint **spells "Nest under…"
+  out in words on purpose**, and the copy is not to be tidied down to match the icon: it is the only
+  place on the surface that names the glyph. A `reorder-hint` paragraph renders
   whenever the queue is filtered and carries the one-click `reorder-show-all` action (see the gates
   below) — 🔴 and since 2026-10-02 that action is **never disabled**, not even mid-load, and is
   **right-aligned** (`ml-auto shrink-0` against a `flex w-full` hint whose sentence is `flex-1 min-w-0`),
