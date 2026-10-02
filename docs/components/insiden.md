@@ -468,8 +468,9 @@ value: number }>()` for the host's overlay. Emits `sheetClosed` on the sheet's o
     `threadLabel`
     is the **single place pluralisation is decided for a link conversation anywhere in the app**, and
     its remit is **wider than those two surfaces** — its documented consumer list is exactly:
-    1. the console triage chip (`/console/links`), whose thread cell falls back to an em dash
-       on `""`, plus `confirmThreadCoupling`;
+    1. the console triage chip (`/console/links`), which since 2026-10-02 sits **inside the URL cell**
+       under the anchor it describes rather than in a column of its own — and renders **nothing** on
+       `""` (not an em dash) — plus `confirmThreadCoupling`;
     2. the "My Submitted Links" badge on the profile page;
     3. `app-link-card`'s in-card indicator (`conversationLabel = threadLabel(sublinkCount() + 1)`),
        which both the visible chip and the toggle's `aria-label` read.
@@ -565,13 +566,14 @@ link"`): a chip would then sprout on every ordinary row in the app.
 ## 💡 Potential Feature Opportunities
 
 - **Extend thread UI to the flat surfaces — still open, and narrower than it was.** `app-link-thread`
-  is deliberately shipped on the **home feed** (today + Last Week) and the two management surfaces
-  (the console triage table and My Submitted Links, both of which show hierarchy as an _indent_ in a
-  flat list rather than as an expansion). `/insiden`'s Submitted Links tab, the situasi tab and the
-  per-incident cards stay flat and complete, because a reader browsing "everything submitted" would
-  lose rows the reader came for, and a per-line filter wants a complete list of reports about that
-  line. The component is host-agnostic and now recursive, so a host is closer than it was — but it is
-  still **not** a one-line swap, and the remaining work is entirely about **selections**:
+  is deliberately shipped on the **home feed** (today + Last Week), while the two management surfaces
+  roll their own: the console triage table is an **accordion over the ordered tree** (collapsed by
+  default, hierarchy drawn as one rail per ancestor level plus a child-row tint — 2026-10-02) and My
+  Submitted Links shows hierarchy as an _indent_ in a flat list. `/insiden`'s Submitted Links tab, the
+  situasi tab and the per-incident cards stay flat and complete, because a reader browsing "everything
+  submitted" would lose rows the reader came for, and a per-line filter wants a complete list of reports
+  about that line. The component is host-agnostic and now recursive, so a host is closer than it was —
+  but it is still **not** a one-line swap, and the remaining work is entirely about **selections**:
   1. `PUBLIC_SOCIAL_MEDIA_LINKS_QUERY` (Submitted Links, situasi, My Links, incident-card
      continuations) selects `parentId` / `isThreadRoot` / `sublinkCount` / `position` but
      **deliberately not `sublinks`**, which is the field the wrapper expands from.

@@ -110,8 +110,8 @@
   (collapsed by default, one row per link, children revealed beneath their parent), with server-side
   filters, per-row status actions (Approve / Hide / Mark completed / Delete), a full editable panel,
   and the conversation hierarchy as both a moderation/organisation tool (multi-select → group, per-row
-  Nest under / Ungroup / Move up / Move down) and a display mode (per-row chevron, depth indent,
-  `N links` chip).
+  Nest under / Ungroup / Move up / Move down) and a display mode (per-row chevron, one **rail** per
+  ancestor level plus a child-row tint, and the `N links` chip as the URL cell's second line).
 - **Location:** `src/app/features/console/insiden/links/links.component.ts` + `.html`; documents and
   DTOs in `../data/insiden-console.queries.ts`; pure helpers in `../data/date-range.util.ts`,
   `../data/link-status-input.util.ts`, `../data/search-debounce.util.ts` plus the two **shared**
@@ -134,9 +134,14 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
 - **Two clocks, on purpose:** the queue is **sorted** on the event instant (`occurredAt`,
   `-occurredAt, -id`) and the range filter windows the same column, but an admin _moderates_ against
   the report instant (`created`) — "how long has this been sitting un-reviewed" is a `created`
-  question, "is this report back-dated" is an `occurredAt` one. So the table shows **both** columns
-  side by side and the filter is labelled "Occurred between", because no single label can honestly
-  describe a window over `occurredAt` any more.
+  question, "is this report back-dated" is an `occurredAt` one. So the **Submitted** cell shows
+  `created` and, **only where the two instants actually differ**, a quieter `Occurred {date}` line
+  under it (2026-10-02) — a back-dated report is the one case where the clocks disagree, and a
+  second identical line on every ordinary row is noise an admin learns to skip. Two columns of their
+  own was the same answer costing a tenth of the table's width; the filter is labelled "Occurred
+  between", because no single label can honestly describe a window over `occurredAt` any more. The
+  instants stay separate in the **payload** (`linkStatusInput`, the `occurredAt` note in
+  `saveLinkEdit`), because a save must not silently rewrite one as the other.
 
 ### 🔌 Interface & Data Flow
 
@@ -170,7 +175,7 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   through `GraphQLClient.request` with a freshly minted `firebase-auth-key`. The node selection adds
   `occurredAt` and the four conversation scalars `parentId` / `isThreadRoot` / `sublinkCount` /
   `position`; `sublinks` is deliberately **not** selected — the accordion derives the hierarchy from
-  `parentId` **client-side** over the flat loaded array (the same data the depth indent and the
+  `parentId` **client-side** over the flat loaded array (the same data the depth rails and the
   reorder payload already use), so selecting the nested list would add nothing but let a HIDDEN row's
   URL/title travel inside a nested field of an admin-gated query. All four
   are **required** on `SocialMediaLinkRow` (unlike on the structural `LinkCardItem`, where they are
@@ -197,41 +202,108 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   - `deleteSocialMediaLink` (IsAdmin) — hard delete behind a native `confirm()`, plus a local row
     drop and panel close.
 - **Table columns:** select-all checkbox · URL (external link, `max-w-72`, carrying the **depth
-  indent** and `break-all`) · Title (`max-w-64`, `break-words`) · Submitter (carrying the per-row Official chip,
-  `data-testid="link-official"`) · Categories · Status · **Submitted** · **Occurred** · **Thread** ·
-  Actions. Ten columns; `min-w-[1280px]` (it grew with the sequence/nesting verbs in the action cell,
-  which would otherwise scroll out of reach on a narrow screen), and the loading/empty `colspan`s are 10.
-  ⚠️ The "Status" column and the "Status" filter are BOTH about the admin's `completed` handled flag
-  (a `Completed` / warning `Pending` badge, and the All/Pending/Completed select → `completed:
-Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` / `HIDDEN`), which
-  this queue never renders as a column. Approve and Hide are the verbs for that axis. The two are
-  independent (see `MISTAKES.md`), so a row can be `LIVE` and still read "Pending" here.
-- **Depth indent:** the URL cell's wrapper is `data-testid="link-depth"`, carrying
-  `[attr.data-depth]="depthOf(link)"` and `[style.padding-left.px]="depthOf(link) * depthIndentPx"`
-  (`DEPTH_INDENT_PX = 16` — a flat arithmetic scale, not a Tailwind class per level, so a hand-edited
-  row deeper than any class ladder still indents instead of snapping to column zero). `depthOf` walks
-  the row's `parentId` chain **inside the loaded set** and is bounded and cycle-safe. 🔴 A row whose
-  parent is not loaded counts as depth 0, and that is exactly what a filter causes: searching for a
-  phrase leaves a sublink's parent out of the result, and rendering it flush is honest, whereas
-  indenting by a depth the payload cannot support would make a filtered queue look corrupted.
+  rails**, the chevron and the `N links` chip, and `break-all`) · Title (`max-w-64`, `break-words`) ·
+  Submitter (carrying the per-row Official chip, `data-testid="link-official"`) · Categories · Status ·
+  **Submitted** · Actions. **Eight** columns; `min-w-[1280px]` (it grew with the sequence/nesting verbs
+  in the action cell, which would otherwise scroll out of reach on a narrow screen), and the skeleton
+  rows and both `colspan`s are 8.
+  - ⚠️ **Two pairs of columns merged (2026-10-02), so the table is eight wide rather than ten.**
+    `Thread` moved **into the URL cell** as the anchor's second line, and `Occurred` merged into the
+    Submitted cell as a second line drawn **only** when `link.created !== link.occurredAt` on the naive
+    local ISO strings the backend sends. The exact-string test is deliberate and _not_ a shortcut:
+    parsing both sides through `new Date()` would be strictly worse here, because `strictNullChecks` is
+    off in this repo, so a payload missing `occurredAt` would parse to `NaN`, `NaN !== NaN` is **true**,
+    and the cell would print "Occurred Invalid Date" on exactly the under-specified fixture rows. Both
+    fields arrive naive local wall time (`USE_TZ = False`, no offset) and the date pipe renders an
+    offset-free string in the viewer's own zone, so the value shown is the server's wall time, unshifted.
+  - The chip's new home is a `flex-col items-start` **inside the URL cell** (`data-testid="link-thread"`,
+    unchanged testid / gate / tooltip), so its left edge **is** the URL text's left edge by construction
+    — no `margin-left` to compute and therefore nothing that can drift when the rail width, the chevron
+    reserve or a gap changes. 🔴 `threadLabel`'s `""` answer renders **nothing** here, not an em dash: a
+    lone ungrouped link is the overwhelming majority of the queue, and a column of dashes was the
+    loudest thing on the row.
+  - ⚠️ The "Status" column and the "Status" filter are BOTH about the admin's `completed` handled flag
+    (a `Completed` / warning `Pending` badge, and the All/Pending/Completed select →
+    `completed: Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` /
+    `HIDDEN`), which this queue never renders as a column. Approve and Hide are the verbs for that
+    axis. The two are independent (see `MISTAKES.md`), so a row can be `LIVE` and still read
+    "Pending" here.
+- **Depth is drawn as RAILS plus a tint, not as padding (2026-10-02).** The URL cell's wrapper is
+  `data-testid="link-depth"`, carrying `[attr.data-depth]="depthOf(link)"` — the same number the rail
+  count is derived from, so a spec can assert the hierarchy without measuring pixels. The indent itself
+  is the rail **stack**: `depthRails(link)` returns one entry per ancestor level
+  (`Array.from({ length: depth }, …)` — the values are never read, only the length) and
+  `@for … track $index` draws that many `data-testid="link-rail"` spans, each
+  `border-border/60 shrink-0 self-stretch border-l` with its width **style-bound** —
+  `[style.width.px]="depthIndentPx"` rather than a `w-5` class, so `DEPTH_INDENT_PX` stays the ONE
+  definition of the rail step (a class here would render identically and be a second place to change
+  the geometry that no grep for the constant would find).
+  🔴 **The rails REPLACED `[style.padding-left.px]` rather than joining it**, and there is deliberately
+  **no `gap`** on the wrapper — a gap would fall _between_ two rails and break the line a reader follows
+  downward, so every gap here is an explicit `ml-1`. A bare gap reads as an indent only while you are
+  looking at that gap, and three levels of nothing read as three unrelated offsets.
+  - An `aria-hidden` **elbow** (`data-testid="link-elbow"`,
+    `border-border/60 h-6 shrink-0 self-start border-t`, the same
+    `[style.width.px]="depthIndentPx"` plus `[style.margin-left.px]="-depthIndentPx"`) is emitted on
+    the **last** rail only, which is what makes a rail mean something: without it a rail is a bare
+    vertical rule and nothing says the row hangs off _it_; the negative margin (`-depthIndentPx`)
+    pulls the stub back under the rail so it starts exactly on that rail's own line, and one per
+    level would draw a row of ticks with no row to attach the first of them to.
+  - `DEPTH_INDENT_PX` is now **20** and **is** the rail/elbow width the template binds
+    (`[style.width.px]="depthIndentPx"`, `-depthIndentPx` for the elbow's pull-back); it is no longer
+    multiplied into a padding. Binding it rather than writing `w-5` keeps the constant as the single
+    definition of the rail step, and it is exposed on the class rather than imported by the template
+    precisely so a `w-5` could never drift in beside it. It stays a flat scale — `@for` over the depth,
+    never a class ladder per level — so a hand-edited row deeper than any ladder still draws a rail per
+    level instead of snapping back to column zero and reading as a root.
+  - The rails are `aria-hidden`, so the chevron reserve span has to carry
+    `data-testid="chevron-placeholder"`: a spec asking "is the chevron's width reserved here?" cannot ask
+    for `aria-hidden` and mean one specific element.
+  - 🔴 A **child row is tinted** too: `[class.bg-muted/40]="depthOf(link) > 0"` on the `<tr>`, over
+    `hover:bg-muted`. The rails say _which_ ancestor a row hangs under; the tint says the weaker,
+    row-wide thing they cannot — "this is not a root, it belongs to a conversation above" — and it
+    survives the row being scanned rather than its left margin being counted. Hover still wins, because
+    `bg-muted` is a stronger value of the same token and comes later in the class list, so a pointer over
+    a tinted row darkens it instead of cancelling the hover.
+  - `depthOf` walks the row's `parentId` chain **inside the loaded set** and is bounded and cycle-safe.
+    🔴 A row whose parent is not loaded counts as depth 0, and that is exactly what a filter causes:
+    searching for a phrase leaves a sublink's parent out of the result, and rendering it flush is
+    honest, whereas indenting by a depth the payload cannot support would make a filtered queue look
+    corrupted.
 - **Long URLs and titles wrap; they are never clipped** (2026-10-01). The URL anchor carries
   `break-all` and the title cell `break-words`: a URL is **one unbroken token**, so without
   `break-all` a long address runs past `max-w-72` and the table's scroll container cuts off its tail —
   an admin cannot judge the link whose last characters they cannot see. A title is prose, so it gets
   `break-words` (break only where the text has no other opportunity) rather than `break-all`. Neither
-  cell may gain `truncate` / `whitespace-nowrap` / `overflow-hidden`. The two **date** columns keep
-  `whitespace-nowrap` on purpose: a wrapped `Aug 1, 2026 08:30` reads as two values, and the whole
-  point of showing both clocks side by side is that each is legible at a glance. The detail sheet's
-  URL anchor already used `break-all` and is the precedent.
+  cell may gain `truncate` / `whitespace-nowrap` / `overflow-hidden`. The single **Submitted** cell
+  keeps `whitespace-nowrap` on purpose (it holds both clocks, as two lines): a wrapped
+  `Aug 1, 2026 08:30` reads as two values, and the whole point of showing the event instant is that it
+  is legible at a glance next to the report one. The detail sheet's URL anchor already used `break-all`
+  and is the precedent.
 - **Row actions:** Approve (when `status !== "LIVE"`), Hide (when `status !== "HIDDEN"`), Mark
   completed (when not `completed`), **Move up** / **Move down**
   (`data-testid="move-link-up"` / `move-link-down`), **Nest under…** (`data-testid="nest-under"`),
   **Ungroup** (`data-testid="ungroup-link"`, **sublinks only** — a root has nothing to detach), Delete.
-  Every one calls `$event.stopPropagation()` so activating it does not also open the detail panel, and
-  the cell is `flex-wrap` so a wider action set degrades to a taller row rather than an unreachable
-  control. Row click / `Enter` opens the detail panel; the row's own checkbox stops propagation
-  (`(click)`, not `(change)` — `change` only fires after the click has already bubbled, so without
-  this, ticking a row would also open its editor).
+  - 🔴 **The two that have a PRECONDITION are not DRAWN until it holds** (2026-10-02), and this is a
+    rendering gate, not a weakened one. Move up / Move down are inside `@if (queueIsComplete())`, and
+    Nest under… inside `@if (nestSelectionReady())` — so the default **Pending** queue shows no dead pair
+    on every row, and the rows an admin is likely to nest under appear with the first tick. Two
+    permanently greyed buttons read as a broken table rather than as unavailable. The gates themselves
+    are **unchanged** — `canMoveUp` / `canMoveDown` / `canNestUnder` / `reorderSiblings` all still refuse
+    on the same conditions, because a programmatic caller reaches past the template.
+  - Once drawn they come back **fully**: Move up / Move down stay disabled at the two ends of the stored
+    run with that reason on hover, and Nest under… is disabled on every row that cannot be the target —
+    the ticked rows themselves, since nesting a selection under one of its own links is a cycle the
+    server rejects as a unit.
+  - The move pair's title is bound with **`[attr.title]`**, not `[title]`: a property binding coerces the
+    `moveBlockedReason(…) ?? null` to the literal string `"null"`, so every _enabled_ button showed a
+    "null" tooltip. An attribute binding's null **removes** the attribute, which is what "this button has
+    no reason" has to mean.
+  - Every one calls `$event.stopPropagation()` so activating it does not also open the detail panel, and
+    the cell is `flex-wrap` so a wider action set degrades to a taller row rather than an unreachable
+    control. Row click / `Enter` opens the detail panel; the row's own checkbox stops propagation
+    (`(click)`, not `(change)` — `change` only fires after the click has already bubbled, so without
+    this, ticking a row would also open its editor).
 - **Detail panel** (row click): the URL, title, the **"When did this happen?"** control
   (`data-testid="edit-occurred-at"`, hint "Clear it to fall back to the report time. This is the
   column the public feed sorts on."), the bulk tag block (lines/vehicles/stations/categories), the
@@ -262,10 +334,11 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
     children of its own gets its own chevron, so each level expands independently at any depth;
   - the **root order is unchanged** — the queue's `occurredAt DESC, id DESC`. Only the _placement_
     of children changes, from wherever the arrival order interleaved them to under their parent;
-  - the depth indent, the `N links` chip + its coupling tooltip, and every per-row verb (Ungroup /
-    Move up / Move down / Nest under… / Approve / Hide / Mark completed / Delete) are **unchanged**
-    and reachable on every rendered row. A collapsed conversation's descendants are simply not on
-    screen — which is the point;
+  - the **rails + child-row tint** (which are the indent itself), the `N links` chip + its coupling
+    tooltip — now the URL cell's second line rather than a column of its own — and every per-row verb
+    (Ungroup / Move up / Move down / Nest under… / Approve / Hide / Mark completed / Delete) are reachable
+    on every rendered row, the two that need a precondition only once it holds (see Row actions above). A
+    collapsed conversation's descendants are simply not on screen — which is the point;
   - 🔴 **the chevron's gate is `childCountOf`, never `sublinkCount`.** `sublinkCount > 0` on a
     filtered page describes descendants that are not in the result, and the chevron would expand to
     nothing; conversely `sublinkCount: 0` with a loaded child is hand-edited data, and refusing the
@@ -306,10 +379,17 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
   or tick two or more to group them into one conversation", and at exactly one tick it points at the
   enabled Nest-under rows and offers the second tick for grouping. A `reorder-hint` paragraph renders
   whenever the queue is filtered and carries the one-click `reorder-show-all` action (see the gates
-  below). A node with descendants
+  below) — 🔴 and since 2026-10-02 that action is **never disabled**, not even mid-load, and is
+  **right-aligned** (`ml-auto shrink-0` against a `flex w-full` hint whose sentence is `flex-1 min-w-0`),
+  because it is the resolution of the sentence beside it and belongs at the edge the eye lands on after
+  reading the reason. A never-disabled button is only honest because the handler **cannot swallow the
+  click**: `load()` queues a mid-flight arrival as `reloadQueued` and `finishLoading()` replays it, so a
+  "Show all links" during the first load really does produce the unfiltered queue rather than leaving the
+  dials reading "All" over the Pending rows still being fetched. A node with descendants
   gets a chip whose **visible text is just the `threadLabel` count — `2 links`**, not a literal
   `Thread (N)` — (`data-testid="link-thread"`, `hlmBadge variant="special"`), with a `title` tooltip
-  stating the coupling (and whether the row is the root); everything else renders an em dash. 🔴 That
+  stating the coupling (and whether the row is the root); it now sits in the **URL cell** under the
+  anchor, and a `""` label renders **nothing** at all rather than an em dash. 🔴 That
   label is `threadLabel(link.sublinkCount + 1)` and the `+ 1` is load-bearing: `threadLabel` takes a
   **conversation size** and answers `""` for anything `<= 1`, so the raw descendant count would delete
   the chip on a root with exactly ONE sublink while leaving every ordinary row correctly chip-less.
@@ -397,18 +477,35 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
     defaults to Pending, which already hides completed rows). The console resolver has no pagination
     and no row cap, so an unfiltered queue really is every link there is.
     🔴 **The default Pending view is itself a filter, so the raw gate made reordering unreachable in
-    practice** — the disabled buttons said "clear the filters", but `Reset` restores the queue default,
-    which IS Pending. The `reorder-hint` therefore carries `reorder-show-all`
+    practice** — the greyed-out buttons said "clear the filters", but `Reset` restores the queue default,
+    which IS Pending, and a permanently dead pair on every row of the default view reads as a broken
+    table. So since 2026-10-02 the gate is a **render** gate: the two buttons are not drawn at all while
+    it is false (the gates themselves are unchanged, and `reorderSiblings` re-checks both conditions
+    because it is reachable programmatically). The `reorder-hint` carries `reorder-show-all`
     (`showAllLinks()`): one click cancels the debounce, clears every live control and every applied
     field, sets Status to All, and reloads, which is the only sequence that makes the flag true from
     the default view. `resetFilters()` and `showAllLinks()` share the one `applyQueueFilters(completed)`
-    snapshot writer so the two cannot drift. Why the gate matters:
-    `reorderSocialMediaLinks` permutes ONE sibling SET and **tolerates** a short list — the server
-    writes the ids it was sent and appends the ones it was not told about, so a filtered page would
-    succeed and silently shove a row the admin cannot see to the end of the conversation. Mark the
-    boundary precisely: the server _does_ reject an id that is not already a child of the named
-    parent ("permutes one set of siblings"), so **membership is validated and only absence is
-    tolerated** — which is exactly why a short list is the case that slips through.
+    snapshot writer so the two cannot drift.
+    - 🔴 **The completeness answer is SNAPSHOT BEFORE the first `await`, never read back after it.**
+      `vars` is built from the applied fields in the same synchronous run, but those fields are mutable
+      plain properties rather than a signal, so a later read describes whatever the admin has done
+      since — and `showAllLinks` rewrites every one of them to the unfiltered snapshot while a
+      **filtered** request is still in flight. Reading `appliedFiltersAreUnfiltered()` after that request
+      resolved would claim a whole queue over a partial page, and the sequence buttons would light up over
+      rows whose siblings are not loaded — precisely the state the flag exists to prevent. The captured
+      answer is also written only on success, so the flag can never claim a whole queue over rows a
+      failed query never replaced.
+    - `moveBlockedReason`'s `!queueIsComplete()` branch is now **defensive only** — it is not rendered,
+      because the buttons do not exist under a filtered queue. It stays because the function is a total
+      function of the row: a programmatic caller or a future template that wants the disabled button back
+      gets the honest reason rather than a `null` title on a control that cannot work.
+    - Why the gate matters:
+      `reorderSocialMediaLinks` permutes ONE sibling SET and **tolerates** a short list — the server
+      writes the ids it was sent and appends the ones it was not told about, so a filtered page would
+      succeed and silently shove a row the admin cannot see to the end of the conversation. Mark the
+      boundary precisely: the server _does_ reject an id that is not already a child of the named
+      parent ("permutes one set of siblings"), so **membership is validated and only absence is
+      tolerated** — which is exactly why a short list is the case that slips through.
   - `runOrderIsKnown` — false as soon as **any** sibling came back without a `position`. 🔴 A missing
     `position` is **not zero**: the column is gap-spaced, so `0` is only the model's default for a row
     written outside `save()`, and a `?? 0` fallback would float the unknown row to the head of the
@@ -419,7 +516,27 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
     `moveBlockedReason(link, direction)` returns the reason as copy for the disabled button's title (or
     `null` when it IS available) so the template binds it straight through and never restates a
     condition — and it is **direction-agnostic** about the unreadable-order case, because "already
-    first" would itself be a claim about an order the queue cannot read.
+    first" would itself be a claim about an order the queue cannot read. The template binds that `null`
+    with `[attr.title]`, whose null **removes** the attribute: `[title]="… ?? null"` coerces the null to
+    the literal string `"null"`, so every enabled button carried a "null" tooltip until 2026-10-02.
+- **`isLoading` drops in exactly ONE place — `finishLoading()` — and that is load-bearing, not tidy.**
+  Every verb that occupies the queue hands off to it from its own `finally`: `load()` itself plus all six
+  mutations (`sendGrouping`, `ungroupLink`, `reorderSiblings`, `approveLink`, `setLinkStatus`,
+  `markCompleted`). `load()`'s re-entrancy guard parks a second arrival as `reloadQueued`, and
+  `finishLoading()` drains it with `void this.load()` — fire-and-forget deliberately, so a mutation's own
+  success/failure return value is not overwritten by a follow-up query's outcome.
+  - 🔴 The drain lives here rather than in `load()`'s own `finally` because **six of the seven verbs never
+    pass through `load()`**: they set the flag and call `fetchLinks()` directly. A drain written in `load()`
+    would leave a click parked during a mutation's post-write refetch unclaimed until some later unrelated
+    `load()` spent it — the dials reading "All" over the Pending rows the refetch returned, and the admin's
+    click apparently doing nothing until they pressed it a second time. That is the swallowed click,
+    relocated by one window.
+  - It is a **method rather than inline code in seven `finally` blocks** because the rule has to hold for
+    the _next_ verb too: an eighth site that cleared the flag directly would compile, pass every spec, and
+    strand the next parked reload — invisible until an admin hits that exact window.
+  - ⚠️ **Not** for `isSaving` / `isDeleting`. Those are the detail sheet's two flags with their own
+    lifecycles; routing them here would make a save replay a queued "Show all links" that no click asked
+    for.
 - **A reorder reloads and does not patch optimistically**, and that is not politeness: the order the
   table shows is not the order it writes, so nothing on screen could confirm the new sequence even in
   principle. The reload is what makes the next move a real swap against the stored one. The table
@@ -477,7 +594,8 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
   feed afterwards. A **MID-TREE** node is asked about too, for the same reason one level down: hiding
   the middle of a conversation takes the rest of it with it. The same `+ 1` as the chip, and the two
   must never diverge. A static tooltip on the chip is not enough on its own: it is invisible until
-  hovered, absent on touch, and gone by the time the admin reaches the Hide button two cells over.
+  hovered, absent on touch, and gone by the time the admin reaches the Hide button at the other end of
+  the row.
   It reuses the same native-`confirm` idiom as the Delete guard, so the console has one confirmation
   idiom rather than two.
 - `threadLabel` is re-exposed on the class (`protected readonly threadLabel = threadLabel`) rather
@@ -495,7 +613,8 @@ Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` 
 - **All grouping decisions are delegated, not inlined.** Anything that adds a selection affordance
   here must call `link-thread-selection.util.ts`; the pluralisation of a link conversation's size is
   decided app-wide in exactly one place — this chip, the profile badge and the shared `app-link-card`'s
-  in-card indicator all read `threadLabel`, and each of the three passes `sublinkCount + 1`.
+  in-card indicator all read `threadLabel`, and each of the three passes `sublinkCount + 1`. Where a
+  surface puts the chip is a **layout** question, not a shared one, and all three currently differ.
 - **The hierarchy is a tree, and the tree-only questions are answered locally.** The selection
   questions are shared; **depth, the sibling run, and the reorder/nest block reasons are not** — they
   depend on a flat, filtered, un-paginated table, and the same three rules are re-derived (in the same

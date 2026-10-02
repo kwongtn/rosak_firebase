@@ -65,6 +65,31 @@ second pill of CSS in the consumer. jsdom cannot see any of this — it asserted
 "correct" for weeks — so hover-area changes must be checked with real pointer moves against the dev
 server.
 
+### [2026-10-02] console/insiden: `[title]="… ?? null"` is not an absent title — a property binding coerces the null to the literal string `"null"`
+
+**Problem**: every **enabled** Move up / Move down button on `/console/links` showed a tooltip reading
+literally `null` on hover. The buttons were not meant to have a title at all when they work — "no reason
+is known" is the whole point of the `null` — so the defect appeared only on the controls that were
+behaving correctly, which is why it survived a spec suite that asserted the _disabled_ copy.
+**Root Cause**: `[title]` is a **property** binding. Angular writes the expression's result onto
+`element.title`, and the DOM `title` IDL attribute is a `DOMString`: `null` is coerced to the four
+characters `"null"` rather than removing anything. There is no spelling of a property binding that
+expresses "no value" — only `[attr.title]`, which maps to `setAttribute`/`removeAttribute`, and whose
+`null` **removes** the attribute. The pattern is a trap because the code reads as correct and the
+template compiles cleanly; `strictNullChecks` is off in this repo, so nothing in the type system objects
+either, and the failure mode is a cosmetic string in a tooltip rather than an error.
+**Fix**: `dcde12a` — both move buttons now bind `[attr.title]="moveBlockedReason(link, 'up') ?? null"`.
+`moveBlockedReason` still returns `string | null` (the `null` is the honest "this works" answer and the
+template must not restate the conditions), so the only change is which half of the API carries it. The
+sibling `[attr.title]` on `nest-under` deliberately keeps a non-null fallback string, because that button
+is drawn only when its precondition holds and a target-less row still deserves an explanation.
+**Prevention**: any DOM attribute whose value is genuinely optional — `title`, `aria-label`, `alt`,
+`data-*` — binds as `[attr.*]`, never as `[prop]`. Reserve the property binding for properties where
+`null` has meaning (an actual `@Input()`, a `disabled` state). When a "reason" function returns
+`string | null`, the null branch is a **rendering** decision, and `attr.` is the spelling that can make
+it. Worth a look whenever a tooltip reads as a word rather than a sentence: a stray `null`/`undefined`
+in user-visible text almost always means a property binding where an attribute binding was needed.
+
 ### [2026-10-02] console/profile links: a targeted nest was gated on the UNTARGETED verb's minimum, so the basic tree operation was impossible
 
 **Problem**: "Nest under…" was disabled for a one-link selection, so an admin could not nest a single
@@ -89,6 +114,11 @@ mode's** server contract rather than reusing the other mode's helper — a targe
 satisfied by fewer inputs than an untargeted election. And when a precondition is a state the UI cannot
 reach from a default view, the gate needs a named ACTION, not prose: a disabled button with a reason is
 only honest if the reason describes something the admin can actually do.
+**Follow-up (`dcde12a`)**: the greyed-out-control half is now gone rather than explained. Move up / Move
+down are **not drawn** until `queueIsComplete()` and Nest under… not drawn until the first tick (the
+underlying gates are unchanged, so a programmatic caller still gets refused), and "Show all links" is
+**never disabled** — so the complaint that produced this entry can no longer be reported as a dead
+button, only as a missing one, which is honest.
 
 ### [2026-10-01] core/polling: re-applying the CURRENT `intervalMs()` restarts a paused beat by re-applying the pause — a disarmed timer needs a real `resume()`
 
