@@ -11,6 +11,7 @@
 - **Outputs / Events / API Responses:**
   - No `@Output`/`output()` emitters — this is a terminal page, not a reusable widget.
   - Internally computes `attemptedPath` from `Router.url` and derives a `message` (`NotFoundMessage`) by hashing that path into an index over the static `NOT_FOUND_MESSAGES` pool (`not-found-messages.ts`) — deterministic per-URL rather than `Math.random()`, so SSR and client hydration render the same joke.
+  - The same hash picks the line above the pet photo: `petCaption(kind)` delegates to `scrollLineFor(attemptedPath, kind)` (`not-found-messages.ts`), which indexes `NOT_FOUND_SCROLL_LINES` and substitutes its literal `{kind}` token. A function reference rather than a `computed()` because it takes the pet as an argument — the animal is only known once the browser-only fetch resolves.
   - Browser-only side effect: on construction (guarded by `isPlatformBrowser`), fires a one-off `fetch()` to `thecatapi.com` or `dog.ceo` for a decorative image, populating `petPic` signal or `petPicFailed` on error/rejection. Not called during SSR.
   - Server-side: `app.routes.server.ts`'s own wildcard route sets `status: 404` for this path so the document response itself is a real 404 (SSR only; client-side navigation can't retroactively change an already-loaded document's status).
 - **Dependencies:**
@@ -19,18 +20,28 @@
   - `../../ui/button/button` (`HlmButton`) and `../../ui/skeleton/skeleton` (`HlmSkeleton`) — shared Spartan/hlm UI primitives, no app-specific coupling beyond styling.
   - `../../domain-ui/line-status-badge/line-status-badge` (`LineStatusBadge`) — required `status: LineStatus` input; the 404 page reuses this real domain badge (see `core/graphql/types.ts` for `LineStatus`) so each joke message renders a genuine line-status value rather than a lookalike.
   - `../../shell/app-nav/app-nav.component` and `../../shell/app-footer/app-footer.component` — standard app chrome, included directly in the template like any other page.
-  - `./not-found-messages` (`NOT_FOUND_MESSAGES`, `NotFoundMessage`) — co-located static content module, 40 themed message/status entries.
+  - `./not-found-messages` (`NOT_FOUND_MESSAGES`, `NOT_FOUND_SCROLL_LINES`, `NotFoundMessage`, `hashString`, `scrollLineFor`) — co-located static content module: 40 themed message/status entries plus the 8 scroll-gate lines. `hashString` lives here (not in the page) because both pickers share it.
   - Third-party, browser-only: `api.thecatapi.com` and `dog.ceo` public image APIs (keyless, no client SDK).
+
+## 🖼️ Layout — two screens, pinned footer
+
+This is the one page whose layout does **not** match the `min-h-screen` shell every other page uses, and that deviation is deliberate:
+
+- **Two viewport-tall sections.** The 404 block is the first `min-h-dvh` section; the pet photo is centred in a second one, so the cat/dog only turns up after scrolling a screen's worth. `dvh` rather than `vh` on purpose — on a phone `vh` includes the space behind the browser chrome, which would put the photo off-centre by exactly the height of the URL bar the reader can't see.
+- **Footer pinned to the viewport.** Everywhere else the footer sits in normal flow at the end of a `min-h-screen` shell, which is what pins it to the bottom of a _short_ viewport. This page is deliberately two screens tall, so a flow footer would sit two screens down and effectively never be seen. It's wrapped in a `fixed inset-x-0 bottom-0 z-40 bg-background` div **scoped to this page only** — no other page changes, and the shared `AppFooterComponent` stays layout-agnostic. `z-40` sits below the nav's sticky bar (`z-45`) and below the app's `z-50` overlay layer, matching the ladder `app-nav.component.ts` documents.
+- **Matching reservation.** The pet section carries `pb-28` so the centred photo can never end up behind the pinned footer.
 
 ## ⚙️ Internal State & Logic
 
 - Two `signal()`s: `petPic: PetPic | null` and `petPicFailed: boolean`, populated only in the browser via a constructor-time async fetch.
-- Two `computed()`s: `attemptedPath` (thin wrapper over `router.url`, defined as a plain function reference rather than `computed()`) and `message` (indexes into `NOT_FOUND_MESSAGES` using a local `hashString` djb2-style hash of the attempted path — non-cryptographic, purely for stable pseudo-randomness across SSR/hydration).
+- A `computed()` for `message` (indexes into `NOT_FOUND_MESSAGES` using `hashString` — non-cryptographic, purely for stable pseudo-randomness across SSR/hydration) and a plain function reference for `attemptedPath` (`router.url`).
+- One pure template-callable function: `petCaption(kind)` → `scrollLineFor(attemptedPath, kind)`.
 - No RxJS streams, no shared state store, no persisted state — everything is local to the component instance and re-derived from the current URL.
 
 ## 🧩 Extension Points & Hooks
 
 - `NOT_FOUND_MESSAGES` in `not-found-messages.ts` is the natural extension point for content: adding/editing entries requires no component changes, only conforming to the `NotFoundMessage` shape (`eyebrow`, `status: LineStatus`, `heading`, `body`).
+- `NOT_FOUND_SCROLL_LINES` is the same idea for the line above the pet photo — a flat `string[]` whose `{kind}` token `scrollLineFor` substitutes. Keep at least one `{kind}` in each line, and expect the spec's "every line in the pool is reachable" assertion to catch copy that no hash bucket can land on.
 - The pet-photo block is isolated behind an `@if`/`@else if` (image vs. skeleton vs. nothing on failure) and guarded by `isPlatformBrowser`, so it can be swapped for a different decorative widget, feature-flagged, or removed without touching the core 404 messaging logic.
 - `goBack()` and the "Back to TranSPOT" `routerLink` are the only user actions; either could be extended (e.g., a search box, a sitemap link) without restructuring the component.
 
