@@ -37,6 +37,8 @@ function stubMatchMedia(matches: boolean): void {
       [testId]="testId()"
       [showIcon]="showIcon()"
       [showMethodologyLink]="showMethodologyLink()"
+      [iconPosition]="iconPosition()"
+      [triggerClasses]="triggerClasses()"
     >
       <span data-testid="trigger-content">Reliability</span>
       <span popoverExtra data-testid="popover-extra">Updated hourly</span>
@@ -51,6 +53,8 @@ class InfoPopoverHost {
   readonly testId = signal("info-popover-panel");
   readonly showIcon = signal(true);
   readonly showMethodologyLink = signal(true);
+  readonly iconPosition = signal<"start" | "end">("start");
+  readonly triggerClasses = signal("");
 }
 
 /** Two independent popovers under one TestBed root injector — the exclusivity contract is about
@@ -430,6 +434,50 @@ describe("InfoPopover", () => {
 
     openByTap();
     expect(panel()).not.toBeNull();
+  });
+
+  it("leads the glyph by default and trails it with iconPosition end", async () => {
+    stubMatchMedia(false);
+    await render();
+
+    const glyph = () => trigger().querySelector('span[aria-hidden="true"]');
+    const content = () => trigger().querySelector('[data-testid="trigger-content"]');
+
+    expect(glyph()).not.toBeNull();
+    // The glyph keeps its badge styling whichever side of the projection it is bound on.
+    expect(glyph()?.classList.contains("size-4")).toBe(true);
+    expect(glyph()?.classList.contains("rounded-full")).toBe(true);
+    // DOM order, not just painted order: the glyph is a sibling before the projected content.
+    expect(glyph()!.compareDocumentPosition(content()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    fixture.componentInstance.iconPosition.set("end");
+    fixture.detectChanges();
+
+    expect(glyph()).not.toBeNull();
+    expect(content()!.compareDocumentPosition(glyph()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    // Exactly one glyph either way — the placement swaps, it never duplicates.
+    expect(trigger().querySelectorAll('span[aria-hidden="true"]').length).toBe(1);
+  });
+
+  it("merges triggerClasses onto the trigger button without dropping its base classes", async () => {
+    stubMatchMedia(false);
+    await render();
+
+    expect(trigger().classList.contains("px-2")).toBe(false);
+
+    fixture.componentInstance.triggerClasses.set("px-2 py-0.5 hover:bg-muted/60");
+    fixture.detectChanges();
+
+    expect(trigger().classList.contains("px-2")).toBe(true);
+    expect(trigger().classList.contains("py-0.5")).toBe(true);
+    expect(trigger().classList.contains("hover:bg-muted/60")).toBe(true);
+    // The interaction contract survives the merge.
+    expect(trigger().classList.contains("cursor-help")).toBe(true);
+    expect(trigger().classList.contains("rounded-full")).toBe(true);
   });
 
   it("drops the link and demotes the panel to a tooltip when showMethodologyLink is false", async () => {

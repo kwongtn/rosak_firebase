@@ -15,6 +15,32 @@
 
 ## Traps
 
+### [2026-10-02] ui/ad-slot: `InfoPopover` tracks hover on its HOST, so a stretched flex child makes the WHOLE ROW a hover hotspot
+
+**Problem**: on every ad unit, hovering anywhere across the "Advertisement" caption row popped the
+disclosure panel open — not just the caption — and the "i" glyph sat to the LEFT of the wording with
+no padding, so the real trigger was a ~90px sliver of 10px uppercase text.
+**Root Cause**: `InfoPopover` binds `(mouseenter)`/`(mouseleave)` on the **host** element, by design:
+the panel is an absolutely-positioned DOM descendant, so host-level tracking keeps it open while the
+cursor crosses onto it. The ad slot placed that host as a child of its unit's `flex flex-col`
+wrapper with only `justify-center`, and a flex item's default `align-self: stretch` made the host
+**full width** — so the hover area silently became the entire row, hundreds of pixels wider than the
+trigger the reader sees. Nothing was broken; the hotspot was simply the box, not the pill.
+**Fix**: the host is now `self-center`, which is what makes a flex item fit its content (the caption
+stays row-centered, so the `align="center"` panel lands exactly where it did). The glyph side and the
+pill's padding became shared, documented `InfoPopover` extension points — `iconPosition:
+"start" | "end"` (default `"start"`, so every other consumer is unchanged; `"end"` moves the node in
+real DOM order, not just painted order) and `triggerClasses` (merged _after_ the trigger button's
+base classes, so `cursor-help`/the focus ring/`rounded-full` can never be lost) — and the ad slot
+passes `px-2 py-0.5 transition-colors hover:bg-muted/60`.
+**Prevention**: whenever a component tracks hover on its HOST, audit the host's **box**, not just
+the visible trigger: if the host is a flex/grid child, check `align-self` (a stretched child swallows
+the whole row) and the panel's own padding (`mt-1.5`, which needs the host to overlap the gap).
+Prefer extending the shared primitive with a documented input over hand-rolling a second glyph or a
+second pill of CSS in the consumer. jsdom cannot see any of this — it asserted the layout as
+"correct" for weeks — so hover-area changes must be checked with real pointer moves against the dev
+server.
+
 ### [2026-10-02] console/profile links: a targeted nest was gated on the UNTARGETED verb's minimum, so the basic tree operation was impossible
 
 **Problem**: "Nest under…" was disabled for a one-link selection, so an admin could not nest a single

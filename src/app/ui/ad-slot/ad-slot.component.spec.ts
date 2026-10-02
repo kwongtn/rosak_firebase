@@ -233,6 +233,31 @@ describe("AdSlotComponent disclosure tooltip", () => {
     expect(panelOf(fixture)).toBeNull();
   });
 
+  it("keeps the trigger to the caption pill, not the whole row: glyph trails the text, pill padded", async () => {
+    const fixture = await renderSlot({ slotId: "3724291191", label: "Advertisement" });
+    setFillState(fixture, "filled");
+
+    // Hover is tracked on the popover host, so the host must shrink-wrap the caption: a stretched
+    // flex child would make the entire row above the creative a hover hotspot.
+    const popoverHost = popoverHostOf(fixture);
+    expect(popoverHost?.classList.contains("self-center")).toBe(true);
+    expect(popoverHost?.classList.contains("justify-center")).toBe(false);
+
+    const trigger = triggerOf(fixture);
+    const glyph = trigger?.querySelector('span[aria-hidden="true"]');
+    expect(glyph).not.toBeNull();
+    // "ADVERTISEMENT ⓘ" — the glyph trails the caption text.
+    const label = Array.from(trigger?.children ?? []).find((child) => child !== glyph);
+    expect(label?.textContent?.trim()).toBe("Advertisement");
+    expect(label!.compareDocumentPosition(glyph!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    // Padded, so the whole pill is a comfortable target.
+    expect(trigger?.classList.contains("px-2")).toBe(true);
+    expect(trigger?.classList.contains("py-0.5")).toBe(true);
+  });
+
   it("opens on hover on a hover-capable device", async () => {
     stubMatchMedia(true);
     const fixture = await renderSlot({ slotId: "3724291191", label: "Advertisement" });

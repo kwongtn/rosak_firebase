@@ -107,6 +107,12 @@ export function mapAdStatus(status: string | null | undefined): AdFillState {
  * here rather than being cosmetic: the panel lives inside this unit's `overflow-hidden` block, so
  * the edge-anchored defaults would clip it on narrow placements, while centered it stays inside
  * every configured unit.
+ *
+ * The trigger is shrink-wrapped (`self-center`, not a stretched flex child): the popover tracks
+ * hover on its own host, so a full-width host would make the whole caption ROW a hotspot and pop
+ * the panel open from anywhere above the creative. It now covers only the caption pill — the text
+ * plus its trailing "i" glyph (`iconPosition="end"`), padded by `captionTriggerClasses` — while
+ * staying row-centered, so the centered panel sits where it did before.
  */
 @Component({
   selector: "app-ad-slot",
@@ -123,10 +129,12 @@ export function mapAdStatus(status: string | null | undefined): AdFillState {
       >
         @if (label() && (isPlaceholder() || fillState() === "filled")) {
           <app-info-popover
-            class="justify-center"
+            class="self-center"
             [label]="disclosure.label"
             [content]="disclosure.body"
             align="center"
+            iconPosition="end"
+            [triggerClasses]="captionTriggerClasses"
             [showMethodologyLink]="false"
             testId="ad-disclosure-popover"
           >
@@ -193,6 +201,12 @@ export class AdSlotComponent implements OnDestroy {
       ? "border-border/60 bg-background border"
       : "",
   );
+  /**
+   * Padding (and a matching tint on hover) that turns the bare micro-caption into a pill with a
+   * comfortable hover target — merged onto the popover's trigger button, so the padding belongs to
+   * the thing the pointer can actually hit.
+   */
+  protected readonly captionTriggerClasses = "px-2 py-0.5 transition-colors hover:bg-muted/60";
 
   constructor() {
     afterNextRender(() => {
