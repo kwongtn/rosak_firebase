@@ -110,6 +110,9 @@ function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSo
     }),
     isLoading: signal(false),
     linesRefreshTick: signal(0),
+    // The post-submit highlight. A real `signal` (not a literal) because the board reacts to its
+    // CHANGES — the mock has to be able to ring a line the way `HomeStore.highlightLine()` does.
+    highlightedLineId: signal<string | null>(null),
   };
   return store;
 }
@@ -524,5 +527,103 @@ describe("NetworkBoardComponent", () => {
 
     expect(codesIn(root, "attention")).toEqual(["B"]);
     expect(codesIn(root, "all")).toEqual(["A"]);
+  });
+
+  /* ---- post-submit anchors + highlight -------------------------------------------------- */
+
+  it("gives EVERY line a stable #line-<id> anchor, in all three groups", async () => {
+    const root = await board(
+      [makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("mine"), makeLine("plain")],
+      { pinned: ["mine"] },
+    );
+
+    // Three groups, two row elements, one anchor contract: a report can be about ANY line, so an
+    // anchor that only existed on the compact rows would silently break "return the reader to the
+    // line they just reported about" for exactly the lines that need attention most.
+    for (const id of ["dead", "mine", "plain"]) {
+      const anchor = root.querySelector<HTMLElement>(`[id="line-${id}"]`);
+      expect(anchor).not.toBeNull();
+      expect(anchor?.getAttribute("data-testid")).toBe("line-board-row");
+    }
+    expect(root.querySelectorAll("#line-dead, #line-mine, #line-plain")).toHaveLength(3);
+  });
+
+  it("rings only the highlighted line, and clears when the store does", async () => {
+    const root = await board([makeLine("a"), makeLine("b")]);
+    const rowFor = (id: string): HTMLElement =>
+      root.querySelector<HTMLElement>(`[id="line-${id}"]`) as HTMLElement;
+
+    expect(rowFor("a").hasAttribute("data-highlighted")).toBe(false);
+    expect(rowFor("a").classList.contains("ring-2")).toBe(false);
+
+    storeMock.highlightedLineId.set("b");
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(rowFor("b").hasAttribute("data-highlighted")).toBe(true);
+    // The ring is brand-coloured and offset against the page, so it reads on a white row AND in dark
+    // mode — `ring-offset-background` rather than the default white offset colour.
+    expect(rowFor("b").classList.contains("ring-2")).toBe(true);
+    expect(rowFor("b").classList.contains("ring-brand")).toBe(true);
+    expect(rowFor("b").classList.contains("ring-offset-2")).toBe(true);
+    expect(rowFor("b").classList.contains("ring-offset-background")).toBe(true);
+    // And crucially: the OTHER line is untouched, so the ring never reads as "the network".
+    expect(rowFor("a").hasAttribute("data-highlighted")).toBe(false);
+
+    storeMock.highlightedLineId.set(null);
+    fixture.detectChanges();
+
+    expect(rowFor("b").hasAttribute("data-highlighted")).toBe(false);
+    expect(rowFor("b").classList.contains("ring-2")).toBe(false);
+  });
+
+  it("keeps the ring visible under reduced motion and transitions nothing", async () => {
+    const root = await board([makeLine("a")]);
+    storeMock.highlightedLineId.set("a");
+    fixture.detectChanges();
+
+    const row = root.querySelector<HTMLElement>('[id="line-a"]') as HTMLElement;
+    // `motion-reduce:transition-none` drops the ANIMATION and keeps the ring: a reader who asked for
+    // less motion still has to be told which line they just reported about, and dropping the ring
+    // would lose the information, not just the flourish.
+    expect(row.className.split(/\s+/)).toContain("motion-reduce:transition-none");
+    expect(row.className.split(/\s+/)).toContain("duration-1000");
+    expect(row.classList.contains("ring-2")).toBe(true);
+  });
+
+  it("scrolls the highlighted line's own anchor into view", async () => {
+    const root = await board([makeLine("a")]);
+    // jsdom ships no layout, so `scrollIntoView` does not exist on the element at all.
+    const scrollIntoView = vi.fn();
+    (root.querySelector<HTMLElement>('[id="line-a"]') as HTMLElement).scrollIntoView =
+      scrollIntoView;
+
+    storeMock.highlightedLineId.set("a");
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    // `block: "center"` because the target is a ROW inside a list, not a section top.
+    expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: "center" });
+  });
+
+  it("never scrolls on the server, where scrollIntoView does not exist", async () => {
+    const root = await board([makeLine("a")], { platform: "server" });
+    const scrollIntoView = vi.fn();
+    (root.querySelector<HTMLElement>('[id="line-a"]') as HTMLElement).scrollIntoView =
+      scrollIntoView;
+
+    storeMock.highlightedLineId.set("a");
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    // …and the ring is still drawn, because it is a CSS class and not an animation.
+    expect(root.querySelector<HTMLElement>('[id="line-a"]')?.classList.contains("ring-2")).toBe(
+      true,
+    );
   });
 });

@@ -11,6 +11,7 @@ import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
+import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeHeroComponent } from "./home-hero.component";
 
 /** One `pulseLinks` entry. `isAutomated` is what separates an operator-sourced post from a rider's. */
@@ -88,6 +89,7 @@ describe("HomeHeroComponent", () => {
   let fixture: ComponentFixture<HomeHeroComponent>;
   let reportSheet: { open: ReturnType<typeof vi.fn>; openFor: ReturnType<typeof vi.fn> };
   let linkSheet: { open: ReturnType<typeof vi.fn>; openEdit: ReturnType<typeof vi.fn> };
+  let chooser: { open: ReturnType<typeof vi.fn> };
   let storeMock: {
     isRefreshing: ReturnType<typeof signal<boolean>>;
     isLoading: ReturnType<typeof signal<boolean>>;
@@ -103,6 +105,7 @@ describe("HomeHeroComponent", () => {
   beforeEach(async () => {
     reportSheet = { open: vi.fn(), openFor: vi.fn() };
     linkSheet = { open: vi.fn(), openEdit: vi.fn() };
+    chooser = { open: vi.fn() };
     // The hero hosts the page's live refresh indicator, which injects `HomeStore` itself — so the
     // hero's own "reads nothing" claim is about REQUESTS, and the store it renders against is the
     // same route-scoped one the page already has.
@@ -125,6 +128,8 @@ describe("HomeHeroComponent", () => {
         provideRouter([]),
         { provide: ReportSheetService, useValue: reportSheet },
         { provide: LinkSheetService, useValue: linkSheet },
+        // Root-provided, and HOSTED by the page rather than the hero — the hero is only a trigger.
+        { provide: ReportChooserService, useValue: chooser },
         { provide: HomeStore, useValue: storeMock },
       ],
     }).compileComponents();
@@ -191,15 +196,17 @@ describe("HomeHeroComponent", () => {
     expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
   });
 
-  it("emits reportDelay instead of opening a chooser of its own", () => {
+  it("opens the report CHOOSER from Report a delay, not a sheet and not a scroll", () => {
     const root = render(networkLines());
-    const emitted = vi.fn();
-    fixture.componentInstance.reportDelay.subscribe(emitted);
 
     root.querySelector<HTMLButtonElement>('[data-testid="hero-report-delay"]')?.click();
 
-    expect(emitted).toHaveBeenCalledTimes(1);
+    // "Report a delay" names an intent, and the reader who clicks it is on a platform without the
+    // board's line list in front of them: the chooser is what asks "which line?", so the hero neither
+    // opens a sheet that needs a line id nor scrolls somewhere the reader has to go and look.
+    expect(chooser.open).toHaveBeenCalledTimes(1);
     expect(reportSheet.open).not.toHaveBeenCalled();
+    expect(linkSheet.open).not.toHaveBeenCalled();
   });
 
   it("opens the spotting sheet from Spot a train and the link sheet from Share a link", () => {
@@ -339,6 +346,10 @@ describe("HomeHeroComponent", () => {
     expect(wrapper?.className.split(/\s+/)).toContain("lg:flex");
     expect(wrapper?.className.split(/\s+/)).toContain("justify-end");
     expect(wrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
+    // ONE countdown instance on the whole page: the mobile feed-column copy is gone, replaced by the
+    // sticky action bar's Refresh button on the same store beat — so a phone no longer sees a
+    // "Refreshing in Ns" label that belongs to a beat it cannot otherwise reach.
+    expect(root.querySelectorAll("app-home-refresh-control").length).toBe(1);
 
     // Only the WRAPPER moved: the control itself still owns the countdown and the click, so clicking
     // the indicator the hero now shows still drives the store's single beat.

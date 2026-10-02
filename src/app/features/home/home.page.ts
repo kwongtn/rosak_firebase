@@ -1,16 +1,8 @@
-import {
-  Component,
-  ElementRef,
-  PLATFORM_ID,
-  computed,
-  effect,
-  inject,
-  signal,
-  viewChild,
-  type OnDestroy,
-} from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { Component, computed, effect, inject, signal, type OnDestroy } from "@angular/core";
 import { Meta } from "@angular/platform-browser";
+import { RouterLink } from "@angular/router";
+import { NgIcon, provideIcons } from "@ng-icons/core";
+import { lucideMapPin, lucideRefreshCw } from "@ng-icons/lucide";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -36,7 +28,8 @@ import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { HomeHeroComponent } from "./hero/home-hero.component";
 import { NetworkBoardComponent } from "./line-pulse/network-board.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
-import { HomeRefreshControlComponent } from "./refresh-control/home-refresh-control.component";
+import { ReportChooserComponent } from "./report/report-chooser.component";
+import { ReportChooserService } from "./report/report-chooser.service";
 
 /**
  * One paragraph for crawlers and link previews. It names the mechanism and never a number — every
@@ -51,9 +44,9 @@ const META_DESCRIPTION =
  * The community front page — the site's root route. The feed and the network board share a
  * two-panel split (the URL list left, the line board right) from `lg` up, stacked on mobile; the
  * submit box heads the feed column and the retry banner and footer stay full width. The refresh
- * control (`app-home-refresh-control`) heads the LINKS section on mobile and now the HERO on
- * desktop — one component, two visibility-gated instances, because the beat it drives refreshes
- * both sections and the hero is the page's live strip.
+ * control (`app-home-refresh-control`) now lives in the HERO only (from `lg` up); below that the
+ * sticky mobile action bar carries a Refresh button on the same store beat plus Report and Live map,
+ * which is what keeps every intent reachable on a phone.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
  * app.routes.ts. The router retains that route injector while the page component is recreated on
@@ -87,7 +80,7 @@ const META_DESCRIPTION =
     LinkSheetComponent,
     NetworkBoardComponent,
     LineStatusSheetComponent,
-    HomeRefreshControlComponent,
+    ReportChooserComponent,
     ReportFormComponent,
     RetryBannerComponent,
     HlmButton,
@@ -96,11 +89,16 @@ const META_DESCRIPTION =
     HlmSheetBody,
     HlmSheetFooter,
     HlmSkeleton,
+    RouterLink,
+    NgIcon,
   ],
+  providers: [provideIcons({ lucideRefreshCw, lucideMapPin })],
   template: `
     <app-nav />
 
-    <main class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+    <main
+      class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 pb-24 sm:p-6 lg:w-[90%] lg:pb-6"
+    >
       @if (store.hasError()) {
         <app-retry-banner [resource]="errorResource" message="Couldn't load the front page." />
       }
@@ -108,28 +106,20 @@ const META_DESCRIPTION =
       <!-- Full width above the two-column split, not inside it: the headline and the tiles describe
            the WHOLE page (both columns), so giving them one column would make half the summary lie.
            It reads the same two signals the page already had (the lines resource and the feed's own
-           totalCount), so it adds no request, and its reportDelay output scrolls down to the board
-           below rather than opening a chooser up here. -->
-      <app-home-hero
-        [lines]="store.lines()"
-        [linksToday]="store.feedTotalCount()"
-        (reportDelay)="scrollToLineBoard()"
-      />
+           totalCount), so it adds no request, and its report CTA opens the chooser hosted below. -->
+      <app-home-hero [lines]="store.lines()" [linksToday]="store.feedTotalCount()" />
 
       <div
         class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
         data-testid="home-panels"
       >
         <section class="flex flex-col gap-3" aria-label="Community feed">
-          <!-- The beat refreshes these links too, so on mobile the control heads the section it
-               actually refreshes. CSS-only gate: SSR and hydration must see identical markup.
-               The gate is a justified flex row because the control now shrink-wraps to its own
-               visible content: a flex item's width is its content's, so justify-end is what
-               parks it at the right edge. A plain block wrapper would leave it flush left. -->
-          <div class="flex justify-end lg:hidden">
-            <app-home-refresh-control />
-          </div>
-
+          <!-- 🔴 The mobile app-home-refresh-control copy that used to sit here is GONE. The
+               sticky action bar at the foot of the page carries a Refresh button on the same
+               store.polling beat at exactly the widths this gate (lg:hidden) covered, so two
+               controls on one phone was one too many — and the bar is the only place a rider can
+               reach Report from while scrolled to the bottom of the feed. One beat, one countdown
+               instance in the hero, one Refresh affordance here. -->
           <app-link-submit-box (submitted)="store.reloadAll()" />
 
           <div class="flex flex-col gap-3" data-testid="feed-scroll">
@@ -281,7 +271,60 @@ const META_DESCRIPTION =
       <app-footer />
     </main>
 
-    <app-line-status-sheet [line]="sheetLine()" (submitted)="store.reloadAll()" />
+    <!-- The mobile action bar. lg:hidden because from lg up the HERO's intent row and its refresh
+         control are already above the fold on every layout, so a second copy would duplicate both.
+         🔴 The acceptance this bar exists to satisfy is "no intent becomes unreachable on mobile":
+         Report opens the chooser (which carries every intent, including the incident one the hero
+         row does not), Refresh drives the SAME store.polling beat the countdown does — one beat,
+         two affordances, never two beats — and Live map keeps the tracker one tap away so the hero's
+         fourth CTA is not something mobile lost. The safe-area padding keeps the buttons
+         clear of the iOS home indicator; main grows a matching bottom padding below lg so the bar
+         never covers the last feed row. -->
+    <div
+      class="bg-card border-border fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t px-4 pt-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      data-testid="home-mobile-bar"
+    >
+      <button
+        hlmBtn
+        class="bg-brand text-brand-foreground hover:bg-brand/85 h-11 flex-1 text-base"
+        data-testid="home-mobile-report"
+        (click)="openReportChooser()"
+      >
+        Report
+      </button>
+      <button
+        hlmBtn
+        variant="outline"
+        size="icon"
+        class="size-11"
+        aria-label="Refresh page data now"
+        data-testid="home-mobile-refresh"
+        (click)="refreshNow()"
+      >
+        <ng-icon name="lucideRefreshCw" class="size-4" aria-hidden="true" />
+      </button>
+      <a
+        hlmBtn
+        variant="ghost"
+        size="icon"
+        class="text-brand size-11"
+        routerLink="/tracker"
+        aria-label="Live train map"
+        data-testid="home-mobile-map"
+      >
+        <ng-icon name="lucideMapPin" class="size-4" aria-hidden="true" />
+      </a>
+    </div>
+
+    <!-- 🔴 THE CHOOSER IS MOUNTED FIRST, BEFORE EVERY OTHER SHEET, and that order is load-bearing
+         rather than cosmetic. HlmSheet locks page scroll from an effect keyed on its own open signal,
+         and Angular flushes effects in creation order — so a chooser that OPENS the line-status sheet
+         has to be created before it, or the chooser's close (scroll unlock) would run AFTER the
+         sheet's open (scroll lock) and leave a locked page behind a locked sheet. Moving this block
+         down would reintroduce it; home.page.spec.ts pins the order. -->
+    <app-report-chooser />
+
+    <app-line-status-sheet [line]="sheetLine()" (submitted)="onLineStatusSubmitted()" />
 
     <app-link-sheet />
 
@@ -295,7 +338,7 @@ const META_DESCRIPTION =
         <h2 class="text-base font-semibold">Add a Spotting Entry</h2>
       </div>
       <div hlmSheetBody>
-        <app-report-form #reportFormRef (submitted)="onSpottingSubmitted()" />
+        <app-report-form #reportFormRef (submitted)="onSpottingSubmitted($event)" />
       </div>
       <div hlmSheetFooter>
         <button
@@ -333,10 +376,9 @@ export class HomePage implements OnDestroy {
   private readonly lineStatusSheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);
   private readonly auth = inject(AuthService);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  /** The board region the hero's "Report a delay" scrolls to; see `scrollToLineBoard`. */
-  private readonly lineBoard = viewChild<ElementRef<HTMLElement>>("lineBoard");
+  /** The one submission surface the hero CTA and the mobile bar both open. */
+  private readonly reportChooser = inject(ReportChooserService);
 
   /** Edit flow for feed links — the same shared sheet the insiden/situasi lists host. */
   protected readonly linkSheet = inject(LinkSheetService);
@@ -408,22 +450,21 @@ export class HomePage implements OnDestroy {
   }
 
   /**
-   * What the hero's "Report a delay" owes the reader: take them to the board, where every line
-   * already carries its own "Report status" button. The chooser that will eventually open instead
-   * belongs to the board, not to a full-width summary strip, so this only scrolls.
-   *
-   * `scroll-mt-24` on the target section keeps the sticky nav from covering the first card's own
-   * header; `smooth` is dropped on a reduced-motion preference rather than fought.
+   * The mobile bar's Report (and the hero's, through the same service): one chooser for every
+   * intent, so "Report a delay" and "Report" on a phone cannot mean two different flows.
    */
-  protected scrollToLineBoard(): void {
-    const board = this.lineBoard()?.nativeElement;
-    if (!board || !this.isBrowser) {
-      return;
-    }
-    board.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "start",
-    });
+  protected openReportChooser(): void {
+    this.reportChooser.open();
+  }
+
+  /**
+   * The mobile bar's Refresh: the SAME `PollingSource.refreshNow()` the countdown's own click calls,
+   * deliberately rather than a second code path into `reloadFirstPages()`. One beat, so a click on
+   * the bar is the click the countdown was counting down to — and the hero's control still owns the
+   * "Updating" / "Updated" state, because at mobile widths it is not rendered.
+   */
+  protected refreshNow(): void {
+    this.store.polling.refreshNow();
   }
 
   /** The empty feed's "Share a link" — the same shared sheet the card pencil and hero use. */
@@ -460,10 +501,32 @@ export class HomePage implements OnDestroy {
     this.store.setUserVote(event.id, event.value);
   }
 
-  /** The sheet closes on submit and the page data reloads so the new entry shows up. */
-  protected onSpottingSubmitted(): void {
+  /**
+   * A successful line-status report: reload, then take the reader back to the line they just
+   * reported about. The id comes from `LineStatusSheetService.lineId`, which deliberately SURVIVES
+   * the close — so the page never has to guess which sheet just closed, and two reports in a row on
+   * two different lines each highlight their own.
+   */
+  protected onLineStatusSubmitted(): void {
+    const lineId = this.lineStatusSheet.lineId();
+    this.store.reloadAll();
+    if (lineId) {
+      this.store.highlightLine(lineId);
+    }
+  }
+
+  /**
+   * The sheet closes on submit and the page data reloads so the new entry shows up. The reported
+   * line rides along on the output so the board can ring it — the spotting form owns the line the
+   * reader picked and consumes its one-shot seed, so by the time this runs the service's `lineId` is
+   * already null and the payload is the only honest source.
+   */
+  protected onSpottingSubmitted(lineId: string | null = null): void {
     this.reportSheet.setOpen(false);
     this.store.reloadAll();
+    if (lineId) {
+      this.store.highlightLine(lineId);
+    }
   }
 
   ngOnDestroy(): void {

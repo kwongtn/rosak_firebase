@@ -10,10 +10,15 @@
   social entries behind it. Tapping a line's report button opens a **line-status bottom sheet** for a
   link-less live report (status, optional delay/notes, affected stations). It also hosts the spotting
   feature's **"Add a Spotting Entry" sheet**, opened
-  via `ReportSheetService.openFor(lineId)` from a line card and pre-scoped to that line. It replaces
-  the old default-route redirect to `/spotting`. One fixed-cadence refresh beat (30s) keeps the whole
-  page current — line statuses, the Today feed and the Last Week first page — and its countdown /
-  manual click are the same action.
+  via `ReportSheetService.openFor(lineId)` from a line card and pre-scoped to that line. 🔴 **Every
+  submission on the page goes through ONE chooser** (`app-report-chooser`): five intent tiles (Delay /
+  crowding · Stopped · Spot a train · Share a link · Report an incident) and, for the three line-based
+  intents, a line picker ordered pinned → recent → severity. It is triggered by the hero's "Report a
+  delay" and by the sticky **mobile action bar** (`Report` · `Refresh` · `Live map`, `lg:hidden`), so
+  no intent is reachable on desktop and unreachable on a phone. After a successful status or spotting
+  report the affected line's `#line-<id>` anchor is scrolled into view and briefly ringed. One
+  fixed-cadence refresh beat (30s) keeps the whole page current — line statuses, the Today feed and
+  the Last Week first page — and its countdown / manual click are the same action.
 - **Domain/Layer:** Angular Presentation (standalone, lazy-loaded routed feature, route-scoped
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
@@ -53,9 +58,11 @@
     **live refresh indicator** (`app-home-refresh-control`, `hidden lg:flex`) — see the
     refresh-control bullet.
     Wiring: Spot a train → `ReportSheetService.open()`, Share a link → `LinkSheetService.open()`,
-    Live map → the router, and **Report a delay emits `reportDelay`**, which
-    `HomePage.scrollToLineBoard()` answers by scrolling to `data-testid="line-board"` (the chooser
-    itself belongs to the board, not to a full-width summary strip).
+    Live map → the router, and **Report a delay → `ReportChooserService.open()`** (root-provided, the
+    sheet is hosted by the page). 🔴 The hero is a pure trigger: it does not decide which line, and
+    the `reportDelay` output + `HomePage.scrollToLineBoard()` it used to emit were **removed** in
+    Phase 2 — the CTA answers a question a reader on a platform cannot (they do not know a line id),
+    so scrolling them to the board to find one was the wrong affordance.
   - `line-pulse/` — `network-board.component.ts` (the three-group board: skeleton rows / empty state /
     the controls row / `Needs attention` cards / `My lines` + `All lines` rows),
     `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel),
@@ -69,27 +76,54 @@
     through the real server path to guard SSR/hydration).
     🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
     worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
-  - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet).
+  - `line-status/` — `line-status-sheet.component.ts` (the mobile report sheet, now **draft-first**:
+    the form and its footer render whether or not anyone is signed in; see the Internal State bullet).
+  - `report/` — `report-chooser.component.ts` (`app-report-chooser`, the sheet itself) plus its three
+    seams: `report-chooser.service.ts` (`ReportChooserService`, root: `isOpen` / `intent` / `open()` /
+    `choose()` / `backToTiles()` / `setOpen()`), `report-chooser-order.util.ts` (the pure
+    `orderChooserLines` + `filterChooserLines`) and its spec. Two steps — five intent tiles
+    (`chooser-tile-delay|stopped|spot|link|incident`), then a line picker
+    (`chooser-line-picker`, `chooser-line-filter`, `chooser-line-list`, `chooser-line-<id>`,
+    `chooser-line-hint`, `chooser-no-match`, `chooser-empty-lines`) for the three intents that are
+    about a specific line. It reads `HomeStore.lines()` and issues **no request of its own**; its only
+    two step-state signals are `isOpen` + `intent`, and `intent` is cleared by `open()` and by every
+    close so a stale trigger cannot resurrect a half-finished "which line?" step. 🔴 It must be
+    MOUNTED FIRST among the page's sheets — see the ordering note on the chooser's own doc comment and
+    the pinned spec in `home.page.spec.ts`. Dispatch: **delay** →
+    `LineStatusSheetService.openFor(lineId)` with NO preset ("Delay / crowding" is two conditions and
+    only the reader knows which one they saw); **stopped** → the same sheet with
+    `{ presetStatus: "DISRUPTED" }`, i.e. the rider's word mapped onto the existing PassengerStatus
+    rather than a ninth value; **spot** → `ReportSheetService.openFor(lineId)`; **link** →
+    `LinkSheetService.open()`; **incident** → `IncidentSheetService.open()` **and then**
+    `router.navigate(["/insiden"])` — the incident sheet is hosted by `/insiden`, so opening it first
+    (its service is root-provided) is what makes it already open on arrival. Every line-based choice
+    also calls `PreferencesService.pushRecentLine(line.id)`, and the chooser closes after dispatching
+    in all five cases.
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
     refresh row: countdown spinner, the **Updating** state (up while ANY non-initial refresh is in
     flight), the click-armed transient "Updated" confirmation and the `Click to Refresh Now`
-    tooltip). Rendered TWICE by the page — the countdown
-    drives the whole-page beat, so it heads whichever region the reader is actually looking at: the
-    links section below `lg`, and the **HERO** from `lg` up (it moved there with the network board,
-    because the hero is the page's full-width live strip and sits above the fold on every layout).
-    The two instances are gated with **CSS
-    only** (`lg:hidden` / `hidden lg:flex`), never a `matchMedia` placement signal, so SSR and
-    hydration emit identical markup; the `data-testid`s are therefore duplicated in the DOM (two
-    `line-refresh-countdown` buttons, exactly one visible) and specs must scope to a section. 🔴 Only
-    the WRAPPER moved into the hero — a second copy of the countdown/updating/confirmed state machine
-    there would double every confirmation and desync the two instances from the one beat they share;
-    Phase 2's FAB will revisit whether the mobile copy is still needed. The
+    tooltip). Rendered **ONCE**, in the **HERO** behind `hidden lg:flex`; the page's mobile copy that
+    used to head the feed column was **removed in Phase 2** and replaced by the sticky action bar's
+    Refresh button, which calls the same `store.polling.refreshNow()`. One component, one beat, one
+    countdown instance in the DOM (`line-refresh-countdown` is therefore no longer a duplicated
+    testid), and the placement gate stays **CSS
+    only** (`hidden lg:flex`), never a `matchMedia` placement signal, so SSR and
+    hydration emit identical markup. 🔴 Only the WRAPPER ever moved into the hero — a second copy of
+    the countdown/updating/confirmed state machine
+    there would double every confirmation and desync the two instances from the one beat they share. The
     trigger **shrink-wraps to the row it draws** (`:host { display: inline-block }`, no `w-full`), so
     the tap target is the spinner + label the reader can see and not an invisible full-width strip;
     right-edge alignment is the host's `flex justify-end` gate doing that work, not the control.
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
-    `ReportSheetService.openFor(lineId)`. The page's desktop layout is a two-panel split: the
+    `ReportSheetService.openFor(lineId)`. It hosts `app-report-chooser` as the **first** sheet in the
+    template (ordering is load-bearing — see the `report/` bullet) and ends with the sticky **mobile
+    action bar** (`data-testid="home-mobile-bar"`, `fixed inset-x-0 bottom-0 z-30 lg:hidden
+pb-[env(safe-area-inset-bottom)]`) hosting `home-mobile-report` (the chooser),
+    `home-mobile-refresh` (the SAME `store.polling.refreshNow()` the countdown's click calls — one
+    beat, two affordances) and `home-mobile-map` (a `routerLink="/tracker"` anchor, because "Live map"
+    must not be the one intent mobile loses). `main` grows a matching `pb-24 lg:pb-6` so the bar never
+    covers the last feed row. The page's desktop layout is a two-panel split: the
     retry banner and footer stay full width, while the feed and the line-status
     sections share `data-testid="home-panels"` (`flex flex-col gap-6 lg:grid lg:grid-cols-2
 lg:items-start`) — stacked on mobile, URL feed left / line statuses right from `lg` up. In the
@@ -163,11 +197,14 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
   a fresh store — see the polling bullet below. `SpottingLinesStore` is the spotting feature's
   route-scoped line list, provided here too because the spotting report form is hosted on this page.
 - **Hosted spotting sheet:** `<hlm-sheet data-testid="spotting-entry-sheet">` wraps
-  `<app-report-form #reportFormRef (submitted)="onSpottingSubmitted()" />` plus a
-  Clear/Cancel/Submit footer (submit testid `submit-spotting-entry`); `onSpottingSubmitted()` closes
-  the sheet and calls `store.reloadAll()`. The seed comes from
+  `<app-report-form #reportFormRef (submitted)="onSpottingSubmitted($event)" />` plus a
+  Clear/Cancel/Submit footer (submit testid `submit-spotting-entry`);
+  `onSpottingSubmitted(lineId)` closes the sheet, calls `store.reloadAll()` and rings that line. The
+  seed comes from
   `ReportSheetService.openFor(lineId)` (root-provided), which the report form consumes on its
-  open edge.
+  open edge — which is exactly why the reported line rides on the `submitted` PAYLOAD
+  (`output<string | null>()`, read before the form's own `clear()`): by the time the host hears about
+  the submit, the service's one-shot seed is already null.
 - **Component `input()`/`input.required()` signals:**
   - `LinePulseCardComponent.line = input.required<LinePulse>()`, `refreshTick = input(0)` (the
     host's poll beat, forwarded to the expanded panel's chart and reports).
@@ -176,9 +213,11 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     🔴 Density is PRESENTATION ONLY: it changes the row's padding and nothing else — never what is
     counted, never which actions exist, never whether a group renders.
   - `NetworkBoardComponent` has **no inputs at all**. It injects `HomeStore` for `lines()`,
-    `isLoading()`, `linesRefreshTick()` and its own three group views, exactly the way
+    `isLoading()`, `linesRefreshTick()`, `highlightedLineId()` and its own three group views, exactly
+    the way
     `HomeRefreshControlComponent` injects the store's beat. The partition RULE belongs to the store;
-    passing the groups down as inputs would mean re-deriving them on the page for no gain.
+    passing the groups down as inputs would mean re-deriving them on the page for no gain — and the
+    same is why the post-submit highlight signal lives in the store rather than being passed in.
   - `LinkThreadComponent` (the shared insiden `app-link-thread`, the feed's row wrapper — **recursive**,
     it renders its own children as nested threads at every depth):
     `link = input.required<LinkCardItem>()` — the node this instance renders; the feed's `FeedLink`
@@ -206,7 +245,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     shared link sheet in edit mode, so a wrong object would edit the wrong link). The card underneath
     emits `voteChanged = output<{ value: number }>()`, `edit = output<LinkCardItem>()` and
     `sublinkToggle = output<void>()`; the wrapper adds the id and re-emits the item unchanged.
-  - `LineStatusSheetComponent.submitted = output<void>()` (after a successful report, reload).
+  - `LineStatusSheetComponent.submitted = output<void>()` (after a successful report, the page reloads
+    **and** rings the reported line — the line id comes from the service, which keeps it after the close,
+    so the output stays payload-free).
+  - `ReportFormComponent.submitted = output<string | null>()` (spotting; the line it filed against).
 - **GraphQL documents** (`data/home.queries.ts`, single contract seam; hand-written types, no
   codegen):
   - `FRONT_PAGE_LINES_QUERY` — per-line pulse list: `id/code/displayName/displayColor/status`,
@@ -442,8 +484,18 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     it at one level, and do not drop a window flag. `allSettled`, not `all`: if one read fails the
     other's votes must still land (each failure is already surfaced by `GraphQLClient`).
 - **`LineStatusSheetService`** (`data/line-status-sheet.service.ts`) — the cross-component sheet
-  controller: `isOpen` + `lineId` signals, `openFor(lineId)` (sets both), `setOpen(open)`.
-  `LinePulseCardComponent` calls `openFor`; the sheet reads `isOpen`/`lineId`.
+  controller: `isOpen` + `lineId` + `presetStatus` signals, `openFor(lineId, { presetStatus? })`
+  (sets all three), `setOpen(open)`. `LinePulseCardComponent` / `LinePulseRowComponent` and the
+  report chooser call `openFor`; the sheet reads `isOpen`/`lineId`/`presetStatus`. 🔴 `presetStatus`
+  exists for exactly ONE caller — the chooser's "Stopped" tile, which is the rider's word for the
+  existing `DISRUPTED` PassengerStatus — and it is **one-shot**: the sheet consumes it (sets it back
+  to `null`) on the open edge, exactly as the spotting form consumes `ReportSheetService.lineId`, so a
+  later seedless open (a row's own "Report status" button) cannot resurrect a status from a report
+  that was already submitted or cancelled.
+- **`ReportChooserService`** (`report/report-chooser.service.ts`, `providedIn: "root"`) — the page's
+  one submission trigger, mirroring `LinkSheetService` (`isOpen` + `intent`, `open()` / `choose()` /
+  `backToTiles()` / `setOpen()`). Root-provided because its triggers are spread across two components
+  (the hero's CTA and the mobile action bar) while its sheet is hosted by the page.
 - **`HomePage`** — `sheetLine` computes the `LinePulse` for `lineStatusSheet.lineId()` from
   `store.lines()`; `errorResource` is a minimal `RetryableResource` adapter over `store.reloadAll()`
   (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy` — which is a **pause**, not a
@@ -453,11 +505,13 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   it `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
   `canLoadMoreLastWeek` (`computed`) gates its Load More (`loadMoreLastWeek()`) on
   `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
-  page itself holds no refresh state and no line data at all: it composes two
-  `app-home-refresh-control` instances (links section below `lg`, HERO from `lg` up, each behind a
-  CSS visibility class) and mounts `<app-network-board>` with **no inputs** — the countdown, tooltip,
+  page itself holds no refresh state and no line data at all: it mounts `<app-network-board>` with
+  **no inputs**, hosts the ONE `app-home-refresh-control` (inside the hero), the chooser and the
+  spotting sheet, and draws the `lg:hidden` mobile action bar — the countdown, tooltip,
   "Updating" label, transient "Updated" confirmation, the lines read and the board's partition all
-  live in the store and its components.
+  live in the store and its components. Its own three submission handlers are deliberately thin:
+  `openReportChooser()` (hero CTA + mobile Report), `refreshNow()` (mobile Refresh →
+  `store.polling.refreshNow()`) and `onLineStatusSubmitted()` (reload + `store.highlightLine(id)`).
 - **`LinkThreadComponent`** (shared insiden `app-link-thread`) — the feed's row element, and
   **recursive**: it renders one `app-link-card` for its node, then, when expanded, one nested
   `app-link-thread` per child in a `border-l pl-3` indented container. `children` is
@@ -492,13 +546,42 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
 - **`LineStatusSheetComponent`** local signals: `status` (`PassengerStatus | null`), `delayMinutes`
   (string, parsed on submit), `notes`, `selectedStationIds`, `isSubmitting`, and `submitError`
   (inline `[data-testid="line-status-submit-error"]`, `role="alert"`) — set on a GraphQL `ok: false`
-  payload, a `GraphQLRequestError` (server message mirrored), or a transport failure; only a truthy
-  `ok` closes the sheet and emits. A `[data-testid="cancel-line-status-report"]` button closes it
-  without submitting. `lineId` is computed from the input or the service. `stationsResource` is a
+  payload, a `GraphQLRequestError` (server message mirrored), a transport failure, **or the two
+  submit-time guards**; only a truthy `ok` closes the sheet and emits. A
+  `[data-testid="cancel-line-status-report"]` button closes it without submitting. `lineId` is
+  computed from the input or the service. `stationsResource` is a
   lazy `graphqlResource` that stays inert until the sheet is open on a known line
-  (`STATION_LINES_QUERY`, reused from spotting). An `effect` detects the open→closed edge and calls
-  `clear()` (which also resets `submitError`), so the next report starts clean. Logged out, the sheet
-  body is a login prompt instead of the form.
+  (`STATION_LINES_QUERY`, reused from spotting).
+  🔴 **DRAFT-FIRST (Phase 2).** The form and its footer render whether or not anyone is signed in;
+  logged out only ADDS a banner above the form ("You'll need to log in before submitting, but feel
+  free to fill in the details first." + the `login-button`), wording deliberately identical to the
+  spotting report form's. The account is asked for at exactly ONE place — `submit()` — which writes
+  the same message inline (`role="alert"`, above the footer, so it survives a missed toast) and toasts,
+  then returns. The draft is discarded on exactly ONE edge (open→closed, via `clear()`), so the login
+  popup cannot cost the reader their typing; the `login-button` opens the popup without touching any
+  draft signal. ONE `effect` handles both sheet edges: on **open** it consumes a `presetStatus`
+  (one-shot) and on **close** it clears — deliberately the same effect, because the seed and the reset
+  must never race against the same `_wasOpen` latch. On success the sheet also records
+  `PreferencesService.setLastReportedLine(lineId)` + `pushRecentLine(lineId)`: the chooser orders its
+  picker by pinned → recent → severity, so this is what makes "the line I just reported about" the
+  one at hand next time.
+- **Post-submit highlight (`HomeStore` + `NetworkBoardComponent`)** — after a successful line-status
+  report the page calls `HomeStore.highlightLine(lineId)`, which sets the store's `highlightedLineId`
+  signal and arms a `HIGHLIGHT_VISIBLE_MS` (2000 ms, the same window as the refresh control's
+  "Updated") timer to clear it; `ngOnDestroy` cancels it. 🔴 It lives in the STORE, not on the page,
+  because the board takes **no inputs at all** — giving it one would mean re-deriving on the page what
+  it already owns. The board renders every row wrapper (all three groups) with a stable
+  `id="line-<id>"`, the ring classes (`ring-2 ring-brand ring-offset-2 ring-offset-background`, only on
+  the highlighted row, plus a `data-highlighted` marker attribute) and a `scroll-mt-24` so the sticky
+  nav cannot cover it; a browser-gated `effect` scrolls that anchor into view
+  (`block: "center"`, `behavior: "smooth"` unless `prefers-reduced-motion`, which gets `"auto"`).
+  🔴 **Reduced motion drops the transition, never the ring**: `motion-reduce:transition-none` leaves
+  `duration-1000` inert under `prefers-reduced-motion`, because a reader who asked for less motion
+  still has to be told WHICH line they just reported about — dropping the ring would lose the
+  information, not just the flourish. The scroll never runs on the server. The page reads the line id
+  from `LineStatusSheetService.lineId`, which deliberately SURVIVES the close; for a spotting submit it
+  comes from the output payload instead (`ReportFormComponent.submitted: output<string | null>()`, the
+  line it filed against — the form consumes its own one-shot seed, so the service has nothing left).
 - **`LinkSubmitBoxComponent`** is a two-mode quick submit. Logged in it renders a Signal Forms
   `model`/`linkForm` (URL required) and two buttons in one responsive row (`flex-col` on mobile,
   `sm:flex-row` from `sm` up): **Submit Link** (`type=submit`) sends only
@@ -633,7 +716,13 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   which additionally carry the auth header and nothing else — the overlay is only complete if its
   window, page size and collapse match the rendered one (see Internal State).
 - **`LineStatusSheetService`** is the cross-component trigger seam: any future card or page can open
-  the report sheet with `openFor(lineId)` without wiring the sheet itself.
+  the report sheet with `openFor(lineId)` — or `openFor(lineId, { presetStatus })` when it already
+  knows which condition the rider meant — without wiring the sheet itself.
+- **`ReportChooserService` + `report-chooser-order.util.ts`** are the submission-intent seam: a new
+  intent is one entry in the tile table plus one branch in `onTile()`/`onLineChosen()`, and a new
+  ordering rule is one pure function with its own spec. The chooser **creates no data** — every tile
+  dispatches to an existing sheet, so an intent that needs a write path of its own is a backend +
+  feature decision, not a chooser change.
 - **`passenger-status.util.ts`** lookup tables are the label/variant seam — a new `PassengerStatus`
   value is a one-line addition per table (the sheet's chips and the submit box's select both derive
   their options from `Object.keys(PASSENGER_LABEL)`, so they stay in sync automatically).
@@ -693,18 +782,21 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
   accordion.
 - **`refresh-control/home-refresh-control.component.ts`** is the single source of the refresh
   affordance and the seam for any future host of it: it takes no inputs, injects `HomeStore` itself,
-  and is rendered twice with a CSS visibility class rather than a JS breakpoint probe. Keep it that
-  way — a second copy of this markup (or a `matchMedia`-driven placement) would either duplicate the
-  confirmation state machine or desync SSR from hydration. It is also the reference for "how do I
+  and is now rendered ONCE (in the hero, behind `hidden lg:flex`) rather than twice with a CSS
+  visibility class. Keep it that way — a second copy of this markup (or a `matchMedia`-driven
+  placement) would either duplicate the confirmation state machine or desync SSR from hydration.
+  ⚠️ A host that wants a REFRESH BUTTON rather than the countdown (the mobile action bar does) must
+  call `HomeStore.polling.refreshNow()` and **must not** re-implement the three states; at mobile
+  widths the countdown is not rendered, so the confirmation belongs to a surface the reader can
+  actually see. It is also the reference for "how do I
   react to a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the control latches
   on `HomeStore.isRefreshing()` going true and CONFIRMS on it settling false with `!hasError()`.
   🔴 **The `Updating` label tracks `isRefreshing`, NOT the click** — so the beat's own refreshes say
   "Updating" too (`35b8c08`), and the **pristine initial load is the only exclusion**, derived from
   the two pristine-first-fetch-only flags (`isLoading() || isLoadingLastWeek()`). The **"Updated"
   confirmation is still click-armed**, because a passive reader must never be told "just refreshed"
-  on a 30s timer they did not set. Both instances of the control show the label (they share the
-  store's one beat; only one is visible per breakpoint) while each arms the confirmation off its own
-  click alone. The click-arm machinery therefore still belongs to the **confirmation**, and a click's
+  on a 30s timer they did not set. The click-arm machinery therefore still belongs to the
+  **confirmation**, and a click's
   arm still has to be torn down on **both** exits out of an armed window — the settle edge (placed
   _before_ the
   `hasError` early-return, so an errored refresh still drops the label) and the stale-arm expiry
@@ -797,9 +889,17 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   window" — a bare count is what a pro reader is most likely to over-read, and the window is what
   makes it interpretable) plus `line-row-hq` / `line-row-hq-details`. Opening the panel pushes the
   line into `PreferencesService.pushRecentLine()` on the OPEN edge only, exactly like the card.
-  🔴 The row's report button is the WHOLE of the report affordance here: the full "which line?" chooser
-  is Phase 2, and until it lands this is exactly as honest as the card's — it reports on the line the
-  reader is looking at.
+  🔴 The row's report button reports on **the line the reader is looking at** — which is exactly as
+  honest as the card's, and deliberately NOT routed through the chooser: a rider already on a row knows
+  the line, and making them pick it again would be the chooser solving the wrong problem. The chooser
+  exists for the reader who arrives from the hero CTA or the mobile bar with no line in mind.
+- **`#line-<id>` anchors + the post-submit highlight ring** are the board's "return the reader to the
+  line they just reported about" contract, and both halves matter: every row wrapper in **all three
+  groups** carries the stable id (an anchor that existed only on the compact rows would break it for
+  exactly the lines that need attention), and the ring is driven by `HomeStore.highlightedLineId`
+  rather than by any per-row state, so a ring can never disagree between the card group and the row
+  groups. `data-highlighted` is on the same element as the ring classes purely so a spec can assert
+  the highlight through the DOM as well as through the signal.
 - **`status-confidence.util.ts` (`statusConfidence`, `hasOfficialPulseLink`)** is the pure rule behind
   the confidence chip both row elements show next to the status, because "what does the page know, and
   how do we know it?" was being answered three different ways on one screen (a backend state, a derived

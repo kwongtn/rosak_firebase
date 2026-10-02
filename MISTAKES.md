@@ -1068,3 +1068,41 @@ Every feature doc independently proposes an LLM-/embedding-based feature (captio
 ---
 
 \*Entry dates are catalogue dates (2026-08-13 Phase 1 per-feature audits; 2026-08-24 fixes) unless a fix commit is shown. Compiled from `docs/COMPONENTS.md` and `docs/components/*.md`.
+
+## [2026-10-03] ui/sheet: a sheet that OPENS another sheet must be MOUNTED FIRST, or the page scrolls behind it
+
+**Problem**: the home page's new report chooser opens the line-status / spotting / link / incident
+sheets, so two `HlmSheet`s changed `open()` in the same tick. After choosing a line, the line-status
+sheet came up correctly but the page behind it still scrolled — the modal lock was already gone.
+**Root Cause**: `HlmSheet` locks scroll from an `effect` keyed on its own `open()`, writing
+`document.body.style.overflow` / `documentElement.style.overflow` directly. Angular flushes effects in
+**creation order**, not in the order their signals were written, and both sheets' signals are written
+synchronously inside one click handler. So the UNLOCK (the chooser closing) must belong to the
+component created **before** the one that LOCKS. Mounted after it, the lock runs first and the unlock
+runs second — the exact opposite of what the click did.
+**Fix**: `<app-report-chooser />` is the first sheet in `home.page.ts`'s template, with the invariant
+written into the template comment, the chooser's own class doc, and a spec that asserts the markup
+order (`home.page.spec.ts` → "hosts the report chooser BEFORE every other sheet").
+**Prevention**: any two components that share one global side effect driven by a signal need an
+explicit order, and it has to be pinned by a spec — the failure is invisible in a unit test that only
+looks at one sheet, and in jsdom `document.body.style.overflow` is never asserted. When a new sheet is
+added to a page that already opens sheets, ask which of them is created first.
+
+## [2026-10-03] testing: one unflushed HttpTestingController request fails 84 tests in 8 unrelated files
+
+**Problem**: after adding specs for the home report chooser, the suite went from 114 files / 1455 tests
+green to **8 files / 84 tests failing** — including four spec files the change never touched
+(`line-pulse-card`, `status-info-chip`, `insiden/link-form`, `spotting/report-form`), most of them with
+`Cannot configure the test module when the test module has already been instantiated`.
+**Root Cause**: one new spec opened the line-status sheet while signed out on a known line, which fires
+its lazy `STATION_LINES_QUERY`; the request was never flushed, so `httpMock.verify()` threw in that
+file's `afterEach`. A throwing `afterEach` runs before Angular's TestBed reset, so the module stayed
+instantiated and every later file's `beforeEach` (`configureTestingModule`) refused. The cascade made
+the real failure — one line in one spec — completely invisible in the summary.
+**Fix**: the spec flushes the request (a helper `openSheetLoggedOut()` does it for every logged-out
+case, and the close-then-reopen spec was changed not to reopen, since reopening re-issues the read).
+**Prevention**: `httpMock.verify()` is a **cross-file** assertion in this runner, not a per-spec
+cleanup. Any spec that makes a lazy resource go live (opening a sheet with a known line/id) must flush
+it, even when the request is irrelevant to what it asserts. When a suite suddenly fails in files the
+change did not touch, read the FIRST failure in file order, not the last — and remember that a
+`TestBed.inject()` placed before `configureTestingModule()` throws the same misleading message.

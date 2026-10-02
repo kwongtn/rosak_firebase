@@ -1,5 +1,6 @@
 import { isPlatformBrowser } from "@angular/common";
 import { Injectable, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import type { OnDestroy } from "@angular/core";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, graphqlResource } from "../../../core/graphql/graphql-client";
@@ -32,6 +33,16 @@ export const FEED_PAGE_SIZE = 8;
 /** Links per page for the collapsed "Last Week" section. Larger than the today feed because it
  * spans up to seven calendar days; `alignPageToDay` keeps a page from ending mid-day. */
 export const LAST_WEEK_PAGE_SIZE = 20;
+
+/**
+ * How long the post-submit highlight ring stays on the line that was reported about.
+ *
+ * Long enough to be noticed after the eye travels from the (just-closed) sheet back down the board,
+ * short enough that a reader who carries on scrolling is not left looking at a ring that has stopped
+ * meaning "just now". Matches the refresh control's own "Updated" confirmation window, so the two
+ * transient messages on this page last the same beat.
+ */
+export const HIGHLIGHT_VISIBLE_MS = 2000;
 
 /**
  * The shared `collapseThreads` argument for every home-feed read — the two `graphqlResource`s, their
@@ -496,6 +507,45 @@ export class HomeStore {
    * link edit, a status report, the retry banner's "Try Now".
    */
   readonly polling = new PollingSource(() => this.reloadFirstPages());
+
+  /**
+   * The line whose board row is wearing the transient "you just reported about this" ring, or `null`.
+   *
+   * 🔴 IT LIVES HERE, NOT ON THE PAGE, because the board takes **no inputs at all** — it reads this
+   * store for its lines, its groups and its poll tick, and giving it an input would mean re-deriving
+   * what it already owns on the page. The page's only job is to call `highlightLine()`; the board
+   * draws the ring and scrolls the anchor, and neither of them has to know which sheet just closed.
+   */
+  private readonly _highlightedLineId = signal<string | null>(null);
+  readonly highlightedLineId = this._highlightedLineId.asReadonly();
+
+  /** The auto-clear for the ring. Re-armed (never stacked) by every `highlightLine()`. */
+  private _highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * Rings the given line's row for {@link HIGHLIGHT_VISIBLE_MS}, then clears.
+   *
+   * The timer is the whole "transient" half, and it is why the signal is `null`-able rather than a
+   * boolean on the page: a highlight nobody cleared would be a permanently-ringed line that reads as
+   * "this needs attention" — the one thing on this page that must never be cosmetic. A timer means
+   * the state can also be forgotten (store destroyed, next visit) instead of outliving its meaning.
+   */
+  highlightLine(lineId: string): void {
+    if (lineId === "") {
+      return;
+    }
+    clearTimeout(this._highlightTimer);
+    this._highlightTimer = setTimeout(() => {
+      this._highlightTimer = undefined;
+      this._highlightedLineId.set(null);
+    }, HIGHLIGHT_VISIBLE_MS);
+    this._highlightedLineId.set(lineId);
+  }
+
+  ngOnDestroy(): void {
+    clearTimeout(this._highlightTimer);
+    this._highlightTimer = undefined;
+  }
 
   constructor() {
     // httpResource is lazy until first read — read both so the store fetches on creation

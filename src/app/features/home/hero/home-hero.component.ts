@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output } from "@angular/core";
+import { Component, computed, inject, input } from "@angular/core";
 import { RouterLink } from "@angular/router";
 
 import {
@@ -12,6 +12,7 @@ import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home.queries";
 import { summarizeNetwork } from "../data/network-summary.util";
+import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeRefreshControlComponent } from "../refresh-control/home-refresh-control.component";
 
 /** One official (operator-sourced) post on the worst line, as the callout needs it. */
@@ -37,9 +38,13 @@ interface OfficialUpdate {
  * unit-tested without a DOM.
  *
  * The CTA row is **intent-based**, not feature-based: "Report a delay" is what somebody standing
- * on a platform is trying to do, and it is the one action this page is best at. It emits rather
- * than acting itself, because choosing WHICH line to report about belongs to the board below (the
- * report chooser is a later wave) and a scroll is all this page owes the reader for now.
+ * on a platform is trying to do, and it is the one action this page is best at. It opens the
+ * report chooser (`ReportChooserService`, root-provided and hosted by the page) rather than acting
+ * itself or scrolling — the reader who clicked it is on a platform, not reading the board, so
+ * choosing WHICH line is the chooser's job, not theirs. "Spot a train" and "Share a link" stay
+ * direct because they need no line, and the incident intent (which the chooser also offers) is not
+ * duplicated here: the hero row is the four things you can do from the front page without leaving
+ * it.
  *
  * The headline carries an `app-info-popover` because it is a metric, not a caption: its copy comes
  * from the methodology registry (`network.lines-normal`) through `renderMethodologyCopy`, so the
@@ -164,11 +169,16 @@ interface OfficialUpdate {
       </div>
 
       <div class="flex flex-wrap items-center gap-2" data-testid="hero-actions">
+        <!-- 🔴 Opens the report CHOOSER, not the line-status sheet. "Report a delay" names an
+             INTENT, and the reader is standing on a platform without the board's line list in front
+             of them — sending them to a sheet that needs a line id, or (as this used to) scrolling
+             them to a board to hunt for a row, both answered a question they did not ask. The
+             chooser asks "which line?" itself and hands the sheet a seeded line. -->
         <button
           hlmBtn
           class="bg-brand text-brand-foreground hover:bg-brand/85"
           data-testid="hero-report-delay"
-          (click)="reportDelay.emit()"
+          (click)="chooser.open()"
         >
           Report a delay
         </button>
@@ -189,17 +199,16 @@ interface OfficialUpdate {
         </a>
       </div>
 
-      <!-- The page's live refresh indicator, moved here from the line panel's header. It was
-           already the desktop instance, gated hidden lg:flex, and it keeps that gate exactly: the
-           page still renders a lg:hidden copy at the head of the mobile feed column, so there is
-           exactly ONE visible countdown at any width and the two instances keep sharing the store's
-           single beat. CSS-only placement, never a matchMedia probe, so the server HTML and the
-           hydrated client agree.
+      <!-- The page's live refresh indicator, moved here from the line panel's header. It keeps the
+           same hidden/lg:flex gate it was born with, and it is now the ONLY countdown instance:
+           the mobile copy that used to head the feed column is gone, because the sticky mobile action
+           bar (home.page.ts) carries a Refresh button that drives the SAME store.polling beat and
+           is visible at exactly the widths this one is not. CSS-only placement, never a matchMedia
+           probe, so the server HTML and the hydrated client agree.
            🔴 Only the WRAPPER moved. The countdown, the "Updating" label, the transient "Updated"
            confirmation and the click arm all still live inside HomeRefreshControlComponent — a
            second copy of that state machine in the hero would double every toast-free confirmation
-           and desync the two from the one beat they share. Phase 2's FAB will revisit whether the
-           mobile copy is still needed at all. -->
+           and desync the two from the one beat they share. -->
       <div class="hidden justify-end lg:flex">
         <app-home-refresh-control />
       </div>
@@ -212,11 +221,9 @@ export class HomeHeroComponent {
   /** Today's approved link count, straight off the feed read's own `totalCount`. */
   readonly linksToday = input(0);
 
-  /** Emitted by "Report a delay"; the page scrolls to the board rather than acting here. */
-  readonly reportDelay = output<void>();
-
   protected readonly reportSheet = inject(ReportSheetService);
   protected readonly linkSheet = inject(LinkSheetService);
+  protected readonly chooser = inject(ReportChooserService);
 
   protected readonly _summary = computed(() => summarizeNetwork(this.lines()));
 

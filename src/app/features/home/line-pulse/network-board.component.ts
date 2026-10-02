@@ -64,6 +64,14 @@ const VIEW_PARAM = "view";
  * in the same place) and is guarded against redundant navigation: if the URL already says what the
  * effective state says, it writes nothing. Without that guard, back/forward through `?sort=name`
  * would immediately re-navigate onto the parameters it came from.
+ *
+ * **Anchors and the post-submit highlight.** Every row wrapper — in ALL THREE groups, because a
+ * report can be about any line — carries a stable `id="line-<id>"` and is the thing
+ * `HomeStore.highlightLine()` rings. The id is what makes "return the reader to the line they just
+ * reported about" a one-line scroll (see the effect in the constructor), and the ring is a CSS
+ * class rather than an animation so it degrades honestly: `motion-reduce:transition-none` leaves the
+ * ring VISIBLE with no transition under `prefers-reduced-motion`, which is what a reader who asked
+ * for less motion still needs — the information, not the flourish.
  */
 @Component({
   selector: "app-network-board",
@@ -162,7 +170,16 @@ const VIEW_PARAM = "view";
             </h2>
             <div class="flex flex-col gap-3">
               @for (line of _attention(); track line.id) {
-                <div data-testid="line-board-row">
+                <div
+                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+                  [class.ring-2]="_isHighlighted(line.id)"
+                  [class.ring-brand]="_isHighlighted(line.id)"
+                  [class.ring-offset-2]="_isHighlighted(line.id)"
+                  [class.ring-offset-background]="_isHighlighted(line.id)"
+                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+                  [attr.id]="'line-' + line.id"
+                  data-testid="line-board-row"
+                >
                   <app-line-pulse-card [line]="line" [refreshTick]="_refreshTick()" />
                 </div>
               }
@@ -182,7 +199,16 @@ const VIEW_PARAM = "view";
           @if (_mine().length > 0) {
             <div class="flex flex-col gap-2">
               @for (line of _mine(); track line.id) {
-                <div data-testid="line-board-row">
+                <div
+                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+                  [class.ring-2]="_isHighlighted(line.id)"
+                  [class.ring-brand]="_isHighlighted(line.id)"
+                  [class.ring-offset-2]="_isHighlighted(line.id)"
+                  [class.ring-offset-background]="_isHighlighted(line.id)"
+                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+                  [attr.id]="'line-' + line.id"
+                  data-testid="line-board-row"
+                >
                   <app-line-pulse-row
                     [line]="line"
                     [refreshTick]="_refreshTick()"
@@ -209,7 +235,16 @@ const VIEW_PARAM = "view";
             </h2>
             <div class="flex flex-col gap-2">
               @for (line of _all(); track line.id) {
-                <div data-testid="line-board-row">
+                <div
+                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+                  [class.ring-2]="_isHighlighted(line.id)"
+                  [class.ring-brand]="_isHighlighted(line.id)"
+                  [class.ring-offset-2]="_isHighlighted(line.id)"
+                  [class.ring-offset-background]="_isHighlighted(line.id)"
+                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+                  [attr.id]="'line-' + line.id"
+                  data-testid="line-board-row"
+                >
                   <app-line-pulse-row
                     [line]="line"
                     [refreshTick]="_refreshTick()"
@@ -301,6 +336,21 @@ export class NetworkBoardComponent {
   /** Density is preference-only — see the class doc on why it never reaches the URL. */
   protected readonly _density = computed(() => this.preferences.density());
 
+  /**
+   * The line the store is currently ringing, and the one predicate every row wrapper asks.
+   *
+   * A METHOD rather than an inline `_highlightedLineId() === line.id` in three templates, because
+   * these three wrappers have to agree exactly — a ring that lands on the card in one group and the
+   * row in another would report the same event two different ways. `data-highlighted` is on the same
+   * element as the ring classes so a spec can assert the highlight through the DOM as well as
+   * through the signal.
+   */
+  protected readonly _highlightedLineId = this.store.highlightedLineId;
+
+  protected _isHighlighted(lineId: string): boolean {
+    return this._highlightedLineId() === lineId;
+  }
+
   constructor() {
     // Write half: mirror the effective state into the URL. `writeQueryParams` is browser-gated (a
     // reactive navigate() during SSR hangs the render), and the equality guard below stops the
@@ -339,6 +389,30 @@ export class NetworkBoardComponent {
       if (view !== this.preferences.viewMode()) {
         this.preferences.setViewMode(view);
       }
+    });
+
+    // Post-submit "you just reported about this line": scroll its `#line-<id>` anchor into view.
+    // The store owns WHEN (the page calls `highlightLine()`, and its timer clears it) and this
+    // component owns WHERE — it is the only thing that renders those anchors, so no page-level DOM
+    // query is needed to find one.
+    //
+    // 🔴 Browser-gated, like every other navigation in this component: `scrollIntoView` does not
+    // exist during SSR, and reading the anchor off the server's document would scroll nothing.
+    // `block: "center"` rather than "start" because the target is a ROW in a list, not a section —
+    // and `prefers-reduced-motion` drops `smooth` rather than fighting it.
+    effect(() => {
+      const lineId = this._highlightedLineId();
+      if (!lineId || !this.isBrowser) {
+        return;
+      }
+      const anchor = document.getElementById(`line-${lineId}`);
+      if (!anchor || typeof anchor.scrollIntoView !== "function") {
+        return;
+      }
+      const reduced =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      anchor.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
     });
   }
 

@@ -35,6 +35,7 @@ import { HomeHeroComponent } from "./hero/home-hero.component";
 import { HomePage } from "./home.page";
 import { NetworkBoardComponent } from "./line-pulse/network-board.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
+import { ReportChooserService } from "./report/report-chooser.service";
 
 // LineStatusSheetComponent reads window.matchMedia in its constructor; the test DOM doesn't provide it.
 if (!window.matchMedia) {
@@ -198,6 +199,8 @@ interface StoreMock {
   isRefreshing: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
   linesRefreshTick: WritableSignal<number>;
+  highlightedLineId: WritableSignal<string | null>;
+  highlightLine: ReturnType<typeof vi.fn>;
   polling: {
     intervalMs: WritableSignal<number | null>;
     secondsRemaining: WritableSignal<number>;
@@ -268,6 +271,12 @@ describe("HomePage", () => {
       isRefreshing: signal(false),
       hasError: signal(false),
       linesRefreshTick: signal(0),
+      highlightedLineId: signal<string | null>(null),
+      // The REAL rule (set the signal, then let the board's effect scroll the anchor) rather than a
+      // spy that records the call — a spy would pass even if the board never drew the ring.
+      highlightLine: vi.fn((lineId: string) => {
+        store.highlightedLineId.set(lineId);
+      }),
       polling: {
         intervalMs: signal<number | null>(30000),
         secondsRemaining: signal(30),
@@ -482,6 +491,111 @@ describe("HomePage", () => {
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
   });
 
+  /* ---- Phase 2: success feedback + the mobile bar ---------------------------------------- */
+
+  it("rings the line a status report was filed against, from the sheet's surviving id", () => {
+    const sheetComponent = fixture.debugElement.query(By.directive(LineStatusSheetComponent));
+    // The service keeps `lineId` AFTER the close (deliberately), which is why the page needs no
+    // payload on the output to know which line to return to.
+    sheet.lineId.set("a");
+
+    sheetComponent.componentInstance.submitted.emit();
+    fixture.detectChanges();
+
+    expect(store.reloadAll).toHaveBeenCalledTimes(1);
+    expect(store.highlightedLineId()).toBe("a");
+    // And the board drew it: the anchor exists and the ring landed on THAT row.
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[id="line-a"]');
+    expect(row).not.toBeNull();
+    expect(row?.hasAttribute("data-highlighted")).toBe(true);
+    expect(row?.classList.contains("ring-2")).toBe(true);
+  });
+
+  it("rings nothing when a status report has no line to return to", () => {
+    sheet.lineId.set(null);
+    fixture.debugElement
+      .query(By.directive(LineStatusSheetComponent))
+      .componentInstance.submitted.emit();
+
+    expect(store.reloadAll).toHaveBeenCalledTimes(1);
+    expect(store.highlightedLineId()).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector("[data-highlighted]")).toBeNull();
+  });
+
+  it("rings the reported line from a SPOTTING submit, whose payload carries it", async () => {
+    const reportSheet = TestBed.inject(ReportSheetService);
+    reportSheet.openFor("a");
+    // HlmSheet mounts no panel DOM until it has been open once, and that flag is set in its own
+    // effect — so opening the sheet needs a tick before the projected form exists to query.
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const form = fixture.debugElement.query(By.directive(ReportFormComponent));
+    expect(form).not.toBeNull();
+
+    form.componentInstance.submitted.emit("a");
+    fixture.detectChanges();
+
+    expect(reportSheet.isOpen()).toBe(false);
+    expect(store.reloadAll).toHaveBeenCalledTimes(1);
+    // The form consumes its own one-shot line seed, so `reportSheet.lineId` is already null by now —
+    // the payload is the only honest source, and it is what makes the return-to-the-line real.
+    expect(reportSheet.lineId()).toBeNull();
+    expect(store.highlightedLineId()).toBe("a");
+  });
+
+  it("gives every board line an anchor the highlight can be scrolled to", () => {
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '[data-testid="line-board-row"]',
+    );
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.getAttribute("id")).toBe("line-a");
+    // No highlight yet → no ring, and the marker attribute is absent rather than empty.
+    expect(rows[0]?.hasAttribute("data-highlighted")).toBe(false);
+    expect(rows[0]?.classList.contains("ring-2")).toBe(false);
+  });
+
+  it("hosts a mobile action bar with Report, Refresh and Live map, gated to below lg", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const bar = root.querySelector<HTMLElement>('[data-testid="home-mobile-bar"]');
+    expect(bar).not.toBeNull();
+
+    // Mobile-only: from lg up the hero's intent row and its refresh control are above the fold, so a
+    // second bar would duplicate both. CSS-only, like every other breakpoint gate on this page.
+    const classes = bar?.className.split(/\s+/);
+    expect(classes).toContain("lg:hidden");
+    expect(classes).toContain("fixed");
+    expect(classes).toContain("bottom-0");
+    // Safe-area padded so the buttons clear the iOS home indicator.
+    expect(classes).toContain("pb-[env(safe-area-inset-bottom)]");
+
+    expect(root.querySelector('[data-testid="home-mobile-report"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="home-mobile-refresh"]')).not.toBeNull();
+    const map = root.querySelector<HTMLAnchorElement>('[data-testid="home-mobile-map"]');
+    expect(map?.tagName).toBe("A");
+    expect(map?.getAttribute("href")).toBe("/tracker");
+    // The live map stays ONE tap away on a phone: the hero row's fourth CTA must not be the one
+    // thing mobile loses.
+    expect(map?.getAttribute("aria-label")).toBe("Live train map");
+
+    // …and main is padded to match, or the bar would cover the last feed row.
+    const main = root.querySelector("main") as HTMLElement;
+    expect(main.className.split(/\s+/)).toContain("pb-24");
+    expect(main.className.split(/\s+/)).toContain("lg:pb-6");
+  });
+
+  it("opens the chooser from the bar's Report, and drives the shared beat from its Refresh", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const chooser = TestBed.inject(ReportChooserService);
+
+    (root.querySelector('[data-testid="home-mobile-report"]') as HTMLButtonElement).click();
+    expect(chooser.isOpen()).toBe(true);
+
+    (root.querySelector('[data-testid="home-mobile-refresh"]') as HTMLButtonElement).click();
+    // ONE beat: the bar's button calls the same `polling.refreshNow()` the countdown's click does,
+    // so the two can never disagree about what "refreshing" means.
+    expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
+  });
+
   it("renders every loaded feed link, not a sliced subset", () => {
     store.feedLinks.set(Array.from({ length: 10 }, (_, index) => makeFeedLink(`x${index}`)));
     store.feedTotalCount.set(10);
@@ -548,25 +662,42 @@ describe("HomePage", () => {
     expect(heroComponent.componentInstance.linksToday()).toBe(9);
   });
 
-  it("sends the hero's report-delay output to the line board rather than to a sheet", () => {
+  it("opens the report chooser from the hero's Report a delay, not a scroll to the board", () => {
     const board = (fixture.nativeElement as HTMLElement).querySelector(
       '[data-testid="line-board"]',
     ) as HTMLElement;
     expect(board).not.toBeNull();
-    // `scroll-mt-24` keeps the sticky nav from covering the first card once the scroll lands.
-    expect(board.className.split(/\s+/)).toContain("scroll-mt-24");
 
+    // The CTA used to scroll here, which answered a question nobody asked: a reader on a platform
+    // cannot name a line id. The chooser asks "which line?" instead, and the board is still the
+    // scroll target for the post-submit highlight (see the #line-<id> anchors it renders).
     const scrollIntoView = vi.fn();
     // jsdom ships no layout, so `scrollIntoView` does not exist on the element at all.
     board.scrollIntoView = scrollIntoView;
 
-    fixture.debugElement
-      .query(By.directive(HomeHeroComponent))
-      .componentInstance.reportDelay.emit();
+    const chooser = TestBed.inject(ReportChooserService);
+    const hero = fixture.debugElement.query(By.directive(HomeHeroComponent));
+    (hero.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-testid="hero-report-delay"]')
+      ?.click();
     fixture.detectChanges();
 
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: "start" });
+    expect(chooser.isOpen()).toBe(true);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("hosts the report chooser BEFORE every other sheet, so its close releases the scroll lock", () => {
+    // 🔴 ORDER, NOT COSMETICS. HlmSheet locks page scroll from an effect on its own `open()`, and
+    // Angular flushes effects in creation order — the chooser OPENS the line-status sheet, so its
+    // close (unlock) must be created before that sheet's open (lock). Reversed, a freshly-opened
+    // sheet would sit on a page that can still scroll behind it.
+    const html = (fixture.nativeElement as HTMLElement).innerHTML;
+    expect(html.indexOf("app-report-chooser")).toBeGreaterThan(-1);
+    expect(html.indexOf("app-report-chooser")).toBeLessThan(html.indexOf("app-line-status-sheet"));
+    expect(html.indexOf("app-report-chooser")).toBeLessThan(html.indexOf("app-link-sheet"));
+    expect(html.indexOf("app-report-chooser")).toBeLessThan(
+      html.indexOf('data-testid="spotting-entry-sheet"'),
+    );
   });
 
   it("publishes a description meta tag for crawlers and link previews", () => {
@@ -651,59 +782,37 @@ describe("HomePage", () => {
     expect(fixture.debugElement.query(By.directive(RetryBannerComponent))).not.toBeNull();
   });
 
-  it("mounts one refresh control on the mobile feed column and one in the hero, breakpoint-gated", () => {
+  it("mounts ONE refresh control in the hero, and the mobile bar owns the phone's refresh", () => {
     const root = fixture.nativeElement as HTMLElement;
     const feedSection = root.querySelector<HTMLElement>('section[aria-label="Community feed"]');
     const lineSection = root.querySelector<HTMLElement>('section[aria-label="Line status"]');
     const hero = root.querySelector<HTMLElement>('[data-testid="home-hero"]');
 
-    // The beat refreshes BOTH sections, so exactly one countdown is visible at any width: the
-    // links section's below `lg`, the hero's from `lg` up. The hero is where the live indicator
-    // belongs now — it is the page's full-width summary and sits above the fold on every layout —
-    // so the DESKTOP instance moved there and the mobile one stayed put. CSS-only visibility (no
-    // matchMedia placement signal, which would desync SSR from hydration), so both copies are in
-    // the DOM and exactly one is shown.
+    // ONE countdown instance on the whole page. The mobile feed-column copy is gone: the sticky bar
+    // below carries a Refresh button on the SAME store beat at exactly the widths the old `lg:hidden`
+    // gate covered, so two controls on one phone was one too many — and the bar is the only place a
+    // reader scrolled to the bottom of the feed could reach Report at all.
     const controls = root.querySelectorAll("app-home-refresh-control");
-    expect(controls.length).toBe(2);
+    expect(controls.length).toBe(1);
     expect(hero?.querySelector("app-home-refresh-control")).not.toBeNull();
-    // The line panel no longer heads its own section with the control…
     expect(lineSection?.querySelector("app-home-refresh-control")).toBeNull();
-    // …it heads the board instead.
+    expect(feedSection?.querySelector("app-home-refresh-control")).toBeNull();
     expect(lineSection?.querySelector("app-network-board")).not.toBeNull();
 
-    const mobileWrapper = feedSection?.querySelector<HTMLElement>('[class~="lg:hidden"]');
-    expect(mobileWrapper).not.toBeNull();
-    expect(mobileWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
-    expect(feedSection?.firstElementChild).toBe(mobileWrapper);
-    // …ahead of the submit box it sits above.
-    const feedHtml = feedSection?.innerHTML ?? "";
-    expect(feedHtml.indexOf("app-home-refresh-control")).toBeLessThan(
-      feedHtml.indexOf("app-link-submit-box"),
-    );
-
+    // The hero's gate is still CSS-only (never a matchMedia placement signal, which would desync SSR
+    // from hydration) and still a justified flex row: the control shrink-wraps to its own visible
+    // content, so `justify-end` is the only thing parking it at the right edge.
     const heroWrapper = hero?.querySelector<HTMLElement>('[class~="lg:flex"]');
-    expect(heroWrapper).not.toBeNull();
     expect(heroWrapper?.className.split(/\s+/)).toContain("hidden");
-    expect(heroWrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
+    expect(heroWrapper?.className).toContain("flex");
+    expect(heroWrapper?.className).toContain("justify-end");
 
-    // Right-alignment contract: each gate must be a justified flex row. The control shrink-wraps to
-    // its own visible content (`:host` is `inline-block`, and the button carries no `w-full`), and a
-    // flex item's width is its content's — so `justify-end` in the gate is now the ONLY thing parking
-    // it at the right edge, and a plain block wrapper would leave the row flush left. That is why
-    // the gate stayed a flex row instead of being simplified away. jsdom cannot measure layout, so
-    // pin the classes that produce the alignment instead.
-    for (const gate of [mobileWrapper, heroWrapper]) {
-      expect(gate?.className).toContain("flex");
-      expect(gate?.className).toContain("justify-end");
-    }
+    // …and the submit box now heads the feed column, since nothing else does.
+    expect(feedSection?.firstElementChild?.tagName.toLowerCase()).toBe("app-link-submit-box");
 
-    // Both instances render the same countdown row, and either one drives the store's beat.
-    const countdowns = root.querySelectorAll('[data-testid="line-refresh-countdown"]');
-    expect(countdowns.length).toBe(2);
-    for (const countdown of Array.from(countdowns)) {
-      expect((countdown.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
-    }
-    (countdowns[0] as HTMLElement).click();
+    const countdown = root.querySelector('[data-testid="line-refresh-countdown"]');
+    expect((countdown?.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
+    (countdown as HTMLElement).click();
     fixture.detectChanges();
     expect(store.polling.refreshNow).toHaveBeenCalledTimes(1);
 
