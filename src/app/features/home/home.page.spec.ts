@@ -1,4 +1,5 @@
 import {
+  Component,
   CUSTOM_ELEMENTS_SCHEMA,
   provideZonelessChangeDetection,
   signal,
@@ -7,7 +8,7 @@ import {
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By, Meta } from "@angular/platform-browser";
-import { provideRouter } from "@angular/router";
+import { Router, provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../core/auth/auth.service";
@@ -35,11 +36,13 @@ import type { NetworkSummary } from "./data/network-summary.util";
 import { summarizeNetwork } from "./data/network-summary.util";
 import type { BoardSort } from "./data/home.store";
 import { HomeStore } from "./data/home.store";
+import { HomeViewModeService } from "./data/home-view-mode.service";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
 import { HomeHeroComponent } from "./hero/home-hero.component";
 import { HomePage } from "./home.page";
 import { NetworkBoardComponent } from "./line-pulse/network-board.component";
+import { ProDashboardComponent } from "./pro/pro-dashboard.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 import { ReportChooserService } from "./report/report-chooser.service";
 
@@ -185,6 +188,10 @@ function makeLine(id: string, status: LinePulse["status"] = "ACTIVE"): LinePulse
 
 interface StoreMock {
   lines: WritableSignal<LinePulse[]>;
+  /** What the BOARD draws and its three groups partition. Equal to `lines` until a Pro filter narrows
+   *  it, and a Rider page can never narrow it — so aliasing the one signal keeps the mock honest about
+   *  that default instead of inventing a second source the real store does not have. */
+  visibleLines: WritableSignal<LinePulse[]>;
   networkSummary: ReturnType<typeof signal<NetworkSummary>>;
   attentionLines: WritableSignal<LinePulse[]>;
   myLines: WritableSignal<LinePulse[]>;
@@ -240,6 +247,14 @@ function textOf(root: HTMLElement, testId: string): string {
   );
 }
 
+/**
+ * An inert host for the router's route table, so a real navigation can put a real `?view=pro` in the
+ * URL. `provideRouter([])` leaves nothing to activate, and the view service reads
+ * `ActivatedRoute.queryParamMap` — a stubbed route would not be a route.
+ */
+@Component({ selector: "app-page-host-stub", template: "" })
+class PageHostStub {}
+
 describe("HomePage", () => {
   let store: StoreMock;
   let auth: {
@@ -257,12 +272,18 @@ describe("HomePage", () => {
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
+    // 🔴 The view-mode branch specs below navigate to `?view=pro`, and the view service's deep-link
+    // effect then PERSISTS that into `localStorage`. Without clearing it, the next spec would boot a
+    // Pro reader and every rider assertion here would fail on a stale preference — a leak between
+    // tests that reads exactly like a real bug and is not one.
+    localStorage.clear();
     // The store's partition is REAL here rather than three hand-written arrays, so the composition
     // spec exercises the same grouping the board's own spec asserts on — a hand-written mock could
     // agree with a broken rule.
     const seededLines = [makeLine("a")];
     store = {
       lines: signal<LinePulse[]>(seededLines),
+      visibleLines: signal<LinePulse[]>(seededLines),
       networkSummary: signal<NetworkSummary>(summarizeNetwork(seededLines)),
       attentionLines: signal<LinePulse[]>([]),
       myLines: signal<LinePulse[]>([]),
@@ -330,9 +351,17 @@ describe("HomePage", () => {
         provideHttpClientTesting(),
         // The hero's "Live map" is a RouterLink to /tracker, so a router must be present for the
         // page to compose at all. An empty route table is enough — nothing navigates in these specs.
-        provideRouter([]),
+        // A real (if tiny) route table, not an empty one: the rider/pro branch below navigates to
+        // `?view=pro` and asserts the LAYOUT the page picked, which needs a route whose query params
+        // the view service can actually read.
+        provideRouter([{ path: "", component: PageHostStub }]),
         { provide: HomeStore, useValue: store },
         { provide: LineStatusSheetService, useValue: sheet },
+        // The page branches on the view through the service, exactly as the app's route provides it.
+        // The REAL service (not a stub) is deliberate: the rider/pro branch specs below navigate a real
+        // router and assert the URL, and a stubbed view would let the page keep a private copy of the
+        // answer and every one of those assertions would pass for the wrong reason.
+        HomeViewModeService,
         // Hosted spotting form injects this route-scoped store; its lines+vehicles POST is
         // flushed below.
         { provide: SpottingLinesStore, useValue: { lines: signal([]) } },
@@ -354,7 +383,12 @@ describe("HomePage", () => {
       // The shell (nav/footer) drags in ResizeObserver + Firestore-shaped deps that this
       // composition test doesn't care about — drop them and allow the tags as inert elements.
       .overrideComponent(HomePage, {
-        remove: { imports: [AppNavComponent, AppFooterComponent] },
+        // The shell drags in ResizeObserver + Firestore-shaped deps this composition test does not
+        // care about, and the Pro dashboard drags in five widgets (a router-link grid to
+        // /spotting/:id, a lazy incidents read, the board, the feed surface). Both are stripped so
+        // THIS file stays about the page's own composition and the branch it takes; the dashboard's
+        // internals are covered by pro-dashboard.component.spec.ts and each widget's own spec.
+        remove: { imports: [AppNavComponent, AppFooterComponent, ProDashboardComponent] },
         add: { schemas: [CUSTOM_ELEMENTS_SCHEMA] },
       })
       .compileComponents();
@@ -1226,6 +1260,45 @@ describe("HomePage", () => {
     expect(target?.vehicles?.map((vehicle) => vehicle.id)).toEqual(["V1"]);
     expect(target?.stations?.map((station) => station.id)).toEqual(["S1"]);
     expect(target?.categories?.map((category) => category.id)).toEqual(["C9"]);
+  });
+
+  /* ---- the rider / Pro branch ------------------------------------------------------- */
+
+  it("renders the rider panels by default and no Pro dashboard", () => {
+    const root = fixture.nativeElement as HTMLElement;
+
+    // `?view=` absent: the default is the rider layout, so an ordinary page load carries no parameter.
+    expect(root.querySelector('[data-testid="home-panels"]')).not.toBeNull();
+    expect(root.querySelector("app-pro-dashboard")).toBeNull();
+  });
+
+  it("swaps to the Pro dashboard for ?view=pro, dropping the rider panels entirely", async () => {
+    await TestBed.inject(Router).navigateByUrl("/?view=pro");
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector("app-pro-dashboard")).not.toBeNull();
+    // Not "both": two layouts at once would double every read the page makes.
+    expect(root.querySelector('[data-testid="home-panels"]')).toBeNull();
+  });
+
+  it("keeps the hero, the sheets and the mobile bar OUTSIDE the branch — one submission path", async () => {
+    const riderRoot = fixture.nativeElement as HTMLElement;
+    expect(riderRoot.querySelector("app-home-hero")).not.toBeNull();
+    expect(riderRoot.querySelector("app-report-chooser")).not.toBeNull();
+    expect(riderRoot.querySelector('[data-testid="home-mobile-bar"]')).not.toBeNull();
+
+    await TestBed.inject(Router).navigateByUrl("/?view=pro");
+    fixture.detectChanges();
+
+    const proRoot = fixture.nativeElement as HTMLElement;
+    // A "mode" that quietly grew its own report / link / spotting path is the one thing this branch
+    // must not do: both views submit through the same chooser, sheet and store.
+    expect(proRoot.querySelector("app-home-hero")).not.toBeNull();
+    expect(proRoot.querySelector("app-report-chooser")).not.toBeNull();
+    expect(proRoot.querySelector('[data-testid="home-mobile-bar"]')).not.toBeNull();
+    expect(proRoot.querySelector("app-line-status-sheet")).not.toBeNull();
+    expect(proRoot.querySelector('[data-testid="spotting-entry-sheet"]')).not.toBeNull();
   });
 
   it("renders the last-week day groups through the thread wrapper too", () => {

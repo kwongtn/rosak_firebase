@@ -20,6 +20,8 @@ import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
   FEED_QUERY,
   FRONT_PAGE_LINES_QUERY,
+  HOME_RECENT_INCIDENT_VARS,
+  HOME_RECENT_INCIDENTS_QUERY,
   LINES_STATUS_HISTORY_QUERY,
   NETWORK_STATUS_HISTORY_QUERY,
   REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
@@ -414,6 +416,63 @@ describe("the service-day history documents", () => {
     ).toBe(BUCKET_FIELDS.length);
     expect(NETWORK_STATUS_HISTORY_QUERY).not.toContain("linesStatusHistory");
     expect(LINES_STATUS_HISTORY_QUERY).not.toContain("networkStatusHistory");
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The Pro dashboard's incidents read
+ *
+ * Two properties are load-bearing and neither is visible in the TYPE: the document must really pass
+ * the variables it declares (a declared-but-unused GraphQL variable is a validation error, so a
+ * document that declared one WITHOUT using it would be rejected outright), and the variables object
+ * must be a LITERAL — a `new Date()` anywhere in it would make the server render and the client
+ * hydration compute different values, discard the TransferState payload and refetch every read twice.
+ * ---------------------------------------------------------------------- */
+
+describe("HOME_RECENT_INCIDENTS_QUERY", () => {
+  it("declares AND passes both variables, so the read is the one the store issues", () => {
+    const bare = withoutComments(HOME_RECENT_INCIDENTS_QUERY);
+    expect(bare).toMatch(/\$filters:\s*CalendarIncidentFilter\b/);
+    expect(bare).toMatch(/\$order:\s*CalendarIncidentOrder\b/);
+    expect(bare).toMatch(/calendarIncidents\([\s\S]*?filters:\s*\$filters/);
+    expect(bare).toMatch(/calendarIncidents\([\s\S]*?order:\s*\$order/);
+  });
+
+  it("sends the CONTINUING window, never a date this client computed", () => {
+    // The whole reason this document exists. `ongoing: true` is the backend's `end_datetime IS NULL` and
+    // `startDatetime: DESC` puts the newest first, so a "recent" list needs no clock at all — and the
+    // variables are therefore byte-identical in every process, which is the property the whole home
+    // contract rests on (the same rule that makes the feed's `lastWeekOnly` a backend boolean).
+    expect(HOME_RECENT_INCIDENT_VARS).toEqual({
+      filters: { OR: { ongoing: true } },
+      order: { startDatetime: "DESC" },
+    });
+    expect(JSON.stringify(HOME_RECENT_INCIDENT_VARS)).not.toMatch(/20\d\d-\d\d-\d\d/);
+  });
+
+  it("freezes the variables so no caller can mutate the constant the server render sent", () => {
+    expect(Object.isFrozen(HOME_RECENT_INCIDENT_VARS)).toBe(true);
+  });
+
+  it("asks for a MINIMAL row — no details, medias, chronologies or nested links", () => {
+    // The insiden page's own document selects all of those because its cards render them. This widget
+    // draws one row per incident, so asking for them would multiply payload and resolver fan-out across
+    // the WHOLE dataset for fields nothing here reads. `toEqual`, not `toContain`: an added field is the
+    // failure this assertion exists to catch.
+    expect(selectionUnderArgs(HOME_RECENT_INCIDENTS_QUERY, "calendarIncidents").fields).toEqual([
+      "id",
+      "startDatetime",
+      "endDatetime",
+      "severity",
+      "title",
+      "brief",
+      "lines",
+    ]);
+  });
+
+  it("takes only the identifying pair off each line", () => {
+    const rows = selectionUnderArgs(HOME_RECENT_INCIDENTS_QUERY, "calendarIncidents");
+    expect(rows.nested["lines"]?.fields).toEqual(["id", "code"]);
   });
 });
 

@@ -89,6 +89,10 @@ describe("NetworkHeatStripComponent", () => {
           provide: HomeStore,
           useValue: {
             lines,
+            // The grid reads `visibleLines` so it is always the SAME set of lines the board beside it
+            // draws — under the Pro filters too. A mock offering only `lines` would pass every
+            // assertion here while the real component threw on the first compute.
+            visibleLines: lines,
             linesHistoryFailed: failed,
             requestHistoryReads,
             linesHistoryFor: (lineId: string) => historyByLine.get(lineId) ?? [],

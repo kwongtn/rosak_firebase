@@ -8,6 +8,7 @@ import { PreferencesService } from "../../../core/preferences/preferences.servic
 import type { LinePulse } from "../data/home.queries";
 import type { BoardSort } from "../data/home.store";
 import { HomeStore } from "../data/home.store";
+import { HomeViewModeService } from "../data/home-view-mode.service";
 import { lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseRowComponent } from "./line-pulse-row.component";
@@ -100,6 +101,10 @@ function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSo
 
   const store = {
     lines: signal(lines),
+    // `visibleLines` is what the board draws and what the three groups partition — it equals `lines`
+    // until a Pro filter narrows it, and a rider board can never narrow it. Aliasing the same signal
+    // here keeps the mock honest about that default instead of inventing a second source.
+    visibleLines: signal(lines),
     attentionLines: signal(attention),
     myLines: signal(mine),
     allLines: signal(inSort(rest)),
@@ -162,6 +167,11 @@ describe("NetworkBoardComponent", () => {
         provideZonelessChangeDetection(),
         provideRouter([{ path: "", component: BoardHostStub }]),
         { provide: HomeStore, useValue: storeMock },
+        // The board no longer owns ?view=: `HomeViewModeService` does, and the board reads its
+        // `view()` and its toggle calls `setView()`. The REAL service is provided rather than a stub
+        // because the specs below are about exactly that wiring — a mock would let the board keep a
+        // second copy of the answer and every one of these assertions would still pass.
+        HomeViewModeService,
         // Both row elements route their report button through the route-scoped status-sheet service,
         // which the page (not the board) provides in the app's route table.
         { provide: LineStatusSheetService, useValue: lineStatusSheet },
@@ -381,7 +391,34 @@ describe("NetworkBoardComponent", () => {
     const patch = navigate.mock.calls.at(-1)?.[1]?.queryParams as Record<string, unknown>;
     expect(patch["view"]).toBe("pro");
     // The default sort is never spelled out in the URL — "no param" and "severity" are one state.
-    expect(patch["sort"]).toBeNull();
+    // Since ?view= is the service's param, this patch carries `view` ALONE: the board's sort write is
+    // guarded on the URL already agreeing, and it does (the default needs no param).
+    expect(Object.keys(patch)).toEqual(["view"]);
+  });
+
+  it("leaves ?view= entirely to the view service — the board's own write half never touches it", async () => {
+    // The board used to write `?sort=` and `?view=` in ONE patch, which is what made ?view= look like
+    // the board's param. The Pro dashboard has to choose between two layouts from the same fact, so it
+    // reads the service; if the board still wrote the param itself, the two halves of one fact could
+    // disagree for a render. One writer, asserted from the board's own side.
+    await board([makeLine("a")]);
+
+    const viewPatches = navigate.mock.calls.filter(
+      (call) => "view" in ((call[1]?.queryParams as Record<string, unknown>) ?? {}),
+    );
+    for (const call of viewPatches) {
+      const params = call[1]?.queryParams as Record<string, unknown>;
+      // Any write carrying ?view= is the service's, which is created BEFORE the board's effects and
+      // therefore writes `view` alone. A board patch would carry `sort` in the same object.
+      expect(Object.keys(params)).not.toContain("sort");
+    }
+    // And the sort patch alone never carries the view, which is the other half of the same guarantee.
+    for (const call of navigate.mock.calls) {
+      const params = call[1]?.queryParams as Record<string, unknown>;
+      if ("sort" in params) {
+        expect(Object.keys(params)).toEqual(["sort"]);
+      }
+    }
   });
 
   it("keeps the density control to pro readers, and writes it to the preference only", async () => {
@@ -479,7 +516,7 @@ describe("NetworkBoardComponent", () => {
 
     const patch = navigate.mock.calls.at(-1)?.[1]?.queryParams as Record<string, unknown>;
     expect(patch["view"]).toBe("pro");
-    expect(patch["sort"]).toBeNull();
+    expect(patch["sort"]).toBeUndefined();
   });
 
   it("writes nothing when the URL already says what the board shows", async () => {

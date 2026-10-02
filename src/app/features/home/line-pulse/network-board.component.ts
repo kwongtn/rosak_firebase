@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from "@angular/common";
-import { Component, PLATFORM_ID, computed, effect, inject } from "@angular/core";
+import { Component, PLATFORM_ID, computed, effect, inject, input } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
@@ -15,6 +15,7 @@ import {
   writeQueryParams,
 } from "../../../core/url-state/query-param.util";
 import { BOARD_SORTS, BoardSort, DEFAULT_BOARD_SORT, HomeStore } from "../data/home.store";
+import { HomeViewModeService } from "../data/home-view-mode.service";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { NetworkHeatStripComponent } from "../pro/network-heat-strip.component";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
@@ -23,13 +24,12 @@ import { LinePulseRowComponent } from "./line-pulse-row.component";
 /** Matches the typical above-the-fold line count, so the first paint doesn't jump. */
 const SKELETON_ROWS = 3;
 
-const BOARD_VIEWS: readonly PreferencesViewMode[] = ["rider", "pro"];
-const DEFAULT_BOARD_VIEW: PreferencesViewMode = "rider";
 const BOARD_DENSITIES: readonly PreferencesDensity[] = ["comfortable", "compact"];
 
-/** The URL param names. Named once so the read and write halves cannot drift. */
+/** The URL param names. Named once so the read and write halves cannot drift. `?view=` is NOT one
+ *  of them any more — it belongs to {@link HomeViewModeService}, which the whole page (not just this
+ *  board) has to be able to ask. */
 const SORT_PARAM = "sort";
-const VIEW_PARAM = "view";
 
 /**
  * The network board: the front page's line panel, grouped the way a reader actually reads it.
@@ -42,22 +42,20 @@ const VIEW_PARAM = "view";
  * hidden, and a pinned-but-broken line stays at the top instead of also appearing under "My lines".
  *
  * The controls row is deliberately small and all state is owned elsewhere — the sort lives in the
- * store (and the URL), the view and density in `PreferencesService` — because this component
- * composes, it does not decide.
+ * store (and the URL), the view in `HomeViewModeService` and the density in `PreferencesService` —
+ * because this component composes, it does not decide.
  *
- * **URL state.** `?sort=` and `?view=` are read from `route.queryParamMap` (seeded from the route
- * SNAPSHOT, so the server render and the client hydration read the same value) and mirrored back
- * through the shared `writeQueryParams`, which is browser-gated because a reactive `router.navigate()`
- * during SSR hangs the render. Three rules, all inherited from the helpers rather than re-derived:
+ * **URL state.** `?sort=` is read from `route.queryParamMap` (seeded from the route SNAPSHOT, so the
+ * server render and the client hydration read the same value) and mirrored back through the shared
+ * `writeQueryParams`, which is browser-gated because a reactive `router.navigate()` during SSR hangs
+ * the render. Three rules, all inherited from the helpers rather than re-derived:
  *
- *  - **A default never appears in the URL.** `sort=severity` and `view=rider` are written as `null`,
- *    so "no query params" and "the default view" are one state and a plain page load carries no
- *    parameters it did not choose.
- *  - **The URL wins over the stored preference.** `effectiveView` is "the URL's value when there is
- *    one, else `PreferencesService.viewMode`", which is what makes `?view=pro` a shareable link
- *    while a returning Pro reader still gets Pro without one. A param that is present but
- *    unrecognisable degrades to the DEFAULT rather than to the stored preference, matching how the
- *    rest of the app treats a bad query value.
+ *  - **A default never appears in the URL.** `sort=severity` is written as `null`, so "no query
+ *    params" and "the default sort" are one state and a plain page load carries no parameters it
+ *    did not choose.
+ *  - **The URL wins over the stored state.** A param that is present but unrecognisable degrades to
+ *    the DEFAULT rather than to whatever the store happened to hold, matching how the rest of the app
+ *    treats a bad query value.
  *  - **Density is preference-only.** It is a per-device reading habit, not something a shared link
  *    should impose, so it never reaches the URL.
  *
@@ -65,6 +63,13 @@ const VIEW_PARAM = "view";
  * in the same place) and is guarded against redundant navigation: if the URL already says what the
  * effective state says, it writes nothing. Without that guard, back/forward through `?sort=name`
  * would immediately re-navigate onto the parameters it came from.
+ *
+ * 🔴 **`?view=` is NOT this component's any more.** It moved to `HomeViewModeService` because the
+ * Pro dashboard needs the same answer to decide between two page layouts, and a second copy of
+ * "URL wins, else the preference" is how the two halves of one fact end up disagreeing for a
+ * render. The board reads the service's `view()` and its toggle calls `setView()`, so there is
+ * still exactly one writer — and the board's `?sort=` write no longer has to know about `?view=` at
+ * all, which is what lets each half own its own param independently.
  *
  * **Anchors and the post-submit highlight.** Every row wrapper — in ALL THREE groups, because a
  * report can be about any line — carries a stable `id="line-<id>"` and is the thing
@@ -166,7 +171,7 @@ const VIEW_PARAM = "view";
              writes, so a Pro reader arriving on ?view=pro sees the grid and a reader who never
              switched does not pay for it. It hides itself on a failed read (see
              NetworkHeatStripComponent) rather than tripping the page's retry banner. -->
-        @if (_view() === "pro") {
+        @if (_view() === "pro" && embedHeatStrip()) {
           <app-network-heat-strip />
         }
 
@@ -273,8 +278,26 @@ const VIEW_PARAM = "view";
   `,
 })
 export class NetworkBoardComponent {
+  /**
+   * Whether THIS board draws the Pro heat grid itself.
+   *
+   * 🔴 **The one input this component has, and it exists for exactly one caller.** On the plain board
+   * the grid belongs inside the panel — a Pro reader who toggled the view on the Rider page expects to
+   * find it there. The Pro dashboard is a BENTO LAYOUT with a dedicated heat-grid cell, and rendering
+   * `app-network-heat-strip` twice would put the same `network-heat-strip` testid on the page and draw
+   * the same grid twice. So the dashboard turns this off and places the component itself, next to the
+   * other cells it is comparing.
+   *
+   * Default `true`, deliberately: the Rider board's behaviour must not change to accommodate a new
+   * layout, and a host that forgets the input must get the full board rather than a silently narrower
+   * one. It gates ONE sibling `@if` and nothing else — the groups, the controls, the sort, the
+   * density and the anchors are all unaffected.
+   */
+  readonly embedHeatStrip = input(true);
+
   private readonly store = inject(HomeStore);
   private readonly preferences = inject(PreferencesService);
+  private readonly viewMode = inject(HomeViewModeService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -307,7 +330,7 @@ export class NetworkBoardComponent {
     { value: "compact", label: "Compact" },
   ];
 
-  protected readonly _lines = this.store.lines;
+  protected readonly _lines = this.store.visibleLines;
   protected readonly _attention = this.store.attentionLines;
   protected readonly _mine = this.store.myLines;
   protected readonly _all = this.store.allLines;
@@ -336,14 +359,8 @@ export class NetworkBoardComponent {
     return readEnumQueryParam(params, SORT_PARAM, BOARD_SORTS, DEFAULT_BOARD_SORT);
   });
 
-  /** The view in force: `?view=` when present, else the reader's stored preference. */
-  protected readonly _view = computed<PreferencesViewMode>(() => {
-    const params = this.queryParamMap();
-    if (readTextQueryParam(params, VIEW_PARAM) === null) {
-      return this.preferences.viewMode();
-    }
-    return readEnumQueryParam(params, VIEW_PARAM, BOARD_VIEWS, DEFAULT_BOARD_VIEW);
-  });
+  /** The view in force — owned by {@link HomeViewModeService}, not re-derived here. */
+  protected readonly _view = this.viewMode.view;
 
   /** Density is preference-only — see the class doc on why it never reaches the URL. */
   protected readonly _density = computed(() => this.preferences.density());
@@ -364,26 +381,18 @@ export class NetworkBoardComponent {
   }
 
   constructor() {
-    // Write half: mirror the effective state into the URL. `writeQueryParams` is browser-gated (a
+    // Write half: mirror the effective SORT into the URL. `writeQueryParams` is browser-gated (a
     // reactive navigate() during SSR hangs the render), and the equality guard below stops the
     // redundant navigation a back/forward would otherwise trigger by re-navigating onto the exact
-    // parameters it just left.
+    // parameter it just left. `?view=` is deliberately absent from this patch: it is
+    // `HomeViewModeService`'s param now, and `queryParamsHandling: "merge"` means each half can
+    // own its own key without either one clobbering the other.
     effect(() => {
       const sortTarget = queryParamForWrite(this._sort(), DEFAULT_BOARD_SORT);
-      const viewTarget = queryParamForWrite(this._view(), DEFAULT_BOARD_VIEW);
-      const params = this.queryParamMap();
-      if (
-        sortTarget === readTextQueryParam(params, SORT_PARAM) &&
-        viewTarget === readTextQueryParam(params, VIEW_PARAM)
-      ) {
+      if (sortTarget === readTextQueryParam(this.queryParamMap(), SORT_PARAM)) {
         return;
       }
-      writeQueryParams(
-        this.router,
-        this.route,
-        { [SORT_PARAM]: sortTarget, [VIEW_PARAM]: viewTarget },
-        this.isBrowser,
-      );
+      writeQueryParams(this.router, this.route, { [SORT_PARAM]: sortTarget }, this.isBrowser);
     });
 
     // URL -> durable state. A deep link (or a back/forward) has to land somewhere the next render
@@ -394,12 +403,6 @@ export class NetworkBoardComponent {
       const sort = this._sort();
       if (sort !== this.store.boardSort()) {
         this.store.setBoardSort(sort);
-      }
-    });
-    effect(() => {
-      const view = this._view();
-      if (view !== this.preferences.viewMode()) {
-        this.preferences.setViewMode(view);
       }
     });
 
@@ -433,9 +436,9 @@ export class NetworkBoardComponent {
     this.store.setBoardSort(sort);
   }
 
-  /** View toggle: the preference AND the URL, so a Pro board is a link somebody else can open. */
+  /** View toggle: one writer — the service persists the choice AND mirrors it into the URL. */
   protected setView(view: PreferencesViewMode): void {
-    this.preferences.setViewMode(view);
+    this.viewMode.setView(view);
   }
 
   /** Density toggle: preference only. */

@@ -170,6 +170,9 @@ alone.
 - `docs(home)`: the board partition rule, URL-state rules, the confidence rule + constant
 - `feat(home)`: report chooser, draft-first status sheet, success feedback
 - `docs(home)`: the chooser's dispatch table, the draft-first rule, the sheet mount-order trap + progress
+- `feat(home)`: history widgets + the feed line filter (Phase 3)
+- `feat(home)`: pro bento dashboard, feed filters, csv export (Phase 4)
+- `docs(home)`: the Pro bento layout, the has-data rule, the incidents decision + progress
 
 ---
 

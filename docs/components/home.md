@@ -83,7 +83,15 @@
     through the real server path to guard SSR/hydration).
     🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
     worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
-  - `pro/` — `network-heat-strip.component.ts` (selector `app-network-heat-strip`): the **Pro**
+  - `pro/` — 🔴 **the Pro bento dashboard (Phase 4)**: `pro-dashboard.component.ts` (`app-pro-dashboard`)
+    plus its five widgets — `pro-lines-widget.component.ts` (`app-pro-lines-widget`: three Pro-only
+    filters + the reused `app-network-board` + the CSV export), `pro-feed-widget.component.ts`
+    (`app-pro-feed-widget`: the rider feed's reading surface + line/provenance/search filters),
+    `network-heat-strip.component.ts` (its own cell), `pro-incidents-widget.component.ts`
+    (`app-pro-incidents-widget`: the ongoing-incident list) and `pro-line-hq-widget.component.ts`
+    (`app-pro-line-hq-widget`: per-line `/spotting/:id` + `/details` links). See the "Pro dashboard"
+    bullet below for the layout, the shortcuts, the filter contract and the incidents decision.
+    `network-heat-strip.component.ts` (selector `app-network-heat-strip`): the **Pro**
     heat grid — one row per line, one column per service-day hour, colour = the status that dominated
     that line-hour and opacity = how many reports it was (`network-heat-strip` / `-popover` /
     `heat-row` / `heat-row-code` / `heat-row-total` / `heat-cell` / `heat-legend` / `heat-scale`).
@@ -190,7 +198,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `reloadFirstPages()` and not `reloadAll()`; `reloadAll()` (full reset) stays with the submit box,
     the sheets and the retry banner.
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
-    `HomeStore`), `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
+    `HomeStore`), `home-view-mode.service.ts` (the route-scoped owner of `?view=`),
+    `feed-filter.util.ts` (the pure Pro feed narrowing — status provenance + free text, over the
+    resident conversation roots),
+    `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
     `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders), `network-summary.util.ts` (the
     pure board roll-up: severity tables, the needs-attention rule, the comparator, the headline and
@@ -201,7 +212,11 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
 ## 🔌 Interface & Data Flow
 
 - **Route:** `""` in `src/app/app.routes.ts` — `loadComponent: HomePage` with
-  `providers: [HomeStore, LineStatusSheetService, SpottingLinesStore]`. Route-scoped rather than root
+  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService, SpottingLinesStore]`.
+  🔴 `HomeViewModeService` is route-scoped for the same reason as the store **and for one more**: it
+  reads `ActivatedRoute`, and the ONE answer to "which view is this page in" has to be shared by the
+  page (which picks between two layouts) and the board (which owns the toggle). Before Phase 4 the
+  board answered that question privately and the page had no answer at all. Route-scoped rather than root
   singletons, but 🔴 **the route injector — and therefore `HomeStore` — OUTLIVES a visit**: the router
   retains it while `HomePage` is recreated on every navigation to `""`, so a return to `/` is handed
   the SAME store, not a new one. The page's lifecycle edges are consequently asymmetric:
@@ -384,6 +399,147 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     card; Hlm `badge`/`button`/`input`/`native-select`/`sheet`/`skeleton` primitives; `ToastService`;
     `RetryBannerComponent` (via its structural `RetryableResource`).
   - `AppNavComponent` / `AppFooterComponent` (`shell/`) — page chrome.
+
+## 🧩 The Pro dashboard (Phase 4)
+
+`app-pro-dashboard` is the second layout `HomePage` can render, chosen by **one** signal:
+`HomeViewModeService.view()` — the URL's `?view=` when it carries one, else
+`PreferencesService.viewMode()`.
+
+### The branch, and what stays outside it
+
+```html
+@if (viewMode.view() === "pro") {
+<app-pro-dashboard />
+} @else {
+<div data-testid="home-panels">… the rider feed + board columns …</div>
+}
+```
+
+The hero, the retry banner, the footer and **every sheet** are above and below that branch, and the
+sticky mobile action bar too. A report, a link submission and a spotting entry therefore go through
+exactly the same code in both views — a "mode" that quietly grew its own submission path is the one
+thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet order across the branch.
+
+### The five cells
+
+| Cell                     | Component                  | Owns                                                                   |
+| ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
+| Lines (large, left)      | `app-pro-lines-widget`     | three Pro-only filters, the reused `app-network-board`, the CSV export |
+| Community feed           | `app-pro-feed-widget`      | line / provenance / search filters over the rider feed's rows          |
+| Reports by line and hour | `app-network-heat-strip`   | nothing — a pure projection of the shared per-line read                |
+| Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                            |
+| Line HQ                  | `app-pro-line-hq-widget`   | nothing — a projection of `visibleLines()`                             |
+
+**The board is REUSED, not reimplemented.** Every row, group, sort, density toggle, anchor and
+highlight rule under the Lines widget is the component the Rider page mounts. It carries exactly one
+new input, `embedHeatStrip` (default `true`), which the dashboard turns **off** because the heat grid
+gets its own cell — two copies would mean two `network-heat-strip` testids and the same comparison
+drawn twice. Default `true` so the Rider board's behaviour cannot change to accommodate a new layout.
+
+**`NetworkHeatStripComponent` reads `visibleLines()`**, not `lines()`, so the grid is always the same
+SET of lines the board beside it draws; its shared intensity scale is computed over those same rows.
+
+### The filters — Pro-only, default off, reset on leaving Pro
+
+Three board filters, all in `HomeStore`, all defaulting to "no narrowing":
+
+- **Status** — `line.status === X` (exact).
+- **Crowding at least** — `passengerSeverityRank(line.passengerStatus) >= rank(X)`, a **floor**, not
+  an equality: a Pro reader asking for `DELAYED` wants "delayed or worse". The comparison mirrors
+  `PASSENGER_SEVERITY_RANK` (the backend's own enum order), so a backend reorder cannot make this
+  filter quietly wrong.
+- **Only lines with data** — 🔴 `statusConfidence(line).level !== "none"`, i.e. **exactly the evidence
+  the board's confidence chip already shows the reader**. The more obvious spelling
+  (`statusReportCount > 0 || passengerStatus != null || status !== "ACTIVE"`) is wrong: `passengerStatus`
+  is never null on a line that has been read, because the backend derives it and `NORMAL` is its
+  "nothing notable" answer — so that version would claim data on every line and the toggle would remove
+  nothing, while the chip beside it said "No recent reports". Published as the `network.has-data`
+  metric doc, because it is a judgement the reader is asked to trust rather than a literal they typed.
+
+`HomeStore.visibleLines()` is what the board draws and what its three groups **partition** — the
+partition has to be taken over the same set the rows are drawn from, or a Pro filter would shrink one
+group without shrinking the other two. Because every filter defaults off, `visibleLines` IS `lines()`
+on a Rider view. The store's OTHER views deliberately stay on `lines()`: the hero's headline and tiles
+describe the NETWORK, and the two history reads are keyed by line id.
+
+🔴 **`ProDashboardComponent.ngOnDestroy` calls `HomeStore.resetProFilters()`**, which clears the three
+board filters, the feed's provenance axis, the feed search **and** `lineFilter`, then writes `?line=`
+and `?q=` back to `null`. `HomeStore` is route-scoped and its injector OUTLIVES a visit, so anything
+left set is still set when the Rider board mounts — a rider board quietly missing eleven lines, and a
+feed narrowed to one line, with no control on the page to explain either. The URL clear is the other
+half of the same promise: without it the address bar keeps `?line=3` while the rider feed shows the
+whole network, so re-entering Pro would re-apply a filter the reader visibly walked away from.
+
+### The feed widget's three axes
+
+- **Line** — the **backend's**, through `HomeStore.setLineFilter()`. A keyset cursor is only meaningful
+  inside the query that minted it, so a client-side filter over an unfiltered page would splice
+  unrelated links together the moment the reader pressed Load More. `setLineFilter` already clears
+  every appended page on that edge.
+- **Source (provenance)** and **Search** — **client-side**, over the resident roots, because the
+  connection exposes no argument for either. Both live in the pure `filterFeedLinks`, which treats a
+  conversation as ONE unit: a root is KEPT when a match is anywhere in its tree, and a kept root keeps
+  its **whole** subtree. Dropping non-matching members would make the root's own "N links" chip lie and
+  expanding the row would find nothing.
+- 🔴 The "status" axis is **provenance**, not the link's approval state: both home feed resources
+  request `status: "LIVE"`, so the approval axis is constant on this read and a control over it would
+  be a filter that provably never removes anything.
+- 🔴 **This widget shows Today only.** The rider feed's collapsed "Last Week" section is a Rider
+  surface and stays there; the widget says `Today only` on its surface so a Pro reader searching for
+  something from Tuesday is not left concluding it was never filed.
+
+### Keyboard shortcuts (Pro only)
+
+| Key | Action                                                                                    |
+| --- | ----------------------------------------------------------------------------------------- |
+| `/` | focus the feed search input                                                               |
+| `r` | `store.polling.refreshNow()` — the SAME beat the refresh control and the mobile bar drive |
+| `p` | back to the Rider view, through `HomeViewModeService.setView("rider")`                    |
+
+A visible hints row (`pro-shortcuts`) names all three and adds a real **Back to rider view** button, so
+the shortcuts are an accelerator and not the only way out of a mode. The rules that make them safe:
+
+- 🔴 **Refused while the reader is typing** — inputs, textareas, selects and anything `contenteditable`.
+  `r` and `p` are ordinary letters: without this a reader typing "Kelana Jaya" into the search would
+  refresh on the `r` in "Kelana" and lose the rest.
+- 🔴 **A modified keystroke is never a shortcut** — Ctrl/Cmd+R is reload and Cmd/Ctrl+P is print.
+- The listener is on `document`, because a reader who has clicked nothing has focus on `document.body`
+  and a host-level listener would never fire. It exists only while the dashboard does, which is what
+  confines the whole feature to the Pro view: on a Rider page there is no listener at all.
+- The search input carries a `focus-visible:ring-brand` + `ring-offset-background` ring, so focus moved
+  there by the keyboard is visible in both themes.
+
+### Widget loading / error isolation
+
+`HomeStore.incidentsResource` follows the same arrangement as the two history reads: gated on the
+widget's explicit `requestIncidentsRead()`, exposing `recentIncidents` / `incidentsFailed` /
+`isLoadingIncidents`, and appearing in **neither `hasError` nor `isRefreshing`**. A Pro reader whose
+incidents read fails still gets the board, the feed, the heat grid and the HQ grid.
+
+🔴 **`recentIncidents` reads `incidentsFailed()` BEFORE `data()`, and that order is load-bearing.** A
+`graphqlResource`'s `data()` THROWS while the resource is in an error state rather than returning
+`undefined`, so a computed that reached for the payload on a failed read would take the page down from
+inside a `computed`. The two history computeds have the same shape and their widgets gate on the
+failure flag first for the same reason.
+
+### The incidents widget — the decision and its reasoning
+
+`calendarIncidents` is public and takes `filters` / `order`, so the widget ships. What it shows is
+**ongoing incidents, newest first**, and the widget says so (`Ongoing · newest first · showing N`),
+because that is exactly the set the read asks for.
+
+- ✅ `{ OR: { ongoing: true } }` + `{ startDatetime: "DESC" }` — both **compile-time constants**
+  (`HOME_RECENT_INCIDENT_VARS`, frozen). This is the deciding factor: a "last 7 days" `date.range`
+  would need `new Date()`, and a client clock in query variables makes the server render and the client
+  hydration compute different variables, so the SSR TransferState payload is discarded and every read
+  fires twice — the same rule that makes the feed's `lastWeekOnly` a backend-computed boolean.
+- ⚠️ `calendarIncidents` returns a **list, not a connection, and takes no `first`/`after`**. "Newest N"
+  is therefore ORDER + a client-side slice at `PRO_INCIDENT_LIMIT` (6). That is one full payload of
+  ongoing incidents per Pro reader; the document's selection is deliberately minimal (six scalars plus
+  the lines) so the payload is far smaller than `/insiden`'s, which selects `details`, `medias`,
+  `chronologies` and a first page of `links` per incident because its cards render them.
+- The widget links out to `/insiden` rather than duplicating the calendar here.
 
 ## ⚙️ Internal State & Logic
 
@@ -1081,16 +1237,64 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
 - **`errorResource` in `HomePage`** shows the adapter pattern for exposing a store (rather than a
   raw resource) to the shared retry banner.
 
+### New seams and testids (Phase 4)
+
+**New testids** — every pre-existing one is unchanged:
+
+- Dashboard: `pro-dashboard`, `pro-bento`, `pro-shortcuts`, `pro-shortcut-search`,
+  `pro-shortcut-refresh`, `pro-shortcut-rider`, `pro-back-to-rider`.
+- Lines widget: `pro-lines-widget`, `pro-lines-filters`, `pro-filter-status`, `pro-filter-passenger`,
+  `pro-filter-only-with-data` (+ `-popover`), `pro-filter-clear`, `pro-lines-export`.
+- Feed widget: `pro-feed-widget`, `pro-feed-window`, `pro-feed-filters`, `pro-feed-search`,
+  `pro-feed-line`, `pro-feed-status`, `pro-feed-skeleton`, `pro-feed-empty`, `pro-feed-list`,
+  `pro-feed-footer`, `pro-feed-count`, `pro-feed-load-more`.
+- Heat cell: `pro-heat-widget`. Incidents: `pro-incidents-widget`, `-window`, `-list`, `-row`,
+  `-title`, `-since`, `-all`. HQ: `pro-line-hq-widget`, `-list`, `-row`, `-name`, `-flag`, `-link`,
+  `-details`, `-empty`.
+
+**New seams:**
+
+- **`HomeViewModeService`** (`data/home-view-mode.service.ts`) — the ONE writer and ONE reader of
+  `?view=`. `NetworkBoardComponent` reads its `view()` and its toggle calls `setView()`; `HomePage`
+  branches on it; the Pro dashboard's `p` shortcut goes through it. `setView()` writes the preference
+  **and** the URL itself, because `view()` is URL-first: a `setView("rider")` that only touched the
+  preference would leave the effective view reading `pro` and the mirroring effect would see no change,
+  so the button would look dead. (That is exactly what the board's own toggle did while the logic lived
+  inside it, and its spec only ever toggled UP from a URL-less page, so the trap was invisible.)
+- **`filterFeedLinks`** (`data/feed-filter.util.ts`) — the pure Pro feed narrowing. A new client-side
+  feed axis is one `&&` here plus a documented rule about whether a conversation's members participate.
+- **`core/export/csv.util.ts`** — `toCsv(columns, rows)` (pure, RFC-4180, header always) and
+  `downloadCsv(filename, csv, isBrowser)`. Rows are keyed by COLUMN NAME, not positionally: a
+  positional row silently shifts every value one column left the moment a builder forgets a field, and
+  a CSV of hourly status buckets read one hour off is a plausible-looking lie. `isBrowser` is a
+  parameter for the documented `writeQueryParams` reason — reading `PLATFORM_ID` needs an injection
+  context a plain function should not have.
+- **`HOME_RECENT_INCIDENTS_QUERY` / `HOME_RECENT_INCIDENT_VARS`** in `home.queries.ts` — the home
+  contract seam's one new document, with frozen constant variables.
+- **`network.has-data`** — the `MetricDoc` for the "only lines with data" rule, read by the filter's
+  info popover through `renderMethodologyCopy(metricDoc(...).definition)`.
+
+### Deliberate deviations (Phase 4)
+
+- **No `@defer`.** The brief preferred `@defer (on viewport)` for the below-the-fold secondary widgets
+  (incidents, HQ). This repo has **zero** `@defer` precedent, and `TestBed`'s `deferBlockBehavior` /
+  `fixture.deferBlocks` would have made every widget spec assert on a manual flush rather than on
+  behaviour. Independent loading — which is what the requirement is actually about — is delivered by
+  construction instead: each widget owns its own resource and its own failure flag, and the incidents
+  read is opt-in from the widget's own constructor, so nothing is shared but the store.
+- **`NetworkBoardComponent` grew one input** (`embedHeatStrip`, default `true`), breaking its "no
+  inputs at all" invariant. Without it the dashboard would render the heat grid twice.
+- **`HomePage`'s mobile action bar stays outside the branch** as shared chrome: Report/Refresh/Live map
+  are the same three intents a Pro reader needs, and a second mobile bar inside the dashboard would
+  duplicate the refresh beat's affordance.
+
 ## 💡 Potential Feature Opportunities
 
-- **Feed filter UI + a real permalink.** The line filter's **plumbing shipped in Phase 3** —
-  `HomeStore.lineFilter` / `setLineFilter()` derive `$lineId` for both resources and both `loadMore*`
-  continuations, and a filter change drops every appended page so a cursor from one filter can never
-  continue another — but nothing sets it yet, and the URL has no `?line=` binding. **Ready to
-  implement, purely additive:** a control that calls `setLineFilter()` (plus a `?line=` param through
-  `core/url-state`, and a search box client-side over the resident page), and a per-link
-  route/fragment that scrolls to and highlights a row — the `#feed-link-<id>` anchor the duplicate
-  indicator already emits exists for every row.
+- **A per-link deep link.** The feed's filter UI, the `?line=`/`?q=` mirrors and the search box all
+  **shipped in Phase 4** (Pro view). Still missing: a per-link route/fragment that scrolls to and
+  highlights a single row — the `#feed-link-<id>` anchor the duplicate indicator already emits exists
+  for every row, so the DOM hook is there and only the route is missing. It is a Rider-surface idea: a
+  shared link should be able to point at one report.
 - **Extend the `userVote` overlay past the first page.** Today `loadVoteOverlay()` reads only the
   first page of the today feed (8) and of the last-week resource (20), so a logged-in user's own
   vote on an appended page renders as `0` until they vote again. **Ready now:** either re-run the
@@ -1102,8 +1306,9 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   landed with the network board's Phase 0 (`title: "MLPTF | Live Network Board"` on the `""` route;
   `Meta.updateTag` in `HomePage`, so the tag is in the SSR HTML). Still missing: open-graph /
   Twitter card tags and a per-route share image.
-- **Client-side search/sort over the resident feed page.** No new query needed for the current page;
-  a text filter over `feedLinks()` is a small computed addition.
+- ~~**Client-side search/sort over the resident feed page.**~~ ✅ Shipped in Phase 4 for the Pro view
+  (`filterFeedLinks`, `?q=`). The Rider feed deliberately has no search box — it is a glance, not a
+  query surface.
 
 ## 💡 Potential AI Feature Opportunities
 

@@ -30,6 +30,8 @@ import { NetworkBoardComponent } from "./line-pulse/network-board.component";
 import { LineStatusSheetComponent } from "./line-status/line-status-sheet.component";
 import { ReportChooserComponent } from "./report/report-chooser.component";
 import { ReportChooserService } from "./report/report-chooser.service";
+import { HomeViewModeService } from "./data/home-view-mode.service";
+import { ProDashboardComponent } from "./pro/pro-dashboard.component";
 
 /**
  * One paragraph for crawlers and link previews. It names the mechanism and never a number — every
@@ -82,6 +84,7 @@ const META_DESCRIPTION =
     LineStatusSheetComponent,
     ReportChooserComponent,
     ReportFormComponent,
+    ProDashboardComponent,
     RetryBannerComponent,
     HlmButton,
     HlmSheet,
@@ -109,164 +112,180 @@ const META_DESCRIPTION =
            totalCount), so it adds no request, and its report CTA opens the chooser hosted below. -->
       <app-home-hero [lines]="store.lines()" [linksToday]="store.feedTotalCount()" />
 
-      <div
-        class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
-        data-testid="home-panels"
-      >
-        <section class="flex flex-col gap-3" aria-label="Community feed">
-          <!-- 🔴 The mobile app-home-refresh-control copy that used to sit here is GONE. The
-               sticky action bar at the foot of the page carries a Refresh button on the same
-               store.polling beat at exactly the widths this gate (lg:hidden) covered, so two
-               controls on one phone was one too many — and the bar is the only place a rider can
-               reach Report from while scrolled to the bottom of the feed. One beat, one countdown
-               instance in the hero, one Refresh affordance here. -->
-          <app-link-submit-box (submitted)="store.reloadAll()" />
+      <!-- The one place the page branches on the view, and it branches on ONE signal:
+           HomeViewModeService's view() — the URL's ?view= when present, else the reader's stored
+           preference. One answer, read by one owner, is what stops the two layouts disagreeing with
+           the toggle that chose between them.
 
-          <div class="flex flex-col gap-3" data-testid="feed-scroll">
-            @if (store.isLoading() && store.feedLinks().length === 0) {
-              <div hlmSkeleton class="h-24 w-full" data-testid="feed-skeleton"></div>
-            } @else if (store.feedLinks().length === 0 && !store.hasError()) {
-              <div
-                class="text-muted-foreground border-border flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center text-sm"
-                data-testid="feed-empty"
-              >
-                <span data-testid="feed-empty-copy">No links yet today — be the first</span>
-                <button
-                  hlmBtn
-                  size="sm"
-                  variant="outline"
-                  data-testid="feed-empty-cta"
-                  (click)="openLinkSheet()"
+           r: the rider two-panel split. p: the Pro bento grid, which reuses this page's board, heat
+           grid, shared link thread and store rather than reimplementing any of them.
+
+           The hero, the retry banner and every sheet are ABOVE and BELOW this branch on purpose: a
+           report, a link submission and a spotting entry must go through the same code in both views,
+           and a "mode" that quietly grew its own submission path is the thing this refactor exists to
+           prevent. The mobile action bar below is shared chrome for the same reason. -->
+      @if (viewMode.view() === "pro") {
+        <app-pro-dashboard />
+      } @else {
+        <div
+          class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
+          data-testid="home-panels"
+        >
+          <section class="flex flex-col gap-3" aria-label="Community feed">
+            <!-- 🔴 The mobile app-home-refresh-control copy that used to sit here is GONE. The
+                 sticky action bar at the foot of the page carries a Refresh button on the same
+                 store.polling beat at exactly the widths this gate (lg:hidden) covered, so two
+                 controls on one phone was one too many — and the bar is the only place a rider can
+                 reach Report from while scrolled to the bottom of the feed. One beat, one countdown
+                 instance in the hero, one Refresh affordance here. -->
+            <app-link-submit-box (submitted)="store.reloadAll()" />
+
+            <div class="flex flex-col gap-3" data-testid="feed-scroll">
+              @if (store.isLoading() && store.feedLinks().length === 0) {
+                <div hlmSkeleton class="h-24 w-full" data-testid="feed-skeleton"></div>
+              } @else if (store.feedLinks().length === 0 && !store.hasError()) {
+                <div
+                  class="text-muted-foreground border-border flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center text-sm"
+                  data-testid="feed-empty"
                 >
-                  Share a link
-                </button>
-              </div>
-            }
-            @for (link of store.feedLinks(); track link.id) {
-              <app-link-thread
-                [link]="link"
-                [userVote]="store.userVoteFor(link.id)"
-                [voteValues]="store.userVotes()"
-                [editable]="canEdit(link)"
-                (voteChanged)="onVoteChanged($event)"
-                (edit)="openEdit($event)"
-              />
-            }
-          </div>
-          @if (store.feedLinks().length > 0) {
-            <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
-              <span class="text-muted-foreground text-xs" data-testid="feed-count">
-                Showing {{ store.feedLinks().length }} of {{ store.feedTotalCount() }}
-              </span>
-              @if (canLoadMore()) {
-                <button
-                  hlmBtn
-                  variant="outline"
-                  class="self-center"
-                  data-testid="feed-load-more"
-                  (click)="loadMore()"
-                >
-                  Load More
-                </button>
+                  <span data-testid="feed-empty-copy">No links yet today — be the first</span>
+                  <button
+                    hlmBtn
+                    size="sm"
+                    variant="outline"
+                    data-testid="feed-empty-cta"
+                    (click)="openLinkSheet()"
+                  >
+                    Share a link
+                  </button>
+                </div>
+              }
+              @for (link of store.feedLinks(); track link.id) {
+                <app-link-thread
+                  [link]="link"
+                  [userVote]="store.userVoteFor(link.id)"
+                  [voteValues]="store.userVotes()"
+                  [editable]="canEdit(link)"
+                  (voteChanged)="onVoteChanged($event)"
+                  (edit)="openEdit($event)"
+                />
               }
             </div>
-          }
-
-          <div class="flex flex-col gap-3">
-            <button
-              type="button"
-              class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1.5 self-start text-sm font-semibold tracking-wide uppercase"
-              data-testid="last-week-toggle"
-              [attr.aria-expanded]="_lastWeekExpanded()"
-              (click)="_lastWeekExpanded.set(!_lastWeekExpanded())"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                class="size-4 shrink-0 transition-transform"
-                [class.rotate-180]="_lastWeekExpanded()"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-              <span data-testid="last-week-count"
-                >Last Week ({{ store.lastWeekTotalCount() }})</span
-              >
-            </button>
-
-            @if (_lastWeekExpanded()) {
-              <div class="flex flex-col gap-3" data-testid="last-week-panel">
-                @if (store.isLoadingLastWeek() && store.lastWeekLinks().length === 0) {
-                  <div hlmSkeleton class="h-24 w-full" data-testid="last-week-skeleton"></div>
-                } @else if (store.lastWeekLinks().length === 0 && !store.hasError()) {
-                  <p
-                    class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
-                    data-testid="last-week-empty"
-                  >
-                    No links in the last week.
-                  </p>
-                }
-                @for (group of store.lastWeekDayGroups(); track group.key) {
-                  <div class="flex flex-col gap-2" data-testid="last-week-day-group">
-                    @if (group.label) {
-                      <h2
-                        class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
-                      >
-                        {{ group.label }}
-                      </h2>
-                    }
-                    @for (link of group.links; track link.id) {
-                      <app-link-thread
-                        [link]="link"
-                        [userVote]="store.userVoteFor(link.id)"
-                        [voteValues]="store.userVotes()"
-                        [editable]="canEdit(link)"
-                        (voteChanged)="onVoteChanged($event)"
-                        (edit)="openEdit($event)"
-                      />
-                    }
-                  </div>
-                }
-                @if (canLoadMoreLastWeek()) {
+            @if (store.feedLinks().length > 0) {
+              <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
+                <span class="text-muted-foreground text-xs" data-testid="feed-count">
+                  Showing {{ store.feedLinks().length }} of {{ store.feedTotalCount() }}
+                </span>
+                @if (canLoadMore()) {
                   <button
                     hlmBtn
                     variant="outline"
                     class="self-center"
-                    data-testid="last-week-load-more"
-                    (click)="loadMoreLastWeek()"
+                    data-testid="feed-load-more"
+                    (click)="loadMore()"
                   >
                     Load More
                   </button>
                 }
               </div>
             }
-          </div>
-        </section>
 
-        <section
-          #lineBoard
-          class="border-border flex scroll-mt-24 flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
-          aria-label="Line status"
-          data-testid="line-board"
-        >
-          <!-- Below lg this panel is stacked UNDER the feed, so the section above it draws a rule to
-               separate the two: border-t plus the matching pt-6, both dropped from lg
-               (lg:border-t-0 lg:pt-0) where the two sections are grid columns side by side and a
-               rule between them would just draw a line down the middle of the gap.
+            <div class="flex flex-col gap-3">
+              <button
+                type="button"
+                class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1.5 self-start text-sm font-semibold tracking-wide uppercase"
+                data-testid="last-week-toggle"
+                [attr.aria-expanded]="_lastWeekExpanded()"
+                (click)="_lastWeekExpanded.set(!_lastWeekExpanded())"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  class="size-4 shrink-0 transition-transform"
+                  [class.rotate-180]="_lastWeekExpanded()"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+                <span data-testid="last-week-count"
+                  >Last Week ({{ store.lastWeekTotalCount() }})</span
+                >
+              </button>
 
-               🔴 The refresh control that used to head this section from lg up has moved INTO the
-               hero, which is full width and reads as the page's live strip — so the live indicator
-               now sits above the fold on every layout instead of only on desktop. The lg:hidden
-               copy above the feed column is unchanged, which keeps exactly one visible countdown at
-               any width and keeps the two instances on the store's single beat. The control's own
-               state machine is untouched: only the wrapper moved. -->
-          <app-network-board />
-        </section>
-      </div>
+              @if (_lastWeekExpanded()) {
+                <div class="flex flex-col gap-3" data-testid="last-week-panel">
+                  @if (store.isLoadingLastWeek() && store.lastWeekLinks().length === 0) {
+                    <div hlmSkeleton class="h-24 w-full" data-testid="last-week-skeleton"></div>
+                  } @else if (store.lastWeekLinks().length === 0 && !store.hasError()) {
+                    <p
+                      class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
+                      data-testid="last-week-empty"
+                    >
+                      No links in the last week.
+                    </p>
+                  }
+                  @for (group of store.lastWeekDayGroups(); track group.key) {
+                    <div class="flex flex-col gap-2" data-testid="last-week-day-group">
+                      @if (group.label) {
+                        <h2
+                          class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+                        >
+                          {{ group.label }}
+                        </h2>
+                      }
+                      @for (link of group.links; track link.id) {
+                        <app-link-thread
+                          [link]="link"
+                          [userVote]="store.userVoteFor(link.id)"
+                          [voteValues]="store.userVotes()"
+                          [editable]="canEdit(link)"
+                          (voteChanged)="onVoteChanged($event)"
+                          (edit)="openEdit($event)"
+                        />
+                      }
+                    </div>
+                  }
+                  @if (canLoadMoreLastWeek()) {
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      class="self-center"
+                      data-testid="last-week-load-more"
+                      (click)="loadMoreLastWeek()"
+                    >
+                      Load More
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+
+          <section
+            #lineBoard
+            class="border-border flex scroll-mt-24 flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
+            aria-label="Line status"
+            data-testid="line-board"
+          >
+            <!-- Below lg this panel is stacked UNDER the feed, so the section above it draws a rule to
+                 separate the two: border-t plus the matching pt-6, both dropped from lg
+                 (lg:border-t-0 lg:pt-0) where the two sections are grid columns side by side and a
+                 rule between them would just draw a line down the middle of the gap.
+
+                 🔴 The refresh control that used to head this section from lg up has moved INTO the
+                 hero, which is full width and reads as the page's live strip — so the live indicator
+                 now sits above the fold on every layout instead of only on desktop. The lg:hidden
+                 copy above the feed column is unchanged, which keeps exactly one visible countdown at
+                 any width and keeps the two instances on the store's single beat. The control's own
+                 state machine is untouched: only the wrapper moved. -->
+            <app-network-board />
+          </section>
+        </div>
+      }
 
       <app-footer />
     </main>
@@ -373,6 +392,11 @@ const META_DESCRIPTION =
 })
 export class HomePage implements OnDestroy {
   protected readonly store = inject(HomeStore);
+
+  /** The one answer to "which layout is this page in" — `?view=` wins, else the stored preference.
+   *  Read, never duplicated: the board's toggle and the Pro dashboard's `p` shortcut both write
+   *  through the same service. */
+  protected readonly viewMode = inject(HomeViewModeService);
   private readonly lineStatusSheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);
   private readonly auth = inject(AuthService);

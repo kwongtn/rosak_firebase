@@ -11,7 +11,11 @@ const VARIANT_BY_STATUS: Record<LineStatus, BadgeVariants["variant"]> = {
   TOTAL_DISRUPTION: "destructive",
 };
 
-const LABEL_BY_STATUS: Record<LineStatus, string> = {
+/** The one plain-language name per operational status. Exported because a `<select>` cannot render a
+ *  badge: the Pro board's status filter has to offer the same words the badge shows, and a second
+ *  hand-written label table is how a filter ends up saying "Partial disruption" where the row says
+ *  "Partial Disruption". */
+export const LINE_STATUS_LABEL: Record<LineStatus, string> = {
   TESTING: "Testing",
   DEFUNCT: "Defunct",
   ACTIVE: "Active",
@@ -29,5 +33,5 @@ const LABEL_BY_STATUS: Record<LineStatus, string> = {
 export class LineStatusBadge {
   readonly status = input.required<LineStatus>();
   protected readonly _variant = computed(() => VARIANT_BY_STATUS[this.status()]);
-  protected readonly _label = computed(() => LABEL_BY_STATUS[this.status()]);
+  protected readonly _label = computed(() => LINE_STATUS_LABEL[this.status()]);
 }

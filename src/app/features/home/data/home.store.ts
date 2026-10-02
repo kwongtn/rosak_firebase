@@ -16,21 +16,64 @@ import {
   FeedQueryVars,
   FRONT_PAGE_LINES_QUERY,
   FrontPageLinesQueryData,
+  HOME_RECENT_INCIDENT_VARS,
+  HOME_RECENT_INCIDENTS_QUERY,
+  HomeIncidentItem,
+  HomeRecentIncidentsQueryData,
+  HomeRecentIncidentsQueryVars,
   LINES_STATUS_HISTORY_QUERY,
   LinePulse,
+  LineStatus,
   LineStatusHourBucket,
   LinesStatusHistoryQueryData,
   LinesStatusHistoryQueryVars,
   NETWORK_STATUS_HISTORY_QUERY,
   NetworkStatusHistoryQueryData,
   NetworkStatusHistoryQueryVars,
+  PRO_INCIDENT_LIMIT,
+  PassengerStatus,
 } from "./home.queries";
+import type { FeedLinkStatusFilter } from "./feed-filter.util";
 import {
   NetworkSummary,
   lineNeedsAttention,
   sortLinesBySeverity,
   summarizeNetwork,
 } from "./network-summary.util";
+import { passengerSeverityRank } from "./passenger-status.util";
+import { hasOfficialPulseLink, statusConfidence } from "./status-confidence.util";
+
+/**
+ * "Does this line have any data behind it?", as ONE rule every consumer reads.
+ *
+ * 🔴 **This is deliberately `statusConfidence(line).level !== "none"`, spelled here so it can be
+ * documented as a user-visible rule** rather than re-derived by the Pro board's "only lines with data"
+ * toggle and by anything else that needs the same judgement.
+ *
+ * The alternative spelling — `statusReportCount > 0 || passengerStatus != null || status !== "ACTIVE"` —
+ * reads more obviously and is WRONG, because `passengerStatus` is never null on a line that has been
+ * read: the backend derives it, and `NORMAL` is its "nothing notable" answer. A toggle built on that
+ * would keep every quiet line on screen and claim the page "has data" about a line nobody ever
+ * reported — while the board's confidence chip beside it says "No recent reports". Two parts of one
+ * page disagreeing about the same line in the same second is the exact failure the chip exists to
+ * prevent.
+ *
+ * So "has data" means exactly what the chip means: **a report inside the line's own rolling window,
+ * OR a rider-reported passenger status above `NORMAL`, OR a non-`ACTIVE` operational status, OR an
+ * official post.** `passengerStatus: "NORMAL"` is the derived absence and is not evidence, and a
+ * non-`ACTIVE` status IS evidence even with zero reports behind it (an operator-declared disruption
+ * nobody has filed about is still something the page knows).
+ */
+function lineHasData(line: LinePulse): boolean {
+  return (
+    statusConfidence({
+      reportCount: line.statusReportCount,
+      passengerStatus: line.passengerStatus,
+      status: line.status,
+      hasOfficialPost: hasOfficialPulseLink(line.pulseLinks),
+    }).level !== "none"
+  );
+}
 
 /** Links per GraphQL page: the initial read and every `loadMore()` continuation ask for this
  * many. A fetch size only — the page renders every loaded link and "Load More" pulls one
@@ -109,6 +152,28 @@ export const DEFAULT_BOARD_SORT: BoardSort = "severity";
 
 /** Every accepted `?sort=` value, for the URL's own parse-and-degrade. */
 export const BOARD_SORTS: readonly BoardSort[] = ["severity", "name"];
+
+/** Every `LineStatus`, for the Pro board's operational-status filter's own options. Named once so a
+ * control cannot offer a value the data cannot hold. */
+export const LINE_STATUSES: readonly LineStatus[] = [
+  "ACTIVE",
+  "PARTIAL_ACTIVE",
+  "PARTIAL_DISRUPTION",
+  "TOTAL_DISRUPTION",
+  "TESTING",
+  "DEFUNCT",
+];
+
+/** Every `PassengerStatus`, for the Pro board's passenger filter's own options. */
+export const PASSENGER_STATUSES: readonly PassengerStatus[] = [
+  "NORMAL",
+  "BUSY",
+  "CROWDED",
+  "EXTREMELY_CROWDED",
+  "BACKLOGGED",
+  "DELAYED",
+  "DISRUPTED",
+];
 
 /** Local name compare for `code`, the last tiebreak of the severity order as well as the whole of
  * the `name` order. `localeCompare` rather than `<`: MRT line codes mix letters and digits, and a
@@ -476,6 +541,204 @@ export class HomeStore {
   readonly linesHistoryFailed = this.linesHistoryResource.hasError;
 
   /* ------------------------------------------------------------------ *
+   * The Pro dashboard's OWN filters — default OFF, reset on leaving Pro
+   * ------------------------------------------------------------------ *
+   *
+   * 🔴 **These three filters are Pro-only, and their DEFAULTS are what keeps them out of the Rider
+   * board.** All three are "no narrowing" (`null` / `false`), so `visibleLines` is `lines()` until a Pro
+   * reader touches a control, and a Rider view — which mounts none of them — cannot be narrowed even
+   * by accident. That is the whole reason they are separate signals rather than one `filters` object
+   * shared with the board: a shared object would have to be reset by the board too, and the board has
+   * no way to know whether a filter is a reader's view state or a Pro tool's transient narrowing.
+   *
+   * 🔴 **The route injector outlives a visit, so a filter that is not reset outlives the Pro view
+   * that set it.** `ProDashboardComponent.ngOnDestroy` calls {@link resetProFilters}; without it, a
+   * reader who narrowed the board to one line in Pro and switched back to Rider would come to a
+   * rider board quietly missing eleven lines with no control on the page to explain why. The feed's
+   * own line filter and search are reset by the same call, because Pro is the only surface that has a
+   * control for either (see `setLineFilter`).
+   */
+
+  /** Operational status the board is narrowed to, or `null` for every status. */
+  private readonly _proStatusFilter = signal<LineStatus | null>(null);
+  readonly proStatusFilter = this._proStatusFilter.asReadonly();
+
+  /**
+   * The passenger severity the board is narrowed to **at or above**, or `null` for any.
+   *
+   * A threshold rather than an equality, and that is the useful shape for a rider-reported axis: a
+   * Pro reader asking for `DELAYED` wants "delayed or worse", not the subset that happened to report
+   * exactly `DELAYED`. The comparison mirrors `PASSENGER_SEVERITY_RANK` — the backend's own enum
+   * order — rather than a hand-written ladder, so a backend enum reorder cannot make this filter
+   * quietly wrong (the rule `network-summary.util` already documents for the same reason).
+   */
+  private readonly _proPassengerFilter = signal<PassengerStatus | null>(null);
+  readonly proPassengerFilter = this._proPassengerFilter.asReadonly();
+
+  /** "Only lines we actually know something about" — see {@link visibleLines}. */
+  private readonly _proOnlyWithData = signal(false);
+  readonly proOnlyWithData = this._proOnlyWithData.asReadonly();
+
+  /** The Pro feed widget's free-text search over the resident roots, or `""` for no search. */
+  private readonly _feedSearchQuery = signal("");
+  readonly feedSearchQuery = this._feedSearchQuery.asReadonly();
+
+  /** The Pro feed widget's provenance axis. Defaults to `all`, the absence. */
+  private readonly _feedStatusFilter = signal<FeedLinkStatusFilter>("all");
+  readonly feedStatusFilter = this._feedStatusFilter.asReadonly();
+
+  /**
+   * The lines the PRO board draws, over every Pro filter.
+   *
+   * Each axis is applied in order and independently, so a reader who set two filters sees their
+   * intersection rather than whichever control fired last. The ORDER of the three is only about
+   * readability of the predicate; they are independent `&&`s.
+   *
+   * 🔴 **"Has data" is {@link lineHasData} — `statusConfidence(line).level !== "none"` — and it is
+   * deliberately the SAME rule the board's confidence chip already shows the reader.** That is not
+   * convenience — it is what makes the filter honest. See the function for why the more obvious
+   * spelling would claim a quiet line has data while the chip beside it says "No recent reports".
+   *
+   * Every other axis is exact equality — `status === X`, `severity >= X` — because those are literal
+   * values the reader named; only this one is a judgement call, which is why it is the one published
+   * in the methodology registry.
+   */
+  /**
+   * The lines the BOARD draws: `lines()` narrowed by the three Pro filters, which default to no
+   * narrowing.
+   *
+   * 🔴 **The board's three groups partition THIS, not `lines()`** — and that is what keeps the
+   * Pro filters consistent with the partition instead of drawing a filtered set beside groups
+   * computed from an unfiltered one. Because every filter defaults to "no narrowing", `visibleLines`
+   * IS `lines()` on a Rider view and in any store that never touched a Pro control, so the rider board
+   * is byte-for-byte what it was; the Rider view additionally has no control that can set one.
+   *
+   * The store's OTHER views deliberately stay on `lines()`: the hero's headline and tiles describe the
+   * NETWORK, and the two history reads are keyed by line id. Narrowing those would make the page
+   * describe a subset while claiming to describe the network.
+   */
+  readonly visibleLines = computed<LinePulse[]>(() => {
+    const status = this._proStatusFilter();
+    const passenger = this._proPassengerFilter();
+    const onlyWithData = this._proOnlyWithData();
+    const floor = passenger === null ? null : passengerSeverityRank(passenger);
+
+    return this.lines().filter((line) => {
+      if (status !== null && line.status !== status) {
+        return false;
+      }
+      if (floor !== null && passengerSeverityRank(line.passengerStatus) < floor) {
+        return false;
+      }
+      return !onlyWithData || lineHasData(line);
+    });
+  });
+
+  /** Sets the operational-status filter. `null` (or `""`) clears it; an unknown value is a no-op. */
+  setProStatusFilter(status: LineStatus | null): void {
+    this._proStatusFilter.set(
+      status !== null && (LINE_STATUSES as readonly string[]).includes(status) ? status : null,
+    );
+  }
+
+  /** Sets the passenger-severity floor. `null` (or `""`) clears it; unknown values are a no-op. */
+  setProPassengerFilter(status: PassengerStatus | null): void {
+    this._proPassengerFilter.set(
+      status !== null && (PASSENGER_STATUSES as readonly string[]).includes(status) ? status : null,
+    );
+  }
+
+  /** Turns "only lines with data" on or off. */
+  setProOnlyWithData(on: boolean): void {
+    this._proOnlyWithData.set(on === true);
+  }
+
+  /** Sets the Pro feed widget's free-text search. `null` and `""` are the same state. */
+  setFeedSearchQuery(query: string | null): void {
+    this._feedSearchQuery.set(query ?? "");
+  }
+
+  /** Sets the Pro feed widget's provenance axis. An unrecognised value degrades to `all`. */
+  setFeedStatusFilter(status: FeedLinkStatusFilter | null): void {
+    this._feedStatusFilter.set(status === "official" || status === "community" ? status : "all");
+  }
+
+  /**
+   * Clears every Pro-only filter, the feed's line filter and the feed search, in one call.
+   *
+   * One method rather than five calls at the destroy site so the list of things a Pro reader can
+   * narrow — and therefore the list of things that MUST be undone — is written down exactly once, in
+   * the class that owns the signals. A destroy hook that reset four of the five would be a silent,
+   * invisible leak rather than an error.
+   *
+   * Clearing {@link lineFilter} re-issues both feed resources, which is correct and necessary: the
+   * Rider board that comes back must not be server-filtered to whatever line the Pro reader was on.
+   */
+  resetProFilters(): void {
+    this._proStatusFilter.set(null);
+    this._proPassengerFilter.set(null);
+    this._proOnlyWithData.set(false);
+    this._feedSearchQuery.set("");
+    this._feedStatusFilter.set("all");
+    this.setLineFilter(null);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * The Pro dashboard's INCIDENTS read — a third lazy, ISOLATED read
+   * ------------------------------------------------------------------ *
+   *
+   * The same arrangement as the two history reads above, for the same reason: a supporting widget
+   * that cannot load must hide ITSELF and never put the page's retry banner over a working page. So
+   * `incidentsResource` is gated on the Pro widget's explicit opt-in, feeds
+   * {@link recentIncidents} / {@link incidentsFailed}, and appears in NEITHER `hasError` NOR
+   * `isRefreshing` — a chart-and-list pair must not be able to hold the refresh confirmation open or
+   * replace the board with an error banner.
+   *
+   * Its variables are the module-level {@link HOME_RECENT_INCIDENT_VARS} constant — NOT computed per
+   * call and certainly not from a clock — so the server render and the client hydration send the
+   * same object and the TransferState payload is reused.
+   */
+  private readonly _incidentsRequested = signal(false);
+
+  /** Asks the store to read the ongoing-incidents list. Called by the Pro widget's constructor. */
+  requestIncidentsRead(): void {
+    this._incidentsRequested.set(true);
+  }
+
+  private readonly incidentsResource = graphqlResource<
+    HomeRecentIncidentsQueryData,
+    HomeRecentIncidentsQueryVars
+  >(() => {
+    if (!this._incidentsRequested()) {
+      return undefined;
+    }
+    return { query: HOME_RECENT_INCIDENTS_QUERY, variables: HOME_RECENT_INCIDENT_VARS };
+  });
+
+  /**
+   * The newest ongoing incidents, capped at {@link PRO_INCIDENT_LIMIT}.
+   *
+   * The backend returns an ordered LIST with no limit argument, so the cap is a slice here. It is a
+   * slice rather than a claim of completeness, and the widget says "newest first" rather than
+   * "everything" so the reader is not misled about what the other rows were.
+   */
+  readonly recentIncidents = computed<HomeIncidentItem[]>(() => {
+    // 🔴 **The failure flag is read BEFORE `data()`, and that order is load-bearing.** A
+    // `graphqlResource`'s `data()` THROWS while the resource is in an error state rather than
+    // returning undefined, so a computed that reached for the payload on a failed read would take the
+    // page down from inside a `computed` — the exact opposite of "hide the widget". Returning early on
+    // the flag is what makes this signal TOTAL, which is why the widget's own visibility check is a
+    // belt-and-braces second gate rather than the only one.
+    if (this.incidentsFailed()) {
+      return [];
+    }
+    return (this.incidentsResource.data()?.calendarIncidents ?? []).slice(0, PRO_INCIDENT_LIMIT);
+  });
+
+  /** True when the incidents read failed — the widget's OWN hide signal, never `hasError`. */
+  readonly incidentsFailed = this.incidentsResource.hasError;
+
+  /* ------------------------------------------------------------------ *
    * The board's derived views — a PARTITION of `lines()`, no new reads
    * ------------------------------------------------------------------ *
    *
@@ -498,7 +761,10 @@ export class HomeStore {
    * in two groups or in none.
    *
    * The counts and the headline come from the SAME pure `summarizeNetwork` the hero reads, so the
-   * hero's tiles and the board's groups cannot disagree about which lines need attention.
+   * hero's tiles and the board's groups cannot disagree about which lines need attention — which is
+   * also why those three partition `visibleLines()` (the board's own Pro filters) rather than
+   * `lines()`: the partition has to be taken over the same set the rows are drawn from, or a Pro
+   * filter would shrink a group without shrinking the other two.
    */
 
   /** The rolled-up network state (headline, counts, worst line) over the one lines read. */
@@ -528,7 +794,7 @@ export class HomeStore {
 
   /** Lines needing attention, worst first — the board's full `LinePulseCardComponent` group. */
   readonly attentionLines = computed<LinePulse[]>(() =>
-    sortLinesBySeverity(this.lines().filter(lineNeedsAttention)),
+    sortLinesBySeverity(this.visibleLines().filter(lineNeedsAttention)),
   );
 
   /** The reader's pinned lines that no higher group claimed, worst first. */
@@ -536,7 +802,7 @@ export class HomeStore {
     const claimed = new Set(this.attentionLines().map((line) => line.id));
     const pinned = new Set(this.preferences.pinnedLineIds());
     return sortLinesBySeverity(
-      this.lines().filter((line) => pinned.has(line.id) && !claimed.has(line.id)),
+      this.visibleLines().filter((line) => pinned.has(line.id) && !claimed.has(line.id)),
     );
   });
 
@@ -546,7 +812,7 @@ export class HomeStore {
       ...this.attentionLines().map((line) => line.id),
       ...this.myLines().map((line) => line.id),
     ]);
-    const rest = this.lines().filter((line) => !claimed.has(line.id));
+    const rest = this.visibleLines().filter((line) => !claimed.has(line.id));
     return this.boardSort() === "name" ? [...rest].sort(byCode) : sortLinesBySeverity(rest);
   });
 

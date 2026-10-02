@@ -15,6 +15,7 @@ import {
   LineStatusHourBucket,
 } from "./home.queries";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
+import { PRO_INCIDENT_LIMIT } from "./home.queries";
 import { FEED_PAGE_SIZE, HISTORY_LINE_ID_CAP, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
 
 /** The preferences service's own storage key, restated so a rename breaks this spec loudly rather
@@ -1916,5 +1917,305 @@ describe("HomeStore: the board partition", () => {
       expect(store.myLines().map((l) => l.id)).toEqual(["spl"]);
       expect(store.allLines().map((l) => l.id)).toEqual(["bdr", "kjl", "xtr"]);
     });
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The Pro dashboard's own state
+ * ---------------------------------------------------------------------- */
+
+describe("HomeStore: the Pro filters and the incidents read", () => {
+  let httpMock: HttpTestingController;
+  let requestMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    requestMock = vi
+      .fn()
+      .mockResolvedValue({ publicSocialMediaLinks: { edges: [], pageInfo: {} } });
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
+        HomeStore,
+        {
+          provide: AuthService,
+          useValue: {
+            isLoggedIn: signal(false),
+            isAdmin: () => false,
+            idToken: async () => "token",
+            whenReady: Promise.resolve(),
+          },
+        },
+        { provide: GraphQLClient, useValue: { request: requestMock } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    localStorage.clear();
+  });
+
+  function linesRequest() {
+    return httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("FrontPageLines"),
+    );
+  }
+
+  function feedRequest() {
+    return httpMock.expectOne(
+      (r) =>
+        r.method === "POST" &&
+        r.body.query.includes("query Feed") &&
+        r.body.variables?.lastWeekOnly !== true,
+    );
+  }
+
+  function lastWeekRequest() {
+    return httpMock.expectOne(
+      (r) =>
+        r.method === "POST" &&
+        r.body.query.includes("query Feed") &&
+        r.body.variables?.lastWeekOnly === true,
+    );
+  }
+
+  /** A line with the evidence fields the three Pro axes read. */
+  function makeProLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
+    return {
+      ...makeLine(id),
+      // The default fixture reports 1 status report, which is EVIDENCE — so the "only lines with
+      // data" specs below override it explicitly rather than inheriting it by accident.
+      statusReportCount: 1,
+      ...overrides,
+    };
+  }
+
+  /**
+   * A store whose three page-critical reads have settled on `lines`.
+   *
+   * Async, and the `await` is load-bearing rather than stylistic: `httpResource` settles through the
+   * effect queue, so reading a `computed` over its data in the same turn as the flush sees the EMPTY
+   * value. Every spec here asserts through a computed, which is exactly where that shows up.
+   */
+  async function startedWith(lines: LinePulse[]): Promise<HomeStore> {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    linesRequest().flush({ data: { lines } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+    return store;
+  }
+
+  it("narrows NOTHING until a Pro control is touched — the rider board is lines(), byte for byte", async () => {
+    // Acceptance rule for "default off". A rider page mounts no Pro control, so if this default ever
+    // drifted the rider board would quietly lose lines with nothing on screen to explain it.
+    const lines = [makeProLine("a"), makeProLine("b", { status: "TOTAL_DISRUPTION" })];
+    const store = await startedWith(lines);
+
+    expect(store.proStatusFilter()).toBeNull();
+    expect(store.proPassengerFilter()).toBeNull();
+    expect(store.proOnlyWithData()).toBe(false);
+    expect(store.visibleLines()).toEqual(lines);
+  });
+
+  it("partitions its three groups over the FILTERED set, so no group disagrees with the rows", async () => {
+    const store = await startedWith([
+      makeProLine("a"),
+      makeProLine("b"),
+      makeProLine("dead", { status: "TOTAL_DISRUPTION" }),
+    ]);
+
+    store.setProStatusFilter("TOTAL_DISRUPTION");
+
+    // The partition is the board's whole contract: every line in exactly one group. A filter that
+    // shrank `attentionLines` but not `allLines` would print lines the board never draws.
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["dead"]);
+    expect(store.attentionLines().map((line) => line.id)).toEqual(["dead"]);
+    expect(store.myLines()).toEqual([]);
+    expect(store.allLines()).toEqual([]);
+  });
+
+  it("treats the passenger filter as a FLOOR — DELAYED keeps the worse statuses too", async () => {
+    const store = await startedWith([
+      makeProLine("crowded", { passengerStatus: "CROWDED" }),
+      makeProLine("late", { passengerStatus: "DELAYED" }),
+      makeProLine("down", { passengerStatus: "DISRUPTED" }),
+    ]);
+
+    store.setProPassengerFilter("DELAYED");
+
+    // A rider-reported axis asked about as a floor: "delayed or worse", not "exactly delayed".
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["late", "down"]);
+  });
+
+  it("keeps a line whose ONLY evidence is a non-ACTIVE status, at zero reports", async () => {
+    // The store's evidence rule treats an operator-declared disruption as data even with nothing
+    // filed behind it — the same reading the confidence chip gives ("Unconfirmed (0 reports)").
+    const store = await startedWith([
+      makeProLine("quiet", { statusReportCount: 0 }),
+      makeProLine("declared", { statusReportCount: 0, status: "PARTIAL_DISRUPTION" }),
+    ]);
+
+    store.setProOnlyWithData(true);
+
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["declared"]);
+  });
+
+  it("does NOT count a NORMAL passenger status as data — it is the backend's 'nothing notable'", async () => {
+    // The whole reason "has data" is the confidence rule and not `passengerStatus != null`: NORMAL is
+    // derived, not observed, and a toggle built on it would remove nothing.
+    const store = await startedWith([
+      makeProLine("normal", { statusReportCount: 0, passengerStatus: "NORMAL" }),
+      makeProLine("reported", { statusReportCount: 1, passengerStatus: "NORMAL" }),
+    ]);
+
+    store.setProOnlyWithData(true);
+
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["reported"]);
+  });
+
+  it("ANDs the axes rather than letting the last-touched control win", async () => {
+    const store = await startedWith([
+      makeProLine("late-active", { passengerStatus: "DELAYED" }),
+      makeProLine("late-broken", { passengerStatus: "DELAYED", status: "PARTIAL_DISRUPTION" }),
+      makeProLine("broken-only", { status: "PARTIAL_DISRUPTION" }),
+    ]);
+
+    store.setProPassengerFilter("DELAYED");
+    store.setProStatusFilter("PARTIAL_DISRUPTION");
+
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["late-broken"]);
+  });
+
+  it("degrades an unrecognised filter value to the default rather than throwing", async () => {
+    const store = await startedWith([makeProLine("a")]);
+
+    store.setProStatusFilter("NOT_A_STATUS" as never);
+    store.setProPassengerFilter("NOT_A_PASSENGER" as never);
+    store.setFeedStatusFilter("nonsense" as never);
+
+    expect(store.proStatusFilter()).toBeNull();
+    expect(store.proPassengerFilter()).toBeNull();
+    expect(store.feedStatusFilter()).toBe("all");
+  });
+
+  it("resets EVERY Pro filter, the feed's line filter and the search in one call", async () => {
+    // Acceptance rule for "filters reset on leaving Pro". The route injector outlives a visit, so
+    // anything left set here is still set when the Rider board mounts — a rider board missing eleven
+    // lines with no control on the page to explain it.
+    const store = await startedWith([makeProLine("a"), makeProLine("b")]);
+
+    store.setProStatusFilter("ACTIVE");
+    store.setProPassengerFilter("BUSY");
+    store.setProOnlyWithData(true);
+    store.setFeedSearchQuery("kelana");
+    store.setFeedStatusFilter("official");
+    store.setLineFilter("a");
+
+    store.resetProFilters();
+
+    expect(store.proStatusFilter()).toBeNull();
+    expect(store.proPassengerFilter()).toBeNull();
+    expect(store.proOnlyWithData()).toBe(false);
+    expect(store.feedSearchQuery()).toBe("");
+    expect(store.feedStatusFilter()).toBe("all");
+    expect(store.lineFilter()).toBeNull();
+    expect(store.visibleLines()).toHaveLength(2);
+  });
+
+  it("does not fire the incidents read until the widget that draws it opts in", async () => {
+    // The `graphqlResource` gate is defeated by its own install-time effect, so an ungated resource
+    // would fire for every store — including every Rider visit.
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+
+    expect(httpMock.match((r) => r.body.query.includes("HomeRecentIncidents"))).toHaveLength(0);
+    expect(store.recentIncidents()).toEqual([]);
+    expect(store.incidentsFailed()).toBe(false);
+  });
+
+  it("sends the compile-time-constant variables, so SSR and hydration agree byte for byte", async () => {
+    // A client clock in query variables would make the server render and the hydration compute
+    // different variables, and the TransferState payload would be discarded instead of reused.
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    TestBed.tick();
+
+    const request = httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("HomeRecentIncidents"),
+    );
+    expect(request.request.body.variables).toEqual({
+      filters: { OR: { ongoing: true } },
+      order: { startDatetime: "DESC" },
+    });
+    request.flush({ data: { calendarIncidents: [] } });
+  });
+
+  it("caps the newest-first incident list at PRO_INCIDENT_LIMIT", async () => {
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    TestBed.tick();
+
+    const request = httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("HomeRecentIncidents"),
+    );
+    await Promise.resolve();
+    TestBed.tick();
+    request.flush({
+      data: {
+        calendarIncidents: Array.from({ length: PRO_INCIDENT_LIMIT + 4 }, (_, index) => ({
+          id: `i-${index}`,
+          startDatetime: "2026-10-03T08:00:00",
+          endDatetime: null,
+          severity: "MINOR",
+          title: `Incident ${index}`,
+          brief: "",
+          lines: [],
+        })),
+      },
+    });
+    await Promise.resolve();
+    TestBed.tick();
+
+    // The backend takes no limit, so this is a client-side slice of a full payload — the widget says
+    // how many it is showing rather than implying the rest did not happen.
+    expect(store.recentIncidents()).toHaveLength(PRO_INCIDENT_LIMIT);
+    expect(store.recentIncidents()[0].id).toBe("i-0");
+  });
+
+  it("keeps a FAILED incidents read off the page's error state and its refresh flag", async () => {
+    // Acceptance rule for widget isolation: the incidents list is the widget most likely to be slow
+    // or unavailable, and a failure must not replace a working board with the retry banner nor hold
+    // the refresh control's "Updating" label open.
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    // The shared drain, not a bare tick: `requestIncidentsRead` flips a signal, and the resource
+    // re-evaluates through the effect queue rather than synchronously — a single tick leaves the
+    // request unregistered and the assertion below would be asserting against nothing.
+    await afterVariablesChange();
+
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("HomeRecentIncidents"))
+      .flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+    expect(store.incidentsFailed()).toBe(true);
+    expect(store.recentIncidents()).toEqual([]);
+    // 🔴 The four page-level flags, asserted individually and explicitly — this is the store's
+    // documented asymmetry and the single thing a future contributor is most likely to "fix".
+    expect(store.hasError()).toBe(false);
+    expect(store.isLoading()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.isLoadingLastWeek()).toBe(false);
   });
 });

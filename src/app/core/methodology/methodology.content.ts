@@ -58,6 +58,18 @@ const REVIEWED_AT_NETWORK_BOARD = "2026-10-03";
 const REVIEWED_AT_HISTORY_WIDGETS = "2026-10-03";
 
 /**
+ * Bumped when the Pro bento dashboard shipped — its three board filters, the feed's three filter axes
+ * and the CSV export (2026-10-03).
+ *
+ * A separate constant from the two above rather than a reuse of either: the one user-visible rule this
+ * phase adds is "which lines do we say we have data about", which is a DIFFERENT review from the
+ * confidence chip's levels (already shipped, describing the same evidence from the chip's side) and
+ * from the service-day shapes (an entirely different set of widgets). Sharing a constant would make a
+ * later bump on any one of the three silently claim a review of the other two.
+ */
+const REVIEWED_AT_PRO_DASHBOARD = "2026-10-03";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -392,5 +404,19 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
+  },
+  /* ---- the Pro board's "only lines with data" toggle. It is the ONE new judgement this phase
+     shipped: the other two filters are exact values the reader typed (`status === PARTIAL_DISRUPTION`,
+     `crowding >= DELAYED`), and the feed's three axes are a line id and a substring. This one asks the
+     page which lines it knows anything about at all, so it has to be published like any other rule. ---- */
+  {
+    id: "network.has-data",
+    sectionId: "line-status",
+    title: "Which lines count as having data",
+    definition:
+      "A line counts as having data when at least one of these is true: a rider filed a status report about it inside its own rolling window; riders reported a passenger status worse than Normal for it; its operational status is anything other than Active; or one of its pulse links is an official post. A passenger status of Normal is NOT data on its own — it is the reading the backend returns when nothing notable was filed, so counting it would put “we have data” on every line on the network and make the filter remove nothing. This is the same evidence the confidence chip on every row already uses, which is why the chip and this filter can never disagree about a line.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_PRO_DASHBOARD,
   },
 ];

@@ -67,6 +67,12 @@ interface HeatCell {
  *
  * One `linesStatusHistory` request in the store serves every row here (the backend answers up to 64
  * lines per call), so this component adds **no reads of its own**.
+ *
+ * It reads `visibleLines()` rather than `lines()`, so the grid is always the SAME SET of lines the
+ * board beside it is drawing. The shared intensity scale is computed over those same rows, so a
+ * filter narrows the grid and its scale together; a grid scaled to unfiltered lines while showing
+ * filtered ones would let a filtered-OUT busy hour still set the darkest step, which reads as
+ * "heavy hour" about a line that is no longer drawn.
  */
 @Component({
   selector: "app-network-heat-strip",
@@ -183,7 +189,7 @@ export class NetworkHeatStripComponent {
    */
   protected readonly _maxCount = computed(() => {
     let max = 0;
-    for (const line of this.store.lines()) {
+    for (const line of this.store.visibleLines()) {
       for (const bucket of this.store.linesHistoryFor(line.id)) {
         max = Math.max(max, bucket.count);
       }
@@ -193,7 +199,7 @@ export class NetworkHeatStripComponent {
 
   protected readonly _rows = computed<HeatRow[]>(() => {
     const max = this._maxCount();
-    return this.store.lines().map((line) => {
+    return this.store.visibleLines().map((line) => {
       const buckets: LineStatusHourBucket[] = this.store.linesHistoryFor(line.id);
       return {
         lineId: line.id,
