@@ -1,4 +1,13 @@
-import { Component, computed, effect, inject, signal, type OnDestroy } from "@angular/core";
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+  type OnDestroy,
+} from "@angular/core";
 import { Meta } from "@angular/platform-browser";
 import { RouterLink } from "@angular/router";
 import { NgIcon, provideIcons } from "@ng-icons/core";
@@ -42,13 +51,21 @@ const META_DESCRIPTION =
   "MLPTF's live network board: how every rail line is doing right now, today's community links and " +
   "reports, and one tap to report a delay, log a train sighting or open the live train map.";
 
+/** The two feed periods, IN TABLIST ORDER — the array the arrow keys walk, so the order the reader
+ *  sees and the order the keyboard walks cannot drift apart. */
+const FEED_TABS = ["today", "lastweek"] as const;
+
+type FeedTab = (typeof FEED_TABS)[number];
+
 /**
- * The community front page — the site's root route. The feed and the network board share a
- * two-panel split (the URL list left, the line board right) from `lg` up, stacked on mobile; the
- * submit box heads the feed column and the retry banner and footer stay full width. The refresh
- * control (`app-home-refresh-control`) now lives in the HERO only (from `lg` up); below that the
- * sticky mobile action bar carries a Refresh button on the same store beat plus Report and Live map,
- * which is what keeps every intent reachable on a phone.
+ * The community front page — the site's root route. The network board and the community feed share a
+ * two-panel split, and the **board comes first in DOM order** (the line board left, the URL list
+ * right) from `lg` up and above the feed when the two stack on mobile — the live network is the
+ * reason to open this page, so it is what a phone reader meets first. Inside the feed column the
+ * submit box heads a **Today / Last Week tab set**, each panel a `role="tabpanel"`. The retry banner
+ * and footer stay full width. The refresh control (`app-home-refresh-control`) now lives in the HERO
+ * only (from `lg` up); below that the sticky mobile action bar carries a Refresh button on the same
+ * store beat plus Report and Live map, which is what keeps every intent reachable on a phone.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
  * app.routes.ts. The router retains that route injector while the page component is recreated on
@@ -131,158 +148,219 @@ const META_DESCRIPTION =
           class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
           data-testid="home-panels"
         >
-          <section class="flex flex-col gap-3" aria-label="Community feed">
+          <!-- 🔴 BOARD FIRST, AND FIRST IN THE DOM — not a CSS order value. The board is the page's
+               reason to exist (the hero's headline above is about the NETWORK), so it has to be the
+               first thing a phone reader meets and the left column from lg up. An order value would
+               have put it first on desktop while leaving it LAST in the stacked mobile layout, and
+               every screen reader and every Tab key would still have walked the feed first.
+
+               Below lg this panel heads the stack, so it needs no rule of its own; the FEED section
+               below it draws the divider between the two and drops it from lg, where the two are
+               grid columns side by side and a border would only draw a line down the middle of the
+               gap. -->
+          <section
+            #lineBoard
+            class="flex scroll-mt-24 flex-col gap-3"
+            aria-label="Line status"
+            data-testid="line-board"
+          >
+            <!-- 🔴 The refresh control that used to head this section from lg up has moved INTO the
+                 hero, which is full width and reads as the page's live strip — so the live indicator
+                 now sits above the fold on every layout instead of only on desktop. The sticky
+                 action bar at the foot of the page carries the phone's Refresh on the SAME
+                 store.polling beat, which keeps exactly one countdown at any width and keeps both
+                 affordances on the one beat. The control's own state machine is untouched: only the
+                 wrapper moved. -->
+            <app-network-board />
+          </section>
+
+          <section
+            class="border-border flex flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
+            aria-label="Community feed"
+          >
             <!-- 🔴 The mobile app-home-refresh-control copy that used to sit here is GONE. The
                  sticky action bar at the foot of the page carries a Refresh button on the same
                  store.polling beat at exactly the widths this gate (lg:hidden) covered, so two
                  controls on one phone was one too many — and the bar is the only place a rider can
                  reach Report from while scrolled to the bottom of the feed. One beat, one countdown
-                 instance in the hero, one Refresh affordance here. -->
+                 instance in the hero, one Refresh affordance on a phone. -->
             <app-link-submit-box (submitted)="store.reloadAll()" />
 
-            <div class="flex flex-col gap-3" data-testid="feed-scroll">
-              @if (store.isLoading() && store.feedLinks().length === 0) {
-                <div hlmSkeleton class="h-24 w-full" data-testid="feed-skeleton"></div>
-              } @else if (store.feedLinks().length === 0 && !store.hasError()) {
-                <div
-                  class="text-muted-foreground border-border flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center text-sm"
-                  data-testid="feed-empty"
+            <!-- 🔴 A REAL TAB SET, replacing the collapsed Last Week disclosure button. The two
+                 periods are peers a reader switches between, not a section that expands in place, so
+                 they are role=tab / role=tabpanel with aria-selected, aria-controls and
+                 aria-labelledby, and the roving tabindex: exactly ONE tab is in the page tab order
+                 and Left/Right/Home/End move focus (and selection) between them. The inactive panel
+                 carries the hidden attribute rather than being unmounted, so each tab's aria-controls
+                 resolves to a panel that exists and so a conversation expanded in one period is still
+                 expanded when the reader comes back.
+
+                 Neither panel is display-flex itself: a Tailwind display utility on the same element
+                 would out-rank the stylesheet's own [hidden] rule and the hidden panel would still
+                 occupy space. The layout classes live on an inner wrapper instead. -->
+            <div
+              role="tablist"
+              aria-label="Feed period"
+              class="border-border flex items-end gap-4 border-b"
+            >
+              <button
+                #todayTab
+                type="button"
+                role="tab"
+                id="feed-tab-today"
+                data-testid="feed-tab-today"
+                class="hover:text-foreground -mb-px cursor-pointer border-b-2 px-1 pb-2 text-sm font-semibold tracking-wide uppercase transition-colors"
+                [class.border-foreground]="feedTab() === 'today'"
+                [class.border-transparent]="feedTab() !== 'today'"
+                [class.text-foreground]="feedTab() === 'today'"
+                [class.text-muted-foreground]="feedTab() !== 'today'"
+                [attr.aria-selected]="feedTab() === 'today' ? 'true' : 'false'"
+                aria-controls="feed-panel-today"
+                [attr.tabindex]="feedTab() === 'today' ? 0 : -1"
+                (click)="selectFeedTab('today')"
+                (keydown)="onFeedTabKeydown($event)"
+              >
+                Today
+              </button>
+              <button
+                #lastWeekTab
+                type="button"
+                role="tab"
+                id="feed-tab-lastweek"
+                data-testid="feed-tab-lastweek"
+                class="hover:text-foreground -mb-px cursor-pointer border-b-2 px-1 pb-2 text-sm font-semibold tracking-wide uppercase transition-colors"
+                [class.border-foreground]="feedTab() === 'lastweek'"
+                [class.border-transparent]="feedTab() !== 'lastweek'"
+                [class.text-foreground]="feedTab() === 'lastweek'"
+                [class.text-muted-foreground]="feedTab() !== 'lastweek'"
+                [attr.aria-selected]="feedTab() === 'lastweek' ? 'true' : 'false'"
+                aria-controls="feed-panel-lastweek"
+                [attr.tabindex]="feedTab() === 'lastweek' ? 0 : -1"
+                (click)="selectFeedTab('lastweek')"
+                (keydown)="onFeedTabKeydown($event)"
+              >
+                <!-- The count stays on the tab, where the collapsed disclosure header used to carry
+                     it: a reader deciding whether to switch should see what they would switch TO, and
+                     a count that only existed inside the panel would be one tap too late. -->
+                <span data-testid="last-week-count"
+                  >Last Week ({{ store.lastWeekTotalCount() }})</span
                 >
-                  <span data-testid="feed-empty-copy">No links yet today — be the first</span>
-                  <button
-                    hlmBtn
-                    size="sm"
-                    variant="outline"
-                    data-testid="feed-empty-cta"
-                    (click)="openLinkSheet()"
-                  >
-                    Share a link
-                  </button>
-                </div>
-              }
-              @for (link of store.feedLinks(); track link.id) {
-                <app-link-thread
-                  [link]="link"
-                  [userVote]="store.userVoteFor(link.id)"
-                  [voteValues]="store.userVotes()"
-                  [editable]="canEdit(link)"
-                  (voteChanged)="onVoteChanged($event)"
-                  (edit)="openEdit($event)"
-                />
-              }
+              </button>
             </div>
-            @if (store.feedLinks().length > 0) {
-              <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
-                <span class="text-muted-foreground text-xs" data-testid="feed-count">
-                  Showing {{ store.feedLinks().length }} of {{ store.feedTotalCount() }}
-                </span>
-                @if (canLoadMore()) {
+
+            <div
+              role="tabpanel"
+              id="feed-panel-today"
+              aria-labelledby="feed-tab-today"
+              tabindex="0"
+              [hidden]="feedTab() !== 'today'"
+            >
+              <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-3" data-testid="feed-scroll">
+                  @if (store.isLoading() && store.feedLinks().length === 0) {
+                    <div hlmSkeleton class="h-24 w-full" data-testid="feed-skeleton"></div>
+                  } @else if (store.feedLinks().length === 0 && !store.hasError()) {
+                    <div
+                      class="text-muted-foreground border-border flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center text-sm"
+                      data-testid="feed-empty"
+                    >
+                      <span data-testid="feed-empty-copy">No links yet today — be the first</span>
+                      <button
+                        hlmBtn
+                        size="sm"
+                        variant="outline"
+                        data-testid="feed-empty-cta"
+                        (click)="openLinkSheet()"
+                      >
+                        Share a link
+                      </button>
+                    </div>
+                  }
+                  @for (link of store.feedLinks(); track link.id) {
+                    <app-link-thread
+                      [link]="link"
+                      [userVote]="store.userVoteFor(link.id)"
+                      [voteValues]="store.userVotes()"
+                      [editable]="canEdit(link)"
+                      (voteChanged)="onVoteChanged($event)"
+                      (edit)="openEdit($event)"
+                    />
+                  }
+                </div>
+                @if (store.feedLinks().length > 0) {
+                  <div class="mt-1 flex items-center justify-end gap-3" data-testid="feed-footer">
+                    <span class="text-muted-foreground text-xs" data-testid="feed-count">
+                      Showing {{ store.feedLinks().length }} of {{ store.feedTotalCount() }}
+                    </span>
+                    @if (canLoadMore()) {
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        class="self-center"
+                        data-testid="feed-load-more"
+                        (click)="loadMore()"
+                      >
+                        Load More
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div
+              role="tabpanel"
+              id="feed-panel-lastweek"
+              aria-labelledby="feed-tab-lastweek"
+              data-testid="last-week-panel"
+              tabindex="0"
+              [hidden]="feedTab() !== 'lastweek'"
+            >
+              <div class="flex flex-col gap-3">
+                @if (store.isLoadingLastWeek() && store.lastWeekLinks().length === 0) {
+                  <div hlmSkeleton class="h-24 w-full" data-testid="last-week-skeleton"></div>
+                } @else if (store.lastWeekLinks().length === 0 && !store.hasError()) {
+                  <p
+                    class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
+                    data-testid="last-week-empty"
+                  >
+                    No links in the last week.
+                  </p>
+                }
+                @for (group of store.lastWeekDayGroups(); track group.key) {
+                  <div class="flex flex-col gap-2" data-testid="last-week-day-group">
+                    @if (group.label) {
+                      <h2
+                        class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+                      >
+                        {{ group.label }}
+                      </h2>
+                    }
+                    @for (link of group.links; track link.id) {
+                      <app-link-thread
+                        [link]="link"
+                        [userVote]="store.userVoteFor(link.id)"
+                        [voteValues]="store.userVotes()"
+                        [editable]="canEdit(link)"
+                        (voteChanged)="onVoteChanged($event)"
+                        (edit)="openEdit($event)"
+                      />
+                    }
+                  </div>
+                }
+                @if (canLoadMoreLastWeek()) {
                   <button
                     hlmBtn
                     variant="outline"
                     class="self-center"
-                    data-testid="feed-load-more"
-                    (click)="loadMore()"
+                    data-testid="last-week-load-more"
+                    (click)="loadMoreLastWeek()"
                   >
                     Load More
                   </button>
                 }
               </div>
-            }
-
-            <div class="flex flex-col gap-3">
-              <button
-                type="button"
-                class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1.5 self-start text-sm font-semibold tracking-wide uppercase"
-                data-testid="last-week-toggle"
-                [attr.aria-expanded]="_lastWeekExpanded()"
-                (click)="_lastWeekExpanded.set(!_lastWeekExpanded())"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  class="size-4 shrink-0 transition-transform"
-                  [class.rotate-180]="_lastWeekExpanded()"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-                <span data-testid="last-week-count"
-                  >Last Week ({{ store.lastWeekTotalCount() }})</span
-                >
-              </button>
-
-              @if (_lastWeekExpanded()) {
-                <div class="flex flex-col gap-3" data-testid="last-week-panel">
-                  @if (store.isLoadingLastWeek() && store.lastWeekLinks().length === 0) {
-                    <div hlmSkeleton class="h-24 w-full" data-testid="last-week-skeleton"></div>
-                  } @else if (store.lastWeekLinks().length === 0 && !store.hasError()) {
-                    <p
-                      class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
-                      data-testid="last-week-empty"
-                    >
-                      No links in the last week.
-                    </p>
-                  }
-                  @for (group of store.lastWeekDayGroups(); track group.key) {
-                    <div class="flex flex-col gap-2" data-testid="last-week-day-group">
-                      @if (group.label) {
-                        <h2
-                          class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
-                        >
-                          {{ group.label }}
-                        </h2>
-                      }
-                      @for (link of group.links; track link.id) {
-                        <app-link-thread
-                          [link]="link"
-                          [userVote]="store.userVoteFor(link.id)"
-                          [voteValues]="store.userVotes()"
-                          [editable]="canEdit(link)"
-                          (voteChanged)="onVoteChanged($event)"
-                          (edit)="openEdit($event)"
-                        />
-                      }
-                    </div>
-                  }
-                  @if (canLoadMoreLastWeek()) {
-                    <button
-                      hlmBtn
-                      variant="outline"
-                      class="self-center"
-                      data-testid="last-week-load-more"
-                      (click)="loadMoreLastWeek()"
-                    >
-                      Load More
-                    </button>
-                  }
-                </div>
-              }
             </div>
-          </section>
-
-          <section
-            #lineBoard
-            class="border-border flex scroll-mt-24 flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
-            aria-label="Line status"
-            data-testid="line-board"
-          >
-            <!-- Below lg this panel is stacked UNDER the feed, so the section above it draws a rule to
-                 separate the two: border-t plus the matching pt-6, both dropped from lg
-                 (lg:border-t-0 lg:pt-0) where the two sections are grid columns side by side and a
-                 rule between them would just draw a line down the middle of the gap.
-
-                 🔴 The refresh control that used to head this section from lg up has moved INTO the
-                 hero, which is full width and reads as the page's live strip — so the live indicator
-                 now sits above the fold on every layout instead of only on desktop. The lg:hidden
-                 copy above the feed column is unchanged, which keeps exactly one visible countdown at
-                 any width and keeps the two instances on the store's single beat. The control's own
-                 state machine is untouched: only the wrapper moved. -->
-            <app-network-board />
           </section>
         </div>
       }
@@ -437,8 +515,60 @@ export class HomePage implements OnDestroy {
     void this.store.loadMore();
   }
 
-  /** Collapsed by default — the last-week window stays out of the way until requested. */
-  protected readonly _lastWeekExpanded = signal(false);
+  /** 🔴 Which feed period the tab set has selected — `today` by default. This REPLACED the old
+   *  `_lastWeekExpanded` disclosure flag, and it is a different shape of state on purpose: two
+   *  periods of which exactly one is showing is an EXCLUSIVE choice, so one signal can hold it. The
+   *  collapsed boolean could not have, which is why it grew the "Last Week" content into a section
+   *  hanging below the feed rather than a tab beside it. Nothing is stored: the tab is page-local
+   *  reading state, exactly as the flag was. */
+  protected readonly feedTab = signal<FeedTab>("today");
+
+  /** The two tab buttons, resolved through their template refs — the roving `tabindex` target set,
+   *  read on a keydown rather than re-queried from the document. Optional (not `.required`) because
+   *  the Pro branch renders neither: only the keydown reads them, and that needs the rider layout. */
+  private readonly _todayTab = viewChild<ElementRef<HTMLButtonElement>>("todayTab");
+  private readonly _lastWeekTab = viewChild<ElementRef<HTMLButtonElement>>("lastWeekTab");
+
+  /** A click (or an arrow key) picks a period. Selection is immediate rather than deferred: with two
+   *  panels there is nothing to defer for, and a tab that only moved focus would make a reader who
+   *  clicked it read the wrong list. */
+  protected selectFeedTab(tab: FeedTab): void {
+    this.feedTab.set(tab);
+  }
+
+  /** 🔴 Roving-tabindex keyboard navigation for the feed tablist: `ArrowRight` / `ArrowLeft` step
+   *  through the two tabs and WRAP, and `Home` / `End` jump to the ends. Every other key is left
+   *  alone — notably Tab, which must still leave the tablist (only the selected tab is in the page
+   *  tab order, so tabbing out and Shift-tabbing back lands on it again). `preventDefault` runs only
+   *  on a key this handler acts on, so the browser's own arrow scrolling is still available
+   *  everywhere else in the page.
+   *
+   *  Arrow keys MOVE focus rather than only selection because the pattern is automatic activation:
+   *  with two instant panels the alternative (move focus, await Enter) makes the reader press a key
+   *  to see the list they just asked for. */
+  protected onFeedTabKeydown(event: KeyboardEvent): void {
+    const current = FEED_TABS.indexOf(this.feedTab());
+    // 🔴 The modulo is applied PER BRANCH and the unhandled keys `return`, rather than one
+    // `target < 0` sentinel test at the end: a single sentinel cannot tell "ArrowLeft off the first
+    // tab, which wraps to the last" (a legitimate index of -1) from "a key this handler does not
+    // own" (nothing at all), and conflating the two silently makes the left end a dead stop.
+    let next: number;
+    if (event.key === "ArrowRight") {
+      next = (current + 1) % FEED_TABS.length;
+    } else if (event.key === "ArrowLeft") {
+      next = (current - 1 + FEED_TABS.length) % FEED_TABS.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = FEED_TABS.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    const tab = FEED_TABS[next];
+    this.feedTab.set(tab);
+    (tab === "today" ? this._todayTab() : this._lastWeekTab())?.nativeElement.focus();
+  }
 
   /** The last-week Load More: shown only while another day-aligned page exists and nothing is in
    * flight. */

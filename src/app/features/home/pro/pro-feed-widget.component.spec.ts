@@ -157,9 +157,11 @@ describe("pro-feed-widget.component: ProFeedWidgetComponent", () => {
     expect(root.querySelector('[data-testid="pro-feed-window"]')?.textContent?.trim()).toBe(
       "Today only",
     );
-    // The Last Week section is a Rider surface and stays there — a Pro reader searching for something
-    // from last week is told the window rather than left to infer it.
-    expect(root.querySelector('[data-testid="last-week-toggle"]')).toBeNull();
+    // The Last Week surface is a Rider one and stays there — it now lives behind the feed's
+    // Today/Last Week tab set on the rider page, which this widget does not render. A Pro reader
+    // searching for something from last week is told the window rather than left to infer it.
+    expect(root.querySelector('[data-testid="feed-tab-lastweek"]')).toBeNull();
+    expect(root.querySelector('[data-testid="last-week-panel"]')).toBeNull();
   });
 
   it("drives the SERVER-side line filter, which is what keeps Load More correct", async () => {

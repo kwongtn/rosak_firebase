@@ -419,22 +419,25 @@ describe("HomePage", () => {
     httpMock.verify();
   });
 
-  it("renders the submit box, then the feed cards, then the network board", () => {
+  it("renders the network board first, then the submit box and the feed cards", () => {
     const root = fixture.nativeElement as HTMLElement;
 
+    expect(root.querySelector("app-network-board")).not.toBeNull();
+    expect(root.textContent).toContain("Line a");
     expect(root.querySelector("app-link-submit-box")).not.toBeNull();
     expect(root.querySelectorAll("app-link-card").length).toBe(2);
     expect(root.textContent).toContain("Feed link a");
-    expect(root.querySelector("app-network-board")).not.toBeNull();
-    expect(root.textContent).toContain("Line a");
 
-    // The composition order the page exists to enforce: submit box → global feed → line board.
-    // The box lives inside the feed section (top of the left column) and still precedes the cards.
+    // 🔴 The composition order the page exists to enforce: network board FIRST, then the global
+    // feed. The live network is why a reader opens this page, so it has to lead in the DOM and not
+    // only in a CSS order value — mobile stacking follows document order too.
+    const html = root.innerHTML;
+    expect(html.indexOf("app-network-board")).toBeLessThan(html.indexOf("app-link-submit-box"));
+    // …and the box still heads the feed section, ahead of the rows it feeds.
     const feedSection = root.querySelector('section[aria-label="Community feed"]');
     expect(feedSection?.querySelector("app-link-submit-box")).not.toBeNull();
-    const html = root.innerHTML;
-    expect(html.indexOf("app-link-submit-box")).toBeLessThan(html.indexOf("app-link-card"));
-    expect(html.indexOf("app-link-card")).toBeLessThan(html.indexOf("app-network-board"));
+    const feedHtml = feedSection?.innerHTML ?? "";
+    expect(feedHtml.indexOf("app-link-submit-box")).toBeLessThan(feedHtml.indexOf("app-link-card"));
     // The retired one-list component is gone, not merely unrendered.
     expect(root.querySelector("app-line-pulse-list")).toBeNull();
   });
@@ -658,7 +661,7 @@ describe("HomePage", () => {
     expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(10);
   });
 
-  it("splits the feed and the line statuses into two columns from lg, feed first", () => {
+  it("splits the network board and the feed into two columns from lg, board first", () => {
     const root = fixture.nativeElement as HTMLElement;
     const panels = root.querySelector<HTMLElement>('[data-testid="home-panels"]');
 
@@ -669,29 +672,47 @@ describe("HomePage", () => {
     expect(panels?.className).toContain("lg:items-start");
 
     const children = Array.from(panels?.children ?? []);
-    expect(children[0]?.getAttribute("aria-label")).toBe("Community feed");
-    expect(children[0]?.querySelector("app-link-card")).not.toBeNull();
-    expect(children[1]?.getAttribute("aria-label")).toBe("Line status");
-    expect(children[1]?.querySelector("app-network-board")).not.toBeNull();
+    // 🔴 BOARD FIRST, in DOM order. `lg:grid-cols-2` fills its columns in document order and the
+    // stacked mobile layout follows the same order, so this ONE assertion pins both layouts.
+    expect(children[0]?.getAttribute("aria-label")).toBe("Line status");
+    expect(children[0]?.getAttribute("data-testid")).toBe("line-board");
+    expect(children[0]?.querySelector("app-network-board")).not.toBeNull();
+    expect(children[1]?.getAttribute("aria-label")).toBe("Community feed");
+    expect(children[1]?.querySelector("app-link-card")).not.toBeNull();
 
-    // Mobile divider: stacked below lg the line panel follows the feed, so it draws its own rule
-    // and the matching top padding. From lg the two are grid COLUMNS side by side, so the rule and
-    // the padding are both dropped — a border there would draw a line down the middle of the gap.
-    // Pinned as discrete class tokens (not `toContain`, which would let `border-t` match inside
-    // `lg:border-t-0`), since jsdom cannot measure layout.
-    const lineSectionClasses = (children[1]?.className ?? "").split(/\s+/);
-    expect(lineSectionClasses).toContain("border-border");
-    expect(lineSectionClasses).toContain("border-t");
-    expect(lineSectionClasses).toContain("pt-6");
-    expect(lineSectionClasses).toContain("lg:border-t-0");
-    expect(lineSectionClasses).toContain("lg:pt-0");
-    // The feed section above it must not claim a rule of its own — the line panel draws the seam.
-    expect((children[0]?.className ?? "").split(/\s+/)).not.toContain("border-t");
+    // No CSS `order` token anywhere in the grid. An order value would reorder the desktop columns
+    // while leaving mobile stacked exactly the other way round — the layout this change exists to fix.
+    const orderTokens = Array.from(panels?.querySelectorAll("*") ?? []).flatMap((element) =>
+      (element.getAttribute("class") ?? "")
+        .split(/\s+/)
+        .filter((token) => token.startsWith("order-")),
+    );
+    expect(orderTokens).toEqual([]);
 
-    // The left column owns the submit box, ahead of the feed it feeds.
-    const feedSection = children[0];
+    // Mobile divider: stacked below lg the FEED follows the board, so it draws the seam itself
+    // (border-t plus the matching pt-6), and the board above it must not claim one of its own. From
+    // lg the two are grid COLUMNS side by side, so the rule and the padding are both dropped — a
+    // border there would draw a line down the middle of the gap. Pinned as discrete class tokens
+    // (not `toContain`, which would let `border-t` match inside `lg:border-t-0`), since jsdom cannot
+    // measure layout.
+    const feedSectionClasses = (children[1]?.className ?? "").split(/\s+/);
+    expect(feedSectionClasses).toContain("border-border");
+    expect(feedSectionClasses).toContain("border-t");
+    expect(feedSectionClasses).toContain("pt-6");
+    expect(feedSectionClasses).toContain("lg:border-t-0");
+    expect(feedSectionClasses).toContain("lg:pt-0");
+    const boardSectionClasses = (children[0]?.className ?? "").split(/\s+/);
+    expect(boardSectionClasses).not.toContain("border-t");
+    // The anchor scroll offset stays with the board — every #line-<id> lives inside it.
+    expect(boardSectionClasses).toContain("scroll-mt-24");
+
+    // The feed column still owns the submit box, and it heads the tab set and the rows below it.
+    const feedSection = children[1];
     expect(feedSection?.querySelector("app-link-submit-box")).not.toBeNull();
     const feedHtml = feedSection?.innerHTML ?? "";
+    expect(feedHtml.indexOf("app-link-submit-box")).toBeLessThan(
+      feedHtml.indexOf('role="tablist"'),
+    );
     expect(feedHtml.indexOf("app-link-submit-box")).toBeLessThan(feedHtml.indexOf("app-link-card"));
   });
 
@@ -1005,53 +1026,166 @@ describe("HomePage", () => {
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the Last Week section collapsed by default", () => {
-    const root = fixture.nativeElement as HTMLElement;
-    const toggle = root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement;
+  /* ---- the Today / Last Week tab set (replaces the collapsed Last Week disclosure) ------------- */
 
-    expect(toggle).not.toBeNull();
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(root.querySelector('[data-testid="last-week-panel"]')).toBeNull();
+  it("opens on the Today tab, with the Last Week panel present but hidden", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const today = root.querySelector('[data-testid="feed-tab-today"]') as HTMLButtonElement;
+    const lastWeek = root.querySelector('[data-testid="feed-tab-lastweek"]') as HTMLButtonElement;
+
+    // 🔴 A real tab SET, not two stacked sections: the tablist owns both tabs, and the reader's
+    // focus order inside it is the entire mechanism — which is why it has to be one tablist rather
+    // than a disclosure button stacked above a panel.
+    const tablist = today.parentElement;
+    expect(tablist?.getAttribute("role")).toBe("tablist");
+    expect(tablist?.getAttribute("aria-label")).toBe("Feed period");
+    expect(lastWeek.parentElement).toBe(tablist);
+    expect(today.getAttribute("role")).toBe("tab");
+    expect(lastWeek.getAttribute("role")).toBe("tab");
+
+    // Selected state and the roving tabindex: exactly ONE tab is in the page tab order, so Tab
+    // enters the set once and leaves it again instead of walking both.
+    expect(today.getAttribute("aria-selected")).toBe("true");
+    expect(lastWeek.getAttribute("aria-selected")).toBe("false");
+    expect(today.getAttribute("tabindex")).toBe("0");
+    expect(lastWeek.getAttribute("tabindex")).toBe("-1");
+
+    // Each tab points at a panel that EXISTS, and each panel is labelled by its own tab — the two
+    // halves of the association, both directions.
+    expect(today.getAttribute("aria-controls")).toBe("feed-panel-today");
+    expect(lastWeek.getAttribute("aria-controls")).toBe("feed-panel-lastweek");
+    const todayPanel = root.querySelector("#feed-panel-today") as HTMLElement;
+    const lastWeekPanel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;
+    expect(todayPanel.getAttribute("role")).toBe("tabpanel");
+    expect(todayPanel.getAttribute("aria-labelledby")).toBe("feed-tab-today");
+    expect(lastWeekPanel.getAttribute("role")).toBe("tabpanel");
+    expect(lastWeekPanel.getAttribute("aria-labelledby")).toBe("feed-tab-lastweek");
+    expect(lastWeekPanel.getAttribute("id")).toBe("feed-panel-lastweek");
+
+    // Out of the way via the hidden ATTRIBUTE rather than an unmount, so the panel every tab
+    // controls is always there for a screen reader to resolve.
+    expect(todayPanel.hasAttribute("hidden")).toBe(false);
+    expect(lastWeekPanel.hasAttribute("hidden")).toBe(true);
+
+    // The retired disclosure button is gone, not merely unrendered.
+    expect(root.querySelector('[data-testid="last-week-toggle"]')).toBeNull();
   });
 
-  it("shows the last-week count in the collapsed header", () => {
+  it("keeps the last-week count on the tab, where the collapsed header used to carry it", () => {
     store.lastWeekTotalCount.set(5);
     fixture.detectChanges();
 
-    const count = fixture.nativeElement.querySelector(
-      '[data-testid="last-week-count"]',
-    ) as HTMLElement;
+    const root = fixture.nativeElement as HTMLElement;
+    const count = root.querySelector('[data-testid="last-week-count"]') as HTMLElement;
     expect(count.textContent?.replace(/\s+/g, " ").trim()).toBe("Last Week (5)");
+    // It is the tab's own label, and it stays readable while the TODAY panel is the one on screen:
+    // a count that only appeared after switching would be one tap too late to decide with.
+    expect(root.querySelector('[data-testid="feed-tab-lastweek"]')?.contains(count)).toBe(true);
+    expect(root.querySelector("#feed-panel-today")?.hasAttribute("hidden")).toBe(false);
   });
 
-  it("expands the last-week panel with day groups on toggle", () => {
+  it("switches to the Last Week panel on a click, and back again", () => {
     const root = fixture.nativeElement as HTMLElement;
     store.lastWeekDayGroups.set([
-      { key: "2026-09-30", label: "Today", links: [makeFeedLink("w")] },
+      { key: "2026-09-30", label: "Yesterday", links: [makeFeedLink("w")] },
     ]);
     fixture.detectChanges();
 
-    const toggle = root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement;
-    toggle.click();
+    const todayPanel = root.querySelector("#feed-panel-today") as HTMLElement;
+    const lastWeekPanel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;
+
+    const lastWeekTab = root.querySelector(
+      '[data-testid="feed-tab-lastweek"]',
+    ) as HTMLButtonElement;
+    lastWeekTab.click();
     fixture.detectChanges();
 
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    const panel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;
-    expect(panel).not.toBeNull();
-    expect(panel.querySelectorAll('[data-testid="last-week-day-group"]').length).toBe(1);
-    expect(panel.textContent).toContain("Today");
-    expect(panel.querySelectorAll("app-link-card").length).toBe(1);
+    expect(lastWeekTab.getAttribute("aria-selected")).toBe("true");
+    expect(lastWeekTab.getAttribute("tabindex")).toBe("0");
+    expect(todayPanel.hasAttribute("hidden")).toBe(true);
+    expect(lastWeekPanel.hasAttribute("hidden")).toBe(false);
+    expect(lastWeekPanel.querySelectorAll('[data-testid="last-week-day-group"]').length).toBe(1);
+    expect(lastWeekPanel.textContent).toContain("Yesterday");
+    expect(lastWeekPanel.querySelectorAll("app-link-card").length).toBe(1);
+
+    (root.querySelector('[data-testid="feed-tab-today"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(todayPanel.hasAttribute("hidden")).toBe(false);
+    expect(lastWeekPanel.hasAttribute("hidden")).toBe(true);
+    // Selection only HIDES a panel: the day group is still in the DOM afterwards, so switching
+    // neither refetches nor remounts and the two store resources are untouched by a switch.
+    expect(root.querySelectorAll('[data-testid="last-week-day-group"]').length).toBe(1);
+    // And the Today panel still holds its own loaded rows.
+    expect(todayPanel.querySelectorAll("app-link-card").length).toBe(2);
+  });
+
+  it("moves between the tabs with the arrow keys and Home/End, wrapping at the ends", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const today = root.querySelector('[data-testid="feed-tab-today"]') as HTMLButtonElement;
+    const lastWeek = root.querySelector('[data-testid="feed-tab-lastweek"]') as HTMLButtonElement;
+
+    const press = (tab: HTMLButtonElement, key: string): void => {
+      tab.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    };
+
+    today.focus();
+    // An arrow key selects AND focuses: this is the automatic-activation pattern, and with two
+    // instant panels the alternative (move focus, await Enter) would make the reader press a key to
+    // see the list they just asked for.
+    press(today, "ArrowRight");
+    expect(lastWeek.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(lastWeek);
+
+    // …and it WRAPS, so neither end of the set is a dead stop.
+    press(lastWeek, "ArrowRight");
+    expect(today.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(today);
+    press(today, "ArrowLeft");
+    expect(lastWeek.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(lastWeek);
+
+    press(lastWeek, "Home");
+    expect(today.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(today);
+    press(today, "End");
+    expect(lastWeek.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(lastWeek);
+
+    // The panels and the roving tabindex both follow the selection.
+    expect(root.querySelector("#feed-panel-today")?.hasAttribute("hidden")).toBe(true);
+    expect(root.querySelector('[data-testid="last-week-panel"]')?.hasAttribute("hidden")).toBe(
+      false,
+    );
+    expect(today.getAttribute("tabindex")).toBe("-1");
+    expect(lastWeek.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("leaves an unhandled key on the tablist alone, so Tab can still leave the set", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const today = root.querySelector('[data-testid="feed-tab-today"]') as HTMLButtonElement;
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    today.dispatchEvent(event);
+    fixture.detectChanges();
+
+    // preventDefault on a key the handler does not own would swallow Tab — the one key that must
+    // still move focus OFF the tablist — so the selection is left untouched and unconsumed.
+    expect(event.defaultPrevented).toBe(false);
+    expect(today.getAttribute("aria-selected")).toBe("true");
+    expect(root.querySelector("#feed-panel-today")?.hasAttribute("hidden")).toBe(false);
   });
 
   it("delegates the last-week Load More to the store", () => {
     const root = fixture.nativeElement as HTMLElement;
     store.lastWeekDayGroups.set([
-      { key: "2026-09-30", label: "Today", links: [makeFeedLink("w")] },
+      { key: "2026-09-30", label: "Yesterday", links: [makeFeedLink("w")] },
     ]);
     store.lastWeekPageInfo.set({ hasNextPage: true, endCursor: "cursor-w" });
     fixture.detectChanges();
 
-    (root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement).click();
+    (root.querySelector('[data-testid="feed-tab-lastweek"]') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     const button = root.querySelector('[data-testid="last-week-load-more"]') as HTMLButtonElement;
@@ -1304,11 +1438,11 @@ describe("HomePage", () => {
   it("renders the last-week day groups through the thread wrapper too", () => {
     const root = fixture.nativeElement as HTMLElement;
     store.lastWeekDayGroups.set([
-      { key: "2026-09-30", label: "Today", links: [makeTreeLink("w", ["ws1"])] },
+      { key: "2026-09-30", label: "Yesterday", links: [makeTreeLink("w", ["ws1"])] },
     ]);
     fixture.detectChanges();
 
-    (root.querySelector('[data-testid="last-week-toggle"]') as HTMLButtonElement).click();
+    (root.querySelector('[data-testid="feed-tab-lastweek"]') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     const panel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;

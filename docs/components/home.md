@@ -23,10 +23,11 @@
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
 - **Subcomponent breakdown** (one routed page, three child groups, a route-scoped store):
-  - `home.page.ts` — the routed page: nav → a two-panel feed/line-status split (submit box atop
-    the feed column, a collapsed Last Week section below it) → footer, plus the status sheet and the
+  - `home.page.ts` — the routed page: nav → a two-panel **network-board-first** split (board left /
+    feed right from `lg` up, board above feed when stacked) → footer, plus the status sheet and the
     shared link sheet (feed-link edits); starts/stops the store's polling and adapts the store to
-    the shared retry banner.
+    the shared retry banner. Inside the feed column the submit box heads a **Today / Last Week tab
+    set** (`role="tablist"`), each period a `role="tabpanel"`.
   - `feed/` — `link-submit-box.component.ts` (the login-gated submit affordance: a quick URL-only
     form plus an "Advanced Input" button that opens the shared link sheet) and
     `feed-url.util.ts` (`normalizeFeedUrl`, submit-time scheme qualification). Feed rows render
@@ -146,15 +147,20 @@ pb-[env(safe-area-inset-bottom)]`) hosting `home-mobile-report` (the chooser),
     beat, two affordances) and `home-mobile-map` (a `routerLink="/tracker"` anchor, because "Live map"
     must not be the one intent mobile loses). `main` grows a matching `pb-24 lg:pb-6` so the bar never
     covers the last feed row. The page's desktop layout is a two-panel split: the
-    retry banner and footer stay full width, while the feed and the line-status
+    retry banner and footer stay full width, while the line-status and feed
     sections share `data-testid="home-panels"` (`flex flex-col gap-6 lg:grid lg:grid-cols-2
-lg:items-start`) — stacked on mobile, URL feed left / line statuses right from `lg` up. In the
-    stacked layout the line section draws its **own divider** (`border-border border-t pt-6
+lg:items-start`) — 🔴 **network board left / community feed right** from `lg` up, and board ABOVE the
+    feed when the two stack on mobile. 🔴 That order is **DOM order, not a CSS `order` value**:
+    `lg:grid-cols-2` fills its columns in document order and the stacked mobile layout follows the
+    same order, so one swap moves both layouts — an `order` value would have fixed only the desktop
+    half and left a phone reading the feed first. The live network is the reason to open this page
+    (the hero's headline above is about the NETWORK), so it leads. In the stacked layout the FEED
+    section draws the **divider** (`border-border border-t pt-6
 lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`, and both halves
     are dropped from `lg`, where a border between two grid columns would only draw a line down the
-    middle of the gap. The submit box heads the feed column (full width on mobile, column-wide from
-    `lg` up, ahead of
-    the list in DOM order), and the feed renders **every loaded link** in an uncapped `feed-scroll` container (no inner scroll —
+    middle of the gap. The board section keeps `scroll-mt-24` because every `#line-<id>` anchor it
+    renders lives inside it. The submit box heads the feed column (full width on mobile, column-wide from
+    `lg` up, ahead of the tab set in DOM order), and the feed renders **every loaded link** in an uncapped `feed-scroll` container (no inner scroll —
     the page scrolls) and owns the load-more continuation: the bottom-right `feed-footer`
     (`data-testid="feed-footer"`) holds a `feed-count` span reading `Showing X of Y`
     (`store.feedLinks().length` over `HomeStore.feedTotalCount()`, so the denominator stays the
@@ -162,18 +168,37 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     is empty; while the first page loads the feed shows `feed-skeleton`
     (`data-testid="feed-skeleton"`, `hlmSkeleton h-24 w-full`), and an empty, settled, error-free
     feed instead shows the muted `feed-empty` (`data-testid="feed-empty"`, "No links today yet.") styled
-    like the line list's empty state (the retry banner replaces both when the read errored). Below
-    the today feed sits a collapsed **Last Week** section: its header button
-    (`data-testid="last-week-toggle"`, `[attr.aria-expanded]`) reads `Last Week (N)` from
-    `store.lastWeekTotalCount()`, the chevron rotates when open, and the panel is closed by
-    default so its content only mounts on first expand. Expanded, it lists the same feed links over
+    like the line list's empty state (the retry banner replaces both when the read errored).
+
+    🔴 **The two periods are a TAB SET, not a disclosure.** Under the submit box sits one
+    `role="tablist"` (`aria-label="Feed period"`) holding `feed-tab-today` and `feed-tab-lastweek`
+    (`role="tab"`, `aria-selected`, `aria-controls`, roving `tabindex` — exactly ONE tab is in the page
+    tab order) over two `role="tabpanel"`s, `feed-panel-today` and `feed-panel-lastweek`
+    (🔴 the latter keeps the historical `last-week-panel` testid; each is `aria-labelledby` its own tab
+    and carries `tabindex="0"` so a keyboard reader lands on the panel even where it holds no
+    focusable child — the last-week empty state has none). `ArrowRight` / `ArrowLeft` step between the
+    tabs and **wrap**, `Home` / `End` jump to the ends, and every other key is left alone so `Tab` can
+    still leave the set; `preventDefault` fires only for the four keys the handler acts on. Selection is
+    automatic (an arrow key selects AND focuses) because with two instant panels a focus-only move
+    would make the reader press Enter to see the list they just asked for. 🔴 The inactive panel is
+    **`hidden`, never unmounted**, so each tab's `aria-controls` always resolves and an expanded
+    conversation is still expanded on the way back; the layout classes therefore live on an inner
+    wrapper, since a Tailwind `display` utility on the panel itself would out-rank the stylesheet's
+    `[hidden]` rule and the hidden panel would still take up space. The state is one signal,
+    `HomePage.feedTab` (`"today" | "lastweek"`, default `"today"`), which **replaced** the old
+    `_lastWeekExpanded` boolean: two periods of which one shows is an EXCLUSIVE choice, so one signal
+    holds it, and nothing is persisted. 🔴 `last-week-count` stayed on the **tab label** (`Last Week
+(N)` from `store.lastWeekTotalCount()`), where the collapsed disclosure's header used to carry it:
+    a count that only appeared after switching would be one tap too late to decide with. The retired
+    `last-week-toggle` button is gone. The Last Week panel lists the same feed links over
     the **last 7 calendar days, with today excluded** (backend `lastWeekOnly`; the newest day group
     is therefore always "Yesterday" — see the window note below), bucketed by local calendar day
     (`data-testid="last-week-day-group"`, headings Today / Yesterday / `EEE, d MMM`), with a
     skeleton (`data-testid="last-week-skeleton"`) and an empty state
     (`data-testid="last-week-empty"`, "No links in the last week.") and its own `Load More`
     (`data-testid="last-week-load-more"`) pulling 20-link day-aligned pages (the page may exceed 20
-    to finish a day). The refresh row is the fixed-cadence control, and it covers BOTH sections:
+    to finish a day). 🔴 **Switching tabs changes presentation only** — both resources stay mounted
+    and in flight, both sets of appended pages are kept, and neither read is re-issued. The refresh row is the fixed-cadence control, and it covers BOTH sections:
     the 30s beat and a click both go through the same `HomeStore.reloadFirstPages()`, re-reading
     the line statuses, the Today feed's first page and the Last Week first page. Rendered by
     `HomeRefreshControlComponent` as the `<button data-testid="line-refresh-countdown">` — spinner +
@@ -197,6 +222,7 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     the appended pages would wipe the reader's place in a long feed — which is why the beat calls
     `reloadFirstPages()` and not `reloadAll()`; `reloadAll()` (full reset) stays with the submit box,
     the sheets and the retry banner.
+
   - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
     `HomeStore`), `home-view-mode.service.ts` (the route-scoped owner of `?view=`),
     `feed-filter.util.ts` (the pure Pro feed narrowing — status provenance + free text, over the
@@ -412,7 +438,7 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
 @if (viewMode.view() === "pro") {
 <app-pro-dashboard />
 } @else {
-<div data-testid="home-panels">… the rider feed + board columns …</div>
+<div data-testid="home-panels">… the board + feed columns (board first) …</div>
 }
 ```
 
@@ -485,8 +511,9 @@ whole network, so re-entering Pro would re-apply a filter the reader visibly wal
 - 🔴 The "status" axis is **provenance**, not the link's approval state: both home feed resources
   request `status: "LIVE"`, so the approval axis is constant on this read and a control over it would
   be a filter that provably never removes anything.
-- 🔴 **This widget shows Today only.** The rider feed's collapsed "Last Week" section is a Rider
-  surface and stays there; the widget says `Today only` on its surface so a Pro reader searching for
+- 🔴 **This widget shows Today only.** The rider feed's Last Week panel is a Rider surface and stays
+  there (behind the rider feed's Today / Last Week tab set, which this widget does not render); the
+  widget says `Today only` on its surface so a Pro reader searching for
   something from Tuesday is not left concluding it was never filed.
 
 ### Keyboard shortcuts (Pro only)
@@ -716,9 +743,10 @@ because that is exactly the set the read asks for.
   (no countdown). `start()` in the constructor, `stop()` in `ngOnDestroy` — which is a **pause**, not a
   teardown: the route injector keeps this `HomeStore` alive across visits, so the next page's `start()`
   resumes the beat and revalidates (the store bullet above has the `null`-vs-cadence rule). The feed
-  renders `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page); below
-  it `_lastWeekExpanded` (a `signal(false)`) drives the collapsed Last Week section and
-  `canLoadMoreLastWeek` (`computed`) gates its Load More (`loadMoreLastWeek()`) on
+  renders `store.feedLinks()` in full (no reveal slice; `loadMore()` only pulls the next page); above
+  it a `role="tablist"` selects the period through `feedTab` (a `signal<FeedTab>("today")` that
+  **replaced** `_lastWeekExpanded` — one exclusive choice, one signal), and
+  `canLoadMoreLastWeek` (`computed`) gates the Last Week panel's Load More (`loadMoreLastWeek()`) on
   `lastWeekPageInfo().hasNextPage` while neither the first page nor a continuation is loading. The
   page itself holds no refresh state and no line data at all: it mounts `<app-network-board>` with
   **no inputs**, hosts the ONE `app-home-refresh-control` (inside the hero), the chooser and the
