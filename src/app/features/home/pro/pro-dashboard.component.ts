@@ -61,12 +61,17 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * a rider submit a link, file a status report or log a sighting through exactly the same code — a
  * second submission path is the one thing a "mode" must never grow.
  *
- * **The seven cells, and why each is where it is.** The board is the largest and takes the left column
- * because it is what a Pro reader opened this for; the feed sits beside it because "what are people
- * saying" is the other half of the question. The heat grid, the Line HQ grid, the incidents list, the
- * worst-lines ranking and the official-notices archive are supporting surfaces, so they take the
- * narrow right column, stacked. Each widget owns its own loading and failure state, and none of them
- * can take the page down (see the incidents widget's doc for the store's rule).
+ * **The seven cells, and why each is where it is.** Three ROWS, sized by how tall the answer is
+ * rather than by how important it is. The board is the largest and takes the wide left column
+ * because it is what a Pro reader opened this for; the community feed — the other tall surface, and
+ * the other half of the question — sits beside it, so the two columns end at roughly the same height
+ * instead of one rail stranding it at the bottom of a dead zone. The heat grid then takes the FULL
+ * width on its own row, because it is 24 columns of one-pixel cells and anything narrower makes the
+ * hour axis unreadable. The four supporting surfaces (ranking, incidents, official notices, Line HQ)
+ * tile in a responsive grid beneath: they are reference panels a reader scrolls to, each owns its own
+ * read and its own failure state, and a tile flow lets two of them hide themselves without leaving a
+ * ragged column behind. Each widget owns its own loading and failure state, and none of them can take
+ * the page down (see the incidents widget's doc for the store's rule).
  *
  * **Keyboard shortcuts, and the rules around them.** `/` focuses the feed search, `r` is the same
  * refresh the refresh control and the mobile bar call (`store.polling.refreshNow()`, never a second
@@ -109,8 +114,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
     <div class="flex flex-col gap-4" data-testid="pro-dashboard">
       <!-- The hint row. Visible rather than a hidden affordance: a shortcut nobody can discover is a
            shortcut nobody uses, and the three keys are not guessable. The kbd element marks them as keys rather
-           than as emphasis. Back to Rider is a real button too — the shortcuts are an accelerator, not
-           the only way out of a mode. -->
+           than as emphasis. The shortcuts are an ACCELERATOR, not the only way out of a mode, so 'p' is also a
+           real button below. -->
       <div
         class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
         data-testid="pro-shortcuts"
@@ -131,60 +136,69 @@ function isTypingTarget(target: EventTarget | null): boolean {
           >
           <span>Refresh now</span>
         </span>
-        <span class="flex items-center gap-1.5">
+        <!-- 🔴 'p' is ONE control, not two. The kbd sits INSIDE the button, so the row reads "the key p, and
+             here is the button that does it" instead of saying "Back to rider view" twice in one line — the
+             QA pass caught the duplicate. Neither half could go alone: a touch reader has no 'p' key, so the
+             button cannot go, and the words are how the key is discovered, so they cannot either. -->
+        <button
+          hlmBtn
+          variant="ghost"
+          size="sm"
+          class="focus-visible:ring-ring/50 ml-auto gap-1.5 rounded outline-none focus-visible:ring-2"
+          data-testid="pro-back-to-rider"
+          (click)="backToRider()"
+        >
           <kbd
             class="border-border rounded border px-1 py-0.5 font-mono"
             data-testid="pro-shortcut-rider"
             >p</kbd
           >
-          <span>Back to rider view</span>
-        </span>
-        <button
-          hlmBtn
-          variant="ghost"
-          size="sm"
-          class="focus-visible:ring-ring/50 ml-auto rounded outline-none focus-visible:ring-2"
-          data-testid="pro-back-to-rider"
-          (click)="backToRider()"
-        >
           Back to rider view
         </button>
       </div>
 
-      <!-- The bento grid: one wide left column for the board, a narrower right column for the three
-           supporting surfaces. Stacked on mobile, side by side from the xl breakpoint — a bento at lg would put
-           two dense grids into two narrow columns and read worse than the stack. -->
-      <div
-        class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
-        data-testid="pro-bento"
-      >
-        <div class="flex min-w-0 flex-col gap-4">
+      <!-- 🔴 THE BENTO, IN THREE ROWS — and the rows are sized by the HEIGHT of their answers, which is exactly
+           what the previous two-rail grid failed to do: it stacked BOTH tall cells in the left column and all the
+           short ones in the right, so the right rail ended halfway down the page with the community feed
+           stranded at the bottom-left of a large dead zone.
+
+           Row A is the only two-column row and it pairs the two TALL surfaces — the board (what a Pro reader
+           opened this for) and the community feed ("what are people saying", the other half of the question) —
+           so the columns end level. Still stacked below xl: a bento at lg would squeeze two dense lists into two
+           narrow columns and read worse than the stack.
+
+           Row B gives the heat grid the FULL width. It is 24 columns of one-pixel cells behind a fixed code
+           gutter; inside a 2fr rail the hour axis was unreadable, and it is the one cell whose answer is
+           inherently two-dimensional, so it wants every pixel of the page.
+
+           Row C tiles the four supporting panels instead of stacking them in a narrow rail. Two of them
+           (incidents, ranking) hide themselves on an empty or failed read, and in a tile flow that just closes
+           the gap — items-start stops the survivors stretching down to match it. -->
+      <div class="flex flex-col gap-4" data-testid="pro-bento">
+        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <app-pro-lines-widget />
           <app-pro-feed-widget />
         </div>
-        <div class="flex min-w-0 flex-col gap-4">
-          <!-- Its own cell rather than inside the board: The embedHeatStrip input is off on the board below,
+
+        <section
+          class="border-border bg-card flex flex-col gap-2 rounded-xl border p-4"
+          data-testid="pro-heat-widget"
+        >
+          <!-- Its own cell rather than inside the board: the embedHeatStrip input is off on the board below,
                so the grid is drawn exactly once. Two copies would mean two network-heat-strip
                testids and the same comparison rendered twice. -->
-          <section
-            class="border-border bg-card flex flex-col gap-2 rounded-xl border p-4"
-            data-testid="pro-heat-widget"
-          >
-            <app-network-heat-strip />
-          </section>
+          <app-network-heat-strip />
+        </section>
 
+        <div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <!-- 🔴 Order is the reading order, not a claim about priority. All four are reference panels a reader
+               scrolls to rather than a list they work through, and each owns its own read and its own failure
+               state — the archive is a lazy read of its own, the ranking is a third VIEW of the heat grid's
+               buckets — so none can take the page down or hold the refresh control open. -->
           <app-pro-incidents-widget />
-          <app-pro-line-hq-widget />
-
-          <!-- 🔴 The two supporting widgets added last, and why they sit BELOW the Line HQ grid in the
-               right column rather than beside the board. Both are reference panels, not lists a
-               reader works through: the official archive answers "what did the operator last say" and
-               the ranking answers "which lines are loudest today", so a reader scrolls to them the way
-               they scroll to a footnote. Each owns its own read and its own failure state — the
-               archive is a lazy read of its own, and the ranking is a third view of the heat grid's
-               buckets — so neither can take the page down or hold the refresh control open. -->
           <app-pro-report-ranking />
           <app-pro-official-widget />
+          <app-pro-line-hq-widget />
         </div>
       </div>
     </div>

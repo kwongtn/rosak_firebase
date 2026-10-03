@@ -1186,3 +1186,30 @@ attribute **not declared as an input**, so the bare form has nothing to bind to 
 (`[x]="v"`), never the bare attribute plus the binding. A numeric/boolean input with a name equal to
 its selector part is the case that breaks; a selector prefix like `hlm` (`hlmBtn`) is what keeps the
 other directives safe.
+
+## [2026-10-03] ui/shell: the sheet SCRIM does not dim the sticky nav — z-[45] vs a z-40 backdrop. Known, app-wide, NOT a home-feature bug
+
+**Problem**: open any sheet (line-status, link, spotting, the report chooser) and the shared
+`HlmSheet` backdrop paints `bg-black/50` behind the panel — but the sticky `AppNav` bar stays at full
+brightness ABOVE the scrim, so the page behind reads as "dimmed" while the nav reads as "still live" and
+paints over the scrim edge. A QA pass on `/` in the Pro view flagged it as a home-feature visual defect.
+
+**Root Cause**: the app's z-index ladder puts the nav at `z-[45]` and `HlmSheet`'s backdrop at `z-40`.
+That ladder is **correct and deliberate** — `app-nav.component.ts`'s own comment block explains that
+`z-[45]` sits above every sticky bar used in page content (the highest today is `z-40`) while staying
+below the overlay layer at `z-50`. The consequence nobody drew explicitly is that it also sits above the
+_backdrop_, because the backdrop is a page-level scrim at `z-40`, not part of the `z-50` overlay layer.
+🔴 This is pre-existing SHARED-COMPONENT behaviour: it reproduces on every sheet in the app, on every
+page, and it has nothing to do with the Pro dashboard, the board, or the home feature's own markup.
+
+**Fix**: **not fixed here.** The home-feature polish pass that found it deliberately left it alone: any
+real fix is a change to the shared nav/sheet z-index (raise the backdrop above `z-[45]`, or portal the
+sheet out of the page stacking context), which changes layering for every consumer of `HlmSheet`
+app-wide — out of scope for a visual-polish pass, and the wrong thing to do unannounced. Recorded here
+so it is not rediscovered as a home bug and "fixed" in the wrong layer.
+
+**Prevention**: when a QA finding is _"something on screen looks wrong"_, check whether it reproduces
+outside the feature that surfaced it before editing anything. Anything that reproduces on another page
+belongs to `ui/` or `shell/` and needs its own change with its own blast radius. The fast check here is
+one grep: the z-index is in `app-nav.component.ts` and `ui/sheet/sheet.ts`, neither of which is
+`features/home/`.

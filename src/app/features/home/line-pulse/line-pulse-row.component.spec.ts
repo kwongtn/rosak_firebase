@@ -173,6 +173,29 @@ describe("LinePulseRowComponent", () => {
     expect(textOf(root, "line-row-passenger")).toBe("No data");
   });
 
+  it("keeps the fleet count and the report count as ONE fragment, and drops the count on a phone", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+
+    // 🔴 What the QA pass caught at 390px: the status pill, the confidence chip ("Unconfirmed (1 reports)"),
+    // the passenger badge, the fleet count and the report count could not share one line, so the count
+    // alone wrapped onto a line of its own on EVERY row and read as a layout fault. They are now one
+    // fragment on their own strip, so the two wrap together and the count steps aside below `sm` — where
+    // the confidence chip beside it already says the same thing.
+    const meta = root.querySelector('[data-testid="line-row-meta"]');
+    expect(meta).not.toBeNull();
+    expect(meta?.querySelector('[data-testid="line-row-vehicles"]')).not.toBeNull();
+    const reports = meta?.querySelector('[data-testid="line-row-reports"]');
+    expect(reports?.textContent?.trim()).toBe("1 reports");
+    expect(reports?.className).toContain("hidden");
+    expect(reports?.className).toContain("sm:inline");
+    // Neither fragment is a sibling of the badge row any more, so neither can be pushed off it alone.
+    expect(
+      root
+        .querySelector('[data-testid="line-row-chips"]')
+        ?.querySelector("[data-testid='line-row-reports']"),
+    ).toBeNull();
+  });
+
   it("shows the operational pill for a degraded line only", () => {
     const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
     expect(textOf(root, "line-row-status")).toBe("Partial Disruption");

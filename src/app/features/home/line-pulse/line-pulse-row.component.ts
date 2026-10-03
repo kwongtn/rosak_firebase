@@ -38,10 +38,11 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  *
  * What the row carries, in reading order: the line's colour rail (identification at a glance), its
  * code and name, the plain-language operational status and the confidence chip that says how much
- * to trust it, the rider-reported crowd, the fleet count, the report tally, and the three actions —
- * pin, report, expand. In `pro` view it adds what an operator actually wants instead of what a rider
- * scans for: the report count WITH its reporting window (so a number is never read without the span
- * it covers) and the two Line HQ links.
+ * to trust it, the rider-reported crowd, then a SECOND strip carrying the fleet count and the report
+ * tally together (see the template's note on why they are grouped, and why that is what fixes a 390px
+ * phone), and the three actions — pin, report, expand. In `pro` view it adds what an operator actually
+ * wants instead of what a rider scans for: the report count WITH its reporting window (so a number is
+ * never read without the span it covers) and the two Line HQ links.
  *
  * **Density is presentation only.** `comfortable` / `compact` changes padding and a couple of class
  * tokens on the row — never what is counted, never which actions exist, never whether a group
@@ -175,10 +176,23 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
         >
           {{ passengerLabel(line().passengerStatus) }}
         </span>
+      </div>
+
+      <!-- 🔴 The fleet count and the report count are ONE fragment, and they sit on their OWN strip.
+           A 390px phone could not fit the status pill, the confidence chip ("Unconfirmed (0 reports)"), the
+           passenger badge, the fleet count AND the report count on one line — so the count alone wrapped onto
+           a line of its own, on EVERY row, and read as a layout fault rather than as a number.
+
+           Grouped so the two always wrap together as a unit (they describe the same fleet, and a report count
+           orphaned from "12/16 in service" says nothing on its own), and the report count is hidden below sm
+           because nothing is lost by it there: the confidence chip beside it already reads "Unconfirmed (2
+           reports)" / "No recent reports", and the Pro block below carries "2 reports · 15 min window". Both
+           testids are unchanged, and both come back from sm up. -->
+      <div class="mt-1 flex flex-wrap items-center gap-1.5" data-testid="line-row-meta">
         <span hlmBadge variant="secondary" data-testid="line-row-vehicles">
           {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
         </span>
-        <span class="text-muted-foreground text-xs" data-testid="line-row-reports">
+        <span class="text-muted-foreground hidden text-xs sm:inline" data-testid="line-row-reports">
           {{ line().statusReportCount }} reports
         </span>
       </div>

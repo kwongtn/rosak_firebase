@@ -239,10 +239,11 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
 
   /* ---- the layout -------------------------------------------------------------------- */
 
-  it("renders the five cells inside one bento grid, with the board beside the feed", async () => {
+  it("renders the seven cells inside one bento, in the three rows that balance the page", async () => {
     const root = await dashboard([makeLine("a")]);
 
-    expect(root.querySelector('[data-testid="pro-bento"]')).not.toBeNull();
+    const bento = root.querySelector('[data-testid="pro-bento"]');
+    expect(bento).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-lines-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-feed-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
@@ -256,6 +257,53 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     expect(
       root.querySelector('[data-testid="pro-lines-widget"]')?.querySelector("app-network-board"),
     ).not.toBeNull();
+  });
+
+  it("balances the bento: the two TALL cells share a row, the heat grid gets its own full-width row", async () => {
+    const root = await dashboard([makeLine("a")]);
+
+    // 🔴 The layout QA pass flagged. The old grid stacked BOTH tall cells (board, then community feed) in
+    // the left column and every short cell in the right one, so the right rail ended halfway down the
+    // page with a large dead zone beside it, and the feed — the second thing a Pro reader opens this for —
+    // stranded at the bottom-left. These three assertions are the fix, asserted structurally rather than
+    // through a screenshot, because a screenshot cannot fail a build.
+    // The structural claims are made on the COMPONENT HOSTS, not on the `data-testid` inside each one: the
+    // grid places the hosts, and it is the hosts' own parent that says which row a cell is in.
+    const bento = root.querySelector('[data-testid="pro-bento"]');
+    const lines = root.querySelector("app-pro-lines-widget");
+    const feed = root.querySelector("app-pro-feed-widget");
+    const heat = root.querySelector('[data-testid="pro-heat-widget"]');
+
+    // Row A: both are DIRECT children of the SAME two-column grid — siblings, not stacked in one rail.
+    const rowA = lines?.parentElement;
+    expect(rowA).toBe(feed?.parentElement);
+    expect(rowA?.className).toContain("xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]");
+
+    // Row B: the heat cell is a sibling of that row, i.e. its own full-width row. It is 24 columns of
+    // one-pixel cells behind a code gutter, so narrowing it into a rail made the hour axis unreadable.
+    expect(heat?.parentElement).toBe(bento);
+    expect(rowA?.parentElement).toBe(bento);
+
+    // Row C: the four supporting panels tile in one grid rather than stacking in a narrow rail, so a
+    // widget that hides itself just closes the gap instead of leaving a ragged column.
+    const rowC = root.querySelector("app-pro-line-hq-widget")?.parentElement;
+    expect(rowC).toBe(root.querySelector("app-pro-incidents-widget")?.parentElement);
+    expect(rowC).toBe(root.querySelector("app-pro-report-ranking")?.parentElement);
+    expect(rowC).toBe(root.querySelector("app-pro-official-widget")?.parentElement);
+    expect(rowC?.parentElement).toBe(bento);
+    expect(rowC?.className).toContain("items-start");
+  });
+
+  it("shows the heat cell a SENTENCE on an empty service day, never a blank bordered card", async () => {
+    const root = await dashboard([makeLine("a")]);
+    // The store mock starts with NO history buckets at all — the state a quiet service day (or a fresh
+    // install) actually produces. 🔴 The cell must not render as an empty bordered box, which reads as a
+    // layout fault rather than as a fact about the day.
+    expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="heat-empty"]')?.textContent?.trim()).toBe(
+      "No rider reports in this service day yet.",
+    );
+    expect(root.querySelectorAll('[data-testid="heat-row"]').length).toBe(0);
   });
 
   it("draws the heat grid exactly ONCE, in its own cell", async () => {
@@ -280,6 +328,23 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     }
     // …and a real button as well, so the shortcuts are an accelerator and not the only way out.
     expect(root.querySelector('[data-testid="pro-back-to-rider"]')).not.toBeNull();
+  });
+
+  it("says 'Back to rider view' ONCE — the kbd is inside the button, not beside it", async () => {
+    const root = await dashboard();
+
+    // 🔴 The QA pass caught the words twice in one line: once as the `p` hint's label, once on the
+    // right-aligned ghost button. A touch reader has no `p` key so the button cannot go, and the label is
+    // how the key is discovered so it cannot either — so the key moved INSIDE the button and the sentence
+    // appears exactly once.
+    const hints = root.querySelector('[data-testid="pro-shortcuts"]');
+    const occurrences = (hints?.textContent ?? "").split("Back to rider view").length - 1;
+    expect(occurrences).toBe(1);
+    // …and it is that single control which carries BOTH roles: the advertised key and the real button.
+    const button = root.querySelector('[data-testid="pro-back-to-rider"]');
+    expect(button?.querySelector('[data-testid="pro-shortcut-rider"]')?.textContent?.trim()).toBe(
+      "p",
+    );
   });
 
   /* ---- the keyboard shortcuts --------------------------------------------------------- */

@@ -251,14 +251,19 @@ describe("NetworkHeatStripComponent", () => {
     expect(panel?.querySelector("a")).toBeNull();
   });
 
-  it("hides itself when no line has any history at all", () => {
+  it("hides the GRID when no line has any history, and says so in one labelled line", () => {
     lines.set([makeLine({ id: "a", code: "KJL" })]);
     historyByLine = new Map();
     const root = render();
 
     // A grid of empty rows would claim the network is quiet, which is a different statement from "we
-    // have nothing to show".
+    // have nothing to show" — so the grid stays gone. But the CELL is a core Pro surface: a successful
+    // read that found nothing is an ANSWER, and rendering nothing left a blank bordered card that read as
+    // a layout fault rather than as a quiet service day.
     expect(root.querySelector('[data-testid="network-heat-strip"]')).toBeNull();
+    const empty = root.querySelector('[data-testid="heat-empty"]');
+    expect(empty?.textContent?.trim()).toBe("No rider reports in this service day yet.");
+    expect(root.querySelectorAll('[data-testid="heat-row"]').length).toBe(0);
   });
 
   it("hides itself on a FAILED read, without asking the page to raise an error", () => {
@@ -271,5 +276,9 @@ describe("NetworkHeatStripComponent", () => {
     // this branch is the whole of the failure handling and the board behind it keeps working.
     expect(root.querySelector('[data-testid="network-heat-strip"]')).toBeNull();
     expect(root.textContent?.trim()).toBe("");
+    // 🔴 …and the failure is NOT dressed up as a quiet day. "We could not load it" and "nobody reported
+    // anything" are different facts, so a failed read says nothing at all — including not printing the
+    // empty-state sentence.
+    expect(root.querySelector('[data-testid="heat-empty"]')).toBeNull();
   });
 });

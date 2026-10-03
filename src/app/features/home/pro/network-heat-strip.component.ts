@@ -59,6 +59,12 @@ interface HeatCell {
  * asymmetry the hero sparkline and the row strips take, from the two signals the store deliberately
  * keeps out of `hasError` / `isLoading` / `isRefreshing`.
  *
+ * 🔴 **Empty is NOT hidden.** A failed read hides the widget; a read that SUCCEEDED and found nothing
+ * renders one labelled sentence (`heat-empty`). The two are different facts and the grid keeps them
+ * different — "we could not load it" is a widget problem to stay quiet about, while "no rider reported
+ * anything in this service day" is the answer to the question this cell exists to answer, and on a
+ * quiet morning it is the correct, whole answer. An empty bordered card reads as a rendering fault.
+ *
  * Accessibility: the grid is a `role="group"` and **each row is its own `role="img"`** carrying one
  * sentence — the same `historySummaryLabel` shape the sparkline and the row strips use, scoped to
  * that line. Per row rather than one sentence for the whole grid, because the comparison BETWEEN
@@ -166,6 +172,20 @@ interface HeatCell {
           </span>
         </div>
       </section>
+    } @else if (!_failed()) {
+      <!-- 🔴 A SENTENCE, NOT A BLANK BORDERED CARD. This widget's cell is a core Pro surface — "which line,
+           which hour" is the question the whole page exists to answer — so a quiet network has to SAY it is
+           quiet. Rendering nothing here left the cell an empty box, which reads as a layout fault rather than
+           as a fact about the day. This is the honest rendering of linesStatusHistory returning no buckets for
+           the service day, which on a fresh install is the normal state, not an error.
+
+           It is deliberately NOT the same sentence as the row sparkline's, which hides itself: the sparkline
+           sits under a hero that already states the network's condition, while this cell is its own panel and a
+           silent one would be indistinguishable from a broken one. The failure branch still hides everything —
+           "we could not load it" and "there was nothing" must not look the same. -->
+      <p class="text-muted-foreground text-sm" data-testid="heat-empty">
+        No rider reports in this service day yet.
+      </p>
     }
   `,
 })
@@ -226,6 +246,9 @@ export class NetworkHeatStripComponent {
   protected readonly _visible = computed(
     () => !this.store.linesHistoryFailed() && this._hasCells(),
   );
+
+  /** The per-line read's own failure flag, split out so the empty state can be told from a failed one. */
+  protected readonly _failed = computed(() => this.store.linesHistoryFailed());
 
   /** What the grid is, for the group's accessible name. */
   protected readonly _groupLabel = computed(

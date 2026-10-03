@@ -109,7 +109,8 @@
     `network-heat-strip.component.ts` (selector `app-network-heat-strip`): the **Pro**
     heat grid — one row per line, one column per service-day hour, colour = the status that dominated
     that line-hour and opacity = how many reports it was (`network-heat-strip` / `-popover` /
-    `heat-row` / `heat-row-code` / `heat-row-total` / `heat-cell` / `heat-legend` / `heat-scale`).
+    `heat-row` / `heat-row-code` / `heat-row-total` / `heat-cell` / `heat-legend` / `heat-scale`, plus
+    `heat-empty` for the quiet-service-day state).
     Hand-rolled `<div>`s: this repo has no charting dependency, and the colour vocabulary is the same
     `PASSENGER_BAR_CLASS` the expanded card's chart uses. It is mounted by `NetworkBoardComponent`
     **only when the effective view is `pro`**, and hides itself on a failed or empty read.
@@ -465,20 +466,37 @@ sticky mobile action bar too. A report, a link submission and a spotting entry t
 exactly the same code in both views — a "mode" that quietly grew its own submission path is the one
 thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet order across the branch.
 
-### The seven cells
+### The seven cells, in three rows
 
-| Cell                     | Component                  | Owns                                                                   |
-| ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
-| Lines (large, left)      | `app-pro-lines-widget`     | three Pro-only filters, the reused `app-network-board`, the CSV export |
-| Community feed           | `app-pro-feed-widget`      | line / provenance / search filters over the rider feed's rows          |
-| Reports by line and hour | `app-network-heat-strip`   | nothing — a pure projection of the shared per-line read                |
-| Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                            |
-| Line HQ                  | `app-pro-line-hq-widget`   | nothing — a projection of `visibleLines()`                             |
-| Reports ranking (right)  | `app-pro-report-ranking`   | nothing — a projection of the same shared per-line read, re-ranked     |
-| Official notices (right) | `app-pro-official-widget`  | its own lazy all-time notices read                                     |
+| Row | Cell                     | Component                  | Owns                                                                   |
+| --- | ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
+| A   | Lines (large, left)      | `app-pro-lines-widget`     | three Pro-only filters, the reused `app-network-board`, the CSV export |
+| A   | Community feed (right)   | `app-pro-feed-widget`      | line / provenance / search filters over the rider feed's rows          |
+| B   | Reports by line and hour | `app-network-heat-strip`   | nothing — a pure projection of the shared per-line read                |
+| C   | Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                            |
+| C   | Worst lines by reports   | `app-pro-report-ranking`   | nothing — a projection of the same shared per-line read, re-ranked     |
+| C   | Official notices         | `app-pro-official-widget`  | its own lazy all-time notices read                                     |
+| C   | Line HQ                  | `app-pro-line-hq-widget`   | nothing — a projection of `visibleLines()`                             |
 
-The last two stack **below** Line HQ in the right column, so the dashboard's reading order stays
-"board → feed" on the left and "incidents → HQ → ranking → notices" down the right.
+**Rows are sized by the HEIGHT of their answer, not by how important it is.** `pro-bento` is a flex
+column of three rows:
+
+- **Row A** — `xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]`, `items-start`: the board and the community
+  feed. The only two-column row, because these are the only two TALL cells; pairing them means both
+  columns end at roughly the same height. 🔴 **The previous layout stacked both tall cells in the LEFT
+  column and all the short ones in the right one**, which left the right rail ending halfway down the
+  page beside a large dead zone and stranded the feed — the second thing a Pro reader opens this for —
+  at the bottom-left. Still a stack below `xl`: a bento at `lg` squeezes two dense lists into two
+  narrow columns and reads worse than the stack.
+- **Row B** — the heat grid, **full width**. It is 24 columns of one-pixel cells behind a fixed `w-12`
+  code gutter; inside a `2fr` rail the hour axis was illegible, and it is the one cell whose answer is
+  inherently two-dimensional, so it wants every pixel of the page.
+- **Row C** — `grid-cols-1 md:grid-cols-2 xl:grid-cols-3 items-start`: incidents, ranking, official
+  notices and Line HQ. All four are reference panels a reader scrolls to rather than a list they work
+  through, and each owns its own read and its own failure state, so two of them hide themselves
+  routinely (incidents and the ranking on an empty or failed read). In a tile flow a hidden widget just
+  closes its cell; `items-start` stops the survivors stretching down to match it. Order is the reading
+  order, not a priority claim.
 
 **The board is REUSED, not reimplemented.** Every row, group, sort, density toggle, anchor and
 highlight rule under the Lines widget is the component the Rider page mounts. It carries exactly one
@@ -488,6 +506,17 @@ drawn twice. Default `true` so the Rider board's behaviour cannot change to acco
 
 **`NetworkHeatStripComponent` reads `visibleLines()`**, not `lines()`, so the grid is always the same
 SET of lines the board beside it draws; its shared intensity scale is computed over those same rows.
+
+🔴 **Empty is NOT hidden — a failed read is.** The grid itself (`network-heat-strip`) is rendered only
+when at least one line has at least one bucket. On a read that SUCCEEDED and found nothing it renders a
+single labelled line instead, `heat-empty` — _"No rider reports in this service day yet."_ On a FAILED
+read (`store.linesHistoryFailed()`) it renders nothing at all. The three states are deliberately
+different: _"we could not load it"_ is a widget problem to stay quiet about, _"nobody reported anything
+in this service day"_ is the answer to the question this cell exists to answer (and on a quiet morning,
+or a fresh install with no reports yet, it is the correct whole answer), and an empty bordered card read
+as a rendering fault rather than as either. Note this is **not** the row-sparline's rule — that widget
+still hides itself, because it sits under a hero that already states the network's condition, while the
+heat grid is its own Pro cell.
 
 ### The filters — Pro-only, default off, reset on leaving Pro
 
@@ -1268,16 +1297,23 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
     should impose, so it never reaches the URL.
 - **`LinePulseRowComponent`** is the compact row: the backend-hex colour rail, `code · name`,
   `line-row-status` (the operational `LineStatusBadge`, non-ACTIVE lines only — "Active" is the
-  unremarkable default), `line-row-confidence`, `line-row-passenger`, `line-row-vehicles`
-  ("12/16 in service"), `line-row-reports` ("N reports"), a `line-row-pin` toggle (`aria-pressed`,
-  action-naming `aria-label`) and a `line-row-report` button that calls
-  `LineStatusSheetService.openFor(line.id)`. The expand toggle is `line-row-toggle`
-  (`aria-expanded`) and its panel is `line-row-expanded`, holding the SAME lazy
+  unremarkable default), `line-row-confidence`, `line-row-passenger` (both on the badge row
+  `line-row-chips`), a `line-row-pin` toggle (`aria-pressed`, action-naming `aria-label`) and a
+  `line-row-report` button that calls `LineStatusSheetService.openFor(line.id)`. The expand toggle is
+  `line-row-toggle` (`aria-expanded`) and its panel is `line-row-expanded`, holding the SAME lazy
   `app-line-status-chart` + `app-line-status-reports` the card shows, both gated on the same
   `expanded` input. **Pro view adds `line-row-pro`**: `line-row-report-window` ("N reports · 15 min
   window" — a bare count is what a pro reader is most likely to over-read, and the window is what
   makes it interpretable) plus `line-row-hq` / `line-row-hq-details`. Opening the panel pushes the
   line into `PreferencesService.pushRecentLine()` on the OPEN edge only, exactly like the card.
+  🔴 **The fleet count and the report count are their own strip, `line-row-meta`** —
+  `line-row-vehicles` ("12/16 in service") and `line-row-reports` ("N reports"). They were both on the
+  badge row, where a 390px phone could not fit them with the status pill, the confidence chip and the
+  passenger badge — so the report count alone wrapped onto a line of its own on EVERY row and read as a
+  layout fault rather than as a number. Grouped, they wrap together as one fragment; `line-row-reports`
+  is additionally `hidden sm:inline`, because below `sm` nothing is lost (the confidence chip already
+  reads "Unconfirmed (2 reports)" / "No recent reports", and Pro view's own block carries "2 reports ·
+  15 min window"). Both testids are unchanged and the count returns from `sm` up.
   🔴 The row's report button reports on **the line the reader is looking at** — which is exactly as
   honest as the card's, and deliberately NOT routed through the chooser: a rider already on a row knows
   the line, and making them pick it again would be the chooser solving the wrong problem. The chooser
@@ -1380,8 +1416,12 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
 
 **New testids** — every pre-existing one is unchanged:
 
-- Dashboard: `pro-dashboard`, `pro-bento`, `pro-shortcuts`, `pro-shortcut-search`,
-  `pro-shortcut-refresh`, `pro-shortcut-rider`, `pro-back-to-rider`.
+- Dashboard: `pro-dashboard`, `pro-bento` (the whole three-row bento — the grids inside it are anonymous,
+  so a spec asserts the ROW structure through the widgets' parents), `pro-shortcuts`,
+  `pro-shortcut-search`, `pro-shortcut-refresh`, `pro-shortcut-rider`, `pro-back-to-rider`.
+  🔴 `pro-shortcut-rider` is the `<kbd>p</kbd>` **inside** `pro-back-to-rider` — one control, so
+  "Back to rider view" appears exactly once in the row (a touch reader has no `p` key, so the button
+  cannot go; the words are how the key is discovered, so they cannot either).
 - Lines widget: `pro-lines-widget`, `pro-lines-filters`, `pro-filter-status`, `pro-filter-passenger`,
   `pro-filter-only-with-data` (+ `-popover`), `pro-filter-clear`, `pro-lines-export`.
 - Feed widget: `pro-feed-widget`, `pro-feed-window`, `pro-feed-filters`, `pro-feed-search`,
