@@ -82,6 +82,19 @@ const REVIEWED_AT_PRO_DASHBOARD = "2026-10-03";
 const REVIEWED_AT_PRO_OFFICIAL_WIDGETS = "2026-10-03";
 
 /**
+ * Bumped by the Phase 5B registry audit, which walked every number the front page actually ships
+ * and asked the one question that matters — is it defined, and can a reader reach that definition?
+ * (2026-10-03).
+ *
+ * It found one gap (`network.reports-now` shipped since the board landed with no `MetricDoc` at all)
+ * and two rules that had a definition nobody could reach in situ. Both are now surfaced from the
+ * hero. Only the `line-status` section is bumped: every one of these metrics lives there, and no
+ * other section's substance was re-read (the `passenger.*` chips were checked for a SURFACE only, so
+ * `sightings` keeps its ship date rather than claiming a review nobody did).
+ */
+const REVIEWED_AT_POLISH = "2026-10-03";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -122,10 +135,11 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     body: "How line status is derived is owned by LINE_STATUS_DERIVE.md; this section renders once that rule ships.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    // Bumped with the Pro dashboard's two new supporting widgets: the worst-lines ranking added a
-    // metric that counts reports rather than faults, and the official archive's window is the
-    // deliberate absence of one. Both belong to this section, so the section is what was reviewed.
-    lastReviewed: REVIEWED_AT_PRO_OFFICIAL_WIDGETS,
+    // Bumped by the Phase 5B registry audit — the Pro dashboard's two supporting widgets added the
+    // ranking and the archive, and the audit then checked every shipped number on the front page for
+    // a definition and a reachable one. Every metric on this page belongs to this section, so the
+    // section is what was reviewed.
+    lastReviewed: REVIEWED_AT_POLISH,
     inProgress: true,
   },
   {
@@ -325,6 +339,25 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+  },
+  {
+    // 🔴 The one tile the Phase 5B registry audit found MISSING: "Reports now" has been on the hero
+    // since the board shipped, is a number a reader is expected to weigh ("is anyone else seeing
+    // this?"), and had no definition anywhere — so its two real caveats lived only in a code
+    // comment. Registered here and surfaced by the tile label's own info popover
+    // (features/home/hero/home-hero.component.ts).
+    //
+    // It needs no METHODOLOGY_CONSTANTS token: the window is the BACKEND's per-line
+    // `statusWindowMinutes`, varying line to line, so there is no single frontend number to pin.
+    // That variability IS the definition — see the double-counting caveat below.
+    id: "network.reports-now",
+    sectionId: "line-status",
+    title: "Reports now",
+    definition:
+      "How many rider status reports the network's lines have received inside their own current windows. Each line's window is set by the backend and can differ between lines, so this is a sum of per-line counts rather than a count of distinct reporters: one rider who filed about two lines contributes two. It counts REPORTS and not problems — the same rider can file twice, and a report can describe crowding that never reached the line's status. Read it as how much the community is currently saying, not as how many lines are affected; the count of affected lines is the “Needs attention” tile above.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_POLISH,
   },
   {
     id: "network.severity-order",

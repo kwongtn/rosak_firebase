@@ -119,6 +119,26 @@ type FeedTab = (typeof FEED_TABS)[number];
     <main
       class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 pb-24 sm:p-6 lg:w-[90%] lg:pb-6"
     >
+      <!-- 🔴 THE SKIP LINK, first thing inside <main> and therefore the first focusable thing on
+           the page. It exists because the hero + the board's sixteen rows sit between a keyboard
+           reader and the feed they may want; tabbing through all of them to reach the tabs is not
+           "using the site", it is navigating around a mistake. sr-only focus:not-sr-only is the
+           standard reveal: invisible until focused, then a real button. focus:fixed rather than
+           focus:relative so it lands at the top-left of the VIEWPORT instead of pushing the hero
+           down the moment it is focused — a skip link that moves the page it is skipping past is its
+           own little problem.
+
+           The href is #line-board, an id both layouts below carry on the panel that OWNS the
+           board (the rider section here, the Pro dashboard in the other branch). They are mutually
+           exclusive, so the id is never on the page twice, and either layout resolves the link. -->
+      <a
+        href="#line-board"
+        data-testid="home-skip-link"
+        class="bg-brand text-brand-foreground sr-only rounded-md px-3 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+      >
+        Skip to line status
+      </a>
+
       @if (store.hasError()) {
         <app-retry-banner [resource]="errorResource" message="Couldn't load the front page." />
       }
@@ -142,7 +162,7 @@ type FeedTab = (typeof FEED_TABS)[number];
            and a "mode" that quietly grew its own submission path is the thing this refactor exists to
            prevent. The mobile action bar below is shared chrome for the same reason. -->
       @if (viewMode.view() === "pro") {
-        <app-pro-dashboard />
+        <app-pro-dashboard id="line-board" tabindex="-1" />
       } @else {
         <div
           class="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start"
@@ -158,8 +178,14 @@ type FeedTab = (typeof FEED_TABS)[number];
                below it draws the divider between the two and drops it from lg, where the two are
                grid columns side by side and a border would only draw a line down the middle of the
                gap. -->
+          <!-- 🔴 id="line-board" is the skip link's target and tabindex="-1" is what makes it
+               a target at all: an anchor to an element with no tabindex will not move focus there,
+               so the skip would scroll the page and leave the reader's caret at the top. Does not
+               collide with the #line-<id> anchors on the rows themselves — those are per line,
+               this one is the panel. -->
           <section
-            #lineBoard
+            id="line-board"
+            tabindex="-1"
             class="flex scroll-mt-24 flex-col gap-3"
             aria-label="Line status"
             data-testid="line-board"
@@ -178,6 +204,14 @@ type FeedTab = (typeof FEED_TABS)[number];
             class="border-border flex flex-col gap-3 border-t pt-6 lg:border-t-0 lg:pt-0"
             aria-label="Community feed"
           >
+            <!-- The h2 the aria-label names, kept as a real heading rather than only a label: this is one
+               of the page's two top-level regions under the hero's h1, and a screen reader's heading
+               list has to be able to say "community feed" without having to visit the landmark list.
+               Visually hidden because the tablist below already says what this column is, and a
+               second visible "Community feed" above "Today / Last Week" is noise. Its children
+               step down from here — the day labels below are h3. -->
+            <h2 class="sr-only">Community feed</h2>
+
             <!-- 🔴 The mobile app-home-refresh-control copy that used to sit here is GONE. The
                  sticky action bar at the foot of the page carries a Refresh button on the same
                  store.polling beat at exactly the widths this gate (lg:hidden) covered, so two
@@ -193,7 +227,9 @@ type FeedTab = (typeof FEED_TABS)[number];
                  and Left/Right/Home/End move focus (and selection) between them. The inactive panel
                  carries the hidden attribute rather than being unmounted, so each tab's aria-controls
                  resolves to a panel that exists and so a conversation expanded in one period is still
-                 expanded when the reader comes back.
+                 expanded when the reader comes back. Both tabs carry their own focus-visible ring
+                 for the same reason the board's segmented buttons do: they are plain buttons under a
+                 border rather than hlmBtn, so nothing else draws one for them.
 
                  Neither panel is display-flex itself: a Tailwind display utility on the same element
                  would out-rank the stylesheet's own [hidden] rule and the hidden panel would still
@@ -209,7 +245,7 @@ type FeedTab = (typeof FEED_TABS)[number];
                 role="tab"
                 id="feed-tab-today"
                 data-testid="feed-tab-today"
-                class="hover:text-foreground -mb-px cursor-pointer border-b-2 px-1 pb-2 text-sm font-semibold tracking-wide uppercase transition-colors"
+                class="hover:text-foreground focus-visible:ring-ring/50 -mb-px cursor-pointer border-b-2 px-1 pb-2 text-sm font-semibold tracking-wide uppercase outline-none transition-colors focus-visible:ring-2 focus-visible:ring-offset-0"
                 [class.border-foreground]="feedTab() === 'today'"
                 [class.border-transparent]="feedTab() !== 'today'"
                 [class.text-foreground]="feedTab() === 'today'"
@@ -228,7 +264,7 @@ type FeedTab = (typeof FEED_TABS)[number];
                 role="tab"
                 id="feed-tab-lastweek"
                 data-testid="feed-tab-lastweek"
-                class="hover:text-foreground -mb-px cursor-pointer border-b-2 px-1 pb-2 text-sm font-semibold tracking-wide uppercase transition-colors"
+                class="hover:text-foreground focus-visible:ring-ring/50 -mb-px cursor-pointer border-b-2 px-1 pb-2 text-sm font-semibold tracking-wide uppercase outline-none transition-colors focus-visible:ring-2 focus-visible:ring-offset-0"
                 [class.border-foreground]="feedTab() === 'lastweek'"
                 [class.border-transparent]="feedTab() !== 'lastweek'"
                 [class.text-foreground]="feedTab() === 'lastweek'"
@@ -330,11 +366,13 @@ type FeedTab = (typeof FEED_TABS)[number];
                 @for (group of store.lastWeekDayGroups(); track group.key) {
                   <div class="flex flex-col gap-2" data-testid="last-week-day-group">
                     @if (group.label) {
-                      <h2
+                      <!-- h3, under this column's h2 — the day is a subsection of the feed, not a
+                           peer of it. Same reason the board's group headings sit under the board. -->
+                      <h3
                         class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
                       >
                         {{ group.label }}
-                      </h2>
+                      </h3>
                     }
                     @for (link of group.links; track link.id) {
                       <app-link-thread

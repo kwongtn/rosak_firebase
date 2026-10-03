@@ -100,6 +100,30 @@
       transform: translateX(250%);
     }
   }
+
+  /* One-shot reveal for the home hero's four stat tiles when their number CHANGES
+     (see ui/motion/tick-up.directive.ts, which adds and re-adds the class to replay it).
+
+     Deliberately NOT `infinite` and with NO fill mode: once it has finished the element is back at
+     its own styles, so there is no timer to tear down and nothing keeps running afterwards. The
+     directive never applies the class on its first run, so the first paint does not animate at all;
+     and the directive applies it as `motion-safe:animate-tick-up`, which cannot match at all under
+     `prefers-reduced-motion: reduce`.
+
+     A short upward slide rather than a rolling digit: rolling digits need a per-frame JS tween and a
+     tabular-nums column to animate inside, which is a lot of machinery to say "this number changed". */
+  --animate-tick-up: tick-up 380ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @keyframes tick-up {
+    from {
+      opacity: 0;
+      transform: translateY(-0.3em);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 /* Brand orange. The site's accent hue for the network board's hero ribbon and small highlights —

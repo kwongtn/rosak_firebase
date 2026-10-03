@@ -385,6 +385,22 @@ describe("LinePulseCardComponent", () => {
     expect(root.querySelector('[data-testid="line-card-expanded"]')).toBeNull();
   });
 
+  it("points the toggle's aria-controls at this line's OWN panel id", () => {
+    const root = render(makeLine({ id: "line-42" }));
+    const toggle = root.querySelector<HTMLElement>('[data-testid="line-card-toggle"]');
+
+    // Scoped to the line, because the board mounts one card per attention line: a bare id would put
+    // the same attribute on every panel and every toggle would resolve to the first one on the page.
+    expect(toggle?.getAttribute("aria-controls")).toBe("line-card-expanded-line-42");
+
+    toggle?.click();
+    fixture.detectChanges();
+    const panel = root.querySelector<HTMLElement>('[data-testid="line-card-expanded"]');
+    expect(panel?.id).toBe("line-card-expanded-line-42");
+    expect(panel?.id).toBe(toggle?.getAttribute("aria-controls"));
+    flushPendingRequests();
+  });
+
   it("fetches nothing until expanded, then loads the hourly chart and the report list", async () => {
     const root = render(makeLine({ id: "line-7" }));
 

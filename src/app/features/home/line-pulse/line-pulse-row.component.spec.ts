@@ -269,6 +269,22 @@ describe("LinePulseRowComponent", () => {
     expect(root.querySelector('[data-testid="line-row-expanded"]')).not.toBeNull();
   });
 
+  it("points the toggle's aria-controls at this line's OWN panel id", () => {
+    const root = render(makeLine({ id: "line-7" }));
+    const toggle = root.querySelector<HTMLElement>('[data-testid="line-row-toggle"]');
+
+    // Scoped to the line, because "My lines" and "All lines" can hold the SAME pinned line at once —
+    // a bare id would collide and both toggles would resolve to whichever copy came first.
+    expect(toggle?.getAttribute("aria-controls")).toBe("line-row-expanded-line-7");
+
+    toggle?.click();
+    fixture.detectChanges();
+    flushPendingRequests();
+    const panel = root.querySelector<HTMLElement>('[data-testid="line-row-expanded"]');
+    expect(panel?.id).toBe("line-row-expanded-line-7");
+    expect(panel?.id).toBe(toggle?.getAttribute("aria-controls"));
+  });
+
   it("records the line as recently viewed on the OPEN edge only", () => {
     const root = render(makeLine({ id: "line-7" }));
     const toggle = root.querySelector<HTMLElement>('[data-testid="line-row-toggle"]');

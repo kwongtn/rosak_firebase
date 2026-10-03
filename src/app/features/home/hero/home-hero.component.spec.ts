@@ -153,6 +153,10 @@ describe("HomeHeroComponent", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  function rootOf(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
   it("reads only its inputs — the hero issues no request of its own", () => {
     render(networkLines());
     // Everything on screen is derived from `lines` + `linksToday`; the page passes both from reads
@@ -252,6 +256,45 @@ describe("HomeHeroComponent", () => {
     expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
   });
 
+  it("publishes the two tile RULES from the registry too, each on its own label", () => {
+    const root = render(networkLines());
+
+    // 🔴 The Phase 5B registry audit's whole finding, pinned: "Needs attention" and "Reports now"
+    // were numbers a reader is asked to weigh, with their rules nowhere a reader could reach. Each
+    // label is now its own popover trigger reading the registry string, so a tile's explanation and
+    // /methodology's sentence are the same string rather than two phrasings of one rule.
+    for (const [tileTestId, metricId, panelTestId] of [
+      ["hero-stat-needs-attention", "network.needs-attention", "hero-needs-attention-popover"],
+      ["hero-stat-reports-now", "network.reports-now", "hero-reports-now-popover"],
+    ] as const) {
+      const tile = root.querySelector(`[data-testid="${tileTestId}"]`) as HTMLElement;
+      const popover = tile.querySelector("app-info-popover") as HTMLElement;
+      expect(popover, tileTestId).not.toBeNull();
+
+      // The FIGURE stays out of the trigger: it is the tile's value, and the tick-up span already
+      // owns that slot — wrapping the number in a button would put the animation inside a control
+      // and make the value's own text part of a control's accessible name.
+      const trigger = popover.querySelector("button") as HTMLButtonElement;
+      expect(trigger.querySelector("span[class*='tabular-nums']")).toBeNull();
+      expect(trigger.getAttribute("aria-label")).toMatch(/^What is /);
+      expect(root.querySelector(`[data-testid="${panelTestId}"]`)).toBeNull();
+
+      trigger.click();
+      fixture.detectChanges();
+
+      const panel = popover.querySelector(`[data-testid="${panelTestId}"]`) as HTMLElement;
+      expect(panel, metricId).not.toBeNull();
+      expect(panel.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+        renderMethodologyCopy(metricDoc(metricId).definition),
+      );
+      expect(panel.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
+    }
+
+    // "Lines normal" and "Links today" stay plain: the first is the headline's own sentence one
+    // tile above, and the second is the row count of the feed list further down the page.
+    expect(root.querySelectorAll("app-info-popover").length).toBe(3);
+  });
+
   it("opens the report CHOOSER from Report a delay, not a sheet and not a scroll", () => {
     const root = render(networkLines());
 
@@ -281,6 +324,30 @@ describe("HomeHeroComponent", () => {
 
     expect(map.tagName).toBe("A");
     expect(map.getAttribute("href")).toBe("/tracker");
+  });
+
+  // The page's heading structure: ONE h1, and it is the sentence about the network. The board's group
+  // headings and the card titles step down from it, so a screen reader's heading list has a root.
+  it("gives the page exactly one h1, and it is the headline", () => {
+    const root = render(networkLines());
+
+    expect(root.querySelectorAll("h1")).toHaveLength(1);
+    expect(root.querySelector("h1")?.getAttribute("data-testid")).toBe("hero-headline");
+  });
+
+  it("animates a changed stat tile through the tick-up directive, and not before", () => {
+    render(networkLines(), 7);
+    const figure = (testId: string): HTMLElement =>
+      rootOf().querySelector(`[data-testid="${testId}"] span`) as HTMLElement;
+
+    // First paint: the directive skips its own first run, so the numbers arrive as plain text.
+    expect(figure("hero-stat-lines-normal").className).not.toContain("animate-tick-up");
+
+    render(networkLines(), 8);
+    fixture.detectChanges();
+
+    expect(figure("hero-stat-links-today").className).toContain("motion-safe:animate-tick-up");
+    expect(figure("hero-stat-lines-normal").className).not.toContain("animate-tick-up");
   });
 
   it("carries the brand accent rail without making the block unreadable in dark mode", () => {

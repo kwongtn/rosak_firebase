@@ -8,6 +8,7 @@ import {
 import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
+import { HlmTickUp } from "../../../ui/motion/tick-up.directive";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home.queries";
@@ -49,8 +50,11 @@ interface OfficialUpdate {
  *
  * The headline carries an `app-info-popover` because it is a metric, not a caption: its copy comes
  * from the methodology registry (`network.lines-normal`) through `renderMethodologyCopy`, so the
- * tile and `/methodology` cannot drift. SSR-safe — no browser APIs, and the popover host's
- * `ngSkipHydration` (see `ui/info-popover`) covers the projected trigger.
+ * tile and `/methodology` cannot drift. Two of the four TILE LABELS get the same treatment for the
+ * same reason — `network.needs-attention` and `network.reports-now` are rules a reader cannot guess,
+ * where "lines normal" is already the headline's sentence and "links today" is the row count of the
+ * list below. SSR-safe — no browser APIs, and the popover host's `ngSkipHydration` (see
+ * `ui/info-popover`) covers each projected trigger.
  */
 @Component({
   selector: "app-home-hero",
@@ -61,6 +65,7 @@ interface OfficialUpdate {
     HomeRefreshControlComponent,
     InfoPopover,
     NetworkSparklineComponent,
+    HlmTickUp,
   ],
   template: `
     <section
@@ -98,12 +103,16 @@ interface OfficialUpdate {
           testId="hero-headline-popover"
           triggerClasses="cursor-help"
         >
-          <h2
+          <!-- 🔴 The page's ONLY h1, and it belongs to the one sentence that describes the whole
+               network. The board's group headings, the card titles and the feed's day labels are
+               all h2/h3 UNDER it, so a screen reader's heading list is "what is the network doing"
+               followed by "which parts need attention" rather than a page of peers with no parent. -->
+          <h1
             class="text-brand text-xl font-semibold tracking-tight sm:text-2xl"
             data-testid="hero-headline"
           >
             {{ _summary().headline }}
-          </h2>
+          </h1>
         </app-info-popover>
 
         <!-- 🔴 The official-update callout comes BEFORE the disruption callout, and that order is
@@ -139,12 +148,20 @@ interface OfficialUpdate {
         }
       </div>
 
+      <!-- The four numbers behind the headline. Each tile's figure is an hlmTickUp host, so a
+           CHANGED number replays the one-shot reveal in ui/motion — and a number that has not
+           changed (a quiet network, most of the time) does not move at all. The first paint never
+           animates: the directive skips its own first run, which is why these tiles read as plain
+           text on arrival and only announce a change afterwards. -->
       <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="hero-stats">
         <div
           class="bg-muted/40 flex flex-col gap-0.5 rounded-xl px-3 py-2"
           data-testid="hero-stat-lines-normal"
         >
-          <span class="text-lg leading-tight font-semibold tabular-nums">
+          <span
+            [hlmTickUp]="_summary().normalCount"
+            class="text-lg leading-tight font-semibold tabular-nums"
+          >
             {{ _summary().normalCount }}
           </span>
           <span class="text-muted-foreground text-xs">Lines normal</span>
@@ -153,25 +170,60 @@ interface OfficialUpdate {
           class="bg-muted/40 flex flex-col gap-0.5 rounded-xl px-3 py-2"
           data-testid="hero-stat-needs-attention"
         >
-          <span class="text-lg leading-tight font-semibold tabular-nums">
+          <span
+            [hlmTickUp]="_summary().needsAttentionCount"
+            class="text-lg leading-tight font-semibold tabular-nums"
+          >
             {{ _summary().needsAttentionCount }}
           </span>
-          <span class="text-muted-foreground text-xs">Needs attention</span>
+          <!-- The LABEL is the trigger, not the figure: the number has to stay a plain number (it is
+               the tile's value, and an animated span already owns the value slot), while the word
+               beside it is the one place a reader can ask what the rule is. showIcon off keeps the
+               tile looking like a tile. 🔴 Two of the four tiles get a popover because they are the
+               two that are RULES rather than counts: what "needs attention" means decides whether a
+               reader trusts the board's first group, and what "reports now" counts decides whether
+               they trust the number above the feed. "Lines normal" is already explained by the
+               headline popover right above it, and "links today" is the row count of the list below
+               — self-evident, so neither needs a fourth and fifth explanation. -->
+          <app-info-popover
+            label="Needs attention"
+            [content]="_needsAttentionMetric"
+            [link]="_methodologyLink"
+            testId="hero-needs-attention-popover"
+            triggerClasses="text-muted-foreground self-start text-xs"
+            [showIcon]="false"
+          >
+            <span class="text-xs">Needs attention</span>
+          </app-info-popover>
         </div>
         <div
           class="bg-muted/40 flex flex-col gap-0.5 rounded-xl px-3 py-2"
           data-testid="hero-stat-reports-now"
         >
-          <span class="text-lg leading-tight font-semibold tabular-nums">
+          <span
+            [hlmTickUp]="_summary().reportsNow"
+            class="text-lg leading-tight font-semibold tabular-nums"
+          >
             {{ _summary().reportsNow }}
           </span>
-          <span class="text-muted-foreground text-xs">Reports now</span>
+          <app-info-popover
+            label="Reports now"
+            [content]="_reportsNowMetric"
+            [link]="_methodologyLink"
+            testId="hero-reports-now-popover"
+            triggerClasses="text-muted-foreground self-start text-xs"
+            [showIcon]="false"
+          >
+            <span class="text-xs">Reports now</span>
+          </app-info-popover>
         </div>
         <div
           class="bg-muted/40 flex flex-col gap-0.5 rounded-xl px-3 py-2"
           data-testid="hero-stat-links-today"
         >
-          <span class="text-lg leading-tight font-semibold tabular-nums">{{ linksToday() }}</span>
+          <span [hlmTickUp]="linksToday()" class="text-lg leading-tight font-semibold tabular-nums">
+            {{ linksToday() }}
+          </span>
           <span class="text-muted-foreground text-xs">Links today</span>
         </div>
       </div>
@@ -282,6 +334,18 @@ export class HomeHeroComponent {
   /** The headline metric's definition, read from the registry — never a literal here. */
   protected readonly _headlineMetric = computed(() =>
     renderMethodologyCopy(metricDoc("network.lines-normal").definition),
+  );
+
+  /** 🔴 These two are not `computed` for a dependency reason but a CONSISTENCY one: they read a
+   *  registry string that cannot change at runtime, and a computed would only pretend it might.
+   *  Same registry, same renderer as the headline's — the whole point is that a tile's definition
+   *  and `/methodology`'s sentence are literally the same string. */
+  protected readonly _needsAttentionMetric = renderMethodologyCopy(
+    metricDoc("network.needs-attention").definition,
+  );
+
+  protected readonly _reportsNowMetric = renderMethodologyCopy(
+    metricDoc("network.reports-now").definition,
   );
 
   /** Deep link to the methodology section that owns the headline metric. */

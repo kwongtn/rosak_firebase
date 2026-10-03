@@ -78,6 +78,12 @@ const SORT_PARAM = "sort";
  * class rather than an animation so it degrades honestly: `motion-reduce:transition-none` leaves the
  * ring VISIBLE with no transition under `prefers-reduced-motion`, which is what a reader who asked
  * for less motion still needs — the information, not the flourish.
+ *
+ * **Focus visibility on the controls row.** The six segmented buttons (sort / view / density) are
+ * plain `<button>`s rather than `hlmBtn`, because a segmented group of three needs a shared track
+ * and the button primitive's own border and padding are the wrong shape for it. That means the
+ * primitive's `focus-visible` ring does not come with them, so all three groups carry it explicitly:
+ * a control a keyboard reader cannot see is not reachable in any sense that matters.
  */
 @Component({
   selector: "app-network-board",
@@ -108,7 +114,7 @@ const SORT_PARAM = "sort";
             @for (option of _sortOptions; track option.value) {
               <button
                 type="button"
-                class="cursor-pointer rounded-md px-2 py-1 text-xs font-medium"
+                class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
                 [class.bg-background]="_sort() === option.value"
                 [attr.aria-pressed]="_sort() === option.value"
                 [attr.data-testid]="'board-sort-' + option.value"
@@ -128,7 +134,7 @@ const SORT_PARAM = "sort";
               @for (option of _viewOptions; track option.value) {
                 <button
                   type="button"
-                  class="cursor-pointer rounded-md px-2 py-1 text-xs font-medium"
+                  class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
                   [class.bg-background]="_view() === option.value"
                   [attr.aria-pressed]="_view() === option.value"
                   [attr.data-testid]="'board-view-' + option.value"
@@ -150,7 +156,7 @@ const SORT_PARAM = "sort";
                 @for (option of _densityOptions; track option.value) {
                   <button
                     type="button"
-                    class="cursor-pointer rounded-md px-2 py-1 text-xs font-medium"
+                    class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
                     [class.bg-background]="_density() === option.value"
                     [attr.aria-pressed]="_density() === option.value"
                     [attr.data-testid]="'board-density-' + option.value"
@@ -179,10 +185,21 @@ const SORT_PARAM = "sort";
              must not scroll past a "Needs attention · 0" heading to find out there is nothing. -->
         @if (_attention().length > 0) {
           <section class="flex flex-col gap-2" data-testid="line-board-attention">
+            <!-- The pulsing dot is the ONE piece of motion on the board, and it is motion-safe only:
+               that variant does not match under prefers-reduced-motion: reduce, so a reader who
+               asked for less motion gets the same heading with a static brand dot and loses nothing
+               but the pulse. It reuses the existing animate-breathe theme token rather than adding a
+               new one, and it is decorative — the count beside it is the actual information — so
+               it is aria-hidden rather than announced as "live". -->
             <h2
-              class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+              class="text-muted-foreground flex items-center gap-1.5 text-sm font-semibold tracking-wide uppercase"
               data-testid="line-board-attention-heading"
             >
+              <span
+                class="bg-brand motion-safe:animate-breathe inline-block size-1.5 shrink-0 rounded-full"
+                data-testid="line-board-attention-dot"
+                aria-hidden="true"
+              ></span>
               Needs attention · {{ _attention().length }}
             </h2>
             <div class="flex flex-col gap-3">

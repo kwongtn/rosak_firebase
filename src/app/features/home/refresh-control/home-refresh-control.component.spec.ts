@@ -137,6 +137,91 @@ describe("HomeRefreshControlComponent", () => {
     expect(button().textContent?.replace(/\s+/g, " ")).toContain("Refreshing in 7s");
   });
 
+  // ── The countdown ring ────────────────────────────────────────────────────
+  // A full turn of an r=9 circle, which is what stroke-dasharray is set to so the offset can be read
+  // as "how much of the turn is left". Duplicated from the component on purpose: a spec that imported
+  // the constant could not catch the constant being wrong.
+  const CIRC = 56.55;
+
+  function ring(): SVGElement | null {
+    return host().querySelector('[data-testid="line-refresh-ring"]');
+  }
+
+  function ringArc(): SVGElement | null {
+    return host().querySelector('[data-testid="line-refresh-ring-arc"]');
+  }
+
+  it("drains the countdown ring as the beat runs down, and refills it on a refresh", async () => {
+    await render();
+
+    const arc = ringArc();
+    expect(ring()).not.toBeNull();
+    expect(arc?.getAttribute("stroke-dasharray")).toBe(String(CIRC));
+
+    // Freshly scheduled: the whole turn is drawn.
+    expect(arc?.getAttribute("stroke-dashoffset")).toBe("0");
+
+    store.polling.secondsRemaining.set(15);
+    fixture.detectChanges();
+    expect(ringArc()?.getAttribute("stroke-dashoffset")).toBe("28.28");
+
+    // The edge a reader watches most: the beat resets, so the ring refills in the same render that
+    // puts the text back to 30s. This is the case percentRemaining gets wrong — scheduleNext resets
+    // secondsRemaining but leaves the published percentage describing the beat that just ended.
+    store.polling.secondsRemaining.set(30);
+    fixture.detectChanges();
+    expect(ringArc()?.getAttribute("stroke-dashoffset")).toBe("0");
+
+    store.polling.secondsRemaining.set(0);
+    fixture.detectChanges();
+    expect(ringArc()?.getAttribute("stroke-dashoffset")).toBe(String(CIRC));
+  });
+
+  it("clamps the ring when the countdown overshoots its own interval", async () => {
+    await render();
+
+    // A beat that fires late leaves secondsRemaining at 0 while the next schedule lands; the arc must
+    // never invert (a negative offset would draw MORE than a full turn).
+    store.polling.secondsRemaining.set(-2);
+    fixture.detectChanges();
+    expect(ringArc()?.getAttribute("stroke-dashoffset")).toBe(String(CIRC));
+  });
+
+  // The ring's transition is the ONLY motion here, and it is what motion-reduce:transition-none
+  // removes. The arc must still move to its new length — a reader who asked for less motion still
+  // needs to know how long is left.
+  it("keeps the arc but drops its transition under reduced motion", async () => {
+    await render();
+
+    expect(ringArc()?.getAttribute("class")).toContain("motion-reduce:transition-none");
+    // …and the "Updating" spinner, which is the one remaining animation on this control, opts out too.
+    store.isRefreshing.set(true);
+    store.isLoading.set(false);
+    fixture.detectChanges();
+    const spinner = host().querySelector<SVGElement>(
+      '[data-testid="line-refresh-updating"]',
+    )?.previousElementSibling;
+    expect(spinner?.getAttribute("class")).toContain("motion-reduce:[animation:none]");
+    // An inline `animation` outranks any class, including that one — so it has to be gone, not just
+    // accompanied by a reduced-motion override.
+    expect((spinner as HTMLElement | null)?.style.animation).toBe("");
+  });
+
+  it("draws no ring when the beat is paused, and none while a refresh is in flight", async () => {
+    await render();
+    expect(ring()).not.toBeNull();
+
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+    expect(ring()).toBeNull();
+    expect(updatingLabel()).not.toBeNull();
+
+    store.isRefreshing.set(false);
+    store.polling.intervalMs.set(null);
+    fixture.detectChanges();
+    expect(ring()).toBeNull();
+  });
+
   it("refreshes the page through the store's polling beat on click", async () => {
     stubMatchMedia(false);
     await render();
@@ -484,21 +569,26 @@ describe("HomeRefreshControlComponent", () => {
     expect(confirmation()).toBeNull();
     expect(button().textContent?.replace(/\s+/g, " ")).not.toContain("Refreshing in");
 
-    // The countdown's own spinner, spun SLOWLY (3s) and counter-clockwise — the same markup so the
-    // row does not change shape between the states, a different tempo so "you asked for this" can
-    // never be mistaken for "the beat is running". The countdown keeps its 1s.
+    // The "Updating" spinner, spun SLOWLY (3s) and counter-clockwise — so "you asked for this" can
+    // never be mistaken for "the beat is running", which is a shrinking ring rather than a spin at
+    // all.
     //
-    // ⚠️ `reverse` must be asserted INSIDE the shorthand, not only as the Tailwind class: `animation`
-    // is a shorthand that resets every animation sub-property, so an inline one silently restores
-    // `animation-direction: normal` and beats `[animation-direction:reverse]`. Found by browser
-    // verification (computed value was "3s normal spin" — the class was dead markup); jsdom cannot
-    // see it, which is why the inline value itself is the assertion.
+    // ⚠️ `reverse` must stay INSIDE the shorthand: `animation` is a shorthand that resets every
+    // animation sub-property, so a separate `[animation-direction:reverse]` would be silently reset to
+    // `normal` by it. Found by browser verification (the class was dead markup); jsdom cannot see it,
+    // which is why the shorthand ITSELF is the assertion.
+    //
+    // ⚠️ And it must be an arbitrary-property UTILITY, not the inline `style` it used to be: an inline
+    // `animation` outranks every class in the cascade, including the `motion-reduce:[animation:none]`
+    // that switches it off. Asserting the style attribute is now empty is the assertion that the
+    // reduced-motion opt-out can actually win.
     const icon = button().querySelector("svg");
-    expect(icon?.getAttribute("style")).toContain("3s");
-    expect(icon?.getAttribute("style")).toContain("reverse");
-    expect(icon?.getAttribute("class")).toContain("[animation-direction:reverse]");
-    expect(icon?.getAttribute("class")).toContain("text-muted-foreground");
-    expect(icon?.getAttribute("class")).not.toContain("text-green-600");
+    const iconClass = icon?.getAttribute("class") ?? "";
+    expect(iconClass).toContain("[animation:spin_3s_linear_infinite_reverse]");
+    expect(iconClass).toContain("motion-reduce:[animation:none]");
+    expect(icon?.getAttribute("style")).toBeNull();
+    expect(iconClass).toContain("text-muted-foreground");
+    expect(iconClass).not.toContain("text-green-600");
 
     // Settled clean: "Updating" hands straight over to "Updated" — never both, never the countdown.
     store.isRefreshing.set(false);

@@ -49,7 +49,9 @@ const MAX_PULSE_LINKS = 5;
  * dropdown/menu today; it follows the same contract `app-info-popover` established (Escape and
  * outside-click close, the trigger carries `aria-expanded`/`aria-haspopup`, the panel is
  * `role="menu"` with `role="menuitem"` children) so a real primitive can replace it later without
- * changing behaviour.
+ * changing behaviour. Its items carry their own `focus-visible` ring for the same reason the board's
+ * segmented buttons do: a hand-built menu does not inherit `hlmBtn`'s, and the one menu here is
+ * reachable only from the keyboard.
  *
  * The status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle-count
  * pill opens the per-status breakdown, the passenger chip carries the rolling window it covers
@@ -102,6 +104,7 @@ const MAX_PULSE_LINKS = 5;
                   class="focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-3"
                   data-testid="line-card-toggle"
                   [attr.aria-expanded]="_expanded()"
+                  [attr.aria-controls]="_expandedPanelId()"
                   (click)="toggleExpanded()"
                 >
                   <span
@@ -262,7 +265,7 @@ const MAX_PULSE_LINKS = 5;
                 <button
                   type="button"
                   role="menuitem"
-                  class="hover:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+                  class="hover:bg-muted focus-visible:ring-ring/50 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none focus-visible:ring-2"
                   data-testid="line-card-pin"
                   (click)="togglePin()"
                 >
@@ -271,7 +274,7 @@ const MAX_PULSE_LINKS = 5;
                 </button>
                 <a
                   role="menuitem"
-                  class="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                  class="hover:bg-muted focus-visible:ring-ring/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
                   [routerLink]="['/spotting', line().id]"
                   data-testid="line-card-hq"
                   (click)="closeMenu()"
@@ -281,7 +284,7 @@ const MAX_PULSE_LINKS = 5;
                 </a>
                 <a
                   role="menuitem"
-                  class="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                  class="hover:bg-muted focus-visible:ring-ring/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
                   [routerLink]="['/spotting', line().id, 'details']"
                   data-testid="line-card-hq-details"
                   (click)="closeMenu()"
@@ -298,6 +301,7 @@ const MAX_PULSE_LINKS = 5;
       @if (_expanded()) {
         <div
           class="border-border flex flex-col gap-4 border-t pt-3"
+          [attr.id]="_expandedPanelId()"
           data-testid="line-card-expanded"
         >
           <app-line-status-chart
@@ -335,6 +339,16 @@ export class LinePulseCardComponent {
 
   protected readonly _expanded = signal(false);
   protected readonly _menuOpen = signal(false);
+
+  /**
+   * The id the toggle's `aria-controls` points at, and the panel's own `id`.
+   *
+   * Scoped to the line because the board mounts one card per attention line: a bare id would put the
+   * same attribute on every card's panel and every toggle would resolve to the FIRST one on the
+   * page. The panel stays behind its `@if` — it holds two lazy reads (the chart and the reports
+   * list), so keeping it unmounted is what stops sixteen cards requesting sixteen charts on load.
+   */
+  protected readonly _expandedPanelId = computed(() => `line-card-expanded-${this.line().id}`);
 
   /** Reads the pin signal through a `computed`, so the kebab's label repaints on toggle. */
   protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));

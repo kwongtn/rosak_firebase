@@ -378,6 +378,35 @@ describe("NetworkBoardComponent", () => {
     expect(textOf(root, "board-view-pro")).toBe("Pro");
   });
 
+  it("draws every control in the row with a visible focus ring", async () => {
+    const root = await board([makeLine("a")]);
+
+    // These six are plain buttons under a shared track, not hlmBtn — the primitive's focus-visible
+    // ring does not come with them, so the board has to bring its own. A control a keyboard reader
+    // cannot see is not reachable in any sense that matters.
+    const controls = [
+      ...root.querySelectorAll<HTMLElement>('[data-testid="board-controls"] button'),
+    ];
+    expect(controls.length).toBeGreaterThanOrEqual(4);
+    for (const control of controls) {
+      expect(control.className).toContain("focus-visible:ring-2");
+      expect(control.className).toContain("outline-none");
+    }
+  });
+
+  it("marks the attention group with a dot that pulses only under motion-safe", async () => {
+    const root = await board([makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("plain")]);
+
+    const dot = root.querySelector<HTMLElement>('[data-testid="line-board-attention-dot"]');
+    expect(dot).not.toBeNull();
+    expect(dot?.className).toContain("motion-safe:animate-breathe");
+    // Decorative: the count beside it is the information, and a pulsing dot that is announced on
+    // every one of the board's poll beats would be noise.
+    expect(dot?.getAttribute("aria-hidden")).toBe("true");
+    // Still inside the heading, so the heading's accessible name is unchanged.
+    expect(textOf(root, "line-board-attention-heading")).toBe("Needs attention · 1");
+  });
+
   it("writes both the preference and the URL when the view is toggled", async () => {
     const root = await board([makeLine("a")]);
 

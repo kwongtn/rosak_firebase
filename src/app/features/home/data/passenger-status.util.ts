@@ -88,7 +88,16 @@ export const PASSENGER_BAR_CLASS: Record<PassengerStatus, string> = {
   EXTREMELY_CROWDED: "bg-red-500",
   BACKLOGGED: "bg-orange-500",
   DELAYED: "bg-yellow-500",
-  DISRUPTED: "bg-rose-600",
+  // 🔴 The one bar that needed a dark pair, and the audit that found it. Measured against the dark
+  // card (oklch 0.22): every status colour above clears 4.5:1 except this one, at 3.84:1 — and it is
+  // DISRUPTED, the status a rider must not be able to miss, rendered as the DIMMEST bar on the page.
+  // `rose-500` takes it to 4.61:1 on the same card. A `dark:` pair here rather than a new theme token
+  // because this table IS the single place these seven colours are named (see its doc comment): the
+  // values are literal Tailwind palette utilities by design — they must be, or the JIT pass never
+  // emits them — so the palette step is what there is to switch, and one table is a smaller seam than
+  // seven new tokens used exactly once each. Light is untouched: `rose-600` already sits at 4.5:1
+  // on the light card.
+  DISRUPTED: "bg-rose-600 dark:bg-rose-500",
 };
 
 /** The muted fill for an hour or cell with no reports — a track, not a zero-valued datum. */

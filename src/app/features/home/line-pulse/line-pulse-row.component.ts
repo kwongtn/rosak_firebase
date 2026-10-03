@@ -100,6 +100,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
           class="focus-visible:ring-ring/50 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3"
           data-testid="line-row-toggle"
           [attr.aria-expanded]="_expanded()"
+          [attr.aria-controls]="_expandedPanelId()"
           [attr.aria-label]="'Show detail for ' + line().code"
           (click)="toggleExpanded()"
         >
@@ -219,6 +220,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
       @if (_expanded()) {
         <div
           class="border-border mt-2.5 flex flex-col gap-3 border-t pt-2.5"
+          [attr.id]="_expandedPanelId()"
           data-testid="line-row-expanded"
         >
           <app-line-status-chart
@@ -252,6 +254,16 @@ export class LinePulseRowComponent {
   protected readonly passengerVariant = passengerVariant;
 
   protected readonly _expanded = signal(false);
+
+  /**
+   * The id the row toggle's `aria-controls` points at, and the panel's own `id`.
+   *
+   * Scoped to the line because the board mounts one row per line in TWO groups at once ("My lines"
+   * and "All lines" can hold the same pinned line), so a bare id would collide and every toggle would
+   * resolve to whichever copy came first in the DOM. Behind its `@if` for the same reason as the
+   * card's: the panel owns two lazy reads and must not be mounted sixteen times on load.
+   */
+  protected readonly _expandedPanelId = computed(() => `line-row-expanded-${this.line().id}`);
 
   /** Reads the pin signal through a `computed`, so the toggle repaints on click. */
   protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));

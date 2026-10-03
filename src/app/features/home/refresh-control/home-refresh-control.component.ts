@@ -3,6 +3,7 @@ import {
   Component,
   PLATFORM_ID,
   afterNextRender,
+  computed,
   effect,
   inject,
   signal,
@@ -25,6 +26,17 @@ const REFRESHED_VISIBLE_MS = 2000;
  * request in flight is a real one, and its settle decides, however slow that request is.
  */
 const ARM_EXPIRY_MS = 5000;
+
+/** The countdown ring's radius, in the 24-unit viewBox the other icons in this button share. */
+const RING_RADIUS = 9;
+
+/**
+ * Circumference of that ring: the `stroke-dasharray` that draws one full turn, so `stroke-dashoffset`
+ * can be read as "how much of the turn is left". Rounded to 2dp because the value is also an
+ * attribute a spec asserts on, and `2 * PI * 9` in full binary floating point is not a thing anyone
+ * should have to type.
+ */
+const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
 
 /**
  * The home page's refresh control: the fixed-cadence countdown IS the button, and a click refreshes
@@ -59,6 +71,14 @@ const ARM_EXPIRY_MS = 5000;
  * the settle-edge's deliberately conservative `hasError` suppression, and the "Updating" label,
  * which has to be torn down on BOTH exits out of an armed window (the settle edge and the stale-arm
  * expiry) or a no-op click would say "Updating" for the rest of the session.
+ *
+ * **The countdown DRAWS itself** — an SVG ring whose arc is the fraction of the beat left, rather
+ * than a spinner. Nothing here polls: `_ringOffset` is a pure `computed` over the store's own
+ * `secondsRemaining()` / `intervalMs()`, so the arc, the "Refreshing in Ns" text and the beat are
+ * three readings of the same two numbers and cannot drift. The "Updating" branch is the one state a
+ * ring cannot express (there is no fraction — a refresh is in flight, not pending), so it keeps an
+ * indeterminate spinner; that spinner and the ring both go inert under
+ * `prefers-reduced-motion: reduce`.
  */
 @Component({
   selector: "app-home-refresh-control",
@@ -73,19 +93,19 @@ const ARM_EXPIRY_MS = 5000;
       (click)="onRefreshClick()"
     >
       @if (_isUpdating()) {
-        <!-- Same spinner as the countdown below (identical markup, so the row does not change
-             shape or colour between the two states) but spun SLOWLY at 3s and reversed, i.e.
-             counter-clockwise: the one direction nothing else on the page animates in, so "the
-             page is working on it" never reads as "the countdown is running". The countdown's own
-             1s spin is deliberately left alone.
+        <!-- Same shape as the countdown ring below (identical markup, so the row does not change
+             shape or colour between the two states) but SPUN slowly at 3s and in reverse — the one
+             direction nothing else on the page animates in, so "the page is working on it" never
+             reads as "the countdown is running".
              ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
-             every animation sub-property — an inline one drops animation-direction back to normal
-             and beats the [animation-direction:reverse] class, making that class dead markup.
-             Stating reverse in the shorthand is what actually turns it. (No backticks in this
-             comment: inside an inline template literal they would close it.) -->
+             every animation sub-property, so a separate [animation-direction:reverse] would be
+             dropped back to normal by it and be dead markup.
+             It is an arbitrary-property UTILITY rather than an inline style because reduced motion
+             has to be able to switch it off, and an inline animation outranks every class in the
+             cascade — including the motion-reduce one that would. (No backticks in this comment:
+             inside an inline template literal they would close it.) -->
         <svg
-          class="text-muted-foreground size-3.5 [animation-direction:reverse]"
-          style="animation: spin 3s linear infinite reverse"
+          class="text-muted-foreground size-3.5 [animation:spin_3s_linear_infinite_reverse] motion-reduce:[animation:none]"
           viewBox="0 0 24 24"
           fill="none"
           aria-hidden="true"
@@ -131,26 +151,43 @@ const ARM_EXPIRY_MS = 5000;
           Updated
         </span>
       } @else if (store.polling.intervalMs() !== null) {
+        <!-- 🔴 The countdown DRAWS ITSELF instead of spinning. A spinning spinner says "something is
+             happening"; a ring whose arc shrinks says "and here is how long until the next refresh",
+             which is the one fact this button exists to state. It reads the store's own
+             secondsRemaining()/intervalMs() pair, so it cannot disagree with the text beside it or
+             with the beat.
+
+             The dash-array is one full turn and the dash-offset is how much of it is left,
+             which makes the fraction a pure function of the two signals — no second timer and no
+             per-frame JS anywhere. The 1s transition matches the polling tick, and
+             motion-reduce:transition-none drops it so a reader who asked for reduced motion sees the
+             arc jump straight to its new length instead: same information, no tween. -->
         <svg
-          class="text-muted-foreground size-3.5 [animation-direction:reverse]"
-          style="animation: spin 1s linear infinite"
+          class="text-muted-foreground -rotate-90"
           viewBox="0 0 24 24"
           fill="none"
           aria-hidden="true"
+          data-testid="line-refresh-ring"
         >
           <circle
             cx="12"
             cy="12"
-            r="9"
+            [attr.r]="RING_RADIUS"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="2.5"
             stroke-opacity="0.25"
           />
-          <path
-            d="M21 12a9 9 0 0 0-9-9"
+          <circle
+            cx="12"
+            cy="12"
+            [attr.r]="RING_RADIUS"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="2.5"
             stroke-linecap="round"
+            class="text-brand transition-[stroke-dashoffset] duration-1000 ease-linear motion-reduce:transition-none"
+            data-testid="line-refresh-ring-arc"
+            [attr.stroke-dasharray]="_ringCircumference"
+            [attr.stroke-dashoffset]="_ringOffset()"
           />
         </svg>
         <span class="text-muted-foreground text-xs">
@@ -184,6 +221,32 @@ const ARM_EXPIRY_MS = 5000;
 })
 export class HomeRefreshControlComponent implements OnDestroy {
   protected readonly store = inject(HomeStore);
+
+  protected readonly RING_RADIUS = RING_RADIUS;
+  protected readonly _ringCircumference = RING_CIRCUMFERENCE;
+
+  /**
+   * How much of the ring is EMPTY, as a `stroke-dashoffset` — 0 is a full turn, the whole
+   * circumference is none of it.
+   *
+   * 🔴 Computed from `secondsRemaining() / intervalMs()`, deliberately NOT from
+   * `PollingSource.percentRemaining`. The two are not interchangeable: `scheduleNext()` resets
+   * `secondsRemaining` on the same edge but leaves `percentRemaining` to the next 1s tick, so
+   * immediately after a refresh the published percentage still describes the beat that just ended —
+   * the ring would visibly refuse to refill for up to a second while claiming to be full. Deriving
+   * the fraction from the pair the button already prints removes the window entirely.
+   *
+   * Both signals are guarded rather than trusted: a null interval and a countdown that overshot its
+   * own length both clamp to the ends of the range instead of inverting the ring.
+   */
+  protected readonly _ringOffset = computed(() => {
+    const totalSeconds = (this.store.polling.intervalMs() ?? 0) / 1000;
+    if (totalSeconds <= 0) {
+      return RING_CIRCUMFERENCE;
+    }
+    const fraction = Math.min(1, Math.max(0, this.store.polling.secondsRemaining() / totalSeconds));
+    return Math.round(RING_CIRCUMFERENCE * (1 - fraction) * 100) / 100;
+  });
 
   private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 

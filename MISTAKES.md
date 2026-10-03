@@ -1144,3 +1144,45 @@ not a read-only probe, and its name suggests it is.
 the test genuinely intends to consume everything still open (e.g. a final "nothing is pending" check).
 And when a variables change re-issues a request, capture BOTH resources' requests before flushing either
 — `expectOne` twice for the same predicate fails on the second call.
+
+## [2026-10-03] ui/theme: LIGHT `--brand` fails AA as text and as a fill — found by the Phase-5B contrast audit, NOT fixed (design decision, above this phase)
+
+**Problem**: the dark-mode contrast audit for the network board came back clean on every dark surface
+(`--brand` on card **7.56:1**, `--brand-foreground` on brand **8.23:1**, the post-submit highlight ring
+**8.48:1**, the feed tabs **6.98:1** — all unchanged). The same measurement on the **light** theme shows
+the accent itself is not AA: `--brand: #ee7104` (`oklch(0.68 0.17 46)`) against `--card`
+(`oklch(1 0 0)`) is **3.0:1**. That colour is used three ways on `/`:
+`text-brand` on the hero's "Live map" CTA and on the row "Open original" link — **2.66:1 at the
+mobile text size** — and as a **fill** behind `--primary-foreground` white text on "Report status" and
+"Refresh" (the brand chips and `app-info-popover` triggers), also **3.0:1**. It fails WCAG 2.1 AA
+(4.5:1 for normal text, 3:1 for large text ≥ 24px or ≥ 18.66px bold) as body text and as a white-on-fill
+button label.
+**Root Cause**: the accent was picked for hue/vibe and never measured; `--brand` is `lightness 0.68`,
+which is comfortably readable as a large accent but not at body-text contrast, and a saturated orange at
+that lightness has no headroom left for white text on top of it. The dark theme does not have this
+problem because it swaps `--brand` for a much lighter orange (`#f79331`, 0.77 lightness), which is the
+correct move for an accent on a dark surface.
+**Fix**: **not fixed here.** Darkening `--brand` for light mode would change every existing brand
+surface app-wide (buttons, chips, links, the console) and is a design call, not a Phase-5B polish item;
+this entry exists so the number is on record and nobody re-runs the audit believing it passed.
+**Prevention**: when an accent colour becomes a **text** colour or a **button fill**, measure it, and
+prefer the two-token pattern the light theme now needs — a text-safe accent for small text and a fill
+that carries a dark-enough foreground — over one `--brand` doing all three jobs. Cheap check: relative
+luminance contrast per theme, per role, not per colour.
+
+## [2026-10-03] ui/directive: a bare attribute matching a directive input binds the EMPTY STRING — the selector and the input cannot share a name
+
+**Problem**: the new tick-up directive is `selector: "[hlmTickUp]"` with input `hlmTickUp: number`.
+Writing the attribute **and** the binding — `<span hlmTickUp [hlmTickUp]="value()">` — fails to
+compile: `Type 'string' is not assignable to type 'number'`. `[hlmTickUp]="value()"` alone works, and so
+does the "hover plus a string input" spelling that `HlmButton` uses everywhere.
+**Root Cause**: a **bare** attribute is a static attribute; Angular hands the directive its value as a
+string (`""`), and `""` is not a `number`. The static attribute is also redundant — the bound
+`[hlmTickUp]` already satisfies the `[hlmTickUp]` selector — so it only adds a second, conflicting
+binding. `HlmButton` never hit this because its `selector: "button[hlmBtn], a[hlmBtn]"` matches an
+attribute **not declared as an input**, so the bare form has nothing to bind to and is inert.
+**Fix**: the templates use `[hlmTickUp]="…"` alone.
+**Prevention**: when a directive selector and an input share a name, write the binding once
+(`[x]="v"`), never the bare attribute plus the binding. A numeric/boolean input with a name equal to
+its selector part is the case that breaks; a selector prefix like `hlm` (`hlmBtn`) is what keeps the
+other directives safe.

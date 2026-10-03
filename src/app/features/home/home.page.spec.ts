@@ -882,8 +882,14 @@ describe("HomePage", () => {
     expect(heroWrapper?.className).toContain("flex");
     expect(heroWrapper?.className).toContain("justify-end");
 
-    // …and the submit box now heads the feed column, since nothing else does.
-    expect(feedSection?.firstElementChild?.tagName.toLowerCase()).toBe("app-link-submit-box");
+    // …and the submit box heads the feed column, since nothing else does. The visually-hidden h2 now
+    // precedes it (Phase 5B gave the column a real heading), so this asserts the submit box is still
+    // the first INTERACTIVE thing rather than the first node.
+    const feedChildren = [...(feedSection?.children ?? [])].map((child) =>
+      child.tagName.toLowerCase(),
+    );
+    expect(feedChildren[0]).toBe("h2");
+    expect(feedChildren[1]).toBe("app-link-submit-box");
 
     const countdown = root.querySelector('[data-testid="line-refresh-countdown"]');
     expect((countdown?.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
@@ -1433,6 +1439,117 @@ describe("HomePage", () => {
     expect(proRoot.querySelector('[data-testid="home-mobile-bar"]')).not.toBeNull();
     expect(proRoot.querySelector("app-line-status-sheet")).not.toBeNull();
     expect(proRoot.querySelector('[data-testid="spotting-entry-sheet"]')).not.toBeNull();
+  });
+
+  /* ---- Phase 5B: heading structure, the skip link and focus order ------------------------- */
+
+  it("gives the page ONE h1 — the hero headline — and puts it above the board", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const headings = root.querySelectorAll("h1");
+
+    // 🔴 Exactly one. Two h1s split the page's top-level identity in half; zero leaves the page
+    // with no name at all in a screen reader's heading list. And it is the HERO's, not the board's:
+    // the hero describes the whole page (both columns), so its headline is the page's.
+    expect(headings.length).toBe(1);
+    const h1 = headings[0] as HTMLElement;
+    expect(root.querySelector("app-home-hero")?.contains(h1)).toBe(true);
+    expect(h1.textContent?.replace(/\s+/g, " ").trim()).not.toBe("");
+    // It precedes the board, so "skip past the headings" cannot skip past the page's name.
+    expect(
+      h1.compareDocumentPosition(root.querySelector("#line-board")!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps a real heading level under the h1: the feed column is an h2, its days are h3", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const feedSection = root.querySelector<HTMLElement>('section[aria-label="Community feed"]');
+    const heading = feedSection?.querySelector("h2") as HTMLElement;
+
+    // The landmark label is not enough on its own: `aria-label` only appears in the landmark list,
+    // so a heading list could not say "community feed" without it.
+    expect(heading.textContent?.trim()).toBe("Community feed");
+    // Visually hidden, not visually absent — the tablist already names the column on screen.
+    expect(heading.className.split(/\s+/)).toContain("sr-only");
+    // …and it is the column's FIRST child, so the document order a screen reader walks starts here.
+    expect(feedSection?.firstElementChild).toBe(heading);
+
+    // A day is a SUBSECTION of the feed, not a peer of it: the day label steps down to h3 rather
+    // than sitting at the same level as the column heading above it.
+    store.lastWeekDayGroups.set([
+      { key: "2026-09-30", label: "Yesterday", links: [makeFeedLink("w")] },
+    ]);
+    fixture.detectChanges();
+
+    const group = root.querySelector<HTMLElement>('[data-testid="last-week-day-group"]');
+    expect(group?.querySelector("h3")?.textContent?.replace(/\s+/g, " ").trim()).toBe("Yesterday");
+    expect(group?.querySelector("h2")).toBeNull();
+  });
+
+  it("puts a hidden-until-focused skip link first inside main, aimed at the board", () => {
+    const main = (fixture.nativeElement as HTMLElement).querySelector("main") as HTMLElement;
+    const link = main.querySelector<HTMLAnchorElement>('[data-testid="home-skip-link"]');
+
+    // FIRST, not last: the whole point is that it is the first Tab stop on the page.
+    expect(main.firstElementChild).toBe(link);
+    expect(link?.tagName).toBe("A");
+    expect(link?.textContent?.replace(/\s+/g, " ").trim()).toBe("Skip to line status");
+    // A real fragment link (a handler-only skip would be invisible to a middle-click or to a
+    // reader scanning the link list), pointing at the panel that OWNS the board.
+    expect(link?.getAttribute("href")).toBe("#line-board");
+    expect(main.querySelector(link?.getAttribute("href") ?? "#nope")).not.toBeNull();
+
+    // sr-only until focused, then a real button: `focus:fixed` so revealing it does not push the
+    // hero down the page it is meant to let you skip past.
+    const classes = link?.className.split(/\s+/) ?? [];
+    expect(classes).toContain("sr-only");
+    expect(classes).toContain("focus:not-sr-only");
+    expect(classes).toContain("focus:fixed");
+  });
+
+  it("makes the rider layout's #line-board a real focus target, not just an anchor", () => {
+    const board = (fixture.nativeElement as HTMLElement).querySelector(
+      "#line-board",
+    ) as HTMLElement;
+
+    expect(board.getAttribute("data-testid")).toBe("line-board");
+    // 🔴 tabindex="-1" is what makes the skip work: an anchor to an element without it scrolls the
+    // page but leaves the caret at the top, so the reader lands on the board visually and nowhere
+    // else — the classic half-working skip link.
+    expect(board.getAttribute("tabindex")).toBe("-1");
+    // Exactly one element answers to the id in this layout, so the fragment is unambiguous.
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll("#line-board").length).toBe(1);
+  });
+
+  it("carries the same #line-board target on the Pro dashboard, so both layouts resolve the skip", async () => {
+    await TestBed.inject(Router).navigateByUrl("/?view=pro");
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const targets = root.querySelectorAll("#line-board");
+
+    // The two branches are mutually exclusive, so the id is on exactly one element in either
+    // layout — never duplicated, which would make the fragment resolve to the first and silently
+    // skip the Pro grid.
+    expect(targets.length).toBe(1);
+    expect(targets[0]?.tagName.toLowerCase()).toBe("app-pro-dashboard");
+    expect(targets[0]?.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("draws a focus ring on both feed tabs, which nothing else does for them", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const tabs = ["feed-tab-today", "feed-tab-lastweek"].map(
+      (id) => root.querySelector<HTMLElement>(`[data-testid="${id}"]`) as HTMLElement,
+    );
+
+    for (const tab of tabs) {
+      const classes = tab.className.split(/\s+/);
+      // outline-none alone would leave the focused tab with NO visible focus indication at all —
+      // these are plain buttons under a border, not hlmBtn, so nothing supplies a ring.
+      expect(classes).toContain("outline-none");
+      expect(classes).toContain("focus-visible:ring-2");
+      expect(classes).toContain("focus-visible:ring-ring/50");
+    }
   });
 
   it("renders the last-week day groups through the thread wrapper too", () => {

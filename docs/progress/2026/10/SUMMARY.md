@@ -80,6 +80,8 @@ alone.
 
 | Oct 3 | **home** the network board Phase 0: a full-width `app-home-hero` (plain-language headline + `app-info-popover` off `metricDoc("network.lines-normal")`, worst-line callout, four stat tiles, intent CTAs Report a delay · Spot a train · Share a link · Live map) above the two-column grid, reading **zero** new requests — `lines`/`linksToday` are bound from `store.lines()`/`store.feedTotalCount()`. The card is now ONE worst-first list: the ACTIVE-first partition with the collapsed "Other lines" `<details>` is **retired** (`other-lines`/`other-lines-summary` gone) because it hid the deadest lines behind a summary, so a page whose hero said "3 lines need attention" led with a column of fine ones. The rule is pure `network-summary.util.ts`: `LINE_STATUS_SEVERITY_RANK` is a **total order, not the enum\u0027s** (TOTAL_DISRUPTION 6 > PARTIAL_DISRUPTION 5 > PARTIAL_ACTIVE 4 > DEFUNCT 3 > TESTING 2 > ACTIVE 0 — DEFUNCT/TESTING are un-actionable and must not outrank a partly-running line), the passenger threshold is `DELAYED` not `CROWDED` (crowding is one carriage, not the service; counting it would read "0 of 16 lines running normally" on any busy evening), and `compareLineSeverity` compares operations **then** passengers (never summed) with `code` as a total-order tiebreak. `PASSENGER_SEVERITY_RANK` (added to `passenger-status.util.ts`) mirrors the backend `PassengerStatus` enum order. Card CTAs become Report status (primary) + Log spotting (secondary) with pin/Line HQ in a new accessible kebab, plus a `displayColor` accent rail. `PreferencesService` (`core/preferences/`, key `rosak:preferences:v1`) and `query-param.util.ts` (`core/url-state/`) ship as the seams later phases bind to; three `MetricDoc`s + `NEEDS_ATTENTION_PASSENGER_RANK` land in the methodology registry; `--brand` (#ee7104, accent only) is mapped through `@theme inline`; the `\"\"\` route gains a title + description meta; `feed-empty` becomes an invitation with a CTA (`112 files / 1362 tests`) |
 
+| Oct 3 | **home** Phase 5B closes the board rework with a **polish** pass — no new reads, no new documents, no backend change, no dependency. **Motion**: a new `ui/motion/tick-up.directive.ts` (`[hlmTickUp]`) reveals each hero stat tile's number on change by swapping `motion-safe:animate-tick-up`, skipping the first run so first paint never animates, re-triggering with `void el.offsetWidth`, and leaving the class on the element (non-infinite, no fill mode → inert after 380 ms, no timer to tear down); the attention group gains a `motion-safe:animate-breathe` dot that **reuses** the existing breathe token; the refresh control draws a countdown ring off the interval already there. 🔴 The "Updating" spinner had to **leave inline CSS** — `style="animation: …"` outranks every class, so `motion-reduce:animate-none` beside it could never win and the reduced-motion guarantee was unreachable through the stylesheet; it is now `[animation:spin_3s_linear_infinite_reverse] motion-reduce:[animation:none]`, both arbitrary properties. All motion is `motion-safe:`/`motion-reduce:` CSS variants only, so the specs pin _the class is present_ and _no inline `style`_ — jsdom computes no styles. **Dark-mode contrast** was measured, not eyeballed: the Critical bar becomes `bg-rose-600 dark:bg-rose-500` (**4.61:1**), one `dark:` pair inside the existing seven-colour table rather than seven one-off tokens; the heat-strip ladder is documented **unchanged** with its numbers (its lowest rungs are worse in light than dark and no floor move reaches 3:1 without collapsing the step separation); and light `--brand` `#ee7104` on a card is **3.0:1** — found, recorded in `MISTAKES.md`, deliberately **not** fixed, because darkening it changes every brand surface app-wide. **Accessibility**: the hero becomes the page's single `h1` with a `sr-only` feed `h2` and day labels dropping to `h3`; a skip link targets `#line-board` (`tabindex="-1"`, on the rider section **and** `app-pro-dashboard`, whose branches are mutually exclusive so the id is never duplicated); `aria-expanded` + `aria-controls` on both disclosure levels, aimed at panels that stay behind `@if` (an always-present empty target announces a region with no content); focus rings on the hand-rolled controls only — the board's three segmented groups, the two feed tabs and the kebab's three menuitems. **Registry audit**: `network.reports-now` shipped with no `MetricDoc` and gained one (with `sourceSpec: "LINE_STATUS_DERIVE.md"`, **no** `METHODOLOGY_CONSTANTS` token because its window is the backend's per-line value) plus popovers for it and `network.needs-attention`, fed by **plain fields** rather than `computed`s — a registry string cannot change at runtime. `docs/components/home.md` gains **Motion**, **Dark-mode contrast audit**, **Accessibility** and **New seams and testids (Phase 5B)** (`131 files / 1762 tests`) |
+
 ---
 
 ## Tests & Gates
@@ -142,6 +144,14 @@ alone.
   `pro-report-ranking.component.spec.ts`; plus the store's archive describe, the dashboard's failure
   isolation spec and the methodology constant pin going 6 → 7 keys). `npx ng build` exits 0 with
   initial total **379.48 kB** against a 1 MB budget.
+- 03.md's final close-out — **Phase 5B**, motion + dark mode + accessibility — is **131 files / 1762
+  tests passed, 0 failed** (baseline before the change: 130 / 1739; +1 file —
+  `tick-up.directive.spec.ts` — and +23 tests, spread across the hero, board, refresh control, card/row
+  and page specs). `npx ng build` exits 0 with initial total **381.42 kB** against a 1 MB budget. ⚠️ the
+  motion classes are `motion-safe:`/`motion-reduce:` **variants only**, so jsdom computes no styles and
+  cannot prove them: the specs pin _the disabling class is on the element_ and _no inline `style`
+  attribute_, and `animate-tick-up` / `spin_3s_linear_infinite_reverse` / the reduce rules were
+  confirmed **in the built CSS** — a missing arbitrary-value rule is invisible to the whole suite.
 
 ---
 
@@ -183,6 +193,7 @@ alone.
 - `docs(home)`: the Pro bento layout, the has-data rule, the incidents decision + progress
 - `feat(home)`: board-first layout and Today/Last Week feed tabs (plan §2.1)
 - `feat(home)`: pro official-archive and report-ranking widgets (plan §12)
+- `feat(home)`: motion, dark-mode, accessibility and docs polish
 
 ---
 

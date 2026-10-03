@@ -151,7 +151,9 @@ describe("status-history-display.util: one bucket's label", () => {
   });
 
   it("colours an hour by its dominant status and an unreported hour as no data", () => {
-    expect(historyBarClass(bucket(2, { dominantStatus: "DISRUPTED" }))).toBe("bg-rose-600");
+    expect(historyBarClass(bucket(2, { dominantStatus: "DISRUPTED" }))).toBe(
+      "bg-rose-600 dark:bg-rose-500",
+    );
     expect(historyBarClass(bucket(0))).toBe("bg-muted");
   });
 });
@@ -219,7 +221,7 @@ describe("status-history-display.util: the heat grid's two dimensions", () => {
   });
 
   it("colours a populated cell by its dominant status and scales its strength to the grid's peak", () => {
-    expect(heatCellClass(10, 10, "DISRUPTED")).toBe("bg-rose-600 opacity-100");
+    expect(heatCellClass(10, 10, "DISRUPTED")).toBe("bg-rose-600 dark:bg-rose-500 opacity-100");
     expect(heatCellClass(1, 10, "BUSY")).toContain("bg-blue-500");
     expect(heatCellClass(1, 10, "BUSY")).toContain("opacity-");
     // Never darker than the peak, whatever a malformed count claims.
