@@ -39,6 +39,12 @@ export interface MethodologyConstant {
  * cannot drift from the shape the backend actually returns — and `status-history-display.util.spec.ts`
  * pins each of them against the code that uses it, so a backend change that is not mirrored here
  * fails a test instead of quietly mislabelling a chart.
+ *
+ * `REPORT_RANKING_TOP_LINES` is a display cap rather than a measurement — how many lines the Pro
+ * worst-lines ranking shows (`features/home/pro/pro-report-ranking.component.ts`, published as
+ * `network.report-ranking`). It is here for one reason: the ranking's own methodology sentence names
+ * the cap, and a cap written in two places is a cap that drifts. The widget's spec pins this value
+ * against the constant the widget actually slices with.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
@@ -47,4 +53,5 @@ export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   SERVICE_DAY_START_HOUR: { value: 3, source: "LINE_STATUS_DERIVE.md" },
   SERVICE_DAY_HOURS: { value: 24, source: "LINE_STATUS_DERIVE.md" },
   HEAT_INTENSITY_STEPS: { value: 5, source: "LINE_STATUS_DERIVE.md" },
+  REPORT_RANKING_TOP_LINES: { value: 5, source: "LINE_STATUS_DERIVE.md" },
 };

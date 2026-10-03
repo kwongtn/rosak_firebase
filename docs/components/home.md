@@ -85,12 +85,15 @@
     🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
     worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
   - `pro/` — 🔴 **the Pro bento dashboard (Phase 4)**: `pro-dashboard.component.ts` (`app-pro-dashboard`)
-    plus its five widgets — `pro-lines-widget.component.ts` (`app-pro-lines-widget`: three Pro-only
+    plus its seven widgets — `pro-lines-widget.component.ts` (`app-pro-lines-widget`: three Pro-only
     filters + the reused `app-network-board` + the CSV export), `pro-feed-widget.component.ts`
     (`app-pro-feed-widget`: the rider feed's reading surface + line/provenance/search filters),
     `network-heat-strip.component.ts` (its own cell), `pro-incidents-widget.component.ts`
-    (`app-pro-incidents-widget`: the ongoing-incident list) and `pro-line-hq-widget.component.ts`
-    (`app-pro-line-hq-widget`: per-line `/spotting/:id` + `/details` links). See the "Pro dashboard"
+    (`app-pro-incidents-widget`: the ongoing-incident list), `pro-line-hq-widget.component.ts`
+    (`app-pro-line-hq-widget`: per-line `/spotting/:id` + `/details` links),
+    `pro-report-ranking.component.ts` (`app-pro-report-ranking`: the top-5 lines by reports today, a
+    re-ranking of the shared history read) and `pro-official-widget.ts`
+    (`app-pro-official-widget`: the all-time archive of operator notices). See the "Pro dashboard"
     bullet below for the layout, the shortcuts, the filter contract and the incidents decision.
     `network-heat-strip.component.ts` (selector `app-network-heat-strip`): the **Pro**
     heat grid — one row per line, one column per service-day hour, colour = the status that dominated
@@ -316,7 +319,8 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     so"; the board's confidence chip and the hero's official callout both read it, and
     `home.queries.spec.ts` pins the selection because a fixture can invent any field it likes).
     `NETWORK_STATUS_HISTORY_QUERY` (`networkStatusHistory(dayStartHour)`) and
-    `LINES_STATUS_HISTORY_QUERY` (`linesStatusHistory(lineIds)`) back the three history widgets;
+    `LINES_STATUS_HISTORY_QUERY` (`linesStatusHistory(lineIds)`) back the four history widgets
+    (the sparkline, the per-line strip, the heat grid and the Pro report ranking);
     both select the same `LineStatusHourBucket` fields as `LINE_STATUS_HISTORY_QUERY` above, and
     `home.queries.spec.ts` pins that shape field-for-field on both.
     `LINE_STATUS_HISTORY_QUERY` (hourly buckets,
@@ -447,7 +451,7 @@ sticky mobile action bar too. A report, a link submission and a spotting entry t
 exactly the same code in both views — a "mode" that quietly grew its own submission path is the one
 thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet order across the branch.
 
-### The five cells
+### The seven cells
 
 | Cell                     | Component                  | Owns                                                                   |
 | ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
@@ -456,6 +460,11 @@ thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet or
 | Reports by line and hour | `app-network-heat-strip`   | nothing — a pure projection of the shared per-line read                |
 | Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                            |
 | Line HQ                  | `app-pro-line-hq-widget`   | nothing — a projection of `visibleLines()`                             |
+| Reports ranking (right)  | `app-pro-report-ranking`   | nothing — a projection of the same shared per-line read, re-ranked     |
+| Official notices (right) | `app-pro-official-widget`  | its own lazy all-time notices read                                     |
+
+The last two stack **below** Line HQ in the right column, so the dashboard's reading order stays
+"board → feed" on the left and "incidents → HQ → ranking → notices" down the right.
 
 **The board is REUSED, not reimplemented.** Every row, group, sort, density toggle, anchor and
 highlight rule under the Lines widget is the component the Rider page mounts. It carries exactly one
@@ -542,7 +551,8 @@ the shortcuts are an accelerator and not the only way out of a mode. The rules t
 `HomeStore.incidentsResource` follows the same arrangement as the two history reads: gated on the
 widget's explicit `requestIncidentsRead()`, exposing `recentIncidents` / `incidentsFailed` /
 `isLoadingIncidents`, and appearing in **neither `hasError` nor `isRefreshing`**. A Pro reader whose
-incidents read fails still gets the board, the feed, the heat grid and the HQ grid.
+incidents read fails still gets the board, the feed, the heat grid and the HQ grid. The official-notices
+archive is the third widget on that arrangement (see below).
 
 🔴 **`recentIncidents` reads `incidentsFailed()` BEFORE `data()`, and that order is load-bearing.** A
 `graphqlResource`'s `data()` THROWS while the resource is in an error state rather than returning
@@ -567,6 +577,78 @@ because that is exactly the set the read asks for.
   the lines) so the payload is far smaller than `/insiden`'s, which selects `details`, `medias`,
   `chronologies` and a first page of `links` per incident because its cards render them.
 - The widget links out to `/insiden` rather than duplicating the calendar here.
+
+### The official-notices widget — an archive, not a feed
+
+`app-pro-official-widget` lists the newest **official** statements an operator has filed, so a Pro
+reader can check what the operator has already said without scrolling the rider feed. It is the second
+widget with its own read (`officialNoticesResource`), and it is built on the **existing** `FEED_QUERY`
+rather than a new document:
+
+- 🔴 **Official = `isAutomated === true`, filtered CLIENT-SIDE over the page.** `FeedLink.isAutomated`
+  is already in `FEED_QUERY`'s selection (the rider feed's link card shows the badge), so the flag
+  costs zero extra bytes and needs no backend argument; the plan allowed adding an `isAutomated` arg
+  _only if_ client-side filtering proved insufficient, and it does not for an archive bounded at 50
+  rows that is never paged. Doing it on the client also keeps the read composable with
+  `HOME_FEED_COLLAPSE_VARS` — an official notice is usually a conversation root, and collapsing is what
+  makes each row one statement instead of a thread.
+- **Its variables are compile-time constants**: `OFFICIAL_NOTICES_VARS` (frozen) is
+  `{ first: OFFICIAL_NOTICES_PAGE_SIZE (50), status: "LIVE", collapseThreads: true }` and **no window
+  at all** — `currentServiceDayOnly` and `lastWeekOnly` are omitted, which the backend defaults to
+  `false`, so this is an all-time, newest-first archive. No `new Date()` anywhere: a client clock in
+  query variables makes SSR and hydration compute different variables, the TransferState payload is
+  discarded and the read fires twice (the same rule that makes the incidents read's window constant).
+- 🔴 **It is opted in, and it is absent from `reloadAll()`.** `requestOfficialNotices()` mirrors
+  `requestHistoryReads()` for the reason above — `graphqlResource` installs an effect that reads its
+  `httpResource` at CALL time, so a gate only the projections satisfied would defer nothing. What is
+  different from the history reads is that a submit / report / retry does **not** re-issue it: an
+  operator notice filed by someone else does not invalidate anything this widget draws, and a
+  background widget re-reading on every whole-dataset invalidation is a request nobody asked for.
+  Mounting re-reads; the 30 s beat never did.
+- 🔴 **It feeds NONE of `hasError`, `isLoading`, `isRefreshing`, `isLoadingLastWeek` or the retry
+  banner.** Same reasoning as the history reads, one step sharper: those flags are page chrome, and a
+  failed archive must not replace a fully working board with "Something went wrong".
+- **Three states, not two** — hence `officialNoticesLoading` alongside `officialNoticesFailed`. With
+  only a failure flag, "no data yet and not failed" renders the **empty** panel, so every Pro visit
+  would flash "No official notices" before the first answer arrived.
+- **Read-only, and that is why it is not an `<app-link-thread>`.** The archive shows no vote buttons
+  and no edit pencil, so the **vote-overlay invariant** (the overlay's read set must equal the set of
+  ids the page renders) does not apply — there is nothing to vote on, and a widget that rendered
+  `app-link-thread` would import the vote surface without carrying any of its read-set obligation.
+  Reusing the card would also drag the "N links" conversation expander into a list whose job is to be
+  scannable.
+- Each row is title, `humanizeSince(occurredAt)`, one neutral chip per line (the operator's own
+  claim, capped at three), and an `Open original` anchor with `target="_blank" rel="noopener
+noreferrer"` — the operator's text lives outside the app, so it opens in a new tab with the
+  referrer stripped.
+- ⚠️ **No line filter.** §12 asked for "filterable by line"; the chips are there but the control is
+  not, because the only lines available to filter by are the chips of the 50 rows already resident, and
+  a filter over a page of an archive is a worse affordance than reading 50 titles. Add it when the
+  archive is server-paged and the reader needs to isolate one line's statements.
+- Hidden while loading and on error; an empty answer renders a friendly panel that says an operator has
+  posted nothing official yet, which is a fact about the network and not a failure.
+
+### The report-ranking widget — the same read, a different order
+
+`app-pro-report-ranking` answers one question: **which lines do riders report most about today?** It
+runs the same arrangement as the incidents widget — `store.requestHistoryReads()` from its own
+constructor, **zero reads of its own** — and reads the same per-line history the heat grid draws, so
+the two cells can never disagree.
+
+- **Top 5 by total report count over the current service day**, summed from
+  `linesHistoryFor(line.id)`'s bucket counts (`historyTotal`). `REPORT_RANKING_TOP_LINES` (5) is a real
+  numeric constant, so it lives in `METHODOLOGY_CONSTANTS` and is rendered with the rest of the copy.
+- **The bar is one dimension.** Length is the whole reading (a single `bg-brand` fill on a `bg-muted`
+  track), deliberately _not_ the heat grid's hour×severity two-dimensional grid — this cell answers
+  "which", the grid beside it answers "when and how badly".
+- **Ties break on `localeCompare(code)`**, so equal counts render in a stable, alphabetical order
+  rather than whatever order the lines read happened to arrive in.
+- Reads `visibleLines()`, so the Pro filters narrow it exactly as they narrow the board.
+- Hidden when `linesHistoryFailed` and when every count is zero: "nobody reported anything today" is
+  not a ranking, and an all-zero list of bars reads as broken rather than as quiet.
+- `InfoPopover` bound to the `network.report-ranking` metric doc, via
+  `renderMethodologyCopy(metricDoc("network.report-ranking").definition)` — it says **reports, not
+  faults**: the count is what riders filed, which is not the same claim as the network being at fault.
 
 ## ⚙️ Internal State & Logic
 
@@ -596,6 +678,17 @@ because that is exactly the set the read asks for.
     answer hides it too, because `[]` is the backend's "nothing reported this service day", not an
     error. `reloadAll()` re-reads both (submit / report / retry is a full invalidation); the 30 s beat
     deliberately does not — a chart that redraws every 30 seconds is noise.
+  - 🔴 **The official-notices ARCHIVE is a fourth lazy read, on the isolation list and off the
+    invalidation list.** `officialNoticesResource` re-issues the EXISTING `FEED_QUERY` with the frozen
+    `OFFICIAL_NOTICES_VARS` (`first: OFFICIAL_NOTICES_PAGE_SIZE` (50), `status: "LIVE"`,
+    `collapseThreads: true`, and deliberately NO `currentServiceDayOnly` / `lastWeekOnly` — the
+    backend defaults both to `false`, which is what makes this an all-time archive). It stays inert
+    until the widget calls `requestOfficialNotices()`, and exposes `officialNotices` /
+    `officialNoticesFailed` / `officialNoticesLoading`. Projections filter `isAutomated === true`
+    client-side — the flag is already in the feed selection, so no new document and no new backend
+    argument. Like the incidents read it feeds **none** of `hasError` / `isLoading` / `isRefreshing` /
+    `isLoadingLastWeek`, and unlike the history reads it is deliberately absent from `reloadAll()`:
+    an operator filing a notice invalidates nothing this widget draws, and mounting re-reads anyway.
   - 🔴 **The feed's LINE FILTER** (`lineFilter` signal + `setLineFilter()`) derives from ONE signal,
     so a filtered list can never be drawn beside an unfiltered denominator or continued by a cursor
     from the wrong query: the two resources, both `loadMore*` continuations and — deliberately NOT —
@@ -1279,6 +1372,11 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
 - Heat cell: `pro-heat-widget`. Incidents: `pro-incidents-widget`, `-window`, `-list`, `-row`,
   `-title`, `-since`, `-all`. HQ: `pro-line-hq-widget`, `-list`, `-row`, `-name`, `-flag`, `-link`,
   `-details`, `-empty`.
+- Ranking: `pro-report-ranking`, `-list`, `ranking-row`, `ranking-row-code`, `ranking-row-count`,
+  `ranking-bar`.
+- Official archive: `pro-official-widget`, `pro-official-count`, `official-notice-list`,
+  `official-notice`, `official-notice-title`, `official-notice-since`, `official-notice-line`,
+  `official-notice-link`, `official-notice-empty`.
 
 **New seams:**
 
@@ -1301,6 +1399,16 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   contract seam's one new document, with frozen constant variables.
 - **`network.has-data`** — the `MetricDoc` for the "only lines with data" rule, read by the filter's
   info popover through `renderMethodologyCopy(metricDoc(...).definition)`.
+- **`network.report-ranking`** — the `MetricDoc` for "reports per line over the current service day,
+  top 5", read by the ranking widget's popover the same way. It is the honest counterpart to the heat
+  grid: same numbers, different question, and the copy has to say **reports, not faults**.
+- **`OFFICIAL_NOTICES_PAGE_SIZE` / `OFFICIAL_NOTICES_VARS`** in `home.store.ts` — the archive's one
+  tunable (50) and its frozen variable object. The page size is a deliberate ceiling, not a tunable the
+  reader drives: an official statement is worth a scroll but not a page control, and 50 roots of
+  `FEED_QUERY` is one payload. Raise it when the archive is server-paged.
+- **No new query document.** The archive reuses `FEED_QUERY` because `FeedLink.isAutomated` is already
+  selected — a second document selecting the same fields with a different `first` would be a second
+  thing to keep in sync with `home.queries.spec.ts`'s pinned selection.
 
 ### Deliberate deviations (Phase 4)
 

@@ -43,6 +43,7 @@ describe("methodology render util: renderMethodologyCopy", () => {
       "SERVICE_DAY_START_HOUR",
       "SERVICE_DAY_HOURS",
       "HEAT_INTENSITY_STEPS",
+      "REPORT_RANKING_TOP_LINES",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
@@ -61,6 +62,13 @@ describe("methodology render util: renderMethodologyCopy", () => {
       source: "LINE_STATUS_DERIVE.md",
     });
     expect(METHODOLOGY_CONSTANTS["HEAT_INTENSITY_STEPS"]).toEqual({
+      value: 5,
+      source: "LINE_STATUS_DERIVE.md",
+    });
+    // The Pro worst-lines ranking's cap: a display limit rather than a measurement, published only
+    // because the ranking's own sentence names it. `pro-report-ranking.component.spec.ts` pins this
+    // value against the constant the widget slices with.
+    expect(METHODOLOGY_CONSTANTS["REPORT_RANKING_TOP_LINES"]).toEqual({
       value: 5,
       source: "LINE_STATUS_DERIVE.md",
     });

@@ -91,6 +91,11 @@ function makeStore(lines: LinePulse[] = []) {
     networkHistoryFailed: signal(false),
     requestHistoryReads: vi.fn(),
     incidentsFailed: signal(false),
+    // The official-notices archive: a lazy read of its own, with the three states its widget needs.
+    officialNotices: signal<FeedLink[]>([]),
+    officialNoticesFailed: signal(false),
+    officialNoticesLoading: signal(false),
+    requestOfficialNotices: vi.fn(),
     recentIncidents: signal<
       Array<{
         id: string;
@@ -242,6 +247,11 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     expect(root.querySelector('[data-testid="pro-feed-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-line-hq-widget"]')).not.toBeNull();
+    // The two supporting panels added last. Both hide themselves when their own data is unavailable
+    // (the ranking on a failed history read, the archive on its own), so their absence here is the
+    // default state, not a mounting failure — their own specs cover the states where they DO render.
+    expect(root.querySelector("app-pro-report-ranking")).not.toBeNull();
+    expect(root.querySelector("app-pro-official-widget")).not.toBeNull();
     // …and the board really is INSIDE the lines widget, not a second copy of it.
     expect(
       root.querySelector('[data-testid="pro-lines-widget"]')?.querySelector("app-network-board"),
@@ -469,6 +479,29 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     // would fire for every store — including every Rider visit and every feed-focused spec.
     expect(storeMock.requestHistoryReads).toHaveBeenCalled();
     expect(storeMock.requestIncidentsRead).toHaveBeenCalledTimes(1);
+    // The archive read is the third of the three, and it is the one NOBODY else may request: it is
+    // only mounted here.
+    expect(storeMock.requestOfficialNotices).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps every other widget rendered when the OFFICIAL ARCHIVE read fails", async () => {
+    // The archive is the panel most likely to be unavailable (it is the fourth `FEED_QUERY` read on
+    // the page), and it must hide ITSELF — board, feed, heat grid, HQ and ranking all stay.
+    const root = await dashboard([makeLine("a")]);
+    storeMock.officialNotices.set([makeFeedLink("official-1")]);
+    rerender();
+    expect(root.querySelector('[data-testid="pro-official-widget"]')).not.toBeNull();
+
+    storeMock.officialNoticesFailed.set(true);
+    rerender();
+
+    expect(root.querySelector('[data-testid="pro-official-widget"]')).toBeNull();
+    expect(root.querySelector('[data-testid="pro-lines-widget"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="pro-feed-widget"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="pro-line-hq-widget"]')).not.toBeNull();
+    expect(root.querySelector("app-network-board")).not.toBeNull();
+    expect(root.querySelector("app-link-thread")).not.toBeNull();
   });
 
   it("never asks the router for anything on the server", async () => {

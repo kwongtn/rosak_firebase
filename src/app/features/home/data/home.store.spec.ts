@@ -1,4 +1,5 @@
 import { provideZonelessChangeDetection, signal } from "@angular/core";
+import type { HttpRequest } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +17,13 @@ import {
 } from "./home.queries";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { PRO_INCIDENT_LIMIT } from "./home.queries";
-import { FEED_PAGE_SIZE, HISTORY_LINE_ID_CAP, HomeStore, LAST_WEEK_PAGE_SIZE } from "./home.store";
+import {
+  FEED_PAGE_SIZE,
+  HISTORY_LINE_ID_CAP,
+  HomeStore,
+  LAST_WEEK_PAGE_SIZE,
+  OFFICIAL_NOTICES_PAGE_SIZE,
+} from "./home.store";
 
 /** The preferences service's own storage key, restated so a rename breaks this spec loudly rather
  * than silently seeding a payload nothing reads. */
@@ -2213,6 +2220,193 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
     expect(store.recentIncidents()).toEqual([]);
     // 🔴 The four page-level flags, asserted individually and explicitly — this is the store's
     // documented asymmetry and the single thing a future contributor is most likely to "fix".
+    expect(store.hasError()).toBe(false);
+    expect(store.isLoading()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.isLoadingLastWeek()).toBe(false);
+  });
+});
+
+describe("HomeStore: the official-notices archive read", () => {
+  let httpMock: HttpTestingController;
+  let requestMock: ReturnType<typeof vi.fn>;
+
+  /** The three arguments that make a `Feed` read a PAGE read rather than the archive's, and the
+   *  GraphQL body they arrive in. Typed rather than `any` so the predicate cannot quietly accept a
+   *  malformed request. */
+  interface FeedBodyVars {
+    currentServiceDayOnly?: boolean;
+    lastWeekOnly?: boolean;
+    after?: string | null;
+  }
+
+  interface FeedBody {
+    query: string;
+    variables?: FeedBodyVars;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    requestMock = vi
+      .fn()
+      .mockResolvedValue({ publicSocialMediaLinks: { edges: [], pageInfo: {} } });
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClientTesting(),
+        HomeStore,
+        {
+          provide: AuthService,
+          useValue: {
+            isLoggedIn: signal(false),
+            isAdmin: () => false,
+            idToken: async () => "token",
+            whenReady: Promise.resolve(),
+          },
+        },
+        { provide: GraphQLClient, useValue: { request: requestMock } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    localStorage.clear();
+  });
+
+  /**
+   * Is this request the ARCHIVE rather than one of the three page reads?
+   *
+   * Necessary because the archive reuses `FEED_QUERY` on purpose (no second document, no contract
+   * change), so "the query is `Feed`" identifies nothing. What DOES identify it is the absence of
+   * every page-read argument: no window flag and no cursor. That absence is also the widget's
+   * contract — it is an archive, not a window — so the same predicate is asserted as variables below.
+   */
+  function isArchiveRequest(r: HttpRequest<FeedBody>) {
+    const body = r.body as FeedBody;
+    return (
+      body.query.includes("query Feed") &&
+      body.variables?.currentServiceDayOnly === undefined &&
+      body.variables?.lastWeekOnly === undefined &&
+      body.variables?.after === undefined
+    );
+  }
+
+  /** Dequeued by `expectOne`, which IS the existence assertion (see the history spec's note). */
+  function archiveRequest() {
+    return httpMock.expectOne((r) => r.method === "POST" && isArchiveRequest(r));
+  }
+
+  /** Settles the three page reads, so the only `query Feed` left is the archive's. */
+  async function started(): Promise<HomeStore> {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("FrontPageLines"))
+      .flush({ data: { lines: [] } });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly !== true,
+      )
+      .flush({ data: feedData([], false, null) });
+    httpMock
+      .expectOne(
+        (r) =>
+          r.method === "POST" &&
+          r.body.query.includes("query Feed") &&
+          r.body.variables?.lastWeekOnly === true,
+      )
+      .flush({ data: feedData([], false, null) });
+    await Promise.resolve();
+    return store;
+  }
+
+  it("does not fire until the WIDGET that draws it opts in", async () => {
+    // The `graphqlResource` gate is defeated by its own install-time effect, so an unrequested
+    // resource would fire for every store — every Rider visit, every feed-focused spec.
+    const store = await started();
+
+    expect(httpMock.match((r) => isArchiveRequest(r))).toHaveLength(0);
+    expect(store.officialNotices()).toEqual([]);
+    expect(store.officialNoticesFailed()).toBe(false);
+
+    store.requestOfficialNotices();
+    await afterVariablesChange();
+
+    archiveRequest().flush({ data: feedData([], false, null) });
+  });
+
+  it("sends ONE constant variables object with NO window flags — an archive, not a day", async () => {
+    // Two properties in one assertion, because they are one decision. `first` is the constant page
+    // size; the absence of `currentServiceDayOnly` / `lastWeekOnly` is what makes the panel newest-first
+    // over ALL time (backend default `false`), and a client-computed window would break SSR's variable
+    // equality besides. `collapseThreads` rides along so one conversation cannot push older operator
+    // posts off the end of the page.
+    const store = await started();
+    store.requestOfficialNotices();
+    await afterVariablesChange();
+
+    const request = archiveRequest();
+    expect(request.request.body.variables).toEqual({
+      first: OFFICIAL_NOTICES_PAGE_SIZE,
+      status: "LIVE",
+      collapseThreads: true,
+    });
+    request.flush({ data: feedData([], false, null) });
+  });
+
+  it("filters client-side to isAutomated === true, in the order the backend returned", async () => {
+    // The plan's own condition for a backend `isAutomated` argument was "only if client-side
+    // filtering proves insufficient". This is the proof it is not: the flag is already selected.
+    const store = await started();
+    store.requestOfficialNotices();
+    await afterVariablesChange();
+
+    archiveRequest().flush({
+      data: feedData(
+        [
+          makeFeedLink("rider-1"),
+          { ...makeFeedLink("official-1"), isAutomated: true },
+          makeFeedLink("rider-2"),
+          { ...makeFeedLink("official-2"), isAutomated: true },
+        ],
+        false,
+        null,
+      ),
+    });
+    await Promise.resolve();
+    TestBed.tick();
+
+    // `=== true`, not truthiness: this flag IS the definition of "official", so a truthy check would
+    // one day admit a string. Newest-first order is the backend's `occurredAt DESC, id DESC`, kept.
+    expect(store.officialNotices().map((link) => link.id)).toEqual(["official-1", "official-2"]);
+  });
+
+  it("keeps a FAILED archive read off the page's error state, its loading and its refresh flag", async () => {
+    // The acceptance rule for widget isolation, identical to the incidents read: a panel that will
+    // not load must not replace a working board with the retry banner, must not hold the board
+    // skeleton open, and must not hold the refresh control's "Updating" label.
+    const store = await started();
+    store.requestOfficialNotices();
+    await afterVariablesChange();
+
+    archiveRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(store.officialNoticesFailed()).toBe(true);
+    // 🔴 Reading the payload would THROW (`data()` errors rather than returning undefined), so the
+    // projection returning `[]` here is what keeps a failed read from taking the page down.
+    expect(store.officialNotices()).toEqual([]);
+    expect(store.officialNoticesLoading()).toBe(false);
+    // The four page-level flags, individually and explicitly — the store's documented asymmetry and
+    // the thing a future contributor is most likely to "fix".
     expect(store.hasError()).toBe(false);
     expect(store.isLoading()).toBe(false);
     expect(store.isRefreshing()).toBe(false);

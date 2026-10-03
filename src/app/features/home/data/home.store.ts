@@ -85,6 +85,22 @@ export const FEED_PAGE_SIZE = 8;
 export const LAST_WEEK_PAGE_SIZE = 20;
 
 /**
+ * Links the Pro dashboard's OFFICIAL-NOTICES archive asks for.
+ *
+ * Far larger than the two rendered feeds' page sizes on purpose: those pages are the reader's
+ * scrolling list, where eight rows is a screenful and every extra row is a query the reader pays
+ * for. The archive is a reference panel, not a list to scroll — the reader wants "is there an
+ * operator statement about this", and the cost of answering that from the newest 8 public links is
+ * that an official post from last month is simply not in them. Fifty covers a Pro reader's whole
+ * plausible window, and the panel shows what it holds rather than claiming the rest does not exist.
+ *
+ * The number is the FETCH size and nothing more: the archive renders every official row it is given
+ * (there is no Load More and no pagination affordance), so this doubles as the honest upper bound
+ * on what the panel can show.
+ */
+export const OFFICIAL_NOTICES_PAGE_SIZE = 50;
+
+/**
  * How long the post-submit highlight ring stays on the line that was reported about.
  *
  * Long enough to be noticed after the eye travels from the (just-closed) sheet back down the board,
@@ -122,6 +138,36 @@ export const HIGHLIGHT_VISIBLE_MS = 2000;
  * window is a backend-computed boolean rather than a `new Date()` baked into the variables.
  */
 const HOME_FEED_COLLAPSE_VARS = { collapseThreads: true } as const;
+
+/**
+ * The ONE variables object the official-notices archive read is ever sent with.
+ *
+ * A compile-time constant for the reason every other home-feed variables object is one: the server
+ * render and the client hydration must compute STRUCTURALLY IDENTICAL variables or the SSR
+ * TransferState payload is discarded and the read fires twice. There is no `new Date()` here and no
+ * client clock of any kind, which is what lets the archive exist at all (see below).
+ *
+ * 🔴 **NO WINDOW FLAGS — that is the archive.** Neither `currentServiceDayOnly` (backend default
+ * `false`) nor `lastWeekOnly` (default `false`) is sent, so the read asks for the newest
+ * {@link OFFICIAL_NOTICES_PAGE_SIZE} public `LIVE` links of ALL time. An operator statement from
+ * nine days ago is still an operator statement, and a windowed read would answer a different
+ * question than the panel claims to answer. Computing a window on this side instead would need a
+ * date, and a date in query variables breaks SSR's variable equality — so the archive is built from
+ * the ordering the backend already applies (`occurredAt DESC, id DESC`) rather than from a
+ * client-side cut.
+ *
+ * `collapseThreads` is spread in for the same reason the two rendered feeds carry it, and the
+ * effect matters for this panel too: with it, one conversation root arrives with its whole subtree
+ * nested, so the newest 50 rows really are 50 cards' worth of history rather than 50 rows of a few
+ * threads. Without it, a page dominated by conversations would drop most of the operator's older
+ * posts off the end. (This read is deliberately NOT part of the vote-overlay id set — the archive
+ * renders no votes; see the widget's own doc.)
+ */
+const OFFICIAL_NOTICES_VARS = Object.freeze({
+  first: OFFICIAL_NOTICES_PAGE_SIZE,
+  status: "LIVE",
+  ...HOME_FEED_COLLAPSE_VARS,
+} as const);
 
 /**
  * The most line ids `linesStatusHistory` accepts.
@@ -737,6 +783,85 @@ export class HomeStore {
 
   /** True when the incidents read failed — the widget's OWN hide signal, never `hasError`. */
   readonly incidentsFailed = this.incidentsResource.hasError;
+
+  /* ------------------------------------------------------------------ *
+   * The Pro dashboard's OFFICIAL-NOTICES ARCHIVE read — a fourth lazy,
+   * ISOLATED read, and deliberately NOT one of the page-critical six
+   * ------------------------------------------------------------------ *
+   *
+   * The same arrangement as the incidents read above, for the same reason: an archive that cannot
+   * load must hide ITSELF and never put the page's retry banner over a working page. So
+   * `officialNoticesResource` is gated on the widget's explicit opt-in, feeds {@link officialNotices}
+   * / {@link officialNoticesFailed}, and appears in NEITHER `hasError` NOR `isLoading` NOR
+   * `isRefreshing`.
+   *
+   * 🔴 **IT IS NOT PART OF THE COLLAPSE INVARIANT, and that is a decision rather than an omission.**
+   * The six reads that render the rider feed (the two `graphqlResource` first pages, their two
+   * `loadMore*` continuations and the two vote-overlay reads) must agree on variables and page shape
+   * because the feed renders votable cards and an id-keyed overlay has to cover exactly those ids.
+   * The archive renders NO votes and NO edit affordance — it is a reference panel of "what the
+   * operator last said", so a reader cannot vote a row there and there is no overlay to be complete.
+   * Adding a fourth `FEED_QUERY` read that shares the document but not the id set is therefore safe
+   * precisely BECAUSE it is read-only; the moment it grows a vote button it inherits the invariant and
+   * `loadVoteOverlay()` has to cover its ids too. The widget's doc says the same thing from the other
+   * side.
+   *
+   * It sends {@link OFFICIAL_NOTICES_VARS} and nothing derived, and it is deliberately absent from
+   * `reloadAll()` — a link submit or edit changes what an official archive should hold, but the
+   * incidents read is absent for the same reason and a background widget re-reading itself on every
+   * whole-dataset invalidation is a request nobody asked for. Mounting the widget re-reads it.
+   */
+  private readonly _officialNoticesRequested = signal(false);
+
+  /** Asks the store to read the official-notices archive. Called by the widget's constructor. */
+  requestOfficialNotices(): void {
+    this._officialNoticesRequested.set(true);
+  }
+
+  private readonly officialNoticesResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => {
+    if (!this._officialNoticesRequested()) {
+      return undefined;
+    }
+    return { query: FEED_QUERY, variables: OFFICIAL_NOTICES_VARS };
+  });
+
+  /**
+   * The official posts in the newest public page, newest first.
+   *
+   * 🔴 **The failure flag is read BEFORE `data()`, and that order is load-bearing** — exactly as in
+   * {@link recentIncidents}: `data()` THROWS while the resource is in an error state, so reaching for
+   * the payload on a failed read would take the page down from inside a `computed`.
+   *
+   * 🔴 **The `isAutomated` filter is CLIENT-SIDE, on purpose.** `FEED_QUERY` already selects
+   * `isAutomated` on every node (it is what draws the feed card's "Official" chip), so filtering the
+   * answer here needs no backend argument, no contract change and no second document — and the plan's
+   * own amendment says to add an `isAutomated` filter argument only if client-side filtering proves
+   * insufficient. It is not: the page is small, the filter is a `=== true` on a field the query already
+   * returns, and it keeps the archive reading the SAME document as the feed beside it. `=== true`
+   * rather than truthiness, because this flag is the entire definition of "official" and a truthy
+   * check would one day admit a string.
+   */
+  readonly officialNotices = computed<FeedLink[]>(() => {
+    if (this.officialNoticesFailed()) {
+      return [];
+    }
+    return (this.officialNoticesResource.data()?.publicSocialMediaLinks.edges ?? [])
+      .map((edge) => edge.node)
+      .filter((node) => node.isAutomated === true);
+  });
+
+  /** True when the archive read failed — the widget's OWN hide signal, never `hasError`. */
+  readonly officialNoticesFailed = this.officialNoticesResource.hasError;
+
+  /**
+   * True while the archive's very FIRST fetch is in flight — the panel's own "do not render yet".
+   *
+   * Separate from `officialNoticesFailed` because the widget has three states, not two: loading must
+   * not be painted as the EMPTY archive, or the panel would tell a Pro reader "no official posts"
+   * during the beat before its first answer arrives. And separate from `HomeStore.isLoading` because
+   * that one is the page's skeleton — this read must never hold the whole page's skeleton open.
+   */
+  readonly officialNoticesLoading = this.officialNoticesResource.isLoading;
 
   /* ------------------------------------------------------------------ *
    * The board's derived views — a PARTITION of `lines()`, no new reads

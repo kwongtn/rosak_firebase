@@ -25,6 +25,8 @@ import { ProFeedWidgetComponent } from "./pro-feed-widget.component";
 import { ProIncidentsWidgetComponent } from "./pro-incidents-widget.component";
 import { ProLineHqWidgetComponent } from "./pro-line-hq-widget.component";
 import { ProLinesWidgetComponent } from "./pro-lines-widget.component";
+import { ProOfficialWidgetComponent } from "./pro-official-widget";
+import { ProReportRankingComponent } from "./pro-report-ranking.component";
 import { NetworkHeatStripComponent } from "./network-heat-strip.component";
 
 /** The URL params this widget owns. Named once so the read and write halves cannot drift. */
@@ -59,12 +61,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * a rider submit a link, file a status report or log a sighting through exactly the same code — a
  * second submission path is the one thing a "mode" must never grow.
  *
- * **The five cells, and why each is where it is.** The board is the largest and takes the left column
+ * **The seven cells, and why each is where it is.** The board is the largest and takes the left column
  * because it is what a Pro reader opened this for; the feed sits beside it because "what are people
- * saying" is the other half of the question. The heat grid, the Line HQ grid and the incidents list are
- * supporting surfaces, so they take the narrow right column, stacked. Each widget owns its own loading
- * and failure state, and none of them can take the page down (see the incidents widget's doc for the
- * store's rule).
+ * saying" is the other half of the question. The heat grid, the Line HQ grid, the incidents list, the
+ * worst-lines ranking and the official-notices archive are supporting surfaces, so they take the
+ * narrow right column, stacked. Each widget owns its own loading and failure state, and none of them
+ * can take the page down (see the incidents widget's doc for the store's rule).
  *
  * **Keyboard shortcuts, and the rules around them.** `/` focuses the feed search, `r` is the same
  * refresh the refresh control and the mobile bar call (`store.polling.refreshNow()`, never a second
@@ -100,6 +102,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
     ProIncidentsWidgetComponent,
     ProLineHqWidgetComponent,
     ProLinesWidgetComponent,
+    ProOfficialWidgetComponent,
+    ProReportRankingComponent,
   ],
   template: `
     <div class="flex flex-col gap-4" data-testid="pro-dashboard">
@@ -171,6 +175,16 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
           <app-pro-incidents-widget />
           <app-pro-line-hq-widget />
+
+          <!-- 🔴 The two supporting widgets added last, and why they sit BELOW the Line HQ grid in the
+               right column rather than beside the board. Both are reference panels, not lists a
+               reader works through: the official archive answers "what did the operator last say" and
+               the ranking answers "which lines are loudest today", so a reader scrolls to them the way
+               they scroll to a footnote. Each owns its own read and its own failure state — the
+               archive is a lazy read of its own, and the ranking is a third view of the heat grid's
+               buckets — so neither can take the page down or hold the refresh control open. -->
+          <app-pro-report-ranking />
+          <app-pro-official-widget />
         </div>
       </div>
     </div>

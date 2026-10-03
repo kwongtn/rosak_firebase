@@ -70,6 +70,18 @@ const REVIEWED_AT_HISTORY_WIDGETS = "2026-10-03";
 const REVIEWED_AT_PRO_DASHBOARD = "2026-10-03";
 
 /**
+ * Bumped when the Pro dashboard's OFFICIAL-NOTICES ARCHIVE and WORST-LINES RANKING landed — the two
+ * supporting widgets that added a rule rather than a view of an existing one (2026-10-03).
+ *
+ * A fourth constant rather than a reuse of the three above, for the same reason each of them is
+ * separate: the archive's window is a deliberate NON-window, and the ranking's is a service-day total
+ * that is explicitly reports and not faults. Both are reviews of the `line-status` section's
+ * substance that none of the earlier reviews would have covered, so sharing a constant would let the
+ * next bump on any of the four silently claim a review of the other three.
+ */
+const REVIEWED_AT_PRO_OFFICIAL_WIDGETS = "2026-10-03";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -110,7 +122,10 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     body: "How line status is derived is owned by LINE_STATUS_DERIVE.md; this section renders once that rule ships.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+    // Bumped with the Pro dashboard's two new supporting widgets: the worst-lines ranking added a
+    // metric that counts reports rather than faults, and the official archive's window is the
+    // deliberate absence of one. Both belong to this section, so the section is what was reviewed.
+    lastReviewed: REVIEWED_AT_PRO_OFFICIAL_WIDGETS,
     inProgress: true,
   },
   {
@@ -418,5 +433,20 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_PRO_DASHBOARD,
+  },
+  {
+    // 🔴 The one rule that is genuinely NEW in this widget: it counts REPORTS, and a report is not a
+    // fault. Without the sentence a Pro reader would take "top of the list" to mean "broken", which is
+    // the reading the board's own severity order — not this widget — exists to give. The cap is a
+    // `{{TOKEN}}` rather than a word so the panel and this sentence cannot disagree about how many
+    // lines are shown.
+    id: "network.report-ranking",
+    sectionId: "line-status",
+    title: "Worst lines by reports",
+    definition:
+      "The busiest {{REPORT_RANKING_TOP_LINES}} lines of the current service day, ranked by how many rider status reports each one received across the {{SERVICE_DAY_HOURS}}-hour day, and each bar is that line's share of the busiest line on the list. It counts REPORTS and not faults: a line can top this list on a morning's worth of ordinary crowding complaints and still be running, and a broken line nobody has filed about does not appear at all. Only lines with at least one report are ranked, so a service day with no rider reports shows nothing rather than five empty bars, and lines with equal totals are ordered by line code so the list cannot reshuffle itself. The hour-by-hour detail behind these totals is the heat grid.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_PRO_OFFICIAL_WIDGETS,
   },
 ];
