@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { allowRunNumber, numberSeenToSetNumbers } from "./vehicle-search.util";
+import type { VehicleStatus } from "../../../core/graphql/types";
+import {
+  allowRunNumber,
+  numberSeenToSetNumbers,
+  sortVehiclesForPicker,
+} from "./vehicle-search.util";
 
 describe("numberSeenToSetNumbers", () => {
   describe("falsy and empty input handling", () => {
@@ -160,5 +165,48 @@ describe("allowRunNumber", () => {
     expect(allowRunNumber("20")).toBe(false);
     expect(allowRunNumber("")).toBe(false);
     expect(allowRunNumber("unknown")).toBe(false);
+  });
+});
+
+describe("sortVehiclesForPicker", () => {
+  const vehicle = (identificationNo: string, status: VehicleStatus) => ({
+    identificationNo,
+    status,
+  });
+
+  it("orders alphabetically with natural number handling", () => {
+    const sorted = sortVehiclesForPicker([
+      vehicle("Set 10", "IN_SERVICE"),
+      vehicle("EMU02", "IN_SERVICE"),
+      vehicle("Set 2", "IN_SERVICE"),
+    ]);
+
+    expect(sorted.map((v) => v.identificationNo)).toEqual(["EMU02", "Set 2", "Set 10"]);
+  });
+
+  it("demotes Married and Decommissioned to the bottom, alphabetical among themselves", () => {
+    const sorted = sortVehiclesForPicker([
+      vehicle("Set 10", "DECOMMISSIONED"),
+      vehicle("Set 2", "IN_SERVICE"),
+      vehicle("Set 9", "MARRIED"),
+      vehicle("Set 1", "TESTING"),
+      vehicle("Set 3", "MARRIED"),
+    ]);
+
+    expect(sorted.map((v) => v.identificationNo)).toEqual([
+      "Set 1",
+      "Set 2",
+      "Set 3",
+      "Set 9",
+      "Set 10",
+    ]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [vehicle("Set 2", "IN_SERVICE"), vehicle("Set 1", "IN_SERVICE")];
+
+    sortVehiclesForPicker(input);
+
+    expect(input.map((v) => v.identificationNo)).toEqual(["Set 2", "Set 1"]);
   });
 });
