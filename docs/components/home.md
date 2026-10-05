@@ -185,8 +185,21 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
 Now` tooltip). 🔴 Round 2c restored the **click-to-action donut**: an SVG ring
     (`line-refresh-ring` / `line-refresh-ring-arc`) whose arc DRAINS as the beat runs down (full at
     reset, empty at zero), an indeterminate counter-clockwise **spinner** while Updating, and the
-    green check for a click-armed "Updated" — indicator and click target are ONE control again. The
-    ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
+    green check for a click-armed "Updated" — indicator and click target are ONE control again. 🔴
+    Round 2d **sized** it: the restored ring carried no `width`/`height` (only a `viewBox`), so it
+    rendered at the CSS initial size — a 112×112px blob in the hero row — and it now copies the
+    tracker side panel's `CountdownRingComponent` exactly (`width`/`height="22"`,
+    `viewBox="0 0 22 22"`, circles at cx/cy 11, r 9, `stroke-width="2.5"`, track
+    `text-muted-foreground/20`). All THREE glyphs live inside ONE always-rendered fixed slot
+    (`inline-flex size-7 shrink-0 items-center justify-center`, glyph only) — the tracker rows'
+    pattern, `CountdownRingComponent`'s ring slot plus `LayerChecklistComponent`'s "contents vary"
+    one — because this button shrink-wraps to its visible content: swapping a 22px ring for a 14px
+    spinner or check would re-flow the row and its label on every state change, so the labels stay
+    direct children of the button, right after the slot. The spinner keeps `size-3.5` but now runs
+    at the tracker checklist's own speed, 1s (`[animation:spin_1s_linear_infinite_reverse]`, was
+    3s). The inline **"Refreshing in Ns" text stays** beside the ring — the tracker shows its
+    seconds on hover only, a deliberate divergence: this control states the countdown at a glance.
+    The ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
     text names, so the two readings cannot drift, and its arc is `text-primary` (default theme) where
     the pre-round-2 ring was `text-brand`. The hero's top status line is decoupled from the beat — a
     static tone bar, see the hero bullet — so this control is the countdown's only home. Rendered
@@ -280,7 +293,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `line-refresh-ring-arc`, arc from the store's public `polling.secondsRemaining()` /
     `intervalMs()` pair) beside `Refreshing in {n}s`, the reverse-spun spinner while Updating, the
     green check while Updated — and a click calling
-    `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no hover —
+    `store.polling.refreshNow()`. All three leading glyphs sit inside ONE always-rendered fixed
+    `inline-flex size-7` slot (round 2d) and the ring is an explicit 22px — the tracker's
+    `CountdownRingComponent` geometry — so the shrink-wrapped row never re-flows between states.
+    Hovering it (or tapping it when the device has no hover —
     capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
     (`data-testid="line-refresh-tooltip"`, `z-50`, closing 300ms after the pointer leaves so it can
@@ -1292,14 +1308,23 @@ the two cells can never disagree.
   and would leave the arc describing the beat that just ended — clamped at both ends so a paused or
   overshot beat cannot invert it, with a 1s linear `transition-[stroke-dashoffset]` that
   `motion-reduce:transition-none` drops (the arc still MOVES to its new length; it steps instead of
-  tweening). "Updating" is the indeterminate spinner — it carries the Phase-5B rule: the `reverse`
+  tweening). 🔴 Round 2d: the ring is **explicitly sized** — `width`/`height="22"` over its own
+  `viewBox="0 0 22 22"` (the round-2c restoration carried no `width`/`height` at all, so the
+  viewBox rendered at the CSS initial size and the ring came out 112×112px) — the tracker side
+  panel's `CountdownRingComponent` geometry (cx/cy 11, r 9, `stroke-width="2.5"`, track
+  `text-muted-foreground/20`), centred by ONE always-rendered fixed
+  `inline-flex size-7 shrink-0 items-center justify-center` slot that holds the leading glyph of
+  all three states and nothing else. "Updating" is the indeterminate spinner — it carries the
+  Phase-5B rule: the `reverse`
   direction lives **inside** the `animation` shorthand as an arbitrary-property UTILITY
-  (`[animation:spin_3s_linear_infinite_reverse]`), never as a separate `[animation-direction:reverse]`
+  (`[animation:spin_1s_linear_infinite_reverse]` — the tracker checklist's own 1s, was 3s), never
+  as a separate `[animation-direction:reverse]`
   class, because the shorthand resets every sub-property — and never as an inline
   `style="animation: …"`, which outranks **every** class and makes the `motion-reduce:[animation:none]`
   that disables it under `prefers-reduced-motion` unreachable. jsdom computes no styles, so a spec can
   only pin the class and the absent `style` attribute. The green check beside "Updated" is unchanged
-  and needs no `reverse`/reduced-motion treatment because it is not an animation. The hero's top
+  and takes the same `size-7` slot; it needs no `reverse`/reduced-motion treatment because it is not
+  an animation. The hero's top
   status line is STATIC and counts nothing — this control is the countdown's only home.
   🔴 **The tooltip is part of this component's contract, not its decoration**: `z-50` (the app overlay
   layer, above the nav's `z-[45]`) and a **300ms** close delay after `mouseleave`, cancelled on
@@ -1636,8 +1661,17 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   the ring would visibly refuse to refill for up to a second while claiming to be full. A null
   interval (paused beat, ring not rendered at all) and an overshot countdown both clamp to the ends
   of the range rather than inverting the arc — a negative offset would draw MORE than a full turn.
-- **The "Updating" spinner** — the same ring shape spun slowly in REVERSE
-  (`[animation:spin_3s_linear_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
+  🔴 **Round 2d sized it**: the round-2c restoration had no `width`/`height` (only a `viewBox`), so
+  it rendered at the CSS initial size and the ring came out **112×112px** — it is now an explicit
+  22×22px svg in its own 22-unit `viewBox`, the tracker side panel's `CountdownRingComponent`
+  geometry, centred by the control's ONE fixed `size-7` glyph slot (the shared slot is
+  `LayerChecklistComponent`'s "always rendered, contents vary" pattern). Its track class is
+  `text-muted-foreground/20` — a class, not a `stroke-opacity` attribute — and the 1s/linear arc
+  duration is deliberate: our `stroke-dashoffset` rebinds once per second, while the tracker's
+  source ticks every 100ms and so tweens shorter.
+- **The "Updating" spinner** — the tracker checklist's own `size-3.5` spinner at the tracker's 1s
+  speed, spun in REVERSE
+  (`[animation:spin_1s_linear_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
   inside the shorthand — see the refresh-control seam), so "the page is working on it" never reads as
   "the countdown is running". Round 2c restored both graphics to the control while the hero's top
   line went static, ending round 2's **text-only** phase: the indicator and the click target are one
@@ -1748,7 +1782,9 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
 - `home-skip-link` (the visually-hidden-until-focused skip link).
 - `line-refresh-ring` / `line-refresh-ring-arc` — **REMOVED** in the home-page polish round 2 and
   **RESTORED in round 2c**: the countdown ring inside the control again (arc draining to
-  `text-primary`, clamped and guarded), together with the reverse-spun "Updating" spinner. The beat's
+  `text-primary`, clamped and guarded), together with the reverse-spun "Updating" spinner. **SIZED
+  in round 2d** — explicit 22px (a viewBox-only svg rendered at 112px) inside the shared `size-7`
+  glyph slot, per the refresh-control seam. The beat's
   only indicator is that donut plus the control's own label; the hero's `hero-status-line` counts
   nothing.
 - `line-board-attention-dot` (the decorative pulse dot beside "Needs attention · N").
