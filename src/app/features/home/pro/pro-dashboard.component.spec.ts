@@ -185,7 +185,7 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
       imports: [ProDashboardComponent],
       providers: [
         provideZonelessChangeDetection(),
-        // `/spotting/:lineId`, its `details` child and `/insiden` have to RESOLVE, or the HQ widget's
+        // `/spotting/:lineId`, its `details` child and `/insiden` have to RESOLVE, or the board rows'
         // links throw NG04002 the moment they render.
         provideRouter([
           {
@@ -239,7 +239,7 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
 
   /* ---- the layout -------------------------------------------------------------------- */
 
-  it("renders the seven cells inside one bento, in the three rows that balance the page", async () => {
+  it("renders the six cells inside one bento, in the three rows that balance the page", async () => {
     const root = await dashboard([makeLine("a")]);
 
     const bento = root.querySelector('[data-testid="pro-bento"]');
@@ -247,7 +247,6 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     expect(root.querySelector('[data-testid="pro-lines-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-feed-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
-    expect(root.querySelector('[data-testid="pro-line-hq-widget"]')).not.toBeNull();
     // The two supporting panels added last. Both hide themselves when their own data is unavailable
     // (the ranking on a failed history read, the archive on its own), so their absence here is the
     // default state, not a mounting failure — their own specs cover the states where they DO render.
@@ -284,9 +283,9 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     expect(heat?.parentElement).toBe(bento);
     expect(rowA?.parentElement).toBe(bento);
 
-    // Row C: the four supporting panels tile in one grid rather than stacking in a narrow rail, so a
+    // Row C: the three supporting panels tile in one grid rather than stacking in a narrow rail, so a
     // widget that hides itself just closes the gap instead of leaving a ragged column.
-    const rowC = root.querySelector("app-pro-line-hq-widget")?.parentElement;
+    const rowC = root.querySelector("app-pro-incidents-widget")?.parentElement;
     expect(rowC).toBe(root.querySelector("app-pro-incidents-widget")?.parentElement);
     expect(rowC).toBe(root.querySelector("app-pro-report-ranking")?.parentElement);
     expect(rowC).toBe(root.querySelector("app-pro-official-widget")?.parentElement);
@@ -518,7 +517,6 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     expect(root.querySelector('[data-testid="pro-lines-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-feed-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
-    expect(root.querySelector('[data-testid="pro-line-hq-widget"]')).not.toBeNull();
     expect(root.querySelector("app-network-board")).not.toBeNull();
     expect(root.querySelector("app-link-thread")).not.toBeNull();
   });
@@ -528,12 +526,12 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     storeMock.linesHistoryFailed.set(true);
     rerender();
 
-    // The board's own row strips and the heat grid hide; the board's rows, the feed and the HQ grid
-    // do not. A chart that will not load must not cost the reader the page.
+    // The board's own row strips and the heat grid hide; the board's rows, the feed and the
+    // supporting panels do not. A chart that will not load must not cost the reader the page.
     expect(root.querySelector("app-network-heat-strip")?.querySelector("section")).toBeNull();
     expect(root.querySelector('[data-testid="pro-lines-widget"]')).not.toBeNull();
     expect(root.querySelector("app-network-board")).not.toBeNull();
-    expect(root.querySelector('[data-testid="pro-line-hq-widget"]')).not.toBeNull();
+    expect(root.querySelector("app-pro-report-ranking")).not.toBeNull();
     expect(root.querySelector("app-link-thread")).not.toBeNull();
   });
 
@@ -551,7 +549,7 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
 
   it("keeps every other widget rendered when the OFFICIAL ARCHIVE read fails", async () => {
     // The archive is the panel most likely to be unavailable (it is the fourth `FEED_QUERY` read on
-    // the page), and it must hide ITSELF — board, feed, heat grid, HQ and ranking all stay.
+    // the page), and it must hide ITSELF — board, feed, heat grid and ranking all stay.
     const root = await dashboard([makeLine("a")]);
     storeMock.officialNotices.set([makeFeedLink("official-1")]);
     rerender();
@@ -564,7 +562,6 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     expect(root.querySelector('[data-testid="pro-lines-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-feed-widget"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="pro-heat-widget"]')).not.toBeNull();
-    expect(root.querySelector('[data-testid="pro-line-hq-widget"]')).not.toBeNull();
     expect(root.querySelector("app-network-board")).not.toBeNull();
     expect(root.querySelector("app-link-thread")).not.toBeNull();
   });

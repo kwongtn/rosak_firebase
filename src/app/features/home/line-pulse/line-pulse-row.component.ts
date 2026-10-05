@@ -1,4 +1,14 @@
-import { Component, computed, inject, input, signal } from "@angular/core";
+import { isPlatformBrowser } from "@angular/common";
+import {
+  Component,
+  PLATFORM_ID,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from "@angular/core";
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucideExternalLink, lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
@@ -8,20 +18,21 @@ import {
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
 import {
-  PreferencesDensity,
   PreferencesService,
   PreferencesViewMode,
 } from "../../../core/preferences/preferences.service";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
+import { InfoPopover } from "../../../ui/info-popover/info-popover";
+import { HomeStore } from "../data/home.store";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
 import { StatusInfo, lineStatusInfo } from "../data/status-info.util";
 import type { StatusConfidence } from "../data/status-confidence.util";
 import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
-import { LineHistoryStripComponent } from "./line-history-strip.component";
+import { currentServiceBucketIndex, historyTotal } from "../data/status-history-display.util";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
 import { StatusInfoChipComponent } from "./status-info-chip.component";
@@ -42,22 +53,29 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * tally together (see the template's note on why they are grouped, and why that is what fixes a 390px
  * phone), and the three actions — pin, report, expand. In `pro` view it adds what an operator actually
  * wants instead of what a rider scans for: the report count WITH its reporting window (so a number is
- * never read without the span it covers) and the two Line HQ links.
+ * never read without the span it covers) and the Details link.
  *
- * **Density is presentation only.** `comfortable` / `compact` changes padding and a couple of class
- * tokens on the row — never what is counted, never which actions exist, never whether a group
- * renders. It is a preference rather than a URL param because it is a per-device reading habit
- * (a phone in a pocket, a desktop with room), not something a shared link should impose.
+ * **Padding is fixed, not a preference.** The row is comfortable at every viewport width: the
+ * compact/choice model cost a control nobody used to save two class tokens, and the density group on
+ * the board has gone with it. Presentation stays the one thing it always was — it never changes what
+ * is counted, never which actions exist, never whether a group renders.
  *
  * The expanded panel reuses `app-line-status-chart` and `app-line-status-reports` verbatim, both
  * gated on the same `expanded` input the card passes — so an expanded row's chart and reports are
  * lazy in exactly the same way, and a `refreshTick` from the poll beat reloads them the same way.
  *
- * `app-line-history-strip` sits ABOVE the disclosure and is NOT gated on it: it is the row's answer
- * to "when was this line reported today", in 24 cells, always on screen. It reads the store's single
- * `linesStatusHistory` request (which serves every row on the page), so sixteen rows cost one read
- * rather than sixteen, and it hides itself entirely when this line reported nothing or that read
- * failed.
+ * 🔴 **The report tally is read from the store's service-day buckets, not from the line.** It reads
+ * `N reports (X this hour)` — the whole community service day so far, plus how much of it landed in
+ * the hour we are in — because `statusReportCount` alone is a 15-minute rolling window, and on a
+ * compact row a number nobody can scale is a number nobody can read. The "this hour" figure is what
+ * tells a reader whether a busy total is a live crowd or the morning's residue. It reads the store's
+ * single `linesStatusHistory` request (which serves every row on the page plus the Pro heat grid), so
+ * sixteen rows still cost one read rather than sixteen, and it falls back to the plain rolling count
+ * when there is no history to enrich — the line reported nothing this service day, or that read
+ * failed, which is a quiet state rather than an error (see `HomeStore`'s failure-isolation rule).
+ *
+ * The pin icon FILLS itself when the row is pinned rather than only pressing: an outline that reads
+ * as "available" is the one thing a pin affordance cannot afford to say about a pin that is on.
  *
  * `LineStatusSheetService.openFor` is the report action, the same cross-component trigger the card
  * uses. 🔴 That is the WHOLE of the report affordance here: the full "which line?" chooser is a
@@ -69,9 +87,9 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
   imports: [
     HlmBadge,
     HlmButton,
+    InfoPopover,
     NgIcon,
     RouterLink,
-    LineHistoryStripComponent,
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
@@ -80,11 +98,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
   providers: [provideIcons({ lucideExternalLink, lucidePin })],
   template: `
     <section
-      class="bg-card text-card-foreground border-border relative flex flex-col rounded-lg border shadow-sm"
-      [class.p-3]="density() === 'comfortable'"
-      [class.py-2]="density() === 'compact'"
-      [class.pl-4]="density() === 'comfortable'"
-      [class.pl-3.5]="density() === 'compact'"
+      class="bg-card text-card-foreground border-border relative flex flex-col rounded-lg border p-3 pl-4 shadow-sm"
       data-testid="line-row"
     >
       <!-- Same backend-hex accent rail as the card: identification without recolouring the row,
@@ -142,7 +156,17 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
             [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
             (click)="togglePin()"
           >
-            <ng-icon name="lucidePin" class="size-4" aria-hidden="true" />
+            <!-- 🔴 The icon FILLS when the row is pinned. aria-pressed alone leaves the glyph saying
+             "pin available" about a pin that is already on, and a 16px outline pin is the one
+             affordance on this row a reader cannot afford to misread. The arbitrary variant reaches
+             the CHILD svg because lucidePin is an outline drawing of its own, and it is a literal
+             string rather than a constant because Tailwind compiles what it finds in the source. -->
+            <ng-icon
+              name="lucidePin"
+              class="size-4"
+              [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
+              aria-hidden="true"
+            />
           </button>
           <button
             hlmBtn
@@ -193,28 +217,50 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
         <span hlmBadge variant="secondary" data-testid="line-row-vehicles">
           {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
         </span>
-        <span class="text-muted-foreground hidden text-xs sm:inline" data-testid="line-row-reports">
-          {{ line().statusReportCount }} reports
-        </span>
+        <!-- 🔴 The enriched label is a METRIC, so it explains itself — but only the enriched one. The
+             fallback is the plain rolling count, which has no service-day claim to defend, so wrapping
+             it in a popover would attach a definition to a number it does not describe.
+
+             The responsive tokens sit on this WRAPPER, never on the projected span and never on the
+             popover's own host: InfoPopover draws its "i" glyph outside the projection, so hiding
+             the span alone left a lone "i" floating beside a row with no number on it below sm —
+             and hiding the HOST does not work either, because the host already carries
+             "inline-flex" and .inline-flex is emitted after .hidden, so it wins the tie. A wrapper
+             sets display with nothing to compete against it. -->
+        @if (_reportsLabel(); as label) {
+          <span class="hidden sm:inline" data-testid="line-row-reports-wrap">
+            <app-info-popover
+              label="What the reports count covers"
+              iconPosition="end"
+              [content]="_reportsDefinition()"
+              testId="line-row-reports-popover"
+              [showMethodologyLink]="false"
+              triggerClasses="cursor-help"
+            >
+              <span class="text-muted-foreground text-xs" data-testid="line-row-reports">
+                {{ label }}
+              </span>
+            </app-info-popover>
+          </span>
+        } @else {
+          <span
+            class="text-muted-foreground hidden text-xs sm:inline"
+            data-testid="line-row-reports"
+          >
+            {{ line().statusReportCount }} reports
+          </span>
+        }
       </div>
 
       @if (viewMode() === "pro") {
-        <!-- Pro detail: the report count WITH the span it covers, plus the two Line HQ links. A bare
-             count is the thing a pro reader is most likely to over-read, and the window is what
-             makes it interpretable ("4 reports · 15 min window" is a busy platform; "4 reports" is
-             a fact with no scale). -->
+        <!-- Pro detail: the report count WITH the span it covers, plus the way out to the full line.
+             A bare count is the thing a pro reader is most likely to over-read, and the window is
+             what makes it interpretable ("4 reports · 15 min window" is a busy platform; "4 reports"
+             is a fact with no scale). -->
         <div class="mt-1.5 flex flex-wrap items-center gap-2" data-testid="line-row-pro">
           <span class="text-muted-foreground text-xs" data-testid="line-row-report-window">
             {{ line().statusReportCount }} reports · {{ line().statusWindowMinutes }} min window
           </span>
-          <a
-            class="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
-            [routerLink]="['/spotting', line().id]"
-            data-testid="line-row-hq"
-          >
-            <ng-icon name="lucideExternalLink" class="size-3" aria-hidden="true" />
-            Line HQ
-          </a>
           <a
             class="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
             [routerLink]="['/spotting', line().id, 'details']"
@@ -225,12 +271,6 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
           </a>
         </div>
       }
-
-      <!-- The line's own service-day shape, ABOVE the disclosure: 24 cells of "when was this line
-           reported", always visible from ONE store-level read. aria-hidden with a text alternative
-           (see LineHistoryStripComponent), and hidden entirely when the line reported nothing today
-           or that read failed. -->
-      <app-line-history-strip [lineId]="line().id" />
 
       @if (_expanded()) {
         <div
@@ -257,13 +297,13 @@ export class LinePulseRowComponent {
   readonly line = input.required<LinePulse>();
   /** The board's poll beat, forwarded to the expanded panel's chart and reports. */
   readonly refreshTick = input(0);
-  /** Presentation only — see the class doc. */
-  readonly density = input<PreferencesDensity>("comfortable");
   /** Whether to draw the pro-only detail block. */
   readonly viewMode = input<PreferencesViewMode>("rider");
 
   protected readonly sheet = inject(LineStatusSheetService);
   private readonly preferences = inject(PreferencesService);
+  private readonly store = inject(HomeStore);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly passengerLabel = passengerLabel;
   protected readonly passengerVariant = passengerVariant;
@@ -282,6 +322,45 @@ export class LinePulseRowComponent {
 
   /** Reads the pin signal through a `computed`, so the toggle repaints on click. */
   protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));
+
+  /** This line's service-day buckets — the store's ONE per-line read, shared with the heat grid. */
+  protected readonly _buckets = computed(() => this.store.linesHistoryFor(this.line().id));
+
+  /**
+   * 🔴 "Now", seeded in the browser only. `afterNextRender` does not run on the server, so SSR markup
+   * never depends on the server's clock and the client's first paint is the same fallback text the
+   * server sent — the hydration mismatch `PreferencesService` exists to avoid. `null` therefore means
+   * both "not seeded yet" and "no current hour", and both fall back rather than guess.
+   */
+  private readonly _now = signal<Date | null>(null);
+  /** True once the browser seed has run — the effect's "not the first pass" gate (see the ctor). */
+  private _clockSeeded = false;
+
+  /**
+   * `N reports (X this hour)`, or `null` when there is no service-day history to enrich the row's
+   * count with — no buckets (nothing reported this service day) or no client clock yet.
+   *
+   * N is the whole service day and X is the bucket `now` falls in, so the pair answers the two
+   * questions a rolling 15-minute count cannot: how much has this line collected today, and how much
+   * of it is happening right now.
+   */
+  protected readonly _reportsLabel = computed<string | null>(() => {
+    const buckets = this._buckets();
+    const now = this._now();
+    if (buckets.length === 0 || !now) {
+      return null;
+    }
+    const index = currentServiceBucketIndex(buckets, now);
+    if (index < 0) {
+      return null;
+    }
+    return `${historyTotal(buckets)} reports (${buckets[index].count} this hour)`;
+  });
+
+  /** The label's definition, from the methodology registry rather than a literal in this template. */
+  protected readonly _reportsDefinition = computed(() =>
+    renderMethodologyCopy(metricDoc("network.line-reports-summary").definition),
+  );
 
   protected readonly _confidence = computed<StatusConfidence>(() =>
     statusConfidence({
@@ -318,5 +397,31 @@ export class LinePulseRowComponent {
 
   protected togglePin(): void {
     this.preferences.togglePin(this.line().id);
+  }
+
+  constructor() {
+    if (this.isBrowser) {
+      afterNextRender(() => {
+        this._clockSeeded = true;
+        this._now.set(new Date());
+      });
+    }
+
+    // The poll beat is the only thing that moves the clock while a row sits open, and the "this hour"
+    // count must follow it — a row left up across an hour boundary would otherwise keep naming the
+    // hour that has passed. `_clockSeeded` is what keeps the effect OFF its first run: an effect runs
+    // during change detection, i.e. BEFORE `afterNextRender`, and setting the clock there would put a
+    // client-clock string in the very paint the server never produced (NG0500).
+    effect(() => {
+      this.refreshTick();
+      if (this._clockSeeded) {
+        this._now.set(new Date());
+      }
+    });
+
+    // Opts the store's single per-line history read in, now that this row reads it directly. Sixteen
+    // rows mount and it is still ONE request: the store owns the resource, this call only opens the
+    // gate (`requestHistoryReads`).
+    this.store.requestHistoryReads();
   }
 }

@@ -76,10 +76,13 @@ describe("LinePulseRowComponent", () => {
     setOpen: ReturnType<typeof vi.fn>;
   };
   let reportSheetMock: { openFor: ReturnType<typeof vi.fn> };
-  /** The store's per-line history, keyed by line id — the strip's ONLY input. */
+  /** The store's per-line service-day history, keyed by line id — the report label's ONLY input. */
   let historyByLine: Map<string, LineStatusHourBucket[]>;
   let historyFailed: ReturnType<typeof signal<boolean>>;
   let requestHistoryReads: ReturnType<typeof vi.fn>;
+
+  /** The first hour of the fixture service day (2026-09-21T19:00Z), for the clock tests. */
+  const SERVICE_DAY_START = new Date("2026-09-21T19:00:00+00:00").getTime();
 
   beforeEach(async () => {
     sheetMock = {
@@ -89,9 +92,9 @@ describe("LinePulseRowComponent", () => {
       setOpen: vi.fn(),
     };
     reportSheetMock = { openFor: vi.fn() };
-    // The row now hosts `app-line-history-strip`, which reads the store's single service-day read for
-    // this line. A MOCK, not the real store: the read's own variables and gating belong to
-    // `home.store.spec.ts`, and this spec is about what the row draws from the answer.
+    // The row's report label reads the store's single service-day read for this line directly. A
+    // MOCK, not the real store: the read's own variables and gating belong to `home.store.spec.ts`,
+    // and this spec is about what the row draws from the answer.
     historyByLine = new Map();
     historyFailed = signal(false);
     requestHistoryReads = vi.fn();
@@ -127,6 +130,8 @@ describe("LinePulseRowComponent", () => {
   });
 
   afterEach(() => {
+    // Fake timers are only installed by the clock tests; a leaked one would hang the next poll beat.
+    vi.useRealTimers();
     httpMock.verify();
     localStorage.clear();
   });
@@ -138,6 +143,22 @@ describe("LinePulseRowComponent", () => {
     }
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
+  }
+
+  /**
+   * Renders, then flushes the browser-only `afterNextRender` that seeds the row's clock.
+   *
+   * `whenStable` is the wait `afterNextRender` needs — the same sequence the refresh-control spec
+   * uses for its own render hook — so the clock has a value by the time the label is read.
+   */
+  async function renderWithClock(
+    line: LinePulse,
+    inputs: Record<string, unknown> = {},
+  ): Promise<HTMLElement> {
+    const root = render(line, inputs);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return root;
   }
 
   function flushPendingRequests(): void {
@@ -165,6 +186,7 @@ describe("LinePulseRowComponent", () => {
     expect(root.querySelector('[data-testid="line-row-status"]')).toBeNull();
     expect(textOf(root, "line-row-passenger")).toBe("Normal");
     expect(textOf(root, "line-row-vehicles")).toBe("12/16 in service");
+    // No history has landed yet for this line, so the row keeps its plain rolling count.
     expect(textOf(root, "line-row-reports")).toBe("0 reports");
   });
 
@@ -188,6 +210,9 @@ describe("LinePulseRowComponent", () => {
     expect(reports?.textContent?.trim()).toBe("1 reports");
     expect(reports?.className).toContain("hidden");
     expect(reports?.className).toContain("sm:inline");
+    // Either branch of the count renders it here — the enriched one wraps the text in a popover, so
+    // the assertion is on the TEXT element rather than on a wrapper that only exists sometimes.
+    expect(meta?.contains(reports as Node)).toBe(true);
     // Neither fragment is a sibling of the badge row any more, so neither can be pushed off it alone.
     expect(
       root
@@ -272,9 +297,11 @@ describe("LinePulseRowComponent", () => {
     expect(reportSheetMock.openFor).not.toHaveBeenCalled();
   });
 
-  it("fetches nothing until expanded, then loads the chart and the report list", () => {
+  it("fetches nothing of its own until expanded, then loads the chart and the report list", () => {
     const root = render(makeLine({ id: "line-7" }));
 
+    // The row's only outbound request is the expanded panel's, fed by the MOCK store here — the real
+    // service-day read is opened by `requestHistoryReads()` above, not by an http call in the row.
     expect(httpMock.match(() => true)).toHaveLength(0);
     expect(root.querySelector('[data-testid="line-row-expanded"]')).toBeNull();
 
@@ -341,103 +368,179 @@ describe("LinePulseRowComponent", () => {
     flushPendingRequests();
   });
 
-  describe("the service-day history strip", () => {
-    /** A full 24-hour service day with reports only in the first two hours. */
+  describe("the service-day report label", () => {
+    /**
+     * A full 24-hour service day: 3 reports in the first hour, 2 in the second, nothing after. The
+     * total is therefore 5, and "now" landing in hour 2 is what makes the bracket say 2 — a fixture
+     * whose busy hour is also its current hour could not tell the two numbers apart.
+     */
     function serviceDay(): LineStatusHourBucket[] {
       return Array.from({ length: 24 }, (_unused, index) => ({
-        hourStart: new Date(
-          new Date("2026-09-21T19:00:00+00:00").getTime() + index * 3600_000,
-        ).toISOString(),
-        hourEnd: new Date(
-          new Date("2026-09-21T19:00:00+00:00").getTime() + (index + 1) * 3600_000,
-        ).toISOString(),
-        count: index === 0 ? 2 : index === 1 ? 5 : 0,
+        hourStart: new Date(SERVICE_DAY_START + index * 3600_000).toISOString(),
+        hourEnd: new Date(SERVICE_DAY_START + (index + 1) * 3600_000).toISOString(),
+        count: index === 0 ? 3 : index === 1 ? 2 : 0,
         dominantStatus: index < 2 ? "NORMAL" : null,
         statusCounts:
-          index === 1
-            ? [{ status: "NORMAL", count: 5 }]
-            : index === 0
-              ? [{ status: "NORMAL", count: 2 }]
+          index === 0
+            ? [{ status: "NORMAL", count: 3 }]
+            : index === 1
+              ? [{ status: "BUSY", count: 2 }]
               : [],
       }));
     }
 
-    it("draws nothing at all for a line with no reports this service day", () => {
-      const root = render(makeLine({ id: "line-9" }));
+    it("opts the store's single service-day read in, once per row", () => {
+      render(makeLine({ id: "line-9" }));
 
-      // Twenty-four empty cells would be noise on an already-dense compact row, and "no data" as a
-      // chip would be a claim the row has no room to qualify. Silence is drawn as silence.
-      expect(root.querySelector('[data-testid="row-history-strip"]')).toBeNull();
-      // …and the rest of the row is untouched.
-      expect(root.querySelector('[data-testid="line-row-title"]')).not.toBeNull();
+      // The row reads the buckets ITSELF now the strip is gone, so it is the widget that must open
+      // the gate. Sixteen rows mounting is still one request — the store owns the resource.
       expect(requestHistoryReads).toHaveBeenCalledTimes(1);
     });
 
-    it("draws one cell per service-day hour for a line that reported", () => {
+    it("reads the service-day total and the current hour against a fixed clock", async () => {
+      vi.useFakeTimers();
+      // 20:30Z is inside hour 2 of the fixture day, which carries 2 reports of the day's 5.
+      vi.setSystemTime(new Date(SERVICE_DAY_START + 1.5 * 3600_000));
       historyByLine.set("line-9", serviceDay());
-      const root = render(makeLine({ id: "line-9" }));
 
-      const strip = root.querySelector('[data-testid="row-history-strip"]');
-      expect(strip).not.toBeNull();
-      expect(strip?.querySelectorAll('[data-testid="row-history-cell"]')).toHaveLength(24);
-      // Scaled to THIS line's busiest hour, so a quiet line next to a busy one still looks quiet.
-      const cells = [
-        ...(strip?.querySelectorAll<HTMLElement>('[data-testid="row-history-cell"]') ?? []),
-      ];
-      expect(cells[1]?.style.height).toBe("100%");
-      expect(cells[0]?.style.height).toBe("40%");
-      expect(cells[2]?.style.height).toBe("0%");
-      expect(cells[1]?.getAttribute("title")).toBe("04:00–05:00 · 5 reports · Normal 5");
+      const root = await renderWithClock(makeLine({ id: "line-9", statusReportCount: 0 }));
+
+      // The bracket is the point: "5 reports" alone cannot be read, and neither can "(2 this hour)"
+      // without the day it belongs to. The two numbers answer different questions.
+      expect(textOf(root, "line-row-reports")).toBe("5 reports (2 this hour)");
+      // 🔴 The phone hiding rides on the WRAPPER, not on the projected span (InfoPopover's "i" glyph
+      // sits outside the projection, so a lone glyph would be left on a row with no number) and not
+      // on the popover host either (the host already carries `inline-flex`, and .inline-flex is
+      // emitted after .hidden, so it wins the tie and `hidden` would do nothing). jsdom computes no
+      // media query, so the classes ARE the assertion.
+      const wrapper = root.querySelector('[data-testid="line-row-reports-wrap"]');
+      expect(wrapper?.className).toContain("hidden");
+      expect(wrapper?.className).toContain("sm:inline");
+      // The wrapper is what hides, so neither inner node may claim the tokens too.
+      expect(root.querySelector('[data-testid="line-row-reports"]')?.className).not.toContain(
+        "hidden",
+      );
+      expect(
+        root.querySelector('[data-testid="line-row-meta"] app-info-popover')?.className,
+      ).not.toContain("hidden");
     });
 
-    it("is aria-hidden with ONE text alternative, so 24 rectangles are not announced", () => {
+    it("explains the enriched label from the methodology registry, in a popover", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(SERVICE_DAY_START + 1.5 * 3600_000));
       historyByLine.set("line-9", serviceDay());
-      const root = render(makeLine({ id: "line-9" }));
+      const root = await renderWithClock(makeLine({ id: "line-9" }));
 
-      // The cells carry nothing a screen reader can use, so the strip is hidden and the host carries
-      // a sentence instead — which is what keeps a decorative grid from being an inaccessible one.
-      const cells = root
-        .querySelector('[data-testid="row-history-strip"]')
-        ?.querySelector('[aria-hidden="true"]');
-      expect(cells).not.toBeNull();
-      const label = textOf(root, "row-history-label");
-      expect(label).toContain("7 reports in 2 of 24 hours");
-      expect(label).toContain("service day 03:00 to 02:00");
-    });
-
-    it("reads only ITS line's history, so two rows never show the same strip", () => {
-      historyByLine.set("line-9", serviceDay());
-      historyByLine.set("line-8", []);
-      const root = render(makeLine({ id: "line-9" }));
-      expect(root.querySelector('[data-testid="row-history-strip"]')).not.toBeNull();
-
-      fixture.componentRef.setInput("line", makeLine({ id: "line-8" }));
+      // A service-day claim is a metric, so it is published and surfaced — never a literal in the
+      // template. The panel is the reports one, not a confidence chip's: the enriched label is the
+      // only popover the meta row carries.
+      const trigger = root.querySelector<HTMLButtonElement>(
+        '[data-testid="line-row-meta"] app-info-popover button',
+      );
+      expect(trigger).not.toBeNull();
+      trigger?.click();
       fixture.detectChanges();
-      expect(root.querySelector('[data-testid="row-history-strip"]')).toBeNull();
+
+      const panel = root.querySelector('[data-testid="line-row-reports-popover"]');
+      expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+        renderMethodologyCopy(metricDoc("network.line-reports-summary").definition),
+      );
+      // No /methodology link: `showMethodologyLink: false` demotes the panel to a tooltip, so it is
+      // not a dialog and carries no link to a section that does not exist.
+      expect(panel?.querySelector("a")).toBeNull();
     });
 
-    it("hides the strip when the per-line read failed, leaving the row working", () => {
+    it("falls back to the rolling count when the line reported nothing this service day", () => {
+      const root = render(makeLine({ id: "line-9", statusReportCount: 1 }));
+
+      // `buckets: []` is the backend's "this line reported nothing", not an error, and a row with
+      // nothing to say about the day must not claim a day total of zero it never measured.
+      expect(textOf(root, "line-row-reports")).toBe("1 reports");
+      // No popover in the META row specifically: the confidence chip above is one for its own metric,
+      // so scoping the query to the meta strip is what makes this about the count.
+      expect(root.querySelector('[data-testid="line-row-meta"] app-info-popover')).toBeNull();
+    });
+
+    it("falls back to the rolling count when the per-line read failed", () => {
       historyByLine.set("line-9", serviceDay());
       historyFailed.set(true);
-      const root = render(makeLine({ id: "line-9" }));
+      const root = render(makeLine({ id: "line-9", statusReportCount: 2 }));
 
-      // Widget-level failure isolation: the store keeps `linesHistoryFailed` out of `hasError`, so the
-      // row just loses the strip — it does not lose its status, its chips or its actions.
-      expect(root.querySelector('[data-testid="row-history-strip"]')).toBeNull();
-      expect(textOf(root, "line-row-confidence")).toBe("No recent reports");
+      // Failure isolation: the store keeps `linesHistoryFailed` out of `hasError`, so the row loses
+      // the enriched label — not its status, its chips or its actions. The confidence chip is the
+      // proof it is still reading the LINE: the failure flag is the history read's, not the line's.
+      expect(textOf(root, "line-row-reports")).toBe("2 reports");
+      expect(root.querySelector('[data-testid="line-row-meta"] app-info-popover')).toBeNull();
+      expect(textOf(root, "line-row-confidence")).toBe("Unconfirmed (2 reports)");
       expect(root.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
+    });
+
+    it("reads only ITS line's history, so two rows never show the same total", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(SERVICE_DAY_START + 1.5 * 3600_000));
+      // The board mounts one row per line, and "My lines" and "All lines" can hold the SAME pinned
+      // line at once — so a lookup that missed the line id would show one row's day on another.
+      historyByLine.set("line-9", serviceDay());
+      historyByLine.set("line-8", []);
+      const root = await renderWithClock(makeLine({ id: "line-8", statusReportCount: 3 }));
+
+      expect(textOf(root, "line-row-reports")).toBe("3 reports");
+
+      fixture.componentRef.setInput("line", makeLine({ id: "line-9", statusReportCount: 3 }));
+      fixture.detectChanges();
+      expect(textOf(root, "line-row-reports")).toBe("5 reports (2 this hour)");
+    });
+
+    it("moves the bracket to the next hour on the next poll beat, never leaves it stale", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(SERVICE_DAY_START + 1.5 * 3600_000));
+      historyByLine.set("line-9", serviceDay());
+      const root = await renderWithClock(makeLine({ id: "line-9" }));
+      expect(textOf(root, "line-row-reports")).toBe("5 reports (2 this hour)");
+
+      // 21:30Z is hour 3, which nobody reported in: the day total is unchanged and the bracket drops
+      // to zero. A label frozen at mount would still claim 2 reports "this hour" an hour later.
+      vi.setSystemTime(new Date(SERVICE_DAY_START + 2.5 * 3600_000));
+      fixture.componentRef.setInput("refreshTick", 1);
+      fixture.detectChanges();
+
+      expect(textOf(root, "line-row-reports")).toBe("5 reports (0 this hour)");
     });
   });
 
-  it("keeps the pro detail and the Line HQ links off a rider row", () => {
-    const root = render(makeLine({ id: "line-7" }));
+  it("fills the pin icon only while the row is pinned", () => {
+    const root = render(makeLine({ id: "line-42" }));
+    const icon = () => root.querySelector('[data-testid="line-row-pin"]')?.querySelector("ng-icon");
+    const pin = root.querySelector<HTMLButtonElement>('[data-testid="line-row-pin"]');
 
-    // A rider has no use for a density or a Line HQ link; drawing them greyed would be noise.
-    expect(root.querySelector('[data-testid="line-row-pro"]')).toBeNull();
-    expect(root.querySelector('[data-testid="line-row-hq"]')).toBeNull();
+    // `aria-pressed` says it to a screen reader; the filled glyph says it to everyone else. An
+    // outline pin about a pinned line is the one misreading this affordance cannot afford.
+    expect(icon()?.getAttribute("class")).not.toContain("fill-current");
+
+    pin?.click();
+    fixture.detectChanges();
+
+    const filled = icon()?.getAttribute("class") ?? "";
+    expect(filled).toContain("fill-current");
+    expect(filled).toContain("size-4");
+
+    pin?.click();
+    fixture.detectChanges();
+    expect(icon()?.getAttribute("class")).not.toContain("fill-current");
   });
 
-  it("adds the report window and both Line HQ links in pro view", () => {
+  it("keeps the pro detail off a rider row, and draws no Line HQ link in any view", () => {
+    const rider = render(makeLine({ id: "line-7" }));
+    expect(rider.querySelector('[data-testid="line-row-pro"]')).toBeNull();
+
+    const pro = render(makeLine({ id: "line-7" }), { viewMode: "pro" });
+    expect(pro.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+    // "Line HQ" is gone from every row surface: Details is the same destination without the second
+    // way in, and two links to one place was a choice with no reason behind it.
+    expect(pro.querySelector('[data-testid="line-row-hq"]')).toBeNull();
+  });
+
+  it("adds the report window and the Details link in pro view", () => {
     const root = render(makeLine({ id: "line-7", statusReportCount: 4, statusWindowMinutes: 15 }), {
       viewMode: "pro",
     });
@@ -445,32 +548,26 @@ describe("LinePulseRowComponent", () => {
     // The count WITH the span it covers: a bare number is what a pro reader is most likely to
     // over-read, and the window is what makes "4 reports" interpretable.
     expect(textOf(root, "line-row-report-window")).toBe("4 reports · 15 min window");
-    expect(root.querySelector('[data-testid="line-row-hq"]')?.getAttribute("href")).toBe(
-      "/spotting/line-7",
-    );
     expect(root.querySelector('[data-testid="line-row-hq-details"]')?.getAttribute("href")).toBe(
       "/spotting/line-7/details",
     );
   });
 
-  it("changes only the row's padding with the density, never what it shows", () => {
-    const comfortable = render(makeLine(), { density: "comfortable", viewMode: "pro" });
-    const comfortableRow = comfortable.querySelector<HTMLElement>('[data-testid="line-row"]');
-    const comfortableHtml = comfortableRow?.innerHTML ?? "";
-    expect(comfortableRow?.className.split(/\s+/)).toContain("p-3");
+  it("pads the row comfortably at every viewport, with no density input to change it", () => {
+    const root = render(makeLine({ id: "line-7" }), { viewMode: "pro" });
+    const row = root.querySelector<HTMLElement>('[data-testid="line-row"]');
+    const classes = row?.className.split(/\s+/) ?? [];
 
-    fixture.componentRef.setInput("density", "compact");
-    fixture.detectChanges();
-    const compactRoot = fixture.nativeElement as HTMLElement;
-    const compactRow = compactRoot.querySelector<HTMLElement>('[data-testid="line-row"]');
-
-    expect(compactRow?.className.split(/\s+/)).toContain("py-2");
-    expect(compactRow?.className.split(/\s+/)).not.toContain("p-3");
-    // Presentation ONLY: every fact and every action is still there.
-    expect(compactRow?.querySelector('[data-testid="line-row-confidence"]')).not.toBeNull();
-    expect(compactRow?.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
-    expect(compactRow?.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
-    expect(compactRow?.innerHTML.length).toBeGreaterThan(comfortableHtml.length / 2);
+    // The density control is gone with it: one padding for every device, and `pl-4` over `p-3`
+    // because the accent rail owns the left edge.
+    expect(classes).toContain("p-3");
+    expect(classes).toContain("pl-4");
+    expect(classes).not.toContain("py-2");
+    expect(classes).not.toContain("pl-3.5");
+    // …and it cost the row nothing: every fact and every action is still there.
+    expect(row?.querySelector('[data-testid="line-row-confidence"]')).not.toBeNull();
+    expect(row?.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
+    expect(row?.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
   });
 
   it("reads a stored pin only after the browser hydration pass, so SSR and first paint agree", () => {

@@ -11,7 +11,6 @@ import {
   MIN_HISTORY_BAR_PERCENT,
   SERVICE_DAY_START_HOUR,
   heatCellClass,
-  heatCellTitle,
   heatIntensityClass,
   heatIntensityStep,
   heatLegendEntries,
@@ -23,6 +22,7 @@ import {
   historySummaryLabel,
   historyTotal,
   busiestBucket,
+  currentServiceBucketIndex,
   reportsPhrase,
   serviceHourLabel,
   serviceHourRangeLabel,
@@ -213,6 +213,55 @@ describe("status-history-display.util: series totals", () => {
   });
 });
 
+describe("status-history-display.util: the current hour", () => {
+  const HOUR_06 = "2026-09-21T22:00:00+00:00";
+  const day = [
+    bucket(2, { hourStart: HOUR_03, hourEnd: HOUR_04 }),
+    bucket(0, { hourStart: HOUR_04, hourEnd: HOUR_05 }),
+    bucket(1, { hourStart: HOUR_05, hourEnd: HOUR_06 }),
+  ];
+
+  it("finds the bucket a mid-hour instant belongs to", () => {
+    expect(currentServiceBucketIndex(day, new Date("2026-09-21T19:30:00+00:00"))).toBe(0);
+    expect(currentServiceBucketIndex(day, new Date("2026-09-21T20:30:00+00:00"))).toBe(1);
+    expect(currentServiceBucketIndex(day, new Date("2026-09-21T21:30:00+00:00"))).toBe(2);
+  });
+
+  it("matches an instant exactly at an hour's start, including the empty hour", () => {
+    // The window is [start, end), so an hour nobody reported is still the current hour — the row
+    // label must read "0 this hour" rather than lose the hour altogether.
+    expect(currentServiceBucketIndex(day, new Date(HOUR_03))).toBe(0);
+    expect(currentServiceBucketIndex(day, new Date(HOUR_04))).toBe(1);
+    expect(currentServiceBucketIndex(day, new Date(HOUR_05))).toBe(2);
+  });
+
+  it("gives the seam instant to the LATER hour, because the window is half-open", () => {
+    // Adjacent buckets share an instant: hour 4's start IS hour 3's end. A closed test would light
+    // hour 3 at 04:00 and call the hour that just ended the current one.
+    expect(currentServiceBucketIndex(day, new Date(HOUR_04))).not.toBe(0);
+    expect(currentServiceBucketIndex(day, new Date(HOUR_05))).not.toBe(1);
+  });
+
+  it("answers -1 outside the series rather than clamping to an edge", () => {
+    // No bucket means no current hour: an empty series, the day before the first bucket, and the
+    // last bucket's own end — which belongs to tomorrow's first bucket, not this one.
+    expect(currentServiceBucketIndex([], new Date(HOUR_03))).toBe(-1);
+    expect(currentServiceBucketIndex(day, new Date("2026-09-21T18:59:59+00:00"))).toBe(-1);
+    expect(currentServiceBucketIndex(day, new Date(HOUR_06))).toBe(-1);
+    expect(currentServiceBucketIndex(day, new Date("2026-09-22T02:00:00+00:00"))).toBe(-1);
+  });
+
+  it("answers -1 for an unparseable instant rather than throwing while rendering", () => {
+    const malformed = [
+      bucket(2, { hourStart: "not-an-instant", hourEnd: HOUR_04 }),
+      bucket(1, { hourStart: HOUR_05, hourEnd: HOUR_06 }),
+    ];
+    expect(currentServiceBucketIndex(malformed, new Date(HOUR_05))).toBe(1);
+    expect(currentServiceBucketIndex(malformed, new Date("nonsense"))).toBe(-1);
+    expect(currentServiceBucketIndex(day, new Date("nonsense"))).toBe(-1);
+  });
+});
+
 describe("status-history-display.util: the heat grid's two dimensions", () => {
   it("gives a zero cell the muted track and no opacity at all", () => {
     // "No reports" and "one report" must never look the same, so the empty cell is not a faint tint.
@@ -243,18 +292,6 @@ describe("status-history-display.util: the heat grid's two dimensions", () => {
     expect(heatIntensityClass(0)).toBe("");
   });
 
-  it("names a cell with its line, its hour, its total and its tally", () => {
-    expect(
-      heatCellTitle(
-        "KJL",
-        bucket(2, {
-          dominantStatus: "DELAYED",
-          statusCounts: [{ status: "DELAYED", count: 2 }],
-        }),
-      ),
-    ).toBe("KJL · 03:00–04:00 · 2 reports · Delayed 2");
-  });
-
   it("lists the legend in the backend's own severity order", () => {
     expect(heatLegendEntries().map((entry) => entry.status)).toEqual(PASSENGER_SCALE);
   });
@@ -280,16 +317,17 @@ describe("status-history-display.util: the published constants", () => {
 
   it("resolves the service-day tokens inside the history definitions", () => {
     // The rendered sentences must name the SAME window the code labels — the sparkline's copy
-    // states both endpoints of it, the row strip's reuses the sparkline's rather than restating the
-    // start hour a second time.
+    // states both endpoints of it, the row label's restates the start hour because the label is
+    // read on its own rather than beside the sparkline.
     const sparkline = renderMethodologyCopy(metricDoc("network.activity-sparkline").definition);
     expect(sparkline).not.toContain("{{");
     expect(sparkline).toContain(`${SERVICE_DAY_START_HOUR}:00`);
     expect(sparkline).toContain(String(HISTORY_BUCKETS_PER_DAY));
 
-    const strip = renderMethodologyCopy(metricDoc("network.line-history-strip").definition);
-    expect(strip).not.toContain("{{");
-    expect(strip).toContain(String(HISTORY_BUCKETS_PER_DAY));
+    const rowLabel = renderMethodologyCopy(metricDoc("network.line-reports-summary").definition);
+    expect(rowLabel).not.toContain("{{");
+    expect(rowLabel).toContain(`${SERVICE_DAY_START_HOUR}:00`);
+    expect(rowLabel).toContain(String(HISTORY_BUCKETS_PER_DAY));
   });
 
   it("resolves the intensity-ladder token in the heat grid's own definition", () => {

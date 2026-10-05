@@ -37,7 +37,7 @@ describe("PreferencesService", () => {
     it("starts on the defaults and reports itself unhydrated", () => {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ pinnedLineIds: ["line-9"], viewMode: "pro", density: "compact" }),
+        JSON.stringify({ pinnedLineIds: ["line-9"], viewMode: "pro" }),
       );
 
       const service = configure();
@@ -45,7 +45,6 @@ describe("PreferencesService", () => {
       expect(service.hydrated()).toBe(false);
       expect(service.pinnedLineIds()).toEqual([]);
       expect(service.viewMode()).toBe("rider");
-      expect(service.density()).toBe("comfortable");
       expect(service.lastReportedLineId()).toBeNull();
       expect(service.recentLineIds()).toEqual([]);
     });
@@ -56,7 +55,6 @@ describe("PreferencesService", () => {
         JSON.stringify({
           pinnedLineIds: ["line-9", "line-3"],
           viewMode: "pro",
-          density: "compact",
           lastReportedLineId: "line-3",
           recentLineIds: ["line-3"],
         }),
@@ -68,7 +66,6 @@ describe("PreferencesService", () => {
       expect(service.hydrated()).toBe(true);
       expect(service.pinnedLineIds()).toEqual(["line-9", "line-3"]);
       expect(service.viewMode()).toBe("pro");
-      expect(service.density()).toBe("compact");
       expect(service.lastReportedLineId()).toBe("line-3");
       expect(service.recentLineIds()).toEqual(["line-3"]);
     });
@@ -79,7 +76,6 @@ describe("PreferencesService", () => {
 
       service.togglePin("line-1");
       service.setViewMode("pro");
-      service.setDensity("compact");
       service.setLastReportedLine("line-2");
       service.pushRecentLine("line-2");
       hydrate();
@@ -90,7 +86,6 @@ describe("PreferencesService", () => {
 
       expect(reloaded.pinnedLineIds()).toEqual(["line-1"]);
       expect(reloaded.viewMode()).toBe("pro");
-      expect(reloaded.density()).toBe("compact");
       expect(reloaded.lastReportedLineId()).toBe("line-2");
       expect(reloaded.recentLineIds()).toEqual(["line-2"]);
     });
@@ -139,8 +134,9 @@ describe("PreferencesService", () => {
       const service = configure();
       hydrate();
 
-      expect(service.density()).toBe("comfortable");
+      expect(service.viewMode()).toBe("rider");
       expect(service.lastReportedLineId()).toBeNull();
+      expect(service.recentLineIds()).toEqual([]);
     });
 
     it("keeps the fields it recognises and defaults only the invalid ones", () => {
@@ -149,7 +145,6 @@ describe("PreferencesService", () => {
         JSON.stringify({
           pinnedLineIds: ["line-2"],
           viewMode: "SUPERUSER",
-          density: "compact",
           lastReportedLineId: 42,
         }),
       );
@@ -160,7 +155,6 @@ describe("PreferencesService", () => {
       // A half-recognisable payload is the COMMON case (an older deploy wrote fewer keys), so the
       // recognised fields must survive rather than the whole object being discarded.
       expect(service.pinnedLineIds()).toEqual(["line-2"]);
-      expect(service.density()).toBe("compact");
       expect(service.viewMode()).toBe("rider");
       expect(service.lastReportedLineId()).toBeNull();
     });
@@ -231,7 +225,6 @@ describe("PreferencesService", () => {
 
       service.togglePin("line-1");
       service.setViewMode("pro");
-      service.setDensity("compact");
       service.setLastReportedLine("line-1");
       service.pushRecentLine("line-1");
 
@@ -240,13 +233,12 @@ describe("PreferencesService", () => {
       expect(service.snapshot()).toEqual({
         pinnedLineIds: [],
         viewMode: "rider",
-        density: "comfortable",
         lastReportedLineId: null,
         recentLineIds: [],
       });
     });
 
-    it("ignores an unknown view mode or density rather than storing it", () => {
+    it("ignores an unknown view mode rather than storing it", () => {
       const service = configure();
       hydrate();
 
@@ -254,10 +246,8 @@ describe("PreferencesService", () => {
       // (a URL param, a CMS field). It must degrade to the default, not land in a signal that no
       // template branch handles.
       service.setViewMode("poweruser" as "pro");
-      service.setDensity("roomy" as "compact");
 
       expect(service.viewMode()).toBe("rider");
-      expect(service.density()).toBe("comfortable");
     });
   });
 

@@ -23,7 +23,6 @@ import { HomeStore } from "../data/home.store";
 import { HomeViewModeService } from "../data/home-view-mode.service";
 import { ProFeedWidgetComponent } from "./pro-feed-widget.component";
 import { ProIncidentsWidgetComponent } from "./pro-incidents-widget.component";
-import { ProLineHqWidgetComponent } from "./pro-line-hq-widget.component";
 import { ProLinesWidgetComponent } from "./pro-lines-widget.component";
 import { ProOfficialWidgetComponent } from "./pro-official-widget";
 import { ProReportRankingComponent } from "./pro-report-ranking.component";
@@ -61,13 +60,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * a rider submit a link, file a status report or log a sighting through exactly the same code — a
  * second submission path is the one thing a "mode" must never grow.
  *
- * **The seven cells, and why each is where it is.** Three ROWS, sized by how tall the answer is
+ * **The six cells, and why each is where it is.** Three ROWS, sized by how tall the answer is
  * rather than by how important it is. The board is the largest and takes the wide left column
  * because it is what a Pro reader opened this for; the community feed — the other tall surface, and
  * the other half of the question — sits beside it, so the two columns end at roughly the same height
  * instead of one rail stranding it at the bottom of a dead zone. The heat grid then takes the FULL
  * width on its own row, because it is 24 columns of one-pixel cells and anything narrower makes the
- * hour axis unreadable. The four supporting surfaces (ranking, incidents, official notices, Line HQ)
+ * hour axis unreadable. The three supporting surfaces (ranking, incidents, official notices)
  * tile in a responsive grid beneath: they are reference panels a reader scrolls to, each owns its own
  * read and its own failure state, and a tile flow lets two of them hide themselves without leaving a
  * ragged column behind. Each widget owns its own loading and failure state, and none of them can take
@@ -105,7 +104,6 @@ function isTypingTarget(target: EventTarget | null): boolean {
     NetworkHeatStripComponent,
     ProFeedWidgetComponent,
     ProIncidentsWidgetComponent,
-    ProLineHqWidgetComponent,
     ProLinesWidgetComponent,
     ProOfficialWidgetComponent,
     ProReportRankingComponent,
@@ -171,7 +169,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
            gutter; inside a 2fr rail the hour axis was unreadable, and it is the one cell whose answer is
            inherently two-dimensional, so it wants every pixel of the page.
 
-           Row C tiles the four supporting panels instead of stacking them in a narrow rail. Two of them
+           Row C tiles the three supporting panels instead of stacking them in a narrow rail. Two of them
            (incidents, ranking) hide themselves on an empty or failed read, and in a tile flow that just closes
            the gap — items-start stops the survivors stretching down to match it. -->
       <div class="flex flex-col gap-4" data-testid="pro-bento">
@@ -191,14 +189,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
         </section>
 
         <div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <!-- 🔴 Order is the reading order, not a claim about priority. All four are reference panels a reader
+          <!-- 🔴 Order is the reading order, not a claim about priority. All three are reference panels a reader
                scrolls to rather than a list they work through, and each owns its own read and its own failure
                state — the archive is a lazy read of its own, the ranking is a third VIEW of the heat grid's
                buckets — so none can take the page down or hold the refresh control open. -->
           <app-pro-incidents-widget />
           <app-pro-report-ranking />
           <app-pro-official-widget />
-          <app-pro-line-hq-widget />
         </div>
       </div>
     </div>

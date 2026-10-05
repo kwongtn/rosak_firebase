@@ -346,6 +346,17 @@ describe("NetworkBoardComponent", () => {
     expect(codesIn(root, "mine")).toEqual(["A"]);
   });
 
+  it("separates the two lower groups from whatever they follow", async () => {
+    // Without a divider a group heading reads as a caption of the cards ABOVE it, and the reader
+    // loses track of where one group ends and the next begins.
+    const root = await board([makeLine("a"), makeLine("b")], { pinned: ["a"] });
+    for (const group of ["line-board-mine", "line-board-all"]) {
+      const section = root.querySelector<HTMLElement>(`[data-testid="${group}"]`);
+      expect(section?.classList.contains("border-t")).toBe(true);
+      expect(section?.className.split(/\s+/)).toContain("pt-4");
+    }
+  });
+
   /* ---- the controls ---------------------------------------------------------------- */
 
   it("marks the active sort with aria-pressed, and toggles it through the store", async () => {
@@ -381,7 +392,7 @@ describe("NetworkBoardComponent", () => {
   it("draws every control in the row with a visible focus ring", async () => {
     const root = await board([makeLine("a")]);
 
-    // These six are plain buttons under a shared track, not hlmBtn — the primitive's focus-visible
+    // These four are plain buttons under a shared track, not hlmBtn — the primitive's focus-visible
     // ring does not come with them, so the board has to bring its own. A control a keyboard reader
     // cannot see is not reachable in any sense that matters.
     const controls = [
@@ -450,34 +461,14 @@ describe("NetworkBoardComponent", () => {
     }
   });
 
-  it("keeps the density control to pro readers, and writes it to the preference only", async () => {
-    const root = await board([makeLine("a")]);
-    expect(root.querySelector('[data-testid="board-density-compact"]')).toBeNull();
-
-    root.querySelector<HTMLElement>('[data-testid="board-view-pro"]')?.click();
-    fixture.detectChanges();
-    expect(root.querySelector('[data-testid="board-density-comfortable"]')).not.toBeNull();
-
-    navigate.mockClear();
-    root.querySelector<HTMLElement>('[data-testid="board-density-compact"]')?.click();
-    fixture.detectChanges();
-
-    expect(preferences.density()).toBe("compact");
-    // Density is a per-device reading habit, never something a shared link should impose.
-    expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it("forwards the density and the view to the compact rows it renders", async () => {
+  it("forwards the view to the compact rows it renders", async () => {
     const root = await board([makeLine("a")], { pinned: ["a"] });
 
     root.querySelector<HTMLElement>('[data-testid="board-view-pro"]')?.click();
     fixture.detectChanges();
-    root.querySelector<HTMLElement>('[data-testid="board-density-compact"]')?.click();
-    fixture.detectChanges();
 
     const rows = fixture.debugElement.queryAll(By.directive(LinePulseRowComponent));
     expect(rows).toHaveLength(1);
-    expect((rows[0].componentInstance as LinePulseRowComponent).density()).toBe("compact");
     expect((rows[0].componentInstance as LinePulseRowComponent).viewMode()).toBe("pro");
     expect(root.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
   });
@@ -516,17 +507,12 @@ describe("NetworkBoardComponent", () => {
     expect(root.querySelector('[data-testid="board-view-pro"]')?.getAttribute("aria-pressed")).toBe(
       "true",
     );
-    // The URL wins, so the pro-only density control is available on a shared link.
-    expect(root.querySelector('[data-testid="board-density-comfortable"]')).not.toBeNull();
-    // And it reached the rows, not just the control.
+    // The URL wins for the whole row, not just the pressed button…
     expect(root.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
   });
 
   it("falls back to the stored preference when the URL carries no view", async () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ pinnedLineIds: [], viewMode: "pro", density: "comfortable" }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: [], viewMode: "pro" }));
     const root = await board([makeLine("a")]);
     fixture.detectChanges();
 
@@ -537,10 +523,7 @@ describe("NetworkBoardComponent", () => {
   });
 
   it("mirrors a stored pro view into the URL, so the address bar is always shareable", async () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ pinnedLineIds: [], viewMode: "pro", density: "comfortable" }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: [], viewMode: "pro" }));
     await board([makeLine("a")]);
 
     const patch = navigate.mock.calls.at(-1)?.[1]?.queryParams as Record<string, unknown>;
@@ -559,10 +542,7 @@ describe("NetworkBoardComponent", () => {
   });
 
   it("degrades an unrecognised URL value to the shared default rather than the preference", async () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ pinnedLineIds: [], viewMode: "pro", density: "comfortable" }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: [], viewMode: "pro" }));
     const root = await board([makeLine("a")]);
     await gotoUrl("/?view=wizard");
 

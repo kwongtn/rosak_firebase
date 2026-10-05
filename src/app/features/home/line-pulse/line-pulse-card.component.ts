@@ -1,6 +1,6 @@
 import { Component, ElementRef, computed, inject, input, signal } from "@angular/core";
 import { NgIcon, provideIcons } from "@ng-icons/core";
-import { lucideEllipsisVertical, lucideExternalLink, lucidePin } from "@ng-icons/lucide";
+import { lucideEllipsisVertical, lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
 import {
   metricDoc,
@@ -37,13 +37,14 @@ const MAX_PULSE_LINKS = 5;
  * (vehicle counts + passenger status + the social entries behind it) plus the actions that keep
  * the data fresh and the ones that take the reader elsewhere.
  *
- * **Action hierarchy (deliberate).** Two buttons, one primary and one secondary: "Report status"
- * (the thing this card exists for — the mobile `LineStatusSheetComponent` via
+ * **Action hierarchy (deliberate).** Two reporting buttons, one primary and one secondary:
+ * "Report status" (the thing this card exists for — the mobile `LineStatusSheetComponent` via
  * `LineStatusSheetService`) and "Log spotting" (`ReportSheetService`, whose sheet the home page
- * hosts). Everything else — pin, and the two links out to the spotting feature — moved INTO the
- * kebab. That is the whole point of the change: a card whose two most prominent buttons were
- * equally weighted asked the reader to choose between two things, one of which matters far more
- * than the other, and put "navigate away from the board" at the same level as "tell us something".
+ * hosts), plus a "Details" link out to the line's details page that reads left of them so the
+ * primary action stays right-most and last. The kebab keeps only pin — moving the links in there
+ * was the point: a card whose two most prominent buttons were equally weighted asked the reader to
+ * choose between two things, one of which matters far more than the other, and put "navigate away
+ * from the board" at the same level as "tell us something".
  *
  * The kebab is built inline rather than from a shared primitive because `src/app/ui/` has no
  * dropdown/menu today; it follows the same contract `app-info-popover` established (Escape and
@@ -77,7 +78,7 @@ const MAX_PULSE_LINKS = 5;
     LineStatusReportsComponent,
     StatusInfoChipComponent,
   ],
-  providers: [provideIcons({ lucideEllipsisVertical, lucideExternalLink, lucidePin })],
+  providers: [provideIcons({ lucideEllipsisVertical, lucidePin })],
   host: {
     "(document:keydown.escape)": "closeMenu()",
     "(document:click)": "onDocumentClick($event)",
@@ -219,6 +220,16 @@ const MAX_PULSE_LINKS = 5;
 
         <div class="flex items-start gap-2 sm:shrink-0">
           <div class="flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row">
+            <a
+              hlmBtn
+              size="sm"
+              variant="outline"
+              [routerLink]="['/spotting', line().id, 'details']"
+              data-testid="line-card-details"
+              class="w-full sm:w-auto"
+            >
+              Details
+            </a>
             <button
               hlmBtn
               size="sm"
@@ -240,8 +251,8 @@ const MAX_PULSE_LINKS = 5;
             </button>
           </div>
 
-          <!-- Everything that is not one of the two reporting actions lives here, so the card's
-               visible buttons keep a single reading order: report, then log, then everything else. -->
+          <!-- Everything that is not one of the visible row actions lives here, so the card's
+               visible controls keep a single reading order: details, report, log, then the rest. -->
           <div class="relative">
             <button
               hlmBtn
@@ -273,26 +284,6 @@ const MAX_PULSE_LINKS = 5;
                   <ng-icon name="lucidePin" class="size-4 shrink-0" aria-hidden="true" />
                   {{ _isPinned() ? "Unpin this line" : "Pin this line" }}
                 </button>
-                <a
-                  role="menuitem"
-                  class="hover:bg-muted focus-visible:ring-ring/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
-                  [routerLink]="['/spotting', line().id]"
-                  data-testid="line-card-hq"
-                  (click)="closeMenu()"
-                >
-                  <ng-icon name="lucideExternalLink" class="size-4 shrink-0" aria-hidden="true" />
-                  Line HQ
-                </a>
-                <a
-                  role="menuitem"
-                  class="hover:bg-muted focus-visible:ring-ring/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
-                  [routerLink]="['/spotting', line().id, 'details']"
-                  data-testid="line-card-hq-details"
-                  (click)="closeMenu()"
-                >
-                  <ng-icon name="lucideExternalLink" class="size-4 shrink-0" aria-hidden="true" />
-                  Line details
-                </a>
               </div>
             }
           </div>

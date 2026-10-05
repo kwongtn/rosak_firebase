@@ -30,9 +30,9 @@ export interface MethodologyConstant {
  * corroboration threshold — the smallest number that means "several people, independently" — and
  * not a measurement of anything.
  *
- * The three history constants came with the service-day history widgets (`features/home/data/
+ * The three history constants came with the service-day history surfaces (`features/home/data/
  * status-history-display.util.ts`, published as `network.activity-sparkline`, `network.heat-strip`
- * and `network.line-history-strip`). All three MIRROR backend values rather than invent thresholds:
+ * and `network.line-reports-summary`). All three MIRROR backend values rather than invent thresholds:
  * the service day starts at hour `SERVICE_DAY_START_HOUR` and the backend zero-fills
  * `SERVICE_DAY_HOURS` buckets from there, and the heat grid's opacity ladder has
  * `HEAT_INTENSITY_STEPS` steps. They are here so a widget's label and its `/methodology` sentence

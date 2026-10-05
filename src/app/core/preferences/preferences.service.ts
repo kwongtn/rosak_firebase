@@ -4,14 +4,10 @@ import { Injectable, PLATFORM_ID, afterNextRender, effect, inject, signal } from
 /** Who the board is tuned for: a quick glance (rider) or a dense operational view (pro). */
 export type PreferencesViewMode = "rider" | "pro";
 
-/** How tightly rows are packed. Presentation only — it never changes what is counted. */
-export type PreferencesDensity = "comfortable" | "compact";
-
 /** The whole persisted shape. Versioned by the storage key, never by the field names. */
 export interface Preferences {
   pinnedLineIds: string[];
   viewMode: PreferencesViewMode;
-  density: PreferencesDensity;
   lastReportedLineId: string | null;
   recentLineIds: string[];
 }
@@ -27,12 +23,10 @@ const STORAGE_KEY = "rosak:preferences:v1";
 export const MAX_RECENT_LINES = 5;
 
 const VIEW_MODES: readonly PreferencesViewMode[] = ["rider", "pro"];
-const DENSITIES: readonly PreferencesDensity[] = ["comfortable", "compact"];
 
 const DEFAULT_PREFERENCES: Preferences = {
   pinnedLineIds: [],
   viewMode: "rider",
-  density: "comfortable",
   lastReportedLineId: null,
   recentLineIds: [],
 };
@@ -41,7 +35,6 @@ function defaults(): Preferences {
   return {
     pinnedLineIds: [],
     viewMode: DEFAULT_PREFERENCES.viewMode,
-    density: DEFAULT_PREFERENCES.density,
     lastReportedLineId: null,
     recentLineIds: [],
   };
@@ -86,6 +79,8 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
  * half-recognisable (an older deploy wrote two of the four keys) is the common case, not an
  * edge case: dropping the whole object would silently unpin a rider's lines because one unrelated
  * key changed shape. A `JSON.parse` failure and a non-object payload both land on the defaults.
+ * Keys this shape no longer has — a stale `density` — are simply unread, which is why nothing here
+ * migrates them: the storage key is versioned, so an orphaned field needs no repair.
  */
 export function parseStoredPreferences(raw: string | null | undefined): Preferences {
   const base = defaults();
@@ -104,7 +99,6 @@ export function parseStoredPreferences(raw: string | null | undefined): Preferen
   return {
     pinnedLineIds: toIdList(parsed["pinnedLineIds"], null),
     viewMode: oneOf(parsed["viewMode"], VIEW_MODES, base.viewMode),
-    density: oneOf(parsed["density"], DENSITIES, base.density),
     lastReportedLineId:
       typeof parsed["lastReportedLineId"] === "string" && parsed["lastReportedLineId"] !== ""
         ? parsed["lastReportedLineId"]
@@ -114,7 +108,7 @@ export function parseStoredPreferences(raw: string | null | undefined): Preferen
 }
 
 /**
- * Reader-owned display preferences for the network board, persisted in `localStorage`.
+ * Reader-owned board display preferences, persisted in `localStorage`.
  *
  * Modelled on `ThemeService` (the repo's only other storage-backed signal service), with ONE
  * deliberate difference that SSR makes mandatory: the constructor **never reads storage**. It
@@ -133,7 +127,6 @@ export class PreferencesService {
 
   private readonly _pinnedLineIds = signal<string[]>([]);
   private readonly _viewMode = signal<PreferencesViewMode>(DEFAULT_PREFERENCES.viewMode);
-  private readonly _density = signal<PreferencesDensity>(DEFAULT_PREFERENCES.density);
   private readonly _lastReportedLineId = signal<string | null>(null);
   private readonly _recentLineIds = signal<string[]>([]);
 
@@ -145,7 +138,6 @@ export class PreferencesService {
 
   readonly pinnedLineIds = this._pinnedLineIds.asReadonly();
   readonly viewMode = this._viewMode.asReadonly();
-  readonly density = this._density.asReadonly();
   readonly lastReportedLineId = this._lastReportedLineId.asReadonly();
   readonly recentLineIds = this._recentLineIds.asReadonly();
   readonly hydrated = this._hydrated.asReadonly();
@@ -160,7 +152,6 @@ export class PreferencesService {
     return {
       pinnedLineIds: this._pinnedLineIds(),
       viewMode: this._viewMode(),
-      density: this._density(),
       lastReportedLineId: this._lastReportedLineId(),
       recentLineIds: this._recentLineIds(),
     };
@@ -175,7 +166,6 @@ export class PreferencesService {
       const stored = parseStoredPreferences(localStorage.getItem(STORAGE_KEY));
       this._pinnedLineIds.set(stored.pinnedLineIds);
       this._viewMode.set(stored.viewMode);
-      this._density.set(stored.density);
       this._lastReportedLineId.set(stored.lastReportedLineId);
       this._recentLineIds.set(stored.recentLineIds);
       this._hydrated.set(true);
@@ -205,10 +195,6 @@ export class PreferencesService {
     this._viewMode.set(oneOf(mode, VIEW_MODES, DEFAULT_PREFERENCES.viewMode));
   }
 
-  setDensity(density: PreferencesDensity): void {
-    this._density.set(oneOf(density, DENSITIES, DEFAULT_PREFERENCES.density));
-  }
-
   setLastReportedLine(lineId: string | null): void {
     this._lastReportedLineId.set(lineId === null || lineId === "" ? null : lineId);
   }
@@ -228,7 +214,6 @@ export class PreferencesService {
     const fresh = defaults();
     this._pinnedLineIds.set(fresh.pinnedLineIds);
     this._viewMode.set(fresh.viewMode);
-    this._density.set(fresh.density);
     this._lastReportedLineId.set(fresh.lastReportedLineId);
     this._recentLineIds.set(fresh.recentLineIds);
   }

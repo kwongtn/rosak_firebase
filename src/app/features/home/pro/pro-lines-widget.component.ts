@@ -36,11 +36,11 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
  * The Pro dashboard's LINES widget: the same `app-network-board`, three Pro-only filters above it, and
  * a CSV export of what those filters are currently showing.
  *
- * 🔴 **The board is REUSED, not reimplemented.** Every row, group, sort, density toggle, anchor and
- * highlight rule under this widget is the component the Rider page mounts — one partition, one
- * confidence chip, one set of history strips. A Pro-specific copy of the board would be a SECOND
- * answer to "which lines need attention", and the two would drift the moment either gained a rule.
- * The only thing this widget owns is what surrounds the board.
+ * 🔴 **The board is REUSED, not reimplemented.** Every row, group, sort, anchor and highlight rule
+ * under this widget is the component the Rider page mounts — one partition, one confidence chip, one
+ * set of history strips. A Pro-specific copy of the board would be a SECOND answer to "which lines
+ * need attention", and the two would drift the moment either gained a rule. The only thing this
+ * widget owns is what surrounds the board.
  *
  * `embedHeatStrip` is turned off here because the dashboard gives the heat grid its own bento cell;
  * rendering it inside the board too would draw the grid twice and duplicate its testid.
@@ -61,7 +61,7 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
  * `HomeStore.visibleLines()` the board is drawing, so a reader who narrowed the board gets a file of
  * that subset; a hidden line appearing in the CSV would be a file describing a network the reader is
  * not looking at. The service-day history comes from `linesHistoryFor()` — the ONE
- * `linesStatusHistory` request the row strips and the heat grid already share — so exporting costs no
+ * `linesStatusHistory` request the board rows and the heat grid already share — so exporting costs no
  * new request. An empty result still produces a header-only CSV; see `core/export/csv.util.ts`.
  */
 @Component({

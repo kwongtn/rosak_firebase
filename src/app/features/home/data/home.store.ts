@@ -336,7 +336,7 @@ export class HomeStore {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /**
-   * Reader-owned display state (which lines are pinned, which view/density the reader chose).
+   * Reader-owned display state (which lines are pinned, which view the reader chose).
    *
    * Root-provided, so it deliberately OUTLIVES this route-scoped store — a pin survives navigating
    * away from `/` and back, which is the whole point of persisting it. Nothing about it is read at
@@ -525,7 +525,8 @@ export class HomeStore {
   );
 
   /**
-   * Every line's hour buckets in ONE request, behind the board's strips and the Pro heat grid.
+   * Every line's hour buckets in ONE request, behind the board rows' report labels and the Pro
+   * heat grid.
    *
    * Inert while there are no lines. `.sort()` with no comparator rather than `localeCompare`, on
    * purpose: this array must be byte-identical in every process that builds it, and a locale
@@ -557,7 +558,7 @@ export class HomeStore {
   readonly networkHistoryFailed = this.networkHistoryResource.hasError;
 
   /**
-   * Every line's buckets, keyed by line id, for the row strips and the Pro heat grid.
+   * Every line's buckets, keyed by line id, for the board rows' report labels and the Pro heat grid.
    *
    * A MAP rather than an array lookup per widget because there is one of these per rendered row and
    * one per grid row: sixteen rows each scanning sixteen entries is a linear scan nobody can see
@@ -574,7 +575,8 @@ export class HomeStore {
   });
 
   /**
-   * One line's hourly buckets for its row strip, or `[]` when nothing has landed for it.
+   * One line's hourly buckets for its row's report label and the heat grid, or `[]` when nothing has
+   * landed for it.
    *
    * A method rather than a `computed()` per row because a component would then need a factory or a
    * prebuilt list; reading a `Map` is already O(1) and the caller is a template binding.

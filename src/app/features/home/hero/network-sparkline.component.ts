@@ -40,9 +40,9 @@ interface SparkBar {
  *
  * 🔴 **This is a NETWORK aggregate, and the label says so.** `networkStatusHistory` tallies every
  * line's reports into each hour, so a tall amber bar means "the network was busy", never "this line
- * was busy". Per-line readings come from `linesStatusHistory` behind the board's strips instead —
- * drawing the aggregate under a single line's name would silently attribute other lines' reports to
- * it, which is the one thing a status widget must never do.
+ * was busy". Per-line readings come from `linesStatusHistory` behind the board rows' report labels
+ * instead — drawing the aggregate under a single line's name would silently attribute other lines'
+ * reports to it, which is the one thing a status widget must never do.
  *
  * It reads `HomeStore.networkHistory()` and adds **no request of its own** — the store owns the lazy
  * read, exactly as it owns the feed's windows.

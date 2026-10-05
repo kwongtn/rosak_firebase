@@ -3,11 +3,7 @@ import { Component, PLATFORM_ID, computed, effect, inject, input } from "@angula
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
-import {
-  PreferencesDensity,
-  PreferencesService,
-  PreferencesViewMode,
-} from "../../../core/preferences/preferences.service";
+import { PreferencesViewMode } from "../../../core/preferences/preferences.service";
 import {
   queryParamForWrite,
   readEnumQueryParam,
@@ -23,8 +19,6 @@ import { LinePulseRowComponent } from "./line-pulse-row.component";
 
 /** Matches the typical above-the-fold line count, so the first paint doesn't jump. */
 const SKELETON_ROWS = 3;
-
-const BOARD_DENSITIES: readonly PreferencesDensity[] = ["comfortable", "compact"];
 
 /** The URL param names. Named once so the read and write halves cannot drift. `?view=` is NOT one
  *  of them any more — it belongs to {@link HomeViewModeService}, which the whole page (not just this
@@ -42,13 +36,13 @@ const SORT_PARAM = "sort";
  * hidden, and a pinned-but-broken line stays at the top instead of also appearing under "My lines".
  *
  * The controls row is deliberately small and all state is owned elsewhere — the sort lives in the
- * store (and the URL), the view in `HomeViewModeService` and the density in `PreferencesService` —
- * because this component composes, it does not decide.
+ * store (and the URL) and the view in `HomeViewModeService` — because this component composes, it
+ * does not decide.
  *
  * **URL state.** `?sort=` is read from `route.queryParamMap` (seeded from the route SNAPSHOT, so the
  * server render and the client hydration read the same value) and mirrored back through the shared
  * `writeQueryParams`, which is browser-gated because a reactive `router.navigate()` during SSR hangs
- * the render. Three rules, all inherited from the helpers rather than re-derived:
+ * the render. Two rules, all inherited from the helpers rather than re-derived:
  *
  *  - **A default never appears in the URL.** `sort=severity` is written as `null`, so "no query
  *    params" and "the default sort" are one state and a plain page load carries no parameters it
@@ -56,8 +50,6 @@ const SORT_PARAM = "sort";
  *  - **The URL wins over the stored state.** A param that is present but unrecognisable degrades to
  *    the DEFAULT rather than to whatever the store happened to hold, matching how the rest of the app
  *    treats a bad query value.
- *  - **Density is preference-only.** It is a per-device reading habit, not something a shared link
- *    should impose, so it never reaches the URL.
  *
  * The write half runs in an `effect` (so a deep link, a browser back/forward and a toggle all land
  * in the same place) and is guarded against redundant navigation: if the URL already says what the
@@ -79,10 +71,10 @@ const SORT_PARAM = "sort";
  * ring VISIBLE with no transition under `prefers-reduced-motion`, which is what a reader who asked
  * for less motion still needs — the information, not the flourish.
  *
- * **Focus visibility on the controls row.** The six segmented buttons (sort / view / density) are
- * plain `<button>`s rather than `hlmBtn`, because a segmented group of three needs a shared track
- * and the button primitive's own border and padding are the wrong shape for it. That means the
- * primitive's `focus-visible` ring does not come with them, so all three groups carry it explicitly:
+ * **Focus visibility on the controls row.** The four segmented buttons (sort / view) are plain
+ * `<button>`s rather than `hlmBtn`, because a segmented group needs a shared track and the button
+ * primitive's own border and padding are the wrong shape for it. That means the primitive's
+ * `focus-visible` ring does not come with them, so both groups carry it explicitly:
  * a control a keyboard reader cannot see is not reachable in any sense that matters.
  */
 @Component({
@@ -144,29 +136,6 @@ const SORT_PARAM = "sort";
                 </button>
               }
             </div>
-
-            <!-- Pro-only: a rider has no use for a density control, so it does not exist for them
-                 rather than sitting disabled. -->
-            @if (_view() === "pro") {
-              <div
-                class="bg-muted/40 flex items-center gap-0.5 rounded-lg p-0.5"
-                role="group"
-                aria-label="Row density"
-              >
-                @for (option of _densityOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
-                    [class.bg-background]="_density() === option.value"
-                    [attr.aria-pressed]="_density() === option.value"
-                    [attr.data-testid]="'board-density-' + option.value"
-                    (click)="setDensity(option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-              </div>
-            }
           </div>
         </div>
 
@@ -223,7 +192,13 @@ const SORT_PARAM = "sort";
 
         <!-- "My lines" always draws, because an empty pin list is an INVITATION to pin rather than a
              gap in the page. The hint is the whole content of that state. -->
-        <section class="flex flex-col gap-2" data-testid="line-board-mine">
+        <!-- A divider plus its own top padding, so the two lower groups do not read as a
+             continuation of the cards ABOVE them. The attention group needs none: it already sits
+             under the controls row's bottom border. -->
+        <section
+          class="border-border flex flex-col gap-2 border-t pt-4"
+          data-testid="line-board-mine"
+        >
           <h2
             class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
             data-testid="line-board-mine-heading"
@@ -246,7 +221,6 @@ const SORT_PARAM = "sort";
                   <app-line-pulse-row
                     [line]="line"
                     [refreshTick]="_refreshTick()"
-                    [density]="_density()"
                     [viewMode]="_view()"
                   />
                 </div>
@@ -260,7 +234,10 @@ const SORT_PARAM = "sort";
         </section>
 
         @if (_all().length > 0) {
-          <section class="flex flex-col gap-2" data-testid="line-board-all">
+          <section
+            class="border-border flex flex-col gap-2 border-t pt-4"
+            data-testid="line-board-all"
+          >
             <h2
               class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
               data-testid="line-board-all-heading"
@@ -282,7 +259,6 @@ const SORT_PARAM = "sort";
                   <app-line-pulse-row
                     [line]="line"
                     [refreshTick]="_refreshTick()"
-                    [density]="_density()"
                     [viewMode]="_view()"
                   />
                 </div>
@@ -307,13 +283,12 @@ export class NetworkBoardComponent {
    *
    * Default `true`, deliberately: the Rider board's behaviour must not change to accommodate a new
    * layout, and a host that forgets the input must get the full board rather than a silently narrower
-   * one. It gates ONE sibling `@if` and nothing else — the groups, the controls, the sort, the
-   * density and the anchors are all unaffected.
+   * one. It gates ONE sibling `@if` and nothing else — the groups, the controls, the sort and the
+   * anchors are all unaffected.
    */
   readonly embedHeatStrip = input(true);
 
   private readonly store = inject(HomeStore);
-  private readonly preferences = inject(PreferencesService);
   private readonly viewMode = inject(HomeViewModeService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -338,13 +313,6 @@ export class NetworkBoardComponent {
   protected readonly _viewOptions: ReadonlyArray<{ value: PreferencesViewMode; label: string }> = [
     { value: "rider", label: "Rider" },
     { value: "pro", label: "Pro" },
-  ];
-  protected readonly _densityOptions: ReadonlyArray<{
-    value: PreferencesDensity;
-    label: string;
-  }> = [
-    { value: "comfortable", label: "Comfortable" },
-    { value: "compact", label: "Compact" },
   ];
 
   protected readonly _lines = this.store.visibleLines;
@@ -378,9 +346,6 @@ export class NetworkBoardComponent {
 
   /** The view in force — owned by {@link HomeViewModeService}, not re-derived here. */
   protected readonly _view = this.viewMode.view;
-
-  /** Density is preference-only — see the class doc on why it never reaches the URL. */
-  protected readonly _density = computed(() => this.preferences.density());
 
   /**
    * The line the store is currently ringing, and the one predicate every row wrapper asks.
@@ -456,10 +421,5 @@ export class NetworkBoardComponent {
   /** View toggle: one writer — the service persists the choice AND mirrors it into the URL. */
   protected setView(view: PreferencesViewMode): void {
     this.viewMode.setView(view);
-  }
-
-  /** Density toggle: preference only. */
-  protected setDensity(density: PreferencesDensity): void {
-    this.preferences.setDensity(density);
   }
 }

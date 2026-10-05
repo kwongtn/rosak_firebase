@@ -55,7 +55,7 @@ const REVIEWED_AT_NETWORK_BOARD = "2026-10-03";
  * than the live-status rules), and collapsing them would make the next bump on one silently claim a
  * review of the other.
  */
-const REVIEWED_AT_HISTORY_WIDGETS = "2026-10-03";
+const REVIEWED_AT_HISTORY_WIDGETS = "2026-10-06";
 
 /**
  * Bumped when the Pro bento dashboard shipped — its three board filters, the feed's three filter axes
@@ -423,10 +423,10 @@ export const METRIC_DOCS: MetricDoc[] = [
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_NETWORK_BOARD,
   },
-  /* ---- the SERVICE-DAY HISTORY widgets. Three surfaces draw the same 24 hourly buckets the backend
+  /* ---- the SERVICE-DAY HISTORY surfaces. Three of them draw the same 24 hourly buckets the backend
      buckets rider reports into, so all three definitions are registered here rather than authored in
-     a template: the hero's sparkline, the compact row's mini strip and the Pro heat grid. The rule
-     itself is `features/home/data/status-history-display.util.ts`. ---- */
+     a template: the hero's network sparkline, the compact row's report-count label and the Pro heat
+     grid. The rule itself is `features/home/data/status-history-display.util.ts`. ---- */
   {
     // The hero's app-network-sparkline. 🔴 The NETWORK AGGREGATE is the whole point of this wording:
     // the read tallies EVERY line's reports into each hour, so a busy bar means "the network was
@@ -442,12 +442,15 @@ export const METRIC_DOCS: MetricDoc[] = [
     lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
   },
   {
-    // The compact board row's app-line-history-strip.
-    id: "network.line-history-strip",
+    // The compact board row's report tally — "N reports (X this hour)". 🔴 The SENTENCE about what it
+    // counts is the point: the line beside it is a rolling 15-minute window, and the one a reader
+    // wants at a glance is the day so far. Without "it counts reports, not faults" the bracket reads
+    // as a severity score and a busy-but-normal morning looks like a breakdown.
+    id: "network.line-reports-summary",
     sectionId: "line-status",
-    title: "A line's reports by hour",
+    title: "A line's reports today",
     definition:
-      "The same {{SERVICE_DAY_HOURS}}-hour service day as the network sparkline, narrowed to one line: each cell is how many riders reported THAT line in that hour, coloured by the status they gave. Its height is scaled to that line's own busiest hour, so a quiet line looks quiet — a shared network scale would make one busy hour flatten every other row. The strip is hidden rather than drawn empty when the line reported nothing during the service day, or when the data could not be read.",
+      "The first number is every rider status report this line received during the current community service day, which runs from {{SERVICE_DAY_START_HOUR}}:00 to 02:00 — {{SERVICE_DAY_HOURS}} hours in total. The number in brackets is how many of those arrived in the hour we are in, so a busy total can be told apart from a live one. It counts REPORTS and not faults: a line can collect a morning's worth of ordinary crowding reports and still be running normally. When this line has no reports in the service day, or the data could not be read, the row shows its own shorter reporting window instead and this label is not drawn at all.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,

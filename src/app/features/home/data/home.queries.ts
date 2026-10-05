@@ -735,13 +735,14 @@ export interface LineStatusHourBucket {
  * Three documents share one `LineStatusHourBucket` selection and one shape, and they differ only
  * in scope: `lineStatusHistory` (above) is ONE line, `networkStatusHistory` is every line combined
  * into one hour-by-hour tally, and `linesStatusHistory` is up to 64 lines answered in ONE request
- * (so the board can draw a per-line strip for every row without sixteen reads).
+ * (so every board row's report label and the heat grid are fed by one per-line read instead of
+ * sixteen).
  *
  * 🔴 `networkStatusHistory` is a NETWORK AGGREGATE, not a per-line series: an hour's `count`,
  * `dominantStatus` and `statusCounts` tally EVERY line's reports in that hour. Drawing it under one
  * line's name would silently attribute other lines' reports to it — which is why the hero's
- * sparkline is labelled a NETWORK read and the per-line strips come from `linesStatusHistory`
- * instead.
+ * sparkline is labelled a NETWORK read and the per-line readings behind the board rows and the heat
+ * grid come from `linesStatusHistory` instead.
  * ---------------------------------------------------------------------- */
 
 /**

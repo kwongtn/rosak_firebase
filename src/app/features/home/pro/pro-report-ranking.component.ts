@@ -38,8 +38,8 @@ interface RankingRow {
  * day, busiest first.
  *
  * 🔴 **It is a RANKING OVER THE DATA ALREADY ON THE PAGE — no read of its own.** Every count is
- * `historyTotal(linesHistoryFor(line.id))` over the same `linesStatusHistory` buckets the board's row
- * strips and the heat grid read, so mounting this widget costs ZERO requests; it calls
+ * `historyTotal(linesHistoryFor(line.id))` over the same `linesStatusHistory` buckets the board rows'
+ * report labels and the heat grid read, so mounting this widget costs ZERO requests; it calls
  * `requestHistoryReads()` in its constructor for the same reason the heat grid does — so the read
  * happens if this widget is the only history surface mounted, not because it needs anything private.
  * That also means it inherits the heat grid's failure rule for free: `linesHistoryFailed` hides the
@@ -173,7 +173,7 @@ export class ProReportRankingComponent {
   };
 
   constructor() {
-    // The same single per-line read the row strips and the heat grid ask for — this widget is a third
+    // The same single per-line read the board rows and the heat grid ask for — this widget is a third
     // VIEW of it, not a read of its own, so this call costs nothing when any of the others is mounted.
     this.store.requestHistoryReads();
   }

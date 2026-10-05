@@ -92,9 +92,9 @@ describe("LinePulseCardComponent", () => {
       imports: [LinePulseCardComponent],
       providers: [
         provideZonelessChangeDetection(),
-        // The card's menu links OUT to the spotting feature, so the router must resolve
-        // `/spotting/:lineId` and its `details` child — with an empty route table the click in the
-        // "closes on choosing a link" spec rejects with NG04002 instead of navigating.
+        // The card's visible Details button links OUT to the spotting feature, so the router must
+        // resolve `/spotting/:lineId/details` — with an empty route table the href would not
+        // resolve to a real route.
         provideRouter([
           { path: "spotting/:lineId", children: [{ path: "details", children: [] }] },
         ]),
@@ -187,7 +187,7 @@ describe("LinePulseCardComponent", () => {
   it("sizes both actions with the compact button variant and never stretches them", () => {
     const root = render(makeLine());
 
-    for (const testId of ["submit-line-status", "add-spotting-entry"]) {
+    for (const testId of ["line-card-details", "submit-line-status", "add-spotting-entry"]) {
       const button = root.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
       expect(button.className).toContain("h-7");
       expect(button.className).toContain("px-2.5");
@@ -208,6 +208,27 @@ describe("LinePulseCardComponent", () => {
 
     expect(textOf(root, "submit-line-status")).toBe("Report status");
     expect(textOf(root, "add-spotting-entry")).toBe("Log spotting");
+  });
+
+  it("shows a visible Details link out to this line's details page, left of Report status", () => {
+    const root = render(makeLine({ id: "line-42" }));
+
+    const details = root.querySelector<HTMLAnchorElement>('[data-testid="line-card-details"]');
+    expect(details).not.toBeNull();
+    expect(details?.tagName).toBe("A");
+    expect(textOf(root, "line-card-details")).toBe("Details");
+    expect(details?.getAttribute("href")).toBe("/spotting/line-42/details");
+    // hlmBtn on an anchor, so it is a real button-looking control rather than a bare text link.
+    expect(details?.getAttribute("data-slot")).toBe("button");
+    expect(details?.className).toContain("h-7");
+
+    const report = root.querySelector('[data-testid="submit-line-status"]');
+    expect(report).not.toBeNull();
+    expect((details as HTMLElement).compareDocumentPosition(report as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    // Same cluster as the two reporting buttons, so mobile still stacks them full-width.
+    expect(details?.parentElement).toBe(report?.parentElement);
   });
 
   it("draws the line's own colour as a leading accent rail", () => {
@@ -471,7 +492,7 @@ describe("LinePulseCardComponent", () => {
       fixture.detectChanges();
     }
 
-    it("keeps pin and the two Line HQ links behind a collapsed, labelled menu", () => {
+    it("keeps pin behind a collapsed, labelled menu and nothing else", () => {
       const root = render(makeLine({ id: "line-42" }));
 
       const trigger = root.querySelector('[data-testid="line-card-menu"]');
@@ -479,9 +500,9 @@ describe("LinePulseCardComponent", () => {
       expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
       expect(trigger?.getAttribute("aria-label")).toBe("More actions for KJL");
       expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
-      // The two reporting actions are the only visible buttons on a collapsed card.
       expect(root.querySelectorAll("button[data-testid]").length).toBeGreaterThan(0);
       expect(root.querySelector('[data-testid="line-card-pin"]')).toBeNull();
+      // "Line HQ" is gone app-wide, and details left the menu for a visible button of its own.
       expect(root.querySelector('[data-testid="line-card-hq"]')).toBeNull();
       expect(root.querySelector('[data-testid="line-card-hq-details"]')).toBeNull();
 
@@ -490,19 +511,11 @@ describe("LinePulseCardComponent", () => {
       expect(trigger?.getAttribute("aria-expanded")).toBe("true");
       const panel = root.querySelector('[data-testid="line-card-menu-panel"]');
       expect(panel?.getAttribute("role")).toBe("menu");
-      expect(panel?.querySelectorAll('[role="menuitem"]').length).toBe(3);
-    });
-
-    it("links out to this line's Line HQ and details pages", () => {
-      const root = render(makeLine({ id: "line-42" }));
-      openMenu(root);
-
-      expect(root.querySelector('[data-testid="line-card-hq"]')?.getAttribute("href")).toBe(
-        "/spotting/line-42",
-      );
-      expect(root.querySelector('[data-testid="line-card-hq-details"]')?.getAttribute("href")).toBe(
-        "/spotting/line-42/details",
-      );
+      expect(panel?.querySelectorAll('[role="menuitem"]').length).toBe(1);
+      const panelText = (panel?.textContent ?? "").replace(/\s+/g, " ");
+      expect(panelText).not.toContain("Line HQ");
+      expect(panelText).not.toContain("Line details");
+      expect(panel?.querySelector('[data-testid="line-card-pin"]')).not.toBeNull();
     });
 
     it("pins through PreferencesService and closes", () => {
@@ -521,7 +534,7 @@ describe("LinePulseCardComponent", () => {
       expect(textOf(root, "line-card-pin")).toBe("Unpin this line");
     });
 
-    it("closes on Escape, on an outside click, and on choosing a link", () => {
+    it("closes on Escape and on an outside click", () => {
       const root = render(makeLine());
 
       openMenu(root);
@@ -531,11 +544,6 @@ describe("LinePulseCardComponent", () => {
 
       openMenu(root);
       document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      fixture.detectChanges();
-      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
-
-      openMenu(root);
-      root.querySelector<HTMLAnchorElement>('[data-testid="line-card-hq"]')?.click();
       fixture.detectChanges();
       expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
     });

@@ -60,10 +60,10 @@ export function reportsPhrase(count: number): string {
  * report is still visible.
  *
  * 🔴 Scale to the busiest hour IN THE SAME WIDGET, never to a fixed constant: the widgets are all
- * per-day, self-relative views (the sparkline is the network's busiest hour, a row strip is that
- * line's), and a shared absolute scale would make a quiet network render as a row of hairlines
- * beside a busy hour. `0` for an empty hour is also the honest answer — the `MIN_` floor applies
- * only where there is something to show, so "nobody reported" is never drawn as a sliver.
+ * per-day, self-relative views (the sparkline is the network's busiest hour, a line's expanded chart
+ * is that line's), and a shared absolute scale would make a quiet network render as a row of
+ * hairlines beside a busy hour. `0` for an empty hour is also the honest answer — the `MIN_` floor
+ * applies only where there is something to show, so "nobody reported" is never drawn as a sliver.
  */
 export function historyBarHeightPct(count: number, max: number): number {
   if (max <= 0 || count <= 0) {
@@ -130,6 +130,34 @@ export function historyTotal(buckets: LineStatusHourBucket[]): number {
 /** How many of the day's hours carried at least one report, for "active hours" phrasing. */
 export function historyActiveHours(buckets: LineStatusHourBucket[]): number {
   return buckets.reduce((hours, bucket) => hours + (bucket.count > 0 ? 1 : 0), 0);
+}
+
+/**
+ * Index of the bucket whose half-open window `[hourStart, hourEnd)` contains `now`, or `-1` when no
+ * bucket does — an empty series, another service day, or instants neither side can parse.
+ *
+ * 🔴 HALF-OPEN on purpose, not by accident. Adjacent buckets share an instant: hour 3's `hourEnd`
+ * IS hour 4's `hourStart`, so a closed test would match the first bucket that ends exactly now and
+ * the "current hour" would read as the hour that just ended. `start <= t < end` gives every instant
+ * in the day to exactly one bucket, with the seam belonging to the later hour.
+ *
+ * `-1` rather than a throw is the answer because this runs while rendering: an unparseable instant
+ * (a null hour, a truncated string) must leave the widget in its ordinary "no current hour" state
+ * instead of taking the page down with it.
+ */
+export function currentServiceBucketIndex(buckets: LineStatusHourBucket[], now: Date): number {
+  const at = now.getTime();
+  for (let index = 0; index < buckets.length; index++) {
+    const start = new Date(buckets[index].hourStart).getTime();
+    const end = new Date(buckets[index].hourEnd).getTime();
+    if (Number.isNaN(start) || Number.isNaN(end)) {
+      continue;
+    }
+    if (start <= at && at < end) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 /**
@@ -216,11 +244,6 @@ export function heatCellClass(
   }
   const intensity = heatIntensityClass(heatIntensityStep(count, max));
   return [passengerBarClass(dominantStatus), intensity].filter((part) => part !== "").join(" ");
-}
-
-/** The label one cell carries, e.g. "KJL · 03:00–04:00 · 4 reports · Busy 1, Crowded 3". */
-export function heatCellTitle(lineCode: string, bucket: LineStatusHourBucket): string {
-  return `${lineCode} · ${historyBarTitle(bucket)}`;
 }
 
 /** The statuses the heat grid's legend lists, in the backend's own severity order. */
