@@ -170,17 +170,21 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
                circle appearing in one frame reads as a hard cut, so the arc draws itself from
                nothing over 500ms (the animate-spinner-draw-arc theme token in the global
                stylesheet — its keyframes CANNOT live in this component's styles, which Angular's
-               emulated encapsulation renames) and only THEN does the rotation start, hence the
-               500ms delay inside the spin shorthand. The faded circle is deliberately STATIC: it is
-               the backdrop the line draws onto, so it is there from the first frame and the state
-               never reads as a line floating in space with nothing under it.
-               ⚠️ The bright line draws FROM 3 O'CLOCK ANTICLOCKWISE, which needs no extra
-               direction: the arc path M20 11a9 9 0 0 0-9-9 already STARTS at (20,11) — 3
-               o'clock — and its sweep flag 0 walks negative-angle (anticlockwise in SVG's y-down
-               frame) from there to (2,11), 12 o'clock. So walking stroke-dashoffset DOWN from the
-               path's own length (14.14) to 0 reveals the stroke from the path's start FORWARD
-               along the path itself, which is that same anticlockwise quarter turn. Reversing the
-               path to change the direction would only desync the draw from the geometry.
+               emulated encapsulation renames). 🔴 THE ROTATION RUNS WHILE IT DRAWS: the spin
+               shorthand carries NO delay, so the glyph is already rotating from the first frame and
+               the two animations run together for the whole 500ms — the spin reads as the line
+               drawing IN, not as a completed circle that then starts moving. The faded circle is
+               deliberately STATIC: it is the backdrop the line draws onto, so it is there from the
+               first frame and the state never reads as a line floating in space with nothing under
+               it.
+               ⚠️ The bright line draws FROM 3 O'CLOCK ANTICLOCKWISE, and the whole glyph is
+               ALREADY ROTATING as it does: the arc path M20 11a9 9 0 0 0-9-9 already STARTS at
+               (20,11) — 3 o'clock — and its sweep flag 0 walks negative-angle (anticlockwise in
+               SVG's y-down frame) from there to (2,11), 12 o'clock. So walking stroke-dashoffset
+               DOWN from the path's own length (14.14) to 0 reveals the stroke from the path's start
+               FORWARD along the path itself, which is that same anticlockwise quarter turn.
+               Reversing the path to change the direction would only desync the draw from the
+               geometry.
                ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
                every animation sub-property, so a separate [animation-direction:reverse] would be
                dropped back to normal by it and be dead markup.
@@ -192,7 +196,7 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
                honest — and the static backdrop underneath it is already there. (No backticks in
                this comment: inside an inline template literal they would close it.) -->
           <svg
-            class="text-muted-foreground [animation:spin_1s_linear_500ms_infinite_reverse] motion-reduce:[animation:none]"
+            class="text-muted-foreground [animation:spin_1s_linear_infinite_reverse] motion-reduce:[animation:none]"
             width="22"
             height="22"
             viewBox="0 0 22 22"

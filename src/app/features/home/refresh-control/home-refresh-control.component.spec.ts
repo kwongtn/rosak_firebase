@@ -264,11 +264,13 @@ describe("HomeRefreshControlComponent", () => {
     expect(spinner?.style.animation).toBe("");
   });
 
-  it("draws ONLY the bright line IN before the rotation starts, over a static faded backdrop", async () => {
+  it("draws ONLY the bright line IN while the spin is ALREADY rotating, over a static faded backdrop", async () => {
     // A finished circle appearing in one frame reads as a hard cut into motion. The bright arc now
     // draws itself from nothing to its full length over 500ms — it carries its own stroke-dasharray
-    // (ARC_LEN, the length of the arc path itself) and its own draw animation — and the spin carries
-    // a matching 500ms delay, so the rotation only begins once the line is complete.
+    // (ARC_LEN, the length of the arc path itself) and its own draw animation — and the spin runs
+    // CONCURRENTLY with it: the shorthand carries NO delay, so the glyph is already rotating from the
+    // first frame and the two animations share the whole 500ms window. A delay here made the entrance
+    // read as two phases (a still circle that then starts moving) instead of one.
     //
     // The faded circle behind it is deliberately STATIC: no dasharray, no draw class, nothing to
     // switch off. It is the backdrop the line draws onto, so it is present from the first frame —
@@ -285,9 +287,13 @@ describe("HomeRefreshControlComponent", () => {
     fixture.detectChanges();
 
     const spinner = slot().querySelector<SVGElement>("svg");
-    expect(spinner?.getAttribute("class")).toContain(
-      "[animation:spin_1s_linear_500ms_infinite_reverse]",
-    );
+    // No delay slot in the shorthand at all: the spin duration is still 1s and the direction still
+    // rides INSIDE it (`reverse` must stay there — the shorthand resets every sub-property, so a
+    // separate animation-direction would be dead markup). Asserting the whole shorthand is what
+    // catches a delay creeping back in as a fourth token.
+    const spinClass = spinner?.getAttribute("class") ?? "";
+    expect(spinClass).toContain("[animation:spin_1s_linear_infinite_reverse]");
+    expect(spinClass).not.toMatch(/\[animation:[^\]]*\b\d+m?s[^\]]*infinite/);
 
     const track = spinner?.querySelector<SVGElement>("circle");
     const arc = spinner?.querySelector<SVGElement>("path");
@@ -845,12 +851,12 @@ describe("HomeRefreshControlComponent", () => {
     // switches it off. Asserting the style attribute is empty is the assertion that the
     // reduced-motion opt-out can actually win.
     //
-    // The 500ms in the shorthand is the spin's DELAY, not its duration — the two strokes draw
-    // themselves in over exactly that window first (see the draw-in test above), so the rotation
-    // begins on a complete ring instead of spinning a circle that popped in whole.
+    // There is NO delay in the shorthand: the rotation runs WHILE the bright line draws itself in
+    // (see the draw-in test above), so the spin reads as the line appearing rather than as a
+    // completed circle that then starts moving.
     const icon = button().querySelector("svg");
     const iconClass = icon?.getAttribute("class") ?? "";
-    expect(iconClass).toContain("[animation:spin_1s_linear_500ms_infinite_reverse]");
+    expect(iconClass).toContain("[animation:spin_1s_linear_infinite_reverse]");
     expect(iconClass).toContain("motion-reduce:[animation:none]");
     expect(icon?.getAttribute("style")).toBeNull();
     expect(iconClass).toContain("text-muted-foreground");
