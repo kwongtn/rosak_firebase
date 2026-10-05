@@ -172,6 +172,11 @@ describe("HomeRefreshControlComponent", () => {
   // the constant could not catch the constant being wrong.
   const CIRC = 56.55;
 
+  // A quarter of that turn — the length of the spinner's own arc path (M20 11a9 9 0 0 0-9-9), the
+  // same 2dp rounding. Duplicated for the same reason: the draw keyframes live in the global theme
+  // (see styles.css), so a spec importing them could not catch them drifting off the geometry.
+  const ARC_LEN = 14.14;
+
   function ring(): SVGElement | null {
     return host().querySelector('[data-testid="line-refresh-ring"]');
   }
@@ -257,6 +262,46 @@ describe("HomeRefreshControlComponent", () => {
     // An inline `animation` outranks any class, including that one — so it has to be gone, not just
     // accompanied by a reduced-motion override.
     expect(spinner?.style.animation).toBe("");
+  });
+
+  it("draws both spinner strokes IN before the rotation starts, instead of popping in whole", async () => {
+    // A finished circle appearing in one frame reads as a hard cut into motion. Both strokes now
+    // draw themselves from nothing to their full length over 500ms — each one carries its own
+    // stroke-dasharray and its own draw animation — and the spin carries a matching 500ms delay, so
+    // the rotation only begins once the ring is complete. The two lengths are the r=9 circle's full
+    // turn (CIRC) and its quarter (ARC_LEN), which is exactly the length of the arc path itself.
+    //
+    // ⚠️ The two draw animations are GENERATED `animate-*` theme utilities, not component-scoped
+    // arbitrary properties: Angular's emulated encapsulation renames @keyframes declared in a
+    // component's `styles`, so an arbitrary property naming the un-prefixed keyframes matched
+    // NOTHING and the entrance silently never fired (found by browser verification; jsdom cannot
+    // see it, which is why the class names themselves are the assertion).
+    await render();
+
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+
+    const spinner = slot().querySelector<SVGElement>("svg");
+    expect(spinner?.getAttribute("class")).toContain(
+      "[animation:spin_1s_linear_500ms_infinite_reverse]",
+    );
+
+    const track = spinner?.querySelector<SVGElement>("circle");
+    const arc = spinner?.querySelector<SVGElement>("path");
+    expect(track?.getAttribute("stroke-dasharray")).toBe(String(CIRC));
+    expect(track?.getAttribute("class")).toContain("animate-spinner-draw-ring");
+    expect(arc?.getAttribute("stroke-dasharray")).toBe(String(ARC_LEN));
+    expect(arc?.getAttribute("class")).toContain("animate-spinner-draw-arc");
+
+    // Reduced motion has to switch all three of these off — and none of them may smuggle an inline
+    // animation that would outrank the opt-out. With everything off the strokes sit at the default
+    // stroke-dashoffset: 0: the glyph is still fully drawn, and simply static.
+    for (const el of [track, arc]) {
+      const stroke = el as SVGElement;
+      expect(stroke.getAttribute("class")).toContain("motion-reduce:animate-none");
+      expect(stroke.style.animation).toBe("");
+      expect(stroke.getAttribute("style")).toBeNull();
+    }
   });
 
   it("sizes the ring to 22px inside ONE fixed size-7 glyph slot shared by every state", async () => {
@@ -792,9 +837,13 @@ describe("HomeRefreshControlComponent", () => {
     // outranks every class in the cascade, including the `motion-reduce:[animation:none]` that
     // switches it off. Asserting the style attribute is empty is the assertion that the
     // reduced-motion opt-out can actually win.
+    //
+    // The 500ms in the shorthand is the spin's DELAY, not its duration — the two strokes draw
+    // themselves in over exactly that window first (see the draw-in test above), so the rotation
+    // begins on a complete ring instead of spinning a circle that popped in whole.
     const icon = button().querySelector("svg");
     const iconClass = icon?.getAttribute("class") ?? "";
-    expect(iconClass).toContain("[animation:spin_1s_linear_infinite_reverse]");
+    expect(iconClass).toContain("[animation:spin_1s_linear_500ms_infinite_reverse]");
     expect(iconClass).toContain("motion-reduce:[animation:none]");
     expect(icon?.getAttribute("style")).toBeNull();
     expect(iconClass).toContain("text-muted-foreground");

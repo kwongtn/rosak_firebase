@@ -165,15 +165,27 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
                than a spin at all. It is rebuilt on the RING's 22-unit geometry (r=9 at cx/cy 11,
                stroke 2.5) instead of the checklist's 24-unit one, so all three glyphs are the same
                22×22 in the same slot and swapping between them cannot shift the row by a pixel.
+
+               🔴 THE ENTRANCE DRAWS INSTEAD OF POPPING IN. A whole circle appearing in one frame
+               reads as a hard cut; here BOTH strokes draw themselves from nothing to their full
+               length over 500ms (the animate-spinner-draw-ring / animate-spinner-draw-arc theme tokens in
+               the global stylesheet — their keyframes CANNOT live in this component's styles,
+               which Angular's emulated encapsulation renames) and only THEN does the rotation
+               start, hence the 500ms delay inside the spin shorthand. Each stroke's dasharray is
+               its own length (the ring's full turn, the arc's quarter turn) and its keyframe
+               walks the offset down from that length to 0.
                ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
                every animation sub-property, so a separate [animation-direction:reverse] would be
                dropped back to normal by it and be dead markup.
-               It is an arbitrary-property UTILITY rather than an inline style because reduced motion
-               has to be able to switch it off, and an inline animation outranks every class in the
-               cascade — including the motion-reduce one that would. (No backticks in this comment:
-               inside an inline template literal they would close it.) -->
+               All THREE elements (this svg, the track circle, the arc) are animations a reader can
+               ask to have switched off — this one an arbitrary-property utility, the two strokes
+               generated animate-* utilities. Inline styles would outrank every class in the
+               cascade, including the motion-reduce ones that switch them off. With all three off
+               the strokes fall back to the default stroke-dashoffset: 0: the glyph renders fully
+               drawn, static, and still honest. (No backticks in this comment: inside an inline
+               template literal they would close it.) -->
           <svg
-            class="text-muted-foreground [animation:spin_1s_linear_infinite_reverse] motion-reduce:[animation:none]"
+            class="text-muted-foreground [animation:spin_1s_linear_500ms_infinite_reverse] motion-reduce:[animation:none]"
             width="22"
             height="22"
             viewBox="0 0 22 22"
@@ -187,12 +199,16 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
               stroke="currentColor"
               stroke-width="2.5"
               stroke-opacity="0.25"
+              stroke-dasharray="56.55"
+              class="animate-spinner-draw-ring motion-reduce:animate-none"
             />
             <path
               d="M20 11a9 9 0 0 0-9-9"
               stroke="currentColor"
               stroke-width="2.5"
               stroke-linecap="round"
+              stroke-dasharray="14.14"
+              class="animate-spinner-draw-arc motion-reduce:animate-none"
             />
           </svg>
         } @else if (_showRefreshed()) {
