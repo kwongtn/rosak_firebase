@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from "@angular/core";
+import { Component, computed, inject, input } from "@angular/core";
 import { RouterLink } from "@angular/router";
 
 import {
@@ -11,7 +11,6 @@ import { HlmButton } from "../../../ui/button/button";
 import { HlmTickUp } from "../../../ui/motion/tick-up.directive";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
-import { HomeStore } from "../data/home.store";
 import type { LinePulse } from "../data/home.queries";
 import { networkTone, summarizeNetwork } from "../data/network-summary.util";
 import { ReportChooserService } from "../report/report-chooser.service";
@@ -37,17 +36,18 @@ interface OfficialUpdate {
  * inputs, and both are the store's own reads rather than hero-authored ones:
  * `app-home-refresh-control` (the poll beat's countdown) and `app-network-sparkline`
  * (`HomeStore.networkHistory()` — the store's lazy service-day read, gated on the lines read having
- * landed). `HomeStore` is injected here for exactly one reason — the countdown line's width — and
- * the beat it reads is the page's, so no timer is started here either. The rolled-up numbers live
+ * landed). Both inject `HomeStore` themselves, so the hero holds no store of its own and starts no
+ * timer either — the beat everything follows is the page's. The rolled-up numbers live
  * in the pure `summarizeNetwork`, not here, so the same rule can be reused by the board's ordering
  * and unit-tested without a DOM.
  *
- * 🔴 **The top edge is the STATUS LINE, not decoration.** A full-width hairline shrinks from the
- * right once per poll beat and wears the network's own tone (see `networkTone`), and the headline
- * beside it wears the same tone as text. One colour, one sentence, one rule — so the fastest thing
- * a returning rider sees before reading anything is already the answer. Both edge lines are clipped
- * by a card-shaped overlay rather than by the card, whose `overflow-hidden` would cut the popover
- * panels below it off (see `ui/info-popover`).
+ * 🔴 **The top edge is the STATUS LINE, not decoration.** A full-width, STATIC hairline wears the
+ * network's own tone (see `networkTone`) — no countdown, no width animation; the poll beat's
+ * indicator is the donut inside `app-home-refresh-control` on the headline row below — and the
+ * headline beside it wears the same tone as text. One colour, one sentence, one rule — so the
+ * fastest thing a returning rider sees before reading anything is already the answer. Both edge
+ * lines are clipped by a card-shaped overlay rather than by the card, whose `overflow-hidden` would
+ * cut the popover panels below it off (see `ui/info-popover`).
  *
  * The CTA row is **intent-based**, not feature-based: "Report a delay" is what somebody standing
  * on a platform is trying to do, and it is the one action this page is best at. It opens the
@@ -99,19 +99,12 @@ interface OfficialUpdate {
         class="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
         aria-hidden="true"
       >
-        <!-- The top edge IS the status line: a fill that shrinks once per poll beat and wears the
-             network's tone. The beat only writes its width once per second, so the fill carries a
-             1s linear transition to interpolate CONTINUOUSLY between those writes — but a jump UP is
-             a (re)start rather than a countdown, and there the duration is bound to 0s so the fill
-             SNAPS to full instead of flowing up (see the _snapToFull field). -->
+        <!-- The top edge IS the status line: STATIC and full-width, wearing only the network's TONE
+             (green/orange/red) — see _lineClass. It counts nothing any more: the poll beat's
+             countdown indicator is the donut inside the refresh control on the headline row below,
+             so this fill carries no width binding and no transition. -->
         <div class="absolute inset-x-0 top-0 h-1">
-          <span
-            class="block h-full transition-[width] ease-linear motion-reduce:transition-none"
-            [class]="_lineClass()"
-            [style.width.%]="_countdownPct()"
-            [style.transition-duration]="_snapToFull() ? '0s' : '1s'"
-            data-testid="hero-countdown-line"
-          ></span>
+          <span class="block h-full" [class]="_lineClass()" data-testid="hero-status-line"></span>
         </div>
 
         <!-- The network's own colours as a hairline ribbon along the bottom edge, one segment per
@@ -320,8 +313,6 @@ export class HomeHeroComponent {
   protected readonly reportSheet = inject(ReportSheetService);
   protected readonly linkSheet = inject(LinkSheetService);
   protected readonly chooser = inject(ReportChooserService);
-  /** The page's route-scoped store. Read for the poll beat only — see `_countdownPct`. */
-  protected readonly store = inject(HomeStore);
 
   protected readonly _summary = computed(() => summarizeNetwork(this.lines()));
 
@@ -354,7 +345,11 @@ export class HomeHeroComponent {
     }
   });
 
-  /** The status line's fill, in the same tone as the sentence it sits above. */
+  /**
+   * The status line's fill: the network's TONE and nothing else — green/orange/red, neutral before
+   * the first read. Full-width and static, so this class is the whole binding; the countdown
+   * indicator is the donut inside the refresh control on the headline row, not this line.
+   */
   protected readonly _lineClass = computed(() => {
     switch (this._tone()) {
       case "normal":
@@ -367,58 +362,6 @@ export class HomeHeroComponent {
         return "bg-muted-foreground/40";
     }
   });
-
-  /**
-   * Width % of the beat remaining — the SAME `secondsRemaining`/`intervalMs` pair the removed ring
-   * used, and never `percentRemaining`, which only moves on the next 1s tick and so lags a refresh
-   * by a second. Both ends are guarded because the beat can be paused (`intervalMs` null) or
-   * mid-flight, and a NaN width would silently collapse the line. It is written once per second, so
-   * the SMOOTHNESS is the fill's own 1s linear transition interpolating between writes, and the
-   * upward jumps are handled by {@link _snapToFull}.
-   *
-   * On the server `secondsRemaining` is 0 (no timers run there), so the SSR paint is a 0%-wide
-   * neutral line and the client's first binding fills it — the same swap the ring used to do, which
-   * is why there is no extra hydration guard. That first write is an upward jump, and
-   * {@link _snapToFull} starts `true`, so it renders at 0s duration rather than sweeping up over a
-   * second of hydration.
-   */
-  protected readonly _countdownPct = computed(() => {
-    const totalSeconds = (this.store.polling.intervalMs() ?? 0) / 1000;
-    if (totalSeconds <= 0) {
-      return 100;
-    }
-    const fraction = Math.min(1, Math.max(0, this.store.polling.secondsRemaining() / totalSeconds));
-    return fraction * 100;
-  });
-
-  /**
-   * Whether the CURRENT width write is an upward jump, which must render at `0s` transition
-   * duration rather than flowing up.
-   *
-   * `true` until anything has ticked (the SSR paint is 0% and must not sweep to full), then set on
-   * every read of `secondsRemaining`: a count-DOWN is a countdown and gets the smooth 1s
-   * interpolation; a count UP is a (re)start — the beat's own reset, `refreshNow()`, a store
-   * resume — and a restart is exactly the "flow to full" that reads as decoration rather than
-   * information. The constructor's effect is what sets it — see the comment there for the edge.
-   */
-  protected readonly _snapToFull = signal(true);
-
-  /** The last observed `secondsRemaining`, to detect the jump-UP edge. `null` = nothing seen yet. */
-  private _previousSeconds: number | null = null;
-
-  constructor() {
-    // The fill moves SMOOTHLY while the beat counts down — the 1s width transition interpolates
-    // between the once-per-second width writes — but any jump UP is a (re)start, not a countdown:
-    // on that edge the fill is written full with a 0s duration so it SNAPS instead of flowing up.
-    // The first observed value counts as a (re)start too, so the 0% server-rendered fill cannot
-    // animate upward on hydration.
-    effect(() => {
-      const seconds = this.store.polling.secondsRemaining();
-      const previous = this._previousSeconds;
-      this._previousSeconds = seconds;
-      this._snapToFull.set(previous === null || seconds > previous);
-    });
-  }
 
   /**
    * The network's line colours, in the backend's own order, for the decorative bottom ribbon.

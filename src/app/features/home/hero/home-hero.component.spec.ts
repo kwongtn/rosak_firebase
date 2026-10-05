@@ -391,7 +391,7 @@ describe("HomeHeroComponent", () => {
       [linesWith(16, 9), "bg-red-500", "text-red-600"],
       [[], "bg-muted-foreground/40", "text-foreground"],
     ] as const satisfies [LinePulse[], string, string][]) {
-      expect(classes("hero-countdown-line", lines), fill).toContain(fill);
+      expect(classes("hero-status-line", lines), fill).toContain(fill);
       expect(classes("hero-headline", lines), text).toContain(text);
     }
 
@@ -401,61 +401,40 @@ describe("HomeHeroComponent", () => {
     expect(render(linesWith(16, 0)).querySelector(".bg-brand")).toBeNull();
   });
 
-  it("shrinks the top line smoothly across the beat, and snaps on the way back up", async () => {
+  it("decouples the top line from the poll beat — a static, tone-only status bar", async () => {
     const fill = (): HTMLElement =>
-      rootOf().querySelector('[data-testid="hero-countdown-line"]') as HTMLElement;
-    const width = (): string => fill().style.width;
-    const duration = (): string => fill().style.transitionDuration;
-    /** Let the constructor's effect flush, then render what it wrote. */
-    const tick = async (): Promise<void> => {
+      rootOf().querySelector('[data-testid="hero-status-line"]') as HTMLElement;
+
+    // Painted STATIC and full-width on the first render: no width binding and no transition to
+    // drive one. The line counts nothing — the countdown indicator is the donut inside the refresh
+    // control on the headline row.
+    render(networkLines());
+    expect(fill().style.width).toBe("");
+    expect(fill().style.transitionDuration).toBe("");
+    expect(fill().className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["block", "h-full", "bg-orange-500"]),
+    );
+    expect(fill().className).not.toContain("transition-[width]");
+
+    // 🔴 The decoupling itself: the beat's own signals move — counting down 30 → 15 → 0, then
+    // pausing entirely — and not one write reaches the line. Its class and style stay exactly what
+    // the tone painted: still the orange bar, still no width, still no countdown behaviour.
+    for (const seconds of [15, 0]) {
+      storeMock.polling.secondsRemaining.set(seconds);
       await fixture.whenStable();
       fixture.detectChanges();
-    };
+      expect(fill().style.width).toBe("");
+      expect(fill().style.transitionDuration).toBe("");
+      expect(fill().className).toContain("bg-orange-500");
+    }
 
-    // The 1s transition is what makes the once-per-second width writes read as one continuous shrink
-    // instead of a visible one-second staircase.
-    render(networkLines());
-    await tick();
-    expect(fill().className.split(/\s+/)).toEqual(
-      expect.arrayContaining([
-        "transition-[width]",
-        "ease-linear",
-        "motion-reduce:transition-none",
-      ]),
-    );
-    expect(width()).toBe("100%");
-    // Nothing has ticked yet, so the first write counts as a (re)start: the 0%-wide server paint
-    // must not sweep up to full on hydration.
-    expect(duration()).toBe("0s");
-
-    // Counting DOWN: smooth — 1s of interpolation, restarting from the current value each tick.
-    storeMock.polling.secondsRemaining.set(15);
-    await tick();
-    expect(width()).toBe("50%");
-    expect(duration()).toBe("1s");
-
-    storeMock.polling.secondsRemaining.set(0);
-    await tick();
-    expect(width()).toBe("0%");
-    expect(duration()).toBe("1s");
-
-    // 🔴 A jump UP is the beat's own reset (or refreshNow(), or a resume): a restart, not a
-    // countdown. It must SNAP to full — the flowing-up read is exactly the decoration rejected.
-    storeMock.polling.secondsRemaining.set(30);
-    await tick();
-    expect(width()).toBe("100%");
-    expect(duration()).toBe("0s");
-
-    // …and the snap is only the edge: the very next tick is a countdown again.
-    storeMock.polling.secondsRemaining.set(29);
-    await tick();
-    expect(duration()).toBe("1s");
-
-    // A paused beat ("Never refresh") has no countdown to draw, so the line reads full rather than
-    // NaN — which would collapse it to nothing and look like a dark network on an idle page.
+    // A paused beat ("Never refresh") used to be a special width case; now it is no case at all.
     storeMock.polling.intervalMs.set(null);
-    await tick();
-    expect(width()).toBe("100%");
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fill().style.width).toBe("");
+    expect(fill().style.transitionDuration).toBe("");
+    expect(fill().className).toContain("bg-orange-500");
   });
 
   it("clips both edge lines in one card-shaped overlay rather than the card itself", () => {
@@ -477,11 +456,11 @@ describe("HomeHeroComponent", () => {
       ]),
     );
     expect(overlay.getAttribute("aria-hidden")).toBe("true");
-    expect(overlay.querySelector('[data-testid="hero-countdown-line"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="hero-status-line"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="hero-ribbon"]')).not.toBeNull();
 
     // The lines themselves keep no radius of their own — that was the clamped thing.
-    for (const id of ["hero-countdown-line", "hero-ribbon"]) {
+    for (const id of ["hero-status-line", "hero-ribbon"]) {
       const el = overlay.querySelector(`[data-testid="${id}"]`) as HTMLElement;
       expect(el.className.split(/\s+/).filter((cls) => cls.startsWith("rounded"))).toEqual([]);
     }
@@ -505,7 +484,7 @@ describe("HomeHeroComponent", () => {
       makeLine({ id: "closed", code: "SKY", status: "DEFUNCT" }),
     ]);
     expect(textOf(root, "hero-headline")).toBe("All 14 lines running normally");
-    expect(classes(root, "hero-countdown-line")).toContain("bg-green-500");
+    expect(classes(root, "hero-status-line")).toContain("bg-green-500");
     expect(classes(root, "hero-headline")).toContain("text-green-600");
     // The all-lines count the tile publishes is untouched by that scoping.
     expect(tile(root, "hero-stat-needs-attention")).toEqual(["2", "Needs attention"]);
