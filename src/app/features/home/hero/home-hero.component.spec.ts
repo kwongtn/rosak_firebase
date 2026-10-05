@@ -401,32 +401,61 @@ describe("HomeHeroComponent", () => {
     expect(render(linesWith(16, 0)).querySelector(".bg-brand")).toBeNull();
   });
 
-  it("shrinks the top line across the poll beat, from the seconds remaining", () => {
-    const width = (): string =>
-      rootOf().querySelector<HTMLElement>('[data-testid="hero-countdown-line"]')?.style.width ?? "";
+  it("shrinks the top line smoothly across the beat, and snaps on the way back up", async () => {
+    const fill = (): HTMLElement =>
+      rootOf().querySelector('[data-testid="hero-countdown-line"]') as HTMLElement;
+    const width = (): string => fill().style.width;
+    const duration = (): string => fill().style.transitionDuration;
+    /** Let the constructor's effect flush, then render what it wrote. */
+    const tick = async (): Promise<void> => {
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
 
+    // The 1s transition is what makes the once-per-second width writes read as one continuous shrink
+    // instead of a visible one-second staircase.
     render(networkLines());
+    await tick();
+    expect(fill().className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "transition-[width]",
+        "ease-linear",
+        "motion-reduce:transition-none",
+      ]),
+    );
     expect(width()).toBe("100%");
+    // Nothing has ticked yet, so the first write counts as a (re)start: the 0%-wide server paint
+    // must not sweep up to full on hydration.
+    expect(duration()).toBe("0s");
 
+    // Counting DOWN: smooth — 1s of interpolation, restarting from the current value each tick.
     storeMock.polling.secondsRemaining.set(15);
-    fixture.detectChanges();
+    await tick();
     expect(width()).toBe("50%");
+    expect(duration()).toBe("1s");
 
     storeMock.polling.secondsRemaining.set(0);
-    fixture.detectChanges();
+    await tick();
     expect(width()).toBe("0%");
+    expect(duration()).toBe("1s");
+
+    // 🔴 A jump UP is the beat's own reset (or refreshNow(), or a resume): a restart, not a
+    // countdown. It must SNAP to full — the flowing-up read is exactly the decoration rejected.
+    storeMock.polling.secondsRemaining.set(30);
+    await tick();
+    expect(width()).toBe("100%");
+    expect(duration()).toBe("0s");
+
+    // …and the snap is only the edge: the very next tick is a countdown again.
+    storeMock.polling.secondsRemaining.set(29);
+    await tick();
+    expect(duration()).toBe("1s");
 
     // A paused beat ("Never refresh") has no countdown to draw, so the line reads full rather than
     // NaN — which would collapse it to nothing and look like a dark network on an idle page.
     storeMock.polling.intervalMs.set(null);
-    fixture.detectChanges();
+    await tick();
     expect(width()).toBe("100%");
-
-    // 🔴 It SNAPS. The width is rewritten once per second, so animating it made every refresh read as
-    // the line flowing back to full — a slow, continuous sweep that has no meaning on a countdown.
-    const fill = rootOf().querySelector('[data-testid="hero-countdown-line"]') as HTMLElement;
-    expect(fill.className.split(/\s+/)).not.toContain("transition-[width]");
-    expect(fill.className.split(/\s+/)).not.toContain("duration-1000");
   });
 
   it("clips both edge lines in one card-shaped overlay rather than the card itself", () => {
