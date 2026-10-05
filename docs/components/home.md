@@ -78,8 +78,13 @@
     🔴 **The top edge is the STATUS LINE, not decoration.** The Phase-0 brand-orange rail is replaced
     by a full-width STATIC hairline (`hero-status-line`, renamed from `hero-countdown-line` in round
     2c) that wears the network's own **tone** and nothing else — no countdown, no width binding, no
-    transition, and no `HomeStore` read (the hero injects no store at all); the poll beat's indicator
-    is the donut inside `app-home-refresh-control` on the headline row below. The `h1` beside it wears
+    inline `style`, and no `HomeStore` read (the hero injects no store at all); the poll beat's
+    indicator is the donut inside `app-home-refresh-control` on the headline row below. 🔴 Round 2e
+    gave the one bar on the page the one thing it was missing — a way to notice it: its tone
+    **fades over 300ms** (`transition-colors duration-300` + `motion-reduce:transition-none`) and
+    then **glows for 5s** after every tone change (`motion-safe:animate-icon-glow`, two 2.5s
+    box-shadow pulses), the first run only for a real tone (an `unknown` first read is an empty
+    read, not a network event). See the Motion section. The `h1` beside it wears
     the same tone as text, from the same two counts. Both come from the pure `networkTone(inService.total,
 inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInService`: `TESTING` and
     `DEFUNCT` excluded, so a pre-opening trial or a permanently closed line can never drag the words
@@ -90,9 +95,10 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     arithmetic. Only the class maps live in the component; the rule is unit-tested in
     `data/network-summary.util.ts`. Half is the CEILING of `degraded`, not the floor of `critical`:
     at exactly half, most riders are still on working trains, and painting that the same alarm red as
-    a broadly-down network trains readers to ignore red. The line counts nothing — `_lineClass` (tone
-    only) is the whole binding, so a beat tick, reset or pause never writes to it; the countdown
-    lives in the refresh control's ring (see its bullet and the Motion section).
+    a broadly-down network trains readers to ignore red. The line counts nothing — `_lineClass` (the
+    tone pair, plus the glow class while `_toneGlow` is on) is the whole binding, so a beat tick,
+    reset or pause never writes to it; the countdown lives in the refresh control's ring (see its
+    bullet and the Motion section).
     🔴 The hero card **no longer clips** (`overflow-hidden` removed): the headline popover, the tile
     popovers and the menu panel all live inside it and must be able to escape. The two decorative
     edges are clipped instead by ONE card-shaped overlay — the card's first child,
@@ -181,11 +187,11 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     in all five cases.
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
     refresh row: the **"Refreshing in Ns"** text, the **Updating** state (up while ANY non-initial
-    refresh is in flight), the click-armed transient "Updated" confirmation and the `Click to Refresh
-Now` tooltip). 🔴 Round 2c restored the **click-to-action donut**: an SVG ring
+    refresh is in flight), the transient "Updated" confirmation and the `Click to Refresh Now` +
+    `Last updated Ns ago` tooltip). 🔴 Round 2c restored the **click-to-action donut**: an SVG ring
     (`line-refresh-ring` / `line-refresh-ring-arc`) whose arc DRAINS as the beat runs down (full at
     reset, empty at zero), an indeterminate counter-clockwise **spinner** while Updating, and the
-    green check for a click-armed "Updated" — indicator and click target are ONE control again. 🔴
+    green check for a clean settle — indicator and click target are ONE control again. 🔴
     Round 2d **sized** it: the restored ring carried no `width`/`height` (only a `viewBox`), so it
     rendered at the CSS initial size — a 112×112px blob in the hero row — and it now copies the
     tracker side panel's `CountdownRingComponent` exactly (`width`/`height="22"`,
@@ -193,16 +199,26 @@ Now` tooltip). 🔴 Round 2c restored the **click-to-action donut**: an SVG ring
     `text-muted-foreground/20`). All THREE glyphs live inside ONE always-rendered fixed slot
     (`inline-flex size-7 shrink-0 items-center justify-center`, glyph only) — the tracker rows'
     pattern, `CountdownRingComponent`'s ring slot plus `LayerChecklistComponent`'s "contents vary"
-    one — because this button shrink-wraps to its visible content: swapping a 22px ring for a 14px
-    spinner or check would re-flow the row and its label on every state change, so the labels stay
-    direct children of the button, right after the slot. The spinner keeps `size-3.5` but now runs
-    at the tracker checklist's own speed, 1s (`[animation:spin_1s_linear_infinite_reverse]`, was
-    3s). The inline **"Refreshing in Ns" text stays** beside the ring — the tracker shows its
+    one — for two reasons: this button shrink-wraps to its visible content, so a constant slot is
+    what stops every state change re-flowing the row; and 🔴 round 2e moved that slot **AFTER the
+    label chain** (label first, slot second, tooltip third), which pins the circle to the button's
+    right edge. A LEADING glyph travelled sideways every time the countdown's own text changed
+    width ("30s" → "9s") — the one number on the row that changes once a second. The inline
+    **"Refreshing in Ns" text stays** beside the ring, to its LEFT now — the tracker shows its
     seconds on hover only, a deliberate divergence: this control states the countdown at a glance.
+    🔴 Round 2e also made all three glyphs **22×22**: the spinner was rebuilt on the RING's 22-unit
+    geometry (`width`/`height="22"`, `viewBox="0 0 22 22"`, cx/cy 11, r 9, `stroke-width="2.5"`,
+    arc `M20 11a9 9 0 0 0-9-9`) and the check kept its 24-unit viewBox scaled down to a 22×22 box,
+    so the row's glyph width is constant and a 14px check beside a 22px ring no longer reads as a
+    different control answering the same button. Both lost their `size-3.5` class on purpose: a CSS
+    size outranks the `width`/`height` **attributes**, so keeping it would have silently re-shrunk
+    them to 14px. The spinner still runs at the tracker checklist's own speed, 1s
+    (`[animation:spin_1s_linear_infinite_reverse]`, was 3s), with no inline `style`.
     The ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
     text names, so the two readings cannot drift, and its arc is `text-primary` (default theme) where
-    the pre-round-2 ring was `text-brand`. The hero's top status line is decoupled from the beat — a
-    static tone bar, see the hero bullet — so this control is the countdown's only home. Rendered
+    the pre-round-2 ring was `text-brand`. The hero's top status line is decoupled from the beat — a tone
+    bar whose only motion is its own 300ms fade + 5s glow, see the hero bullet — so this control is
+    the countdown's only home. Rendered
     **ONCE**, in the **HERO**'s headline row (`hero-refresh-slot`, `shrink-0`, rightmost) with **no
     width gate** — it used to sit in a `hidden justify-end lg:flex` corner, which hid it entirely at
     the mid widths while the sticky mobile bar's Refresh button drove the same beat. "Refreshing in
@@ -218,7 +234,9 @@ Now` tooltip). 🔴 Round 2c restored the **click-to-action donut**: an SVG ring
     the tap target is the ring and label the reader can see and not an invisible full-width strip.
     The tooltip sits at **`z-50`** (the app overlay layer, above the nav's `z-[45]`) and closes
     **300ms after the pointer leaves**, the same grace window `InfoPopover` and the nav use — a
-    tooltip that vanishes the instant the cursor moves toward it is unreadable.
+    tooltip that vanishes the instant the cursor moves toward it is unreadable. 🔴 Round 2e gave it
+    a **second line**, `Last updated {age}`, answering the one question a countdown cannot: how stale
+    are the numbers on screen RIGHT NOW (the first line says when the NEXT refresh is).
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
     `ReportSheetService.openFor(lineId)`. It hosts `app-report-chooser` as the **first** sheet in the
@@ -293,24 +311,34 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `line-refresh-ring-arc`, arc from the store's public `polling.secondsRemaining()` /
     `intervalMs()` pair) beside `Refreshing in {n}s`, the reverse-spun spinner while Updating, the
     green check while Updated — and a click calling
-    `store.polling.refreshNow()`. All three leading glyphs sit inside ONE always-rendered fixed
-    `inline-flex size-7` slot (round 2d) and the ring is an explicit 22px — the tracker's
-    `CountdownRingComponent` geometry — so the shrink-wrapped row never re-flows between states.
+    `store.polling.refreshNow()`. All three glyphs sit inside ONE always-rendered fixed
+    `inline-flex size-7` slot (round 2d), all **22×22** (round 2e: the spinner rebuilt on the ring's
+    22-unit geometry, the check scaled from its 24-unit viewBox) — the ring itself is an explicit
+    22px, the tracker's `CountdownRingComponent` geometry — so the shrink-wrapped row never re-flows
+    between states. 🔴 That slot sits **after** the label chain (label, slot, tooltip), which pins the
+    circle to the row's fixed right edge: with the glyph first, it travelled sideways with the
+    countdown text's own width changes ("30s" → "9s").
     Hovering it (or tapping it when the device has no hover —
     capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
     (`data-testid="line-refresh-tooltip"`, `z-50`, closing 300ms after the pointer leaves so it can
-    be read and re-entered). A click reads as **three** states, in this order:
+    be read and re-entered) whose second line reads `Last updated just now / {n}s ago / {n}m ago /
+{n}h ago` (round 2e) — how stale the numbers on screen already are, which the countdown itself
+    cannot say. A refresh reads as **three** states, in this order:
     **Updating** (`data-testid="line-refresh-updating"`, `role="status"`) → a transient GREEN
     **Updated** confirmation (`data-testid="line-refresh-confirmation"`, `role="status"`,
-    `text-green-600 dark:text-green-400` on both the tick and the label, ~2s) → the countdown again.
-    Only the FIRST of the three is not click-gated: "Updating" tracks `HomeStore.isRefreshing`, so
+    `text-green-600 dark:text-green-400` on both the tick and the label, **500ms** since round 2e) →
+    the countdown again.
+    Neither of the first two is click-gated: "Updating" tracks `HomeStore.isRefreshing`, so
     it is up while ANY non-initial refresh is in flight — a click, the 30s beat, any other reload —
     and its one exclusion is the **pristine initial load** (a first paint is not a refresh), derived
-    from `isLoading() || isLoadingLastWeek()`. "Updated" stays **click-armed**: it appears only once
-    a clicked request settles **without an error**, so a reader watching the beat is never told
-    "just refreshed" on a timer they did not set. There is no separate `Refresh now` button any
-    more, and the trigger is only as wide as the row it draws. Deliberately no interval picker
+    from `isLoading() || isLoadingLastWeek()`. 🔴 "Updated" followed round 2e onto the same rule: it
+    appears after ANY refresh observed in flight settles **without an error** — the beat's included,
+    because a reader who watched the row change is owed the same confirmation a reader who clicked
+    gets — and the short 500ms flash is what keeps a 30s cadence from being noise. The one exclusion
+    is still the pristine first load, which therefore confirms nothing: data that was never on screen
+    cannot be stale. There is no separate `Refresh now` button
+    any more, and the trigger is only as wide as the row it draws. Deliberately no interval picker
     (unlike situasi), the 30s cadence is fixed.
     ⚠️ Already-loaded `Load More` pages are **never** dropped by that refresh — a 30-second reset of
     the appended pages would wipe the reader's place in a long feed — which is why the beat calls
@@ -1031,8 +1059,9 @@ the two cells can never disagree.
   one at hand next time.
 - **Post-submit highlight (`HomeStore` + `NetworkBoardComponent`)** — after a successful line-status
   report the page calls `HomeStore.highlightLine(lineId)`, which sets the store's `highlightedLineId`
-  signal and arms a `HIGHLIGHT_VISIBLE_MS` (2000 ms, the same window as the refresh control's
-  "Updated") timer to clear it; `ngOnDestroy` cancels it. 🔴 It lives in the STORE, not on the page,
+  signal and arms a `HIGHLIGHT_VISIBLE_MS` (2000 ms — deliberately LONGER than the refresh control's
+  500ms "Updated" flash, which is an acknowledgement, not a state a reader has to read) timer to clear
+  it; `ngOnDestroy` cancels it. 🔴 It lives in the STORE, not on the page,
   because the board takes **no inputs at all** — giving it one would mean re-deriving on the page what
   it already owns. The board renders every row wrapper (all three groups) with a stable
   `id="line-<id>"`, the ring classes (`ring-2 ring-brand ring-offset-2 ring-offset-background`, only on
@@ -1290,15 +1319,26 @@ the two cells can never disagree.
   on `HomeStore.isRefreshing()` going true and CONFIRMS on it settling false with `!hasError()`.
   🔴 **The `Updating` label tracks `isRefreshing`, NOT the click** — so the beat's own refreshes say
   "Updating" too (`35b8c08`), and the **pristine initial load is the only exclusion**, derived from
-  the two pristine-first-fetch-only flags (`isLoading() || isLoadingLastWeek()`). The **"Updated"
-  confirmation is still click-armed**, because a passive reader must never be told "just refreshed"
-  on a 30s timer they did not set. The click-arm machinery therefore still belongs to the
-  **confirmation**, and a click's
-  arm still has to be torn down on **both** exits out of an armed window — the settle edge (placed
-  _before_ the
-  `hasError` early-return, so an errored refresh still drops the label) and the stale-arm expiry
-  (`ARM_EXPIRY_MS`, the only exit for a click whose request never started). Clearing one edge only
-  is how a no-op click ends up saying "Updating" for the rest of the session. The Updating branch is
+  the two pristine-first-fetch-only flags (`isLoading() || isLoadingLastWeek()`). 🔴 Round 2e moved
+  the **"Updated" confirmation onto the same rule**: it now fires after ANY refresh observed in
+  flight settles clean — the beat's included — and is retained for **500ms** (`REFRESHED_VISIBLE_MS`,
+  was a click-only 2000ms). The reasoning is that the OLD rule cost more than it saved: a 2s flash on
+  a 30s beat was showing "Updated" one time in fifteen, long enough to read as a lingering status
+  rather than an acknowledgement, and short enough that a reader who looked away missed it. The
+  `_refreshPending` / `_refreshStarted` arm pair is gone; **one `_sawRefresh` latch** replaces it (set
+  when a NON-pristine refresh is seen in flight, consumed on the settle edge, which keeps the
+  conservative page-wide `hasError` suppression). The **pristine first load is excluded from both
+  states** by the same guard, so the first paint neither says "Updating" nor claims "Updated" for
+  data that was never on screen. What the click still owns is the label it raises **synchronously**
+  (`refreshNow()` only flips `isRefreshing` once the request is on the wire — a round trip after the
+  click the reader is watching for an answer to) and its own **expiry**: `ARM_EXPIRY_MS` is now the
+  only exit for a click whose request never appears, which returns early when `_sawRefresh` is true
+  so a slow request is never mistaken for a dropped click. Clearing one edge only
+  is how a no-op click ends up saying "Updating" for the rest of the session. Two smaller rules
+  fell out of dropping the arm: a refresh going in flight CLEARS a visible "Updated" and its timer
+  (`_hideRefreshed` — otherwise the confirmation outlives the state it describes and sits through
+  the whole new flight), and the effect's own re-runs may not touch a click whose expiry timer is
+  still live. The Updating branch is
   also the **first** template branch on purpose: `refreshNow()` resets the beat, so if the countdown
   branch won, an in-flight click would flash a freshly-reset "Refreshing in 30s". A future host that
   wants its own refresh affordance must answer the same three states in the same order.
@@ -1313,8 +1353,11 @@ the two cells can never disagree.
   viewBox rendered at the CSS initial size and the ring came out 112×112px) — the tracker side
   panel's `CountdownRingComponent` geometry (cx/cy 11, r 9, `stroke-width="2.5"`, track
   `text-muted-foreground/20`), centred by ONE always-rendered fixed
-  `inline-flex size-7 shrink-0 items-center justify-center` slot that holds the leading glyph of
-  all three states and nothing else. "Updating" is the indeterminate spinner — it carries the
+  `inline-flex size-7 shrink-0 items-center justify-center` slot that holds the glyph of
+  all three states and nothing else. 🔴 Round 2e moved that slot **after** the label chain: the button
+  is `justify-end` in the hero's `shrink-0` slot, so a TRAILING slot pins the circle to the row's
+  fixed right edge, while a leading one travelled with the countdown text's own width changes.
+  "Updating" is the indeterminate spinner — it carries the
   Phase-5B rule: the `reverse`
   direction lives **inside** the `animation` shorthand as an arbitrary-property UTILITY
   (`[animation:spin_1s_linear_infinite_reverse]` — the tracker checklist's own 1s, was 3s), never
@@ -1322,14 +1365,30 @@ the two cells can never disagree.
   class, because the shorthand resets every sub-property — and never as an inline
   `style="animation: …"`, which outranks **every** class and makes the `motion-reduce:[animation:none]`
   that disables it under `prefers-reduced-motion` unreachable. jsdom computes no styles, so a spec can
-  only pin the class and the absent `style` attribute. The green check beside "Updated" is unchanged
-  and takes the same `size-7` slot; it needs no `reverse`/reduced-motion treatment because it is not
-  an animation. The hero's top
-  status line is STATIC and counts nothing — this control is the countdown's only home.
+  only pin the class and the absent `style` attribute. 🔴 Round 2e rebuilt it on the **ring's** 22-unit
+  geometry (`width`/`height="22"`, cx/cy 11, r 9, `stroke-width="2.5"`, arc `M20 11a9 9 0 0 0-9-9`)
+  so all three glyphs are 22×22 in one slot, and the green check beside "Updated" keeps its 24-unit
+  viewBox scaled down to a 22×22 box; **neither carries a `size-*` class**, because a CSS size
+  outranks the `width`/`height` attributes and would silently re-shrink them. The check needs no
+  `reverse`/reduced-motion treatment because it is not an animation. The hero's top
+  status line counts nothing — it is a tone bar with a 300ms fade and a 5s post-change glow, so this
+  control is the countdown's only home.
   🔴 **The tooltip is part of this component's contract, not its decoration**: `z-50` (the app overlay
   layer, above the nav's `z-[45]`) and a **300ms** close delay after `mouseleave`, cancelled on
   re-entry and on destroy — the same window `InfoPopover` and the nav use. Do not "simplify" it to an
-  instant close; a tooltip that disappears as the pointer moves toward it is unreadable.
+  instant close; a tooltip that disappears as the pointer moves toward it is unreadable. 🔴 Round 2e
+  added its **second line**, `Last updated {age}`, over `_lastUpdatedAt` (epoch ms, stamped on every
+  clean settle): `—` while no fetch has ever completed, then `just now` (<5s), `{n}s ago` (<60s),
+  `{n}m ago` (<60m), `{n}h ago`, with a backwards clock clamped into "just now". It is a plain
+  **method**, not a `computed`, precisely so the age keeps counting while a reader holds the tooltip
+  open; the `ponytail:` ceiling is that a tooltip left open across a whole beat does not re-render on
+  its own (nothing marks the view dirty), so the number only ticks when something else does.
+  🔴 The stamp is set at **mount** when the store is already idle — the pristine fetch often settles
+  BEFORE this control's effect first runs (warm cache, local API, late hydration), and the tooltip
+  then read `—` until the first 30s beat on a page whose data was seconds old. Guarded on
+  `!isRefreshing && !pristineInitialLoad && !hasError()`: idle because the load is over, clean
+  because a failed first paint is not an update. A genuinely loading-at-mount page still stamps
+  through the pristine settle instead.
 - **The trigger is not a row, so it must not be styled like one.** The control shrink-wraps to its
   visible content (`:host { display: inline-block }`, no `w-full` on the button); the hero's headline row
   (`flex items-start justify-between gap-3`) parks it at the right edge through the `shrink-0`
@@ -1645,8 +1704,8 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   `motion-safe:animate-breathe`. It reuses the **existing** `--animate-breathe` theme token rather than
   adding a second one, and the count beside it — the actual information — never moves.
 - **Countdown donut** — the refresh control's OWN ring (`line-refresh-ring` /
-  `line-refresh-ring-arc`), since round 2c; the hero's top status line is a static tone bar and
-  counts nothing. A `-rotate-90` SVG holds a track circle plus an arc whose `stroke-dasharray` is one
+  `line-refresh-ring-arc`), since round 2c; the hero's top status line is a tone bar that counts
+  nothing. A `-rotate-90` SVG holds a track circle plus an arc whose `stroke-dasharray` is one
   full turn (r=9 → `56.55`) and whose `stroke-dashoffset` is a `computed` over
   `secondsRemaining() / intervalMs()`, so the ring, the "Refreshing in Ns" text beside it and the
   beat itself are readings of the same two numbers and cannot drift. 🔴 **The arc DRAINS while the
@@ -1665,17 +1724,36 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   it rendered at the CSS initial size and the ring came out **112×112px** — it is now an explicit
   22×22px svg in its own 22-unit `viewBox`, the tracker side panel's `CountdownRingComponent`
   geometry, centred by the control's ONE fixed `size-7` glyph slot (the shared slot is
-  `LayerChecklistComponent`'s "always rendered, contents vary" pattern). Its track class is
+  `LayerChecklistComponent`'s "always rendered, contents vary" pattern) — which round 2e moved
+  **after** the label chain so the circle is pinned to the row's right edge instead of travelling with
+  the countdown text's own width. Its track class is
   `text-muted-foreground/20` — a class, not a `stroke-opacity` attribute — and the 1s/linear arc
   duration is deliberate: our `stroke-dashoffset` rebinds once per second, while the tracker's
   source ticks every 100ms and so tweens shorter.
-- **The "Updating" spinner** — the tracker checklist's own `size-3.5` spinner at the tracker's 1s
+- **The "Updating" spinner** — the tracker checklist's spinner at the tracker's 1s
   speed, spun in REVERSE
   (`[animation:spin_1s_linear_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
   inside the shorthand — see the refresh-control seam), so "the page is working on it" never reads as
   "the countdown is running". Round 2c restored both graphics to the control while the hero's top
-  line went static, ending round 2's **text-only** phase: the indicator and the click target are one
-  control again.
+  line went tone-only, ending round 2's **text-only** phase: the indicator and the click target are one
+  control again. 🔴 Round 2e rebuilt it on the **ring's** 22-unit geometry (`width`/`height="22"`,
+  `viewBox="0 0 22 22"`, cx/cy 11, r 9, `stroke-width="2.5"`) instead of the checklist's 24-unit one,
+  so all three glyphs are 22×22 in one slot; it dropped `size-3.5` because a CSS size outranks the
+  `width`/`height` attributes, which is exactly how the old 14px spinner survived the round-2d slot.
+  The green check kept its 24-unit viewBox and gained an explicit 22×22 box for the same reason.
+- 🔴 **Hero status-line tone fade + glow** (round 2e) — the only motion the tone bar has, and the
+  bar itself still counts nothing. Two parts: a **300ms colour fade** in the element's STATIC class
+  (`transition-colors duration-300 motion-reduce:transition-none`) so a tone change is not a jump,
+  and a **5s `motion-safe:animate-icon-glow`** after each tone change — two of the keyframe's 2.5s
+  box-shadow pulses. Three rules keep it honest:
+  1. 🔴 **The fill carries a matching `text-*` beside its `bg-*`.** `icon-glow` paints its shadow in
+     `currentColor`, so without it the glow would take the fill's inherited foreground.
+  2. **The 5s is a `setTimeout`, not the class.** The animation is `infinite`, so nothing about the
+     class itself ever ends the glow; `ngOnDestroy` clears the timer. `animate-breathe` is
+     deliberately NOT used — its keyframe scales, which would visibly breathe the full-width bar.
+  3. **It fires only on a CHANGE.** An effect over `_tone()` compares against the previous tone; the
+     first run glows only if the tone is already real (an `unknown` first read is an empty read, not
+     a network event), every later run on any change.
 - 🔴 **Any future motion here is a `motion-safe:` / `motion-reduce:` pair on the element, plus a spec
   that asserts the class.** jsdom computes no styles, so "the animation is disabled" is only testable
   as "the class that disables it is on the element". A motion feature whose spec cannot name that
@@ -1784,7 +1862,8 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   **RESTORED in round 2c**: the countdown ring inside the control again (arc draining to
   `text-primary`, clamped and guarded), together with the reverse-spun "Updating" spinner. **SIZED
   in round 2d** — explicit 22px (a viewBox-only svg rendered at 112px) inside the shared `size-7`
-  glyph slot, per the refresh-control seam. The beat's
+  glyph slot, per the refresh-control seam. **Round 2e** moved that slot after the label chain and made
+  the spinner and the check 22×22 to match it. The beat's
   only indicator is that donut plus the control's own label; the hero's `hero-status-line` counts
   nothing.
 - `line-board-attention-dot` (the decorative pulse dot beside "Needs attention · N").
@@ -1821,9 +1900,14 @@ element the round-2 spec asserted _absent_).
 - `hero-status-line` (renamed from `hero-countdown-line` in round 2c; the hairline inside the hero's
   top status track — since round 2b, inside the card-shaped clipping overlay rather than its own track
   wrapper) — its `[class]` is the network's tone and that is the WHOLE binding: no `style.width`, no
-  transition, no store read, nothing to write after a beat tick (the spec pins `style.width === ""`
+  inline `style` at all, no store read, nothing to write after a beat tick (the spec pins
+  `style.width === ""`
   and `style.transitionDuration === ""` across `secondsRemaining` 30 → 15 → 0 and a paused
-  `intervalMs`), so the countdown's testid home is `line-refresh-ring` / `-ring-arc` again. It
+  `intervalMs`), so the countdown's testid home is `line-refresh-ring` / `-ring-arc` again. 🔴 Round
+  2e added classes to that binding without adding a countdown back: the tone pair (`bg-*` plus the
+  `text-*` the glow's `currentColor` needs), the 300ms `transition-colors` fade and the glow class
+  itself — so a spec that asserts "no transition" now has to read `style.transitionDuration === ""`
+  (still true: the fade is a class) rather than the absence of a transition class. It
   carries no `rounded-*` of its own — the overlay is what cuts it to the card's silhouette.
 - `hero-refresh-slot` (the `shrink-0` wrapper holding `app-home-refresh-control` at the right end of
   the headline row). The old placement was asserted by hunting for `[class~="lg:flex"]`, which is a
