@@ -13,6 +13,47 @@
 
 ---
 
+## [2026-10-06] ui/info-popover: a consumer-side `hidden sm:inline` on an `<app-info-popover>` cannot hide it — the host's OWN display utility wins the tie
+
+**Problem**: the compact row's new `N reports (X this hour)` label had to disappear below `sm`, so it
+was given `class="hidden sm:inline"` on the `<app-info-popover>` element itself. It did not hide. The
+label stayed on screen at 390px, and the spec that asserted `hidden` on the host element passed anyway —
+jsdom computes no styles.
+**Root Cause**: `InfoPopover`'s host binding is `class="relative inline-flex"`, and Tailwind emits
+`.inline-flex{display:inline-flex}` **after** `.hidden{display:none}` in the compiled stylesheet
+(verified in `dist/web/browser/styles-*.css`: offsets 12217 vs 12138). Both are single-class utilities, so
+they have equal specificity and the LATER one wins — there is no consumer-side display utility that can
+beat a component host's own display utility, however specific the responsive variant looks.
+**Fix**: `e92016c` — the popover is wrapped in a plain `<span class="hidden sm:inline"
+data-testid="line-row-reports-wrap">`. A wrapper carries no competing display utility, so `hidden` is the
+only rule that touches its `display`. The spec asserts the wrapper holds both tokens AND that neither the
+projected span nor the popover host carries `hidden`.
+**Prevention**: never put a `display` utility (`hidden`, `block`, `flex`, `inline*`) on a component host
+to gate that component responsively — check the host's own class first (`grep -rn "class=\"" <ui
+component>`), and wrap the component in a plain element to gate it. This is the sibling of the
+`"never override a directive host class from the template"` entry below: in both cases the component
+owns its display and the consumer must wrap rather than compete. Confirm in a real browser, since
+jsdom will never resolve the tie.
+
+## [2026-10-06] testing: `ng test --filter` matches TEST NAMES, not paths — a typo is a SILENTLY GREEN zero-test run
+
+**Problem**: while verifying the round-3 board change, `npm test -- --no-watch --filter "network-board"`
+matched **0 tests**, reported every file as skipped, and **exited 0**. It read as a passing run of the
+suite under change when it had in fact executed nothing. The correct pattern (`--filter
+"NetworkBoardComponent"`, the spec's `describe` name) ran 32 tests.
+**Root Cause**: the filter is a regex against the test NAME, not a file path — and the runner does not
+treat an empty match as an error, so the exit code cannot distinguish "everything passed" from "nothing
+was selected". Every other agent in this repo's history hit the same thing (the `line-pulse-card` case
+had the identical symptom one commit earlier).
+**Fix**: filter on the describe/test name (`--filter "NetworkHeatStrip"`, `--filter "LinePulseRow"`,
+`--filter "PreferencesService"`) and confirm the run count is non-zero; a scoped run was always followed
+by the full `npm test -- --no-watch` before the change was called done.
+**Prevention**: **treat a 0-test filtered run as a failure**, not as a green one — check the reported
+test count before reading anything else in the output, and grep the spec's `describe(...)` for the string
+instead of guessing from the filename (`line-pulse-card.component.spec.ts` describes
+`LinePulseCardComponent`, `network-board.component.spec.ts` describes `NetworkBoardComponent`). The full
+suite's file/test count is also the only reliable regression signal.
+
 ## Traps
 
 ### [2026-10-03] core/preferences: a storage-backed signal service has TWO races with hydration — one throws NG0500, the other silently destroys the stored state

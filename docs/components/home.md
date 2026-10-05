@@ -123,10 +123,12 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
   - `line-pulse/` — `network-board.component.ts` (the three-group board: skeleton rows / empty state /
     the controls row / `Needs attention` cards / `My lines` + `All lines` rows — its `h2` headings carry
     a decorative `motion-safe:animate-breathe` dot, the one pulse on the page),
-    `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel),
-    `line-history-strip.component.ts` (`app-line-history-strip`: the row's own 24-cell service-day
-    strip — `row-history-strip` / `-popover` / `-cell` / `-label` — drawn ABOVE the disclosure and
-    served by the store's ONE per-line read, so sixteen rows cost one request),
+    `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel; its
+    `line-row-reports` tally reads `N reports (X this hour)` off the store's ONE per-line read —
+    service-day total plus the current service-hour bucket — so sixteen rows cost one request, and
+    falls back to the plain rolling `statusReportCount reports` when there is no service-day history
+    to enrich it; the enriched label carries the `line-row-reports-popover` info trigger, the
+    fallback carries none),
     `line-pulse-card.component.ts` (one line's full live status plus the expand/collapse
     toggle), `line-status-chart.component.ts` (the expanded hourly report strip),
     `line-status-reports.component.ts` (the expanded report list + the per-station strip), and
@@ -139,17 +141,16 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     menus and disclosure panels live INSIDE them and must escape the edge; their leading colour rails
     carry `rounded-l-xl` / `rounded-l-lg` instead, so the accent still meets the card's own corner.
     On this page the popover "i" now **trails** its wording (`iconPosition="end"`) — hero headline,
-    sparkline caption, history strip, heat strip, pro lines and report ranking — because a leading
+    sparkline caption, row report tally, heat strip, pro lines and report ranking — because a leading
     glyph reads as a bullet list item; `/methodology` and the component default are untouched.
     🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
     worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
   - `pro/` — 🔴 **the Pro bento dashboard (Phase 4)**: `pro-dashboard.component.ts` (`app-pro-dashboard`)
-    plus its seven widgets — `pro-lines-widget.component.ts` (`app-pro-lines-widget`: three Pro-only
+    plus its six widgets — `pro-lines-widget.component.ts` (`app-pro-lines-widget`: three Pro-only
     filters + the reused `app-network-board` + the CSV export), `pro-feed-widget.component.ts`
     (`app-pro-feed-widget`: the rider feed's reading surface + line/provenance/search filters),
     `network-heat-strip.component.ts` (its own cell), `pro-incidents-widget.component.ts`
-    (`app-pro-incidents-widget`: the ongoing-incident list), `pro-line-hq-widget.component.ts`
-    (`app-pro-line-hq-widget`: per-line `/spotting/:id` + `/details` links),
+    (`app-pro-incidents-widget`: the ongoing-incident list),
     `pro-report-ranking.component.ts` (`app-pro-report-ranking`: the top-5 lines by reports today, a
     re-ranking of the shared history read) and `pro-official-widget.ts`
     (`app-pro-official-widget`: the all-time archive of operator notices). See the "Pro dashboard"
@@ -157,8 +158,31 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     `network-heat-strip.component.ts` (selector `app-network-heat-strip`): the **Pro**
     heat grid — one row per line, one column per service-day hour, colour = the status that dominated
     that line-hour and opacity = how many reports it was (`network-heat-strip` / `-popover` /
-    `heat-row` / `heat-row-code` / `heat-row-total` / `heat-cell` / `heat-legend` / `heat-scale`, plus
-    `heat-empty` for the quiet-service-day state).
+    `heat-grid` / `heat-axis` / `heat-row` / `heat-row-code` / `heat-row-total` / `heat-cell` /
+    `heat-cell-glow` / `heat-popover` / `heat-legend` / `heat-scale`, plus `heat-empty` for the
+    quiet-service-day state). 🔴 **Every row is the SAME 24 columns, whatever that line reported.**
+    The columns come from one template — `_columns()`, the first visible line with any bucket at all —
+    and each row looks its own hour up in a per-row `Map<hourStart, bucket>`, so a line the backend
+    returned `buckets: []` for draws 24 grey no-data cells (`data-empty` on the cell) instead of the
+    blank strip it used to: a missing row read as a rendering fault, and it destroyed the column
+    alignment the whole comparison rests on. The code gutter is `w-20` with the code shown WHOLE and
+    `title` = the full display name, because a three-letter code identifies nothing to a rider who
+    does not commute; the same `w-20`/`w-7` gutters are repeated on the "Service day" line and on a
+    new `heat-axis` tick row beneath it that labels every OTHER hour, aligned to those 24 columns
+    (at this cell width all 24 labels collide). 🔴 **The hour the reader is in GLOWS; it is not
+    recoloured** — `data-current-hour` on the cell plus a `heat-cell-glow` overlay span
+    (`pointer-events-none absolute -inset-px`, amber ring + soft shadow,
+    `motion-safe:animate-pulse`, `aria-hidden`), never a class on the cell itself, because
+    `animate-pulse` there would fade the status colour that carries the data. Its clock is seeded
+    browser-only in `afterNextRender` and refreshed on the poll `linesRefreshTick`, so SSR emits no
+    marker at all. 🔴 **ONE JS-driven `heat-popover` replaces the per-cell native `title`**: measured
+    against the cell and clamped inside the `relative` `heat-grid` wrapper, `pointer-events-none`
+    and `aria-hidden` (a panel that could take the pointer would steal the hover from the cell under
+    it), showing the line name + code, the hour range, the report count and the per-status
+    breakdown — or "No reports" — because a native title cannot carry a breakdown and 24
+    browser-default tooltips per row each block on hover. The shared intensity scale, the legend,
+    the per-row `role="img"` sentences and the failed-hides/empty-shows split are unchanged;
+    `heatCellTitle` was deleted from the util with the native titles that used it.
     Hand-rolled `<div>`s: this repo has no charting dependency, and the colour vocabulary is the same
     `PASSENGER_BAR_CLASS` the expanded card's chart uses. It is mounted by `NetworkBoardComponent`
     **only when the effective view is `pro`**, and hides itself on a failed or empty read.
@@ -404,9 +428,11 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
   - `LinePulseCardComponent.line = input.required<LinePulse>()`, `refreshTick = input(0)` (the
     host's poll beat, forwarded to the expanded panel's chart and reports).
   - `LinePulseRowComponent.line = input.required<LinePulse>()`, `refreshTick = input(0)`,
-    `density = input<PreferencesDensity>("comfortable")`, `viewMode = input<PreferencesViewMode>("rider")`.
-    🔴 Density is PRESENTATION ONLY: it changes the row's padding and nothing else — never what is
-    counted, never which actions exist, never whether a group renders.
+    `viewMode = input<PreferencesViewMode>("rider")`. The `density` input is **gone** with the board's
+    density control: padding is fixed comfortable (`p-3 pl-4`) at every width, so the row takes one
+    fewer input and the board one fewer group. The row injects `HomeStore` and calls
+    `requestHistoryReads()` from its own constructor — it reads the service-day buckets itself for the
+    report tally, and sixteen mounted rows still cost ONE read.
   - `NetworkBoardComponent` has **no inputs at all**. It injects `HomeStore` for `lines()`,
     `isLoading()`, `linesRefreshTick()`, `highlightedLineId()` and its own three group views, exactly
     the way
@@ -464,7 +490,7 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `home.queries.spec.ts` pins the selection because a fixture can invent any field it likes).
     `NETWORK_STATUS_HISTORY_QUERY` (`networkStatusHistory(dayStartHour)`) and
     `LINES_STATUS_HISTORY_QUERY` (`linesStatusHistory(lineIds)`) back the four history widgets
-    (the sparkline, the per-line strip, the heat grid and the Pro report ranking);
+    (the sparkline, the compact row's report tally, the heat grid and the Pro report ranking);
     both select the same `LineStatusHourBucket` fields as `LINE_STATUS_HISTORY_QUERY` above, and
     `home.queries.spec.ts` pins that shape field-for-field on both.
     `LINE_STATUS_HISTORY_QUERY` (hourly buckets,
@@ -595,7 +621,7 @@ sticky mobile action bar too. A report, a link submission and a spotting entry t
 exactly the same code in both views — a "mode" that quietly grew its own submission path is the one
 thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet order across the branch.
 
-### The seven cells, in three rows
+### The six cells, in three rows
 
 | Row | Cell                     | Component                  | Owns                                                                   |
 | --- | ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
@@ -605,7 +631,6 @@ thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet or
 | C   | Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                            |
 | C   | Worst lines by reports   | `app-pro-report-ranking`   | nothing — a projection of the same shared per-line read, re-ranked     |
 | C   | Official notices         | `app-pro-official-widget`  | its own lazy all-time notices read                                     |
-| C   | Line HQ                  | `app-pro-line-hq-widget`   | nothing — a projection of `visibleLines()`                             |
 
 **Rows are sized by the HEIGHT of their answer, not by how important it is.** `pro-bento` is a flex
 column of three rows:
@@ -617,17 +642,17 @@ column of three rows:
   page beside a large dead zone and stranded the feed — the second thing a Pro reader opens this for —
   at the bottom-left. Still a stack below `xl`: a bento at `lg` squeezes two dense lists into two
   narrow columns and reads worse than the stack.
-- **Row B** — the heat grid, **full width**. It is 24 columns of one-pixel cells behind a fixed `w-12`
+- **Row B** — the heat grid, **full width**. It is 24 columns of one-pixel cells behind a fixed `w-20`
   code gutter; inside a `2fr` rail the hour axis was illegible, and it is the one cell whose answer is
   inherently two-dimensional, so it wants every pixel of the page.
-- **Row C** — `grid-cols-1 md:grid-cols-2 xl:grid-cols-3 items-start`: incidents, ranking, official
-  notices and Line HQ. All four are reference panels a reader scrolls to rather than a list they work
+- **Row C** — `grid-cols-1 md:grid-cols-2 xl:grid-cols-3 items-start`: incidents, ranking and official
+  notices. All three are reference panels a reader scrolls to rather than a list they work
   through, and each owns its own read and its own failure state, so two of them hide themselves
   routinely (incidents and the ranking on an empty or failed read). In a tile flow a hidden widget just
   closes its cell; `items-start` stops the survivors stretching down to match it. Order is the reading
   order, not a priority claim.
 
-**The board is REUSED, not reimplemented.** Every row, group, sort, density toggle, anchor and
+**The board is REUSED, not reimplemented.** Every row, group, sort, anchor and
 highlight rule under the Lines widget is the component the Rider page mounts. It carries exactly one
 new input, `embedHeatStrip` (default `true`), which the dashboard turns **off** because the heat grid
 gets its own cell — two copies would mean two `network-heat-strip` testids and the same comparison
@@ -724,8 +749,8 @@ the shortcuts are an accelerator and not the only way out of a mode. The rules t
 `HomeStore.incidentsResource` follows the same arrangement as the two history reads: gated on the
 widget's explicit `requestIncidentsRead()`, exposing `recentIncidents` / `incidentsFailed` /
 `isLoadingIncidents`, and appearing in **neither `hasError` nor `isRefreshing`**. A Pro reader whose
-incidents read fails still gets the board, the feed, the heat grid and the HQ grid. The official-notices
-archive is the third widget on that arrangement (see below).
+incidents read fails still gets the board, the feed, the heat grid and the report ranking. The
+official-notices archive is the third widget on that arrangement (see below).
 
 🔴 **`recentIncidents` reads `incidentsFailed()` BEFORE `data()`, and that order is load-bearing.** A
 `graphqlResource`'s `data()` THROWS while the resource is in an error state rather than returning
@@ -849,7 +874,10 @@ the two cells can never disagree.
     refresh control's "Updating" label, so folding a decorative chart into them would replace a whole
     working page with one banner. A failed history read hides ITS widget and nothing else; an empty
     answer hides it too, because `[]` is the backend's "nothing reported this service day", not an
-    error. `reloadAll()` re-reads both (submit / report / retry is a full invalidation); the 30 s beat
+    error — 🔴 with ONE exception, the board row's report tally, which **falls back** to the rolling
+    `statusReportCount` instead of disappearing: a row missing its one number reads as a layout fault,
+    and the row is not a widget that hides. `reloadAll()` re-reads both (submit / report / retry is a
+    full invalidation); the 30 s beat
     deliberately does not — a chart that redraws every 30 seconds is noise.
   - 🔴 **The official-notices ARCHIVE is a fourth lazy read, on the isolation list and off the
     invalidation list.** `officialNoticesResource` re-issues the EXISTING `FEED_QUERY` with the frozen
@@ -1139,22 +1167,27 @@ the two cells can never disagree.
   `message` to its chips. The
   title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated
   on `expanded`).
-- **`NetworkSparklineComponent` / `LineHistoryStripComponent` / `NetworkHeatStripComponent`** — the
+- **`NetworkSparklineComponent` / `LinePulseRowComponent` / `NetworkHeatStripComponent`** — the
   three service-day widgets. All three read `HomeStore` (the store owns the reads), all three share
   `status-history-display.util.ts` for their vocabulary, and all three share the first two rules:
   **never reach for `HomeStore.hasError()`** (their own `networkHistoryFailed` /
   `linesHistoryFailed` — a supporting widget must not put the retry banner over a working page), and
   **opt in** with `store.requestHistoryReads()` so no store with an unmounted history surface issues
-  the reads at all. 🔴 They no longer agree on what to DO about a failed or empty read: the row strip
-  and the heat grid still hide themselves (the strip sits above the disclosure, the grid is its own Pro
-  cell), while the hero **sparkline holds its height** with a dashed `network-sparkline-empty`
-  placeholder — a hero that grows a hole in itself when the slowest read lands is worse than one that
-  says nothing was reported. 🔴 `networkStatusHistory` is a NETWORK aggregate
+  the reads at all. 🔴 They no longer agree on what to DO about a failed or empty read: the heat grid
+  still hides itself (it is its own Pro cell), while the hero **sparkline holds its height** with a
+  dashed `network-sparkline-empty` placeholder — a hero that grows a hole in itself when the slowest
+  read lands is worse than one that says nothing was reported — and the **row keeps its row**: on a
+  failed or empty history read the `N reports (X this hour)` label is simply not drawn and the meta
+  fragment falls back to the plain rolling `statusReportCount reports`. A rolling fifteen-minute
+  number is a quiet state, not an error, and a row whose one number vanished would read as a layout
+  fault. 🔴 `networkStatusHistory` is a NETWORK aggregate
   and `linesStatusHistory` is per line: the sparkline's label says "across every line on the network"
   for exactly that reason, because drawing the aggregate under one line's name would attribute other
   lines' reports to it. Each widget hands its chart a single `role="img"` sentence
-  (`historySummaryLabel`) and keeps its cells `aria-hidden` with the hour detail in `title`; the grid
-  does it **per row**, because the comparison between lines is the whole point of that widget. Every
+  (`historySummaryLabel`); the grid does it **per row**, because the comparison between lines is the
+  whole point of that widget. The grid's cells stay `aria-hidden` and their hour detail moved into the
+  ONE `heat-popover` panel — a native `title` cannot carry the per-status breakdown, and 24
+  browser-default tooltips per row that each block on hover are unusable anyway. Every
   definition comes from the methodology registry through `InfoPopover` — never a literal.
 - **`LineStatusChartComponent`** — the expanded card's hourly strip: `bars`/`hasData`/`maxCount`
   computed over the lazy `LINE_STATUS_HISTORY_QUERY` (inert until `expanded`; a parent-driven
@@ -1240,13 +1273,20 @@ the two cells can never disagree.
   another timezone still lines the bars up with the backend's own hours), `reportsPhrase`,
   `historyBarHeightPct` (scaled to the busiest hour **in the same series**, with a visible floor),
   `historyBreakdownPhrase` / `historyBarTitle`, `historySummaryLabel` (the one accessible sentence
-  every widget hands its `role="img"`), and the heat grid's `heatIntensityStep` /
-  `heatIntensityClass` / `heatCellClass` / `heatLegendEntries`. 🔴 `HEAT_INTENSITY_CLASSES` is a list of
+  every widget hands its `role="img"`), `currentServiceBucketIndex` (which service-hour bucket a
+  given instant is in — half-open `[start, end)`, so a seam instant belongs to the LATER hour, and
+  `-1` for an empty or out-of-series answer: the row's "this hour" figure and the grid's current-hour
+  marker both read it, and a client clock is the one thing neither may guess), and the heat grid's
+  `heatIntensityStep` / `heatIntensityClass` / `heatCellClass` / `heatLegendEntries`. 🔴
+  `HEAT_INTENSITY_CLASSES` is a list of
   LITERAL Tailwind utilities rather than interpolated ones, because Tailwind v4 only compiles what it
   finds as literal text in the source — `opacity-${n}` would emit nothing and every cell would render
-  at the browser's default. `historyBarHeightPct` scales per widget on purpose, and the two widgets
-  disagree there DELIBERATELY: a row strip scales to its own line (a quiet line must look quiet), the
-  grid to the busiest cell on screen (comparing lines is the grid's entire job).
+  at the browser's default. The scale is per WIDGET on purpose, and the widgets
+  disagree there DELIBERATELY: `historyBarHeightPct` scales to the busiest hour in its own series
+  (the sparkline — a quiet network must look quiet; a line's expanded chart is that line's own
+  busiest hour), while the grid scales to the busiest cell on screen (comparing lines is the grid's
+  entire job). `heatCellTitle` was **deleted** with the grid's native `title`s — the sparkline and the
+  expanded chart's shared `historyBarTitle` are untouched.
 - **`HomeStore`** centralizes the page's data lifecycle: the polling beat (`PollingSource`), cursor
   pagination (today feed + last week), `reloadAll()`, the two lazy service-day history reads behind
   the history widgets, and the authenticated `userVote` overlay. New derived views belong here as
@@ -1476,6 +1516,12 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   - `All lines` (`line-board-all` / `-all-heading`) — compact rows; rendered whenever it has any,
     which is exactly when the rest of the board is showing nothing.
 
+  🔴 **The two LOWER groups are separated from whatever they follow by `border-t pt-4`** on their own
+  sections (`line-board-mine` and `line-board-all` only). The three groups and their membership rules
+  are unchanged — this is separation, not regrouping. The attention group needs no divider of its own
+  because the controls row's `border-b` already separates it from everything above; a second rule
+  directly under the first would have drawn two lines an inch apart.
+
   Every row keeps the `line-board-row` wrapper (the stable order/partition hook from Phase 0).
 
   - 🔴 **The Pro heat grid is mounted only when the effective view is `pro`** (`@if (_view() ===
@@ -1484,10 +1530,10 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
     view must not pay for it. It hides itself on a failed or empty read rather than reaching the
     page's error state.
 
-- **The controls row** is three labelled `role="group"` segmented controls, each an `aria-pressed`
-  pair: `board-sort-severity` / `board-sort-name`, `board-view-rider` / `board-view-pro`, and —
-  **pro only**, because a rider has no use for a density control and a greyed one is noise —
-  `board-density-comfortable` / `board-density-compact`.
+- **The controls row** is **two** labelled `role="group"` segmented controls — four buttons — each an
+  `aria-pressed` pair: `board-sort-severity` / `board-sort-name` and `board-view-rider` /
+  `board-view-pro`. The Comfortable/Compact density group is **gone** with the row's `density` input
+  and the preference behind it; all rows are comfortable at every width.
 - 🔴 **URL state** (`?sort=` / `?view=`), all through `core/url-state/query-param.util`:
   - READ half: `toSignal(route.queryParamMap, { initialValue: route.snapshot.queryParamMap })` —
     seeded from the SNAPSHOT, so the server render itself reads the server's URL and a deep link
@@ -1508,27 +1554,49 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
     `preferences.setViewMode`), because otherwise the board would revert the moment the reader edited
     the URL away. `signal.set` with an equal value does not notify, so this never fights a toggle
     that already wrote both halves.
-  - **Density is preference-only.** It is a per-device reading habit, not something a shared link
-    should impose, so it never reaches the URL.
 - **`LinePulseRowComponent`** is the compact row: the backend-hex colour rail, `code · name`,
   `line-row-status` (the operational `LineStatusBadge`, non-ACTIVE lines only — "Active" is the
   unremarkable default), `line-row-confidence`, `line-row-passenger` (both on the badge row
   `line-row-chips`), a `line-row-pin` toggle (`aria-pressed`, action-naming `aria-label`) and a
-  `line-row-report` button that calls `LineStatusSheetService.openFor(line.id)`. The expand toggle is
+  `line-row-report` button that calls `LineStatusSheetService.openFor(line.id)`. 🔴 **The pin glyph
+  FILLS when the row is pinned** (`[&>svg]:fill-current` on the `ng-icon` while `_isPinned()`,
+  alongside the static `size-4`): `aria-pressed` alone leaves a 16px outline pin saying "pin
+  available" about a pin that is already on. The expand toggle is
   `line-row-toggle` (`aria-expanded`) and its panel is `line-row-expanded`, holding the SAME lazy
   `app-line-status-chart` + `app-line-status-reports` the card shows, both gated on the same
   `expanded` input. **Pro view adds `line-row-pro`**: `line-row-report-window` ("N reports · 15 min
   window" — a bare count is what a pro reader is most likely to over-read, and the window is what
-  makes it interpretable) plus `line-row-hq` / `line-row-hq-details`. Opening the panel pushes the
+  makes it interpretable) plus `line-row-hq-details` ("Details"). The "Line HQ" link to
+  `/spotting/:id` is **gone** from here as it is from the card — "Details" is the way out, and it is
+  the only one that survives. Opening the panel pushes the
   line into `PreferencesService.pushRecentLine()` on the OPEN edge only, exactly like the card.
   🔴 **The fleet count and the report count are their own strip, `line-row-meta`** —
-  `line-row-vehicles` ("12/16 in service") and `line-row-reports` ("N reports"). They were both on the
+  `line-row-vehicles` ("12/16 in service") and `line-row-reports`. They were both on the
   badge row, where a 390px phone could not fit them with the status pill, the confidence chip and the
   passenger badge — so the report count alone wrapped onto a line of its own on EVERY row and read as a
-  layout fault rather than as a number. Grouped, they wrap together as one fragment; `line-row-reports`
-  is additionally `hidden sm:inline`, because below `sm` nothing is lost (the confidence chip already
+  layout fault rather than as a number. Grouped, they wrap together as one fragment; the report count
+  is additionally hidden below `sm`, because nothing is lost there (the confidence chip already
   reads "Unconfirmed (2 reports)" / "No recent reports", and Pro view's own block carries "2 reports ·
-  15 min window"). Both testids are unchanged and the count returns from `sm` up.
+  15 min window"). 🔴 `line-row-reports` now reads **`N reports (X this hour)`** — N is the line's
+  whole service-day total from `linesHistoryFor`, X the current service-hour bucket's count via
+  `currentServiceBucketIndex` — because `statusReportCount` alone is a 15-minute rolling window and a
+  number nobody can scale is a number nobody can read. It is the same ONE store read the heat grid
+  draws, so sixteen rows still cost one request. The enriched label is a METRIC, so it carries the
+  `line-row-reports-popover` info trigger (`network.line-reports-summary`); with no service-day
+  history to enrich it (no buckets, or no browser clock seeded yet) the plain rolling
+  `statusReportCount reports` is drawn instead and that popover is **not** rendered at all — attaching
+  a service-day definition to a fifteen-minute number would describe a claim it does not make.
+  🔴 **The row's clock is seeded browser-only**, in `afterNextRender` and refreshed by an effect over
+  the forwarded `refreshTick` behind a `_clockSeeded` gate, so a row left open across an hour
+  boundary stops naming the hour that has passed while the server render never depends on the server's
+  clock. The gate is the load-bearing part: an `effect` runs during change detection, i.e. BEFORE
+  `afterNextRender`, so an ungated `set(new Date())` would put a client-clock string in the very first
+  paint the server never produced (`NG0500`) — the same reasoning as `PreferencesService`'s storage read.
+  🔴 The responsive hiding sits on a plain `line-row-reports-wrap` `<span class="hidden sm:inline">`,
+  never on the projected span and never on the `app-info-popover` host: the component's own host
+  binding is `relative inline-flex`, and `.inline-flex` is emitted after `.hidden`, so a same-
+  specificity `display` tie would leave the host visible — and hiding the projected span alone leaves
+  a lone "i" floating beside a row with no number under it. A wrapper has nothing to compete with.
   🔴 The row's report button reports on **the line the reader is looking at** — which is exactly as
   honest as the card's, and deliberately NOT routed through the chooser: a rider already on a row knows
   the line, and making them pick it again would be the chooser solving the wrong problem. The chooser
@@ -1576,20 +1644,27 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   backend aggregate over the status-report table, a documented option deliberately NOT taken here
   because this phase ships zero new reads and a client-side total over a truncated page would be a lie
   the reader cannot detect.
-- **`LinePulseCardComponent`'s action hierarchy** is deliberate: two buttons, one primary and one
-  secondary — **Report status** (`submit-line-status`, default variant) and **Log spotting**
-  (`add-spotting-entry`, `outline`). Both testids and both class sets are unchanged; only the visible
-  copy moved off the internal nouns ("Submit line status" / "Add spotting entry"). Everything else
-  lives in a kebab: `line-card-menu` (the trigger; `aria-expanded`, `aria-haspopup="menu"`, an
-  action-naming `aria-label`) opening `line-card-menu-panel` (`role="menu"`) with three
-  `role="menuitem"` children — `line-card-pin` (through `PreferencesService`), `line-card-hq`
-  (`/spotting/<lineId>`) and `line-card-hq-details` (`/spotting/<lineId>/details`). The panel closes
+- **`LinePulseCardComponent`'s action hierarchy** is deliberate: **three** visible controls in one
+  `flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row` cluster, reading details → report → log, with
+  the kebab as their sibling. **Details** (`line-card-details`, `hlmBtn size="sm" variant="outline"`,
+  an `a[routerLink]` to `/spotting/<lineId>/details`) is the FIRST of them, LEFT of `submit-line-status`;
+  **Report status** (`submit-line-status`, default variant) and **Log spotting**
+  (`add-spotting-entry`, `outline`) follow. 🔴 "Details" used to be the second item in the kebab, two
+  clicks down a panel whose first entry was a Line HQ link; the way out to a line's spotting page is
+  something a reader of a broken card actually reaches for, so it is now a visible button and the
+  `/spotting/<lineId>` Line HQ link is gone entirely. `hlmBtn`'s selector is
+  `button[hlmBtn], a[hlmBtn]`, so the anchor needs no extra wiring, and `hlm()` merges its `class=`
+  input, so the `w-full sm:w-auto` stacking survives. The kebab
+  (`line-card-menu`: the trigger; `aria-expanded`, `aria-haspopup="menu"`, an
+  action-naming `aria-label`) now opens `line-card-menu-panel` (`role="menu"`) with exactly **one**
+  `role="menuitem"` — `line-card-pin`, through `PreferencesService`. The panel closes
   on Escape, on an outside click and on choosing an item; host-level `document:` listeners do the
   first two, and `src/app/ui/` has **no dropdown/menu primitive** to reuse, so it is built inline
   against the contract `app-info-popover` established — a real primitive can replace it without a
-  behaviour change. Icons (`lucideEllipsisVertical` / `lucidePin` / `lucideExternalLink`) come from
+  behaviour change. Icons (`lucideEllipsisVertical` / `lucidePin`) come from
   `@ng-icons/lucide` through `NgIcon` + `provideIcons`, the FIRST usage of that library in `src/`
-  (previously zero); the existing chevron SVGs stay as they are. The card also draws the line's
+  (previously zero); the existing chevron SVGs stay as they are, and `lucideExternalLink` is no longer
+  provided by the card at all (the row's Details link still uses it). The card also draws the line's
   `displayColor` as a leading accent rail (a backend hex, so it needs no dark-mode twin) and calls
   `PreferencesService.pushRecentLine()` on the panel's **open** edge. 🔴 The card does **not** clip:
   `overflow-hidden` was removed because the popovers, the kebab menu and the disclosure panel are
@@ -1597,12 +1672,17 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   own corner. Same rule on `line-pulse-row` (`rounded-l-lg`). If you ever re-add an
   `overflow-hidden` here, check first whether a popover is nested inside.
 - **`PreferencesService`** (`core/preferences/preferences.service.ts`, `providedIn: "root"`) is the
-  reader-owned display state the board needs — `pinnedLineIds`, `viewMode` (`"rider" | "pro"`),
-  `density`, `lastReportedLineId`, `recentLineIds` — persisted under the **versioned** key
+  reader-owned board display state — `pinnedLineIds`, `viewMode` (`"rider" | "pro"`),
+  `lastReportedLineId`, `recentLineIds` — persisted under the **versioned** key
   `rosak:preferences:v1` (the `:v1` is the migration seam: a shape change bumps it, so a stale
   payload is orphaned rather than half-read). API: `isPinned(lineId)`, `togglePin`, `setViewMode`,
-  `setDensity`, `setLastReportedLine`, `pushRecentLine` (most-recent-first, de-duplicated, capped at
-  `MAX_RECENT_LINES` = 5), `reset()`, `snapshot()` and `hydrated()`. 🔴 **Its constructor never reads
+  `setLastReportedLine`, `pushRecentLine` (most-recent-first, de-duplicated, capped at
+  `MAX_RECENT_LINES` = 5), `reset()`, `snapshot()` and `hydrated()`. 🔴 **`density` is gone from the
+  shape**, with the row's `density` input and the board's control that fed it. The storage key is
+  unchanged and nothing migrates: `parseStoredPreferences` reads NAMED keys off the stored record, so
+  a stale `density` in a rider's payload is simply never looked at — that is exactly why the field was
+  dropped from parsing rather than defaulted, and why the unversioned orphaning rule above never has
+  to fire for it. 🔴 **Its constructor never reads
   storage.** It builds on the defaults and hydrates inside `afterNextRender`, which does not run on
   the server: a constructor read would make the client's first paint disagree with the server's HTML
   and throw an `NG0500` hydration mismatch for any rider who had pinned anything. The persist
@@ -1647,8 +1727,10 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   `pro-feed-line`, `pro-feed-status`, `pro-feed-skeleton`, `pro-feed-empty`, `pro-feed-list`,
   `pro-feed-footer`, `pro-feed-count`, `pro-feed-load-more`.
 - Heat cell: `pro-heat-widget`. Incidents: `pro-incidents-widget`, `-window`, `-list`, `-row`,
-  `-title`, `-since`, `-all`. HQ: `pro-line-hq-widget`, `-list`, `-row`, `-name`, `-flag`, `-link`,
-  `-details`, `-empty`.
+  `-title`, `-since`, `-all`. 🔴 **Removed:** the whole **Line HQ** tile — its component, its spec and
+  its seven testids (`-widget`, `-list`, `-row`, `-name`, `-flag`, `-link`, `-details`, `-empty`) —
+  because the only thing it projected was a per-line link, and the board row's own
+  `line-row-hq-details` already is that.
 - Ranking: `pro-report-ranking`, `-list`, `ranking-row`, `ranking-row-code`, `ranking-row-count`,
   `ranking-bar`.
 - Official archive: `pro-official-widget`, `pro-official-count`, `official-notice-list`,
@@ -1829,6 +1911,17 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   3. **It fires only on a CHANGE.** An effect over `_tone()` compares against the previous tone; the
      first run glows only if the tone is already real (an `unknown` first read is an empty read, not
      a network event), every later run on any change.
+- **The Pro heat grid's current-hour glow** — a `motion-safe:animate-pulse` on the
+  `heat-cell-glow` overlay span (`ring-2 ring-amber-400/80` + a soft amber `shadow-`), so a reader who
+  asked for less motion gets a **static amber ring** and still finds the hour: the ring is the
+  information, the pulse is the flourish. Two rules make it honest. 🔴 **It is an overlay, never a
+  class on the cell** — `animate-pulse` on the cell would fade the status colour that carries its data
+  along with the marker, and a wash behind it would hide that colour entirely; the span is
+  `pointer-events-none absolute -inset-px` and `aria-hidden`, drawn over the cell and never under it.
+  🔴 **Its clock is seeded browser-only** (`afterNextRender`, refreshed by the `linesRefreshTick`
+  effect behind a `_clockSeeded` gate), so the server emits no marker at all and the client's first
+  paint is the marker-free grid the server sent — the same `NG0500` trap the refresh control and
+  `PreferencesService` guard.
 - 🔴 **Any future motion here is a `motion-safe:` / `motion-reduce:` pair on the element, plus a spec
   that asserts the class.** jsdom computes no styles, so "the animation is disabled" is only testable
   as "the class that disables it is on the element". A motion feature whose spec cannot name that
@@ -1859,8 +1952,8 @@ already passing, and the failures worth recording are the ones that were left al
   light end is the worse one, which means a dark-mode-only fix would be fixing the wrong theme. No
   floor move reaches 3:1 without collapsing the separation between the five steps, and that separation
   _is_ the encoding (a reader compares cells against each other, not against the card). The grid ships
-  a per-row `role="img"` sentence and a per-cell `title` as the accessible equivalent, which is the
-  honest fix for a magnitude channel; a `role="img"` per CELL would read out 384 numbers.
+  a per-row `role="img"` sentence plus the ONE `heat-popover` panel as the accessible equivalent, which
+  is the honest fix for a magnitude channel; a `role="img"` per CELL would read out 384 numbers.
 - 🔴 **Light mode is a known, recorded failure, not an oversight.** `--brand` `#ee7104` on `--card` is
   3.0:1, so `text-brand` fails AA for body text — on this page it is used for the official-update
   "Open original" link, which sits at mobile sizes where the large-text threshold does not apply. White
@@ -1909,12 +2002,15 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   instances of the same control. 🔴 Those panels stay behind `@if` rather than being pre-rendered and
   hidden: an `aria-controls` target that does not exist is worse than none, and always-mounted would
   mean thirty-two lazy chart/report subtrees reading on a page nobody expanded.
-- **Focus rings where nothing else draws one.** The board's three segmented control groups
-  (`board-sort-*`, `board-view-*`, `board-density-*`) and the two feed tabs are plain `<button>`s under
-  a border — not `hlmBtn` — so the primitive's ring does not come with them; all five groups carry
-  `outline-none focus-visible:ring-2 focus-visible:ring-ring/50` explicitly. The card kebab's three
-  `role="menuitem"` children got the same, since the menu is hand-built inline (there is no dropdown
-  primitive in `src/app/ui/`).
+- **Focus rings where nothing else draws one.** The board's two segmented control groups
+  (`board-sort-*`, `board-view-*`) and the two feed tabs are plain `<button>`s under
+  a border — not `hlmBtn` — so the primitive's ring does not come with them; all four groups carry
+  `outline-none focus-visible:ring-2 focus-visible:ring-ring/50` explicitly. The card kebab's
+  `role="menuitem"` child got the same, since the menu is hand-built inline (there is no dropdown
+  primitive in `src/app/ui/`). 🔴 The heat grid's new `heat-popover` and `heat-cell-glow` are the
+  opposite case: both are `pointer-events-none` and `aria-hidden`, so they are **not** focusable and
+  must not be — the grid's accessible equivalent is the per-row `role="img"` sentence, and the panel
+  is a pointer-only readout beside it.
 - **Landmark labels kept.** The board section (`aria-label="Line status"`) and the feed section
   (`aria-label="Community feed"`) are unchanged; the feed's real `<h2>` is an addition to that label,
   not a replacement for it, because `aria-label` appears only in the landmark list.
@@ -1968,6 +2064,15 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   (it is the row count of the feed list further down the page). `network.severity-order` is still
   reachable only through `/methodology`; putting an info trigger on the board's `Severity` sort button
   is a UI decision, not a docs one, and is left open below.
+- **`network.line-reports-summary`** ("A line's reports today") — the `MetricDoc` behind the compact
+  row's `N reports (X this hour)` label. It **replaced `network.line-history-strip`**, which described
+  the deleted per-row service-day strip, and it is the registry entry the row's
+  `line-row-reports-popover` renders. It states both numbers (the service-day total, and how much of it
+  landed in the hour we are in) and **that it counts reports, not faults** — without that clause the
+  bracket reads as a severity score and a busy-but-normal morning looks like a breakdown. It also
+  states the fallback: with no service-day reports, or a read that failed, the row shows its own
+  shorter window instead and this label is not drawn at all. `REVIEWED_AT_HISTORY_WIDGETS` moved to
+  `2026-10-06`, which re-reviews the whole history-widget section (sparkline · row label · heat grid).
 
 ### New seams and testids (home-page polish, round 2 · 2b · 2c)
 
@@ -1999,8 +2104,9 @@ element the round-2 spec asserted _absent_).
 - `network-sparkline-empty` (the dashed `h-10` placeholder). Its copy distinguishes the two quiet
   states, and the `h-10` is the assertion that the hero does not change height.
 - `InfoPopover.iconPosition` is now `"end"` on all six home usages (hero headline, sparkline caption,
-  row history strip, Pro heat strip, Pro lines widget, Pro report ranking). The component default is
+  row report tally, Pro heat strip, Pro lines widget, Pro report ranking). The component default is
   still `"start"`, so `/methodology` and the ad slot are pixel-identical — do not "tidy" the default.
+  The row's third usage took over from the deleted per-row history surface, so the count is unchanged.
 - `InfoPopover`'s panel moved `z-20` → **`z-50`**, the app overlay layer (the nav is `z-[45]`, the
   sticky mobile action bar `z-30`). 🔴 The pair of rules this bought is now load-bearing: a container
   that hosts an `InfoPopover` must not be `overflow-hidden`, and a popover must never be painted
