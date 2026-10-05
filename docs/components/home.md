@@ -76,9 +76,11 @@
     quoting an operator must never look like the operator said it here. Scoping it to the worst line
     is what keeps it from contradicting the sentence underneath.
     🔴 **The top edge is the STATUS LINE, not decoration.** The Phase-0 brand-orange rail is replaced
-    by a full-width track whose fill (`hero-countdown-line`) is the fraction of the poll beat left
-    and wears the network's own **tone**; the `h1` beside it wears the same tone as text, from the
-    same two counts. Both come from the pure `networkTone(inService.total,
+    by a full-width STATIC hairline (`hero-status-line`, renamed from `hero-countdown-line` in round
+    2c) that wears the network's own **tone** and nothing else — no countdown, no width binding, no
+    transition, and no `HomeStore` read (the hero injects no store at all); the poll beat's indicator
+    is the donut inside `app-home-refresh-control` on the headline row below. The `h1` beside it wears
+    the same tone as text, from the same two counts. Both come from the pure `networkTone(inService.total,
 inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInService`: `TESTING` and
     `DEFUNCT` excluded, so a pre-opening trial or a permanently closed line can never drag the words
     or the colour down; the stat TILE beside them deliberately keeps the all-lines count, because a
@@ -88,14 +90,14 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     arithmetic. Only the class maps live in the component; the rule is unit-tested in
     `data/network-summary.util.ts`. Half is the CEILING of `degraded`, not the floor of `critical`:
     at exactly half, most riders are still on working trains, and painting that the same alarm red as
-    a broadly-down network trains readers to ignore red. The fill interpolates smoothly — a 1s linear
-    width transition between the once-per-second writes — but a jump UP snaps to full; see the
-    countdown bullet under Motion.
+    a broadly-down network trains readers to ignore red. The line counts nothing — `_lineClass` (tone
+    only) is the whole binding, so a beat tick, reset or pause never writes to it; the countdown
+    lives in the refresh control's ring (see its bullet and the Motion section).
     🔴 The hero card **no longer clips** (`overflow-hidden` removed): the headline popover, the tile
     popovers and the menu panel all live inside it and must be able to escape. The two decorative
     edges are clipped instead by ONE card-shaped overlay — the card's first child,
     `pointer-events-none absolute inset-0 overflow-hidden rounded-2xl`, `aria-hidden` and holding
-    both `hero-countdown-line` and `hero-ribbon` — because neither line can clip itself: each is 4px
+    both `hero-status-line` and `hero-ribbon` — because neither line can clip itself: each is 4px
     tall, and CSS clamps a corner radius to its own box, so their `rounded-*` collapsed to ~4px and
     their square ends poked outside the card's 18px corners, while an overlay the size of the CARD
     is not clamped. The lines carry no rounding of their own any more — the overlay does the
@@ -180,11 +182,14 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
     refresh row: the **"Refreshing in Ns"** text, the **Updating** state (up while ANY non-initial
     refresh is in flight), the click-armed transient "Updated" confirmation and the `Click to Refresh
-Now` tooltip). 🔴 It is **text-only**: both SVGs are gone — the countdown ring and the reverse-spun
-    "Updating" spinner. The countdown's _indicator_ is now the hero's top status line, drawn from the
-    same `secondsRemaining()/intervalMs()` pair, so the beat is stated twice in two different registers
-    (a shrinking coloured line above, words beside the sentence) instead of a widget drawing itself
-    inside a label. The green check beside "Updated" stays; it is the only graphic left. Rendered
+Now` tooltip). 🔴 Round 2c restored the **click-to-action donut**: an SVG ring
+    (`line-refresh-ring` / `line-refresh-ring-arc`) whose arc DRAINS as the beat runs down (full at
+    reset, empty at zero), an indeterminate counter-clockwise **spinner** while Updating, and the
+    green check for a click-armed "Updated" — indicator and click target are ONE control again. The
+    ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
+    text names, so the two readings cannot drift, and its arc is `text-primary` (default theme) where
+    the pre-round-2 ring was `text-brand`. The hero's top status line is decoupled from the beat — a
+    static tone bar, see the hero bullet — so this control is the countdown's only home. Rendered
     **ONCE**, in the **HERO**'s headline row (`hero-refresh-slot`, `shrink-0`, rightmost) with **no
     width gate** — it used to sit in a `hidden justify-end lg:flex` corner, which hid it entirely at
     the mid widths while the sticky mobile bar's Refresh button drove the same beat. "Refreshing in
@@ -197,7 +202,7 @@ Now` tooltip). 🔴 It is **text-only**: both SVGs are gone — the countdown ri
     copy of the updating/confirmed state machine
     there would double every confirmation and desync the two instances from the one beat they share. The
     trigger **shrink-wraps to the row it draws** (`:host { display: inline-block }`, no `w-full`), so
-    the tap target is the label the reader can see and not an invisible full-width strip.
+    the tap target is the ring and label the reader can see and not an invisible full-width strip.
     The tooltip sits at **`z-50`** (the app overlay layer, above the nav's `z-[45]`) and closes
     **300ms after the pointer leaves**, the same grace window `InfoPopover` and the nav use — a
     tooltip that vanishes the instant the cursor moves toward it is unreadable.
@@ -271,9 +276,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     the 30s beat and a click both go through the same `HomeStore.reloadFirstPages()`, re-reading
     the line statuses, the Today feed's first page and the Last Week first page. Rendered by
     `HomeRefreshControlComponent` as the `<button data-testid="line-refresh-countdown">` — 🔴
-    **text only**: `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, with no
-    graphic of its own (the countdown ring and the "Updating" spinner were both removed; the beat's
-    _indicator_ is the hero's `hero-countdown-line`), and a click calling
+    **the countdown draws itself**: the draining donut (`line-refresh-ring` /
+    `line-refresh-ring-arc`, arc from the store's public `polling.secondsRemaining()` /
+    `intervalMs()` pair) beside `Refreshing in {n}s`, the reverse-spun spinner while Updating, the
+    green check while Updated — and a click calling
     `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no hover —
     capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
@@ -346,11 +352,13 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `HomeRefreshControlComponent` injects the store's beat. The partition RULE belongs to the store;
     passing the groups down as inputs would mean re-deriving them on the page for no gain — and the
     same is why the post-submit highlight signal lives in the store rather than being passed in.
-  - `HomeHeroComponent` keeps its two data inputs (`lines`, `linksToday`) and additionally injects
-    `HomeStore` **for the poll beat alone** — `polling.intervalMs()` / `polling.secondsRemaining()`
-    feed the countdown line's width. It is the same route-scoped store the refresh control reads and
-    the same injector tree, so this adds no request and no timer; a hero that started its own beat
-    would double the countdown.
+  - `HomeHeroComponent` keeps its two data inputs (`lines`, `linksToday`) and injects **no store at
+    all** since round 2c — the top status line counts nothing, so the `HomeStore` read that used to
+    feed the countdown width went with `_countdownPct` / `_snapToFull`. The beat lives only where it
+    is drawn or driven: `HomeRefreshControlComponent` (the countdown ring) and
+    `NetworkSparklineComponent` (`networkHistory()`) each inject the same route-scoped store in the
+    same injector tree, so no request and no timer is added anywhere; a hero that started its own
+    beat would double the countdown.
   - `LinkThreadComponent` (the shared insiden `app-link-thread`, the feed's row wrapper — **recursive**,
     it renders its own children as nested threads at every depth):
     `link = input.required<LinkCardItem>()` — the node this instance renders; the feed's `FeedLink`
@@ -1278,17 +1286,21 @@ the two cells can never disagree.
   also the **first** template branch on purpose: `refreshNow()` resets the beat, so if the countdown
   branch won, an in-flight click would flash a freshly-reset "Refreshing in 30s". A future host that
   wants its own refresh affordance must answer the same three states in the same order.
-  🔴 **The control draws nothing of its own.** The countdown ring and the "Updating" spinner were both
-  removed — a text row does not need a widget inside it, and the beat's visual indicator is the hero's
-  top status line, built from the same two store numbers. The green check beside "Updated" is the only
-  graphic that remains, and it needs no `reverse`/reduced-motion treatment because it is not an
-  animation. If a graphic comes back, it inherits the Phase-5B rule: the `reverse` direction must live
-  **inside** the `animation` shorthand as an arbitrary-property UTILITY
+  🔴 **The control draws all three of its states** (round 2c restored the graphics round 2 removed).
+  The countdown is a draining donut: `_ringOffset` is a `computed` over `secondsRemaining()` /
+  `intervalMs()` — deliberately NOT `PollingSource.percentRemaining`, which lags a refresh by a tick
+  and would leave the arc describing the beat that just ended — clamped at both ends so a paused or
+  overshot beat cannot invert it, with a 1s linear `transition-[stroke-dashoffset]` that
+  `motion-reduce:transition-none` drops (the arc still MOVES to its new length; it steps instead of
+  tweening). "Updating" is the indeterminate spinner — it carries the Phase-5B rule: the `reverse`
+  direction lives **inside** the `animation` shorthand as an arbitrary-property UTILITY
   (`[animation:spin_3s_linear_infinite_reverse]`), never as a separate `[animation-direction:reverse]`
   class, because the shorthand resets every sub-property — and never as an inline
   `style="animation: …"`, which outranks **every** class and makes the `motion-reduce:[animation:none]`
   that disables it under `prefers-reduced-motion` unreachable. jsdom computes no styles, so a spec can
-  only pin the class and the absent `style` attribute.
+  only pin the class and the absent `style` attribute. The green check beside "Updated" is unchanged
+  and needs no `reverse`/reduced-motion treatment because it is not an animation. The hero's top
+  status line is STATIC and counts nothing — this control is the countdown's only home.
   🔴 **The tooltip is part of this component's contract, not its decoration**: `z-50` (the app overlay
   layer, above the nav's `z-[45]`) and a **300ms** close delay after `mouseleave`, cancelled on
   re-entry and on destroy — the same window `InfoPopover` and the nav use. Do not "simplify" it to an
@@ -1573,11 +1585,12 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
 
 ### Motion (Phase 5B)
 
-Three pieces of motion were added, all **CSS-only** (`motion-safe:` / `motion-reduce:` variants or a
+The motion on this page was added in pieces across the polish rounds, all **CSS-only** (`motion-safe:` /
+`motion-reduce:` variants or a
 bounded transition), none a new dependency, and every one **inert under
 `prefers-reduced-motion: reduce`** — a reader who asked for less motion gets the same information with
-nothing moving (for the countdown fill, `motion-reduce:transition-none` drops the tween, so it steps
-per tick instead). No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
+nothing moving (for the countdown ring's arc, `motion-reduce:transition-none` drops the tween, so it
+steps per tick instead; for the "Updating" spinner, `motion-reduce:[animation:none]` stops it dead). No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
 
 - **Number tick-up on the hero's four stat tiles** — `src/app/ui/motion/tick-up.directive.ts`
   (`hlmTickUp`, selector `[hlmTickUp]`, input also `hlmTickUp`: `number`). The value is never rendered
@@ -1606,30 +1619,29 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   attention `h2` (`line-board-attention-dot`, `aria-hidden`) carrying
   `motion-safe:animate-breathe`. It reuses the **existing** `--animate-breathe` theme token rather than
   adding a second one, and the count beside it — the actual information — never moves.
-- **Countdown line** — the hero's **top status line**, not a ring inside a label. A full-width track
-  holds a fill (`hero-countdown-line`, `aria-hidden`) whose `[style.width.%]` is a `computed` over
-  `secondsRemaining() / intervalMs()`, so the coloured line, the "Refreshing in Ns" text beside it and
-  the beat itself are three readings of the same two numbers and cannot drift. 🔴 **The fill moves
-  GRADUALLY while the beat counts down and SNAPS only on a jump UP.** The width is written once per
-  second, so the smoothness is the fill's own `transition-[width] ease-linear` interpolating between
-  the writes — no stepping; a jump UP (the beat's own reset, `refreshNow()`, a store resume, or the
-  first observed value, which is what keeps the 0%-wide SSR paint from sweeping up over hydration) is
-  a (re)start rather than a countdown, and there the fill renders at `0s` duration so it snaps to full
-  instead of flowing. The seam is `_snapToFull`, a signal seeded `true` until anything ticks: a
-  constructor `effect` compares each read of `secondsRemaining` with the previous one and marks
-  `seconds > previous` (or a first read) as the edge, bound as
-  `[style.transition-duration]="_snapToFull() ? '0s' : '1s'"`. `motion-reduce:transition-none` still
-  drops the tween entirely for reduced motion. 🔴 It is computed from that pair **deliberately
-  rather than from `PollingSource.percentRemaining`**: `scheduleNext()` resets `secondsRemaining` on
-  the same edge but leaves `percentRemaining` to the next 1s tick, so immediately after a refresh the
-  published percentage still describes the beat that just ended and the line would visibly refuse to
-  refill for up to a second while claiming to be full. A null interval and an overshot countdown both
-  clamp to the ends of the range rather than inverting the fill. On the server `secondsRemaining` is
-  `0` (no timers run), so the SSR paint is a 0%-wide neutral line and the client's first binding fills
-  it — the same swap the ring used to do, which is why there is no extra hydration guard.
-  🔴 This replaced two graphics: the countdown ring and the "Updating" spinner, both gone from
-  `HomeRefreshControlComponent`, which is now **text-only**. One status line in the network's own tone
-  beats a spinner that says nothing about how bad things are.
+- **Countdown donut** — the refresh control's OWN ring (`line-refresh-ring` /
+  `line-refresh-ring-arc`), since round 2c; the hero's top status line is a static tone bar and
+  counts nothing. A `-rotate-90` SVG holds a track circle plus an arc whose `stroke-dasharray` is one
+  full turn (r=9 → `56.55`) and whose `stroke-dashoffset` is a `computed` over
+  `secondsRemaining() / intervalMs()`, so the ring, the "Refreshing in Ns" text beside it and the
+  beat itself are readings of the same two numbers and cannot drift. 🔴 **The arc DRAINS while the
+  beat counts down** — full at reset, empty at zero — and refills in the same render that puts the
+  text back to 30s; the 1s linear `transition-[stroke-dashoffset]` interpolates between the
+  once-per-second writes (no stepping), and `motion-reduce:transition-none` drops it so reduced
+  motion sees the arc jump straight to its new length: same information, no tween. The arc class is
+  `text-primary` (default theme), where the pre-round-2 ring was `text-brand`. 🔴 It is computed
+  from that pair **deliberately rather than from `PollingSource.percentRemaining`**: `scheduleNext()`
+  resets `secondsRemaining` on the same edge but leaves `percentRemaining` to the next 1s tick, so
+  immediately after a refresh the published percentage still describes the beat that just ended and
+  the ring would visibly refuse to refill for up to a second while claiming to be full. A null
+  interval (paused beat, ring not rendered at all) and an overshot countdown both clamp to the ends
+  of the range rather than inverting the arc — a negative offset would draw MORE than a full turn.
+- **The "Updating" spinner** — the same ring shape spun slowly in REVERSE
+  (`[animation:spin_3s_linear_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
+  inside the shorthand — see the refresh-control seam), so "the page is working on it" never reads as
+  "the countdown is running". Round 2c restored both graphics to the control while the hero's top
+  line went static, ending round 2's **text-only** phase: the indicator and the click target are one
+  control again.
 - 🔴 **Any future motion here is a `motion-safe:` / `motion-reduce:` pair on the element, plus a spec
   that asserts the class.** jsdom computes no styles, so "the animation is disabled" is only testable
   as "the class that disables it is on the element". A motion feature whose spec cannot name that
@@ -1734,9 +1746,11 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
 **New testids** — every pre-existing one is unchanged:
 
 - `home-skip-link` (the visually-hidden-until-focused skip link).
-- ~~`line-refresh-ring` / `line-refresh-ring-arc`~~ — **REMOVED** in the home-page polish round 2, with
-  the countdown ring and the "Updating" spinner they described. The beat is now drawn by the hero's
-  `hero-countdown-line` and stated in words by the control's own label.
+- `line-refresh-ring` / `line-refresh-ring-arc` — **REMOVED** in the home-page polish round 2 and
+  **RESTORED in round 2c**: the countdown ring inside the control again (arc draining to
+  `text-primary`, clamped and guarded), together with the reverse-spun "Updating" spinner. The beat's
+  only indicator is that donut plus the control's own label; the hero's `hero-status-line` counts
+  nothing.
 - `line-board-attention-dot` (the decorative pulse dot beside "Needs attention · N").
 - `hero-needs-attention-popover` / `hero-reports-now-popover` (the two tile-label info popovers).
 
@@ -1759,20 +1773,22 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   reachable only through `/methodology`; putting an info trigger on the board's `Severity` sort button
   is a UI decision, not a docs one, and is left open below.
 
-### New seams and testids (home-page polish, round 2 · 2b)
+### New seams and testids (home-page polish, round 2 · 2b · 2c)
 
 The tone line, the refresh slot and the sparkline placeholder — plus (round 2b) the hero's
 card-shaped clipping overlay, which has **no testid of its own**: it is asserted structurally, as
-`home-hero`'s first child holding both edge lines. **Removed:** `line-refresh-ring` /
-`line-refresh-ring-arc`, and the hero's brand-rail span (it was never a testid — it was the `bg-brand`
+`home-hero`'s first child holding both edge lines. **Removed (round 2):** `line-refresh-ring` /
+`line-refresh-ring-arc` — both **restored in round 2c** (the draining donut + spinner back in the
+control) — and the hero's brand-rail span (it was never a testid — it was the `bg-brand`
 element the round-2 spec asserted _absent_).
 
-- `hero-countdown-line` (the fill inside the hero's top status track — since round 2b, inside the
-  card-shaped clipping overlay rather than its own track wrapper) — its `style.width` is the beat
-  fraction and its `[class]` is the tone, so one element carries both new facts. Its 1s-linear width
-  transition is what makes the once-per-second writes read as a smooth countdown, while `_snapToFull`
-  forces a `0s` duration on the upward/reset edge (see the Motion bullet); it carries no `rounded-*`
-  of its own — the overlay is what cuts it to the card's silhouette.
+- `hero-status-line` (renamed from `hero-countdown-line` in round 2c; the hairline inside the hero's
+  top status track — since round 2b, inside the card-shaped clipping overlay rather than its own track
+  wrapper) — its `[class]` is the network's tone and that is the WHOLE binding: no `style.width`, no
+  transition, no store read, nothing to write after a beat tick (the spec pins `style.width === ""`
+  and `style.transitionDuration === ""` across `secondsRemaining` 30 → 15 → 0 and a paused
+  `intervalMs`), so the countdown's testid home is `line-refresh-ring` / `-ring-arc` again. It
+  carries no `rounded-*` of its own — the overlay is what cuts it to the card's silhouette.
 - `hero-refresh-slot` (the `shrink-0` wrapper holding `app-home-refresh-control` at the right end of
   the headline row). The old placement was asserted by hunting for `[class~="lg:flex"]`, which is a
   class-token substring match that any future gate can silently satisfy; assert this testid and the
