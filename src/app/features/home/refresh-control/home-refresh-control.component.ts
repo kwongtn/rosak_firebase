@@ -34,7 +34,11 @@ const ARM_EXPIRY_MS = 5000;
  */
 const TOOLTIP_CLOSE_DELAY_MS = 300;
 
-/** The countdown ring's radius, in the 24-unit viewBox the other icons in this button share. */
+/**
+ * The countdown ring's radius, in the ring's OWN 22-unit viewBox — the tracker side panel's
+ * CountdownRingComponent geometry, copied here exactly. The spinner and the check keep the
+ * 24-unit viewBox every other icon in the app uses; only the ring moved off it.
+ */
 const RING_RADIUS = 9;
 
 /**
@@ -89,6 +93,12 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
  * indeterminate counter-clockwise spinner; the green check confirms a click-armed settle. Both the
  * arc's transition and the spinner go inert under `prefers-reduced-motion: reduce`.
  *
+ * All three glyphs render inside ONE always-present fixed slot (`size-7`, glyph only) copied from
+ * the tracker side panel — `CountdownRingComponent`'s ring slot and `LayerChecklistComponent`'s
+ * "contents vary" one — because the button shrink-wraps to its visible content: without a constant
+ * slot, swapping a 22px ring for a 14px spinner would re-flow the row (and its label) on every
+ * state change. The ring itself is the tracker's geometry too, explicit width/height included.
+ *
  * It also owns the "Click to Refresh Now" tooltip: hover-open on pointer devices, tap-toggle on
  * everything else (a touch reader can never hover it into view), a 300ms deferred close
  * (`TOOLTIP_CLOSE_DELAY_MS`, the app-wide hover default) cancelled by re-entry, and a `z-50` panel
@@ -106,39 +116,109 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
       (mouseleave)="onRefreshHoverLeave()"
       (click)="onRefreshClick()"
     >
+      <!-- ONE fixed glyph slot shared by ALL THREE states — the tracker rows' own pattern
+           (CountdownRingComponent's size-7 ring slot; LayerChecklistComponent's "fixed-size slot —
+           always rendered, contents vary"): this button shrink-wraps to its visible content, so a
+           22px ring, a 14px spinner and a 14px check would each re-flow the row as the state
+           changes. One always-rendered slot of constant size is what keeps the label beside it from
+           shifting. The slot holds ONLY the glyph — every label stays a direct child of the button,
+           right after the slot. -->
+      <span class="inline-flex size-7 shrink-0 items-center justify-center">
+        @if (_isUpdating()) {
+          <!-- The tracker checklist's spinner glyph (size-3.5 over a 24-unit viewBox) at the
+               tracker's own 1s speed, but in REVERSE — the one direction nothing else on the page
+               animates in, so "the page is working on it" can never read as "the countdown is
+               running", which is a draining ring rather than a spin at all.
+               ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
+               every animation sub-property, so a separate [animation-direction:reverse] would be
+               dropped back to normal by it and be dead markup.
+               It is an arbitrary-property UTILITY rather than an inline style because reduced motion
+               has to be able to switch it off, and an inline animation outranks every class in the
+               cascade — including the motion-reduce one that would. (No backticks in this comment:
+               inside an inline template literal they would close it.) -->
+          <svg
+            class="text-muted-foreground size-3.5 [animation:spin_1s_linear_infinite_reverse] motion-reduce:[animation:none]"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-opacity="0.25"
+            />
+            <path
+              d="M21 12a9 9 0 0 0-9-9"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        } @else if (_showRefreshed()) {
+          <svg
+            class="text-green-600 dark:text-green-400 size-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        } @else if (store.polling.intervalMs() !== null) {
+          <!-- 🔴 The countdown DRAWS ITSELF instead of spinning — the tracker side panel's ring
+               (CountdownRingComponent) at its exact geometry: an EXPLICITLY 22px svg — this one
+               used to carry no width/height at all, so its viewBox rendered at the CSS initial size
+               and the "ring" came out a 112px blob — centered by the fixed size-7 slot, with r=9
+               circles at cx/cy 11, a 20%-muted track and a round-capped primary arc. A spinning
+               spinner says "something is happening"; a ring whose arc shrinks says "and here is how
+               long until the next refresh", which is the one fact this button exists to state. It
+               reads the store's own secondsRemaining()/intervalMs() pair, so it cannot disagree
+               with the text beside it or with the beat.
+
+               The dash-array is one full turn and the dash-offset is how much of it is left,
+               which makes the fraction a pure function of the two signals — no second timer and no
+               per-frame JS anywhere. The transition stays 1s/linear because THIS control's width
+               updates once per second, while the tracker's ring retimes to its 100ms source tick
+               (hence its own shorter duration); motion-reduce:transition-none drops it so a reader
+               who asked for reduced motion sees the arc jump straight to its new length instead:
+               same information, no tween. -->
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 22 22"
+            class="-rotate-90"
+            fill="none"
+            aria-hidden="true"
+            data-testid="line-refresh-ring"
+          >
+            <circle
+              cx="11"
+              cy="11"
+              [attr.r]="RING_RADIUS"
+              stroke="currentColor"
+              stroke-width="2.5"
+              class="text-muted-foreground/20"
+            />
+            <circle
+              cx="11"
+              cy="11"
+              [attr.r]="RING_RADIUS"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              class="text-primary transition-[stroke-dashoffset] duration-1000 ease-linear motion-reduce:transition-none"
+              data-testid="line-refresh-ring-arc"
+              [attr.stroke-dasharray]="_ringCircumference"
+              [attr.stroke-dashoffset]="_ringOffset()"
+            />
+          </svg>
+        }
+      </span>
       @if (_isUpdating()) {
-        <!-- Same shape as the countdown ring below (identical markup, so the row does not change
-             shape or colour between the two states) but SPUN slowly at 3s and in reverse — the one
-             direction nothing else on the page animates in, so "the page is working on it" never
-             reads as "the countdown is running".
-             ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
-             every animation sub-property, so a separate [animation-direction:reverse] would be
-             dropped back to normal by it and be dead markup.
-             It is an arbitrary-property UTILITY rather than an inline style because reduced motion
-             has to be able to switch it off, and an inline animation outranks every class in the
-             cascade — including the motion-reduce one that would. (No backticks in this comment:
-             inside an inline template literal they would close it.) -->
-        <svg
-          class="text-muted-foreground size-3.5 [animation:spin_3s_linear_infinite_reverse] motion-reduce:[animation:none]"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="9"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-opacity="0.25"
-          />
-          <path
-            d="M21 12a9 9 0 0 0-9-9"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
         <span
           class="text-muted-foreground text-xs"
           data-testid="line-refresh-updating"
@@ -147,16 +227,6 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
           Updating
         </span>
       } @else if (_showRefreshed()) {
-        <svg
-          class="text-green-600 dark:text-green-400 size-3.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          aria-hidden="true"
-        >
-          <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
         <span
           class="text-green-600 dark:text-green-400 text-xs"
           data-testid="line-refresh-confirmation"
@@ -165,45 +235,6 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
           Updated
         </span>
       } @else if (store.polling.intervalMs() !== null) {
-        <!-- 🔴 The countdown DRAWS ITSELF instead of spinning. A spinning spinner says "something is
-             happening"; a ring whose arc shrinks says "and here is how long until the next refresh",
-             which is the one fact this button exists to state. It reads the store's own
-             secondsRemaining()/intervalMs() pair, so it cannot disagree with the text beside it or
-             with the beat.
-
-             The dash-array is one full turn and the dash-offset is how much of it is left,
-             which makes the fraction a pure function of the two signals — no second timer and no
-             per-frame JS anywhere. The 1s transition matches the polling tick, and
-             motion-reduce:transition-none drops it so a reader who asked for reduced motion sees the
-             arc jump straight to its new length instead: same information, no tween. -->
-        <svg
-          class="text-muted-foreground -rotate-90"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-          data-testid="line-refresh-ring"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            [attr.r]="RING_RADIUS"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-opacity="0.25"
-          />
-          <circle
-            cx="12"
-            cy="12"
-            [attr.r]="RING_RADIUS"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            class="text-primary transition-[stroke-dashoffset] duration-1000 ease-linear motion-reduce:transition-none"
-            data-testid="line-refresh-ring-arc"
-            [attr.stroke-dasharray]="_ringCircumference"
-            [attr.stroke-dashoffset]="_ringOffset()"
-          />
-        </svg>
         <span class="text-muted-foreground text-xs">
           Refreshing in {{ store.polling.secondsRemaining() }}s
         </span>

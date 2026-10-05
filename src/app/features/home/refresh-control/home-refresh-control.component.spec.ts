@@ -120,6 +120,17 @@ describe("HomeRefreshControlComponent", () => {
     return host().querySelector<HTMLElement>('[data-testid="line-refresh-tooltip"]');
   }
 
+  /** The ONE fixed glyph slot every state renders its leading svg into (the tracker rows'
+   * pattern — CountdownRingComponent / LayerChecklistComponent): always present, contents vary,
+   * so the row never shifts between states. */
+  function slot(): HTMLElement {
+    const el = button().querySelector<HTMLElement>("span.inline-flex.size-7");
+    if (!el) {
+      throw new Error("glyph slot not rendered");
+    }
+    return el;
+  }
+
   /** A full manual refresh, as the store would drive it: armed by the click, request in flight,
    * then settled. `withError` settles it against `hasError`. */
   async function clickAndSettle(withError = false): Promise<void> {
@@ -226,16 +237,58 @@ describe("HomeRefreshControlComponent", () => {
     await render();
 
     expect(ringArc()?.getAttribute("class")).toContain("motion-reduce:transition-none");
-    // …and the "Updating" spinner, the one remaining animation on this control, opts out too.
+    // …and the "Updating" spinner, the one remaining animation on this control, opts out too. It
+    // now lives inside the shared glyph slot, so the label's previousElementSibling would be the
+    // SLOT — the svg itself is one level deeper.
     store.isRefreshing.set(true);
     fixture.detectChanges();
-    const spinner = host().querySelector<SVGElement>(
-      '[data-testid="line-refresh-updating"]',
-    )?.previousElementSibling;
+    const spinner = slot().querySelector<SVGElement>("svg");
     expect(spinner?.getAttribute("class")).toContain("motion-reduce:[animation:none]");
     // An inline `animation` outranks any class, including that one — so it has to be gone, not just
     // accompanied by a reduced-motion override.
-    expect((spinner as HTMLElement | null)?.style.animation).toBe("");
+    expect(spinner?.style.animation).toBe("");
+  });
+
+  it("sizes the ring to 22px inside ONE fixed size-7 glyph slot shared by every state", async () => {
+    // The regression this pins: the restored ring carried no width/height at all, so its viewBox
+    // rendered at the CSS initial size and the "ring" came out a 112px blob in the hero row. The
+    // tracker side panel's ring is explicitly sized inside a fixed 28px slot — this pins both the
+    // explicit size and the single shared slot, across all three states.
+    stubMatchMedia(false);
+    await render();
+
+    // Exactly ONE slot element, carrying the tracker rows' fixed-slot classes.
+    const slots = button().querySelectorAll("span.inline-flex.size-7.items-center.justify-center");
+    expect(slots.length).toBe(1);
+    expect(slot()).toBe(slots[0]);
+    expect(slot().className.split(/\s+/)).toContain("shrink-0");
+
+    // Countdown: the ring svg itself carries the explicit size…
+    const ringEl = ring();
+    expect(ringEl?.getAttribute("width")).toBe("22");
+    expect(ringEl?.getAttribute("height")).toBe("22");
+    expect(ringEl?.getAttribute("viewBox")).toBe("0 0 22 22");
+    expect(slot().contains(ringEl)).toBe(true);
+    // …and the countdown label sits OUTSIDE the slot, directly on the button after it.
+    expect(slot().nextElementSibling?.textContent).toContain("Refreshing in 30s");
+
+    // Updating: the SAME slot holds the spinner — still exactly one slot element.
+    store.isRefreshing.set(true);
+    fixture.detectChanges();
+    expect(button().querySelectorAll("span.inline-flex.size-7").length).toBe(1);
+    expect(slot().querySelector("svg")?.getAttribute("class")).toContain("size-3.5");
+    expect(updatingLabel()?.parentElement).toBe(button());
+    expect(slot().nextElementSibling).toBe(updatingLabel());
+
+    // Confirmation: the green check takes the same slot again — the row never re-flowed.
+    store.isRefreshing.set(false);
+    fixture.detectChanges();
+    await clickAndSettle();
+    expect(button().querySelectorAll("span.inline-flex.size-7").length).toBe(1);
+    const check = slot().querySelector("svg");
+    expect(check?.getAttribute("class")).toContain("text-green-600");
+    expect(slot().contains(check)).toBe(true);
+    expect(confirmation()?.parentElement).toBe(button());
   });
 
   it("draws no ring while a refresh is in flight, and none when the beat is paused", async () => {
@@ -603,9 +656,9 @@ describe("HomeRefreshControlComponent", () => {
     expect(confirmation()).toBeNull();
     expect(button().textContent?.replace(/\s+/g, " ")).not.toContain("Refreshing in");
 
-    // The "Updating" spinner, spun SLOWLY (3s) and counter-clockwise — so "you asked for this" can
-    // never be mistaken for "the beat is running", which is a draining ring rather than a spin at
-    // all.
+    // The "Updating" spinner, at the tracker checklist's 1s speed and counter-clockwise — so "you
+    // asked for this" can never be mistaken for "the beat is running", which is a draining ring
+    // rather than a spin at all.
     //
     // ⚠️ `reverse` must stay INSIDE the shorthand: `animation` is a shorthand that resets every
     // animation sub-property, so a separate [animation-direction:reverse] would be silently reset to
@@ -618,7 +671,7 @@ describe("HomeRefreshControlComponent", () => {
     // reduced-motion opt-out can actually win.
     const icon = button().querySelector("svg");
     const iconClass = icon?.getAttribute("class") ?? "";
-    expect(iconClass).toContain("[animation:spin_3s_linear_infinite_reverse]");
+    expect(iconClass).toContain("[animation:spin_1s_linear_infinite_reverse]");
     expect(iconClass).toContain("motion-reduce:[animation:none]");
     expect(icon?.getAttribute("style")).toBeNull();
     expect(iconClass).toContain("text-muted-foreground");
