@@ -213,7 +213,13 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     different control answering the same button. Both lost their `size-3.5` class on purpose: a CSS
     size outranks the `width`/`height` **attributes**, so keeping it would have silently re-shrunk
     them to 14px. The spinner still runs at the tracker checklist's own speed, 1s
-    (`[animation:spin_1s_linear_infinite_reverse]`, was 3s), with no inline `style`.
+    (`[animation:spin_1s_linear_500ms_infinite_reverse]`, was 3s), with no inline `style`. 🔴 Round 2f
+    gave that spinner a **draw-in entrance**: both strokes animate their own `stroke-dashoffset` from
+    their own length to 0 over 500ms (`animate-spinner-draw-ring` / `animate-spinner-draw-arc`) and
+    only THEN does the rotation begin, hence the **500ms delay** inside the spin shorthand — a whole
+    circle appearing in one frame reads as a hard cut into motion. Those two keyframes are **global
+    `@theme` tokens** in `src/styles.css` (`--animate-spinner-draw-ring` / `-arc`) and cannot live in
+    the component's `styles`, which Angular's emulated encapsulation renames — see `MISTAKES.md`.
     The ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
     text names, so the two readings cannot drift, and its arc is `text-primary` (default theme) where
     the pre-round-2 ring was `text-brand`. The hero's top status line is decoupled from the beat — a tone
@@ -1360,7 +1366,8 @@ the two cells can never disagree.
   "Updating" is the indeterminate spinner — it carries the
   Phase-5B rule: the `reverse`
   direction lives **inside** the `animation` shorthand as an arbitrary-property UTILITY
-  (`[animation:spin_1s_linear_infinite_reverse]` — the tracker checklist's own 1s, was 3s), never
+  (`[animation:spin_1s_linear_500ms_infinite_reverse]` — the tracker checklist's own 1s, was 3s, plus
+  round 2f's 500ms **delay** so the rotation waits out the draw-in), never
   as a separate `[animation-direction:reverse]`
   class, because the shorthand resets every sub-property — and never as an inline
   `style="animation: …"`, which outranks **every** class and makes the `motion-reduce:[animation:none]`
@@ -1674,7 +1681,9 @@ The motion on this page was added in pieces across the polish rounds, all **CSS-
 bounded transition), none a new dependency, and every one **inert under
 `prefers-reduced-motion: reduce`** — a reader who asked for less motion gets the same information with
 nothing moving (for the countdown ring's arc, `motion-reduce:transition-none` drops the tween, so it
-steps per tick instead; for the "Updating" spinner, `motion-reduce:[animation:none]` stops it dead). No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
+steps per tick instead; for the "Updating" spinner, all THREE of its animated elements are switched
+off — the `motion-reduce:[animation:none]` on the svg plus `motion-reduce:animate-none` on each of the
+two strokes). No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
 
 - **Number tick-up on the hero's four stat tiles** — `src/app/ui/motion/tick-up.directive.ts`
   (`hlmTickUp`, selector `[hlmTickUp]`, input also `hlmTickUp`: `number`). The value is never rendered
@@ -1732,8 +1741,9 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   source ticks every 100ms and so tweens shorter.
 - **The "Updating" spinner** — the tracker checklist's spinner at the tracker's 1s
   speed, spun in REVERSE
-  (`[animation:spin_1s_linear_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
-  inside the shorthand — see the refresh-control seam), so "the page is working on it" never reads as
+  (`[animation:spin_1s_linear_500ms_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
+  inside the shorthand and the 500ms delay the draw-in below — see the refresh-control seam), so
+  "the page is working on it" never reads as
   "the countdown is running". Round 2c restored both graphics to the control while the hero's top
   line went tone-only, ending round 2's **text-only** phase: the indicator and the click target are one
   control again. 🔴 Round 2e rebuilt it on the **ring's** 22-unit geometry (`width`/`height="22"`,
@@ -1741,6 +1751,30 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   so all three glyphs are 22×22 in one slot; it dropped `size-3.5` because a CSS size outranks the
   `width`/`height` attributes, which is exactly how the old 14px spinner survived the round-2d slot.
   The green check kept its 24-unit viewBox and gained an explicit 22×22 box for the same reason.
+  🔴 **Round 2f gave the spinner a DRAW-IN entrance instead of a pop-in.** A finished circle appearing
+  in one frame reads as a hard cut into motion, so each stroke now animates **its own**
+  `stroke-dashoffset` down from **its own** length to 0 over **500ms** — the track circle
+  (`stroke-dasharray="56.55"`, the r=9 full turn) and the arc path (`"14.14"`, the quarter turn that
+  is exactly that path's length) — and only THEN does the rotation start, which is what the **500ms
+  DELAY** inside the spin shorthand is for (`[animation:spin_1s_linear_500ms_infinite_reverse]`;
+  the duration is still 1s). Three rules:
+  1. 🔴 **The two keyframes are GLOBAL `@theme` tokens in `src/styles.css`**
+     (`--animate-spinner-draw-ring` / `--animate-spinner-draw-arc`), applied as the generated
+     `animate-spinner-draw-ring` / `animate-spinner-draw-arc` utilities. They **cannot** live in the
+     component's `styles`: Angular's emulated encapsulation RENAMES `@keyframes` declared there
+     (`spinner-draw-ring` → `_ngcontent-ng-cXXXX_spinner-draw-ring`), so a class-referenced
+     `animation-name` from the global sheet matched nothing and the entrance **silently never fired** —
+     green spec, clean build, no entrance. Every `animate-*` token in this repo is global for that
+     reason. See `MISTAKES.md`.
+  2. **All THREE elements are classes, never inline styles** — the svg's arbitrary
+     `[animation:…]` and the two strokes' generated `animate-*`. An inline animation outranks every
+     class in the cascade, including the `motion-reduce:` opt-out that has to beat it. With all three
+     off, nothing sets a base `stroke-dashoffset`, so the strokes fall back to the default `0`: the
+     glyph is still **fully drawn, static, and honest** — no pop-in, no missing glyph.
+  3. **A jsdom spec cannot see this class of bug** (it computes no styles — the class names were all
+     correct while the animation was not), so the entrance needs one browser look: the class names
+     themselves are what the spec pins, and the computed `animation-name` / sampled `dashoffset` are
+     what a human verifies.
 - 🔴 **Hero status-line tone fade + glow** (round 2e) — the only motion the tone bar has, and the
   bar itself still counts nothing. Two parts: a **300ms colour fade** in the element's STATIC class
   (`transition-colors duration-300 motion-reduce:transition-none`) so a tone change is not a jump,
@@ -1863,7 +1897,11 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   `text-primary`, clamped and guarded), together with the reverse-spun "Updating" spinner. **SIZED
   in round 2d** — explicit 22px (a viewBox-only svg rendered at 112px) inside the shared `size-7`
   glyph slot, per the refresh-control seam. **Round 2e** moved that slot after the label chain and made
-  the spinner and the check 22×22 to match it. The beat's
+  the spinner and the check 22×22 to match it. **Round 2f** gave the spinner a draw-in entrance: the
+  two strokes are asserted by their `animate-spinner-draw-ring` / `animate-spinner-draw-arc` classes
+  plus their own `stroke-dasharray` (56.55 / 14.14) and their `motion-reduce:animate-none`, all three
+  of them global `@theme` tokens — see `MISTAKES.md` for why a component's own `@keyframes` cannot be
+  referenced by a class. The beat's
   only indicator is that donut plus the control's own label; the hero's `hero-status-line` counts
   nothing.
 - `line-board-attention-dot` (the decorative pulse dot beside "Needs attention · N").

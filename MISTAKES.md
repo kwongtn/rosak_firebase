@@ -1253,3 +1253,40 @@ a new one should be pinned with a spec that asserts the class. 🔴 And neither 
 assertable from the component under test: the panel's own spec cannot see its ancestor's clip, and
 jsdom has no layout, so **a clipped panel needs a browser pass** — read it as "the panel is shorter than
 its text should need", not as a z-index failure.
+
+## [2026-10-05] core/styles: component `@keyframes` are RENAMED by emulated encapsulation — an animation referenced by a CLASS must be a global `@theme` token
+
+**Problem**: the home refresh control's "Updating" spinner gained a draw-in entrance — both strokes
+draw themselves from nothing to the full ring over 500ms — and it rendered as a **finished circle from
+the first frame**, with no entrance at all. Nothing failed: the spec was green, the class strings were
+exactly right, the build was clean. In the browser `animation-name` resolved to a name **no `@keyframes`
+rule exists for**, so the strokes simply sat at the default `stroke-dashoffset: 0`.
+
+**Root Cause**: 🔴 **Angular's emulated view encapsulation rewrites `@keyframes` declared inside a
+component's `styles`.** `@keyframes home-refresh-spinner-draw-ring` in the component's own stylesheet
+came out of the build as `@keyframes _ngcontent-ng-cXXXX_home-refresh-spinner-draw-ring`, while the
+Tailwind utility emitted `animation-name: home-refresh-spinner-draw-ring` from the **global** sheet
+(arbitrary `[animation:…]` and generated `animate-*` alike). The two names can never match, and an
+unmatched `animation-name` is not an error in any tool — it is a declaration that quietly does nothing.
+Only a name referenced from **within that same component's own `styles` string** would survive, since
+the rewrite is applied consistently inside one sheet.
+
+**Fix**: the keyframes are now **global `@theme` tokens** in `src/styles.css` —
+`--animate-spinner-draw-ring: spinner-draw-ring 500ms ease-out both` and `--animate-spinner-draw-arc`,
+each with its `@keyframes` nested in the same `@theme` block — applied as the generated
+`animate-spinner-draw-ring` / `animate-spinner-draw-arc` utilities. This is the same pattern as
+`--animate-icon-glow`, `--animate-breathe`, `--animate-nav-reveal`, `--animate-wordmark-wipe`,
+`--animate-nav-progress-sweep` and `--animate-tick-up`: every `animate-*` token in this repo is global
+for this reason, not by taste. The component's `styles` array went back to `[":host { display: inline-block; }"]`.
+Live evidence in the browser after the move: track `stroke-dashoffset` **56.55 → 50.40 → 47.46 → 41.83
+→ 33.89 → 31.37** and arc **14.14 → 7.84** over the first ~180ms, with a computed
+`animation-delay: 0.5s` on the spin.
+
+**Prevention**: 🔴 **any `@keyframes` referenced by a class — whether arbitrary `[animation:…]` or a
+generated `animate-*` — must be declared in the GLOBAL `@theme` in `src/styles.css`, never in a
+component's `styles`.** Put the `@keyframes` and its `--animate-<name>` token in the same `@theme`
+block and apply the `animate-<name>` utility. 🔴 And a jsdom spec **cannot** catch the broken version:
+it computes no styles, so the only thing it can assert is the class name — which was correct while the
+animation silently was not. That gap is exactly what let this ship green. Verify a new keyframe-driven
+animation by reading the **computed** `animation-name` in a real browser, or by grepping the built CSS
+for the un-prefixed name; a spec pinning the class is necessary but not sufficient.
