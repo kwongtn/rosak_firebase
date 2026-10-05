@@ -214,11 +214,14 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     size outranks the `width`/`height` **attributes**, so keeping it would have silently re-shrunk
     them to 14px. The spinner still runs at the tracker checklist's own speed, 1s
     (`[animation:spin_1s_linear_500ms_infinite_reverse]`, was 3s), with no inline `style`. 🔴 Round 2f
-    gave that spinner a **draw-in entrance**: both strokes animate their own `stroke-dashoffset` from
-    their own length to 0 over 500ms (`animate-spinner-draw-ring` / `animate-spinner-draw-arc`) and
-    only THEN does the rotation begin, hence the **500ms delay** inside the spin shorthand — a whole
-    circle appearing in one frame reads as a hard cut into motion. Those two keyframes are **global
-    `@theme` tokens** in `src/styles.css` (`--animate-spinner-draw-ring` / `-arc`) and cannot live in
+    gave that spinner a **draw-in entrance**: a stroke animates its own `stroke-dashoffset` from its own
+    length to 0 over 500ms (`animate-spinner-draw-arc`) and only THEN does the rotation begin, hence
+    the **500ms delay** inside the spin shorthand — a whole circle appearing in one frame reads as a
+    hard cut into motion. 🔴 **Round 2g narrowed that to the BRIGHT LINE only**: the faded backdrop
+    `<circle>` (r 9, `stroke-opacity="0.25"`) is plain markup now — no `stroke-dasharray`, no draw
+    class — so it is present from the **first frame** and the line draws onto it, rather than the
+    glyph's own backdrop still arriving 500ms after the state did. The one keyframe left is a **global
+    `@theme` token** in `src/styles.css` (`--animate-spinner-draw-arc`) and cannot live in
     the component's `styles`, which Angular's emulated encapsulation renames — see `MISTAKES.md`.
     The ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
     text names, so the two readings cannot drift, and its arc is `text-primary` (default theme) where
@@ -1681,9 +1684,10 @@ The motion on this page was added in pieces across the polish rounds, all **CSS-
 bounded transition), none a new dependency, and every one **inert under
 `prefers-reduced-motion: reduce`** — a reader who asked for less motion gets the same information with
 nothing moving (for the countdown ring's arc, `motion-reduce:transition-none` drops the tween, so it
-steps per tick instead; for the "Updating" spinner, all THREE of its animated elements are switched
-off — the `motion-reduce:[animation:none]` on the svg plus `motion-reduce:animate-none` on each of the
-two strokes). No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
+steps per tick instead; for the "Updating" spinner, BOTH of its animated elements are switched
+off — the `motion-reduce:[animation:none]` on the svg plus `motion-reduce:animate-none` on the bright
+arc; the faded backdrop circle is static by construction, so it has nothing to switch off). No
+`matchMedia` probe and no JS animation loop exists anywhere in this feature.
 
 - **Number tick-up on the hero's four stat tiles** — `src/app/ui/motion/tick-up.directive.ts`
   (`hlmTickUp`, selector `[hlmTickUp]`, input also `hlmTickUp`: `number`). The value is never rendered
@@ -1752,26 +1756,36 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   `width`/`height` attributes, which is exactly how the old 14px spinner survived the round-2d slot.
   The green check kept its 24-unit viewBox and gained an explicit 22×22 box for the same reason.
   🔴 **Round 2f gave the spinner a DRAW-IN entrance instead of a pop-in.** A finished circle appearing
-  in one frame reads as a hard cut into motion, so each stroke now animates **its own**
-  `stroke-dashoffset` down from **its own** length to 0 over **500ms** — the track circle
-  (`stroke-dasharray="56.55"`, the r=9 full turn) and the arc path (`"14.14"`, the quarter turn that
-  is exactly that path's length) — and only THEN does the rotation start, which is what the **500ms
-  DELAY** inside the spin shorthand is for (`[animation:spin_1s_linear_500ms_infinite_reverse]`;
-  the duration is still 1s). Three rules:
-  1. 🔴 **The two keyframes are GLOBAL `@theme` tokens in `src/styles.css`**
-     (`--animate-spinner-draw-ring` / `--animate-spinner-draw-arc`), applied as the generated
-     `animate-spinner-draw-ring` / `animate-spinner-draw-arc` utilities. They **cannot** live in the
-     component's `styles`: Angular's emulated encapsulation RENAMES `@keyframes` declared there
-     (`spinner-draw-ring` → `_ngcontent-ng-cXXXX_spinner-draw-ring`), so a class-referenced
-     `animation-name` from the global sheet matched nothing and the entrance **silently never fired** —
-     green spec, clean build, no entrance. Every `animate-*` token in this repo is global for that
-     reason. See `MISTAKES.md`.
-  2. **All THREE elements are classes, never inline styles** — the svg's arbitrary
-     `[animation:…]` and the two strokes' generated `animate-*`. An inline animation outranks every
-     class in the cascade, including the `motion-reduce:` opt-out that has to beat it. With all three
-     off, nothing sets a base `stroke-dashoffset`, so the strokes fall back to the default `0`: the
-     glyph is still **fully drawn, static, and honest** — no pop-in, no missing glyph.
-  3. **A jsdom spec cannot see this class of bug** (it computes no styles — the class names were all
+  in one frame reads as a hard cut into motion, so a stroke now animates **its own**
+  `stroke-dashoffset` down from **its own** length to 0 over **500ms**, and only THEN does the
+  rotation start, which is what the **500ms DELAY** inside the spin shorthand is for
+  (`[animation:spin_1s_linear_500ms_infinite_reverse]`; the duration is still 1s). 🔴 **Round 2g then
+  narrowed the entrance to the BRIGHT LINE alone.** The track circle (r 9, `stroke-opacity="0.25"`) is
+  now plain markup — its `stroke-dasharray="56.55"` and `animate-spinner-draw-ring` are GONE — so the
+  glyph's backdrop is there from the **first frame** and static for the whole state; animating it meant
+  the line was drawing onto nothing for the first 500ms of a state that had already arrived. The arc
+  path keeps `stroke-dasharray="14.14"` (the quarter turn that is exactly that path's length) and
+  `animate-spinner-draw-arc`. Four rules:
+  1. 🔴 **"From 3 o'clock ANTICLOCKWISE" is the path's own geometry, not extra direction.** The arc
+     `M20 11a9 9 0 0 0-9-9` already **starts** at `(20,11)` — 3 o'clock — and its sweep flag `0` walks
+     negative-angle (anticlockwise in SVG's y-down frame) to `(2,11)`, 12 o'clock. Walking
+     `stroke-dashoffset` **down** from the path's own length (14.14) to 0 reveals the stroke from the
+     path's start **forward** along the path, which is that same anticlockwise quarter turn. Reversing
+     the path to "change the direction" would only desync the draw from the geometry.
+  2. 🔴 **The keyframe is a GLOBAL `@theme` token in `src/styles.css`**
+     (`--animate-spinner-draw-arc`), applied as the generated `animate-spinner-draw-arc` utility. It
+     **cannot** live in the component's `styles`: Angular's emulated encapsulation RENAMES `@keyframes`
+     declared there (`spinner-draw-arc` → `_ngcontent-ng-cXXXX_spinner-draw-arc`), so a
+     class-referenced `animation-name` from the global sheet matched nothing and the entrance
+     **silently never fired** — green spec, clean build, no entrance. Every `animate-*` token in this
+     repo is global for that reason. See `MISTAKES.md`. (2g deleted the now-unused
+     `--animate-spinner-draw-ring` token and its keyframes with it.)
+  3. **Both animated elements are classes, never inline styles** — the svg's arbitrary
+     `[animation:…]` and the arc's generated `animate-*`. An inline animation outranks every
+     class in the cascade, including the `motion-reduce:` opt-out that has to beat it. With both
+     off, nothing sets a base `stroke-dashoffset`, so the arc falls back to the default `0`: the
+     glyph is still **fully drawn, static, and honest** — and the static backdrop is already there.
+  4. **A jsdom spec cannot see this class of bug** (it computes no styles — the class names were all
      correct while the animation was not), so the entrance needs one browser look: the class names
      themselves are what the spec pins, and the computed `animation-name` / sampled `dashoffset` are
      what a human verifies.
@@ -1897,10 +1911,12 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   `text-primary`, clamped and guarded), together with the reverse-spun "Updating" spinner. **SIZED
   in round 2d** — explicit 22px (a viewBox-only svg rendered at 112px) inside the shared `size-7`
   glyph slot, per the refresh-control seam. **Round 2e** moved that slot after the label chain and made
-  the spinner and the check 22×22 to match it. **Round 2f** gave the spinner a draw-in entrance: the
-  two strokes are asserted by their `animate-spinner-draw-ring` / `animate-spinner-draw-arc` classes
-  plus their own `stroke-dasharray` (56.55 / 14.14) and their `motion-reduce:animate-none`, all three
-  of them global `@theme` tokens — see `MISTAKES.md` for why a component's own `@keyframes` cannot be
+  the spinner and the check 22×22 to match it. **Round 2f** gave the spinner a draw-in entrance, and
+  **round 2g** narrowed it to the bright line only: that arc is asserted by its
+  `animate-spinner-draw-arc` class plus its own `stroke-dasharray` (14.14) and
+  `motion-reduce:animate-none`, while the faded backdrop circle is asserted **static** —
+  `stroke-opacity="0.25"` and NO `stroke-dasharray` and NO `class` attribute at all. The animation is
+  a global `@theme` token — see `MISTAKES.md` for why a component's own `@keyframes` cannot be
   referenced by a class. The beat's
   only indicator is that donut plus the control's own label; the hero's `hero-status-line` counts
   nothing.
