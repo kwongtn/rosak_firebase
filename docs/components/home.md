@@ -213,14 +213,17 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     different control answering the same button. Both lost their `size-3.5` class on purpose: a CSS
     size outranks the `width`/`height` **attributes**, so keeping it would have silently re-shrunk
     them to 14px. The spinner still runs at the tracker checklist's own speed, 1s
-    (`[animation:spin_1s_linear_500ms_infinite_reverse]`, was 3s), with no inline `style`. 🔴 Round 2f
+    (`[animation:spin_1s_linear_infinite_reverse]`, was 3s), with no inline `style`. 🔴 Round 2f
     gave that spinner a **draw-in entrance**: a stroke animates its own `stroke-dashoffset` from its own
-    length to 0 over 500ms (`animate-spinner-draw-arc`) and only THEN does the rotation begin, hence
-    the **500ms delay** inside the spin shorthand — a whole circle appearing in one frame reads as a
-    hard cut into motion. 🔴 **Round 2g narrowed that to the BRIGHT LINE only**: the faded backdrop
+    length to 0 over 500ms (`animate-spinner-draw-arc`) — a whole circle appearing in one frame reads
+    as a hard cut into motion. 🔴 Round 2g narrowed that to the BRIGHT LINE only: the faded backdrop
     `<circle>` (r 9, `stroke-opacity="0.25"`) is plain markup now — no `stroke-dasharray`, no draw
     class — so it is present from the **first frame** and the line draws onto it, rather than the
-    glyph's own backdrop still arriving 500ms after the state did. The one keyframe left is a **global
+    glyph's own backdrop still arriving 500ms after the state did. 🔴 **Round 2h made the spin run
+    WHILE the line draws in**: the spin shorthand carries **no delay**, so the glyph is already
+    rotating from the first frame and the two animations share the whole 500ms window — the line
+    draws from 3 o'clock anticlockwise _on a rotating glyph_, not on a still circle that then starts
+    moving. The one keyframe left is a **global
     `@theme` token** in `src/styles.css` (`--animate-spinner-draw-arc`) and cannot live in
     the component's `styles`, which Angular's emulated encapsulation renames — see `MISTAKES.md`.
     The ring is a `computed` over the same `secondsRemaining()/intervalMs()` pair the "Refreshing in Ns"
@@ -1369,8 +1372,9 @@ the two cells can never disagree.
   "Updating" is the indeterminate spinner — it carries the
   Phase-5B rule: the `reverse`
   direction lives **inside** the `animation` shorthand as an arbitrary-property UTILITY
-  (`[animation:spin_1s_linear_500ms_infinite_reverse]` — the tracker checklist's own 1s, was 3s, plus
-  round 2f's 500ms **delay** so the rotation waits out the draw-in), never
+  (`[animation:spin_1s_linear_infinite_reverse]` — the tracker checklist's own 1s, was 3s, and since
+  round 2h with **no delay**, so the rotation runs _while_ the line draws in rather than after it),
+  never
   as a separate `[animation-direction:reverse]`
   class, because the shorthand resets every sub-property — and never as an inline
   `style="animation: …"`, which outranks **every** class and makes the `motion-reduce:[animation:none]`
@@ -1745,8 +1749,9 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   source ticks every 100ms and so tweens shorter.
 - **The "Updating" spinner** — the tracker checklist's spinner at the tracker's 1s
   speed, spun in REVERSE
-  (`[animation:spin_1s_linear_500ms_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
-  inside the shorthand and the 500ms delay the draw-in below — see the refresh-control seam), so
+  (`[animation:spin_1s_linear_infinite_reverse]` + `motion-reduce:[animation:none]`, the direction
+  inside the shorthand and **no delay** — the spin runs while the line draws in, see the
+  refresh-control seam), so
   "the page is working on it" never reads as
   "the countdown is running". Round 2c restored both graphics to the control while the hero's top
   line went tone-only, ending round 2's **text-only** phase: the indicator and the click target are one
@@ -1757,22 +1762,30 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   The green check kept its 24-unit viewBox and gained an explicit 22×22 box for the same reason.
   🔴 **Round 2f gave the spinner a DRAW-IN entrance instead of a pop-in.** A finished circle appearing
   in one frame reads as a hard cut into motion, so a stroke now animates **its own**
-  `stroke-dashoffset` down from **its own** length to 0 over **500ms**, and only THEN does the
-  rotation start, which is what the **500ms DELAY** inside the spin shorthand is for
-  (`[animation:spin_1s_linear_500ms_infinite_reverse]`; the duration is still 1s). 🔴 **Round 2g then
+  `stroke-dashoffset` down from **its own** length to 0 over **500ms** — round 2f held the rotation
+  back for that window with a **500ms DELAY** inside the spin shorthand; 🔴 **round 2h REMOVED that
+  delay**, so the glyph is already rotating from the first frame and the spin and the draw share the
+  whole 500ms: the line draws from 3 o'clock anticlockwise _on a rotating glyph_, and there is no
+  separate "then it starts moving" phase (the duration is still 1s, and `reverse` is still inside the
+  shorthand). 🔴 **Round 2g then
   narrowed the entrance to the BRIGHT LINE alone.** The track circle (r 9, `stroke-opacity="0.25"`) is
   now plain markup — its `stroke-dasharray="56.55"` and `animate-spinner-draw-ring` are GONE — so the
   glyph's backdrop is there from the **first frame** and static for the whole state; animating it meant
   the line was drawing onto nothing for the first 500ms of a state that had already arrived. The arc
   path keeps `stroke-dasharray="14.14"` (the quarter turn that is exactly that path's length) and
-  `animate-spinner-draw-arc`. Four rules:
-  1. 🔴 **"From 3 o'clock ANTICLOCKWISE" is the path's own geometry, not extra direction.** The arc
+  `animate-spinner-draw-arc`. Five rules:
+  1. 🔴 **The spin and the draw are CONCURRENT, never sequential.** The shorthand is
+     `[animation:spin_1s_linear_infinite_reverse]` — no fourth token, hence **no delay**: a 500ms delay
+     there made the entrance read as two phases (a still circle that then starts moving) instead of one
+     motion, which is exactly what the user asked to be fixed. jsdom computes no styles, so the spec
+     pins the shorthand string itself and asserts no time slot crept back in front of `infinite`.
+  2. 🔴 **"From 3 o'clock ANTICLOCKWISE" is the path's own geometry, not extra direction.** The arc
      `M20 11a9 9 0 0 0-9-9` already **starts** at `(20,11)` — 3 o'clock — and its sweep flag `0` walks
      negative-angle (anticlockwise in SVG's y-down frame) to `(2,11)`, 12 o'clock. Walking
      `stroke-dashoffset` **down** from the path's own length (14.14) to 0 reveals the stroke from the
      path's start **forward** along the path, which is that same anticlockwise quarter turn. Reversing
      the path to "change the direction" would only desync the draw from the geometry.
-  2. 🔴 **The keyframe is a GLOBAL `@theme` token in `src/styles.css`**
+  3. 🔴 **The keyframe is a GLOBAL `@theme` token in `src/styles.css`**
      (`--animate-spinner-draw-arc`), applied as the generated `animate-spinner-draw-arc` utility. It
      **cannot** live in the component's `styles`: Angular's emulated encapsulation RENAMES `@keyframes`
      declared there (`spinner-draw-arc` → `_ngcontent-ng-cXXXX_spinner-draw-arc`), so a
@@ -1780,12 +1793,12 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
      **silently never fired** — green spec, clean build, no entrance. Every `animate-*` token in this
      repo is global for that reason. See `MISTAKES.md`. (2g deleted the now-unused
      `--animate-spinner-draw-ring` token and its keyframes with it.)
-  3. **Both animated elements are classes, never inline styles** — the svg's arbitrary
+  4. **Both animated elements are classes, never inline styles** — the svg's arbitrary
      `[animation:…]` and the arc's generated `animate-*`. An inline animation outranks every
      class in the cascade, including the `motion-reduce:` opt-out that has to beat it. With both
      off, nothing sets a base `stroke-dashoffset`, so the arc falls back to the default `0`: the
      glyph is still **fully drawn, static, and honest** — and the static backdrop is already there.
-  4. **A jsdom spec cannot see this class of bug** (it computes no styles — the class names were all
+  5. **A jsdom spec cannot see this class of bug** (it computes no styles — the class names were all
      correct while the animation was not), so the entrance needs one browser look: the class names
      themselves are what the spec pins, and the computed `animation-name` / sampled `dashoffset` are
      what a human verifies.
