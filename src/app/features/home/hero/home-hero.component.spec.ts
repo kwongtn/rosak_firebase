@@ -437,6 +437,50 @@ describe("HomeHeroComponent", () => {
     expect(fill().className).toContain("bg-orange-500");
   });
 
+  it("fades the tone colour, then glows for 5s after each tone change and stops", () => {
+    vi.useFakeTimers();
+    try {
+      const fill = (): HTMLElement =>
+        rootOf().querySelector('[data-testid="hero-status-line"]') as HTMLElement;
+
+      // The colour change is a 300ms FADE, not a jump, and a reader who asked for less motion gets
+      // none of it. This is the only transition the fill has — the countdown is not here any more.
+      render([]);
+      fixture.detectChanges();
+      expect(fill().className.split(/\s+/)).toEqual(
+        expect.arrayContaining([
+          "transition-colors",
+          "duration-300",
+          "motion-reduce:transition-none",
+        ]),
+      );
+      // An empty read is not a network event, so it earns no glow.
+      expect(fill().className).not.toContain("motion-safe:animate-icon-glow");
+
+      // The first REAL tone is worth announcing: two `icon-glow` pulses' worth of window, and the
+      // matching `text-*` beside the fill because that keyframe paints its shadow in currentColor.
+      render(linesWith(16, 0));
+      fixture.detectChanges();
+      expect(fill().className).toContain("motion-safe:animate-icon-glow");
+      expect(fill().className).toContain("text-green-500");
+
+      // The glow ENDS (the class alone never would — the animation is infinite), and the tone class
+      // stays exactly where it was.
+      vi.advanceTimersByTime(5000);
+      fixture.detectChanges();
+      expect(fill().className).not.toContain("motion-safe:animate-icon-glow");
+      expect(fill().className).toContain("bg-green-500");
+
+      // …and it re-arms on the NEXT change, so a line going down is as visible as the first read.
+      render(linesWith(16, 9));
+      fixture.detectChanges();
+      expect(fill().className).toContain("motion-safe:animate-icon-glow");
+      expect(fill().className).toContain("text-red-500");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("clips both edge lines in one card-shaped overlay rather than the card itself", () => {
     const section = render(networkLines()).querySelector(
       '[data-testid="home-hero"]',

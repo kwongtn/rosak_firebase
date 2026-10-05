@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from "@angular/core";
+import { Component, OnDestroy, computed, effect, inject, input, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
 
 import {
@@ -102,9 +102,14 @@ interface OfficialUpdate {
         <!-- The top edge IS the status line: STATIC and full-width, wearing only the network's TONE
              (green/orange/red) — see _lineClass. It counts nothing any more: the poll beat's
              countdown indicator is the donut inside the refresh control on the headline row below,
-             so this fill carries no width binding and no transition. -->
+             so this fill carries no width binding. Its only transition is the 300ms COLOUR fade
+             (plus the post-change glow), which lives in the static class and in _lineClass. -->
         <div class="absolute inset-x-0 top-0 h-1">
-          <span class="block h-full" [class]="_lineClass()" data-testid="hero-status-line"></span>
+          <span
+            class="motion-reduce:transition-none block h-full transition-colors duration-300"
+            [class]="_lineClass()"
+            data-testid="hero-status-line"
+          ></span>
         </div>
 
         <!-- The network's own colours as a hairline ribbon along the bottom edge, one segment per
@@ -304,7 +309,7 @@ interface OfficialUpdate {
     </section>
   `,
 })
-export class HomeHeroComponent {
+export class HomeHeroComponent implements OnDestroy {
   /** The same pulse list the board below renders — an input, never a second read. */
   readonly lines = input.required<LinePulse[]>();
   /** Today's approved link count, straight off the feed read's own `totalCount`. */
@@ -346,21 +351,66 @@ export class HomeHeroComponent {
   });
 
   /**
+   * Whether the fill is in its post-change GLOW window (see the `_tone` effect below).
+   *
+   * `icon-glow` is a box-shadow pulse coloured by `currentColor`, so the fill has to carry a
+   * matching `text-*` tone beside its `bg-*` one — hence the TEXT classes below. It is not
+   * `animate-breathe`: that keyframe scales, which would visibly breathe the full-width bar itself.
+   */
+  private readonly _toneGlow = signal(false);
+
+  /** 🔴 How long the glow lasts after a tone change, in ms. Two `icon-glow` pulses (2.5s each). */
+  private static readonly _GLOW_MS = 5000;
+  private _glowTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * Glow the fill for 5s after every tone CHANGE, and only on a change: the first run glows only if
+   * the tone is already real (an `unknown` first read is an empty read, not a network event), and
+   * every later run glows when the tone differs from the one before it.
+   *
+   * The TIMEOUT drives the duration, not the class — the animation is `infinite`, so nothing about
+   * the class itself would ever end the glow.
+   */
+  constructor() {
+    let previous: string | null = null;
+    effect(() => {
+      const tone = this._tone();
+      const changed = previous === null ? tone !== "unknown" : tone !== previous;
+      previous = tone;
+      if (!changed) {
+        return;
+      }
+      this._toneGlow.set(true);
+      clearTimeout(this._glowTimer);
+      this._glowTimer = setTimeout(() => this._toneGlow.set(false), HomeHeroComponent._GLOW_MS);
+    });
+  }
+
+  ngOnDestroy(): void {
+    clearTimeout(this._glowTimer);
+  }
+
+  /**
    * The status line's fill: the network's TONE and nothing else — green/orange/red, neutral before
-   * the first read. Full-width and static, so this class is the whole binding; the countdown
-   * indicator is the donut inside the refresh control on the headline row, not this line.
+   * the first read — plus the glow class while `_toneGlow` is on. Each tone carries BOTH a
+   * background and the matching TEXT colour, because the glow's box-shadow is drawn in
+   * `currentColor`. Full-width and static otherwise, so this class is the whole binding; the
+   * countdown indicator is the donut inside the refresh control on the headline row, not this line.
    */
   protected readonly _lineClass = computed(() => {
-    switch (this._tone()) {
-      case "normal":
-        return "bg-green-500";
-      case "degraded":
-        return "bg-orange-500";
-      case "critical":
-        return "bg-red-500";
-      default:
-        return "bg-muted-foreground/40";
-    }
+    const tone = (() => {
+      switch (this._tone()) {
+        case "normal":
+          return "bg-green-500 text-green-500";
+        case "degraded":
+          return "bg-orange-500 text-orange-500";
+        case "critical":
+          return "bg-red-500 text-red-500";
+        default:
+          return "bg-muted-foreground/40 text-muted-foreground";
+      }
+    })();
+    return tone + (this._toneGlow() ? " motion-safe:animate-icon-glow" : "");
   });
 
   /**
