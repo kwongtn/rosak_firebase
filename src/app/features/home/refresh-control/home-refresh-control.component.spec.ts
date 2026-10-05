@@ -287,16 +287,29 @@ describe("HomeRefreshControlComponent", () => {
     fixture.detectChanges();
 
     const spinner = slot().querySelector<SVGElement>("svg");
-    // No delay slot in the shorthand at all: the spin duration is still 1s and the direction still
-    // rides INSIDE it (`reverse` must stay there — the shorthand resets every sub-property, so a
-    // separate animation-direction would be dead markup). Asserting the whole shorthand is what
-    // catches a delay creeping back in as a fourth token.
+    // No delay slot in the shorthand at all: the spin duration is 2s per revolution (HALVED from 1s,
+    // because at 1s the glyph read as a spinner rushing) and the direction still rides INSIDE it
+    // (`reverse` must stay there — the shorthand resets every sub-property, so a separate
+    // animation-direction would be dead markup). Asserting the whole shorthand is what catches a
+    // delay creeping back in as a fourth token.
     const spinClass = spinner?.getAttribute("class") ?? "";
-    expect(spinClass).toContain("[animation:spin_1s_linear_infinite_reverse]");
+    expect(spinClass).toContain("[animation:spin_2s_linear_infinite_reverse]");
     expect(spinClass).not.toMatch(/\[animation:[^\]]*\b\d+m?s[^\]]*infinite/);
 
-    const track = spinner?.querySelector<SVGElement>("circle");
-    const arc = spinner?.querySelector<SVGElement>("path");
+    // 🔴 The draw's start is 12 o'clock, which is GEOMETRY: both strokes live inside one group
+    // rotated a quarter turn anticlockwise about the ring's centre. It cannot be a `-rotate-90`
+    // class on the svg — the spin animation writes `transform` on the svg every frame and would
+    // overwrite it — so the group transform is the only place this can live, and it composes with
+    // the spin instead of fighting it.
+    const group = spinner?.querySelector<SVGGElement>('g[transform="rotate(-90 11 11)"]');
+    expect(group).not.toBeNull();
+    expect(spinner?.getAttribute("class") ?? "").not.toMatch(/-rotate-90/);
+    // Both strokes are inside it — the backdrop included, so the whole glyph's start point moves,
+    // not just the line that draws in.
+    expect(group?.children.length).toBe(2);
+
+    const track = group?.querySelector<SVGElement>("circle");
+    const arc = group?.querySelector<SVGElement>("path");
     // The backdrop is drawn in full from the start: no dasharray to animate and no animation class.
     expect(track?.getAttribute("stroke-opacity")).toBe("0.25");
     expect(track?.getAttribute("stroke-dasharray")).toBeNull();
@@ -837,8 +850,8 @@ describe("HomeRefreshControlComponent", () => {
     expect(confirmation()).toBeNull();
     expect(button().textContent?.replace(/\s+/g, " ")).not.toContain("Refreshing in");
 
-    // The "Updating" spinner, at the tracker checklist's 1s speed and counter-clockwise — so "you
-    // asked for this" can never be mistaken for "the beat is running", which is a draining ring
+    // The "Updating" spinner, counter-clockwise at 2s per revolution (half the tracker's 1s) — so
+    // "you asked for this" can never be mistaken for "the beat is running", which is a draining ring
     // rather than a spin at all.
     //
     // ⚠️ `reverse` must stay INSIDE the shorthand: `animation` is a shorthand that resets every
@@ -856,8 +869,11 @@ describe("HomeRefreshControlComponent", () => {
     // completed circle that then starts moving.
     const icon = button().querySelector("svg");
     const iconClass = icon?.getAttribute("class") ?? "";
-    expect(iconClass).toContain("[animation:spin_1s_linear_infinite_reverse]");
+    expect(iconClass).toContain("[animation:spin_2s_linear_infinite_reverse]");
     expect(iconClass).toContain("motion-reduce:[animation:none]");
+    // The 12-o'clock start is the group's transform, never a class on the spinning svg.
+    expect(icon?.querySelector('g[transform="rotate(-90 11 11)"]')).not.toBeNull();
+    expect(iconClass).not.toContain("-rotate-90");
     expect(icon?.getAttribute("style")).toBeNull();
     expect(iconClass).toContain("text-muted-foreground");
     expect(iconClass).not.toContain("text-green-600");

@@ -159,7 +159,7 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
            immediately before it. -->
       <span class="inline-flex size-7 shrink-0 items-center justify-center">
         @if (_isUpdating()) {
-          <!-- The tracker checklist's spinner glyph at the tracker's own 1s speed, but in REVERSE —
+          <!-- The tracker checklist's spinner glyph, in REVERSE and at HALF its speed (2s) —
                the one direction nothing else on the page animates in, so "the page is working on
                it" can never read as "the countdown is running", which is a draining ring rather
                than a spin at all. It is rebuilt on the RING's 22-unit geometry (r=9 at cx/cy 11,
@@ -177,14 +177,18 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
                deliberately STATIC: it is the backdrop the line draws onto, so it is there from the
                first frame and the state never reads as a line floating in space with nothing under
                it.
-               ⚠️ The bright line draws FROM 3 O'CLOCK ANTICLOCKWISE, and the whole glyph is
-               ALREADY ROTATING as it does: the arc path M20 11a9 9 0 0 0-9-9 already STARTS at
-               (20,11) — 3 o'clock — and its sweep flag 0 walks negative-angle (anticlockwise in
-               SVG's y-down frame) from there to (2,11), 12 o'clock. So walking stroke-dashoffset
-               DOWN from the path's own length (14.14) to 0 reveals the stroke from the path's start
-               FORWARD along the path itself, which is that same anticlockwise quarter turn.
-               Reversing the path to change the direction would only desync the draw from the
-               geometry.
+               ⚠️ The bright line draws FROM 12 O'CLOCK ANTICLOCKWISE, and the whole glyph is
+               ALREADY ROTATING as it does. The arc path M20 11a9 9 0 0 0-9-9 starts at (20,11) —
+               3 o'clock in its OWN coordinates — and its sweep flag 0 walks negative-angle
+               (anticlockwise in SVG's y-down frame) from there to (2,11), 12 o'clock; walking
+               stroke-dashoffset DOWN from the path's own length (14.14) to 0 reveals the stroke from
+               the path's start FORWARD along the path itself, which is that same anticlockwise
+               quarter turn. So the path is left exactly as it is and the whole glyph is rotated a
+               quarter turn anticlockwise by the GROUP below, which is what moves the draw's start to
+               12 o'clock. 🔴 That rotation is GEOMETRY, not a class: the spin animation writes
+               transform on THIS svg, so a -rotate-90 class on the svg would be overwritten every
+               frame — the group transform composes with the animation instead. Reversing the path to
+               change the direction would only desync the draw from the geometry.
                ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
                every animation sub-property, so a separate [animation-direction:reverse] would be
                dropped back to normal by it and be dead markup.
@@ -193,34 +197,44 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
                animate-* utility. Inline styles would outrank every class in the cascade, including
                the motion-reduce ones that switch them off. With both off the arc falls back to the
                default stroke-dashoffset: 0: the glyph renders fully drawn, static, and still
-               honest — and the static backdrop underneath it is already there. (No backticks in
-               this comment: inside an inline template literal they would close it.) -->
+               honest — and the static backdrop underneath it is already there. 🔴 The spin is 2s per
+               revolution (halved from 1s): the glyph was busy enough at 1s to read as a spinner
+               rushing rather than working. (No backticks in this comment: inside an inline template
+               literal they would close it.) -->
           <svg
-            class="text-muted-foreground [animation:spin_1s_linear_infinite_reverse] motion-reduce:[animation:none]"
+            class="text-muted-foreground [animation:spin_2s_linear_infinite_reverse] motion-reduce:[animation:none]"
             width="22"
             height="22"
             viewBox="0 0 22 22"
             fill="none"
             aria-hidden="true"
           >
-            <!-- The STATIC faded backdrop, deliberately not part of the entrance: no dasharray, no
-                 draw animation, no reduced-motion opt-out. The bright line draws onto it. -->
-            <circle
-              cx="11"
-              cy="11"
-              r="9"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-opacity="0.25"
-            />
-            <path
-              d="M20 11a9 9 0 0 0-9-9"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-dasharray="14.14"
-              class="animate-spinner-draw-arc motion-reduce:animate-none"
-            />
+            <!-- 🔴 BOTH strokes sit in one group rotated a quarter turn anticlockwise about the
+                 ring's own centre, so the draw-in starts at 12 O'CLOCK. It has to be a group
+                 transform, not a -rotate-90 class on the svg: the spin animation writes transform on
+                 the svg itself every frame, so a class there would simply be overwritten. A group
+                 transform composes with it, so the start point is fixed while the glyph still spins
+                 anticlockwise around it. -->
+            <g transform="rotate(-90 11 11)">
+              <!-- The STATIC faded backdrop, deliberately not part of the entrance: no dasharray, no
+                   draw animation, no reduced-motion opt-out. The bright line draws onto it. -->
+              <circle
+                cx="11"
+                cy="11"
+                r="9"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-opacity="0.25"
+              />
+              <path
+                d="M20 11a9 9 0 0 0-9-9"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-dasharray="14.14"
+                class="animate-spinner-draw-arc motion-reduce:animate-none"
+              />
+            </g>
           </svg>
         } @else if (_showRefreshed()) {
           <!-- The check keeps the 24-unit viewBox every other icon in the app draws on, scaled DOWN
