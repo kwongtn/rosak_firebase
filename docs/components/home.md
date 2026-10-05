@@ -53,7 +53,9 @@
     strip ABOVE the `home-panels` grid. 🔴 Its headline is the page's **only `h1`** (Phase 5B — it
     used to be an `h2`, so the page had no top-level heading at all). It renders the plain-language headline (with an
     `app-info-popover` whose `content` is
-    `renderMethodologyCopy(metricDoc("network.lines-normal").definition)`), the disruption callout
+    `renderMethodologyCopy(metricDoc("network.lines-normal").definition)` — the registry sentence
+    now states the in-service scoping AND the tone's green/orange/red rule, so the popover explains
+    the words and the colour together), the disruption callout
     naming the worst line, four stat tiles (lines normal · needs attention · reports now · links
     today) and an **intent-based** CTA row — Report a delay · Spot a train · Share a link · Live map
     (`routerLink="/tracker"`). Each tile's FIGURE is an `hlmTickUp` host, so a changed number replays a
@@ -76,17 +78,28 @@
     🔴 **The top edge is the STATUS LINE, not decoration.** The Phase-0 brand-orange rail is replaced
     by a full-width track whose fill (`hero-countdown-line`) is the fraction of the poll beat left
     and wears the network's own **tone**; the `h1` beside it wears the same tone as text, from the
-    same two counts. Both come from the pure `networkTone(total, needsAttentionCount)` — `unknown`
-    (no lines read) neutral, `normal` (0 needing attention) green, `degraded` (needs attention ≤
-    HALF the lines) orange, `critical` (> half) red — so the words and the colour can never describe
-    different arithmetic. Only the class maps live in the component; the rule is unit-tested in
+    same two counts. Both come from the pure `networkTone(inService.total,
+inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInService`: `TESTING` and
+    `DEFUNCT` excluded, so a pre-opening trial or a permanently closed line can never drag the words
+    or the colour down; the stat TILE beside them deliberately keeps the all-lines count, because a
+    reader asking "how many lines need attention" means every line) — `unknown` (no lines read)
+    neutral, `normal` (0 needing attention) green, `degraded` (needs attention ≤ HALF the in-service
+    lines) orange, `critical` (> half) red — so the words and the colour can never describe different
+    arithmetic. Only the class maps live in the component; the rule is unit-tested in
     `data/network-summary.util.ts`. Half is the CEILING of `degraded`, not the floor of `critical`:
     at exactly half, most riders are still on working trains, and painting that the same alarm red as
-    a broadly-down network trains readers to ignore red.
+    a broadly-down network trains readers to ignore red. The fill itself carries **no width
+    transition**: it is written once per second and SNAPS (see the countdown bullet under Motion).
     🔴 The hero card **no longer clips** (`overflow-hidden` removed): the headline popover, the tile
     popovers and the menu panel all live inside it and must be able to escape. The two decorative
-    edges carry their own rounding instead — the countdown track `rounded-t-2xl`, the ribbon
-    `rounded-b-2xl`, each keeping its own `overflow-hidden` to clip only its own fill/segments.
+    edges are clipped instead by ONE card-shaped overlay — the card's first child,
+    `pointer-events-none absolute inset-0 overflow-hidden rounded-2xl`, `aria-hidden` and holding
+    both `hero-countdown-line` and `hero-ribbon` — because neither line can clip itself: each is 4px
+    tall, and CSS clamps a corner radius to its own box, so their `rounded-*` collapsed to ~4px and
+    their square ends poked outside the card's 18px corners, while an overlay the size of the CARD
+    is not clamped. The lines carry no rounding of their own any more — the overlay does the
+    cutting, and its `pointer-events-none` is what keeps it from swallowing a click on what it
+    covers.
     🔴 Every CTA wears the **default theme** — "Report a delay" and "Live map" lost their MLPTF brand
     override, because the page's identity is carried by type and layout, not by a coloured button.
     The hero hosts the page's **live refresh indicator** (`app-home-refresh-control`) in the
@@ -288,8 +301,9 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
     `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders), `network-summary.util.ts` (the
-    pure board roll-up: severity tables, the needs-attention rule, the comparator, the headline, the
-    worst-line callout and the `networkTone` colour tone), `status-confidence.util.ts` (the pure **confidence** rule: how much to
+    pure board roll-up: severity tables, the needs-attention rule, the comparator, the in-service
+    split (`isInService` / `inService`), the headline, the worst-line callout and the `networkTone`
+    colour tone), `status-confidence.util.ts` (the pure **confidence** rule: how much to
     trust a line's reported status, and the operator-post test), and the pure
     `passenger-status.util.ts` (labels/variants + `PASSENGER_SEVERITY_RANK`, no components).
 
@@ -1291,14 +1305,22 @@ the two cells can never disagree.
   that is only partly running), `NEEDS_ATTENTION_PASSENGER_RANK` (= `PASSENGER_SEVERITY_RANK.DELAYED`,
   5), and `lineNeedsAttention` (`status !== "ACTIVE" || passengerSeverity >= that rank`). 🔴 The
   threshold is `DELAYED` and not `CROWDED` on purpose: crowding reports describe one carriage, not
-  the service, and counting them would leave the headline reading "0 of 16 lines running normally"
-  on any busy evening. `compareLineSeverity` compares the operational axis **first** and the
+  the service, and counting them would leave the headline reading "0 of 14 lines running normally"
+  on any busy evening (the headline's denominator counts in-service lines only — see `inService`
+  below). `compareLineSeverity` compares the operational axis **first** and the
   passenger axis second (never sums them — a line that will not run outranks one that merely runs
   badly), with `code` as the final tiebreak so the order is total and two boards with the same data
   render identically. `summarizeNetwork` returns `{ total, normalCount, needsAttentionLines,
-needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read yields
+needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. 🔴
+  **`inService: { total, needsAttentionCount }`** is the headline's own denominator, built by the
+  pure `isInService(line)` (which excludes exactly `TESTING` and `DEFUNCT`, the same two statuses the
+  severity table calls settled and un-actionable): the headline sentence and the tone read these two
+  numbers, while **every other field counts ALL lines** — so today's live read says "All 14 lines
+  running normally" in green beside a tile that still says "2 Needs attention", deliberately. An
+  empty read yields
   `headline: "No live line data yet"` rather than the misleading "0 of 0 lines running normally", and
-  `reportsNow` sums each line's `statusReportCount` (over its OWN rolling `statusWindowMinutes`),
+  a read that DID return lines but nothing in service yields its own words, `"No lines in service"`
+  — a different fact from an empty read. `reportsNow` sums each line's `statusReportCount` (over its OWN rolling `statusWindowMinutes`),
   which is why the tile says "reports now" rather than claiming a distinct-report count. 🔴
   **`PASSENGER_SEVERITY_RANK` mirrors the backend `PassengerStatus` enum order** (NORMAL 0 … DISRUPTED 6) — the schema exposes the enum in declaration order, so a higher rank IS a more severe status.
   Do not "tidy" the numbers into a preferred order (DELAYED before CROWDED, say): they are the
@@ -1306,8 +1328,9 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   🔴 **`networkTone(total, needsAttentionCount)` is the same file's second exported rule**, and it is
   pure for the same reason — it is a fact about the network, not a design decision. It returns one of
   four `NetworkTone` values from the SAME two counts `summarizeNetwork` builds the headline sentence
-  from, which is the entire point: the hero's coloured status line and its `h1` cannot disagree,
-  because neither can be computed without the other's arithmetic. `unknown` (no lines read) is neutral
+  from — `summary.inService`, NOT the all-lines totals — which is the entire point: the hero's
+  coloured status line and its `h1` cannot disagree, because neither can be computed without the
+  other's arithmetic. `unknown` (no lines read, or nothing in service) is neutral
   rather than green — "nothing is wrong" is not the same claim as "everything is fine". Keep the class
   maps in the component (`_tone` / `_headlineClass` / `_lineClass`): which shade of orange is a
   visual choice, and Tailwind needs full literal class strings in source to compile them.
@@ -1549,10 +1572,12 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
 
 ### Motion (Phase 5B)
 
-Three pieces of motion were added, all of them **CSS-only** (`motion-safe:` / `motion-reduce:`
-variants or a bounded transition), none of them a new dependency, and every one of them **inert under
+Two pieces of motion were added, both **CSS-only** (`motion-safe:` / `motion-reduce:` variants),
+neither a new dependency, and both **inert under
 `prefers-reduced-motion: reduce`** — a reader who asked for less motion gets the same information with
-nothing moving. No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
+nothing moving. No `matchMedia` probe and no JS animation loop exists anywhere in this feature. The
+third item below is listed here deliberately as the counter-example: it carries **no transition at
+all**.
 
 - **Number tick-up on the hero's four stat tiles** — `src/app/ui/motion/tick-up.directive.ts`
   (`hlmTickUp`, selector `[hlmTickUp]`, input also `hlmTickUp`: `number`). The value is never rendered
@@ -1584,10 +1609,12 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
 - **Countdown line** — the hero's **top status line**, not a ring inside a label. A full-width track
   holds a fill (`hero-countdown-line`, `aria-hidden`) whose `[style.width.%]` is a `computed` over
   `secondsRemaining() / intervalMs()`, so the coloured line, the "Refreshing in Ns" text beside it and
-  the beat itself are three readings of the same two numbers and cannot drift. The transition is
-  `transition-[width] duration-1000 ease-linear`, matching the 1s polling tick, and carries
-  `motion-reduce:transition-none` so reduced motion sees the line jump straight to its new length —
-  same information, no tween. 🔴 It is computed from that pair **deliberately
+  the beat itself are three readings of the same two numbers and cannot drift. 🔴 **The fill carries
+  NO width transition — it SNAPS.** It used to wear `transition-[width] duration-1000 ease-linear`
+  with `motion-reduce:transition-none`, but the value is only rewritten once per second, so animating
+  it made every refresh read as the line _flowing_ back to full — a slow sweep with no meaning on a
+  countdown. The spec pins the ABSENCE of `transition-[width]` and `duration-1000` so the tween
+  cannot return unnoticed. 🔴 It is computed from that pair **deliberately
   rather than from `PollingSource.percentRemaining`**: `scheduleNext()` resets `secondsRemaining` on
   the same edge but leaves `percentRemaining` to the next 1s tick, so immediately after a refresh the
   published percentage still describes the beat that just ended and the line would visibly refuse to
@@ -1727,14 +1754,19 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   reachable only through `/methodology`; putting an info trigger on the board's `Severity` sort button
   is a UI decision, not a docs one, and is left open below.
 
-### New seams and testids (home-page polish, round 2)
+### New seams and testids (home-page polish, round 2 · 2b)
 
-The tone line, the refresh slot and the sparkline placeholder. **Removed:** `line-refresh-ring` /
+The tone line, the refresh slot and the sparkline placeholder — plus (round 2b) the hero's
+card-shaped clipping overlay, which has **no testid of its own**: it is asserted structurally, as
+`home-hero`'s first child holding both edge lines. **Removed:** `line-refresh-ring` /
 `line-refresh-ring-arc`, and the hero's brand-rail span (it was never a testid — it was the `bg-brand`
 element the round-2 spec asserted _absent_).
 
-- `hero-countdown-line` (the fill inside the hero's top status track) — its `style.width` is the beat
-  fraction and its `[class]` is the tone, so one element carries both new facts.
+- `hero-countdown-line` (the fill inside the hero's top status track — since round 2b, inside the
+  card-shaped clipping overlay rather than its own track wrapper) — its `style.width` is the beat
+  fraction and its `[class]` is the tone, so one element carries both new facts. It carries NO width
+  transition (it snaps; see the Motion bullet), and no `rounded-*` of its own — the overlay is what
+  cuts it to the card's silhouette.
 - `hero-refresh-slot` (the `shrink-0` wrapper holding `app-home-refresh-control` at the right end of
   the headline row). The old placement was asserted by hunting for `[class~="lg:flex"]`, which is a
   class-token substring match that any future gate can silently satisfy; assert this testid and the
@@ -1749,8 +1781,10 @@ element the round-2 spec asserted _absent_).
 - `InfoPopover`'s panel moved `z-20` → **`z-50`**, the app overlay layer (the nav is `z-[45]`, the
   sticky mobile action bar `z-30`). 🔴 The pair of rules this bought is now load-bearing: a container
   that hosts an `InfoPopover` must not be `overflow-hidden`, and a popover must never be painted
-  under chrome. The hero card, `line-pulse-card` and `line-pulse-row` all gave up their clipping and
-  rounded their decorative rails instead. See `MISTAKES.md` for the full entry.
+  under chrome. `line-pulse-card` and `line-pulse-row` gave up their clipping and rounded their
+  decorative rails instead; the hero card keeps no clipping either — its two decorative edge lines
+  are cut by the card-shaped `overflow-hidden rounded-2xl` overlay described above, which hosts no
+  popover (and is `pointer-events-none`), so the rule holds. See `MISTAKES.md` for the full entry.
 
 ### Deliberate deviations (Phase 4)
 
