@@ -45,9 +45,9 @@ interface OfficialUpdate {
  * 🔴 **The top edge is the STATUS LINE, not decoration.** A full-width hairline shrinks from the
  * right once per poll beat and wears the network's own tone (see `networkTone`), and the headline
  * beside it wears the same tone as text. One colour, one sentence, one rule — so the fastest thing
- * a returning rider sees before reading anything is already the answer. Its `overflow-hidden` track
- * clips only its own fill; the card itself does NOT clip, because the popover panels below it must
- * be able to escape it (see `ui/info-popover`).
+ * a returning rider sees before reading anything is already the answer. Both edge lines are clipped
+ * by a card-shaped overlay rather than by the card, whose `overflow-hidden` would cut the popover
+ * panels below it off (see `ui/info-popover`).
  *
  * The CTA row is **intent-based**, not feature-based: "Report a delay" is what somebody standing
  * on a platform is trying to do, and it is the one action this page is best at. It opens the
@@ -87,38 +87,48 @@ interface OfficialUpdate {
       aria-label="Network overview"
       data-testid="home-hero"
     >
-      <!-- 🔴 The top edge IS the status line: a full-width track whose fill shrinks once per poll
-           beat and wears the network's tone. Its own overflow-hidden clips only this decorative fill
-           (rounded to match the card's top corners) — the CARD itself does not clip, because the
-           popover panels inside it must be able to escape. -->
-      <div class="absolute inset-x-0 top-0 h-1 overflow-hidden rounded-t-2xl" aria-hidden="true">
-        <span
-          class="block h-full transition-[width] duration-1000 ease-linear motion-reduce:transition-none"
-          [class]="_lineClass()"
-          [style.width.%]="_countdownPct()"
-          data-testid="hero-countdown-line"
-        ></span>
-      </div>
-
-      <!-- The network's own colours as a hairline ribbon along the bottom edge, one segment per
-           line in the backend's order. 🔴 Decorative and aria-hidden: it is a fingerprint of the
-           read, not information — the line count and identities are already in the tiles and the
-           board below, and announcing sixteen colour swatches would be noise. The status line above
-           is the only semantic one. A blank/absent displayColor is dropped rather than rendered as
-           a transparent gap, so a line that has no colour cannot leave a hole in the ribbon; its own
-           overflow-hidden and rounded-b-2xl keep the ends inside the card's bottom corners now
-           that the card no longer clips for them. -->
-      @if (_ribbon().length > 0) {
-        <div
-          class="absolute inset-x-0 bottom-0 flex h-1 overflow-hidden rounded-b-2xl"
-          data-testid="hero-ribbon"
-          aria-hidden="true"
-        >
-          @for (color of _ribbon(); track $index) {
-            <span class="flex-1" [style.background-color]="color"></span>
-          }
+      <!-- 🔴 ONE clipping overlay for BOTH decorative edge lines. Neither line can clip itself any
+           more: each is 4px tall, and CSS clamps a corner radius to the box, so their own
+           rounded-t-2xl / rounded-b-2xl collapsed to ~4px and their square-ish ends poked outside
+           the card's 18px corners. This box is CARD-SIZED, so its radius is not clamped and it cuts
+           both lines to the card's true silhouette. The CARD itself still does not clip — an
+           overflow-hidden here would cut the popover panels below it off (see ui/info-popover) —
+           which is why the overlay is a child instead. pointer-events-none so it can never swallow
+           a click on anything underneath. -->
+      <div
+        class="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+        aria-hidden="true"
+      >
+        <!-- The top edge IS the status line: a fill that shrinks once per poll beat and wears the
+             network's tone. It SNAPS — no width transition — because the width is written once per
+             second, and animating it made a refresh read as the line flowing back to full. -->
+        <div class="absolute inset-x-0 top-0 h-1">
+          <span
+            class="block h-full"
+            [class]="_lineClass()"
+            [style.width.%]="_countdownPct()"
+            data-testid="hero-countdown-line"
+          ></span>
         </div>
-      }
+
+        <!-- The network's own colours as a hairline ribbon along the bottom edge, one segment per
+             line in the backend's order. 🔴 Decorative and aria-hidden: it is a fingerprint of the
+             read, not information — the line count and identities are already in the tiles and the
+             board below, and announcing sixteen colour swatches would be noise. A blank/absent
+             displayColor is dropped rather than rendered as a transparent gap, so a line that has no
+             colour cannot leave a hole in the ribbon. -->
+        @if (_ribbon().length > 0) {
+          <div
+            class="absolute inset-x-0 bottom-0 flex h-1"
+            data-testid="hero-ribbon"
+            aria-hidden="true"
+          >
+            @for (color of _ribbon(); track $index) {
+              <span class="flex-1" [style.background-color]="color"></span>
+            }
+          </div>
+        }
+      </div>
 
       <div class="flex flex-col gap-1.5">
         <!-- ONE row: the sentence, its "i", and the countdown that sentence is waiting on. They were
@@ -313,14 +323,18 @@ export class HomeHeroComponent {
   protected readonly _summary = computed(() => summarizeNetwork(this.lines()));
 
   /**
-   * How the whole network is doing, from the SAME two numbers the headline sentence uses.
+   * How the whole network is doing, from the SAME two numbers the headline sentence uses — the
+   * IN-SERVICE ones (`summary.inService`), so a closed or pre-opening line cannot make the page
+   * look broken. The tile beside it deliberately keeps the unfiltered all-lines count: a reader who
+   * wants "how many lines need attention" means every line, and the headline answers "how is
+   * service doing".
    *
    * The rule itself is pure and lives in `network-summary.util`; only the class maps live here,
    * because which shade of orange is a design decision rather than a fact about the network.
    */
   protected readonly _tone = computed(() => {
     const summary = this._summary();
-    return networkTone(summary.total, summary.needsAttentionCount);
+    return networkTone(summary.inService.total, summary.inService.needsAttentionCount);
   });
 
   /** The headline's text tone, dark-mode aware. Literal class strings — Tailwind must see them. */
@@ -355,7 +369,9 @@ export class HomeHeroComponent {
    * Width % of the beat remaining — the SAME `secondsRemaining`/`intervalMs` pair the removed ring
    * used, and never `percentRemaining`, which only moves on the next 1s tick and so lags a refresh
    * by a second. Both ends are guarded because the beat can be paused (`intervalMs` null) or
-   * mid-flight, and a NaN width would silently collapse the line.
+   * mid-flight, and a NaN width would silently collapse the line. The fill carries NO width
+   * transition: this value is written once per second, and animating it made a refresh look like the
+   * line flowing back to full instead of snapping to it.
    *
    * On the server `secondsRemaining` is 0 (no timers run there), so the SSR paint is a 0%-wide
    * neutral line and the client's first binding fills it — the same swap the ring used to do, which

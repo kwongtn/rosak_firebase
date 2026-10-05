@@ -95,6 +95,13 @@ const REVIEWED_AT_PRO_OFFICIAL_WIDGETS = "2026-10-03";
 const REVIEWED_AT_POLISH = "2026-10-03";
 
 /**
+ * Bumped when the front page's headline and tone were re-scoped to IN-SERVICE lines — closed
+ * (Defunct) and pre-opening (Testing) lines no longer count in “N of M lines running normally”,
+ * and the indicator's colour follows the same counts (2026-10-05).
+ */
+const REVIEWED_AT_HEADLINE_IN_SERVICE = "2026-10-05";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -320,15 +327,18 @@ export const METRIC_DOCS: MetricDoc[] = [
   {
     // The front page's own headline metric — features/home/hero/home-hero.component.ts reads it
     // through the hero's InfoPopover. Registered here so the number in the tile and the sentence
-    // on /methodology can never be phrased differently.
+    // on /methodology can never be phrased differently. It documents the IN-SERVICE scoping AND the
+    // tone's rule because both are what a reader sees above the fold, from one definition: the words
+    // and the colour are read off the same two counts, so describing one and not the other would
+    // leave half the visible metric undefined.
     id: "network.lines-normal",
     sectionId: "line-status",
     title: "Lines running normally",
     definition:
-      "A line counts as running normally when its operational status is Active and no rider has reported it Delayed or Disrupted in the current window. The headline reads “N of M lines running normally”.",
+      "A line counts as running normally when its operational status is Active and no rider has reported it Delayed or Disrupted in the current window. Closed (Defunct) and not-yet-open (Testing) lines are not in service, so they are not counted in the headline at all. The headline reads “N of M lines running normally” and its colour follows the same counts: green when every in-service line runs normally, orange when some need attention, red when more than half do.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+    lastReviewed: REVIEWED_AT_HEADLINE_IN_SERVICE,
   },
   {
     id: "network.needs-attention",

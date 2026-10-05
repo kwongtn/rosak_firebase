@@ -10,6 +10,7 @@ import {
   LINE_STATUS_SEVERITY_RANK,
   NEEDS_ATTENTION_PASSENGER_RANK,
   compareLineSeverity,
+  isInService,
   lineCallout,
   lineNeedsAttention,
   networkHeadline,
@@ -259,6 +260,24 @@ describe("network-summary.util: networkTone", () => {
   });
 });
 
+describe("network-summary.util: isInService", () => {
+  it("excludes only the two settled, un-actionable states", () => {
+    // Same reasoning as the severity table: a pre-opening trial and a permanently closed line are
+    // un-actionable facts, not service failures. Every operational state — including the partial
+    // and total ones — is a live condition a rider can be hurt by, so it keeps counting.
+    for (const status of ALL_LINE_STATUSES.filter(
+      (entry) => entry === "TESTING" || entry === "DEFUNCT",
+    )) {
+      expect(isInService(makeLine({ status })), status).toBe(false);
+    }
+    for (const status of ALL_LINE_STATUSES.filter(
+      (entry) => entry !== "TESTING" && entry !== "DEFUNCT",
+    )) {
+      expect(isInService(makeLine({ status })), status).toBe(true);
+    }
+  });
+});
+
 describe("network-summary.util: lineCallout", () => {
   it("names the operational status for a line that is not running normally", () => {
     expect(lineCallout(makeLine({ code: "KJL", status: "PARTIAL_DISRUPTION" }))).toBe(
@@ -283,6 +302,7 @@ describe("network-summary.util: summarizeNetwork", () => {
       expect(summary.needsAttentionLines).toEqual([]);
       expect(summary.worstLine).toBeNull();
       expect(summary.callout).toBeNull();
+      expect(summary.inService).toEqual({ total: 0, needsAttentionCount: 0 });
       expect(summary.headline).toBe("No live line data yet");
       expect(summary.reportsNow).toBe(0);
     }
@@ -301,6 +321,61 @@ describe("network-summary.util: summarizeNetwork", () => {
     expect(summary.normalCount).toBe(2);
     expect(summary.needsAttentionCount).toBe(3);
     expect(summary.needsAttentionLines.map((line) => line.code)).toEqual(["B02", "E05", "D04"]);
+    // Every one of those five is in service, so the headline's counts are the all-lines counts here.
+    expect(summary.inService).toEqual({ total: 5, needsAttentionCount: 3 });
+  });
+
+  it("keeps a closed and a trial line out of the headline, and everything else in", () => {
+    // The live shape: 14 running lines plus LRT SAL in trial service and a defunct line. Reporting
+    // "14 of 16 lines running normally" (and an orange indicator) on that read is a permanent
+    // property of the network dressed as an incident — nothing about it can be waited out.
+    const summary = summarizeNetwork([
+      ...healthy(14),
+      makeLine({ code: "SAL", status: "TESTING" }),
+      makeLine({ code: "SKY", status: "DEFUNCT" }),
+    ]);
+
+    expect(summary.headline).toBe("All 14 lines running normally");
+    expect(summary.inService).toEqual({ total: 14, needsAttentionCount: 0 });
+    // …while the tile, the callout and the board keep counting every line, deliberately.
+    expect(summary.total).toBe(16);
+    expect(summary.needsAttentionCount).toBe(2);
+    expect(summary.needsAttentionLines.map((line) => line.code)).toEqual(["SKY", "SAL"]);
+    expect(networkTone(summary.inService.total, summary.inService.needsAttentionCount)).toBe(
+      "normal",
+    );
+  });
+
+  it("still lets a real disruption among the running lines move the headline", () => {
+    const summary = summarizeNetwork([
+      ...healthy(9),
+      makeLine({ code: "KJL", status: "PARTIAL_DISRUPTION" }),
+      makeLine({ code: "SAL", status: "TESTING" }),
+    ]);
+
+    expect(summary.headline).toBe("9 of 10 lines running normally");
+    expect(summary.inService).toEqual({ total: 10, needsAttentionCount: 1 });
+    expect(networkTone(summary.inService.total, summary.inService.needsAttentionCount)).toBe(
+      "degraded",
+    );
+  });
+
+  it("says nothing is in service when every line in the read is closed or in trial", () => {
+    // "No live line data yet" is the empty READ; a read that returned lines but none in service is
+    // a different fact and gets its own words rather than "No lines running normally — 0 need
+    // attention".
+    const summary = summarizeNetwork([
+      makeLine({ code: "SKY", status: "DEFUNCT" }),
+      makeLine({ code: "SAL", status: "TESTING" }),
+    ]);
+
+    expect(summary.headline).toBe("No lines in service");
+    expect(summary.inService).toEqual({ total: 0, needsAttentionCount: 0 });
+    expect(summary.total).toBe(2);
+    // Neutral, not green: nothing has been read as running, so nothing is an "all clear".
+    expect(networkTone(summary.inService.total, summary.inService.needsAttentionCount)).toBe(
+      "unknown",
+    );
   });
 
   it("names the worst line and describes it once", () => {

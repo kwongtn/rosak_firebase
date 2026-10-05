@@ -382,7 +382,9 @@ describe("HomeHeroComponent", () => {
       render(lines).querySelector(`[data-testid="${testId}"]`)?.className ?? "";
 
     // One colour, one sentence, one rule: the fastest thing a returning rider sees before reading
-    // anything is already the answer. Both surfaces come from the same two counts as the headline.
+    // anything is already the answer. Both surfaces come from the same two counts as the headline —
+    // the IN-SERVICE ones, so the degraded and critical fixtures below have to be operational
+    // statuses; a TESTING/DEFUNCT line would no longer move either surface.
     for (const [lines, fill, text] of [
       [linesWith(16, 0), "bg-green-500", "text-green-600"],
       [networkLines(), "bg-orange-500", "text-orange-600"],
@@ -419,6 +421,75 @@ describe("HomeHeroComponent", () => {
     storeMock.polling.intervalMs.set(null);
     fixture.detectChanges();
     expect(width()).toBe("100%");
+
+    // 🔴 It SNAPS. The width is rewritten once per second, so animating it made every refresh read as
+    // the line flowing back to full — a slow, continuous sweep that has no meaning on a countdown.
+    const fill = rootOf().querySelector('[data-testid="hero-countdown-line"]') as HTMLElement;
+    expect(fill.className.split(/\s+/)).not.toContain("transition-[width]");
+    expect(fill.className.split(/\s+/)).not.toContain("duration-1000");
+  });
+
+  it("clips both edge lines in one card-shaped overlay rather than the card itself", () => {
+    const section = render(networkLines()).querySelector(
+      '[data-testid="home-hero"]',
+    ) as HTMLElement;
+
+    // A 4px-tall box cannot carry the card's 18px radius — CSS clamps it — so the lines used to end
+    // square, poking outside the card's corners. The card cannot clip itself either: its popover
+    // panels must escape it. So the clip lives in a CARD-SIZED box, where the radius is not clamped.
+    const overlay = section.firstElementChild as HTMLElement;
+    expect(overlay.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "pointer-events-none",
+        "absolute",
+        "inset-0",
+        "overflow-hidden",
+        "rounded-2xl",
+      ]),
+    );
+    expect(overlay.getAttribute("aria-hidden")).toBe("true");
+    expect(overlay.querySelector('[data-testid="hero-countdown-line"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="hero-ribbon"]')).not.toBeNull();
+
+    // The lines themselves keep no radius of their own — that was the clamped thing.
+    for (const id of ["hero-countdown-line", "hero-ribbon"]) {
+      const el = overlay.querySelector(`[data-testid="${id}"]`) as HTMLElement;
+      expect(el.className.split(/\s+/).filter((cls) => cls.startsWith("rounded"))).toEqual([]);
+    }
+    // …and the card itself is still un-clipped, so the popovers can escape.
+    expect(section.className.split(/\s+/)).not.toContain("overflow-hidden");
+  });
+
+  it("reads the headline and the tone off the lines actually in service", () => {
+    // The live read: 14 running lines, LRT SAL in trial service, one defunct line. Neither of the
+    // last two can ever be "running normally", so they must not read as a degradation nobody can
+    // wait out — but the tile deliberately still counts them, because that is a question about
+    // lines rather than about service.
+    const healthy14 = (): LinePulse[] =>
+      Array.from({ length: 14 }, (_, index) => makeLine({ id: `ok-${index}`, code: `OK${index}` }));
+    const classes = (root: HTMLElement, testId: string): string =>
+      root.querySelector(`[data-testid="${testId}"]`)?.className ?? "";
+
+    const root = render([
+      ...healthy14(),
+      makeLine({ id: "trial", code: "SAL", status: "TESTING" }),
+      makeLine({ id: "closed", code: "SKY", status: "DEFUNCT" }),
+    ]);
+    expect(textOf(root, "hero-headline")).toBe("All 14 lines running normally");
+    expect(classes(root, "hero-countdown-line")).toContain("bg-green-500");
+    expect(classes(root, "hero-headline")).toContain("text-green-600");
+    // The all-lines count the tile publishes is untouched by that scoping.
+    expect(tile(root, "hero-stat-needs-attention")).toEqual(["2", "Needs attention"]);
+
+    // A real disruption still speaks: PARTIAL_DISRUPTION is operational, so it moves both the words
+    // and the colour.
+    const disrupted = render([
+      ...healthy14().slice(0, 9),
+      makeLine({ id: "dead", code: "KJL", status: "PARTIAL_DISRUPTION" }),
+      makeLine({ id: "trial", code: "SAL", status: "TESTING" }),
+    ]);
+    expect(textOf(disrupted, "hero-headline")).toBe("9 of 10 lines running normally");
+    expect(classes(disrupted, "hero-headline")).toContain("text-orange-600");
   });
 
   it("keeps the CTA row on the default theme rather than brand orange", () => {
