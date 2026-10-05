@@ -84,13 +84,14 @@ const MAX_PULSE_LINKS = 5;
   },
   template: `
     <section
-      class="bg-card text-card-foreground border-border relative flex flex-col gap-3 overflow-hidden rounded-xl border p-4 pl-5 shadow-sm"
+      class="bg-card text-card-foreground border-border relative flex flex-col gap-3 rounded-xl border p-4 pl-5 shadow-sm"
     >
       <!-- The line's own colour as a rail down the leading edge: identification at a glance
            without recolouring the card, and it survives dark mode because it is the backend's
-           hex rather than a themed token. -->
+           hex rather than a themed token. The card no longer clips (the popovers and the menu
+           dropdown escape its edge), so the rail carries the leading corners itself. -->
       <span
-        class="absolute inset-y-0 left-0 w-1.5"
+        class="absolute inset-y-0 left-0 w-1.5 rounded-l-xl"
         [style.background-color]="line().displayColor"
         aria-hidden="true"
       ></span>

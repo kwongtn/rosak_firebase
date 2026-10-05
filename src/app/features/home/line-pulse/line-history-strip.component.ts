@@ -58,6 +58,7 @@ interface StripCell {
              screen reader is handed one sentence from the label below rather than 24 rectangles. -->
         <app-info-popover
           label="This line's reports by hour"
+          iconPosition="end"
           [content]="_definition()"
           testId="row-history-strip-popover"
           [showMethodologyLink]="false"

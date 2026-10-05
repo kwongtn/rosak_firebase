@@ -96,6 +96,7 @@ interface HeatCell {
             </span>
             <app-info-popover
               label="How the heat grid reads"
+              iconPosition="end"
               [content]="_definition()"
               testId="network-heat-strip-popover"
               [showMethodologyLink]="false"

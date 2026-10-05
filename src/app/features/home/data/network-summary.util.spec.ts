@@ -13,6 +13,7 @@ import {
   lineCallout,
   lineNeedsAttention,
   networkHeadline,
+  networkTone,
   sortLinesBySeverity,
   summarizeNetwork,
 } from "./network-summary.util";
@@ -230,6 +231,31 @@ describe("network-summary.util: networkHeadline", () => {
 
   it("avoids the misleading '0 of M' shape when nothing is normal", () => {
     expect(networkHeadline(3, 0, 3)).toBe("No lines running normally — 3 need attention");
+  });
+});
+
+describe("network-summary.util: networkTone", () => {
+  it("stays neutral until a first read lands", () => {
+    // Zero lines is a first read in flight, not a good or a bad network — and it must never read as
+    // green, which would be a "all clear" nobody can act on.
+    expect(networkTone(0, 0)).toBe("unknown");
+  });
+
+  it("is green only when every single line is running", () => {
+    expect(networkTone(16, 0)).toBe("normal");
+  });
+
+  it("is orange for one line among many, and for exactly half", () => {
+    expect(networkTone(16, 1)).toBe("degraded");
+    // The half-way point is the ceiling of "degraded", NOT the floor of "critical": a network where
+    // half the lines need attention is still carrying half the riders.
+    expect(networkTone(16, 8)).toBe("degraded");
+  });
+
+  it("is red only past half, so a small board is not cried over", () => {
+    expect(networkTone(16, 9)).toBe("critical");
+    expect(networkTone(4, 3)).toBe("critical");
+    expect(networkTone(1, 1)).toBe("critical");
   });
 });
 

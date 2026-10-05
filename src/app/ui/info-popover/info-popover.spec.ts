@@ -214,7 +214,7 @@ describe("InfoPopover", () => {
     openByHover();
 
     expect(panel()?.classList.contains("absolute")).toBe(true);
-    expect(panel()?.classList.contains("z-20")).toBe(true);
+    expect(panel()?.classList.contains("z-50")).toBe(true);
   });
 
   it("keeps only one panel open: opening a second popover closes the first", async () => {

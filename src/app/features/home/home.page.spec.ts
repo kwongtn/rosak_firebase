@@ -874,13 +874,25 @@ describe("HomePage", () => {
     expect(feedSection?.querySelector("app-home-refresh-control")).toBeNull();
     expect(lineSection?.querySelector("app-network-board")).not.toBeNull();
 
-    // The hero's gate is still CSS-only (never a matchMedia placement signal, which would desync SSR
-    // from hydration) and still a justified flex row: the control shrink-wraps to its own visible
-    // content, so `justify-end` is the only thing parking it at the right edge.
-    const heroWrapper = hero?.querySelector<HTMLElement>('[class~="lg:flex"]');
-    expect(heroWrapper?.className.split(/\s+/)).toContain("hidden");
-    expect(heroWrapper?.className).toContain("flex");
-    expect(heroWrapper?.className).toContain("justify-end");
+    // 🔴 WHERE it lives is part of the same claim, not styling: the control sits on the hero's
+    // HEADLINE row — sentence left, countdown right — at every width, because "Refreshing in 12s"
+    // qualifies the sentence above it. It was a desktop-only bottom-right corner before, which hid
+    // it entirely below `lg`, the widths that had no other freshness signal.
+    const slot = hero?.querySelector<HTMLElement>('[data-testid="hero-refresh-slot"]');
+    const slotClasses = slot?.className.split(/\s+/) ?? [];
+    expect(slot).not.toBeNull();
+    expect(slotClasses).toContain("shrink-0");
+    expect(slotClasses).not.toContain("hidden");
+    expect(slot?.querySelector("app-home-refresh-control")).not.toBeNull();
+
+    // The row is CSS-only placement (never a matchMedia signal, which would desync SSR from
+    // hydration), and `justify-between` is what puts the countdown at the right edge — the control
+    // shrink-wraps to its own visible content, so it cannot park itself.
+    const rowClasses = slot?.parentElement?.className.split(/\s+/) ?? [];
+    expect(rowClasses).toContain("flex");
+    expect(rowClasses).toContain("items-start");
+    expect(rowClasses).toContain("justify-between");
+    expect(rowClasses).toContain("gap-3");
 
     // …and the submit box heads the feed column, since nothing else does. The visually-hidden h2 now
     // precedes it (Phase 5B gave the column a real heading), so this asserts the submit box is still

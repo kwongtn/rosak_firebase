@@ -83,9 +83,10 @@ export class InfoPopoverRegistry {
  *
  * Only one panel is open app-wide: every open claims `InfoPopoverRegistry`, which closes the
  * previous holder at once, so moving from pill A to pill B never leaves two panels on screen. The
- * panel's `absolute … z-20` stacking is what keeps A open (and the pills it overlaps closed) while
+ * panel's `absolute … z-50` stacking is what keeps A open (and the pills it overlaps closed) while
  * the cursor is over A's panel: hit-testing lands on the panel, so the overlapped pill's host never
- * receives `mouseenter`.
+ * receives `mouseenter`. z-50 is the app's overlay layer (above the page nav's z-[45] and the
+ * sticky mobile action bar's z-30), so a panel is never painted under chrome.
  *
  * `showIcon: false` drops the "i" glyph for consumers whose projected content is already the
  * trigger (the home status chips). `showMethodologyLink: false` drops the link for chips whose
@@ -140,7 +141,7 @@ export class InfoPopoverRegistry {
     @if (_open()) {
       <div
         [id]="_panelId()"
-        class="bg-popover text-popover-foreground border-border absolute top-full z-20 mt-1.5 min-w-56 max-w-[calc(100vw-2rem)] rounded-lg border p-3 text-left text-xs font-normal whitespace-normal shadow-md"
+        class="bg-popover text-popover-foreground border-border absolute top-full z-50 mt-1.5 min-w-56 max-w-[calc(100vw-2rem)] rounded-lg border p-3 text-left text-xs font-normal whitespace-normal shadow-md"
         [class]="alignClasses()"
         [attr.data-testid]="testId()"
         [attr.role]="hasLink() ? 'dialog' : 'tooltip'"

@@ -170,26 +170,36 @@ describe("NetworkSparklineComponent", () => {
     expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
   });
 
-  it("hides itself entirely when nothing was reported this service day", () => {
+  it("shows an empty placeholder of the CHART's own height when nothing was reported", () => {
     buckets.set([]);
     const root = render();
 
     // `[]` is the backend's no-data answer, not a failure — and it is not a chart of twenty-four
-    // nothing-happened hours either.
-    expect(root.querySelector('[data-testid="network-sparkline"]')).toBeNull();
+    // nothing-happened hours either. But the widget still HOLDS its space, so the hero does not
+    // change height under the reader when the slow read finally lands.
+    expect(root.querySelector('[data-testid="network-sparkline"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="sparkline-bar"]')).toBeNull();
+
+    const empty = root.querySelector<HTMLElement>('[data-testid="network-sparkline-empty"]');
+    expect(empty?.textContent?.replace(/\s+/g, " ").trim()).toBe("No activity reported yet");
+    // The one property that makes this work: same height as the bars it replaces.
+    expect(empty?.className.split(/\s+/)).toContain("h-10");
   });
 
-  it("hides itself on a FAILED read without touching the page's error state", () => {
+  it("says so differently on a FAILED read, without touching the page's error state", () => {
     buckets.set(serviceDay());
     failed.set(true);
     const root = render();
 
-    // 🔴 The acceptance rule, from the widget's side: a sparkline that will not load disappears. It
-    // never renders an error, and it never asks the page to raise one — the store keeps
-    // `networkHistoryFailed` out of `hasError` precisely so this branch is the whole of the failure
-    // handling.
-    expect(root.querySelector('[data-testid="network-sparkline"]')).toBeNull();
-    expect(root.textContent?.trim()).toBe("");
+    // 🔴 The acceptance rule, from the widget's side: a sparkline that will not load says nothing
+    // that could be mistaken for a chart, and it never asks the page to raise an error — the store
+    // keeps `networkHistoryFailed` out of `hasError` precisely so this branch is the whole of the
+    // failure handling.
+    expect(root.querySelector('[data-testid="network-sparkline"]')).not.toBeNull();
+    const empty = root.querySelector<HTMLElement>('[data-testid="network-sparkline-empty"]');
+    expect(empty?.textContent?.replace(/\s+/g, " ").trim()).toBe("Activity data unavailable");
+    expect(empty?.className.split(/\s+/)).toContain("h-10");
+    // No bars are drawn from a read that failed, even though the store still holds the last answer.
+    expect(root.querySelector('[data-testid="network-sparkline-bars"]')).toBeNull();
   });
 });

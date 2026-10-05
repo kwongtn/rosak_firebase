@@ -134,7 +134,7 @@ type FeedTab = (typeof FEED_TABS)[number];
       <a
         href="#line-board"
         data-testid="home-skip-link"
-        class="bg-brand text-brand-foreground sr-only rounded-md px-3 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+        class="bg-primary text-primary-foreground sr-only rounded-md px-3 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
       >
         Skip to line status
       </a>
@@ -421,7 +421,7 @@ type FeedTab = (typeof FEED_TABS)[number];
     >
       <button
         hlmBtn
-        class="bg-brand text-brand-foreground hover:bg-brand/85 h-11 flex-1 text-base"
+        class="h-11 flex-1 text-base"
         data-testid="home-mobile-report"
         (click)="openReportChooser()"
       >
@@ -442,7 +442,7 @@ type FeedTab = (typeof FEED_TABS)[number];
         hlmBtn
         variant="ghost"
         size="icon"
-        class="text-brand size-11"
+        class="size-11"
         routerLink="/tracker"
         aria-label="Live train map"
         data-testid="home-mobile-map"

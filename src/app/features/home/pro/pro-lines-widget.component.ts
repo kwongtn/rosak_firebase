@@ -136,6 +136,7 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
             <span>Only lines with data</span>
             <app-info-popover
               label="What 'with data' means"
+              iconPosition="end"
               [content]="_hasDataDefinition()"
               testId="pro-filter-only-with-data-popover"
               [showMethodologyLink]="false"

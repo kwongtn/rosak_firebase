@@ -75,6 +75,7 @@ interface RankingRow {
           <h2 class="text-sm font-semibold tracking-wide uppercase">Worst lines by reports</h2>
           <app-info-popover
             label="How this is counted"
+            iconPosition="end"
             [content]="_definition()"
             [link]="_methodologyLink"
             testId="pro-report-ranking-popover"

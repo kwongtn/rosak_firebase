@@ -80,7 +80,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
   providers: [provideIcons({ lucideExternalLink, lucidePin })],
   template: `
     <section
-      class="bg-card text-card-foreground border-border relative flex flex-col overflow-hidden rounded-lg border shadow-sm"
+      class="bg-card text-card-foreground border-border relative flex flex-col rounded-lg border shadow-sm"
       [class.p-3]="density() === 'comfortable'"
       [class.py-2]="density() === 'compact'"
       [class.pl-4]="density() === 'comfortable'"
@@ -88,9 +88,10 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
       data-testid="line-row"
     >
       <!-- Same backend-hex accent rail as the card: identification without recolouring the row,
-           and it survives dark mode because it is a colour rather than a themed token. -->
+           and it survives dark mode because it is a colour rather than a themed token. The row no
+           longer clips (popovers escape its edge), so the rail carries the leading corners. -->
       <span
-        class="absolute inset-y-0 left-0 w-1"
+        class="absolute inset-y-0 left-0 w-1 rounded-l-lg"
         [style.background-color]="line().displayColor"
         aria-hidden="true"
       ></span>

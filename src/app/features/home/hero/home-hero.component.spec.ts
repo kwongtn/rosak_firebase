@@ -66,6 +66,21 @@ function networkLines(): LinePulse[] {
   ];
 }
 
+/**
+ * `total` lines of which `broken` are down — the ONLY two numbers the hero's tone reads, so this is
+ * the shortest way to reach each of its four branches without touching the rule itself.
+ */
+function linesWith(total: number, broken: number): LinePulse[] {
+  return [
+    ...Array.from({ length: total - broken }, (_, index) =>
+      makeLine({ id: `ok-${index}`, code: `OK${index}` }),
+    ),
+    ...Array.from({ length: broken }, (_, index) =>
+      makeLine({ id: `bad-${index}`, code: `BAD${index}`, status: "TOTAL_DISRUPTION" }),
+    ),
+  ];
+}
+
 function textOf(root: HTMLElement, testId: string): string {
   return (root.querySelector(`[data-testid="${testId}"]`)?.textContent ?? "")
     .replace(/\s+/g, " ")
@@ -97,7 +112,8 @@ describe("HomeHeroComponent", () => {
     hasError: ReturnType<typeof signal<boolean>>;
     // The hosted sparkline reads the store's service-day history read. It is EMPTY here on purpose:
     // this spec is about the hero's own numbers, and the sparkline has its own spec — what matters
-    // here is that hosting it adds no request of its own and no visible DOM when it has nothing.
+    // here is that hosting it adds no request of its own and, on an empty read, only its own
+    // fixed-height empty state.
     networkHistory: ReturnType<typeof signal<LineStatusHourBucket[]>>;
     networkHistoryFailed: ReturnType<typeof signal<boolean>>;
     requestHistoryReads: ReturnType<typeof vi.fn>;
@@ -167,12 +183,16 @@ describe("HomeHeroComponent", () => {
     expect(fixture.componentInstance.linksToday()).toBe(0);
   });
 
-  it("hosts the network sparkline, and it stays invisible while the history read has no data", () => {
+  it("hosts the network sparkline, which holds its space while the history read has no data", () => {
     const root = render(networkLines());
 
     // The hero asks the store for the read (the widget owns that opt-in) but draws nothing itself.
     expect(storeMock.requestHistoryReads).toHaveBeenCalled();
-    expect(root.querySelector('[data-testid="network-sparkline"]')).toBeNull();
+    // The widget no longer vanishes: an area that appears and disappears on the slowest read is a
+    // scroll shift under the reader, which is what this whole change set exists to stop.
+    expect(root.querySelector('[data-testid="network-sparkline"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="network-sparkline-empty"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="sparkline-bar"]')).toBeNull();
   });
 
   it("draws the sparkline once the store's network history has data", () => {
@@ -191,7 +211,7 @@ describe("HomeHeroComponent", () => {
     expect(root.querySelectorAll('[data-testid="sparkline-bar"]')).toHaveLength(1);
   });
 
-  it("draws no sparkline when that read failed, and leaves the rest of the hero intact", () => {
+  it("keeps the sparkline and the rest of the hero intact when that read failed", () => {
     storeMock.networkHistoryFailed.set(true);
     storeMock.networkHistory.set([
       {
@@ -205,8 +225,10 @@ describe("HomeHeroComponent", () => {
     const root = render(networkLines());
 
     // Widget-level failure isolation, seen from the host: a broken chart does not blank the hero, and
-    // does not put the page's retry banner up either.
-    expect(root.querySelector('[data-testid="network-sparkline"]')).toBeNull();
+    // does not put the page's retry banner up either. It says what happened rather than drawing the
+    // last good answer as if it were fresh — and, like the empty case, keeps the same box.
+    expect(root.querySelector('[data-testid="network-sparkline"]')).not.toBeNull();
+    expect(textOf(root, "network-sparkline-empty")).toBe("Activity data unavailable");
     expect(root.querySelector('[data-testid="hero-headline"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="hero-actions"]')).not.toBeNull();
     expect(storeMock.hasError()).toBe(false);
@@ -291,8 +313,13 @@ describe("HomeHeroComponent", () => {
     }
 
     // "Lines normal" and "Links today" stay plain: the first is the headline's own sentence one
-    // tile above, and the second is the row count of the feed list further down the page.
-    expect(root.querySelectorAll("app-info-popover").length).toBe(3);
+    // tile above, and the second is the row count of the feed list further down the page. Counted
+    // outside the hosted sparkline, which owns a fourth popover for its OWN definition.
+    expect(
+      [...root.querySelectorAll("app-info-popover")].filter(
+        (popover) => popover.closest("app-network-sparkline") === null,
+      ).length,
+    ).toBe(3);
   });
 
   it("opens the report CHOOSER from Report a delay, not a sheet and not a scroll", () => {
@@ -350,17 +377,61 @@ describe("HomeHeroComponent", () => {
     expect(figure("hero-stat-lines-normal").className).not.toContain("animate-tick-up");
   });
 
-  it("carries the brand accent rail without making the block unreadable in dark mode", () => {
+  it("paints the top line and the headline with the network's TONE, not a brand rail", () => {
+    const classes = (testId: string, lines: LinePulse[]): string =>
+      render(lines).querySelector(`[data-testid="${testId}"]`)?.className ?? "";
+
+    // One colour, one sentence, one rule: the fastest thing a returning rider sees before reading
+    // anything is already the answer. Both surfaces come from the same two counts as the headline.
+    for (const [lines, fill, text] of [
+      [linesWith(16, 0), "bg-green-500", "text-green-600"],
+      [networkLines(), "bg-orange-500", "text-orange-600"],
+      [linesWith(16, 9), "bg-red-500", "text-red-600"],
+      [[], "bg-muted-foreground/40", "text-foreground"],
+    ] as const satisfies [LinePulse[], string, string][]) {
+      expect(classes("hero-countdown-line", lines), fill).toContain(fill);
+      expect(classes("hero-headline", lines), text).toContain(text);
+    }
+
+    // The status line replaced the brand rail rather than joining it: brand orange as an accent said
+    // "this is the page's headline region" and nothing about the network, on the one surface a rider
+    // glances at first.
+    expect(render(linesWith(16, 0)).querySelector(".bg-brand")).toBeNull();
+  });
+
+  it("shrinks the top line across the poll beat, from the seconds remaining", () => {
+    const width = (): string =>
+      rootOf().querySelector<HTMLElement>('[data-testid="hero-countdown-line"]')?.style.width ?? "";
+
+    render(networkLines());
+    expect(width()).toBe("100%");
+
+    storeMock.polling.secondsRemaining.set(15);
+    fixture.detectChanges();
+    expect(width()).toBe("50%");
+
+    storeMock.polling.secondsRemaining.set(0);
+    fixture.detectChanges();
+    expect(width()).toBe("0%");
+
+    // A paused beat ("Never refresh") has no countdown to draw, so the line reads full rather than
+    // NaN — which would collapse it to nothing and look like a dark network on an idle page.
+    storeMock.polling.intervalMs.set(null);
+    fixture.detectChanges();
+    expect(width()).toBe("100%");
+  });
+
+  it("keeps the CTA row on the default theme rather than brand orange", () => {
     const root = render(networkLines());
 
-    // The rail is the only brand-orange surface in the hero, and the CTA reuses the same token —
-    // both resolve through `--brand`, which `:root.dark` overrides, so neither needs a `dark:`
-    // utility that could drift from the token.
-    const rail = root.querySelector("span.bg-brand");
-    expect(rail).not.toBeNull();
-    const cta = root.querySelector('[data-testid="hero-report-delay"]');
-    expect(cta?.className).toContain("bg-brand");
-    expect(cta?.className).toContain("text-brand-foreground");
+    // The page's identity is type and layout; a brand-coloured button was a second brand surface on a
+    // card whose top line already carries the status colour. The variant defaults do the rest.
+    expect(root.querySelector('[data-testid="hero-report-delay"]')?.className).not.toContain(
+      "bg-brand",
+    );
+    expect(root.querySelector('[data-testid="hero-live-map"]')?.className).not.toContain(
+      "text-brand",
+    );
   });
 
   it("draws the network's own colours as a decorative, hidden ribbon", () => {
@@ -461,27 +532,27 @@ describe("HomeHeroComponent", () => {
     expect(root.querySelector('[data-testid="hero-official-callout"]')).toBeNull();
   });
 
-  it("hosts the page's live refresh indicator, gated to desktop like the copy it replaced", () => {
+  it("puts the page's live refresh indicator on the headline row at every width", () => {
     const root = render(networkLines());
 
-    const wrapper = root.querySelector<HTMLElement>('[data-testid="home-hero"] > div.hidden');
-    expect(wrapper).not.toBeNull();
-    expect(wrapper?.className.split(/\s+/)).toContain("lg:flex");
-    expect(wrapper?.className.split(/\s+/)).toContain("justify-end");
-    expect(wrapper?.querySelector("app-home-refresh-control")).not.toBeNull();
-    // ONE countdown instance on the whole page: the mobile feed-column copy is gone, replaced by the
-    // sticky action bar's Refresh button on the same store beat — so a phone no longer sees a
-    // "Refreshing in Ns" label that belongs to a beat it cannot otherwise reach.
-    expect(root.querySelectorAll("app-home-refresh-control").length).toBe(1);
+    const slot = root.querySelector<HTMLElement>('[data-testid="hero-refresh-slot"]');
+    expect(slot).not.toBeNull();
+    // It was desktop-only in a bottom-right corner, which hid it entirely below `lg` — exactly the
+    // widths that had no other freshness signal. The freshness claim belongs beside the sentence it
+    // qualifies, at every width.
+    expect(slot?.className.split(/\s+/)).not.toContain("hidden");
+    expect(slot?.querySelector('[data-testid="line-refresh-countdown"]')).not.toBeNull();
 
-    // Only the WRAPPER moved: the control itself still owns the countdown and the click, so clicking
-    // the indicator the hero now shows still drives the store's single beat.
-    const countdown = root.querySelector<HTMLButtonElement>(
-      '[data-testid="line-refresh-countdown"]',
-    );
-    expect((countdown?.textContent ?? "").replace(/\s+/g, " ")).toContain("Refreshing in 30s");
-    countdown?.click();
-    fixture.detectChanges();
-    expect(storeMock.polling.refreshNow).toHaveBeenCalledTimes(1);
+    // It shares one row with the headline it describes, so the reader reads them as one statement. The
+    // HEADLINE popover's element, not its panel — a panel only exists once it has been opened.
+    const row = slot?.parentElement;
+    expect(row?.querySelector("app-info-popover")).not.toBeNull();
+    expect(row?.querySelector("app-home-refresh-control")).not.toBeNull();
+    expect(row?.querySelector('[data-testid="hero-refresh-slot"]')).toBe(slot);
+
+    // ONE countdown instance on the whole page: the mobile feed-column copy is gone, replaced by the
+    // sticky action bar's Refresh button on the same store beat. Moving the wrapper did not add a
+    // second state machine.
+    expect(root.querySelectorAll("app-home-refresh-control").length).toBe(1);
   });
 });

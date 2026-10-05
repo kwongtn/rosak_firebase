@@ -11,8 +11,9 @@ import { HlmButton } from "../../../ui/button/button";
 import { HlmTickUp } from "../../../ui/motion/tick-up.directive";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
+import { HomeStore } from "../data/home.store";
 import type { LinePulse } from "../data/home.queries";
-import { summarizeNetwork } from "../data/network-summary.util";
+import { networkTone, summarizeNetwork } from "../data/network-summary.util";
 import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeRefreshControlComponent } from "../refresh-control/home-refresh-control.component";
 import { NetworkSparklineComponent } from "./network-sparkline.component";
@@ -36,8 +37,17 @@ interface OfficialUpdate {
  * inputs, and both are the store's own reads rather than hero-authored ones:
  * `app-home-refresh-control` (the poll beat's countdown) and `app-network-sparkline`
  * (`HomeStore.networkHistory()` — the store's lazy service-day read, gated on the lines read having
- * landed). The rolled-up numbers live in the pure `summarizeNetwork`, not here, so the same
- * rule can be reused by the board's ordering and unit-tested without a DOM.
+ * landed). `HomeStore` is injected here for exactly one reason — the countdown line's width — and
+ * the beat it reads is the page's, so no timer is started here either. The rolled-up numbers live
+ * in the pure `summarizeNetwork`, not here, so the same rule can be reused by the board's ordering
+ * and unit-tested without a DOM.
+ *
+ * 🔴 **The top edge is the STATUS LINE, not decoration.** A full-width hairline shrinks from the
+ * right once per poll beat and wears the network's own tone (see `networkTone`), and the headline
+ * beside it wears the same tone as text. One colour, one sentence, one rule — so the fastest thing
+ * a returning rider sees before reading anything is already the answer. Its `overflow-hidden` track
+ * clips only its own fill; the card itself does NOT clip, because the popover panels below it must
+ * be able to escape it (see `ui/info-popover`).
  *
  * The CTA row is **intent-based**, not feature-based: "Report a delay" is what somebody standing
  * on a platform is trying to do, and it is the one action this page is best at. It opens the
@@ -46,11 +56,15 @@ interface OfficialUpdate {
  * choosing WHICH line is the chooser's job, not theirs. "Spot a train" and "Share a link" stay
  * direct because they need no line, and the incident intent (which the chooser also offers) is not
  * duplicated here: the hero row is the four things you can do from the front page without leaving
- * it.
+ * it. Every CTA wears the DEFAULT theme rather than brand orange — the page's identity is carried
+ * by type and layout, so a coloured button is not what makes it recognisable.
  *
  * The headline carries an `app-info-popover` because it is a metric, not a caption: its copy comes
  * from the methodology registry (`network.lines-normal`) through `renderMethodologyCopy`, so the
- * tile and `/methodology` cannot drift. Two of the four TILE LABELS get the same treatment for the
+ * tile and `/methodology` cannot drift. The refresh control sits on the SAME row as that headline
+ * at every width (it used to be desktop-only in a bottom-right corner) because "Refreshing in 12s"
+ * modifies the sentence above it — separating them put a page's liveness next to the sparkline and
+ * made the reader connect them. Two of the four TILE LABELS get the same popover treatment for the
  * same reason — `network.needs-attention` and `network.reports-now` are rules a reader cannot guess,
  * where "lines normal" is already the headline's sentence and "links today" is the row count of the
  * list below. SSR-safe — no browser APIs, and the popover host's `ngSkipHydration` (see
@@ -69,23 +83,34 @@ interface OfficialUpdate {
   ],
   template: `
     <section
-      class="bg-card text-card-foreground border-border relative flex flex-col gap-4 overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-6"
+      class="bg-card text-card-foreground border-border relative flex flex-col gap-4 rounded-2xl border p-4 shadow-sm sm:p-6"
       aria-label="Network overview"
       data-testid="home-hero"
     >
-      <!-- Brand orange as an accent rail, not a fill: it marks the block as the page's headline
-           region without turning the card into a second brand surface. -->
-      <span class="bg-brand absolute inset-x-0 top-0 h-1" aria-hidden="true"></span>
+      <!-- 🔴 The top edge IS the status line: a full-width track whose fill shrinks once per poll
+           beat and wears the network's tone. Its own overflow-hidden clips only this decorative fill
+           (rounded to match the card's top corners) — the CARD itself does not clip, because the
+           popover panels inside it must be able to escape. -->
+      <div class="absolute inset-x-0 top-0 h-1 overflow-hidden rounded-t-2xl" aria-hidden="true">
+        <span
+          class="block h-full transition-[width] duration-1000 ease-linear motion-reduce:transition-none"
+          [class]="_lineClass()"
+          [style.width.%]="_countdownPct()"
+          data-testid="hero-countdown-line"
+        ></span>
+      </div>
 
       <!-- The network's own colours as a hairline ribbon along the bottom edge, one segment per
            line in the backend's order. 🔴 Decorative and aria-hidden: it is a fingerprint of the
            read, not information — the line count and identities are already in the tiles and the
-           board below, and announcing sixteen colour swatches would be noise. The brand rail above
-           stays the only semantic one. A blank/absent displayColor is dropped rather than rendered
-           as a transparent gap, so a line that has no colour cannot leave a hole in the ribbon. -->
+           board below, and announcing sixteen colour swatches would be noise. The status line above
+           is the only semantic one. A blank/absent displayColor is dropped rather than rendered as
+           a transparent gap, so a line that has no colour cannot leave a hole in the ribbon; its own
+           overflow-hidden and rounded-b-2xl keep the ends inside the card's bottom corners now
+           that the card no longer clips for them. -->
       @if (_ribbon().length > 0) {
         <div
-          class="absolute inset-x-0 bottom-0 flex h-1"
+          class="absolute inset-x-0 bottom-0 flex h-1 overflow-hidden rounded-b-2xl"
           data-testid="hero-ribbon"
           aria-hidden="true"
         >
@@ -96,24 +121,41 @@ interface OfficialUpdate {
       }
 
       <div class="flex flex-col gap-1.5">
-        <app-info-popover
-          label="Lines running normally"
-          [content]="_headlineMetric()"
-          [link]="_methodologyLink"
-          testId="hero-headline-popover"
-          triggerClasses="cursor-help"
-        >
-          <!-- 🔴 The page's ONLY h1, and it belongs to the one sentence that describes the whole
-               network. The board's group headings, the card titles and the feed's day labels are
-               all h2/h3 UNDER it, so a screen reader's heading list is "what is the network doing"
-               followed by "which parts need attention" rather than a page of peers with no parent. -->
-          <h1
-            class="text-brand text-xl font-semibold tracking-tight sm:text-2xl"
-            data-testid="hero-headline"
+        <!-- ONE row: the sentence, its "i", and the countdown that sentence is waiting on. They were
+             a top-left / bottom-right pair before, which on a phone read as two unrelated blocks and
+             left the mid widths with the refresh control hidden entirely. -->
+        <div class="flex items-start justify-between gap-3">
+          <app-info-popover
+            label="Lines running normally"
+            [content]="_headlineMetric()"
+            [link]="_methodologyLink"
+            testId="hero-headline-popover"
+            iconPosition="end"
+            triggerClasses="cursor-help min-w-0"
           >
-            {{ _summary().headline }}
-          </h1>
-        </app-info-popover>
+            <!-- 🔴 The page's ONLY h1, and it belongs to the one sentence that describes the whole
+                 network. The board's group headings, the card titles and the feed's day labels are
+                 all h2/h3 UNDER it, so a screen reader's heading list is "what is the network doing"
+                 followed by "which parts need attention" rather than a page of peers with no parent.
+                 Its colour is the network TONE, read from the same two counts as the words. -->
+            <h1
+              class="text-xl font-semibold tracking-tight sm:text-2xl"
+              [class]="_headlineClass()"
+              data-testid="hero-headline"
+            >
+              {{ _summary().headline }}
+            </h1>
+          </app-info-popover>
+          <!-- 🔴 Only the WRAPPER moved. The countdown, the "Updating" label, the transient "Updated"
+               confirmation and the click arm all still live inside HomeRefreshControlComponent — a
+               second copy of that state machine in the hero would double every confirmation and
+               desync the two from the one beat they share. Un-gated by width: the sticky mobile
+               action bar's own Refresh button drives the SAME beat, but the sentence above needs to
+               say how fresh it is everywhere. -->
+          <div class="shrink-0 pt-0.5" data-testid="hero-refresh-slot">
+            <app-home-refresh-control />
+          </div>
+        </div>
 
         <!-- 🔴 The official-update callout comes BEFORE the disruption callout, and that order is
              the point: "the operator has announced something" is a stronger claim than "a summary of
@@ -230,9 +272,10 @@ interface OfficialUpdate {
 
       <!-- The network's SHAPE over the service day, under the numbers that describe right now. It
            reads HomeStore.networkHistory() — the store owns the lazy read — so the hero still
-           authors no request of its own, exactly like app-home-refresh-control below. It hides
-           itself entirely when that read fails or when nothing was reported today, because a
-           decorative chart is not worth a retry banner over a working page. -->
+           authors no request of its own, exactly like app-home-refresh-control above. It always
+           holds its height: a failed or empty read leaves a dashed placeholder rather than a hole
+           in the layout, because a decorative chart is not worth a retry banner over a working
+           page and is not worth a scroll shift either. -->
       <app-network-sparkline />
 
       <div class="flex flex-wrap items-center gap-2" data-testid="hero-actions">
@@ -241,12 +284,7 @@ interface OfficialUpdate {
              of them — sending them to a sheet that needs a line id, or (as this used to) scrolling
              them to a board to hunt for a row, both answered a question they did not ask. The
              chooser asks "which line?" itself and hands the sheet a seeded line. -->
-        <button
-          hlmBtn
-          class="bg-brand text-brand-foreground hover:bg-brand/85"
-          data-testid="hero-report-delay"
-          (click)="chooser.open()"
-        >
+        <button hlmBtn data-testid="hero-report-delay" (click)="chooser.open()">
           Report a delay
         </button>
         <button hlmBtn variant="outline" data-testid="hero-spot-train" (click)="reportSheet.open()">
@@ -255,29 +293,7 @@ interface OfficialUpdate {
         <button hlmBtn variant="outline" data-testid="hero-share-link" (click)="linkSheet.open()">
           Share a link
         </button>
-        <a
-          hlmBtn
-          variant="ghost"
-          routerLink="/tracker"
-          data-testid="hero-live-map"
-          class="text-brand"
-        >
-          Live map
-        </a>
-      </div>
-
-      <!-- The page's live refresh indicator, moved here from the line panel's header. It keeps the
-           same hidden/lg:flex gate it was born with, and it is now the ONLY countdown instance:
-           the mobile copy that used to head the feed column is gone, because the sticky mobile action
-           bar (home.page.ts) carries a Refresh button that drives the SAME store.polling beat and
-           is visible at exactly the widths this one is not. CSS-only placement, never a matchMedia
-           probe, so the server HTML and the hydrated client agree.
-           🔴 Only the WRAPPER moved. The countdown, the "Updating" label, the transient "Updated"
-           confirmation and the click arm all still live inside HomeRefreshControlComponent — a
-           second copy of that state machine in the hero would double every toast-free confirmation
-           and desync the two from the one beat they share. -->
-      <div class="hidden justify-end lg:flex">
-        <app-home-refresh-control />
+        <a hlmBtn variant="ghost" routerLink="/tracker" data-testid="hero-live-map">Live map</a>
       </div>
     </section>
   `,
@@ -291,8 +307,68 @@ export class HomeHeroComponent {
   protected readonly reportSheet = inject(ReportSheetService);
   protected readonly linkSheet = inject(LinkSheetService);
   protected readonly chooser = inject(ReportChooserService);
+  /** The page's route-scoped store. Read for the poll beat only — see `_countdownPct`. */
+  protected readonly store = inject(HomeStore);
 
   protected readonly _summary = computed(() => summarizeNetwork(this.lines()));
+
+  /**
+   * How the whole network is doing, from the SAME two numbers the headline sentence uses.
+   *
+   * The rule itself is pure and lives in `network-summary.util`; only the class maps live here,
+   * because which shade of orange is a design decision rather than a fact about the network.
+   */
+  protected readonly _tone = computed(() => {
+    const summary = this._summary();
+    return networkTone(summary.total, summary.needsAttentionCount);
+  });
+
+  /** The headline's text tone, dark-mode aware. Literal class strings — Tailwind must see them. */
+  protected readonly _headlineClass = computed(() => {
+    switch (this._tone()) {
+      case "normal":
+        return "text-green-600 dark:text-green-400";
+      case "degraded":
+        return "text-orange-600 dark:text-orange-400";
+      case "critical":
+        return "text-red-600 dark:text-red-400";
+      default:
+        return "text-foreground";
+    }
+  });
+
+  /** The status line's fill, in the same tone as the sentence it sits above. */
+  protected readonly _lineClass = computed(() => {
+    switch (this._tone()) {
+      case "normal":
+        return "bg-green-500";
+      case "degraded":
+        return "bg-orange-500";
+      case "critical":
+        return "bg-red-500";
+      default:
+        return "bg-muted-foreground/40";
+    }
+  });
+
+  /**
+   * Width % of the beat remaining — the SAME `secondsRemaining`/`intervalMs` pair the removed ring
+   * used, and never `percentRemaining`, which only moves on the next 1s tick and so lags a refresh
+   * by a second. Both ends are guarded because the beat can be paused (`intervalMs` null) or
+   * mid-flight, and a NaN width would silently collapse the line.
+   *
+   * On the server `secondsRemaining` is 0 (no timers run there), so the SSR paint is a 0%-wide
+   * neutral line and the client's first binding fills it — the same swap the ring used to do, which
+   * is why there is no extra hydration guard.
+   */
+  protected readonly _countdownPct = computed(() => {
+    const totalSeconds = (this.store.polling.intervalMs() ?? 0) / 1000;
+    if (totalSeconds <= 0) {
+      return 100;
+    }
+    const fraction = Math.min(1, Math.max(0, this.store.polling.secondsRemaining() / totalSeconds));
+    return fraction * 100;
+  });
 
   /**
    * The network's line colours, in the backend's own order, for the decorative bottom ribbon.

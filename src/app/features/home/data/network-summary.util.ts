@@ -142,6 +142,31 @@ export function summarizeNetwork(lines: readonly LinePulse[] | null | undefined)
 }
 
 /**
+ * How well the network as a WHOLE is doing — the hero's single colour tone.
+ *
+ * Deliberately derived from the same two counts the headline sentence is built from, so the words
+ * and the colour can never describe different arithmetic. `degraded` is capped at HALF: at exactly
+ * half the network needing attention is still a majority of riders on working trains, and painting
+ * that the same alarm red as a network that is broadly down would train readers to ignore red.
+ */
+export type NetworkTone = "unknown" | "normal" | "degraded" | "critical";
+
+/**
+ * The network's colour tone for the hero: normal = every line running; degraded = at least one line
+ * needs attention but no more than half; critical = MORE THAN half need attention; unknown = no
+ * lines read yet. "Needs attention" is the existing lineNeedsAttention rule.
+ */
+export function networkTone(total: number, needsAttentionCount: number): NetworkTone {
+  if (total <= 0) {
+    return "unknown";
+  }
+  if (needsAttentionCount <= 0) {
+    return "normal";
+  }
+  return needsAttentionCount * 2 > total ? "critical" : "degraded";
+}
+
+/**
  * The headline sentence, in plain language rather than dashboard shorthand. Three shapes plus the
  * empty-read case, so no branch can render "0 of 0" or "0 of 16" (the latter reads as a total
  * outage, which is not what zero-normal means on a line list that is still loading).
