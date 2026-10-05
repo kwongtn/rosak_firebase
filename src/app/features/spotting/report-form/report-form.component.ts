@@ -18,7 +18,11 @@ import { ToastService } from "../../../ui/toast/toast.service";
 import { VehicleStatusBadge } from "../../../domain-ui/vehicle-status-badge/vehicle-status-badge";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
-import { allowRunNumber, numberSeenToSetNumbers } from "../data/vehicle-search.util";
+import {
+  allowRunNumber,
+  numberSeenToSetNumbers,
+  sortVehiclesForPicker,
+} from "../data/vehicle-search.util";
 import {
   ADD_SPOTTING_EVENT_MUTATION,
   AddSpottingEventData,
@@ -104,7 +108,7 @@ export class ReportFormComponent {
   });
 
   protected readonly vehicleItems = computed<ComboboxItem<string>[]>(() =>
-    this._vehiclesForLine().map((v) => ({
+    sortVehiclesForPicker(this._vehiclesForLine()).map((v) => ({
       label: v.identificationNo,
       value: v.id,
       meta: { status: v.status },

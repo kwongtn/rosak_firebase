@@ -1,3 +1,5 @@
+import type { VehicleStatus } from "../../../core/graphql/types";
+
 /**
  * Ported verbatim from src/app/spotting/spotting-form/spotting-form.utils.ts. Maps a run number
  * physically painted on a train (what a spotter can actually read/photograph) to the likely
@@ -102,4 +104,24 @@ export function numberSeenToSetNumbers(input: string | undefined, line: string):
 /** Only MRT Kajang (line "2") and MRT Putrajaya (line "3") expose a run-number field on the form. */
 export function allowRunNumber(lineId: string): boolean {
   return ["2", "3"].includes(lineId);
+}
+
+/**
+ * Display order for the report form's vehicle picker: A→Z by identification number, using a
+ * numeric-aware compare so "Set 2" sorts before "Set 10" rather than lexicographically after.
+ * Vehicles currently Married/Decommissioned are demoted to the bottom (A→Z among themselves) —
+ * still selectable, just never the first rows a spotter scrolls past. Ordering lives here rather
+ * than in the shared LinesAndVehicles resolver because it is display-only for this picker; other
+ * consumers (fleet tables) keep the backend's vehicle-type-grouped order.
+ */
+export function sortVehiclesForPicker<
+  T extends { identificationNo: string; status: VehicleStatus },
+>(vehicles: T[]): T[] {
+  const isDemoted = (vehicle: T): number =>
+    vehicle.status === "MARRIED" || vehicle.status === "DECOMMISSIONED" ? 1 : 0;
+  return [...vehicles].sort(
+    (a, b) =>
+      isDemoted(a) - isDemoted(b) ||
+      a.identificationNo.localeCompare(b.identificationNo, undefined, { numeric: true }),
+  );
 }
