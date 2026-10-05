@@ -88,8 +88,9 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     arithmetic. Only the class maps live in the component; the rule is unit-tested in
     `data/network-summary.util.ts`. Half is the CEILING of `degraded`, not the floor of `critical`:
     at exactly half, most riders are still on working trains, and painting that the same alarm red as
-    a broadly-down network trains readers to ignore red. The fill itself carries **no width
-    transition**: it is written once per second and SNAPS (see the countdown bullet under Motion).
+    a broadly-down network trains readers to ignore red. The fill interpolates smoothly — a 1s linear
+    width transition between the once-per-second writes — but a jump UP snaps to full; see the
+    countdown bullet under Motion.
     🔴 The hero card **no longer clips** (`overflow-hidden` removed): the headline popover, the tile
     popovers and the menu panel all live inside it and must be able to escape. The two decorative
     edges are clipped instead by ONE card-shaped overlay — the card's first child,
@@ -1572,12 +1573,11 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
 
 ### Motion (Phase 5B)
 
-Two pieces of motion were added, both **CSS-only** (`motion-safe:` / `motion-reduce:` variants),
-neither a new dependency, and both **inert under
+Three pieces of motion were added, all **CSS-only** (`motion-safe:` / `motion-reduce:` variants or a
+bounded transition), none a new dependency, and every one **inert under
 `prefers-reduced-motion: reduce`** — a reader who asked for less motion gets the same information with
-nothing moving. No `matchMedia` probe and no JS animation loop exists anywhere in this feature. The
-third item below is listed here deliberately as the counter-example: it carries **no transition at
-all**.
+nothing moving (for the countdown fill, `motion-reduce:transition-none` drops the tween, so it steps
+per tick instead). No `matchMedia` probe and no JS animation loop exists anywhere in this feature.
 
 - **Number tick-up on the hero's four stat tiles** — `src/app/ui/motion/tick-up.directive.ts`
   (`hlmTickUp`, selector `[hlmTickUp]`, input also `hlmTickUp`: `number`). The value is never rendered
@@ -1609,12 +1609,17 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
 - **Countdown line** — the hero's **top status line**, not a ring inside a label. A full-width track
   holds a fill (`hero-countdown-line`, `aria-hidden`) whose `[style.width.%]` is a `computed` over
   `secondsRemaining() / intervalMs()`, so the coloured line, the "Refreshing in Ns" text beside it and
-  the beat itself are three readings of the same two numbers and cannot drift. 🔴 **The fill carries
-  NO width transition — it SNAPS.** It used to wear `transition-[width] duration-1000 ease-linear`
-  with `motion-reduce:transition-none`, but the value is only rewritten once per second, so animating
-  it made every refresh read as the line _flowing_ back to full — a slow sweep with no meaning on a
-  countdown. The spec pins the ABSENCE of `transition-[width]` and `duration-1000` so the tween
-  cannot return unnoticed. 🔴 It is computed from that pair **deliberately
+  the beat itself are three readings of the same two numbers and cannot drift. 🔴 **The fill moves
+  GRADUALLY while the beat counts down and SNAPS only on a jump UP.** The width is written once per
+  second, so the smoothness is the fill's own `transition-[width] ease-linear` interpolating between
+  the writes — no stepping; a jump UP (the beat's own reset, `refreshNow()`, a store resume, or the
+  first observed value, which is what keeps the 0%-wide SSR paint from sweeping up over hydration) is
+  a (re)start rather than a countdown, and there the fill renders at `0s` duration so it snaps to full
+  instead of flowing. The seam is `_snapToFull`, a signal seeded `true` until anything ticks: a
+  constructor `effect` compares each read of `secondsRemaining` with the previous one and marks
+  `seconds > previous` (or a first read) as the edge, bound as
+  `[style.transition-duration]="_snapToFull() ? '0s' : '1s'"`. `motion-reduce:transition-none` still
+  drops the tween entirely for reduced motion. 🔴 It is computed from that pair **deliberately
   rather than from `PollingSource.percentRemaining`**: `scheduleNext()` resets `secondsRemaining` on
   the same edge but leaves `percentRemaining` to the next 1s tick, so immediately after a refresh the
   published percentage still describes the beat that just ended and the line would visibly refuse to
@@ -1764,9 +1769,10 @@ element the round-2 spec asserted _absent_).
 
 - `hero-countdown-line` (the fill inside the hero's top status track — since round 2b, inside the
   card-shaped clipping overlay rather than its own track wrapper) — its `style.width` is the beat
-  fraction and its `[class]` is the tone, so one element carries both new facts. It carries NO width
-  transition (it snaps; see the Motion bullet), and no `rounded-*` of its own — the overlay is what
-  cuts it to the card's silhouette.
+  fraction and its `[class]` is the tone, so one element carries both new facts. Its 1s-linear width
+  transition is what makes the once-per-second writes read as a smooth countdown, while `_snapToFull`
+  forces a `0s` duration on the upward/reset edge (see the Motion bullet); it carries no `rounded-*`
+  of its own — the overlay is what cuts it to the card's silhouette.
 - `hero-refresh-slot` (the `shrink-0` wrapper holding `app-home-refresh-control` at the right end of
   the headline row). The old placement was asserted by hunting for `[class~="lg:flex"]`, which is a
   class-token substring match that any future gate can silently satisfy; assert this testid and the
