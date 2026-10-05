@@ -166,24 +166,31 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
                stroke 2.5) instead of the checklist's 24-unit one, so all three glyphs are the same
                22×22 in the same slot and swapping between them cannot shift the row by a pixel.
 
-               🔴 THE ENTRANCE DRAWS INSTEAD OF POPPING IN. A whole circle appearing in one frame
-               reads as a hard cut; here BOTH strokes draw themselves from nothing to their full
-               length over 500ms (the animate-spinner-draw-ring / animate-spinner-draw-arc theme tokens in
-               the global stylesheet — their keyframes CANNOT live in this component's styles,
-               which Angular's emulated encapsulation renames) and only THEN does the rotation
-               start, hence the 500ms delay inside the spin shorthand. Each stroke's dasharray is
-               its own length (the ring's full turn, the arc's quarter turn) and its keyframe
-               walks the offset down from that length to 0.
+               🔴 THE ENTRANCE DRAWS INSTEAD OF POPPING IN — AND ONLY THE BRIGHT LINE DRAWS. A whole
+               circle appearing in one frame reads as a hard cut, so the arc draws itself from
+               nothing over 500ms (the animate-spinner-draw-arc theme token in the global
+               stylesheet — its keyframes CANNOT live in this component's styles, which Angular's
+               emulated encapsulation renames) and only THEN does the rotation start, hence the
+               500ms delay inside the spin shorthand. The faded circle is deliberately STATIC: it is
+               the backdrop the line draws onto, so it is there from the first frame and the state
+               never reads as a line floating in space with nothing under it.
+               ⚠️ The bright line draws FROM 3 O'CLOCK ANTICLOCKWISE, which needs no extra
+               direction: the arc path M20 11a9 9 0 0 0-9-9 already STARTS at (20,11) — 3
+               o'clock — and its sweep flag 0 walks negative-angle (anticlockwise in SVG's y-down
+               frame) from there to (2,11), 12 o'clock. So walking stroke-dashoffset DOWN from the
+               path's own length (14.14) to 0 reveals the stroke from the path's start FORWARD
+               along the path itself, which is that same anticlockwise quarter turn. Reversing the
+               path to change the direction would only desync the draw from the geometry.
                ⚠️ The direction lives INSIDE the shorthand on purpose. The animation shorthand resets
                every animation sub-property, so a separate [animation-direction:reverse] would be
                dropped back to normal by it and be dead markup.
-               All THREE elements (this svg, the track circle, the arc) are animations a reader can
-               ask to have switched off — this one an arbitrary-property utility, the two strokes
-               generated animate-* utilities. Inline styles would outrank every class in the
-               cascade, including the motion-reduce ones that switch them off. With all three off
-               the strokes fall back to the default stroke-dashoffset: 0: the glyph renders fully
-               drawn, static, and still honest. (No backticks in this comment: inside an inline
-               template literal they would close it.) -->
+               BOTH animated elements (this svg and the arc) are animations a reader can ask to
+               have switched off — this one an arbitrary-property utility, the arc a generated
+               animate-* utility. Inline styles would outrank every class in the cascade, including
+               the motion-reduce ones that switch them off. With both off the arc falls back to the
+               default stroke-dashoffset: 0: the glyph renders fully drawn, static, and still
+               honest — and the static backdrop underneath it is already there. (No backticks in
+               this comment: inside an inline template literal they would close it.) -->
           <svg
             class="text-muted-foreground [animation:spin_1s_linear_500ms_infinite_reverse] motion-reduce:[animation:none]"
             width="22"
@@ -192,6 +199,8 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
             fill="none"
             aria-hidden="true"
           >
+            <!-- The STATIC faded backdrop, deliberately not part of the entrance: no dasharray, no
+                 draw animation, no reduced-motion opt-out. The bright line draws onto it. -->
             <circle
               cx="11"
               cy="11"
@@ -199,8 +208,6 @@ const RING_CIRCUMFERENCE = Math.round(2 * Math.PI * RING_RADIUS * 100) / 100;
               stroke="currentColor"
               stroke-width="2.5"
               stroke-opacity="0.25"
-              stroke-dasharray="56.55"
-              class="animate-spinner-draw-ring motion-reduce:animate-none"
             />
             <path
               d="M20 11a9 9 0 0 0-9-9"

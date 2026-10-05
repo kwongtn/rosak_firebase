@@ -264,15 +264,18 @@ describe("HomeRefreshControlComponent", () => {
     expect(spinner?.style.animation).toBe("");
   });
 
-  it("draws both spinner strokes IN before the rotation starts, instead of popping in whole", async () => {
-    // A finished circle appearing in one frame reads as a hard cut into motion. Both strokes now
-    // draw themselves from nothing to their full length over 500ms — each one carries its own
-    // stroke-dasharray and its own draw animation — and the spin carries a matching 500ms delay, so
-    // the rotation only begins once the ring is complete. The two lengths are the r=9 circle's full
-    // turn (CIRC) and its quarter (ARC_LEN), which is exactly the length of the arc path itself.
+  it("draws ONLY the bright line IN before the rotation starts, over a static faded backdrop", async () => {
+    // A finished circle appearing in one frame reads as a hard cut into motion. The bright arc now
+    // draws itself from nothing to its full length over 500ms — it carries its own stroke-dasharray
+    // (ARC_LEN, the length of the arc path itself) and its own draw animation — and the spin carries
+    // a matching 500ms delay, so the rotation only begins once the line is complete.
     //
-    // ⚠️ The two draw animations are GENERATED `animate-*` theme utilities, not component-scoped
-    // arbitrary properties: Angular's emulated encapsulation renames @keyframes declared in a
+    // The faded circle behind it is deliberately STATIC: no dasharray, no draw class, nothing to
+    // switch off. It is the backdrop the line draws onto, so it is present from the first frame —
+    // animating it too meant the glyph's own backdrop was still arriving 500ms after the state did.
+    //
+    // ⚠️ The draw animation is a GENERATED `animate-*` theme utility, not a component-scoped
+    // arbitrary property: Angular's emulated encapsulation renames @keyframes declared in a
     // component's `styles`, so an arbitrary property naming the un-prefixed keyframes matched
     // NOTHING and the entrance silently never fired (found by browser verification; jsdom cannot
     // see it, which is why the class names themselves are the assertion).
@@ -288,19 +291,23 @@ describe("HomeRefreshControlComponent", () => {
 
     const track = spinner?.querySelector<SVGElement>("circle");
     const arc = spinner?.querySelector<SVGElement>("path");
-    expect(track?.getAttribute("stroke-dasharray")).toBe(String(CIRC));
-    expect(track?.getAttribute("class")).toContain("animate-spinner-draw-ring");
+    // The backdrop is drawn in full from the start: no dasharray to animate and no animation class.
+    expect(track?.getAttribute("stroke-opacity")).toBe("0.25");
+    expect(track?.getAttribute("stroke-dasharray")).toBeNull();
+    expect(track?.getAttribute("class")).toBeNull();
+    // The line is the only stroke that animates in.
     expect(arc?.getAttribute("stroke-dasharray")).toBe(String(ARC_LEN));
     expect(arc?.getAttribute("class")).toContain("animate-spinner-draw-arc");
 
-    // Reduced motion has to switch all three of these off — and none of them may smuggle an inline
-    // animation that would outrank the opt-out. With everything off the strokes sit at the default
+    // Reduced motion has to switch the line's draw AND the rotation off — and neither may smuggle
+    // an inline animation that would outrank the opt-out. With both off the arc sits at the default
     // stroke-dashoffset: 0: the glyph is still fully drawn, and simply static.
-    for (const el of [track, arc]) {
-      const stroke = el as SVGElement;
-      expect(stroke.getAttribute("class")).toContain("motion-reduce:animate-none");
-      expect(stroke.style.animation).toBe("");
-      expect(stroke.getAttribute("style")).toBeNull();
+    expect(arc?.getAttribute("class")).toContain("motion-reduce:animate-none");
+    for (const el of [spinner, arc]) {
+      const animated = el as SVGElement;
+      expect(animated.getAttribute("class")).toContain("motion-reduce:");
+      expect(animated.style.animation).toBe("");
+      expect(animated.getAttribute("style")).toBeNull();
     }
   });
 

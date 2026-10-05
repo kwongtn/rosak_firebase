@@ -125,31 +125,22 @@
     }
   }
 
-  /* The home refresh control's "Updating" spinner DRAW-IN: each stroke animates its own
-     stroke-dashoffset from its own length to 0, so the ring builds itself instead of popping in
-     whole, and the svg's own spin is delayed 500ms so the rotation starts on a complete circle
-     (see home-refresh-control.component.ts). The two lengths mirror that component's r=9 geometry:
-     56.55 is the circle's full circumference, 14.14 its quarter — which is exactly the length of the
-     quarter-arc path.
+  /* The home refresh control's "Updating" spinner DRAW-IN: the bright arc animates its own
+     stroke-dashoffset from its own length to 0, so the line builds itself instead of popping in
+     whole, and the svg's own spin is delayed 500ms so the rotation starts on a complete glyph
+     (see home-refresh-control.component.ts). The 14.14 mirrors that component's geometry: a quarter
+     of the r=9 circle's 56.55 circumference — which is exactly the length of the quarter-arc path,
+     so `dashoffset: 0` is the arc drawn and 14.14 is it hidden. The faded circle is STATIC
+     (no dasharray, no animation), so it needed no token.
 
      Lives here, in the global theme, rather than in the component's own `styles`: Angular's
      emulated encapsulation RENAMES @keyframes declared on a component
-     (`spinner-draw-ring` -> `_ngcontent-ng-cXXXX_spinner-draw-ring`), so a generated `animate-*`
+     (`spinner-draw-arc` -> `_ngcontent-ng-cXXXX_spinner-draw-arc`), so a generated `animate-*`
      utility — which resolves its animation-name against the global sheet — would match nothing and
      the entrance would silently never fire. Every other animate-* token here is global for the same
      reason; the token pattern is `animate-<name>`, not the component-scoped arbitrary-property
      form. */
-  --animate-spinner-draw-ring: spinner-draw-ring 500ms ease-out both;
   --animate-spinner-draw-arc: spinner-draw-arc 500ms ease-out both;
-
-  @keyframes spinner-draw-ring {
-    from {
-      stroke-dashoffset: 56.55;
-    }
-    to {
-      stroke-dashoffset: 0;
-    }
-  }
 
   @keyframes spinner-draw-arc {
     from {
