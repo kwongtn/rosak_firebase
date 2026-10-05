@@ -156,7 +156,8 @@ page stays `RenderMode.Server`.
   immediately closes the previous holder, and every close path (delay, Escape, outside click, blur,
   tap-toggle, destroy) releases it. Moving from pill A to pill B is therefore atomic — A closes as B
   opens, with no grace window where both panels overlap. A's panel wins hit-testing over the pills it
-  overlays (`absolute … z-20`): the overlapped pill's host never receives `mouseenter`, so A stays
+  overlays (`absolute … z-50`, the app overlay layer above the nav's z-[45] and mobile bar's z-30):
+  the overlapped pill's host never receives `mouseenter`, so A stays
   open and no other panel opens under the cursor.
 - The renderer computes token values fresh on each call (`methodologyTokenValues()`), so a test (or
   a future CMS overlay) that mutates a constant is reflected immediately rather than frozen at

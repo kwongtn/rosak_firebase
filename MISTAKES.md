@@ -1213,3 +1213,43 @@ outside the feature that surfaced it before editing anything. Anything that repr
 belongs to `ui/` or `shell/` and needs its own change with its own blast radius. The fast check here is
 one grep: the z-index is in `app-nav.component.ts` and `ui/sheet/sheet.ts`, neither of which is
 `features/home/`.
+
+## [2026-10-05] ui/info-popover: a panel is clipped by an ancestor's `overflow-hidden` AND painted under the chrome by a stale z-index — two independent bugs that look like one
+
+**Problem**: every `InfoPopover` on `/` — the hero headline, the two stat tiles, the sparkline caption,
+the row's history strip, the heat grid, the card's status chips — opened **cut off** at the edge of its
+card, and the refresh control's tooltip painted **underneath the sticky nav**. A tooltip that is both
+truncated and behind the chrome reads as "this app's tooltips are broken", when neither of those two
+things is a bug in the popover component at all.
+
+**Root Cause**: two independent causes that no single assertion could see.
+(1) **Clipping**: `InfoPopover`'s panel is `position: absolute`, so it is a child of whatever container
+projects the trigger — and the hero card, `LinePulseCardComponent` and `LinePulseRowComponent` all
+carried `overflow-hidden` (for their rounded corners). An `overflow-hidden` ancestor is a hard clip on
+an absolutely-positioned descendant: the panel was never moved out of the box, it was **cut** at it. No
+`z-index` can fix that, and a spec that asserts the panel's classes cannot see it either, because the
+clipping lives on a parent.
+(2) **Stacking**: the panel was `absolute … z-20`, while `app-nav.component.ts` puts the page nav at
+`z-[45]` and the home page's sticky mobile action bar at `z-30`. A tooltip opening near the top of the
+screen was therefore a valid `z-20` element painting under two siblings. The nav's own comment already
+documented the ladder — `z-[45]` "sits below the overlay layer at `z-50`" — and the panel was the one
+thing in that overlay layer that had never been moved up to meet it.
+
+**Fix**: (1) removed `overflow-hidden` from the three containers that host popovers and **compensated
+the decoration**: the hero's countdown track took `rounded-t-2xl` and the colour ribbon `rounded-b-2xl`
+(each keeping its own `overflow-hidden`, which is correct — it clips only its own fill/segments), and
+the line cards' leading colour rails took `rounded-l-xl` / `rounded-l-lg`. (2) `InfoPopover`'s panel
+went `z-20` → **`z-50`**, and the refresh control's own tooltip `z-10` → `z-50`. The two together are
+what "a tooltip is on top of everything" means. `pro-report-ranking`'s progress track and the lanes'
+`overflow-x-auto` were left clipping on purpose: neither hosts a popover.
+
+**Prevention**: 🔴 **before adding `overflow-hidden` to a container, ask whether anything inside it is
+absolutely positioned for a reason** — a popover panel, a dropdown, a menu, a tooltip. If yes, either
+drop the clip or move the panel out (`<dialog>`, a portal, or a body-level host). Rounding corners is
+never worth a clipped tooltip: give the decorative child its own `rounded-l-*` / `rounded-t-*` instead.
+The app's z ladder is **`nav z-[45]` < `overlay z-50`** (mobile bar `z-30` sits below the nav), so
+anything that must float above page chrome — every popover panel, every sheet — belongs at `z-50`, and
+a new one should be pinned with a spec that asserts the class. 🔴 And neither class of this bug is
+assertable from the component under test: the panel's own spec cannot see its ancestor's clip, and
+jsdom has no layout, so **a clipped panel needs a browser pass** — read it as "the panel is shorter than
+its text should need", not as a z-index failure.

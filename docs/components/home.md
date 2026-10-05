@@ -45,7 +45,10 @@
   - `hero/` — `network-sparkline.component.ts` (selector `app-network-sparkline`: 24 bars, one per
     service-day hour, tall by how many rider reports the WHOLE network received in that hour and
     coloured by the status that dominated it; `network-sparkline` / `-bars` / `-popover` /
-    `sparkline-bar`, one `role="img"` sentence instead of 24 announced bars) and
+    `sparkline-bar`, one `role="img"` sentence instead of 24 announced bars). 🔴 Its `<figure>` is
+    **unconditional**: a failed or empty read draws a dashed `network-sparkline-empty` placeholder of
+    the chart's own `h-10` rather than vanishing, so the hero costs the page no height in any of its
+    three states — see the sparkline bullet below. Then
     `home-hero.component.ts` (selector `app-home-hero`): the page's full-width headline
     strip ABOVE the `home-panels` grid. 🔴 Its headline is the page's **only `h1`** (Phase 5B — it
     used to be an `h2`, so the page had no top-level heading at all). It renders the plain-language headline (with an
@@ -69,8 +72,25 @@
     names has an `isAutomated` pulse link. It shows that post's title and links the ORIGINAL with
     `target="_blank" rel="noopener noreferrer"` and the words "Open original": a community page
     quoting an operator must never look like the operator said it here. Scoping it to the worst line
-    is what keeps it from contradicting the sentence underneath. The hero also hosts the page's
-    **live refresh indicator** (`app-home-refresh-control`, `hidden lg:flex`) — see the
+    is what keeps it from contradicting the sentence underneath.
+    🔴 **The top edge is the STATUS LINE, not decoration.** The Phase-0 brand-orange rail is replaced
+    by a full-width track whose fill (`hero-countdown-line`) is the fraction of the poll beat left
+    and wears the network's own **tone**; the `h1` beside it wears the same tone as text, from the
+    same two counts. Both come from the pure `networkTone(total, needsAttentionCount)` — `unknown`
+    (no lines read) neutral, `normal` (0 needing attention) green, `degraded` (needs attention ≤
+    HALF the lines) orange, `critical` (> half) red — so the words and the colour can never describe
+    different arithmetic. Only the class maps live in the component; the rule is unit-tested in
+    `data/network-summary.util.ts`. Half is the CEILING of `degraded`, not the floor of `critical`:
+    at exactly half, most riders are still on working trains, and painting that the same alarm red as
+    a broadly-down network trains readers to ignore red.
+    🔴 The hero card **no longer clips** (`overflow-hidden` removed): the headline popover, the tile
+    popovers and the menu panel all live inside it and must be able to escape. The two decorative
+    edges carry their own rounding instead — the countdown track `rounded-t-2xl`, the ribbon
+    `rounded-b-2xl`, each keeping its own `overflow-hidden` to clip only its own fill/segments.
+    🔴 Every CTA wears the **default theme** — "Report a delay" and "Live map" lost their MLPTF brand
+    override, because the page's identity is carried by type and layout, not by a coloured button.
+    The hero hosts the page's **live refresh indicator** (`app-home-refresh-control`) in the
+    `hero-refresh-slot` at the right end of the headline row, at **every width** — see the
     refresh-control bullet.
     Wiring: Spot a train → `ReportSheetService.open()`, Share a link → `LinkSheetService.open()`,
     Live map → the router, and **Report a delay → `ReportChooserService.open()`** (root-provided, the
@@ -93,6 +113,12 @@
     wrapper over the shared `app-info-popover` that passes `showIcon=false` (the projected badge is
     the trigger) and forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
     through the real server path to guard SSR/hydration).
+    🔴 The card and the compact row both dropped `overflow-hidden`, because their info popovers, kebab
+    menus and disclosure panels live INSIDE them and must escape the edge; their leading colour rails
+    carry `rounded-l-xl` / `rounded-l-lg` instead, so the accent still meets the card's own corner.
+    On this page the popover "i" now **trails** its wording (`iconPosition="end"`) — hero headline,
+    sparkline caption, history strip, heat strip, pro lines and report ranking — because a leading
+    glyph reads as a bullet list item; `/methodology` and the component default are untouched.
     🔴 `line-pulse-list.component.ts` (and its spec) was **DELETED** with the board: it was one
     worst-first list, which is exactly the shape the board replaces. Nothing references it any more.
   - `pro/` — 🔴 **the Pro bento dashboard (Phase 4)**: `pro-dashboard.component.ts` (`app-pro-dashboard`)
@@ -138,20 +164,29 @@
     also calls `PreferencesService.pushRecentLine(line.id)`, and the chooser closes after dispatching
     in all five cases.
   - `refresh-control/` — `home-refresh-control.component.ts` (the single source of the fixed-cadence
-    refresh row: the **countdown ring**, the **Updating** state (up while ANY non-initial refresh is in
-    flight), the click-armed transient "Updated" confirmation and the `Click to Refresh Now`
-    tooltip). Rendered **ONCE**, in the **HERO** behind `hidden lg:flex`; the page's mobile copy that
+    refresh row: the **"Refreshing in Ns"** text, the **Updating** state (up while ANY non-initial
+    refresh is in flight), the click-armed transient "Updated" confirmation and the `Click to Refresh
+Now` tooltip). 🔴 It is **text-only**: both SVGs are gone — the countdown ring and the reverse-spun
+    "Updating" spinner. The countdown's _indicator_ is now the hero's top status line, drawn from the
+    same `secondsRemaining()/intervalMs()` pair, so the beat is stated twice in two different registers
+    (a shrinking coloured line above, words beside the sentence) instead of a widget drawing itself
+    inside a label. The green check beside "Updated" stays; it is the only graphic left. Rendered
+    **ONCE**, in the **HERO**'s headline row (`hero-refresh-slot`, `shrink-0`, rightmost) with **no
+    width gate** — it used to sit in a `hidden justify-end lg:flex` corner, which hid it entirely at
+    the mid widths while the sticky mobile bar's Refresh button drove the same beat. "Refreshing in
+    12s" modifies the sentence above it, so the two belong on one row. The page's mobile copy that
     used to head the feed column was **removed in Phase 2** and replaced by the sticky action bar's
     Refresh button, which calls the same `store.polling.refreshNow()`. One component, one beat, one
-    countdown instance in the DOM (`line-refresh-countdown` is therefore no longer a duplicated
-    testid), and the placement gate stays **CSS
-    only** (`hidden lg:flex`), never a `matchMedia` placement signal, so SSR and
-    hydration emit identical markup. 🔴 Only the WRAPPER ever moved into the hero — a second copy of
-    the countdown/updating/confirmed state machine
+    control instance in the DOM (`line-refresh-countdown` is therefore no longer a duplicated testid),
+    and placement is **CSS only** (one row's flex layout), never a `matchMedia` placement signal, so
+    SSR and hydration emit identical markup. 🔴 Only the WRAPPER ever moved into the hero — a second
+    copy of the updating/confirmed state machine
     there would double every confirmation and desync the two instances from the one beat they share. The
     trigger **shrink-wraps to the row it draws** (`:host { display: inline-block }`, no `w-full`), so
-    the tap target is the spinner + label the reader can see and not an invisible full-width strip;
-    right-edge alignment is the host's `flex justify-end` gate doing that work, not the control.
+    the tap target is the label the reader can see and not an invisible full-width strip.
+    The tooltip sits at **`z-50`** (the app overlay layer, above the nav's `z-[45]`) and closes
+    **300ms after the pointer leaves**, the same grace window `InfoPopover` and the nav use — a
+    tooltip that vanishes the instant the cursor moves toward it is unreadable.
   - `home.page.ts` additionally hosts the spotting feature's `ReportFormComponent` in a second
     `hlm-sheet` (reused as-is — no form built here); the line seed travels through
     `ReportSheetService.openFor(lineId)`. It hosts `app-report-chooser` as the **first** sheet in the
@@ -160,7 +195,10 @@
 pb-[env(safe-area-inset-bottom)]`) hosting `home-mobile-report` (the chooser),
     `home-mobile-refresh` (the SAME `store.polling.refreshNow()` the countdown's click calls — one
     beat, two affordances) and `home-mobile-map` (a `routerLink="/tracker"` anchor, because "Live map"
-    must not be the one intent mobile loses). `main` grows a matching `pb-24 lg:pb-6` so the bar never
+    must not be the one intent mobile loses). 🔴 Report and Live map, plus the page's skip link, lost
+    their MLPTF brand override (`bg-brand` / `text-brand` → the `hlmBtn` default variant and
+    `bg-primary`), so all four of the page's chrome buttons now share one theme with the rest of the
+    app. `main` grows a matching `pb-24 lg:pb-6` so the bar never
     covers the last feed row. The page's desktop layout is a two-panel split: the
     retry banner and footer stay full width, while the line-status and feed
     sections share `data-testid="home-panels"` (`flex flex-col gap-6 lg:grid lg:grid-cols-2
@@ -218,13 +256,15 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     and in flight, both sets of appended pages are kept, and neither read is re-issued. The refresh row is the fixed-cadence control, and it covers BOTH sections:
     the 30s beat and a click both go through the same `HomeStore.reloadFirstPages()`, re-reading
     the line statuses, the Today feed's first page and the Last Week first page. Rendered by
-    `HomeRefreshControlComponent` as the `<button data-testid="line-refresh-countdown">` — an SVG
-    countdown RING (`line-refresh-ring` / `line-refresh-ring-arc`, the arc shrinking with the beat)
-    plus `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, and a click calling
+    `HomeRefreshControlComponent` as the `<button data-testid="line-refresh-countdown">` — 🔴
+    **text only**: `Refreshing in {n}s` from the store's public `polling.secondsRemaining()`, with no
+    graphic of its own (the countdown ring and the "Updating" spinner were both removed; the beat's
+    _indicator_ is the hero's `hero-countdown-line`), and a click calling
     `store.polling.refreshNow()`. Hovering it (or tapping it when the device has no hover —
     capability is measured with `(hover: hover) and (pointer: fine)`, the same
     `StatusInfoChipComponent` pattern) reveals a `Click to Refresh Now` tooltip
-    (`data-testid="line-refresh-tooltip"`). A click reads as **three** states, in this order:
+    (`data-testid="line-refresh-tooltip"`, `z-50`, closing 300ms after the pointer leaves so it can
+    be read and re-entered). A click reads as **three** states, in this order:
     **Updating** (`data-testid="line-refresh-updating"`, `role="status"`) → a transient GREEN
     **Updated** confirmation (`data-testid="line-refresh-confirmation"`, `role="status"`,
     `text-green-600 dark:text-green-400` on both the tick and the label, ~2s) → the countdown again.
@@ -248,8 +288,8 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `feed-day-groups.util.ts` (the Last Week section's local-calendar day bucketing),
     `line-status-sheet.service.ts` (sheet controller), `line-status-metrics.util.ts`
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders), `network-summary.util.ts` (the
-    pure board roll-up: severity tables, the needs-attention rule, the comparator, the headline and
-    the worst-line callout), `status-confidence.util.ts` (the pure **confidence** rule: how much to
+    pure board roll-up: severity tables, the needs-attention rule, the comparator, the headline, the
+    worst-line callout and the `networkTone` colour tone), `status-confidence.util.ts` (the pure **confidence** rule: how much to
     trust a line's reported status, and the operator-post test), and the pure
     `passenger-status.util.ts` (labels/variants + `PASSENGER_SEVERITY_RANK`, no components).
 
@@ -291,6 +331,11 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `HomeRefreshControlComponent` injects the store's beat. The partition RULE belongs to the store;
     passing the groups down as inputs would mean re-deriving them on the page for no gain — and the
     same is why the post-submit highlight signal lives in the store rather than being passed in.
+  - `HomeHeroComponent` keeps its two data inputs (`lines`, `linksToday`) and additionally injects
+    `HomeStore` **for the poll beat alone** — `polling.intervalMs()` / `polling.secondsRemaining()`
+    feed the countdown line's width. It is the same route-scoped store the refresh control reads and
+    the same injector tree, so this adds no request and no timer; a hero that started its own beat
+    would double the countdown.
   - `LinkThreadComponent` (the shared insiden `app-link-thread`, the feed's row wrapper — **recursive**,
     it renders its own children as nested threads at every depth):
     `link = input.required<LinkCardItem>()` — the node this instance renders; the feed's `FeedLink`
@@ -515,8 +560,9 @@ different: _"we could not load it"_ is a widget problem to stay quiet about, _"n
 in this service day"_ is the answer to the question this cell exists to answer (and on a quiet morning,
 or a fresh install with no reports yet, it is the correct whole answer), and an empty bordered card read
 as a rendering fault rather than as either. Note this is **not** the row-sparline's rule — that widget
-still hides itself, because it sits under a hero that already states the network's condition, while the
-heat grid is its own Pro cell.
+uses the same empty-vs-failed split but keeps its space, drawing a dashed `network-sparkline-empty`
+placeholder of the chart's own height, because it sits inside the hero where a hole would scroll the
+whole page under the reader, while the heat grid is its own Pro cell.
 
 ### The filters — Pro-only, default off, reset on leaving Pro
 
@@ -1010,11 +1056,15 @@ the two cells can never disagree.
   on `expanded`).
 - **`NetworkSparklineComponent` / `LineHistoryStripComponent` / `NetworkHeatStripComponent`** — the
   three service-day widgets. All three read `HomeStore` (the store owns the reads), all three share
-  `status-history-display.util.ts` for their vocabulary, and all three follow the SAME two rules:
-  **hide entirely on a failed or empty read** (their own `networkHistoryFailed` /
-  `linesHistoryFailed`, never `HomeStore.hasError()` — a supporting widget must not put the retry
-  banner over a working page), and **opt in** with `store.requestHistoryReads()` so no store with an
-  unmounted history surface issues the reads at all. 🔴 `networkStatusHistory` is a NETWORK aggregate
+  `status-history-display.util.ts` for their vocabulary, and all three share the first two rules:
+  **never reach for `HomeStore.hasError()`** (their own `networkHistoryFailed` /
+  `linesHistoryFailed` — a supporting widget must not put the retry banner over a working page), and
+  **opt in** with `store.requestHistoryReads()` so no store with an unmounted history surface issues
+  the reads at all. 🔴 They no longer agree on what to DO about a failed or empty read: the row strip
+  and the heat grid still hide themselves (the strip sits above the disclosure, the grid is its own Pro
+  cell), while the hero **sparkline holds its height** with a dashed `network-sparkline-empty`
+  placeholder — a hero that grows a hole in itself when the slowest read lands is worse than one that
+  says nothing was reported. 🔴 `networkStatusHistory` is a NETWORK aggregate
   and `linesStatusHistory` is per line: the sparkline's label says "across every line on the network"
   for exactly that reason, because drawing the aggregate under one line's name would attribute other
   lines' reports to it. Each widget hands its chart a single `role="img"` sentence
@@ -1190,13 +1240,13 @@ the two cells can never disagree.
   accordion.
 - **`refresh-control/home-refresh-control.component.ts`** is the single source of the refresh
   affordance and the seam for any future host of it: it takes no inputs, injects `HomeStore` itself,
-  and is now rendered ONCE (in the hero, behind `hidden lg:flex`) rather than twice with a CSS
-  visibility class. Keep it that way — a second copy of this markup (or a `matchMedia`-driven
-  placement) would either duplicate the confirmation state machine or desync SSR from hydration.
+  and is rendered ONCE — in the hero's headline row, at every width, inside `hero-refresh-slot` —
+  rather than twice with a CSS visibility class. Keep it that way — a second copy of this markup (or a
+  `matchMedia`-driven placement) would either duplicate the confirmation state machine or desync SSR
+  from hydration.
   ⚠️ A host that wants a REFRESH BUTTON rather than the countdown (the mobile action bar does) must
-  call `HomeStore.polling.refreshNow()` and **must not** re-implement the three states; at mobile
-  widths the countdown is not rendered, so the confirmation belongs to a surface the reader can
-  actually see. It is also the reference for "how do I
+  call `HomeStore.polling.refreshNow()` and **must not** re-implement the three states. It is also the
+  reference for "how do I
   react to a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the control latches
   on `HomeStore.isRefreshing()` going true and CONFIRMS on it settling false with `!hasError()`.
   🔴 **The `Updating` label tracks `isRefreshing`, NOT the click** — so the beat's own refreshes say
@@ -1213,20 +1263,26 @@ the two cells can never disagree.
   also the **first** template branch on purpose: `refreshNow()` resets the beat, so if the countdown
   branch won, an in-flight click would flash a freshly-reset "Refreshing in 30s". A future host that
   wants its own refresh affordance must answer the same three states in the same order.
-  🔴 **The Updating spinner's `reverse` lives inside the `animation` shorthand**, written as an
-  arbitrary-property UTILITY (`[animation:spin_3s_linear_infinite_reverse]`) rather than as a
-  separate `[animation-direction:reverse]` class, because the shorthand resets every animation
-  sub-property and would drop a class-level direction back to normal. 🔴 It is a utility and not the
-  inline `style="animation: …"` this used to be, for the Phase-5B reduced-motion reason: an inline
-  `animation` outranks **every** class in the cascade, so the `motion-reduce:[animation:none]` that
-  makes the spinner inert under `prefers-reduced-motion` could never win against it. jsdom computes
-  no styles, so this cannot be caught by a layout assertion — the spec pins the class and the absent
-  `style` attribute instead. The countdown ring's arc, by contrast, is not an animation at all (see
-  Motion below), so nothing about it needs the `reverse` treatment.
+  🔴 **The control draws nothing of its own.** The countdown ring and the "Updating" spinner were both
+  removed — a text row does not need a widget inside it, and the beat's visual indicator is the hero's
+  top status line, built from the same two store numbers. The green check beside "Updated" is the only
+  graphic that remains, and it needs no `reverse`/reduced-motion treatment because it is not an
+  animation. If a graphic comes back, it inherits the Phase-5B rule: the `reverse` direction must live
+  **inside** the `animation` shorthand as an arbitrary-property UTILITY
+  (`[animation:spin_3s_linear_infinite_reverse]`), never as a separate `[animation-direction:reverse]`
+  class, because the shorthand resets every sub-property — and never as an inline
+  `style="animation: …"`, which outranks **every** class and makes the `motion-reduce:[animation:none]`
+  that disables it under `prefers-reduced-motion` unreachable. jsdom computes no styles, so a spec can
+  only pin the class and the absent `style` attribute.
+  🔴 **The tooltip is part of this component's contract, not its decoration**: `z-50` (the app overlay
+  layer, above the nav's `z-[45]`) and a **300ms** close delay after `mouseleave`, cancelled on
+  re-entry and on destroy — the same window `InfoPopover` and the nav use. Do not "simplify" it to an
+  instant close; a tooltip that disappears as the pointer moves toward it is unreadable.
 - **The trigger is not a row, so it must not be styled like one.** The control shrink-wraps to its
-  visible content (`:host { display: inline-block }`, no `w-full` on the button) and each host gate
-  is a `flex justify-end` wrapper, which is what parks it at the right edge. Putting `w-full` or a
-  block host back makes the tap target an invisible full-width strip again.
+  visible content (`:host { display: inline-block }`, no `w-full` on the button); the hero's headline row
+  (`flex items-start justify-between gap-3`) parks it at the right edge through the `shrink-0`
+  `hero-refresh-slot`, not the control. Putting `w-full` or a block host back makes the tap target an
+  invisible full-width strip again.
 - **`network-summary.util.ts` (`summarizeNetwork`)** is the one place the board's rule lives, and it
   is **pure** — no Angular, no requests. Three exported values make the rule legible instead of
   implicit: `LINE_STATUS_SEVERITY_RANK` (a **total order**, deliberately NOT the backend enum's:
@@ -1247,6 +1303,25 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   **`PASSENGER_SEVERITY_RANK` mirrors the backend `PassengerStatus` enum order** (NORMAL 0 … DISRUPTED 6) — the schema exposes the enum in declaration order, so a higher rank IS a more severe status.
   Do not "tidy" the numbers into a preferred order (DELAYED before CROWDED, say): they are the
   server's order made numeric, and a backend reorder would make every consumer wrong at once.
+  🔴 **`networkTone(total, needsAttentionCount)` is the same file's second exported rule**, and it is
+  pure for the same reason — it is a fact about the network, not a design decision. It returns one of
+  four `NetworkTone` values from the SAME two counts `summarizeNetwork` builds the headline sentence
+  from, which is the entire point: the hero's coloured status line and its `h1` cannot disagree,
+  because neither can be computed without the other's arithmetic. `unknown` (no lines read) is neutral
+  rather than green — "nothing is wrong" is not the same claim as "everything is fine". Keep the class
+  maps in the component (`_tone` / `_headlineClass` / `_lineClass`): which shade of orange is a
+  visual choice, and Tailwind needs full literal class strings in source to compile them.
+- **`NetworkSparklineComponent` always holds its height.** Its `<figure>` is unconditional; the ONE
+  branch decision is `_plotted()` — `!networkHistoryFailed() && _bars().length > 0` — and the
+  `network-sparkline-empty` dashed `h-10` placeholder is its else-branch, so bars and placeholder can
+  never both be present or both absent. Three rules: (1) a **failed** read must not draw the last
+  good answer, which is why the predicate still excludes a failed read even though the store holds a
+  stale array — yesterday's picture drawn as today's is worse than an honest empty box; (2) the two
+  quiet states **read differently** ("Activity data unavailable" vs "No activity reported yet"),
+  because only one is a failure the reader may hit again; (3) the hour-axis row is unconditional too
+  (empty strings and all), so the widget's total height is identical in all three states. 🔴 Never
+  reach for `HomeStore.hasError()` here: a supporting widget must not replace a working page of
+  statuses with the page-level retry banner.
 - **`NetworkBoardComponent` is the board: three groups over ONE partition.** It replaces the deleted
   `LinePulseListComponent` (one worst-first list) and takes over its job of NOT folding a dead line
   away — while adding the grouping the plan asks for. Structure: skeleton rows
@@ -1376,7 +1451,11 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`; an empty read 
   `@ng-icons/lucide` through `NgIcon` + `provideIcons`, the FIRST usage of that library in `src/`
   (previously zero); the existing chevron SVGs stay as they are. The card also draws the line's
   `displayColor` as a leading accent rail (a backend hex, so it needs no dark-mode twin) and calls
-  `PreferencesService.pushRecentLine()` on the panel's **open** edge.
+  `PreferencesService.pushRecentLine()` on the panel's **open** edge. 🔴 The card does **not** clip:
+  `overflow-hidden` was removed because the popovers, the kebab menu and the disclosure panel are
+  all positioned inside it, and the rail carries `rounded-l-xl` so the accent still meets the card's
+  own corner. Same rule on `line-pulse-row` (`rounded-l-lg`). If you ever re-add an
+  `overflow-hidden` here, check first whether a popover is nested inside.
 - **`PreferencesService`** (`core/preferences/preferences.service.ts`, `providedIn: "root"`) is the
   reader-owned display state the board needs — `pinnedLineIds`, `viewMode` (`"rider" | "pro"`),
   `density`, `lastReportedLineId`, `recentLineIds` — persisted under the **versioned** key
@@ -1502,20 +1581,23 @@ assignable to type 'number'`. The bound attribute is itself the selector match, 
   attention `h2` (`line-board-attention-dot`, `aria-hidden`) carrying
   `motion-safe:animate-breathe`. It reuses the **existing** `--animate-breathe` theme token rather than
   adding a second one, and the count beside it — the actual information — never moves.
-- **Countdown ring** — `HomeRefreshControlComponent` no longer spins: an SVG ring (`line-refresh-ring`
-  / `line-refresh-ring-arc`, `r = 9` in the same 24-unit viewBox the other icons share) whose arc is
-  the fraction of the beat left. `stroke-dasharray` is one full turn (`RING_CIRCUMFERENCE`, rounded to
-  2dp because a spec asserts the attribute) and `stroke-dashoffset` is a `computed` over
-  `secondsRemaining() / intervalMs()`, so the ring, the "Refreshing in Ns" text and the beat are three
-  readings of the same two numbers and cannot drift. 🔴 It is computed from that pair **deliberately
+- **Countdown line** — the hero's **top status line**, not a ring inside a label. A full-width track
+  holds a fill (`hero-countdown-line`, `aria-hidden`) whose `[style.width.%]` is a `computed` over
+  `secondsRemaining() / intervalMs()`, so the coloured line, the "Refreshing in Ns" text beside it and
+  the beat itself are three readings of the same two numbers and cannot drift. The transition is
+  `transition-[width] duration-1000 ease-linear`, matching the 1s polling tick, and carries
+  `motion-reduce:transition-none` so reduced motion sees the line jump straight to its new length —
+  same information, no tween. 🔴 It is computed from that pair **deliberately
   rather than from `PollingSource.percentRemaining`**: `scheduleNext()` resets `secondsRemaining` on
   the same edge but leaves `percentRemaining` to the next 1s tick, so immediately after a refresh the
-  published percentage still describes the beat that just ended and the ring would visibly refuse to
+  published percentage still describes the beat that just ended and the line would visibly refuse to
   refill for up to a second while claiming to be full. A null interval and an overshot countdown both
-  clamp to the ends of the range rather than inverting the ring. The arc's 1s `transition` matches the
-  polling tick and carries `motion-reduce:transition-none`, so reduced motion sees the arc jump
-  straight to its new length — same information, no tween. The **Updating** state keeps an
-  indeterminate spinner, because "a refresh is in flight" has no fraction to draw.
+  clamp to the ends of the range rather than inverting the fill. On the server `secondsRemaining` is
+  `0` (no timers run), so the SSR paint is a 0%-wide neutral line and the client's first binding fills
+  it — the same swap the ring used to do, which is why there is no extra hydration guard.
+  🔴 This replaced two graphics: the countdown ring and the "Updating" spinner, both gone from
+  `HomeRefreshControlComponent`, which is now **text-only**. One status line in the network's own tone
+  beats a spinner that says nothing about how bad things are.
 - 🔴 **Any future motion here is a `motion-safe:` / `motion-reduce:` pair on the element, plus a spec
   that asserts the class.** jsdom computes no styles, so "the animation is disabled" is only testable
   as "the class that disables it is on the element". A motion feature whose spec cannot name that
@@ -1527,14 +1609,14 @@ Every colour the home page draws in dark mode was measured against its actual ba
 relative luminance + contrast ratio), not eyeballed. **One value changed**; everything else was
 already passing, and the failures worth recording are the ones that were left alone on purpose.
 
-| Surface                                                                | Dark                                                  | Light                 | Verdict                                                                                                                                     |
-| ---------------------------------------------------------------------- | ----------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--brand` (hero accent, "Live map", ribbon, attention dot) on `--card` | `#f79331` → **7.56:1**                                | `#ee7104` → **3.0:1** | Dark passes AA; light fails as body text (see below)                                                                                        |
-| `--brand-foreground` on `--brand` (button fill)                        | **8.23:1**                                            | **3.0:1**             | Dark passes; light is the same light-mode failure                                                                                           |
-| Highlight ring (`ring-brand` on a row)                                 | **8.48:1**                                            | n/a                   | Passes, unchanged                                                                                                                           |
-| Feed tabs (selected + unselected on `--card`)                          | **6.98:1**                                            | passes                | Unchanged                                                                                                                                   |
-| Pro dashboard surfaces (bento cells, filter buttons, export)           | pass                                                  | pass                  | Unchanged                                                                                                                                   |
-| Status bar `DISRUPTED` (`PASSENGER_BAR_CLASS`)                         | `rose-600` **3.84:1** → `dark:bg-rose-500` **4.61:1** | `rose-600` passes     | 🔴 **The one fix.** It was the only status bar below 4.5:1 on the dark card _and_ the dimmest, so the most severe status read least clearly |
+| Surface                                                                                             | Dark                                                  | Light                 | Verdict                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--brand` (official-update "Open original", attention dot, highlight ring, ranking bar) on `--card` | `#f79331` → **7.56:1**                                | `#ee7104` → **3.0:1** | Dark passes AA; light fails as body text (see below)                                                                                        |
+| `--brand-foreground` on `--brand` (button fill)                                                     | **8.23:1**                                            | **3.0:1**             | Dark passes; light is the same light-mode failure                                                                                           |
+| Highlight ring (`ring-brand` on a row)                                                              | **8.48:1**                                            | n/a                   | Passes, unchanged                                                                                                                           |
+| Feed tabs (selected + unselected on `--card`)                                                       | **6.98:1**                                            | passes                | Unchanged                                                                                                                                   |
+| Pro dashboard surfaces (bento cells, filter buttons, export)                                        | pass                                                  | pass                  | Unchanged                                                                                                                                   |
+| Status bar `DISRUPTED` (`PASSENGER_BAR_CLASS`)                                                      | `rose-600` **3.84:1** → `dark:bg-rose-500` **4.61:1** | `rose-600` passes     | 🔴 **The one fix.** It was the only status bar below 4.5:1 on the dark card _and_ the dimmest, so the most severe status read least clearly |
 
 - 🔴 **The fix is one `dark:` pair inside the shared `PASSENGER_BAR_CLASS` table**
   (`features/home/data/passenger-status.util.ts`), not seven new tokens. Every consumer of that table
@@ -1549,13 +1631,21 @@ already passing, and the failures worth recording are the ones that were left al
   a per-row `role="img"` sentence and a per-cell `title` as the accessible equivalent, which is the
   honest fix for a magnitude channel; a `role="img"` per CELL would read out 384 numbers.
 - 🔴 **Light mode is a known, recorded failure, not an oversight.** `--brand` `#ee7104` on `--card` is
-  3.0:1, so `text-brand` fails AA for body text — it is used for the "Live map" ghost link and the
-  "Open original" link, both of which sit at mobile sizes where the large-text threshold does not
-  apply. White on brand (the `bg-brand text-brand-foreground` button fill) is the same 3.0:1. Fixing
-  either means darkening the site's brand orange, which is a design decision above this feature's
-  remit: the accent was picked for hue identity, and every consumer of it (the nav, the ad slots, the
-  tracker) was designed against it. Fixing the home page alone would leave two brand oranges in one
-  product. Recorded as a still-open item below, not silently restyled.
+  3.0:1, so `text-brand` fails AA for body text — on this page it is used for the official-update
+  "Open original" link, which sits at mobile sizes where the large-text threshold does not apply. White
+  on brand (a `bg-brand text-brand-foreground` button fill) is the same 3.0:1, and the page no longer
+  has one: the hero's "Report a delay", "Live map", the mobile bar's Report and the skip link all took
+  the **default theme** in this pass, which removed the two worst offenders rather than restyling the
+  token. Fixing the rest means darkening the site's brand orange, which is a design decision above this
+  feature's remit: the accent was picked for hue identity, and every consumer of it (the nav, the ad
+  slots, the tracker) was designed against it. Fixing the home page alone would leave two brand oranges
+  in one product. Recorded as a still-open item below, not silently restyled.
+- ⚠️ **The four network-tone classes are NOT in the measured table.** `networkTone`'s
+  `green/orange/red-600 dark:*-400` (and the neutral `text-foreground`) arrived after this audit and
+  were only checked in a browser, not measured. The headline they colour is `text-xl font-semibold`
+  (`sm:text-2xl`), so the **large-text** threshold (3:1) is the one that applies, not the 4.5:1 body
+  threshold the `--brand` rows above are judged against — but that is an argument, not a measurement.
+  Re-measure before trusting it, and do not add a fifth tone without the same check.
 - **No wholesale restyle.** Where a token already exists the fix went into the token (`PASSENGER_BAR_CLASS`)
   rather than into an ad-hoc `dark:` override at a call site; the audit found no surface where a new
   token was needed.
@@ -1600,14 +1690,21 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
 - **Focus-order surprises fixed:** the skip link is first, the mobile action bar sits after the main
   content (a fixed bar is still in DOM order, so it must not come before the panels it overlays), and
   the feed tablist keeps its roving `tabindex` so `Tab` enters the pair once and leaves it once.
+- **The network tone is never the only channel.** The hero's status line is `aria-hidden` — it is a
+  colour, and colour alone is not information — and every fact it carries is available in text on the
+  same screen: the `h1` states the sentence, the "Refreshing in Ns" label states the beat, and the
+  board names the lines underneath. Adding a fifth tone must add its sentence too, not just its
+  colour. Likewise the sparkline's two quiet states are literal text in the DOM (not `aria-hidden`),
+  so "No activity reported yet" and "Activity data unavailable" are both announced.
 
 ### New seams and testids (Phase 5B)
 
 **New testids** — every pre-existing one is unchanged:
 
 - `home-skip-link` (the visually-hidden-until-focused skip link).
-- `line-refresh-ring` / `line-refresh-ring-arc` (the countdown ring and its arc; the old 1s spinner
-  markup is gone from the countdown branch).
+- ~~`line-refresh-ring` / `line-refresh-ring-arc`~~ — **REMOVED** in the home-page polish round 2, with
+  the countdown ring and the "Updating" spinner they described. The beat is now drawn by the hero's
+  `hero-countdown-line` and stated in words by the control's own label.
 - `line-board-attention-dot` (the decorative pulse dot beside "Needs attention · N").
 - `hero-needs-attention-popover` / `hero-reports-now-popover` (the two tile-label info popovers).
 
@@ -1629,6 +1726,31 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   (it is the row count of the feed list further down the page). `network.severity-order` is still
   reachable only through `/methodology`; putting an info trigger on the board's `Severity` sort button
   is a UI decision, not a docs one, and is left open below.
+
+### New seams and testids (home-page polish, round 2)
+
+The tone line, the refresh slot and the sparkline placeholder. **Removed:** `line-refresh-ring` /
+`line-refresh-ring-arc`, and the hero's brand-rail span (it was never a testid — it was the `bg-brand`
+element the round-2 spec asserted _absent_).
+
+- `hero-countdown-line` (the fill inside the hero's top status track) — its `style.width` is the beat
+  fraction and its `[class]` is the tone, so one element carries both new facts.
+- `hero-refresh-slot` (the `shrink-0` wrapper holding `app-home-refresh-control` at the right end of
+  the headline row). The old placement was asserted by hunting for `[class~="lg:flex"]`, which is a
+  class-token substring match that any future gate can silently satisfy; assert this testid and the
+  row's `flex items-start justify-between` instead. 🔴 `[data-testid]` on an `InfoPopover` is the
+  **PANEL**, not the trigger — to reach the headline's popover in a spec, query
+  `row.querySelector("app-info-popover")`.
+- `network-sparkline-empty` (the dashed `h-10` placeholder). Its copy distinguishes the two quiet
+  states, and the `h-10` is the assertion that the hero does not change height.
+- `InfoPopover.iconPosition` is now `"end"` on all six home usages (hero headline, sparkline caption,
+  row history strip, Pro heat strip, Pro lines widget, Pro report ranking). The component default is
+  still `"start"`, so `/methodology` and the ad slot are pixel-identical — do not "tidy" the default.
+- `InfoPopover`'s panel moved `z-20` → **`z-50`**, the app overlay layer (the nav is `z-[45]`, the
+  sticky mobile action bar `z-30`). 🔴 The pair of rules this bought is now load-bearing: a container
+  that hosts an `InfoPopover` must not be `overflow-hidden`, and a popover must never be painted
+  under chrome. The hero card, `line-pulse-card` and `line-pulse-row` all gave up their clipping and
+  rounded their decorative rails instead. See `MISTAKES.md` for the full entry.
 
 ### Deliberate deviations (Phase 4)
 
@@ -1666,13 +1788,16 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   (`filterFeedLinks`, `?q=`). The Rider feed deliberately has no search box — it is a glance, not a
   query surface.
 - 🔴 **Light-mode brand-orange contrast — a design decision, not a home-page bug.** `--brand`
-  `#ee7104` on `--card` measures **3.0:1**, so `text-brand` fails WCAG AA for body text (the hero's
-  "Live map" ghost link and the official-update "Open original" link, both at mobile sizes) and white
-  on a `bg-brand` fill is the same 3.0:1. Dark mode passes (7.56:1 / 8.23:1), so this is the light
-  theme alone. Fixing it means darkening the site's brand orange — an accent chosen for hue identity and
-  already used by the nav, the ad slots and the tracker, so changing it for this page would leave two
-  brand oranges in one product. The honest options are a design decision (darken the token globally) or
-  a targeted one (stop using `text-brand` for these two links in light mode, e.g. `--primary`).
+  `#ee7104` on `--card` measures **3.0:1**, so `text-brand` fails WCAG AA for body text and white on a
+  `bg-brand` fill is the same 3.0:1. Dark mode passes (7.56:1 / 8.23:1), so this is the light theme
+  alone. **Partly resolved in the polish round 2**: the hero's "Live map", its "Report a delay", the
+  mobile bar's Report and the skip link all took the default theme, so the two worst offenders on this
+  page are gone. What remains is the official-update **"Open original"** link, at mobile sizes where
+  the large-text threshold does not apply. Fixing that still means darkening the site's brand orange —
+  an accent chosen for hue identity and already used by the nav, the ad slots and the tracker, so
+  changing it for this page would leave two brand oranges in one product. The honest options are a
+  design decision (darken the token globally) or a targeted one (stop using `text-brand` for that link
+  in light mode, e.g. `--primary`).
 - **Station-flow and verification-count widgets — still roadmap, not built.** Two metrics the plan names
   that need backend work before they can be drawn honestly: a **station flow** widget (entries/exits at
   a station over the service day — `LineStatusReportsComponent`'s per-station strip already aggregates
