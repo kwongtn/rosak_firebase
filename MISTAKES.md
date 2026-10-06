@@ -37,12 +37,14 @@ jsdom will never resolve the tie.
 **Same-day sibling (spotting)**: the line-details activity-bar back chevron carried a static
 `inline-flex` NEXT TO a bound `[class.hidden]` gate on the SAME element — same tie, same winner
 (`.inline-flex` after `.hidden`), so the chevron rendered before its handoff. First fixed by binding the
-display class as a pair (`[class.hidden]` + `[class.inline-flex]`, never both); the final polish went
-further and removed the display toggle entirely — the chevron stays `inline-flex` with its slot
-reserved, animating `opacity`/`translate` (and `inert` + `aria-hidden` while hidden), which also
-removes the layout bump. E2e pins `opacity: 0`/`inert` pre-handoff and `opacity: 1`/no-`inert` after.
-Rule of thumb: when one class of a pair must beat another, bind BOTH — or better, don't let the two
-coexist at all — never rely on a static utility losing a cascade tie.
+display class as a pair (`[class.hidden]` + `[class.inline-flex]`, never both); the final polish removed
+the display toggle entirely — the chevron's footprint collapses (`w-0`/`w-7` bound pair + `-mr-2`) and
+animates open on the handoff (`opacity`/`translate`/width via `transition-all`), staying `inert` +
+`aria-hidden` while hidden — which removes both the early render and the layout bump, while leaving
+flush-left headings untouched. E2e pins `opacity: 0`/`width: 0px`/`inert` pre-handoff and
+`opacity: 1`/`width: 28px`/no-`inert` after. Rule of thumb: when one class of a pair must beat another,
+bind BOTH — or better, don't let the two coexist at all — never rely on a static utility losing a
+cascade tie.
 
 ## [2026-10-06] testing: `ng test --filter` matches TEST NAMES, not paths — a typo is a SILENTLY GREEN zero-test run
 

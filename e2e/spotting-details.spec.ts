@@ -229,6 +229,7 @@ test.describe("spotting details grid", () => {
     await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
     await expect(page.getByTestId("details-activity-identity")).toBeHidden();
     await expect(page.getByTestId("details-back-chevron")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("width", "0px");
     await expect(page.getByTestId("details-back-chevron")).toHaveAttribute("inert", "");
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-top.png" });
@@ -239,7 +240,14 @@ test.describe("spotting details grid", () => {
     await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
     await expect(page.getByTestId("details-activity-identity")).toBeHidden();
     await expect(page.getByTestId("details-back-chevron")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("width", "0px");
     await expect(page.getByTestId("details-back-chevron")).toHaveAttribute("inert", "");
+    // The heading must stay flush with the bar's content edge while the chevron slot is collapsed.
+    const anchoredBarBox = await page.getByTestId("details-activity-bar").boundingBox();
+    const plainTitleBox = await page.getByTestId("details-activity-title-plain").boundingBox();
+    expect(
+      Math.abs((plainTitleBox?.x ?? -1) - ((anchoredBarBox?.x ?? 0) + 16)),
+    ).toBeLessThanOrEqual(2);
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-anchored-title.png" });
 
@@ -263,6 +271,7 @@ test.describe("spotting details grid", () => {
     const chevron = page.getByTestId("details-back-chevron");
     await expect(chevron).toBeVisible();
     await expect(chevron).toHaveCSS("opacity", "1");
+    await expect(chevron).toHaveCSS("width", "28px");
     await expect(chevron).not.toHaveAttribute("inert", "");
     await expect(chevron).toHaveAttribute("href", "/spotting/1");
 

@@ -158,6 +158,8 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     expect(identity?.classList.contains("hidden")).toBe(true);
     const backChevron = host.querySelector('[data-testid="details-back-chevron"]') as HTMLElement;
     expect(backChevron).toBeTruthy();
+    expect(backChevron.classList.contains("w-0")).toBe(true);
+    expect(backChevron.classList.contains("w-7")).toBe(false);
     expect(backChevron.classList.contains("opacity-0")).toBe(true);
     expect(backChevron.getAttribute("inert")).toBe("");
 
@@ -167,6 +169,8 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     expect(codeSpan?.classList.contains("hidden")).toBe(false);
     expect(identity?.classList.contains("hidden")).toBe(false);
     expect(titleBar?.classList.contains("-translate-y-full")).toBe(true);
+    expect(backChevron.classList.contains("w-7")).toBe(true);
+    expect(backChevron.classList.contains("w-0")).toBe(false);
     expect(backChevron.classList.contains("opacity-0")).toBe(false);
     expect(backChevron.getAttribute("inert")).toBeNull();
 
@@ -176,6 +180,7 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     expect(codeSpan?.classList.contains("hidden")).toBe(true);
     expect(identity?.classList.contains("hidden")).toBe(true);
     expect(titleBar?.classList.contains("-translate-y-full")).toBe(false);
+    expect(backChevron.classList.contains("w-0")).toBe(true);
     expect(backChevron.classList.contains("opacity-0")).toBe(true);
   });
 
