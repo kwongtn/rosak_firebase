@@ -323,17 +323,20 @@ export class HomeHeroComponent implements OnDestroy {
 
   /**
    * How the whole network is doing, from the SAME two numbers the headline sentence uses — the
-   * IN-SERVICE ones (`summary.inService`), so a closed or pre-opening line cannot make the page
-   * look broken. The tile beside it deliberately keeps the unfiltered all-lines count: a reader who
-   * wants "how many lines need attention" means every line, and the headline answers "how is
-   * service doing".
+   * in-service ones, so a closed or pre-opening line cannot make the page look broken and every
+   * number below the sentence agrees with it. `normalCount + needsAttentionCount` IS the in-service
+   * total (both counts are in-service scoped since the Others bucket landed): out-of-service lines
+   * appear in neither, and the callout below can never name one.
    *
    * The rule itself is pure and lives in `network-summary.util`; only the class maps live here,
    * because which shade of orange is a design decision rather than a fact about the network.
    */
   protected readonly _tone = computed(() => {
     const summary = this._summary();
-    return networkTone(summary.inService.total, summary.inService.needsAttentionCount);
+    return networkTone(
+      summary.normalCount + summary.needsAttentionCount,
+      summary.needsAttentionCount,
+    );
   });
 
   /** The headline's text tone, dark-mode aware. Literal class strings — Tailwind must see them. */

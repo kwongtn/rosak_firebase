@@ -10,7 +10,7 @@ import {
   signal,
 } from "@angular/core";
 import { NgIcon, provideIcons } from "@ng-icons/core";
-import { lucideExternalLink, lucidePin } from "@ng-icons/lucide";
+import { lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
 
 import {
@@ -51,9 +51,11 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * code and name, the plain-language operational status and the confidence chip that says how much
  * to trust it, the rider-reported crowd, then a SECOND strip carrying the fleet count and the report
  * tally together (see the template's note on why they are grouped, and why that is what fixes a 390px
- * phone), and the three actions — pin, report, expand. In `pro` view it adds what an operator actually
- * wants instead of what a rider scans for: the report count WITH its reporting window (so a number is
- * never read without the span it covers) and the Details link.
+ * phone), and the actions — pin, Details, Report, expand. Same set and order as the full card, so
+ * every group on the board reads as one control per line; only the weight differs (the card's
+ * Report is primary, the row's outline). In `pro` view it adds what an operator actually wants
+ * instead of what a rider scans for: the report count WITH its reporting window, so a number is
+ * never read without the span it covers.
  *
  * **Padding is fixed, not a preference.** The row is comfortable at every viewport width: the
  * compact/choice model cost a control nobody used to save two class tokens, and the density group on
@@ -95,7 +97,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
     LineStatusReportsComponent,
     StatusInfoChipComponent,
   ],
-  providers: [provideIcons({ lucideExternalLink, lucidePin })],
+  providers: [provideIcons({ lucidePin })],
   template: `
     <section
       class="bg-card text-card-foreground border-border relative flex flex-col rounded-lg border p-3 pl-4 shadow-sm"
@@ -168,6 +170,15 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
               aria-hidden="true"
             />
           </button>
+          <a
+            hlmBtn
+            size="sm"
+            variant="outline"
+            [routerLink]="['/spotting', line().id, 'details']"
+            data-testid="line-row-details"
+          >
+            Details
+          </a>
           <button
             hlmBtn
             size="sm"
@@ -253,22 +264,15 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
       </div>
 
       @if (viewMode() === "pro") {
-        <!-- Pro detail: the report count WITH the span it covers, plus the way out to the full line.
-             A bare count is the thing a pro reader is most likely to over-read, and the window is
-             what makes it interpretable ("4 reports · 15 min window" is a busy platform; "4 reports"
-             is a fact with no scale). -->
+        <!-- Pro detail: the report count WITH the span it covers. A bare count is the thing a pro
+             reader is most likely to over-read, and the window is what makes it interpretable
+             ("4 reports · 15 min window" is a busy platform; "4 reports" is a fact with no scale).
+             The row's Details button above is the way out to the full line now — it is no longer
+             pro-only, so the old text link here was a duplicate destination. -->
         <div class="mt-1.5 flex flex-wrap items-center gap-2" data-testid="line-row-pro">
           <span class="text-muted-foreground text-xs" data-testid="line-row-report-window">
             {{ line().statusReportCount }} reports · {{ line().statusWindowMinutes }} min window
           </span>
-          <a
-            class="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
-            [routerLink]="['/spotting', line().id, 'details']"
-            data-testid="line-row-hq-details"
-          >
-            <ng-icon name="lucideExternalLink" class="size-3" aria-hidden="true" />
-            Details
-          </a>
         </div>
       }
 

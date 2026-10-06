@@ -22,7 +22,7 @@ export class LineStatusSheetService {
    * This exists for one caller — the report chooser's "Stopped" tile, which is the rider's word for
    * the existing `DISRUPTED` status and nothing else. It is a **one-shot**, consumed by the sheet on
    * its open edge exactly the way `ReportSheetService.lineId` is consumed by the spotting form: a
-   * later seedless open (the board's own per-row "Report status" button) must not resurrect a status
+   * later seedless open (the board's own per-row "Report" button) must not resurrect a status
    * from a report that was already submitted or cancelled.
    */
   readonly presetStatus = signal<PassengerStatus | null>(null);

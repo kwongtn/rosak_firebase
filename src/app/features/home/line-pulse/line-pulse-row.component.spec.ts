@@ -540,7 +540,24 @@ describe("LinePulseRowComponent", () => {
     expect(pro.querySelector('[data-testid="line-row-hq"]')).toBeNull();
   });
 
-  it("adds the report window and the Details link in pro view", () => {
+  it("shows the unified pin / Details / Report set in both views, in that order", () => {
+    // The board's whole point since the unification: whichever group a line lands in, the row reads
+    // as ONE control set. Details is no longer a pro-only text link.
+    for (const viewMode of ["rider", "pro"] as const) {
+      const root = render(makeLine({ id: "line-7" }), { viewMode });
+      const actions = root.querySelector('[data-testid="line-row-pin"]')
+        ?.parentElement as HTMLElement;
+      const ids = [...actions.querySelectorAll<HTMLElement>("[data-testid]")].map((el) =>
+        el.getAttribute("data-testid"),
+      );
+      expect(ids, viewMode).toEqual(["line-row-pin", "line-row-details", "line-row-report"]);
+      expect(root.querySelector('[data-testid="line-row-details"]')?.getAttribute("href")).toBe(
+        "/spotting/line-7/details",
+      );
+    }
+  });
+
+  it("adds ONLY the report window in pro view — Details is part of the unified action set", () => {
     const root = render(makeLine({ id: "line-7", statusReportCount: 4, statusWindowMinutes: 15 }), {
       viewMode: "pro",
     });
@@ -548,7 +565,10 @@ describe("LinePulseRowComponent", () => {
     // The count WITH the span it covers: a bare number is what a pro reader is most likely to
     // over-read, and the window is what makes "4 reports" interpretable.
     expect(textOf(root, "line-row-report-window")).toBe("4 reports · 15 min window");
-    expect(root.querySelector('[data-testid="line-row-hq-details"]')?.getAttribute("href")).toBe(
+    // The old pro-only text link is gone: the unified Details button sits in the title row in every
+    // view, so a second link to the same destination was pure duplication.
+    expect(root.querySelector('[data-testid="line-row-hq-details"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-row-details"]')?.getAttribute("href")).toBe(
       "/spotting/line-7/details",
     );
   });
@@ -566,6 +586,7 @@ describe("LinePulseRowComponent", () => {
     expect(classes).not.toContain("pl-3.5");
     // …and it cost the row nothing: every fact and every action is still there.
     expect(row?.querySelector('[data-testid="line-row-confidence"]')).not.toBeNull();
+    expect(row?.querySelector('[data-testid="line-row-details"]')).not.toBeNull();
     expect(row?.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
     expect(row?.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
   });

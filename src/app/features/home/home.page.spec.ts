@@ -196,6 +196,7 @@ interface StoreMock {
   attentionLines: WritableSignal<LinePulse[]>;
   myLines: WritableSignal<LinePulse[]>;
   allLines: WritableSignal<LinePulse[]>;
+  othersLines: WritableSignal<LinePulse[]>;
   boardSort: WritableSignal<BoardSort>;
   setBoardSort: ReturnType<typeof vi.fn>;
   feedLinks: WritableSignal<FeedLink[]>;
@@ -288,6 +289,7 @@ describe("HomePage", () => {
       attentionLines: signal<LinePulse[]>([]),
       myLines: signal<LinePulse[]>([]),
       allLines: signal<LinePulse[]>(seededLines),
+      othersLines: signal<LinePulse[]>([]),
       boardSort: signal<BoardSort>("severity"),
       setBoardSort: vi.fn(),
       feedLinks: signal<FeedLink[]>([makeFeedLink("a"), makeFeedLink("b")]),
@@ -994,21 +996,23 @@ describe("HomePage", () => {
   it("renders each line in exactly one board group, whatever the backend order", () => {
     // Acceptance spec (c) at the page level: the partition is what keeps the board honest, and the
     // page is where the board is mounted. Deliberately awkward input — a dead line FIRST (as the
-    // backend is free to return it), two healthy ones, one of them pinned by the mock.
+    // backend is free to return it), two healthy ones, and a trial line that belongs to Others.
     const lines = [
       makeLine("dead", "TOTAL_DISRUPTION"),
       makeLine("healthy-a"),
       makeLine("healthy-b"),
+      makeLine("trial", "TESTING"),
     ];
     store.lines.set(lines);
     store.attentionLines.set([lines[0]]);
     store.myLines.set([lines[1]]);
     store.allLines.set([lines[2]]);
+    store.othersLines.set([lines[3]]);
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
     const groupOf = (lineId: string): string => {
-      for (const group of ["attention", "mine", "all"]) {
+      for (const group of ["attention", "mine", "all", "others"]) {
         const section = root.querySelector<HTMLElement>(`[data-testid="line-board-${group}"]`);
         if (section?.textContent?.includes(`Line ${lineId}`)) {
           return group;
@@ -1020,8 +1024,9 @@ describe("HomePage", () => {
     expect(groupOf("dead")).toBe("attention");
     expect(groupOf("healthy-a")).toBe("mine");
     expect(groupOf("healthy-b")).toBe("all");
-    // And exactly once: one row per line, no duplicates across the three sections.
-    expect(root.querySelectorAll('[data-testid="line-board-row"]').length).toBe(3);
+    expect(groupOf("trial")).toBe("others");
+    // And exactly once: one row per line, no duplicates across the four sections.
+    expect(root.querySelectorAll('[data-testid="line-board-row"]').length).toBe(4);
   });
 
   it("hosts the spotting entry sheet and closes it + reloads the store on submit", async () => {

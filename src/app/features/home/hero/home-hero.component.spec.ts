@@ -515,8 +515,8 @@ describe("HomeHeroComponent", () => {
   it("reads the headline and the tone off the lines actually in service", () => {
     // The live read: 14 running lines, LRT SAL in trial service, one defunct line. Neither of the
     // last two can ever be "running normally", so they must not read as a degradation nobody can
-    // wait out — but the tile deliberately still counts them, because that is a question about
-    // lines rather than about service.
+    // wait out — and since the Others bucket landed they are not a degradation AT ALL: they never
+    // colour the tile and the callout below the sentence either.
     const healthy14 = (): LinePulse[] =>
       Array.from({ length: 14 }, (_, index) => makeLine({ id: `ok-${index}`, code: `OK${index}` }));
     const classes = (root: HTMLElement, testId: string): string =>
@@ -530,8 +530,10 @@ describe("HomeHeroComponent", () => {
     expect(textOf(root, "hero-headline")).toBe("All 14 lines running normally");
     expect(classes(root, "hero-status-line")).toContain("bg-green-500");
     expect(classes(root, "hero-headline")).toContain("text-green-600");
-    // The all-lines count the tile publishes is untouched by that scoping.
-    expect(tile(root, "hero-stat-needs-attention")).toEqual(["2", "Needs attention"]);
+    // Nothing renders BELOW the sentence for an out-of-service line: the tile stays at zero and no
+    // callout names SAL or SKY.
+    expect(tile(root, "hero-stat-needs-attention")).toEqual(["0", "Needs attention"]);
+    expect(root.querySelector('[data-testid="hero-disruption-callout"]')).toBeNull();
 
     // A real disruption still speaks: PARTIAL_DISRUPTION is operational, so it moves both the words
     // and the colour.
@@ -542,6 +544,8 @@ describe("HomeHeroComponent", () => {
     ]);
     expect(textOf(disrupted, "hero-headline")).toBe("9 of 10 lines running normally");
     expect(classes(disrupted, "hero-headline")).toContain("text-orange-600");
+    expect(tile(disrupted, "hero-stat-needs-attention")).toEqual(["1", "Needs attention"]);
+    expect(textOf(disrupted, "hero-disruption-callout")).toBe("KJL — Partial Disruption");
   });
 
   it("keeps the CTA row on the default theme rather than brand orange", () => {

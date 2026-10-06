@@ -1,6 +1,6 @@
-import { Component, ElementRef, computed, inject, input, signal } from "@angular/core";
+import { Component, computed, inject, input, signal } from "@angular/core";
 import { NgIcon, provideIcons } from "@ng-icons/core";
-import { lucideEllipsisVertical, lucidePin } from "@ng-icons/lucide";
+import { lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
 import {
   metricDoc,
@@ -12,7 +12,6 @@ import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { faviconHostnameOf } from "../../insiden/data/social-link.util";
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
-import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
@@ -37,22 +36,14 @@ const MAX_PULSE_LINKS = 5;
  * (vehicle counts + passenger status + the social entries behind it) plus the actions that keep
  * the data fresh and the ones that take the reader elsewhere.
  *
- * **Action hierarchy (deliberate).** Two reporting buttons, one primary and one secondary:
- * "Report status" (the thing this card exists for — the mobile `LineStatusSheetComponent` via
- * `LineStatusSheetService`) and "Log spotting" (`ReportSheetService`, whose sheet the home page
- * hosts), plus a "Details" link out to the line's details page that reads left of them so the
- * primary action stays right-most and last. The kebab keeps only pin — moving the links in there
- * was the point: a card whose two most prominent buttons were equally weighted asked the reader to
- * choose between two things, one of which matters far more than the other, and put "navigate away
- * from the board" at the same level as "tell us something".
- *
- * The kebab is built inline rather than from a shared primitive because `src/app/ui/` has no
- * dropdown/menu today; it follows the same contract `app-info-popover` established (Escape and
- * outside-click close, the trigger carries `aria-expanded`/`aria-haspopup`, the panel is
- * `role="menu"` with `role="menuitem"` children) so a real primitive can replace it later without
- * changing behaviour. Its items carry their own `focus-visible` ring for the same reason the board's
- * segmented buttons do: a hand-built menu does not inherit `hlmBtn`'s, and the one menu here is
- * reachable only from the keyboard.
+ * **One action set, everywhere.** The card carries the SAME three controls as the compact row —
+ * pin (icon-only), "Details" (link to the line's details page) and "Report" (the mobile
+ * `LineStatusSheetComponent` via `LineStatusSheetService`) — in the same order, so the board reads
+ * as one control set per line no matter which group the line is in. Only the weight differs: the
+ * card's Report is primary because reporting on this line is what the card exists for, while the
+ * row's is outline. "Report" is the line-status report for THIS line, the action the whole board is
+ * built around; the other entry points (spotting, sharing) live on their own surfaces rather than
+ * competing here.
  *
  * The status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle-count
  * pill opens the per-status breakdown, the passenger chip carries the rolling window it covers
@@ -78,19 +69,15 @@ const MAX_PULSE_LINKS = 5;
     LineStatusReportsComponent,
     StatusInfoChipComponent,
   ],
-  providers: [provideIcons({ lucideEllipsisVertical, lucidePin })],
-  host: {
-    "(document:keydown.escape)": "closeMenu()",
-    "(document:click)": "onDocumentClick($event)",
-  },
+  providers: [provideIcons({ lucidePin })],
   template: `
     <section
       class="bg-card text-card-foreground border-border relative flex flex-col gap-3 rounded-xl border p-4 pl-5 shadow-sm"
     >
       <!-- The line's own colour as a rail down the leading edge: identification at a glance
            without recolouring the card, and it survives dark mode because it is the backend's
-           hex rather than a themed token. The card no longer clips (the popovers and the menu
-           dropdown escape its edge), so the rail carries the leading corners itself. -->
+           hex rather than a themed token. The card no longer clips (the popovers escape its
+           edge), so the rail carries the leading corners itself. -->
       <span
         class="absolute inset-y-0 left-0 w-1.5 rounded-l-xl"
         [style.background-color]="line().displayColor"
@@ -218,75 +205,49 @@ const MAX_PULSE_LINKS = 5;
           }
         </div>
 
-        <div class="flex items-start gap-2 sm:shrink-0">
-          <div class="flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row">
-            <a
-              hlmBtn
-              size="sm"
-              variant="outline"
-              [routerLink]="['/spotting', line().id, 'details']"
-              data-testid="line-card-details"
-              class="w-full sm:w-auto"
-            >
-              Details
-            </a>
-            <button
-              hlmBtn
-              size="sm"
-              data-testid="submit-line-status"
-              class="w-full sm:w-auto"
-              (click)="sheet.openFor(line().id)"
-            >
-              Report status
-            </button>
-            <button
-              hlmBtn
-              size="sm"
-              variant="outline"
-              data-testid="add-spotting-entry"
-              class="w-full sm:w-auto"
-              (click)="reportSheet.openFor(line().id)"
-            >
-              Log spotting
-            </button>
-          </div>
-
-          <!-- Everything that is not one of the visible row actions lives here, so the card's
-               visible controls keep a single reading order: details, report, log, then the rest. -->
-          <div class="relative">
-            <button
-              hlmBtn
-              size="icon-sm"
-              variant="ghost"
-              data-testid="line-card-menu"
-              [attr.aria-expanded]="_menuOpen()"
-              aria-haspopup="menu"
-              [attr.aria-label]="'More actions for ' + line().code"
-              (click)="toggleMenu()"
-            >
-              <ng-icon name="lucideEllipsisVertical" class="size-4" aria-hidden="true" />
-            </button>
-
-            @if (_menuOpen()) {
-              <div
-                role="menu"
-                aria-label="Line actions"
-                class="bg-popover text-popover-foreground border-border absolute right-0 top-full z-30 mt-1 flex min-w-48 flex-col rounded-lg border p-1 shadow-md"
-                data-testid="line-card-menu-panel"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="hover:bg-muted focus-visible:ring-ring/50 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none focus-visible:ring-2"
-                  data-testid="line-card-pin"
-                  (click)="togglePin()"
-                >
-                  <ng-icon name="lucidePin" class="size-4 shrink-0" aria-hidden="true" />
-                  {{ _isPinned() ? "Unpin this line" : "Pin this line" }}
-                </button>
-              </div>
-            }
-          </div>
+        <!-- The unified per-line action cluster, identical on every home group (this card and the
+             compact row): pin, Details, Report — in that reading order. The card's Report keeps the
+             primary weight (reporting on this line is what the card exists for); the row's is
+             outline. Pin sits first as an icon-only control so the two labelled actions share one
+             baseline. -->
+        <div class="flex flex-col items-start gap-2 sm:flex-row sm:shrink-0">
+          <button
+            hlmBtn
+            size="icon-sm"
+            variant="ghost"
+            data-testid="line-card-pin"
+            [attr.aria-pressed]="_isPinned()"
+            [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
+            (click)="togglePin()"
+          >
+            <!-- The glyph FILLS when pinned, same as the row: aria-pressed alone leaves the icon
+                 saying "pin available" about a pin that is already on. -->
+            <ng-icon
+              name="lucidePin"
+              class="size-4"
+              [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
+              aria-hidden="true"
+            />
+          </button>
+          <a
+            hlmBtn
+            size="sm"
+            variant="outline"
+            [routerLink]="['/spotting', line().id, 'details']"
+            data-testid="line-card-details"
+            class="w-full sm:w-auto"
+          >
+            Details
+          </a>
+          <button
+            hlmBtn
+            size="sm"
+            data-testid="submit-line-status"
+            class="w-full sm:w-auto"
+            (click)="sheet.openFor(line().id)"
+          >
+            Report
+          </button>
         </div>
       </div>
 
@@ -317,9 +278,7 @@ export class LinePulseCardComponent {
   readonly refreshTick = input(0);
 
   protected readonly sheet = inject(LineStatusSheetService);
-  protected readonly reportSheet = inject(ReportSheetService);
   private readonly preferences = inject(PreferencesService);
-  private readonly _host = inject(ElementRef<HTMLElement>);
 
   protected readonly passengerLabel = passengerLabel;
   protected readonly passengerVariant = passengerVariant;
@@ -330,7 +289,6 @@ export class LinePulseCardComponent {
   protected readonly _hostname = faviconHostnameOf;
 
   protected readonly _expanded = signal(false);
-  protected readonly _menuOpen = signal(false);
 
   /**
    * The id the toggle's `aria-controls` points at, and the panel's own `id`.
@@ -342,7 +300,7 @@ export class LinePulseCardComponent {
    */
   protected readonly _expandedPanelId = computed(() => `line-card-expanded-${this.line().id}`);
 
-  /** Reads the pin signal through a `computed`, so the kebab's label repaints on toggle. */
+  /** Reads the pin signal through a `computed`, so the pin button repaints on toggle. */
   protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
@@ -407,28 +365,7 @@ export class LinePulseCardComponent {
     }
   }
 
-  protected toggleMenu(): void {
-    this._menuOpen.update((open) => !open);
-  }
-
-  protected closeMenu(): void {
-    this._menuOpen.set(false);
-  }
-
-  /** Outside-click close. Bound on the host, so a click elsewhere on the page dismisses the panel. */
-  protected onDocumentClick(event: Event): void {
-    if (!this._menuOpen()) {
-      return;
-    }
-    const target = event.target;
-    if (target instanceof Node && this._host.nativeElement.contains(target)) {
-      return;
-    }
-    this.closeMenu();
-  }
-
   protected togglePin(): void {
     this.preferences.togglePin(this.line().id);
-    this.closeMenu();
   }
 }

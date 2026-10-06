@@ -107,6 +107,17 @@ const REVIEWED_AT_HEADLINE_IN_SERVICE = "2026-10-05";
 const REVIEWED_AT_SPOTTING_FLEET_CHIP = "2026-10-06";
 
 /**
+ * Bumped when the front page's Others bucket landed — out-of-service (Testing/Defunct) lines left
+ * "Needs attention" for a board group of their own, and the hero's "Needs attention" tile and
+ * callout became in-service scoped like the headline (2026-10-06).
+ *
+ * A separate constant from `REVIEWED_AT_HEADLINE_IN_SERVICE`: that review covered the SENTENCE and
+ * its colour, while this one re-read the ATTENTION RULE itself and the tile that publishes it.
+ * Sharing a constant would let a later bump on either silently claim a review of the other.
+ */
+const REVIEWED_AT_OTHERS_BUCKET = "2026-10-06";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -360,10 +371,10 @@ export const METRIC_DOCS: MetricDoc[] = [
     sectionId: "line-status",
     title: "Needs attention",
     definition:
-      "A line needs attention when it is not fully operational, or when a rider has reported it at passenger severity {{NEEDS_ATTENTION_PASSENGER_RANK}} or above (Delayed and above) in the current window. Crowding reports below that level describe one carriage rather than the service, so they do not count against the line.",
+      "A line needs attention when it is in service and not fully operational, or when a rider has reported it at passenger severity {{NEEDS_ATTENTION_PASSENGER_RANK}} or above (Delayed and above) in the current window. Closed (Defunct) and not-yet-open (Testing) lines never need attention — they are not in service, and the board lists them in its Others group instead. Crowding reports below that level describe one carriage rather than the service, so they do not count against the line.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_NETWORK_BOARD,
+    lastReviewed: REVIEWED_AT_OTHERS_BUCKET,
   },
   {
     // 🔴 The one tile the Phase 5B registry audit found MISSING: "Reports now" has been on the hero

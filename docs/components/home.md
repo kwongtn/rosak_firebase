@@ -85,11 +85,13 @@
     then **glows for 5s** after every tone change (`motion-safe:animate-icon-glow`, two 2.5s
     box-shadow pulses), the first run only for a real tone (an `unknown` first read is an empty
     read, not a network event). See the Motion section. The `h1` beside it wears
-    the same tone as text, from the same two counts. Both come from the pure `networkTone(inService.total,
-inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInService`: `TESTING` and
-    `DEFUNCT` excluded, so a pre-opening trial or a permanently closed line can never drag the words
-    or the colour down; the stat TILE beside them deliberately keeps the all-lines count, because a
-    reader asking "how many lines need attention" means every line) — `unknown` (no lines read)
+    the same tone as text, from the same two counts. Both come from the pure
+    `networkTone(normalCount + needsAttentionCount, needsAttentionCount)` — over the **IN-SERVICE**
+    lines only (`isInService`: `TESTING` and `DEFUNCT` excluded). Since the Others bucket landed the
+    whole hero agrees on that scope: the tile and the callout below the sentence are in-service
+    scoped too, so a pre-opening trial or a permanently closed line can never drag the words, the
+    colour, the tile or the callout down — it is shown in the board's `Others` group instead (see the
+    board bullet). `unknown` (no lines read)
     neutral, `normal` (0 needing attention) green, `degraded` (needs attention ≤ HALF the in-service
     lines) orange, `critical` (> half) red — so the words and the colour can never describe different
     arithmetic. Only the class maps live in the component; the rule is unit-tested in
@@ -120,9 +122,9 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     the `reportDelay` output + `HomePage.scrollToLineBoard()` it used to emit were **removed** in
     Phase 2 — the CTA answers a question a reader on a platform cannot (they do not know a line id),
     so scrolling them to the board to find one was the wrong affordance.
-  - `line-pulse/` — `network-board.component.ts` (the three-group board: skeleton rows / empty state /
-    the controls row / `Needs attention` cards / `My lines` + `All lines` rows — its `h2` headings carry
-    a decorative `motion-safe:animate-breathe` dot, the one pulse on the page),
+  - `line-pulse/` — `network-board.component.ts` (the four-group board: skeleton rows / empty state /
+    the controls row / `Needs attention` cards / `My lines` + `All lines` + `Others` rows — its `h2`
+    headings carry a decorative `motion-safe:animate-breathe` dot, the one pulse on the page),
     `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel; its
     `line-row-reports` tally reads `N reports (X this hour)` off the store's ONE per-line read —
     service-day total plus the current service-hour bucket — so sixteen rows cost one request, and
@@ -137,8 +139,8 @@ inService.needsAttentionCount)` — over the **IN-SERVICE** lines only (`isInSer
     wrapper over the shared `app-info-popover` that passes `showIcon=false` (the projected badge is
     the trigger) and forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
     through the real server path to guard SSR/hydration).
-    🔴 The card and the compact row both dropped `overflow-hidden`, because their info popovers, kebab
-    menus and disclosure panels live INSIDE them and must escape the edge; their leading colour rails
+    🔴 The card and the compact row both dropped `overflow-hidden`, because their info popovers and
+    disclosure panels live INSIDE them and must escape the edge; their leading colour rails
     carry `rounded-l-xl` / `rounded-l-lg` instead, so the accent still meets the card's own corner.
     On this page the popover "i" now **trails** its wording (`iconPosition="end"`) — hero headline,
     sparkline caption, row report tally, heat strip, pro lines and report ranking — because a leading
@@ -690,9 +692,9 @@ Three board filters, all in `HomeStore`, all defaulting to "no narrowing":
   nothing, while the chip beside it said "No recent reports". Published as the `network.has-data`
   metric doc, because it is a judgement the reader is asked to trust rather than a literal they typed.
 
-`HomeStore.visibleLines()` is what the board draws and what its three groups **partition** — the
+`HomeStore.visibleLines()` is what the board draws and what its four groups **partition** — the
 partition has to be taken over the same set the rows are drawn from, or a Pro filter would shrink one
-group without shrinking the other two. Because every filter defaults off, `visibleLines` IS `lines()`
+group without shrinking the other three. Because every filter defaults off, `visibleLines` IS `lines()`
 on a Rider view. The store's OTHER views deliberately stay on `lines()`: the hero's headline and tiles
 describe the NETWORK, and the two history reads are keyed by line id.
 
@@ -899,18 +901,21 @@ the two cells can never disagree.
     change the filter, still preserves Load More progress. An empty string is `null`; re-selecting the
     current filter is a no-op.
   - **The board's derived views — a PARTITION, not three filters.** `networkSummary` (`summarizeNetwork`
-    over the one lines read), `attentionLines`, `myLines`, `allLines`, and the `boardSort` signal
-    (`"severity" | "name"`, default `severity`, `DEFAULT_BOARD_SORT`/`BOARD_SORTS` exported for the
-    URL's own parse, `setBoardSort()` a no-op for an unrecognised value). 🔴 **Every line appears in
-    EXACTLY ONE of the three groups**, and that is achieved by ONE decision applied in one order:
-    **attention membership always wins** — a line needing attention sits in `attentionLines` even when
-    it is PINNED, because pinning says "I care about this line", not "hide a broken one further down",
-    and duplicating a dead line onto the page would be worse than the group it gives up. So `myLines`
-    is "pinned AND NOT already in attention", and `allLines` is "everything neither claimed". Each
-    group subtracts the ids the previous one CLAIMED rather than re-deriving its own predicate —
-    three independently-written filters is exactly how a line ends up in two groups or in none.
-    `attentionLines` and `myLines` are ALWAYS severity-sorted; only `allLines` follows `boardSort`
-    (severity, or `code` via `localeCompare`, so `K10` does not sort before `K2`). `PreferencesService`
+    over the one lines read), `attentionLines`, `myLines`, `allLines`, `othersLines`, and the
+    `boardSort` signal (`"severity" | "name"`, default `severity`, `DEFAULT_BOARD_SORT`/`BOARD_SORTS`
+    exported for the URL's own parse, `setBoardSort()` a no-op for an unrecognised value). 🔴 **Every
+    line appears in EXACTLY ONE of the four groups**, and that is achieved by ONE decision applied in
+    one order: **attention membership always wins** for in-service lines — a line needing attention
+    sits in `attentionLines` even when it is PINNED, because pinning says "I care about this line",
+    not "hide a broken one further down", and duplicating a dead line onto the page would be worse
+    than the group it gives up. Out-of-service (TESTING/DEFUNCT) lines can never reach attention (the
+    rule skips them), so for them **pin wins**: `myLines` is "pinned AND NOT already in attention",
+    pinned Testing/Defunct included. `allLines` is the in-service rest, and `othersLines` is the
+    out-of-service rest (unpinned) — rendered LAST as "Others" and never counted by the hero. Each
+    group subtracts the ids the previous ones CLAIMED rather than re-deriving its own predicate —
+    four independently-written filters is exactly how a line ends up in two groups or in none.
+    `attentionLines` and `myLines` are ALWAYS severity-sorted; `allLines` and `othersLines` follow
+    `boardSort` (severity, or `code` via `localeCompare`, so `K10` does not sort before `K2`). `PreferencesService`
     is injected (root-provided, so it deliberately outlives this route-scoped store) — the store reads
     `pinnedLineIds()` and nothing else about it, and no new read is involved anywhere in this.
   - **Conversation collapsing (`HOME_FEED_COLLAPSE_VARS`)** is folded into **all four** home link list
@@ -1026,7 +1031,7 @@ the two cells can never disagree.
   exists for exactly ONE caller — the chooser's "Stopped" tile, which is the rider's word for the
   existing `DISRUPTED` PassengerStatus — and it is **one-shot**: the sheet consumes it (sets it back
   to `null`) on the open edge, exactly as the spotting form consumes `ReportSheetService.lineId`, so a
-  later seedless open (a row's own "Report status" button) cannot resurrect a status from a report
+  later seedless open (a row's own "Report" button) cannot resurrect a status from a report
   that was already submitted or cancelled.
 - **`ReportChooserService`** (`report/report-chooser.service.ts`, `providedIn: "root"`) — the page's
   one submission trigger, mirroring `LinkSheetService` (`isOpen` + `intent`, `open()` / `choose()` /
@@ -1108,7 +1113,7 @@ the two cells can never disagree.
   500ms "Updated" flash, which is an acknowledgement, not a state a reader has to read) timer to clear
   it; `ngOnDestroy` cancels it. 🔴 It lives in the STORE, not on the page,
   because the board takes **no inputs at all** — giving it one would mean re-deriving on the page what
-  it already owns. The board renders every row wrapper (all three groups) with a stable
+  it already owns. The board renders every row wrapper (all four groups) with a stable
   `id="line-<id>"`, the ring classes (`ring-2 ring-brand ring-offset-2 ring-offset-background`, only on
   the highlighted row, plus a `data-highlighted` marker attribute) and a `scroll-mt-24` so the sticky
   nav cannot cover it; a browser-gated `effect` scrolls that anchor into view
@@ -1460,21 +1465,28 @@ the two cells can never disagree.
   `TOTAL_DISRUPTION` 6 > `PARTIAL_DISRUPTION` 5 > `PARTIAL_ACTIVE` 4 > `DEFUNCT` 3 > `TESTING` 2 >
   ACTIVE 0, because DEFUNCT/TESTING are settled, un-actionable facts and must not outrank a line
   that is only partly running), `NEEDS_ATTENTION_PASSENGER_RANK` (= `PASSENGER_SEVERITY_RANK.DELAYED`,
-  5), and `lineNeedsAttention` (`status !== "ACTIVE" || passengerSeverity >= that rank`). 🔴 The
-  threshold is `DELAYED` and not `CROWDED` on purpose: crowding reports describe one carriage, not
-  the service, and counting them would leave the headline reading "0 of 14 lines running normally"
-  on any busy evening (the headline's denominator counts in-service lines only — see `inService`
-  below). `compareLineSeverity` compares the operational axis **first** and the
+  5), and `lineNeedsAttention` (`isInService(line) && (status !== "ACTIVE" || passengerSeverity >=
+that rank)`). 🔴 Out-of-service lines never need attention — a Defunct or Testing line is a settled
+  administrative fact, not a live failure — so they are listed in the board's `Others` group instead
+  of being painted as a problem forever. The threshold is `DELAYED` and not `CROWDED` on purpose:
+  crowding reports describe one carriage, not the service, and counting them would leave the
+  headline reading "0 of 14 lines running normally" on any busy evening (the whole hero now counts
+  in-service lines only — see below). `compareLineSeverity` compares the operational axis **first**
+  and the
   passenger axis second (never sums them — a line that will not run outranks one that merely runs
   badly), with `code` as the final tiebreak so the order is total and two boards with the same data
   render identically. `summarizeNetwork` returns `{ total, normalCount, needsAttentionLines,
-needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. 🔴
-  **`inService: { total, needsAttentionCount }`** is the headline's own denominator, built by the
-  pure `isInService(line)` (which excludes exactly `TESTING` and `DEFUNCT`, the same two statuses the
-  severity table calls settled and un-actionable): the headline sentence and the tone read these two
-  numbers, while **every other field counts ALL lines** — so today's live read says "All 14 lines
-  running normally" in green beside a tile that still says "2 Needs attention", deliberately. An
-  empty read yields
+needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
+  **Every SERVICE field is scoped to in-service lines** — the pure `isInService(line)` excludes
+  exactly `TESTING` and `DEFUNCT`, the same two statuses the severity table calls settled and
+  un-actionable: `normalCount` (the in-service healthy), `needsAttentionLines` /
+  `needsAttentionCount` (in-service problems) and `worstLine` (which the callout names) all skip
+  them, and `normalCount + needsAttentionCount` IS the in-service total the headline and tone are
+  built from. So today's live read says "All 14 lines running normally" in green beside a tile that
+  says "0 Needs attention", with SAL and SKY reachable only through the board's `Others` group — the
+  sentence, the colour, the tile and the callout can never disagree again. Only `total` and
+  `reportsNow` count every line (they describe the read and the community's reporting, not service).
+  An empty read yields
   `headline: "No live line data yet"` rather than the misleading "0 of 0 lines running normally", and
   a read that DID return lines but nothing in service yields its own words, `"No lines in service"`
   — a different fact from an empty read. `reportsNow` sums each line's `statusReportCount` (over its OWN rolling `statusWindowMinutes`),
@@ -1485,7 +1497,7 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   🔴 **`networkTone(total, needsAttentionCount)` is the same file's second exported rule**, and it is
   pure for the same reason — it is a fact about the network, not a design decision. It returns one of
   four `NetworkTone` values from the SAME two counts `summarizeNetwork` builds the headline sentence
-  from — `summary.inService`, NOT the all-lines totals — which is the entire point: the hero's
+  from — the summary's in-service counts, NOT the all-lines totals — which is the entire point: the hero's
   coloured status line and its `h1` cannot disagree, because neither can be computed without the
   other's arithmetic. `unknown` (no lines read, or nothing in service) is neutral
   rather than green — "nothing is wrong" is not the same claim as "everything is fine". Keep the class
@@ -1502,25 +1514,29 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   (empty strings and all), so the widget's total height is identical in all three states. 🔴 Never
   reach for `HomeStore.hasError()` here: a supporting widget must not replace a working page of
   statuses with the page-level retry banner.
-- **`NetworkBoardComponent` is the board: three groups over ONE partition.** It replaces the deleted
+- **`NetworkBoardComponent` is the board: four groups over ONE partition.** It replaces the deleted
   `LinePulseListComponent` (one worst-first list) and takes over its job of NOT folding a dead line
   away — while adding the grouping the plan asks for. Structure: skeleton rows
   (`line-skeleton`, kept from the old list) while the first read is in flight AND there is nothing to
   show (a later reload never blanks the board), the dashed/muted `line-board-empty` ("No lines yet."),
-  then the `board-controls` row and three groups.
+  then the `board-controls` row and four groups.
   - `Needs attention · N` (`line-board-attention` / `line-board-attention-heading`, the testid KEPT
-    from the old list) — full `app-line-pulse-card`s, and **hidden entirely when empty**: a reader with
+    from the old list) — full `app-line-pulse-card`s, in-service lines only (out-of-service ones can
+    never need attention — see the summary bullet), and **hidden entirely when empty**: a reader with
     nothing broken must not scroll past a "· 0" heading to learn there is nothing.
   - `My lines` (`line-board-mine` / `-mine-heading`) — compact rows; when empty it shows the invitation
-    `line-board-mine-empty` ("Pin a line to keep it here.") rather than a gap in the page.
-  - `All lines` (`line-board-all` / `-all-heading`) — compact rows; rendered whenever it has any,
-    which is exactly when the rest of the board is showing nothing.
+    `line-board-mine-empty` ("Pin a line to keep it here.") rather than a gap in the page. Pinned
+    out-of-service lines stay here ("pin wins").
+  - `All lines` (`line-board-all` / `-all-heading`) — compact rows; hidden when empty.
+  - `Others` (`line-board-others` / `-others-heading`) — compact rows, rendered LAST and hidden when
+    empty: the unpinned out-of-service lines (TESTING pre-opening / DEFUNCT closed). This is where the
+    lines that once polluted "Needs attention" and the hero now live; the board still shows every line
+    it reads, but inventory no longer masquerades as service.
 
-  🔴 **The two LOWER groups are separated from whatever they follow by `border-t pt-4`** on their own
-  sections (`line-board-mine` and `line-board-all` only). The three groups and their membership rules
-  are unchanged — this is separation, not regrouping. The attention group needs no divider of its own
-  because the controls row's `border-b` already separates it from everything above; a second rule
-  directly under the first would have drawn two lines an inch apart.
+  🔴 **The three LOWER groups are separated from whatever they follow by `border-t pt-4`** on their own
+  sections (`line-board-mine`, `line-board-all` and `line-board-others` only). The attention group
+  needs no divider of its own because the controls row's `border-b` already separates it from
+  everything above; a second rule directly under the first would have drawn two lines an inch apart.
 
   Every row keeps the `line-board-row` wrapper (the stable order/partition hook from Phase 0).
 
@@ -1644,30 +1660,23 @@ needsAttentionCount, worstLine, inService, headline, callout, reportsNow }`. �
   backend aggregate over the status-report table, a documented option deliberately NOT taken here
   because this phase ships zero new reads and a client-side total over a truncated page would be a lie
   the reader cannot detect.
-- **`LinePulseCardComponent`'s action hierarchy** is deliberate: **three** visible controls in one
-  `flex flex-col items-start gap-2 sm:shrink-0 sm:flex-row` cluster, reading details → report → log, with
-  the kebab as their sibling. **Details** (`line-card-details`, `hlmBtn size="sm" variant="outline"`,
-  an `a[routerLink]` to `/spotting/<lineId>/details`) is the FIRST of them, LEFT of `submit-line-status`;
-  **Report status** (`submit-line-status`, default variant) and **Log spotting**
-  (`add-spotting-entry`, `outline`) follow. 🔴 "Details" used to be the second item in the kebab, two
-  clicks down a panel whose first entry was a Line HQ link; the way out to a line's spotting page is
-  something a reader of a broken card actually reaches for, so it is now a visible button and the
-  `/spotting/<lineId>` Line HQ link is gone entirely. `hlmBtn`'s selector is
-  `button[hlmBtn], a[hlmBtn]`, so the anchor needs no extra wiring, and `hlm()` merges its `class=`
-  input, so the `w-full sm:w-auto` stacking survives. The kebab
-  (`line-card-menu`: the trigger; `aria-expanded`, `aria-haspopup="menu"`, an
-  action-naming `aria-label`) now opens `line-card-menu-panel` (`role="menu"`) with exactly **one**
-  `role="menuitem"` — `line-card-pin`, through `PreferencesService`. The panel closes
-  on Escape, on an outside click and on choosing an item; host-level `document:` listeners do the
-  first two, and `src/app/ui/` has **no dropdown/menu primitive** to reuse, so it is built inline
-  against the contract `app-info-popover` established — a real primitive can replace it without a
-  behaviour change. Icons (`lucideEllipsisVertical` / `lucidePin`) come from
-  `@ng-icons/lucide` through `NgIcon` + `provideIcons`, the FIRST usage of that library in `src/`
-  (previously zero); the existing chevron SVGs stay as they are, and `lucideExternalLink` is no longer
-  provided by the card at all (the row's Details link still uses it). The card also draws the line's
+- **The card's action set is unified with the compact row's**: the same three controls, same order —
+  **pin** (icon-only, `line-card-pin`, `hlmBtn size="icon-sm" variant="ghost"`, `aria-pressed` and a
+  fill-when-pinned glyph through `PreferencesService`), **Details** (`line-card-details`,
+  `hlmBtn size="sm" variant="outline"`, an `a[routerLink]` to `/spotting/<lineId>/details`) and
+  **Report** (`submit-line-status`, default/primary variant, opening the line-status sheet). The row
+  carries the identical set as `line-row-pin` / `line-row-details` / `line-row-report` (Report
+  outline there; no width classes), so whichever board group a line lands in, the reader sees ONE
+  control set. 🔴 Round 3 removed the card's kebab menu (its single item was pin) and its "Log
+  spotting" button: the pinned/actions split asked the reader to learn two different affordances for
+  the same three verbs, and spotting already has its own surfaces. `hlmBtn`'s selector is
+  `button[hlmBtn], a[hlmBtn]`, so the Details anchor needs no extra wiring, and `hlm()` merges its
+  `class=` input, so the card's `w-full sm:w-auto` mobile stacking survives. Icons (`lucidePin`)
+  come from `@ng-icons/lucide` through `NgIcon` + `provideIcons`; the existing chevron SVGs stay as
+  they are. The card also draws the line's
   `displayColor` as a leading accent rail (a backend hex, so it needs no dark-mode twin) and calls
-  `PreferencesService.pushRecentLine()` on the panel's **open** edge. 🔴 The card does **not** clip:
-  `overflow-hidden` was removed because the popovers, the kebab menu and the disclosure panel are
+  `PreferencesService.pushRecentLine()` on the expansion's **open** edge. 🔴 The card does **not**
+  clip: `overflow-hidden` was removed because the popovers and the disclosure panel are
   all positioned inside it, and the rail carries `rounded-l-xl` so the accent still meets the card's
   own corner. Same rule on `line-pulse-row` (`rounded-l-lg`). If you ever re-add an
   `overflow-hidden` here, check first whether a popover is nested inside.
@@ -2005,9 +2014,9 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
 - **Focus rings where nothing else draws one.** The board's two segmented control groups
   (`board-sort-*`, `board-view-*`) and the two feed tabs are plain `<button>`s under
   a border — not `hlmBtn` — so the primitive's ring does not come with them; all four groups carry
-  `outline-none focus-visible:ring-2 focus-visible:ring-ring/50` explicitly. The card kebab's
-  `role="menuitem"` child got the same, since the menu is hand-built inline (there is no dropdown
-  primitive in `src/app/ui/`). 🔴 The heat grid's new `heat-popover` and `heat-cell-glow` are the
+  `outline-none focus-visible:ring-2 focus-visible:ring-ring/50` explicitly. (The card's hand-built
+  kebab that once needed the same ring is gone; the unified action set is all `hlmBtn`.) 🔴 The heat
+  grid's new `heat-popover` and `heat-cell-glow` are the
   opposite case: both are `pointer-events-none` and `aria-hidden`, so they are **not** focusable and
   must not be — the grid's accessible equivalent is the per-row `role="img"` sentence, and the panel
   is a pointer-only readout beside it.
@@ -2044,6 +2053,10 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   only indicator is that donut plus the control's own label; the hero's `hero-status-line` counts
   nothing.
 - `line-board-attention-dot` (the decorative pulse dot beside "Needs attention · N").
+- `line-board-others` / `line-board-others-heading` — the fourth board group (round 3).
+  `line-row-details` joined `line-row-pin` / `line-row-report` as the unified per-line action set,
+  and `line-row-hq-details`, `line-card-menu`, `line-card-menu-panel` and `add-spotting-entry` were
+  retired with the old card controls.
 - `hero-needs-attention-popover` / `hero-reports-now-popover` (the two tile-label info popovers).
 
 **New seams:**

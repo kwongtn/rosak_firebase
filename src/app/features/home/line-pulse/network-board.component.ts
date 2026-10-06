@@ -150,8 +150,10 @@ const SORT_PARAM = "sort";
           <app-network-heat-strip />
         }
 
-        <!-- The attention group is the only one that HIDES when empty: a reader with nothing broken
-             must not scroll past a "Needs attention · 0" heading to find out there is nothing. -->
+        <!-- The attention group renders only when it has lines, and needs no top divider: it already
+             sits directly under the controls row's bottom border. A reader with nothing broken must
+             not scroll past a "Needs attention · 0" heading to find out there is nothing. The three
+             lower groups each carry their own divider and are hidden when empty, too. -->
         @if (_attention().length > 0) {
           <section class="flex flex-col gap-2" data-testid="line-board-attention">
             <!-- The pulsing dot is the ONE piece of motion on the board, and it is motion-safe only:
@@ -192,7 +194,7 @@ const SORT_PARAM = "sort";
 
         <!-- "My lines" always draws, because an empty pin list is an INVITATION to pin rather than a
              gap in the page. The hint is the whole content of that state. -->
-        <!-- A divider plus its own top padding, so the two lower groups do not read as a
+        <!-- A divider plus its own top padding, so the lower groups do not read as a
              continuation of the cards ABOVE them. The attention group needs none: it already sits
              under the controls row's bottom border. -->
         <section
@@ -266,6 +268,46 @@ const SORT_PARAM = "sort";
             </div>
           </section>
         }
+
+        <!-- Out-of-service lines (TESTING/DEFUNCT) — inventory, not service. They are excluded from
+             Needs attention and from every hero number (see the lineNeedsAttention rule and
+             summarizeNetwork), so the board still has to show them SOMEWHERE or a reader could
+             never find a line that has not opened yet or has closed. Rendered LAST, hidden when
+             empty, exactly like All lines. A pinned out-of-service line lives in My lines instead:
+             for this bucket, "pin wins". -->
+        @if (_others().length > 0) {
+          <section
+            class="border-border flex flex-col gap-2 border-t pt-4"
+            data-testid="line-board-others"
+          >
+            <h2
+              class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+              data-testid="line-board-others-heading"
+            >
+              Others
+            </h2>
+            <div class="flex flex-col gap-2">
+              @for (line of _others(); track line.id) {
+                <div
+                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+                  [class.ring-2]="_isHighlighted(line.id)"
+                  [class.ring-brand]="_isHighlighted(line.id)"
+                  [class.ring-offset-2]="_isHighlighted(line.id)"
+                  [class.ring-offset-background]="_isHighlighted(line.id)"
+                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+                  [attr.id]="'line-' + line.id"
+                  data-testid="line-board-row"
+                >
+                  <app-line-pulse-row
+                    [line]="line"
+                    [refreshTick]="_refreshTick()"
+                    [viewMode]="_view()"
+                  />
+                </div>
+              }
+            </div>
+          </section>
+        }
       }
     </div>
   `,
@@ -319,6 +361,7 @@ export class NetworkBoardComponent {
   protected readonly _attention = this.store.attentionLines;
   protected readonly _mine = this.store.myLines;
   protected readonly _all = this.store.allLines;
+  protected readonly _others = this.store.othersLines;
   protected readonly _refreshTick = this.store.linesRefreshTick;
 
   /**

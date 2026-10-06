@@ -9,7 +9,7 @@ import type { LinePulse } from "../data/home.queries";
 import type { BoardSort } from "../data/home.store";
 import { HomeStore } from "../data/home.store";
 import { HomeViewModeService } from "../data/home-view-mode.service";
-import { lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";
+import { isInService, lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseRowComponent } from "./line-pulse-row.component";
 import { NetworkBoardComponent } from "./network-board.component";
@@ -63,7 +63,7 @@ function textOf(root: HTMLElement, testId: string): string {
  * the other would make the partition specs pass for the wrong reason on exactly the group that
  * matters most.
  */
-function codesIn(root: HTMLElement, group: "attention" | "mine" | "all"): string[] {
+function codesIn(root: HTMLElement, group: "attention" | "mine" | "all" | "others"): string[] {
   const section = root.querySelector<HTMLElement>(`[data-testid="line-board-${group}"]`);
   const rows = [
     ...(section?.querySelectorAll<HTMLElement>('[data-testid="line-board-row"]') ?? []),
@@ -97,21 +97,26 @@ function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSo
     lines.filter((line) => pinned.includes(line.id) && !attentionIds.has(line.id)),
   );
   const claimed = new Set([...attentionIds, ...mine.map((line) => line.id)]);
-  const rest = lines.filter((line) => !claimed.has(line.id));
+  const all = lines.filter((line) => isInService(line) && !claimed.has(line.id));
+  const others = lines.filter((line) => !isInService(line) && !claimed.has(line.id));
 
   const store = {
     lines: signal(lines),
-    // `visibleLines` is what the board draws and what the three groups partition — it equals `lines`
+    // `visibleLines` is what the board draws and what the groups partition — it equals `lines`
     // until a Pro filter narrows it, and a rider board can never narrow it. Aliasing the same signal
     // here keeps the mock honest about that default instead of inventing a second source.
     visibleLines: signal(lines),
     attentionLines: signal(attention),
     myLines: signal(mine),
-    allLines: signal(inSort(rest)),
+    allLines: signal(inSort(all)),
+    othersLines: signal(inSort(others)),
     boardSort: signal<BoardSort>(sort),
     setBoardSort: vi.fn((next: BoardSort) => {
       store.boardSort.set(next);
-      store.allLines.set(next === "name" ? [...rest].sort(byCode) : sortLinesBySeverity([...rest]));
+      store.allLines.set(next === "name" ? [...all].sort(byCode) : sortLinesBySeverity([...all]));
+      store.othersLines.set(
+        next === "name" ? [...others].sort(byCode) : sortLinesBySeverity([...others]),
+      );
     }),
     isLoading: signal(false),
     linesRefreshTick: signal(0),
@@ -273,6 +278,7 @@ describe("NetworkBoardComponent", () => {
         makeLine("plain-a"),
         makeLine("plain-b"),
         makeLine("crowded", { passengerStatus: "CROWDED" }),
+        makeLine("trial", { status: "TESTING" }),
       ],
       { pinned: ["pinned-ok", "broken-pinned", "ghost-line"] },
     );
@@ -280,6 +286,7 @@ describe("NetworkBoardComponent", () => {
     expect(codesIn(root, "attention")).toEqual(["DEAD", "BROKEN-PINNED"]);
     expect(codesIn(root, "mine")).toEqual(["PINNED-OK"]);
     expect(codesIn(root, "all")).toEqual(["CROWDED", "PLAIN-A", "PLAIN-B"]);
+    expect(codesIn(root, "others")).toEqual(["TRIAL"]);
 
     // Counted across the WHOLE board, from the row wrappers rather than one group, so a line that
     // landed in two groups cannot hide behind the other group's element type.
@@ -287,10 +294,11 @@ describe("NetworkBoardComponent", () => {
       ...codesIn(root, "attention"),
       ...codesIn(root, "mine"),
       ...codesIn(root, "all"),
+      ...codesIn(root, "others"),
     ];
-    expect(titles).toHaveLength(6);
-    expect(new Set(titles).size).toBe(6);
-    expect(root.querySelectorAll('[data-testid="line-board-row"]')).toHaveLength(6);
+    expect(titles).toHaveLength(7);
+    expect(new Set(titles).size).toBe(7);
+    expect(root.querySelectorAll('[data-testid="line-board-row"]')).toHaveLength(7);
     // A pin for a line this read does not contain must never invent a row.
     expect(root.textContent).not.toContain("GHOST-LINE");
   });
@@ -346,11 +354,45 @@ describe("NetworkBoardComponent", () => {
     expect(codesIn(root, "mine")).toEqual(["A"]);
   });
 
-  it("separates the two lower groups from whatever they follow", async () => {
+  it("renders Others LAST and only for unpinned out-of-service lines", async () => {
+    const root = await board(
+      [
+        makeLine("ok"),
+        makeLine("sal", { status: "TESTING" }),
+        makeLine("sky", { status: "DEFUNCT" }),
+        makeLine("pinned-sal", { status: "TESTING" }),
+      ],
+      { pinned: ["pinned-sal"] },
+    );
+
+    // Out-of-service lines are inventory, not service: never attention, and the pinned one is the
+    // reader's own choice ("pin wins"), so only the unpinned rest lands in the last group. Inside
+    // the group the order is severity order — DEFUNCT outranks TESTING.
+    expect(codesIn(root, "attention")).toEqual([]);
+    expect(codesIn(root, "mine")).toEqual(["PINNED-SAL"]);
+    expect(codesIn(root, "others")).toEqual(["SKY", "SAL"]);
+    expect(
+      root
+        .querySelector('[data-testid="line-board-all"]')
+        ?.compareDocumentPosition(root.querySelector('[data-testid="line-board-others"]') as Node),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(textOf(root, "line-board-others-heading")).toBe("Others");
+  });
+
+  it("hides the Others group entirely when no line is out of service", async () => {
+    const root = await board([makeLine("a")]);
+
+    expect(root.querySelector('[data-testid="line-board-others"]')).toBeNull();
+  });
+
+  it("separates the lower groups from whatever they follow", async () => {
     // Without a divider a group heading reads as a caption of the cards ABOVE it, and the reader
     // loses track of where one group ends and the next begins.
-    const root = await board([makeLine("a"), makeLine("b")], { pinned: ["a"] });
-    for (const group of ["line-board-mine", "line-board-all"]) {
+    const root = await board(
+      [makeLine("a"), makeLine("b"), makeLine("trial", { status: "TESTING" })],
+      { pinned: ["a"] },
+    );
+    for (const group of ["line-board-mine", "line-board-all", "line-board-others"]) {
       const section = root.querySelector<HTMLElement>(`[data-testid="${group}"]`);
       expect(section?.classList.contains("border-t")).toBe(true);
       expect(section?.className.split(/\s+/)).toContain("pt-4");
@@ -605,21 +647,29 @@ describe("NetworkBoardComponent", () => {
 
   /* ---- post-submit anchors + highlight -------------------------------------------------- */
 
-  it("gives EVERY line a stable #line-<id> anchor, in all three groups", async () => {
+  it("gives EVERY line a stable #line-<id> anchor, in all four groups", async () => {
     const root = await board(
-      [makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("mine"), makeLine("plain")],
+      [
+        makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+        makeLine("mine"),
+        makeLine("plain"),
+        makeLine("trial", { status: "TESTING" }),
+      ],
       { pinned: ["mine"] },
     );
 
-    // Three groups, two row elements, one anchor contract: a report can be about ANY line, so an
+    // Four groups, two row elements, one anchor contract: a report can be about ANY line, so an
     // anchor that only existed on the compact rows would silently break "return the reader to the
-    // line they just reported about" for exactly the lines that need attention most.
-    for (const id of ["dead", "mine", "plain"]) {
+    // line they just reported about" for exactly the lines that need attention most. The Others
+    // group carries anchors too — a line that has closed is still a line the reader can be sent to.
+    for (const id of ["dead", "mine", "plain", "trial"]) {
       const anchor = root.querySelector<HTMLElement>(`[id="line-${id}"]`);
       expect(anchor).not.toBeNull();
       expect(anchor?.getAttribute("data-testid")).toBe("line-board-row");
     }
-    expect(root.querySelectorAll("#line-dead, #line-mine, #line-plain")).toHaveLength(3);
+    expect(root.querySelectorAll("#line-dead, #line-mine, #line-plain, #line-trial")).toHaveLength(
+      4,
+    );
   });
 
   it("rings only the highlighted line, and clears when the store does", async () => {

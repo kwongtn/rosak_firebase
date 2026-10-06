@@ -80,6 +80,7 @@ function makeStore(lines: LinePulse[] = []) {
     attentionLines: signal<LinePulse[]>([]),
     myLines: signal<LinePulse[]>([]),
     allLines: signal(lines),
+    othersLines: signal<LinePulse[]>([]),
     boardSort: signal<"severity" | "name">("severity"),
     setBoardSort: vi.fn(),
     isLoading: signal(false),

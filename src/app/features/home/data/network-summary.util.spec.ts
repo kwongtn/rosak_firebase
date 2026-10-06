@@ -126,9 +126,24 @@ describe("network-summary.util: lineNeedsAttention", () => {
     expect(lineNeedsAttention(makeLine())).toBe(false);
   });
 
-  it("flags every non-ACTIVE operational status", () => {
-    for (const status of ALL_LINE_STATUSES.filter((entry) => entry !== "ACTIVE")) {
+  it("flags every non-ACTIVE operational status of a line in service", () => {
+    for (const status of ALL_LINE_STATUSES.filter(
+      (entry) => entry !== "ACTIVE" && entry !== "TESTING" && entry !== "DEFUNCT",
+    )) {
       expect(lineNeedsAttention(makeLine({ status })), status).toBe(true);
+    }
+  });
+
+  it("never flags an out-of-service line, however bad its other fields look", () => {
+    // TESTING (pre-opening) and DEFUNCT (closed) are administrative facts, not live failures: they
+    // belong to the board's Others group, never to "Needs attention" — even with a rider report
+    // riding on top of them.
+    for (const status of ["TESTING", "DEFUNCT"] as const) {
+      expect(lineNeedsAttention(makeLine({ status })), status).toBe(false);
+      expect(
+        lineNeedsAttention(makeLine({ status, passengerStatus: "DISRUPTED" })),
+        `${status} + DISRUPTED`,
+      ).toBe(false);
     }
   });
 
@@ -302,7 +317,6 @@ describe("network-summary.util: summarizeNetwork", () => {
       expect(summary.needsAttentionLines).toEqual([]);
       expect(summary.worstLine).toBeNull();
       expect(summary.callout).toBeNull();
-      expect(summary.inService).toEqual({ total: 0, needsAttentionCount: 0 });
       expect(summary.headline).toBe("No live line data yet");
       expect(summary.reportsNow).toBe(0);
     }
@@ -321,14 +335,16 @@ describe("network-summary.util: summarizeNetwork", () => {
     expect(summary.normalCount).toBe(2);
     expect(summary.needsAttentionCount).toBe(3);
     expect(summary.needsAttentionLines.map((line) => line.code)).toEqual(["B02", "E05", "D04"]);
-    // Every one of those five is in service, so the headline's counts are the all-lines counts here.
-    expect(summary.inService).toEqual({ total: 5, needsAttentionCount: 3 });
+    // Every one of those five is in service, so normal + attention is the whole read.
+    expect(summary.normalCount + summary.needsAttentionCount).toBe(summary.total);
   });
 
-  it("keeps a closed and a trial line out of the headline, and everything else in", () => {
+  it("keeps a closed and a trial line out of the headline, the tiles AND the callout", () => {
     // The live shape: 14 running lines plus LRT SAL in trial service and a defunct line. Reporting
     // "14 of 16 lines running normally" (and an orange indicator) on that read is a permanent
-    // property of the network dressed as an incident — nothing about it can be waited out.
+    // property of the network dressed as an incident — nothing about it can be waited out. The same
+    // goes for the numbers below the sentence: since the Others bucket landed, an out-of-service
+    // line is never attention-worthy anywhere in the hero.
     const summary = summarizeNetwork([
       ...healthy(14),
       makeLine({ code: "SAL", status: "TESTING" }),
@@ -336,14 +352,39 @@ describe("network-summary.util: summarizeNetwork", () => {
     ]);
 
     expect(summary.headline).toBe("All 14 lines running normally");
-    expect(summary.inService).toEqual({ total: 14, needsAttentionCount: 0 });
-    // …while the tile, the callout and the board keep counting every line, deliberately.
     expect(summary.total).toBe(16);
-    expect(summary.needsAttentionCount).toBe(2);
-    expect(summary.needsAttentionLines.map((line) => line.code)).toEqual(["SKY", "SAL"]);
-    expect(networkTone(summary.inService.total, summary.inService.needsAttentionCount)).toBe(
-      "normal",
-    );
+    expect(summary.needsAttentionCount).toBe(0);
+    expect(summary.needsAttentionLines).toEqual([]);
+    expect(summary.normalCount).toBe(14);
+    expect(summary.worstLine).toBeNull();
+    expect(summary.callout).toBeNull();
+    expect(
+      networkTone(summary.normalCount + summary.needsAttentionCount, summary.needsAttentionCount),
+    ).toBe("normal");
+  });
+
+  it("never lets an out-of-service line reach the attention list, worst line or callout", () => {
+    const summary = summarizeNetwork([
+      ...healthy(2),
+      makeLine({ code: "SAL", status: "TESTING", statusReportCount: 1 }),
+      makeLine({
+        code: "SKY",
+        status: "DEFUNCT",
+        passengerStatus: "DISRUPTED",
+        statusReportCount: 4,
+      }),
+    ]);
+
+    expect(summary.needsAttentionLines).toEqual([]);
+    expect(summary.needsAttentionCount).toBe(0);
+    expect(summary.normalCount).toBe(2);
+    expect(summary.worstLine).toBeNull();
+    expect(summary.callout).toBeNull();
+    expect(summary.headline).toBe("All 2 lines running normally");
+    // They still exist in the read — and their reports still count toward "Reports now"
+    // (2 + 2 from the two healthy defaults, + 1 + 4).
+    expect(summary.total).toBe(4);
+    expect(summary.reportsNow).toBe(9);
   });
 
   it("still lets a real disruption among the running lines move the headline", () => {
@@ -354,10 +395,11 @@ describe("network-summary.util: summarizeNetwork", () => {
     ]);
 
     expect(summary.headline).toBe("9 of 10 lines running normally");
-    expect(summary.inService).toEqual({ total: 10, needsAttentionCount: 1 });
-    expect(networkTone(summary.inService.total, summary.inService.needsAttentionCount)).toBe(
-      "degraded",
-    );
+    expect(summary.normalCount).toBe(9);
+    expect(summary.needsAttentionCount).toBe(1);
+    expect(
+      networkTone(summary.normalCount + summary.needsAttentionCount, summary.needsAttentionCount),
+    ).toBe("degraded");
   });
 
   it("says nothing is in service when every line in the read is closed or in trial", () => {
@@ -370,12 +412,13 @@ describe("network-summary.util: summarizeNetwork", () => {
     ]);
 
     expect(summary.headline).toBe("No lines in service");
-    expect(summary.inService).toEqual({ total: 0, needsAttentionCount: 0 });
+    expect(summary.normalCount).toBe(0);
+    expect(summary.needsAttentionCount).toBe(0);
     expect(summary.total).toBe(2);
     // Neutral, not green: nothing has been read as running, so nothing is an "all clear".
-    expect(networkTone(summary.inService.total, summary.inService.needsAttentionCount)).toBe(
-      "unknown",
-    );
+    expect(
+      networkTone(summary.normalCount + summary.needsAttentionCount, summary.needsAttentionCount),
+    ).toBe("unknown");
   });
 
   it("names the worst line and describes it once", () => {

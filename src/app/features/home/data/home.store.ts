@@ -36,6 +36,7 @@ import {
 import type { FeedLinkStatusFilter } from "./feed-filter.util";
 import {
   NetworkSummary,
+  isInService,
   lineNeedsAttention,
   sortLinesBySeverity,
   summarizeNetwork,
@@ -866,32 +867,38 @@ export class HomeStore {
   readonly officialNoticesLoading = this.officialNoticesResource.isLoading;
 
   /* ------------------------------------------------------------------ *
-   * The board's derived views — a PARTITION of `lines()`, no new reads
+   * The board's derived views — a PARTITION of `visibleLines()`, no new reads
    * ------------------------------------------------------------------ *
    *
-   * 🔴 **The three groups partition `lines()`: every line appears in EXACTLY ONE of
-   * `attentionLines` / `myLines` / `allLines`.** That is the property the whole board rests on, and
-   * it is achieved by ONE decision, applied in one order:
+   * 🔴 **The four groups partition `visibleLines()`: every line appears in EXACTLY ONE of
+   * `attentionLines` / `myLines` / `allLines` / `othersLines`.** That is the property the whole
+   * board rests on, and it is achieved by ONE decision, applied in one order:
    *
    *  - **Attention membership always wins.** A line that needs attention is in `attentionLines` even
    *    when the reader has pinned it. Pinning is a way of saying "I care about this line", not a way
    *    of hiding a broken one further down the page — a pinned line with a `TOTAL_DISRUPTION` status
    *    is exactly the line the reader most wants at the top, and duplicating it into "My lines" would
-   *    print it twice on one page.
-   *  - `myLines` is therefore "pinned AND NOT already in attention".
-   *  - `allLines` is "everything neither of the above claimed", so it cannot overlap either.
+   *    print it twice on one page. Out-of-service lines (TESTING/DEFUNCT) never reach this group:
+   *    `lineNeedsAttention` skips them, so a closed or pre-opening line is never painted as a
+   *    problem.
+   *  - `myLines` is therefore "pinned AND NOT already in attention" — including a pinned
+   *    out-of-service line: for those, "pin wins", because the reader explicitly asked to keep it.
+   *  - `allLines` is the in-service rest — "neither claimed, and actually running" — so it never
+   *    absorbs a Defunct/Testing line it does not describe.
+   *  - `othersLines` is "out of service AND unpinned" — the administrative bucket, rendered LAST as
+   *    "Others", never counted by the hero and never listed as needing attention.
    *
    * The consequence is the point: no line renders twice, and no line disappears — a reader who pins
    * three lines still sees every other line, and one bad report can never make a line vanish from a
-   * group it belonged to. Each group subtracts the ids the previous one CLAIMED rather than
-   * re-deriving its own predicate, because three independently-written filters is how a line ends up
+   * group it belonged to. Each group subtracts the ids the previous ones CLAIMED rather than
+   * re-deriving its own predicate, because four independently-written filters is how a line ends up
    * in two groups or in none.
    *
    * The counts and the headline come from the SAME pure `summarizeNetwork` the hero reads, so the
    * hero's tiles and the board's groups cannot disagree about which lines need attention — which is
-   * also why those three partition `visibleLines()` (the board's own Pro filters) rather than
-   * `lines()`: the partition has to be taken over the same set the rows are drawn from, or a Pro
-   * filter would shrink a group without shrinking the other two.
+   * also why the partition is taken over `visibleLines()` (the board's own Pro filters) rather than
+   * `lines()`: the partition has to be over the same set the rows are drawn from, or a Pro filter
+   * would shrink a group without shrinking the others.
    */
 
   /** The rolled-up network state (headline, counts, worst line) over the one lines read. */
@@ -924,7 +931,8 @@ export class HomeStore {
     sortLinesBySeverity(this.visibleLines().filter(lineNeedsAttention)),
   );
 
-  /** The reader's pinned lines that no higher group claimed, worst first. */
+  /** The reader's pinned lines that no higher group claimed, worst first. Includes pinned
+   * out-of-service lines: for them, "pin wins" over the Others bucket. */
   readonly myLines = computed<LinePulse[]>(() => {
     const claimed = new Set(this.attentionLines().map((line) => line.id));
     const pinned = new Set(this.preferences.pinnedLineIds());
@@ -933,13 +941,28 @@ export class HomeStore {
     );
   });
 
-  /** Everything neither of the above claimed, in the board's current sort. */
+  /** The in-service lines neither group above claimed, in the board's current sort. */
   readonly allLines = computed<LinePulse[]>(() => {
     const claimed = new Set([
       ...this.attentionLines().map((line) => line.id),
       ...this.myLines().map((line) => line.id),
     ]);
-    const rest = this.visibleLines().filter((line) => !claimed.has(line.id));
+    const rest = this.visibleLines().filter((line) => isInService(line) && !claimed.has(line.id));
+    return this.boardSort() === "name" ? [...rest].sort(byCode) : sortLinesBySeverity(rest);
+  });
+
+  /**
+   * The out-of-service lines no group above claimed — the board's LAST group, "Others".
+   *
+   * TESTING (pre-opening) and DEFUNCT (closed) lines are inventory, not service: they can never
+   * need attention and the hero never counts them (see `isInService`). The board still shows them,
+   * at the bottom, so a reader can find a line that has not opened or has closed. A pinned
+   * out-of-service line stays in My lines instead — "pin wins" — which is why this group subtracts
+   * the ids `myLines` claimed rather than filtering on pin state itself.
+   */
+  readonly othersLines = computed<LinePulse[]>(() => {
+    const claimed = new Set(this.myLines().map((line) => line.id));
+    const rest = this.visibleLines().filter((line) => !isInService(line) && !claimed.has(line.id));
     return this.boardSort() === "name" ? [...rest].sort(byCode) : sortLinesBySeverity(rest);
   });
 

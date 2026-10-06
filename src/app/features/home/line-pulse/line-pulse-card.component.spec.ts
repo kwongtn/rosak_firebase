@@ -5,7 +5,6 @@ import { By } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import {
   metricDoc,
@@ -64,21 +63,9 @@ describe("LinePulseCardComponent", () => {
     openFor: ReturnType<typeof vi.fn>;
     setOpen: ReturnType<typeof vi.fn>;
   };
-  let reportSheetMock: {
-    isOpen: ReturnType<typeof signal<boolean>>;
-    lineId: ReturnType<typeof signal<string | null>>;
-    openFor: ReturnType<typeof vi.fn>;
-    setOpen: ReturnType<typeof vi.fn>;
-  };
 
   beforeEach(async () => {
     sheetMock = {
-      isOpen: signal(false),
-      lineId: signal<string | null>(null),
-      openFor: vi.fn(),
-      setOpen: vi.fn(),
-    };
-    reportSheetMock = {
       isOpen: signal(false),
       lineId: signal<string | null>(null),
       openFor: vi.fn(),
@@ -100,7 +87,6 @@ describe("LinePulseCardComponent", () => {
         ]),
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
-        { provide: ReportSheetService, useValue: reportSheetMock },
       ],
     }).compileComponents();
 
@@ -184,10 +170,10 @@ describe("LinePulseCardComponent", () => {
     expect(pill?.textContent?.trim()).toBe("Partial Disruption");
   });
 
-  it("sizes both actions with the compact button variant and never stretches them", () => {
+  it("sizes the labelled actions with the compact button variant and never stretches them", () => {
     const root = render(makeLine());
 
-    for (const testId of ["line-card-details", "submit-line-status", "add-spotting-entry"]) {
+    for (const testId of ["line-card-details", "submit-line-status"]) {
       const button = root.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
       expect(button.className).toContain("h-7");
       expect(button.className).toContain("px-2.5");
@@ -201,16 +187,23 @@ describe("LinePulseCardComponent", () => {
       ?.parentElement as HTMLElement;
     expect(actions.className).not.toContain("items-stretch");
     expect(actions.className).toContain("items-start");
+    // The pin is the icon-only member of the same cluster — it must not stretch with the labels.
+    const pin = root.querySelector('[data-testid="line-card-pin"]') as HTMLElement;
+    expect(pin.className).toContain("size-7");
+    expect(pin.className).not.toContain("w-full");
   });
 
-  it("names the two actions as the reader's intent, not as internal nouns", () => {
+  it("names the actions as the reader's intent, not as internal nouns", () => {
     const root = render(makeLine());
 
-    expect(textOf(root, "submit-line-status")).toBe("Report status");
-    expect(textOf(root, "add-spotting-entry")).toBe("Log spotting");
+    expect(textOf(root, "submit-line-status")).toBe("Report");
+    expect(textOf(root, "line-card-details")).toBe("Details");
+    // "Log spotting" left the card with the unification: the board's per-line set is pin/Details/
+    // Report, and spotting lives on its own surfaces.
+    expect(root.querySelector('[data-testid="add-spotting-entry"]')).toBeNull();
   });
 
-  it("shows a visible Details link out to this line's details page, left of Report status", () => {
+  it("shows a visible Details link out to this line's details page, left of Report", () => {
     const root = render(makeLine({ id: "line-42" }));
 
     const details = root.querySelector<HTMLAnchorElement>('[data-testid="line-card-details"]');
@@ -227,8 +220,14 @@ describe("LinePulseCardComponent", () => {
     expect((details as HTMLElement).compareDocumentPosition(report as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    // Same cluster as the two reporting buttons, so mobile still stacks them full-width.
+    // Same cluster as the pin and the report button, so mobile still stacks them full-width — and
+    // the reading order is exactly pin, Details, Report.
+    const pin = root.querySelector('[data-testid="line-card-pin"]');
     expect(details?.parentElement).toBe(report?.parentElement);
+    expect(details?.parentElement).toBe(pin?.parentElement);
+    expect((pin as HTMLElement).compareDocumentPosition(details as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
   it("draws the line's own colour as a leading accent rail", () => {
@@ -372,14 +371,27 @@ describe("LinePulseCardComponent", () => {
     expect(sheetMock.openFor).toHaveBeenCalledWith("line-42");
   });
 
-  it("opens the spotting sheet seeded with this line from the add-entry button", () => {
+  it("pins inline through PreferencesService, with the glyph filling like the row's", () => {
     const root = render(makeLine({ id: "line-42" }));
+    const pin = root.querySelector<HTMLButtonElement>('[data-testid="line-card-pin"]');
+    expect(pin).not.toBeNull();
+    expect(pin?.className).toContain("size-7");
+    expect(pin?.getAttribute("aria-pressed")).toBe("false");
+    expect(pin?.getAttribute("aria-label")).toBe("Pin KJL");
 
-    const button = root.querySelector<HTMLButtonElement>('[data-testid="add-spotting-entry"]');
-    expect(button).not.toBeNull();
-    button?.click();
+    expect(preferences.isPinned("line-42")).toBe(false);
+    pin?.click();
+    fixture.detectChanges();
 
-    expect(reportSheetMock.openFor).toHaveBeenCalledWith("line-42");
+    // `aria-pressed` says it to a screen reader; the filled glyph says it to everyone else.
+    expect(preferences.isPinned("line-42")).toBe(true);
+    expect(pin?.getAttribute("aria-pressed")).toBe("true");
+    expect(pin?.getAttribute("aria-label")).toBe("Unpin KJL");
+    expect(pin?.querySelector("ng-icon")?.getAttribute("class")).toContain("fill-current");
+
+    pin?.click();
+    fixture.detectChanges();
+    expect(preferences.isPinned("line-42")).toBe(false);
   });
 
   it("expands and collapses from the title-row toggle without reacting to the actions", () => {
@@ -482,71 +494,6 @@ describe("LinePulseCardComponent", () => {
     expect(root.querySelector('[data-testid="line-status-chart"]')).not.toBeNull();
     expect(root.querySelectorAll('[data-testid="line-status-bar"]')).toHaveLength(1);
     expect(root.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(1);
-  });
-
-  describe("the kebab menu", () => {
-    function openMenu(root: HTMLElement): void {
-      const trigger = root.querySelector<HTMLButtonElement>('[data-testid="line-card-menu"]');
-      expect(trigger).not.toBeNull();
-      trigger?.click();
-      fixture.detectChanges();
-    }
-
-    it("keeps pin behind a collapsed, labelled menu and nothing else", () => {
-      const root = render(makeLine({ id: "line-42" }));
-
-      const trigger = root.querySelector('[data-testid="line-card-menu"]');
-      expect(trigger?.getAttribute("aria-expanded")).toBe("false");
-      expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
-      expect(trigger?.getAttribute("aria-label")).toBe("More actions for KJL");
-      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
-      expect(root.querySelectorAll("button[data-testid]").length).toBeGreaterThan(0);
-      expect(root.querySelector('[data-testid="line-card-pin"]')).toBeNull();
-      // "Line HQ" is gone app-wide, and details left the menu for a visible button of its own.
-      expect(root.querySelector('[data-testid="line-card-hq"]')).toBeNull();
-      expect(root.querySelector('[data-testid="line-card-hq-details"]')).toBeNull();
-
-      openMenu(root);
-
-      expect(trigger?.getAttribute("aria-expanded")).toBe("true");
-      const panel = root.querySelector('[data-testid="line-card-menu-panel"]');
-      expect(panel?.getAttribute("role")).toBe("menu");
-      expect(panel?.querySelectorAll('[role="menuitem"]').length).toBe(1);
-      const panelText = (panel?.textContent ?? "").replace(/\s+/g, " ");
-      expect(panelText).not.toContain("Line HQ");
-      expect(panelText).not.toContain("Line details");
-      expect(panel?.querySelector('[data-testid="line-card-pin"]')).not.toBeNull();
-    });
-
-    it("pins through PreferencesService and closes", () => {
-      const root = render(makeLine({ id: "line-42" }));
-      expect(preferences.isPinned("line-42")).toBe(false);
-
-      openMenu(root);
-      expect(textOf(root, "line-card-pin")).toBe("Pin this line");
-      root.querySelector<HTMLButtonElement>('[data-testid="line-card-pin"]')?.click();
-      fixture.detectChanges();
-
-      expect(preferences.isPinned("line-42")).toBe(true);
-      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
-
-      openMenu(root);
-      expect(textOf(root, "line-card-pin")).toBe("Unpin this line");
-    });
-
-    it("closes on Escape and on an outside click", () => {
-      const root = render(makeLine());
-
-      openMenu(root);
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-      fixture.detectChanges();
-      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
-
-      openMenu(root);
-      document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      fixture.detectChanges();
-      expect(root.querySelector('[data-testid="line-card-menu-panel"]')).toBeNull();
-    });
   });
 
   it("forwards refreshTick to the expanded chart and reports", () => {

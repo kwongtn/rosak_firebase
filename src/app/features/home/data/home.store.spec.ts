@@ -1721,7 +1721,7 @@ describe("HomeStore: the board partition", () => {
     localStorage.clear();
   });
 
-  it("puts every line needing attention in the attention group, worst first", async () => {
+  it("puts every in-service line needing attention in the attention group, worst first", async () => {
     const store = await withLines([
       boardLine("healthy"),
       boardLine("testing", { status: "TESTING" }),
@@ -1731,10 +1731,12 @@ describe("HomeStore: the board partition", () => {
     ]);
 
     // The reader's FIRST question is what is broken; the partition must answer it in the same order
-    // the hero's callout uses, or the two disagree about which line is worst.
-    expect(store.attentionLines().map((l) => l.id)).toEqual(["dead", "partial", "testing", "late"]);
+    // the hero's callout uses, or the two disagree about which line is worst. TESTING/DEFUNCT are
+    // inventory, not service: they belong to the LAST group, never to attention.
+    expect(store.attentionLines().map((l) => l.id)).toEqual(["dead", "partial", "late"]);
     expect(store.myLines()).toEqual([]);
     expect(store.allLines().map((l) => l.id)).toEqual(["healthy"]);
+    expect(store.othersLines().map((l) => l.id)).toEqual(["testing"]);
   });
 
   it("counts the attention group with the hero's own needs-attention rule", async () => {
@@ -1763,6 +1765,24 @@ describe("HomeStore: the board partition", () => {
     expect(store.myLines().map((l) => l.id)).toEqual(["pinned-a", "pinned-b"]);
     expect(store.attentionLines().map((l) => l.id)).toEqual(["broken"]);
     expect(store.allLines().map((l) => l.id)).toEqual(["plain"]);
+  });
+
+  it("keeps a pinned out-of-service line in myLines, so Others only takes the unpinned", async () => {
+    storedPins("sal");
+
+    const store = await withLines([
+      boardLine("sal", { status: "TESTING" }),
+      boardLine("sky", { status: "DEFUNCT" }),
+      boardLine("ok"),
+    ]);
+
+    // "Pin wins" for out-of-service lines: the reader explicitly asked to keep this one. It still
+    // never needs attention — its group is My lines, not Needs attention — and the last group picks
+    // up only the unpinned out-of-service rest.
+    expect(store.myLines().map((l) => l.id)).toEqual(["sal"]);
+    expect(store.attentionLines()).toEqual([]);
+    expect(store.othersLines().map((l) => l.id)).toEqual(["sky"]);
+    expect(store.allLines().map((l) => l.id)).toEqual(["ok"]);
   });
 
   it("keeps a pinned-but-broken line in ATTENTION only, so it never renders twice", async () => {
@@ -1821,14 +1841,18 @@ describe("HomeStore: the board partition", () => {
     ["all healthy", ["a", "b", "c"]],
     ["all broken", ["a", "b", "c"]],
     ["a mix", ["a", "b", "c"]],
+    ["out-of-service lines in the mix", ["a", "b", "c", "d"]],
   ])("renders every line in EXACTLY one group — %s", async (_label, ids) => {
     storedPins("b");
     const lineIds = ids as string[];
 
     const store = await withLines(
       lineIds.map((id, index) =>
-        // Every other line is degraded, so both directions of the partition are exercised at once.
-        boardLine(id, { status: index % 2 === 0 ? "PARTIAL_DISRUPTION" : "ACTIVE" }),
+        // Rotate through a degraded, a healthy and an out-of-service line, so both directions of
+        // the partition AND the Others bucket are exercised at once.
+        boardLine(id, {
+          status: index % 3 === 0 ? "TESTING" : index % 2 === 0 ? "PARTIAL_DISRUPTION" : "ACTIVE",
+        }),
       ),
     );
 
@@ -1836,6 +1860,7 @@ describe("HomeStore: the board partition", () => {
       ...store.attentionLines().map((l) => l.id),
       ...store.myLines().map((l) => l.id),
       ...store.allLines().map((l) => l.id),
+      ...store.othersLines().map((l) => l.id),
     ];
 
     expect(grouped).toHaveLength(lineIds.length);
@@ -1851,7 +1876,9 @@ describe("HomeStore: the board partition", () => {
     const store = await withLines([boardLine("a"), boardLine("b")]);
 
     expect(store.myLines()).toEqual([]);
-    expect([...store.attentionLines(), ...store.allLines()].map((l) => l.id)).toEqual(["a", "b"]);
+    expect(
+      [...store.attentionLines(), ...store.allLines(), ...store.othersLines()].map((l) => l.id),
+    ).toEqual(["a", "b"]);
   });
 
   it("never re-orders the reader's own line list", async () => {

@@ -47,11 +47,15 @@ export const LINE_STATUS_SEVERITY_RANK: Record<LineStatus, number> = {
 const OUT_OF_SERVICE_STATUSES: ReadonlySet<LineStatus> = new Set(["TESTING", "DEFUNCT"]);
 
 /**
- * Whether this line is carrying passenger service at all — i.e. whether it is a candidate for the
- * network's "running normally" sentence and tone.
+ * Whether this line is carrying passenger service at all.
  *
- * Scoped to the HEADLINE only (see {@link InServiceSummary}). The board, the tile and the callout
- * still take every line, because a closed line is exactly what those are for.
+ * This is the scope the whole attention model reads: an out-of-service line can neither be "running
+ * normally" nor "need attention", because both are claims about SERVICE, and a pre-opening (TESTING)
+ * or permanently closed (DEFUNCT) line is a settled administrative fact rather than a live
+ * condition. The headline, the tone, the hero tiles and the callout all skip these lines.
+ *
+ * They are not hidden: the board renders them in its Others group, and every surface that lists
+ * lines as inventory (filters, details, history) still shows them.
  */
 export function isInService(line: LinePulse): boolean {
   return !OUT_OF_SERVICE_STATUSES.has(line.status);
@@ -74,11 +78,17 @@ export const NEEDS_ATTENTION_PASSENGER_RANK = PASSENGER_SEVERITY_RANK.DELAYED;
  * Whether a line is anything other than fully running, or has a rider report describing the
  * service (rather than the load) as late or suspended. A `null` passenger status is not evidence
  * of trouble — see {@link passengerSeverityRank}.
+ *
+ * Out-of-service lines never need attention (see {@link isInService}): a Defunct or Testing line is
+ * a permanent property, not a live failure, so it is listed in the board's Others group instead of
+ * being painted as a problem forever. Every PARTIAL/TOTAL state, by contrast, is a live operational
+ * condition and keeps needing attention.
  */
 export function lineNeedsAttention(line: LinePulse): boolean {
   return (
-    line.status !== "ACTIVE" ||
-    passengerSeverityRank(line.passengerStatus) >= NEEDS_ATTENTION_PASSENGER_RANK
+    isInService(line) &&
+    (line.status !== "ACTIVE" ||
+      passengerSeverityRank(line.passengerStatus) >= NEEDS_ATTENTION_PASSENGER_RANK)
   );
 }
 
@@ -112,33 +122,19 @@ export function sortLinesBySeverity(lines: readonly LinePulse[]): LinePulse[] {
   return [...lines].sort(compareLineSeverity);
 }
 
-/** The two counts the headline sentence and the tone are built from — in-service lines only. */
-export interface InServiceSummary {
-  /** Lines actually in passenger service ({@link isInService}). */
-  total: number;
-  /** Of those, the ones failing {@link lineNeedsAttention}. */
-  needsAttentionCount: number;
-}
-
 /** The board's rolled-up state, derived from one read of the line list. No new network reads. */
 export interface NetworkSummary {
   /** Lines in the read (0 while the first read is still in flight). */
   total: number;
-  /** Lines that are ACTIVE with no DELAYED/DISRUPTED rider report. */
+  /** In-service lines that are ACTIVE with no DELAYED/DISRUPTED rider report. */
   normalCount: number;
-  /** Lines failing {@link lineNeedsAttention}, most severe first. */
+  /** In-service lines failing {@link lineNeedsAttention}, most severe first. */
   needsAttentionLines: LinePulse[];
-  /** `needsAttentionLines.length`, precomputed because the hero renders it four times. */
+  /** `needsAttentionLines.length`, precomputed because the hero renders it repeatedly. */
   needsAttentionCount: number;
-  /** The single most severe line needing attention, or `null` when the network is clean. */
+  /** The single most severe in-service line needing attention, or `null` when service is clean. */
   worstLine: LinePulse | null;
-  /**
-   * The headline's own counts: lines IN SERVICE only (TESTING/DEFUNCT excluded), because a
-   * pre-opening or closed line can never be "running normally". Every other field on this summary
-   * still counts ALL lines — the tile, the callout and the board keep listing them.
-   */
-  inService: InServiceSummary;
-  /** `"All 14 lines running normally"` — the hero's headline, counted over in-service lines. */
+  /** `"All 14 lines running normally"` — the headline, counted over in-service lines only. */
   headline: string;
   /** One plain-language sentence naming the worst line, or `null` when the network is clean. */
   callout: string | null;
@@ -160,18 +156,17 @@ export interface NetworkSummary {
  */
 export function summarizeNetwork(lines: readonly LinePulse[] | null | undefined): NetworkSummary {
   const present = lines ?? [];
-  const needsAttentionLines = sortLinesBySeverity(present.filter(lineNeedsAttention));
-  const needsAttentionCount = needsAttentionLines.length;
-  const normalCount = present.length - needsAttentionCount;
-  const worstLine = needsAttentionLines[0] ?? null;
 
-  // The headline and the tone read these two numbers; everything else above reads all lines.
+  // 🔴 Everything the summary says about SERVICE is scoped to in-service lines: a pre-opening or
+  // closed line can never be "running normally" NOR "need attention", so counting it as either
+  // would be a claim about inventory, not about service. Out-of-service lines still show up in
+  // `total` and `reportsNow` (they are part of the read), and the board renders them in its Others
+  // group — they simply never colour the hero.
   const inServiceLines = present.filter(isInService);
-  const inService: InServiceSummary = {
-    total: inServiceLines.length,
-    needsAttentionCount: inServiceLines.filter(lineNeedsAttention).length,
-  };
-  const inServiceNormal = inService.total - inService.needsAttentionCount;
+  const needsAttentionLines = sortLinesBySeverity(inServiceLines.filter(lineNeedsAttention));
+  const needsAttentionCount = needsAttentionLines.length;
+  const normalCount = inServiceLines.length - needsAttentionCount;
+  const worstLine = needsAttentionLines[0] ?? null;
 
   return {
     total: present.length,
@@ -179,14 +174,13 @@ export function summarizeNetwork(lines: readonly LinePulse[] | null | undefined)
     needsAttentionLines,
     needsAttentionCount,
     worstLine,
-    inService,
     // "No live line data yet" is `networkHeadline`'s own empty-read branch; a read that DID return
     // lines but none of them in service is a different fact, and gets its own words rather than
     // "No lines running normally — 0 need attention".
     headline:
-      inService.total === 0 && present.length > 0
+      inServiceLines.length === 0 && present.length > 0
         ? "No lines in service"
-        : networkHeadline(inService.total, inServiceNormal, inService.needsAttentionCount),
+        : networkHeadline(inServiceLines.length, normalCount, needsAttentionCount),
     callout: worstLine ? lineCallout(worstLine) : null,
     reportsNow: present.reduce((sum, line) => sum + (line.statusReportCount ?? 0), 0),
   };
@@ -195,9 +189,9 @@ export function summarizeNetwork(lines: readonly LinePulse[] | null | undefined)
 /**
  * How well the network as a WHOLE is doing — the hero's single colour tone.
  *
- * Deliberately derived from the same two numbers the headline sentence is built from — which are
- * `summary.inService`, not the all-lines counts — so the words and the colour can never describe
- * different arithmetic. `degraded` is capped at HALF: at exactly half the network needing attention
+ * Deliberately derived from the same two numbers the headline sentence is built from — the summary's
+ * in-service counts — so the words and the colour can never describe different arithmetic.
+ * `degraded` is capped at HALF: at exactly half the network needing attention
  * is still a majority of riders on working trains, and painting that the same alarm red as a
  * network that is broadly down would train readers to ignore red.
  */
