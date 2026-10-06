@@ -258,6 +258,10 @@ alone.
 - `docs(spotting)`: picker ordering, progress + summaries
 - `feat(spotting)`: merge line identity into the pinned activity bar on mobile; share fleet counts via util; registry-backed chip popover
 - `docs(spotting)`: mobile activity-bar merge, breakpoint-aware offsets, methodology updates
+- `feat(spotting)`: anchor the mobile title bar and hand off to the merged activity bar when the chips scroll away (`<` back chevron, right-aligned wrapping month slider)
+- `docs(spotting)`: the mobile title/chip handoff, chevron cascade-tie fix, progress + summaries
+- `feat(spotting)`: anchor the mobile title bar on scroll and hand off to the merged activity bar when the chips scroll away; `<` back chevron; right-aligned month slider
+- `docs(spotting)`: the mobile title/chip handoff, chevron cascade fix + progress
 
 ---
 

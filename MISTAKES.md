@@ -34,6 +34,12 @@ component>`), and wrap the component in a plain element to gate it. This is the 
 `"never override a directive host class from the template"` entry below: in both cases the component
 owns its display and the consumer must wrap rather than compete. Confirm in a real browser, since
 jsdom will never resolve the tie.
+**Same-day sibling (spotting)**: the line-details activity-bar back chevron carried a static
+`inline-flex` NEXT TO a bound `[class.hidden]` gate on the SAME element — same tie, same winner
+(`.inline-flex` after `.hidden`), so the chevron rendered before its handoff. Fixed by binding the
+display class as a pair (`[class.hidden]="!titleBarHandedOff()"` + `[class.inline-flex]="titleBarHandedOff()"`,
+never both), with e2e assertions pinning hidden pre-handoff / visible post-handoff. Rule of thumb: when
+one class of a pair must beat another, bind BOTH — never rely on a static utility losing a cascade tie.
 
 ## [2026-10-06] testing: `ng test --filter` matches TEST NAMES, not paths — a typo is a SILENTLY GREEN zero-test run
 

@@ -218,7 +218,7 @@ test.describe("spotting details grid", () => {
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile.png", fullPage: true });
   });
 
-  test("MOBILE: title bar scrolls away; pinned activity bar shows code + status + in-service chip", async ({
+  test("MOBILE: title anchors, then hands off to the merged bar when the chips scroll away", async ({
     page,
   }) => {
     await page.setViewportSize(MOBILE_VIEWPORT);
@@ -228,8 +228,39 @@ test.describe("spotting details grid", () => {
     await expect(page.getByTestId("details-back-link")).toBeVisible();
     await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
     await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toBeHidden();
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-top.png" });
+
+    await page.evaluate(() => window.scrollBy(0, 100));
+    const anchoredTitleBox = await page.getByTestId("details-title-bar").boundingBox();
+    expect(Math.abs((anchoredTitleBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
+    await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
+    await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toBeHidden();
+
+    await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-anchored-title.png" });
+
+    await page.evaluate(() => window.scrollBy(0, 320));
+    await expect(page.getByTestId("details-title-bar")).toHaveClass(/-translate-y-full/);
+    await expect(page.getByTestId("details-title-bar")).toHaveAttribute("inert", "");
+    await expect
+      .poll(async () => {
+        const slidTitleBox = await page.getByTestId("details-title-bar").boundingBox();
+        return slidTitleBox ? slidTitleBox.y + slidTitleBox.height : 999;
+      })
+      .toBeLessThanOrEqual(62);
+    await expect(page.getByTestId("details-activity-line-code")).toBeVisible();
+    await expect(page.getByTestId("details-activity-line-code")).toContainText(
+      "L1 - Spotting Activity",
+    );
+    await expect(page.getByTestId("details-activity-identity")).toBeVisible();
+    await expect(page.getByTestId("details-activity-identity")).toContainText("Active");
+    const chip = page.getByText("16/16 In Service");
+    await expect(chip).toBeVisible();
+    const chevron = page.getByTestId("details-back-chevron");
+    await expect(chevron).toBeVisible();
+    await expect(chevron).toHaveAttribute("href", "/spotting/1");
 
     await page.evaluate(() => {
       const bar = document.querySelector('[data-testid="details-activity-bar"]');
@@ -237,20 +268,15 @@ test.describe("spotting details grid", () => {
         window.scrollBy(0, bar.getBoundingClientRect().top - 61);
       }
     });
-
-    await expect(page.getByTestId("details-back-link")).not.toBeInViewport();
     const barBox = await page.getByTestId("details-activity-bar").boundingBox();
     expect(Math.abs((barBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
-
-    await expect(page.getByTestId("details-activity-line-code")).toBeVisible();
-    await expect(page.getByTestId("details-activity-line-code")).toContainText(
-      "L1 - Spotting Activity",
+    const navBox = await page.getByTestId("details-month-nav").boundingBox();
+    if (!barBox || !navBox) {
+      throw new Error("Expected the activity bar and month nav to have bounding boxes.");
+    }
+    expect(Math.abs(navBox.x + navBox.width - (barBox.x + barBox.width - 16))).toBeLessThanOrEqual(
+      3,
     );
-    const identity = page.getByTestId("details-activity-identity");
-    await expect(identity).toBeVisible();
-    await expect(identity).toContainText("Active");
-    const chip = page.getByText("16/16 In Service");
-    await expect(chip).toBeVisible();
 
     await chip.hover();
     const tooltip = page.getByTestId("details-in-service-tooltip");
@@ -284,6 +310,7 @@ test.describe("spotting details grid", () => {
 
     await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
     await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toBeHidden();
     await page.evaluate(() => window.scrollBy(0, 400));
     const titleBox = await page.getByTestId("details-title-bar").boundingBox();
     expect(Math.abs((titleBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);

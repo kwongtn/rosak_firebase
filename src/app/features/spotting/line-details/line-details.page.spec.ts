@@ -22,20 +22,6 @@ const VEHICLE_TYPE = {
   vehicles: [],
 };
 
-function rectAt(y: number): DOMRect {
-  return {
-    x: 0,
-    y,
-    top: y,
-    left: 0,
-    bottom: y + 100,
-    right: 390,
-    width: 390,
-    height: 100,
-    toJSON: () => ({}),
-  } as DOMRect;
-}
-
 class FakeResizeObserver {
   observe(): void {}
   unobserve(): void {}
@@ -55,11 +41,41 @@ function stubMatchMedia(matches: boolean): void {
   }));
 }
 
+class FakeIntersectionObserver {
+  static instances: FakeIntersectionObserver[] = [];
+  readonly observed: Element[] = [];
+  constructor(private readonly callback: IntersectionObserverCallback) {
+    FakeIntersectionObserver.instances.push(this);
+  }
+  observe(el: Element): void {
+    this.observed.push(el);
+  }
+  disconnect(): void {}
+  unobserve(): void {}
+  /** Test helper: fake an entry so the page's `_scrolled` signal flips. */
+  emit(isIntersecting: boolean): void {
+    this.callback(
+      [
+        {
+          boundingClientRect: { width: 100, height: 30 },
+          isIntersecting,
+        } as IntersectionObserverEntry,
+      ],
+      this as unknown as IntersectionObserver,
+    );
+  }
+}
+
+function lastObserver(): FakeIntersectionObserver {
+  const io = FakeIntersectionObserver.instances.at(-1);
+  if (!io) throw new Error("page never created its IntersectionObserver");
+  return io;
+}
+
 describe("LineDetailsPage (mobile activity bar)", () => {
   let fixture: ComponentFixture<LineDetailsPage>;
   let component: LineDetailsPage;
   let httpMock: HttpTestingController;
-  let rectSpy: ReturnType<typeof vi.spyOn>;
 
   async function drain(): Promise<void> {
     for (let i = 0; i < 10; i++) {
@@ -92,9 +108,10 @@ describe("LineDetailsPage (mobile activity bar)", () => {
   }
 
   async function render(mobile: boolean): Promise<void> {
+    FakeIntersectionObserver.instances = [];
+    vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
     vi.stubGlobal("ResizeObserver", FakeResizeObserver);
     stubMatchMedia(!mobile);
-    rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(rectAt(500));
 
     await TestBed.configureTestingModule({
       imports: [LineDetailsPage],
@@ -125,6 +142,7 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     httpMock.verify();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    FakeIntersectionObserver.instances = [];
   });
 
   it("hides enriched content when not pinned, shows when pinned", async () => {
@@ -135,29 +153,32 @@ describe("LineDetailsPage (mobile activity bar)", () => {
       '[data-testid="details-activity-line-code"]',
     ) as HTMLElement;
     const identity = host.querySelector('[data-testid="details-activity-identity"]') as HTMLElement;
+    const titleBar = host.querySelector('[data-testid="details-title-bar"]') as HTMLElement;
     expect(codeSpan?.classList.contains("hidden")).toBe(true);
     expect(identity?.classList.contains("hidden")).toBe(true);
 
-    rectSpy.mockReturnValue(rectAt(61));
-    window.dispatchEvent(new Event("scroll"));
+    lastObserver().emit(false);
     fixture.detectChanges();
 
     expect(codeSpan?.classList.contains("hidden")).toBe(false);
     expect(identity?.classList.contains("hidden")).toBe(false);
+    expect(titleBar?.classList.contains("-translate-y-full")).toBe(true);
+    const backChevron = host.querySelector('[data-testid="details-back-chevron"]') as HTMLElement;
+    expect(backChevron).toBeTruthy();
+    expect(backChevron.classList.contains("hidden")).toBe(false);
 
-    rectSpy.mockReturnValue(rectAt(700));
-    window.dispatchEvent(new Event("scroll"));
+    lastObserver().emit(true);
     fixture.detectChanges();
 
     expect(codeSpan?.classList.contains("hidden")).toBe(true);
     expect(identity?.classList.contains("hidden")).toBe(true);
+    expect(titleBar?.classList.contains("-translate-y-full")).toBe(false);
   });
 
   it("shows chip text when pinned", async () => {
     await render(true);
 
-    rectSpy.mockReturnValue(rectAt(61));
-    window.dispatchEvent(new Event("scroll"));
+    lastObserver().emit(false);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const identity = host.querySelector('[data-testid="details-activity-identity"]');
@@ -171,10 +192,11 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     const plain = host.querySelector('[data-testid="details-activity-title-plain"]') as HTMLElement;
     expect(plain?.classList.contains("hidden")).toBe(false);
 
-    rectSpy.mockReturnValue(rectAt(61));
-    window.dispatchEvent(new Event("scroll"));
+    lastObserver().emit(false);
     fixture.detectChanges();
     expect(plain?.classList.contains("hidden")).toBe(false);
     expect(plain?.textContent).toContain("Spotting Activity");
+    const backChevron = host.querySelector('[data-testid="details-back-chevron"]') as HTMLElement;
+    expect(backChevron?.classList.contains("hidden")).toBe(true);
   });
 });
