@@ -24,6 +24,20 @@ const SEEDED_LINE: Line = {
   status: "ACTIVE",
 };
 
+const SEEDED_FLEET_LINE = {
+  id: "4",
+  code: "KJL",
+  displayName: "Kelana Jaya Line",
+  vehicleTypes: [
+    {
+      id: "vt1",
+      internalName: "KJ Fleet",
+      displayName: "KJ Fleet",
+      vehicles: [{ id: "v1", identificationNo: "1-234", status: "OUT_OF_SERVICE" as const }],
+    },
+  ],
+};
+
 const SEEDED_STATION = { id: "s1", displayName: "KLCC", internalRepresentation: "KLCC" };
 
 describe("ReportFormComponent", () => {
@@ -84,7 +98,7 @@ describe("ReportFormComponent", () => {
     const linesRequest = httpMock.expectOne(
       (r) => r.method === "POST" && r.body.query.includes("LinesAndVehicles"),
     );
-    linesRequest.flush({ data: { lines: [] } });
+    linesRequest.flush({ data: { lines: [SEEDED_FLEET_LINE] } });
     await settle();
   });
 
@@ -232,5 +246,41 @@ describe("ReportFormComponent", () => {
       request.flush({ data: { stationLines: [SEEDED_STATION] } });
     }
     await settle();
+  });
+
+  it("shows the selected vehicle's status inside the field and the sanity check directly below", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+
+    const component = fixture.componentInstance as unknown as ComponentUnderTest;
+    component.model.update((m) => ({ ...m, vehicleId: "v1" }));
+    await settle();
+
+    const root = fixture.nativeElement as HTMLElement;
+
+    // The status badge now lives inside the vehicle combobox field (trailing), not on its own
+    // row below it — exactly one badge is rendered and it is inside the combobox host.
+    expect(root.querySelectorAll("vehicle-status-badge").length).toBe(1);
+    const vehicleCombobox = root.querySelectorAll("hlm-combobox")[1];
+    const badge = vehicleCombobox?.querySelector("vehicle-status-badge");
+    if (!badge) throw new Error("vehicle status badge not rendered inside the field");
+    expect(badge.textContent).toContain("Out of Service");
+
+    // The abnormal-status sanity check follows the vehicle field immediately, before the Date
+    // field — not down at the bottom of the form.
+    const vehicleLabel = Array.from(root.querySelectorAll("label")).find((label) =>
+      label.textContent?.includes("Vehicle"),
+    );
+    if (!vehicleLabel) throw new Error("vehicle field not rendered");
+    const sanity = vehicleLabel.nextElementSibling;
+    expect(sanity?.textContent).toContain("may not normally be spottable");
+    expect(sanity?.querySelector("hlm-checkbox")).not.toBeNull();
+
+    // Clearing the vehicle removes both the trailing badge and the sanity block again.
+    component.model.update((m) => ({ ...m, vehicleId: "" }));
+    await settle();
+    expect(root.querySelectorAll("vehicle-status-badge").length).toBe(0);
+    expect(root.textContent).not.toContain("may not normally be spottable");
   });
 });

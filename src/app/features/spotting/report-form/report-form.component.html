@@ -38,6 +38,7 @@
         [items]="vehicleItems()"
         [filterFn]="vehicleFilterFn()"
         [itemTemplate]="vehicleOptionTpl"
+        [trailingTemplate]="selectedVehicleStatusValue() ? vehicleStatusTpl : undefined"
         [constrainWidth]="true"
         emptyValue=""
         placeholder="Search by ID or the number seen on the train"
@@ -49,12 +50,30 @@
           <vehicle-status-badge class="shrink-0" [status]="item.meta.status" />
         </span>
       </ng-template>
+      <ng-template #vehicleStatusTpl>
+        @if (selectedVehicleStatusValue(); as status) {
+          <vehicle-status-badge [status]="status" />
+        }
+      </ng-template>
       @if (reportForm.vehicleId().invalid() && reportForm.vehicleId().touched()) {
         <p class="text-destructive text-xs">{{ reportForm.vehicleId().errors()[0]?.message }}</p>
       }
     </label>
-    @if (selectedVehicleStatusValue(); as status) {
-      <vehicle-status-badge [status]="status" class="self-start" />
+    @if (isAbnormalVehicle()) {
+      <div class="bg-muted flex flex-col gap-2.5 rounded-lg p-3 text-sm">
+        <p>
+          This vehicle's current status suggests it may not normally be spottable. Please confirm.
+        </p>
+        <label class="flex items-center gap-2.5">
+          <hlm-checkbox [formField]="reportForm.sanityTest" />
+          Yes, I know what I'm doing
+        </label>
+        @if (reportForm.sanityTest().invalid() && reportForm.sanityTest().touched()) {
+          <p class="text-destructive text-xs">
+            {{ reportForm.sanityTest().errors()[0]?.message }}
+          </p>
+        }
+      </div>
     }
   }
 
@@ -169,21 +188,6 @@
     <hlm-checkbox [formField]="reportForm.isAnonymous" />
     Submit anonymously
   </label>
-
-  @if (isAbnormalVehicle()) {
-    <div class="bg-muted flex flex-col gap-2.5 rounded-lg p-3 text-sm">
-      <p>
-        This vehicle's current status suggests it may not normally be spottable. Please confirm.
-      </p>
-      <label class="flex items-center gap-2.5">
-        <hlm-checkbox [formField]="reportForm.sanityTest" />
-        Yes, I know what I'm doing
-      </label>
-      @if (reportForm.sanityTest().invalid() && reportForm.sanityTest().touched()) {
-        <p class="text-destructive text-xs">{{ reportForm.sanityTest().errors()[0]?.message }}</p>
-      }
-    </div>
-  }
 
   <label class="flex flex-col gap-1.5 text-sm">
     Photos (optional)
