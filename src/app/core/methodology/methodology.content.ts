@@ -101,6 +101,11 @@ const REVIEWED_AT_POLISH = "2026-10-03";
  */
 const REVIEWED_AT_HEADLINE_IN_SERVICE = "2026-10-05";
 
+/** Bumped when the line-details mobile activity bar gained the In-Service share chip — a new
+ *  surface for the `line-status` section's fleet counts (2026-10-06). Only `line-status` is
+ *  bumped: the other sections' substance was not re-read. */
+const REVIEWED_AT_SPOTTING_FLEET_CHIP = "2026-10-06";
+
 /**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
@@ -145,8 +150,8 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     // Bumped by the Phase 5B registry audit — the Pro dashboard's two supporting widgets added the
     // ranking and the archive, and the audit then checked every shipped number on the front page for
     // a definition and a reachable one. Every metric on this page belongs to this section, so the
-    // section is what was reviewed.
-    lastReviewed: REVIEWED_AT_POLISH,
+    // section is what was reviewed. Also bumped for the line-details In-Service share chip surface.
+    lastReviewed: REVIEWED_AT_SPOTTING_FLEET_CHIP,
     inProgress: true,
   },
   {
@@ -215,6 +220,16 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_SHIP,
+  },
+  {
+    id: "fleet.in-service-share",
+    sectionId: "line-status",
+    title: "In Service share",
+    definition:
+      "Vehicles in service right now, out of this line's total fleet across every vehicle type.",
+    ownerRoute: "/spotting",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_SPOTTING_FLEET_CHIP,
   },
   {
     id: "line-status.active",

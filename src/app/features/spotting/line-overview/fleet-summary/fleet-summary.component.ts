@@ -2,6 +2,7 @@ import { Component, computed, input, output } from "@angular/core";
 import { HlmButton } from "../../../../ui/button/button";
 import { VehicleStatus } from "../../../../core/graphql/types";
 import { VehicleType } from "../../data/spotting.queries";
+import { fleetCountChips } from "../../data/fleet-counts.util";
 
 interface SummaryChip {
   key: VehicleStatus | null;
@@ -127,69 +128,15 @@ export class FleetSummaryComponent {
   protected readonly _statusChips = computed<SummaryChip[]>(() => this._chips().slice(1));
 
   protected readonly _chips = computed<SummaryChip[]>(() => {
-    const types = this.vehicleTypes();
-    const total = types.reduce((sum, t) => sum + t.vehicleTotalCount, 0);
-
-    const totals: Array<{ key: VehicleStatus; label: string; count: number }> = [
-      {
-        key: "IN_SERVICE",
-        label: "In Service",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusInServiceCount, 0),
-      },
-      {
-        key: "NOT_SPOTTED",
-        label: "Not Spotted",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusNotSpottedCount, 0),
-      },
-      {
-        key: "OUT_OF_SERVICE",
-        label: "Out of Service",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusOutOfServiceCount, 0),
-      },
-      {
-        key: "DECOMMISSIONED",
-        label: "Decommissioned",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusDecommissionedCount, 0),
-      },
-      {
-        key: "MARRIED",
-        label: "Married",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusMarriedCount, 0),
-      },
-      {
-        key: "TESTING",
-        label: "Testing",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusTestingCount, 0),
-      },
-      {
-        key: "UNKNOWN",
-        label: "Unknown",
-        count: types.reduce((sum, t) => sum + t.vehicleStatusUnknownCount, 0),
-      },
-    ];
-
-    const chips: SummaryChip[] = [
-      {
-        key: null,
-        label: "Total",
-        count: total,
-        percent: "100",
-        activeClass: CHIP_STYLE["TOTAL"].active,
-        inactiveClass: CHIP_STYLE["TOTAL"].inactive,
-      },
-    ];
-    for (const { key, label, count } of totals) {
-      if (count > 0) {
-        chips.push({
-          key,
-          label,
-          count,
-          percent: total === 0 ? "0" : ((count / total) * 100).toPrecision(3),
-          activeClass: CHIP_STYLE[key].active,
-          inactiveClass: CHIP_STYLE[key].inactive,
-        });
-      }
-    }
-    return chips;
+    const baseChips = fleetCountChips(this.vehicleTypes());
+    return baseChips.map((chip) => {
+      const styleKey = chip.key ?? "TOTAL";
+      const style = CHIP_STYLE[styleKey];
+      return {
+        ...chip,
+        activeClass: style.active,
+        inactiveClass: style.inactive,
+      };
+    });
   });
 }

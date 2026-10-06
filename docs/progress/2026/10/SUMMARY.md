@@ -254,6 +254,8 @@ alone.
 - `fix(home)`: balance pro bento grid and add heat empty state
 - `feat(spotting)`: sort the report-form vehicle picker A→Z (numeric-aware) with Married/Decommissioned last (`sortVehiclesForPicker`)
 - `docs(spotting)`: picker ordering, progress + summaries
+- `feat(spotting)`: merge line identity into the pinned activity bar on mobile; share fleet counts via util; registry-backed chip popover
+- `docs(spotting)`: mobile activity-bar merge, breakpoint-aware offsets, methodology updates
 
 ---
 

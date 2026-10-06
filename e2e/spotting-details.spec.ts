@@ -218,6 +218,51 @@ test.describe("spotting details grid", () => {
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile.png", fullPage: true });
   });
 
+  test("MOBILE: title bar scrolls away; pinned activity bar shows code + status + in-service chip", async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await page.goto("/spotting/1/details");
+    await expect(page.getByTestId("spotting-grid")).toBeVisible();
+
+    await expect(page.getByTestId("details-back-link")).toBeVisible();
+    await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
+    await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+
+    await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-top.png" });
+
+    await page.evaluate(() => {
+      const bar = document.querySelector('[data-testid="details-activity-bar"]');
+      if (bar) {
+        window.scrollBy(0, bar.getBoundingClientRect().top - 61);
+      }
+    });
+
+    await expect(page.getByTestId("details-back-link")).not.toBeInViewport();
+    const barBox = await page.getByTestId("details-activity-bar").boundingBox();
+    expect(Math.abs((barBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
+
+    await expect(page.getByTestId("details-activity-line-code")).toBeVisible();
+    await expect(page.getByTestId("details-activity-line-code")).toContainText(
+      "L1 - Spotting Activity",
+    );
+    const identity = page.getByTestId("details-activity-identity");
+    await expect(identity).toBeVisible();
+    await expect(identity).toContainText("Active");
+    const chip = page.getByText("16/16 In Service");
+    await expect(chip).toBeVisible();
+
+    await chip.hover();
+    const tooltip = page.getByTestId("details-in-service-tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText("In Service");
+    const breakdown = page.getByTestId("details-in-service-breakdown");
+    await expect(breakdown).toBeVisible();
+    await expect(breakdown).toContainText("Total");
+    await expect(breakdown).toContainText("16");
+    await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-merged.png" });
+  });
+
   test("DESKTOP: keeps the two-table grid and renders no mobile rows", async ({ page }) => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.goto("/spotting/1/details");
@@ -236,6 +281,13 @@ test.describe("spotting details grid", () => {
     for (const testId of MOBILE_TEST_IDS) {
       await expect(page.getByTestId(testId)).toHaveCount(0);
     }
+
+    await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
+    await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await page.evaluate(() => window.scrollBy(0, 400));
+    const titleBox = await page.getByTestId("details-title-bar").boundingBox();
+    expect(Math.abs((titleBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
+    await expect(page.getByTestId("details-back-link")).toBeInViewport();
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-desktop.png", fullPage: true });
   });

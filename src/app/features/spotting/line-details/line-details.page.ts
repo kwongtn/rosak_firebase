@@ -8,7 +8,9 @@ import {
   input,
   signal,
   viewChild,
+  PLATFORM_ID,
 } from "@angular/core";
+import { isPlatformBrowser } from "@angular/common";
 import { Router, RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
@@ -35,6 +37,12 @@ import { StationAssetsSectionComponent } from "./station-assets-section/station-
 import { VehicleStatusTrendComponent } from "./vehicle-status-trend/vehicle-status-trend.component";
 import { SituasiSectionComponent } from "./situasi-section/situasi-section.component";
 import { InsidenSectionComponent } from "./insiden-section/insiden-section.component";
+import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
+import { fleetCountChips } from "../data/fleet-counts.util";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 
 /** How far back to look for the earliest month with any real data — generous rather than exact;
  * a line whose actual history starts later than this just reports every earlier month as having
@@ -109,6 +117,7 @@ const WINDOW_SIZE = 3;
     VehicleStatusTrendComponent,
     SituasiSectionComponent,
     InsidenSectionComponent,
+    InfoPopover,
   ],
   template: `
     <div class="flex flex-col gap-6">
@@ -118,10 +127,12 @@ const WINDOW_SIZE = 3;
                  the sticky background doesn't show the page's own side padding as gaps. -->
       <div
         #titleBar
-        class="bg-background sticky top-[61px] z-40 -mx-4 flex flex-col gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
+        data-testid="details-title-bar"
+        class="bg-background z-40 -mx-4 flex flex-col gap-3 px-4 py-2 sm:-mx-6 sm:px-6 md:sticky md:top-[61px]"
       >
         @if (_line(); as line) {
           <a
+            data-testid="details-back-link"
             [routerLink]="['/spotting', lineId()]"
             class="text-muted-foreground hover:text-foreground w-fit text-sm hover:underline"
           >
@@ -131,10 +142,12 @@ const WINDOW_SIZE = 3;
             <h1 class="text-2xl font-bold">{{ line.displayName }} — Details</h1>
             <line-status-badge [status]="line.status" />
             <!-- Mirrors line-overview's own merge-on-scroll: once the full Key Line
-                             Data chips (below) have scrolled up behind this bar, a compact copy
-                             joins the title instead of losing the summary entirely. -->
+                             Data chips (below) have scrolled up behind this bar on md+ (on mobile the
+                             title bar scrolls away entirely), a compact copy joins the title instead
+                             of losing the summary entirely. -->
             @if (_scrolled() && !vehicleTypesResource.isLoading()) {
               <app-fleet-summary
+                class="max-md:hidden"
                 [vehicleTypes]="_vehicleTypes()"
                 [compact]="true"
                 [activeStatus]="statusFilter()"
@@ -185,10 +198,68 @@ const WINDOW_SIZE = 3;
           <section class="flex flex-col gap-3">
             <div
               #activityControls
+              data-testid="details-activity-bar"
               class="bg-background sticky z-30 -mx-4 flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:-mx-6 sm:px-6"
-              [style.top.px]="NAV_HEIGHT + titleBarHeight()"
+              [style.top.px]="activityBarTop()"
             >
-              <h2 class="text-lg font-semibold">Spotting Activity</h2>
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-lg font-semibold" data-testid="details-activity-title">
+                  @if (_line(); as line) {
+                    <span
+                      data-testid="details-activity-line-code"
+                      class="md:hidden"
+                      [class.hidden]="!activityAnchored()"
+                    >
+                      {{ line.code }} - Spotting Activity
+                    </span>
+                  }
+                  <span
+                    data-testid="details-activity-title-plain"
+                    [class.hidden]="isNarrow() && activityAnchored()"
+                  >
+                    Spotting Activity
+                  </span>
+                </h2>
+                @if (_line(); as line) {
+                  <div
+                    data-testid="details-activity-identity"
+                    class="flex flex-wrap items-center gap-2 md:hidden"
+                    [class.hidden]="!activityAnchored()"
+                  >
+                    <line-status-badge [status]="line.status" />
+                    @if (inServiceChip(); as chip) {
+                      @if (chip.count > 0) {
+                        <app-info-popover
+                          [showIcon]="false"
+                          align="start"
+                          testId="details-in-service-tooltip"
+                          label="In Service"
+                          [content]="inServiceDoc()"
+                          [link]="inServiceLink()"
+                          triggerClasses="rounded-full border px-2 py-0.5 text-xs bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900"
+                        >
+                          {{ chip.count }}/{{ _totalCount() }} In Service
+                          <div popoverExtra>
+                            <ul
+                              class="border-border mt-2.5 flex flex-col gap-1 border-t pt-2.5"
+                              data-testid="details-in-service-breakdown"
+                            >
+                              @for (bc of fleetChips(); track bc.key) {
+                                <li class="flex items-center justify-between gap-3">
+                                  <span>{{ bc.label }}</span>
+                                  <span class="text-muted-foreground tabular-nums">{{
+                                    bc.count
+                                  }}</span>
+                                </li>
+                              }
+                            </ul>
+                          </div>
+                        </app-info-popover>
+                      }
+                    }
+                  </div>
+                }
+              </div>
               <div class="flex items-center gap-1.5">
                 <button
                   hlmBtn
@@ -234,15 +305,12 @@ const WINDOW_SIZE = 3;
               [vehicleTypes]="_vehicleTypes()"
               [months]="windowMonths()"
               [statusFilter]="statusFilter()"
-              [stickyOffset]="NAV_HEIGHT + titleBarHeight() + activityControlsHeight()"
+              [stickyOffset]="gridStickyOffset()"
             />
           </section>
         }
       } @else if (activeTab() === "assets") {
-        <app-station-assets-section
-          [lineId]="lineId()"
-          [stickyOffset]="NAV_HEIGHT + titleBarHeight()"
-        />
+        <app-station-assets-section [lineId]="lineId()" [stickyOffset]="assetsStickyOffset()" />
       } @else if (activeTab() === "situasi") {
         <app-situasi-section [lineId]="lineId()" />
       } @else if (activeTab() === "insiden") {
@@ -303,6 +371,42 @@ export class LineDetailsPage {
   private readonly activityControls = viewChild("activityControls", { read: ElementRef });
   protected readonly activityControlsHeight = signal(0);
 
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** True below 768px. Initialised synchronously from the real viewport so the very first render
+   * already picks the right branch — browser-guarded and SSR-safe with default false. */
+  protected readonly isNarrow = signal(
+    this.isBrowser && typeof window.matchMedia === "function"
+      ? !window.matchMedia("(min-width: 768px)").matches
+      : false,
+  );
+
+  /** Whether the activity bar is pinned at NAV_HEIGHT (only when pinned, we show enriched content). */
+  protected readonly activityAnchored = signal(false);
+
+  protected readonly activityBarTop = computed(
+    () => this.NAV_HEIGHT + (this.isNarrow() ? 0 : this.titleBarHeight()),
+  );
+
+  protected readonly gridStickyOffset = computed(
+    () => this.activityBarTop() + this.activityControlsHeight(),
+  );
+
+  protected readonly assetsStickyOffset = computed(() => this.activityBarTop());
+
+  protected readonly fleetChips = computed(() => fleetCountChips(this._vehicleTypes()));
+  protected readonly inServiceChip = computed(() =>
+    this.fleetChips().find((c) => c.key === "IN_SERVICE"),
+  );
+  protected readonly _totalCount = computed(() => this.fleetChips()[0]?.count ?? 0);
+  protected readonly inServiceDoc = computed(() =>
+    renderMethodologyCopy(metricDoc("fleet.in-service-share").definition),
+  );
+  protected readonly inServiceLink = computed<InfoPopoverLink>(() => ({
+    text: "How this is counted",
+    routerLink: "/methodology",
+    fragment: "line-status",
+  }));
   /** True once the full Key Line Data chips (below the title bar) have scrolled up behind it —
    * same IntersectionObserver-against-a-measured-rootMargin approach as line-overview.page.ts's
    * own `_scrolled`, see its doc comment for the full reasoning. */
@@ -364,6 +468,30 @@ export class LineDetailsPage {
 
     observeHeight(this.titleBar, (h) => this.titleBarHeight.set(h));
     observeHeight(this.activityControls, (h) => this.activityControlsHeight.set(h));
+
+    // Keep isNarrow live across viewport resizes/rotations
+    if (this.isBrowser && typeof window.matchMedia === "function") {
+      const mediaQuery = window.matchMedia("(min-width: 768px)");
+      const onChange = (event: MediaQueryListEvent) => this.isNarrow.set(!event.matches);
+      mediaQuery.addEventListener("change", onChange);
+      destroyRef.onDestroy(() => mediaQuery.removeEventListener("change", onChange));
+    }
+
+    // Track activity bar pinned state via passive window scroll listener
+    effect((onCleanup) => {
+      const bar = this.activityControls()?.nativeElement;
+      if (!bar || !this.isBrowser) {
+        this.activityAnchored.set(false);
+        return;
+      }
+      // Folding in the bar's pin offset keeps this effect live across rotations/breakpoint flips,
+      // where a stale pinned flag would otherwise survive until the next scroll.
+      const pinTop = this.activityBarTop();
+      const update = () => this.activityAnchored.set(bar.getBoundingClientRect().top <= pinTop + 1);
+      update();
+      window.addEventListener("scroll", update, { passive: true });
+      onCleanup(() => window.removeEventListener("scroll", update));
+    });
 
     effect(() => {
       const anchorRef = this.fleetSummaryAnchor();
