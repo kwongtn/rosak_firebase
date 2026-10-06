@@ -263,6 +263,7 @@ alone.
 - `docs(spotting)`: the mobile title/chip handoff, chevron cascade-tie fix, progress + summaries
 - `feat(spotting)`: anchor the mobile title bar on scroll and hand off to the merged activity bar when the chips scroll away; `<` back chevron; right-aligned month slider
 - `docs(spotting)`: the mobile title/chip handoff, chevron cascade fix + progress
+- `fix(spotting)`: month label rides its month's leading edge in/out at the grid's right edge, mirroring the left (was pinned + clipped); geometry specs
 
 ---
 

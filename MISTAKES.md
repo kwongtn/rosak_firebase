@@ -13,6 +13,30 @@
 
 ---
 
+## [2026-10-06] spotting: the month label's right-edge clamp had no month floor — it pinned and got "covered" instead of being pushed away
+
+**Problem**: In the line-details vehicle-spotting grid header, the month label behaved asymmetrically
+while scrolling horizontally. At the left boundary it pinned to the viewport edge, then was pushed away
+by the month's trailing edge (correct). At the right boundary — entering from the right while scrolling
+forward, or exiting through it while scrolling back — it pinned to the viewport edge and was
+progressively clipped by its own `<th>` (read as "covered"), and entering from the right only got
+revealed instead of sliding in.
+**Root Cause**: `VehicleSpottingGridComponent.monthLabelShift` hand-rolls `position: sticky; left;
+right` (the header table is translated, not scrolled). Its lower clamp was month-bounded
+(`Math.max(monthStartPx, viewLeft)`) but its upper clamp was not
+(`Math.min(monthEndPx, viewRight) - labelSpace`). Within one label-width of the month's leading edge,
+the final `Math.min` won over the lower clamp, positioning the label LEFT of its own month box — where
+`<th class="overflow-hidden">` ate it mid-slide.
+**Fix**: floor the upper clamp at `monthStartPx` (`Math.max(min(monthEndPx, viewRight) - labelSpace,
+monthStartPx)`), so both clamps are month-bounded and the viewport only moves the label within its own
+month; the label now rides the leading edge in and out, mirroring the trailing edge on the left.
+Geometry specs pin both directions, the two viewport pins, centered rest, and a full-range sweep.
+**Prevention**: when one clamp is bounded by a containing box, bound the opposite clamp by the same
+box's other edge — an over-constrained `min(max(...))` silently prefers the LAST clamp applied (the
+`min`), so a missing floor shows up as "pinned then clipped", not as an error. If the element is
+clipped by anything (`overflow-hidden`), assert the box invariant across the whole input range in
+tests rather than eyeballing two example scroll positions.
+
 ## [2026-10-06] ui/info-popover: a consumer-side `hidden sm:inline` on an `<app-info-popover>` cannot hide it — the host's OWN display utility wins the tie
 
 **Problem**: the compact row's new `N reports (X this hour)` label had to disappear below `sm`, so it
