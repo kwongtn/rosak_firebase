@@ -1626,15 +1626,15 @@
     "semantic_hash": ""
   },
   "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.component.spec.ts": {
-    "mtime": 1790309823.4132738,
-    "seen": 1791128789.9734285,
-    "ast_hash": "d2b5ba20fab87b3471cf295880edc75b",
+    "mtime": 1791300773.2858512,
+    "seen": 1791301008.463391,
+    "ast_hash": "b7e3956e0b0bccd7fc2cf0a260c986f4",
     "semantic_hash": ""
   },
   "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.component.ts": {
-    "mtime": 1790611143.2706614,
-    "seen": 1791128789.9734292,
-    "ast_hash": "f6345c71726bfe5574fcb917974f2068",
+    "mtime": 1791300759.3942444,
+    "seen": 1791301008.463393,
+    "ast_hash": "2e9f48526bd154544cdb6b0bb8f89432",
     "semantic_hash": ""
   },
   "src/app/features/spotting/line-details/vehicle-status-trend/vehicle-status-trend.component.ts": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "MISTAKES.md": {
-    "mtime": 1791271574.3995152,
-    "seen": 1791274272.9297311,
-    "ast_hash": "09f0e315e0c18125dd32233462f1cccd",
+    "mtime": 1791300955.7689483,
+    "seen": 1791301008.4635656,
+    "ast_hash": "60fdc2954733081fc5f3b4bf97b9e0c9",
     "semantic_hash": ""
   },
   "README.md": {
@@ -2358,9 +2358,9 @@
     "semantic_hash": ""
   },
   "docs/components/spotting.md": {
-    "mtime": 1791268380.0236678,
-    "seen": 1791274272.929777,
-    "ast_hash": "40327d0038861dff371ba78841daa293",
+    "mtime": 1791300978.3546593,
+    "seen": 1791301008.4635882,
+    "ast_hash": "255cfc286e31b292a9c6f39031d0adb7",
     "semantic_hash": ""
   },
   "docs/components/tracker.md": {
@@ -2562,9 +2562,9 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/SUMMARY.md": {
-    "mtime": 1791274145.441029,
-    "seen": 1791274272.9299917,
-    "ast_hash": "da42936ba6a17704538a532f3873dd24",
+    "mtime": 1791300961.6613822,
+    "seen": 1791301008.463646,
+    "ast_hash": "ebe5b16ef1dd6df55a26036942933cd5",
     "semantic_hash": ""
   },
   "docs/progress/2026/SUMMARY.md": {
@@ -2976,9 +2976,9 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/06.md": {
-    "mtime": 1791274144.8023412,
-    "seen": 1791274272.9299884,
-    "ast_hash": "bb2606ed29c26e5065ca8a54cc15b768",
+    "mtime": 1791300950.622176,
+    "seen": 1791301008.4636447,
+    "ast_hash": "efa4812cac233dfce2398d6393faebee",
     "semantic_hash": ""
   },
   "src/app/features/spotting/data/fleet-counts.util.spec.ts": {
