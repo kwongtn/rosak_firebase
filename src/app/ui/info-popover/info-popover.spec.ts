@@ -72,6 +72,25 @@ class InfoPopoverHost {
 })
 class InfoPopoverPairHost {}
 
+/** A trigger-template consumer: the popover stamps the CONSUMER'S button as its trigger. */
+@Component({
+  imports: [InfoPopover],
+  template: `
+    <app-info-popover
+      label="Pin this line"
+      content="Pin this line to keep it in My lines at the top of the board."
+      [showIcon]="false"
+      [showMethodologyLink]="false"
+      [triggerTpl]="pinTpl"
+      testId="bare-popover-panel"
+    ></app-info-popover>
+    <ng-template #pinTpl>
+      <button type="button" data-testid="bare-trigger">Pin</button>
+    </ng-template>
+  `,
+})
+class InfoPopoverBareHost {}
+
 /** The shared grace window between a host `mouseleave` and the panel closing. */
 const HOVER_CLOSE_DELAY_MS = 300;
 
@@ -550,6 +569,98 @@ describe("InfoPopover", () => {
 
     openByTap();
     expect(panel()?.querySelector('[data-testid="popover-extra"]')).not.toBeNull();
+  });
+});
+
+describe("InfoPopover (bare trigger)", () => {
+  let fixture: ComponentFixture<InfoPopoverBareHost>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [InfoPopoverBareHost],
+      providers: [provideZonelessChangeDetection(), provideRouter([])],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  async function render(): Promise<ComponentFixture<InfoPopoverBareHost>> {
+    fixture = TestBed.createComponent(InfoPopoverBareHost);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function host(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function control(): HTMLButtonElement {
+    const el = host().querySelector<HTMLButtonElement>('[data-testid="bare-trigger"]');
+    if (!el) throw new Error("bare trigger not rendered");
+    return el;
+  }
+
+  function panel(): HTMLElement | null {
+    return host().querySelector<HTMLElement>('[data-testid="bare-popover-panel"]');
+  }
+
+  function popoverHost(): HTMLElement {
+    return host().querySelector<HTMLElement>("app-info-popover") ?? host();
+  }
+
+  it("renders the projected control as the trigger, with no wrapping button", async () => {
+    stubMatchMedia(false);
+    await render();
+
+    // The whole point: the projected button is not nested inside another button, and it is the
+    // only button the popover owns.
+    expect(control().closest("button")).toBe(control());
+    expect(popoverHost().querySelectorAll("button").length).toBe(1);
+    // No "i" glyph in bare mode — the glyphs live in the button branch.
+    expect(control().querySelector('span[aria-hidden="true"]')).toBeNull();
+    expect(panel()).toBeNull();
+  });
+
+  it("opens the panel on tap of the projected control, as a tooltip", async () => {
+    stubMatchMedia(false);
+    await render();
+
+    control().click();
+    fixture.detectChanges();
+
+    expect(panel()).not.toBeNull();
+    expect(panel()?.getAttribute("role")).toBe("tooltip");
+    expect(panel()?.textContent).toContain("Pin this line");
+    expect(panel()?.textContent).toContain(
+      "Pin this line to keep it in My lines at the top of the board.",
+    );
+
+    control().click();
+    fixture.detectChanges();
+    expect(panel()).toBeNull();
+  });
+
+  it("closes on Escape without stealing focus, having no trigger button of its own", async () => {
+    stubMatchMedia(true);
+    await render();
+    vi.useFakeTimers();
+
+    popoverHost().dispatchEvent(new MouseEvent("mouseenter"));
+    fixture.detectChanges();
+    expect(panel()).not.toBeNull();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(panel()).toBeNull();
+    // No `#trigger` in bare mode, so focus restoration is skipped: the consumer's control is left
+    // where it was rather than being moved to a component-owned button that does not exist.
+    expect(document.activeElement).not.toBe(control());
   });
 });
 

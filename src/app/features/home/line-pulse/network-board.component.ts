@@ -150,10 +150,12 @@ const SORT_PARAM = "sort";
           <app-network-heat-strip />
         }
 
-        <!-- The attention group renders only when it has lines, and needs no top divider: it already
-             sits directly under the controls row's bottom border. A reader with nothing broken must
-             not scroll past a "Needs attention · 0" heading to find out there is nothing. The three
-             lower groups each carry their own divider and are hidden when empty, too. -->
+        <!-- The attention group renders only when it has lines, and is the FIRST section under the
+             controls row: it needs no top divider because it already sits directly on the controls
+             row's bottom border. A reader with nothing broken must not scroll past a
+             "Needs attention · 0" heading to find out there is nothing. Every lower group is hidden
+             when empty too, and draws its divider only when a section actually precedes it — so the
+             first visible group never doubles the controls row's own border. -->
         @if (_attention().length > 0) {
           <section class="flex flex-col gap-2" data-testid="line-board-attention">
             <!-- The pulsing dot is the ONE piece of motion on the board, and it is motion-safe only:
@@ -192,22 +194,23 @@ const SORT_PARAM = "sort";
           </section>
         }
 
-        <!-- "My lines" always draws, because an empty pin list is an INVITATION to pin rather than a
-             gap in the page. The hint is the whole content of that state. -->
-        <!-- A divider plus its own top padding, so the lower groups do not read as a
-             continuation of the cards ABOVE them. The attention group needs none: it already sits
-             under the controls row's bottom border. -->
-        <section
-          class="border-border flex flex-col gap-2 border-t pt-4"
-          data-testid="line-board-mine"
-        >
-          <h2
-            class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
-            data-testid="line-board-mine-heading"
+        <!-- "My lines" renders only when the reader has pinned lines in this read. An empty pin list
+             is a gap, not an invitation: an empty group's heading is noise on a board whose whole job
+             is showing lines. Its divider appears only when the attention group precedes it, so as
+             the first visible section it does not double the controls row's bottom border. -->
+        @if (_mine().length > 0) {
+          <section
+            class="border-border flex flex-col gap-2"
+            [class.border-t]="_attentionRendered()"
+            [class.pt-4]="_attentionRendered()"
+            data-testid="line-board-mine"
           >
-            My lines
-          </h2>
-          @if (_mine().length > 0) {
+            <h2
+              class="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+              data-testid="line-board-mine-heading"
+            >
+              My lines
+            </h2>
             <div class="flex flex-col gap-2">
               @for (line of _mine(); track line.id) {
                 <div
@@ -228,16 +231,14 @@ const SORT_PARAM = "sort";
                 </div>
               }
             </div>
-          } @else {
-            <p class="text-muted-foreground text-sm" data-testid="line-board-mine-empty">
-              Pin a line to keep it here.
-            </p>
-          }
-        </section>
+          </section>
+        }
 
         @if (_all().length > 0) {
           <section
-            class="border-border flex flex-col gap-2 border-t pt-4"
+            class="border-border flex flex-col gap-2"
+            [class.border-t]="_attentionRendered() || _mineRendered()"
+            [class.pt-4]="_attentionRendered() || _mineRendered()"
             data-testid="line-board-all"
           >
             <h2
@@ -277,7 +278,9 @@ const SORT_PARAM = "sort";
              for this bucket, "pin wins". -->
         @if (_others().length > 0) {
           <section
-            class="border-border flex flex-col gap-2 border-t pt-4"
+            class="border-border flex flex-col gap-2"
+            [class.border-t]="_attentionRendered() || _mineRendered() || _allRendered()"
+            [class.pt-4]="_attentionRendered() || _mineRendered() || _allRendered()"
             data-testid="line-board-others"
           >
             <h2
@@ -363,6 +366,18 @@ export class NetworkBoardComponent {
   protected readonly _all = this.store.allLines;
   protected readonly _others = this.store.othersLines;
   protected readonly _refreshTick = this.store.linesRefreshTick;
+
+  /**
+   * Which groups actually render — the SAME predicates their `@if`s use, exposed as signals so the
+   * divider bindings can ask "is a section above me on the page?".
+   *
+   * The divider is per-section rather than a container `divide-y` because the sections appear and
+   * disappear independently: each group carries its own, gated on the groups that precede it, so the
+   * first visible group leaves the controls row's bottom border as the only line.
+   */
+  protected readonly _attentionRendered = computed(() => this._attention().length > 0);
+  protected readonly _mineRendered = computed(() => this._mine().length > 0);
+  protected readonly _allRendered = computed(() => this._all().length > 0);
 
   /**
    * Skeletons only while the FIRST read is in flight and there is nothing to show — the same shape

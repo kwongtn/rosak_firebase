@@ -29,7 +29,12 @@ import { HomeStore } from "../data/home.store";
 import { LinePulse } from "../data/home.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
-import { StatusInfo, lineStatusInfo } from "../data/status-info.util";
+import {
+  StatusInfo,
+  lineStatusInfo,
+  vehicleBreakdownRows,
+  vehicleCountInfo,
+} from "../data/status-info.util";
 import type { StatusConfidence } from "../data/status-confidence.util";
 import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
 import { currentServiceBucketIndex, historyTotal } from "../data/status-history-display.util";
@@ -48,8 +53,10 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * — nothing is lost, it just stops being on screen until the reader asks.
  *
  * What the row carries, in reading order: the line's colour rail (identification at a glance), its
- * code and name, the plain-language operational status and the confidence chip that says how much
- * to trust it, the rider-reported crowd, then a SECOND strip carrying the fleet count and the report
+ * code and name, the plain-language operational status, plus — for an ACTIVE line only — the
+ * confidence chip that says how much to trust it and the rider-reported crowd. A non-Active status
+ * badge already carries that line's story, so the confidence and passenger chips are omitted there.
+ * Then a SECOND strip carrying the fleet count and the report
  * tally together (see the template's note on why they are grouped, and why that is what fixes a 390px
  * phone), and the actions — pin, Details, Report, expand. Same set and order as the full card, so
  * every group on the board reads as one control per line; only the weight differs (the card's
@@ -149,27 +156,37 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
         </button>
 
         <div class="flex shrink-0 items-center gap-1.5">
-          <button
-            hlmBtn
-            size="icon-sm"
-            variant="ghost"
-            data-testid="line-row-pin"
-            [attr.aria-pressed]="_isPinned()"
-            [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
-            (click)="togglePin()"
-          >
-            <!-- 🔴 The icon FILLS when the row is pinned. aria-pressed alone leaves the glyph saying
-             "pin available" about a pin that is already on, and a 16px outline pin is the one
-             affordance on this row a reader cannot afford to misread. The arbitrary variant reaches
-             the CHILD svg because lucidePin is an outline drawing of its own, and it is a literal
-             string rather than a constant because Tailwind compiles what it finds in the source. -->
-            <ng-icon
-              name="lucidePin"
-              class="size-4"
-              [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
-              aria-hidden="true"
-            />
-          </button>
+          <app-info-popover
+            [label]="_pinHintTitle()"
+            [content]="_pinHint()"
+            [showIcon]="false"
+            [showMethodologyLink]="false"
+            [triggerTpl]="rowPinTpl"
+            testId="line-row-pin-popover"
+          ></app-info-popover>
+          <ng-template #rowPinTpl>
+            <button
+              hlmBtn
+              size="icon-sm"
+              variant="ghost"
+              data-testid="line-row-pin"
+              [attr.aria-pressed]="_isPinned()"
+              [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
+              (click)="togglePin()"
+            >
+              <!-- 🔴 The icon FILLS when the row is pinned. aria-pressed alone leaves the glyph saying
+               "pin available" about a pin that is already on, and a 16px outline pin is the one
+               affordance on this row a reader cannot afford to misread. The arbitrary variant reaches
+               the CHILD svg because lucidePin is an outline drawing of its own, and it is a literal
+               string rather than a constant because Tailwind compiles what it finds in the source. -->
+              <ng-icon
+                name="lucidePin"
+                class="size-4"
+                [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
+                aria-hidden="true"
+              />
+            </button>
+          </ng-template>
           <a
             hlmBtn
             size="sm"
@@ -197,21 +214,25 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
             <line-status-badge [status]="line().status" data-testid="line-row-status" />
           </app-status-info-chip>
         }
-        <!-- The confidence chip sits NEXT TO the status it qualifies, on purpose: "Partial
-             Disruption · Unconfirmed (1 report)" has to read as one sentence, and a confidence
-             number parked elsewhere on the row is a number nobody connects to the status. -->
-        <app-status-info-chip [info]="_confidenceInfo()">
-          <span hlmBadge data-testid="line-row-confidence" [variant]="_confidence().variant">
-            {{ _confidence().label }}
+        <!-- 🔴 Both the confidence AND the passenger chip render ONLY for an Active line. A
+             non-Active status badge already tells the story — "Partial Disruption" is the whole
+             message — and "Unconfirmed (0 reports)" / "No data" beside it is noise, not a
+             qualification. The confidence chip qualifies the operational state exactly where the
+             status is the unremarkable default. -->
+        @if (line().status === "ACTIVE") {
+          <app-status-info-chip [info]="_confidenceInfo()">
+            <span hlmBadge data-testid="line-row-confidence" [variant]="_confidence().variant">
+              {{ _confidence().label }}
+            </span>
+          </app-status-info-chip>
+          <span
+            hlmBadge
+            data-testid="line-row-passenger"
+            [variant]="passengerVariant(line().passengerStatus)"
+          >
+            {{ passengerLabel(line().passengerStatus) }}
           </span>
-        </app-status-info-chip>
-        <span
-          hlmBadge
-          data-testid="line-row-passenger"
-          [variant]="passengerVariant(line().passengerStatus)"
-        >
-          {{ passengerLabel(line().passengerStatus) }}
-        </span>
+        }
       </div>
 
       <!-- 🔴 The fleet count and the report count are ONE fragment, and they sit on their OWN strip.
@@ -221,13 +242,21 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
 
            Grouped so the two always wrap together as a unit (they describe the same fleet, and a report count
            orphaned from "12/16 in service" says nothing on its own), and the report count is hidden below sm
-           because nothing is lost by it there: the confidence chip beside it already reads "Unconfirmed (2
-           reports)" / "No recent reports", and the Pro block below carries "2 reports · 15 min window". Both
+           because nothing is lost by it there ON AN ACTIVE LINE (where the confidence chip beside it reads
+           "Unconfirmed (2 reports)" / "No recent reports"): a non-Active line draws no confidence chip, but
+           it still shows its status badge and the Pro block below carries "2 reports · 15 min window". Both
            testids are unchanged, and both come back from sm up. -->
       <div class="mt-1 flex flex-wrap items-center gap-1.5" data-testid="line-row-meta">
-        <span hlmBadge variant="secondary" data-testid="line-row-vehicles">
-          {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
-        </span>
+        <app-status-info-chip [info]="_vehicleCountInfo()" [breakdown]="_vehicleBreakdown()">
+          <span
+            hlmBadge
+            variant="secondary"
+            data-testid="line-row-vehicles"
+            [attr.aria-label]="_vehicleCountLabel()"
+          >
+            {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
+          </span>
+        </app-status-info-chip>
         <!-- 🔴 The enriched label is a METRIC, so it explains itself — but only the enriched one. The
              fallback is the plain rolling count, which has no service-day claim to defend, so wrapping
              it in a popover would attach a definition to a number it does not describe.
@@ -388,6 +417,31 @@ export class LinePulseRowComponent {
   /** The operational status pill's own popover — the same lookup table the card and the hero's
    * callout read, so a status name is never spelled two ways on one screen. */
   protected readonly _statusInfo = computed<StatusInfo>(() => lineStatusInfo(this.line().status));
+
+  /** 🔴 The fleet badge's popover: the SAME registry definition and breakdown the card's chip uses,
+   * so "N/M in service" is explained one way on every board surface. */
+  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => vehicleCountInfo());
+
+  protected readonly _vehicleBreakdown = computed(() =>
+    vehicleBreakdownRows(this.line().vehicleStatusCounts),
+  );
+
+  protected readonly _vehicleCountLabel = computed(
+    () =>
+      `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service`,
+  );
+
+  /** The pin button's tooltip heading; the copy is a plain instruction, so it travels with state. */
+  protected readonly _pinHintTitle = computed(() =>
+    this._isPinned() ? "Click to unpin" : "Click to pin",
+  );
+
+  /** The pin button's tooltip body — says what pinning does, and how to undo it. */
+  protected readonly _pinHint = computed(() =>
+    this._isPinned()
+      ? "Unpin this line to return it to its regular group on the board."
+      : "Pin this line to keep it in My lines at the top of the board.",
+  );
 
   protected toggleExpanded(): void {
     const opening = !this._expanded();

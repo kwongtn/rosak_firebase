@@ -1,10 +1,11 @@
-import { isPlatformBrowser } from "@angular/common";
+import { NgTemplateOutlet, isPlatformBrowser } from "@angular/common";
 import {
   Component,
   DestroyRef,
   ElementRef,
   Injectable,
   PLATFORM_ID,
+  TemplateRef,
   afterNextRender,
   computed,
   inject,
@@ -101,7 +102,7 @@ export class InfoPopoverRegistry {
  */
 @Component({
   selector: "app-info-popover",
-  imports: [RouterLink],
+  imports: [NgTemplateOutlet, RouterLink],
   host: {
     class: "relative inline-flex",
     // The panel's `popoverExtra` projection slot is rendered inside `@if (_open())`, so on the
@@ -118,26 +119,39 @@ export class InfoPopoverRegistry {
     "(document:keydown.escape)": "onEscape()",
   },
   template: `
-    <button
-      #trigger
-      type="button"
-      class="focus-visible:ring-ring/50 inline-flex cursor-help items-center gap-1 rounded-full outline-none focus-visible:ring-3"
-      [class]="triggerClasses()"
-      [attr.aria-label]="'What is ' + label() + '?'"
-      [attr.aria-expanded]="_open()"
-      [attr.aria-controls]="_panelId() || null"
-      (focus)="onFocus()"
-      (blur)="onBlur($event)"
-      (click)="onClick()"
-    >
-      @if (showIcon() && iconPosition() === "start") {
-        <span [class]="glyphClasses" aria-hidden="true">i</span>
-      }
-      <ng-content />
-      @if (showIcon() && iconPosition() === "end") {
-        <span [class]="glyphClasses" aria-hidden="true">i</span>
-      }
-    </button>
+    @if (triggerTpl(); as tpl) {
+      <!-- focusin/focusout BUBBLE (unlike focus/blur), so the wrapper can delegate focus from the
+           consumer's control inside it. The control IS the trigger and owns its semantics. -->
+      <span
+        class="inline-flex"
+        (focusin)="onFocus()"
+        (focusout)="onBlur($event)"
+        (click)="onClick()"
+      >
+        <ng-container [ngTemplateOutlet]="tpl" />
+      </span>
+    } @else {
+      <button
+        #trigger
+        type="button"
+        class="focus-visible:ring-ring/50 inline-flex cursor-help items-center gap-1 rounded-full outline-none focus-visible:ring-3"
+        [class]="triggerClasses()"
+        [attr.aria-label]="'What is ' + label() + '?'"
+        [attr.aria-expanded]="_open()"
+        [attr.aria-controls]="_panelId() || null"
+        (focus)="onFocus()"
+        (blur)="onBlur($event)"
+        (click)="onClick()"
+      >
+        @if (showIcon() && iconPosition() === "start") {
+          <span [class]="glyphClasses" aria-hidden="true">i</span>
+        }
+        <ng-content />
+        @if (showIcon() && iconPosition() === "end") {
+          <span [class]="glyphClasses" aria-hidden="true">i</span>
+        }
+      </button>
+    }
     @if (_open()) {
       <div
         [id]="_panelId()"
@@ -179,6 +193,14 @@ export class InfoPopover {
   readonly align = input<"start" | "end" | "center">("start");
   /** `data-testid` of the panel — consumers needing back-compat pass their own id. */
   readonly testId = input("info-popover-panel");
+  /**
+   * Pass a template containing the trigger control (e.g. an icon button) to use the CONSUMER'S
+   * control as the trigger: in this mode the component renders no button of its own, so an
+   * interactive control is never nested inside another button (invalid HTML), and it draws no "i"
+   * glyph (`triggerClasses` does not apply). The panel, hover/tap behaviour, exclusivity registry,
+   * Escape and outside-click are all unchanged.
+   */
+  readonly triggerTpl = input<TemplateRef<unknown> | null>(null);
   /** Whether an "i" glyph is rendered at all; false when the projected content is the trigger. */
   readonly showIcon = input(true);
   /** Whether the panel renders the "How this is counted" link; without it the panel is a tooltip. */
@@ -325,6 +347,8 @@ export class InfoPopover {
     }
     this._setOpen(false);
     this._restoringFocus = true;
+    // In triggerTpl mode there is no `#trigger`, so this no-ops: the consumer's control keeps focus,
+    // and the panel is tooltip-mode (nothing focusable inside) so there is nothing to restore.
     this._trigger()?.nativeElement.focus();
     this._restoringFocus = false;
   }

@@ -10,6 +10,7 @@ import { PreferencesService } from "../../../core/preferences/preferences.servic
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
+import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { faviconHostnameOf } from "../../insiden/data/social-link.util";
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
 import { LinePulse } from "../data/home.queries";
@@ -22,11 +23,12 @@ import {
   lineStatusInfo,
   passengerInfo,
   passengerScale,
-  vehicleStatusRows,
+  vehicleBreakdownRows,
+  vehicleCountInfo,
 } from "../data/status-info.util";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
-import { StatusInfoChipComponent, StatusBreakdownRow } from "./status-info-chip.component";
+import { StatusInfoChipComponent } from "./status-info-chip.component";
 
 /** Related links are a supporting signal on the card — never a feed of their own. */
 const MAX_PULSE_LINKS = 5;
@@ -47,11 +49,13 @@ const MAX_PULSE_LINKS = 5;
  *
  * The status chips carry a hover/tap info popover (StatusInfoChipComponent): the vehicle-count
  * pill opens the per-status breakdown, the passenger chip carries the rolling window it covers
- * and the severity legend with the per-status report counts folded in. The **confidence** chip sits
- * between the status pill and the passenger chip and answers a question the other three never did —
- * how much to trust any of this: an operator-sourced post, several corroborating riders, one
- * person's guess, or nothing at all (the pure rule is `statusConfidence`). The line-status pill is
- * rendered only for non-active lines — "Active" is the unremarkable default. The title row is
+ * and the severity legend with the per-status report counts folded in. The **confidence** and
+ * passenger chips render ONLY for an Active line: a non-Active status badge (rendered only for
+ * those lines — "Active" is the unremarkable default) already carries the line's story, so
+ * "Unconfirmed (0 reports)" / "No data" beside it is noise. Where the status is unremarkable the
+ * confidence chip answers a question the other chips never did — how much to trust any of this: an
+ * operator-sourced post, several corroborating riders, one person's guess, or nothing at all (the
+ * pure rule is `statusConfidence`). The title row is
  * the expand/collapse toggle for the lazy detail panel — the hourly report chart
  * and the recent reports list, both of which only read once expanded. Mobile-first: the card is a
  * single column with full-width, content-sized actions; from `sm:` the actions move to the right
@@ -62,6 +66,7 @@ const MAX_PULSE_LINKS = 5;
   imports: [
     HlmBadge,
     HlmButton,
+    InfoPopover,
     NgIcon,
     RouterLink,
     LineStatusBadge,
@@ -129,35 +134,37 @@ const MAX_PULSE_LINKS = 5;
                     <line-status-badge [status]="line().status" />
                   </app-status-info-chip>
                 }
-                <!-- The confidence chip qualifies the status above it, so it sits immediately after
-                     it: "Partial Disruption · Unconfirmed (1 report)" has to read as one sentence,
-                     and a confidence number parked on the far side of the row is a number the reader
-                     never connects to the status. Always rendered — including the "No recent
-                     reports" state — because "we know nothing" is itself something a reader acting
-                     on this card needs to be told. -->
-                <app-status-info-chip [info]="_confidenceInfo()">
-                  <span
-                    hlmBadge
-                    data-testid="line-card-confidence"
-                    [variant]="_confidence().variant"
+                <!-- The confidence chip qualifies the status above it. It renders ONLY for an Active
+                     line, because a non-Active status badge already tells the story on its own — and
+                     "Unconfirmed (0 reports)" stacked beside "Partial Disruption" is noise, not a
+                     qualification. The confidence question is asked exactly where the operational
+                     status is the unremarkable default, so the chip does not restate what a badge
+                     would already have said. -->
+                @if (line().status === "ACTIVE") {
+                  <app-status-info-chip [info]="_confidenceInfo()">
+                    <span
+                      hlmBadge
+                      data-testid="line-card-confidence"
+                      [variant]="_confidence().variant"
+                    >
+                      {{ _confidence().label }}
+                    </span>
+                  </app-status-info-chip>
+                  <app-status-info-chip
+                    [info]="passengerInfo(line().passengerStatus)"
+                    [scale]="passengerScale(line().passengerStatus, line().passengerStatusCounts)"
+                    [windowMinutes]="_passengerWindowMinutes()"
+                    linkFragment="sightings"
                   >
-                    {{ _confidence().label }}
-                  </span>
-                </app-status-info-chip>
-                <app-status-info-chip
-                  [info]="passengerInfo(line().passengerStatus)"
-                  [scale]="passengerScale(line().passengerStatus, line().passengerStatusCounts)"
-                  [windowMinutes]="_passengerWindowMinutes()"
-                  linkFragment="sightings"
-                >
-                  <span
-                    hlmBadge
-                    data-testid="passenger-status"
-                    [variant]="passengerVariant(line().passengerStatus)"
-                  >
-                    {{ passengerLabel(line().passengerStatus) }}
-                  </span>
-                </app-status-info-chip>
+                    <span
+                      hlmBadge
+                      data-testid="passenger-status"
+                      [variant]="passengerVariant(line().passengerStatus)"
+                    >
+                      {{ passengerLabel(line().passengerStatus) }}
+                    </span>
+                  </app-status-info-chip>
+                }
                 <app-status-info-chip
                   [info]="_vehicleCountInfo()"
                   [breakdown]="_vehicleBreakdown()"
@@ -211,24 +218,14 @@ const MAX_PULSE_LINKS = 5;
              outline. Pin sits first as an icon-only control so the two labelled actions share one
              baseline. -->
         <div class="flex flex-col items-start gap-2 sm:flex-row sm:shrink-0">
-          <button
-            hlmBtn
-            size="icon-sm"
-            variant="ghost"
-            data-testid="line-card-pin"
-            [attr.aria-pressed]="_isPinned()"
-            [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
-            (click)="togglePin()"
-          >
-            <!-- The glyph FILLS when pinned, same as the row: aria-pressed alone leaves the icon
-                 saying "pin available" about a pin that is already on. -->
-            <ng-icon
-              name="lucidePin"
-              class="size-4"
-              [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
-              aria-hidden="true"
-            />
-          </button>
+          <app-info-popover
+            [label]="_pinHintTitle()"
+            [content]="_pinHint()"
+            [showIcon]="false"
+            [showMethodologyLink]="false"
+            [triggerTpl]="cardPinTpl"
+            testId="line-card-pin-popover"
+          ></app-info-popover>
           <a
             hlmBtn
             size="sm"
@@ -270,6 +267,30 @@ const MAX_PULSE_LINKS = 5;
         </div>
       }
     </section>
+
+    <!-- The pin button lives in a template so the shared tooltip can stamp the CONSUMER'S control as
+         its trigger: it stays a real, top-level button instead of being nested inside the popover's
+         own button. -->
+    <ng-template #cardPinTpl>
+      <button
+        hlmBtn
+        size="icon-sm"
+        variant="ghost"
+        data-testid="line-card-pin"
+        [attr.aria-pressed]="_isPinned()"
+        [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
+        (click)="togglePin()"
+      >
+        <!-- The glyph FILLS when pinned, same as the row: aria-pressed alone leaves the icon
+             saying "pin available" about a pin that is already on. -->
+        <ng-icon
+          name="lucidePin"
+          class="size-4"
+          [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
+          aria-hidden="true"
+        />
+      </button>
+    </ng-template>
   `,
 })
 export class LinePulseCardComponent {
@@ -305,27 +326,28 @@ export class LinePulseCardComponent {
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
 
-  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => {
-    const doc = metricDoc("line-pulse.vehicle-count");
-    return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
-  });
+  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => vehicleCountInfo());
 
   protected readonly _vehicleCountLabel = computed(
     () =>
       `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service`,
   );
 
-  protected readonly _vehicleBreakdown = computed<StatusBreakdownRow[]>(() => {
-    const rows = vehicleStatusRows(this.line().vehicleStatusCounts);
-    if (rows.length === 0) {
-      return [];
-    }
-    const total = rows.reduce((sum, row) => sum + row.count, 0);
-    return [
-      ...rows.map((row) => ({ key: row.key, label: row.label, value: `${row.count}` })),
-      { key: "TOTAL", label: "Total", value: `${total}` },
-    ];
-  });
+  protected readonly _vehicleBreakdown = computed(() =>
+    vehicleBreakdownRows(this.line().vehicleStatusCounts),
+  );
+
+  /** The pin button's tooltip heading; the copy is a plain instruction, so it travels with state. */
+  protected readonly _pinHintTitle = computed(() =>
+    this._isPinned() ? "Click to unpin" : "Click to pin",
+  );
+
+  /** The pin button's tooltip body — says what pinning does, and how to undo it. */
+  protected readonly _pinHint = computed(() =>
+    this._isPinned()
+      ? "Unpin this line to return it to its regular group on the board."
+      : "Pin this line to keep it in My lines at the top of the board.",
+  );
 
   protected readonly _passengerWindowMinutes = computed(() =>
     this.line().passengerStatus ? this.line().statusWindowMinutes : null,

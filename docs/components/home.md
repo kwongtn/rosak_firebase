@@ -1160,7 +1160,11 @@ the two cells can never disagree.
   standalone status-count badge (`passenger-status-count` was removed at the user's correction):
   the passenger chip's severity legend carries the per-status report counts inline, via
   `passengerScale(line().passengerStatus, line().passengerStatusCounts)` — a row shows
-  `[data-testid="status-scale-count"]` (`(n)`) only when the backend reported a non-zero count. The
+  `[data-testid="status-scale-count"]` (`(n)`) only when the backend reported a non-zero count. 🔴 The
+  card's `line-card-confidence` chip and its `passenger-status` badge render **ONLY for an ACTIVE
+  line**: a non-Active line draws just its `line-status-badge` plus the vehicle badge, because the
+  operational badge already carries the story and "Unconfirmed (0 reports)" / "No data" beside it is
+  noise. The
   status row ends with the `line-vehicle-count` badge (`{{inService}}/{{total}} in service`, e.g.
   "12/20 in service", `aria-label="N of M vehicles in service"`) whose popover lists the per-status
   fleet breakdown plus a derived `Total`; the `line-status-badge` pill renders only when
@@ -1524,19 +1528,25 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
     from the old list) — full `app-line-pulse-card`s, in-service lines only (out-of-service ones can
     never need attention — see the summary bullet), and **hidden entirely when empty**: a reader with
     nothing broken must not scroll past a "· 0" heading to learn there is nothing.
-  - `My lines` (`line-board-mine` / `-mine-heading`) — compact rows; when empty it shows the invitation
-    `line-board-mine-empty` ("Pin a line to keep it here.") rather than a gap in the page. Pinned
-    out-of-service lines stay here ("pin wins").
+  - `My lines` (`line-board-mine` / `-mine-heading`) — compact rows, **rendered only when pinned
+    lines exist**. An empty pin list is a gap, not an invitation: the whole group, heading included, is
+    absent, so there is no `line-board-mine-empty` state at all — a heading whose only content is
+    "nothing is here" is noise on a board whose whole job is showing lines. Pinned out-of-service lines
+    stay here ("pin wins").
   - `All lines` (`line-board-all` / `-all-heading`) — compact rows; hidden when empty.
   - `Others` (`line-board-others` / `-others-heading`) — compact rows, rendered LAST and hidden when
     empty: the unpinned out-of-service lines (TESTING pre-opening / DEFUNCT closed). This is where the
     lines that once polluted "Needs attention" and the hero now live; the board still shows every line
     it reads, but inventory no longer masquerades as service.
 
-  🔴 **The three LOWER groups are separated from whatever they follow by `border-t pt-4`** on their own
-  sections (`line-board-mine`, `line-board-all` and `line-board-others` only). The attention group
-  needs no divider of its own because the controls row's `border-b` already separates it from
-  everything above; a second rule directly under the first would have drawn two lines an inch apart.
+  🔴 **The divider is per-section and CONDITIONAL.** Each lower group carries `border-t pt-4` on its
+  own section, but only when a section actually precedes it on the page — `_attentionRendered()` /
+  `_mineRendered()` / `_allRendered()` are the SAME length predicates the groups' `@if`s use, exposed
+  as signals for the bindings. The **first visible group** under the controls row therefore draws
+  neither: the controls row's `border-b` is the only line there, and a divider would have doubled it an
+  inch above itself. With My lines hidden, All lines is still the second visible group and keeps its
+  divider when it follows the attention group. (The attention group itself never carries the pair: it
+  is always the first section rendered, so its divider state is fixed.)
 
   Every row keeps the `line-board-row` wrapper (the stable order/partition hook from Phase 0).
 
@@ -1572,8 +1582,12 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
     that already wrote both halves.
 - **`LinePulseRowComponent`** is the compact row: the backend-hex colour rail, `code · name`,
   `line-row-status` (the operational `LineStatusBadge`, non-ACTIVE lines only — "Active" is the
-  unremarkable default), `line-row-confidence`, `line-row-passenger` (both on the badge row
-  `line-row-chips`), a `line-row-pin` toggle (`aria-pressed`, action-naming `aria-label`) and a
+  unremarkable default), and on the badge row `line-row-chips` the `line-row-confidence` chip and the
+  `line-row-passenger` badge — 🔴 **both rendered ONLY for an ACTIVE line**. A non-Active status badge
+  already carries the line's story, so "Unconfirmed (0 reports)" / "No data" beside "Partial
+  Disruption" is noise rather than a qualification; the confidence question is asked exactly where the
+  operational status is the unremarkable default. The row also carries a `line-row-pin` toggle
+  (`aria-pressed`, action-naming `aria-label`) and a
   `line-row-report` button that calls `LineStatusSheetService.openFor(line.id)`. 🔴 **The pin glyph
   FILLS when the row is pinned** (`[&>svg]:fill-current` on the `ng-icon` while `_isPinned()`,
   alongside the static `size-4`): `aria-pressed` alone leaves a 16px outline pin saying "pin
@@ -1591,9 +1605,15 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   badge row, where a 390px phone could not fit them with the status pill, the confidence chip and the
   passenger badge — so the report count alone wrapped onto a line of its own on EVERY row and read as a
   layout fault rather than as a number. Grouped, they wrap together as one fragment; the report count
-  is additionally hidden below `sm`, because nothing is lost there (the confidence chip already
-  reads "Unconfirmed (2 reports)" / "No recent reports", and Pro view's own block carries "2 reports ·
-  15 min window"). 🔴 `line-row-reports` now reads **`N reports (X this hour)`** — N is the line's
+  is additionally hidden below `sm`, because nothing is lost there (on an ACTIVE line the confidence
+  chip beside it already reads "Unconfirmed (2 reports)" / "No recent reports", and Pro view's own
+  block carries "2 reports · 15 min window"). 🔴 **`line-row-vehicles` is now wrapped in the SAME
+  `app-status-info-chip` the card's `line-vehicle-count` uses** — one shared `vehicleCountInfo()`
+  definition read from the methodology registry (via `renderMethodologyCopy`) plus the
+  `vehicleBreakdownRows()` per-status breakdown closed by its derived `Total`, and an `aria-label` of
+  "N of M vehicles in service" — so "12/16 in service" is explained one way on every board surface.
+  That second popover in the strip is why the report popover's specs scope to the reports element
+  rather than to `line-row-meta`. 🔴 `line-row-reports` now reads **`N reports (X this hour)`** — N is the line's
   whole service-day total from `linesHistoryFor`, X the current service-hour bucket's count via
   `currentServiceBucketIndex` — because `statusReportCount` alone is a 15-minute rolling window and a
   number nobody can scale is a number nobody can read. It is the same ONE store read the heat grid
@@ -1625,7 +1645,8 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   groups. `data-highlighted` is on the same element as the ring classes purely so a spec can assert
   the highlight through the DOM as well as through the signal.
 - **`status-confidence.util.ts` (`statusConfidence`, `hasOfficialPulseLink`)** is the pure rule behind
-  the confidence chip both row elements show next to the status, because "what does the page know, and
+  the confidence chip — which both row elements render **only for an ACTIVE line**, next to where the
+  status badge would otherwise sit — because "what does the page know, and
   how do we know it?" was being answered three different ways on one screen (a backend state, a derived
   crowd, a raw count). Four levels, **first match wins**, and the order IS the design:
   1. `official` — any pulse link with `isAutomated === true`. Checked FIRST, so a line that is both
@@ -1641,9 +1662,11 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
      so the reader can weigh it without opening the popover.
 
   **Evidence** = a report in the line's own window, OR a rider status above `NORMAL`, OR a non-`ACTIVE`
-  operational status. That last one is deliberately evidence with a count of zero — a
-  `PARTIAL_DISRUPTION` line with no rider reports is honestly "Unconfirmed (0 reports)" — while
-  `passengerStatus: "NORMAL"` is NOT evidence, because it is the derived "nothing notable" reading and
+  operational status. That last one is deliberately evidence with a count of zero: the RULE resolves a
+  `PARTIAL_DISRUPTION` line with no rider reports to `unconfirmed`, "Unconfirmed (0 reports)" — even
+  though the chip never renders on that line, because the non-Active status badge already tells its
+  story (that is the rendering rule, not the evidence rule). `passengerStatus: "NORMAL"` is NOT
+  evidence, because it is the derived "nothing notable" reading and
   treating it as one would put a confident green chip on a line nobody has reported.
   `hasOfficialPulseLink` tests `=== true`, never truthiness: an absent or stale field must never claim
   provenance that was not sent. The chip's popover content comes from the resolved level's OWN registry
@@ -1662,12 +1685,20 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   the reader cannot detect.
 - **The card's action set is unified with the compact row's**: the same three controls, same order —
   **pin** (icon-only, `line-card-pin`, `hlmBtn size="icon-sm" variant="ghost"`, `aria-pressed` and a
-  fill-when-pinned glyph through `PreferencesService`), **Details** (`line-card-details`,
+  fill-when-pinned glyph through `PreferencesService`; wrapped in `app-info-popover`
+  (`line-card-pin-popover`, `showIcon=false` / `showMethodologyLink=false`) whose tooltip names the
+  action — title `Click to unpin` / `Click to pin`, body explaining the effect and how to undo it),
+  **Details** (`line-card-details`,
   `hlmBtn size="sm" variant="outline"`, an `a[routerLink]` to `/spotting/<lineId>/details`) and
   **Report** (`submit-line-status`, default/primary variant, opening the line-status sheet). The row
   carries the identical set as `line-row-pin` / `line-row-details` / `line-row-report` (Report
-  outline there; no width classes), so whichever board group a line lands in, the reader sees ONE
-  control set. 🔴 Round 3 removed the card's kebab menu (its single item was pin) and its "Log
+  outline there; no width classes), with the row's pin wrapped in the same tooltip
+  (`line-row-pin-popover`), so whichever board group a line lands in, the reader sees ONE
+  control set. 🔴 The pin button is passed to the popover as a `triggerTpl` (declared in a sibling
+  `<ng-template #cardPinTpl>` / `#rowPinTpl>`): it IS the trigger, and the popover renders no button of
+  its own, so an interactive control is never nested inside another button. Its `parentElement` is
+  therefore the popover's `inline-flex` span wrapper — spec assertions on cluster order or sibling
+  spacing must `closest("app-info-popover")` first (see `MISTAKES.md`). 🔴 Round 3 removed the card's kebab menu (its single item was pin) and its "Log
   spotting" button: the pinned/actions split asked the reader to learn two different affordances for
   the same three verbs, and spotting already has its own surfaces. `hlmBtn`'s selector is
   `button[hlmBtn], a[hlmBtn]`, so the Details anchor needs no extra wiring, and `hlm()` merges its
@@ -2057,6 +2088,9 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   `line-row-details` joined `line-row-pin` / `line-row-report` as the unified per-line action set,
   and `line-row-hq-details`, `line-card-menu`, `line-card-menu-panel` and `add-spotting-entry` were
   retired with the old card controls.
+- `line-card-pin-popover` / `line-row-pin-popover` (home-page polish round 4) — the pin tooltip panels
+  on the card and the compact row. The same round **retired `line-board-mine-empty`**: the `My lines`
+  group is hidden when nothing is pinned, so the empty-state paragraph no longer exists.
 - `hero-needs-attention-popover` / `hero-reports-now-popover` (the two tile-label info popovers).
 
 **New seams:**

@@ -13,6 +13,47 @@
 
 ---
 
+## [2026-10-07] features/home: wrapping a control or chip in an `InfoPopover` / `StatusInfoChip` host relocates it in the DOM — re-scope ancestor queries and cluster-order assertions
+
+**Problem**: Wrapping `line-card-pin` / `line-row-pin` in `app-info-popover`, and `line-row-vehicles` in
+`app-status-info-chip`, inserted a host element between each node and its former parent. Specs that had
+asserted the action cluster via `pin.parentElement`, or counted `[data-testid]` under that parent, now
+targeted the wrong node; and the row's `root.querySelector('[data-testid="line-row-meta"]
+app-info-popover')` — written when the report tally was the strip's only popover — silently started
+matching the **vehicle chip's** injected host instead.
+**Root Cause**: Both wrappers project (or stamp, via `triggerTpl`) their content inside a component host
+(`<app-info-popover>` is `class="relative inline-flex"`) and inject their own trigger markup into the
+subtree — a `<button>` in the default/projected mode and for the chip, an `inline-flex` `<span>`
+wrapper in the pin's `triggerTpl` mode. So a wrapped element's `parentElement` / `closest(...)` graph
+changes, and any ancestor-scoped `querySelector` can now match the wrapper's host rather than the
+consumer's element.
+**Fix**: Re-scoped the assertions in `line-pulse-card.component.spec.ts` and
+`line-pulse-row.component.spec.ts` — cluster order/parent checks go through
+`pin.closest("app-info-popover")`, and the meta strip's report popover is reached from
+`line-row-reports`' own `closest("app-info-popover")` instead of `line-row-meta app-info-popover`. No
+template or logic change; the runtime behavior was always correct.
+**Prevention**: before wrapping an existing `data-testid` element in a host component, grep the specs
+for that testid's `.parentElement`, `closest(...)` and ancestor-scoped `querySelector`. A wrapper
+relocates the node AND adds its host plus injected children to every ancestor query that spans it.
+Prefer querying from the target's own `closest(...)` chain over a shared ancestor, and assert "no
+popover here" against the specific element rather than the whole strip once a sibling may carry one.
+
+## [2026-10-07] ui/info-popover: `ng-content` inside an `ng-template` stamped by `ngTemplateOutlet` silently renders EMPTY in the real app (and passes the whole unit suite) inside an `ngSkipHydration` component
+
+**Problem**: The intermediate `bareTrigger` implementation — an `ng-template` wrapping `<ng-content/>`
+stamped by `ngTemplateOutlet` — passed the entire unit suite, including dedicated bare-mode specs, but
+the live DOM showed `<span class="inline-flex"></span>` with zero pins. The server HTML was correct and
+the default-branch projections rendered fine in the same client runtime, yet the failure reproduced on
+both hydration re-render and client-side navigation.
+**Root Cause**: Projection inside an embedded view stamped under an `ngSkipHydration` component is not
+reliable at runtime: the construct re-renders without materialising the projected nodes. Unit tests and
+SSR never exercise that path, so nothing failed until a browser did it.
+**Fix**: replaced with the `triggerTpl` input — a plain `ngTemplateOutlet` stamping consumer markup that
+contains no projection (one raw `ng-content` remains only in the default button branch).
+**Prevention**: for an opt-in alternate trigger shape, pass a `TemplateRef` input rather than moving
+`ng-content` into an `ng-template`. And for this repo: unit tests alone did not catch it — any
+`InfoPopover` structural change must be confirmed against the running dev server.
+
 ## [2026-10-06] spotting: the month label's right-edge clamp had no month floor — it pinned and got "covered" instead of being pushed away
 
 **Problem**: In the line-details vehicle-spotting grid header, the month label behaved asymmetrically

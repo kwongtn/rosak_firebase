@@ -329,16 +329,15 @@ describe("NetworkBoardComponent", () => {
     expect(codesIn(root, "all")).toEqual(["A", "B"]);
   });
 
-  it("always draws My lines, with the pin invitation when it is empty", async () => {
-    // An empty pin list is an INVITATION, not a gap in the page.
+  it("does not draw the My lines group at all when nothing is pinned", async () => {
+    // An empty pin list is a gap, not an invitation: the group disappears rather than showing an
+    // empty heading a reader has to read to learn there is nothing to read.
     const root = await board([makeLine("a")]);
 
-    expect(textOf(root, "line-board-mine-heading")).toBe("My lines");
-    expect(textOf(root, "line-board-mine-empty")).toBe("Pin a line to keep it here.");
-    // Scoped to the group: the "All lines" rows are still on screen, and that is the point.
-    expect(
-      root.querySelector('[data-testid="line-board-mine"]')?.querySelector("app-line-pulse-row"),
-    ).toBeNull();
+    expect(root.querySelector('[data-testid="line-board-mine"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-board-mine-heading"]')).toBeNull();
+    // The healthy line is still on screen under All lines — the board is not blank, only the group.
+    expect(codesIn(root, "all")).toEqual(["A"]);
   });
 
   it("hides the All lines group only when it has nothing left to say", async () => {
@@ -385,18 +384,51 @@ describe("NetworkBoardComponent", () => {
     expect(root.querySelector('[data-testid="line-board-others"]')).toBeNull();
   });
 
-  it("separates the lower groups from whatever they follow", async () => {
+  it("draws a divider before a group only when another group precedes it", async () => {
     // Without a divider a group heading reads as a caption of the cards ABOVE it, and the reader
-    // loses track of where one group ends and the next begins.
-    const root = await board(
-      [makeLine("a"), makeLine("b"), makeLine("trial", { status: "TESTING" })],
+    // loses track of where one group ends and the next begins. But the FIRST visible group sits
+    // directly under the controls row's own bottom border, so a divider there would double the line.
+    // These boards walk the appear/disappear cases the conditional dividers have to get right.
+
+    // 1) No attention, one pinned line: My lines is the first — and only — visible group, so it
+    //    inherits the controls row's border and draws none of its own.
+    const soloMine = await board([makeLine("a")], { pinned: ["a"] });
+    const mineOnly = soloMine.querySelector<HTMLElement>('[data-testid="line-board-mine"]');
+    expect(mineOnly?.classList.contains("border-t")).toBe(false);
+    expect(mineOnly?.className.split(/\s+/)).not.toContain("pt-4");
+
+    // 2) Attention + pinned + unpinned: every group now follows another, so each group after the
+    //    first earns both the divider and its spacing.
+    const allThree = await board(
+      [makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("a"), makeLine("b")],
       { pinned: ["a"] },
     );
-    for (const group of ["line-board-mine", "line-board-all", "line-board-others"]) {
-      const section = root.querySelector<HTMLElement>(`[data-testid="${group}"]`);
+    const attention = allThree.querySelector<HTMLElement>('[data-testid="line-board-attention"]');
+    expect(attention?.classList.contains("border-t")).toBe(false);
+    expect(attention?.className.split(/\s+/)).not.toContain("pt-4");
+    for (const testId of ["line-board-mine", "line-board-all"]) {
+      const section = allThree.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
       expect(section?.classList.contains("border-t")).toBe(true);
       expect(section?.className.split(/\s+/)).toContain("pt-4");
     }
+
+    // 3) No pinned line, but attention above All lines: with My lines absent, All lines is still the
+    //    second visible group and must keep its divider.
+    const noMine = await board([makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("b")]);
+    expect(noMine.querySelector('[data-testid="line-board-mine"]')).toBeNull();
+    const allAfterAttention = noMine.querySelector<HTMLElement>('[data-testid="line-board-all"]');
+    expect(allAfterAttention?.classList.contains("border-t")).toBe(true);
+    expect(allAfterAttention?.className.split(/\s+/)).toContain("pt-4");
+
+    // 4) No attention and no pins: All lines leads with no divider, and Others — following it — keeps
+    //    its own.
+    const inventory = await board([makeLine("ok"), makeLine("trial", { status: "TESTING" })]);
+    const allLeading = inventory.querySelector<HTMLElement>('[data-testid="line-board-all"]');
+    expect(allLeading?.classList.contains("border-t")).toBe(false);
+    expect(allLeading?.className.split(/\s+/)).not.toContain("pt-4");
+    const others = inventory.querySelector<HTMLElement>('[data-testid="line-board-others"]');
+    expect(others?.classList.contains("border-t")).toBe(true);
+    expect(others?.className.split(/\s+/)).toContain("pt-4");
   });
 
   /* ---- the controls ---------------------------------------------------------------- */

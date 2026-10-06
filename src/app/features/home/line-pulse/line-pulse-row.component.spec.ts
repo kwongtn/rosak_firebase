@@ -195,6 +195,41 @@ describe("LinePulseRowComponent", () => {
     expect(textOf(root, "line-row-passenger")).toBe("No data");
   });
 
+  it("wraps the fleet count in the card's breakdown chip, with the same definition and total", () => {
+    const root = render(
+      makeLine({
+        vehicleStatusCounts: [
+          { status: "IN_SERVICE", count: 12 },
+          { status: "NOT_SPOTTED", count: 3 },
+          { status: "OUT_OF_SERVICE", count: 1 },
+        ],
+      }),
+    );
+
+    const badge = root.querySelector<HTMLElement>('[data-testid="line-row-vehicles"]');
+    expect(badge?.textContent?.replace(/\s+/g, " ").trim()).toBe("12/16 in service");
+    expect(badge?.getAttribute("aria-label")).toBe("12 of 16 vehicles in service");
+
+    const chip = badge?.closest("app-status-info-chip");
+    expect(chip).not.toBeNull();
+
+    // The row's pill is the SAME chip the card uses: same registry definition, same breakdown, and
+    // the total that closes it.
+    (chip?.querySelector("button") as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const rows = [...(chip?.querySelectorAll('[data-testid="status-breakdown-row"]') ?? [])].map(
+      (el) =>
+        [...el.querySelectorAll("span")].map((span) => (span.textContent ?? "").trim()).join(" "),
+    );
+    expect(rows).toEqual(["In service 12", "Not spotted 3", "Out of service 1", "Total 16"]);
+
+    const definition = chip?.querySelectorAll('[data-testid="status-info-popover"] p')[1];
+    expect(definition?.textContent?.trim()).toBe(
+      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").definition),
+    );
+  });
+
   it("keeps the fleet count and the report count as ONE fragment, and drops the count on a phone", () => {
     const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
 
@@ -227,21 +262,16 @@ describe("LinePulseRowComponent", () => {
   });
 
   it("shows a confidence chip, and its popover copy comes from the methodology registry", () => {
-    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+    const root = render(makeLine({ statusReportCount: 1 }));
 
     expect(textOf(root, "line-row-confidence")).toBe("Unconfirmed (1 reports)");
-    // The chip qualifies the status, so it must sit immediately after it in the same chip row.
+    // The chip qualifies the operational state, so it sits in the same chip row as the status it
+    // would qualify — for an Active line, where no status badge carries that state.
     const row = root.querySelector('[data-testid="line-row-chips"]');
-    const statusChip = root
-      .querySelector('[data-testid="line-row-status"]')
-      ?.closest("app-status-info-chip");
     const confidenceChip = root
       .querySelector('[data-testid="line-row-confidence"]')
       ?.closest("app-status-info-chip");
-    expect(row?.contains(statusChip as Node)).toBe(true);
-    expect((statusChip as HTMLElement).compareDocumentPosition(confidenceChip as Node)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+    expect(row?.contains(confidenceChip as Node)).toBe(true);
 
     (confidenceChip?.querySelector("button") as HTMLButtonElement).click();
     fixture.detectChanges();
@@ -252,10 +282,23 @@ describe("LinePulseRowComponent", () => {
     expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
   });
 
+  it("hides both the confidence and the passenger chip on a non-Active line", () => {
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+
+    // The non-Active badge already tells the story, so the confidence and crowd chips step aside.
+    expect(root.querySelector('[data-testid="line-row-status"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="line-row-confidence"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-row-passenger"]')).toBeNull();
+
+    // The Active line is the one that draws them.
+    fixture.componentRef.setInput("line", makeLine());
+    fixture.detectChanges();
+    expect(root.querySelector('[data-testid="line-row-confidence"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="line-row-passenger"]')).not.toBeNull();
+  });
+
   it("reads official from an operator-sourced pulse link rather than from the report tally", () => {
-    const root = render(
-      makeLine({ status: "TOTAL_DISRUPTION", statusReportCount: 40, pulseLinks: [pulseLink()] }),
-    );
+    const root = render(makeLine({ statusReportCount: 40, pulseLinks: [pulseLink()] }));
 
     // The load-bearing assertion of the ordering: a big rider tally must not outrank the operator.
     expect(textOf(root, "line-row-confidence")).toBe("Official update");
@@ -274,12 +317,32 @@ describe("LinePulseRowComponent", () => {
     expect(pin?.getAttribute("aria-pressed")).toBe("false");
     expect(pin?.getAttribute("aria-label")).toBe("Pin KJL");
 
+    // The pin is wrapped in the shared tooltip primitive in BARE mode: the pin button IS the
+    // trigger, so there is no wrapping button to nest it inside — `closest("button")` is itself.
+    expect(pin?.closest("button")).toBe(pin);
+    const trigger = pin?.parentElement as HTMLElement;
+    trigger.click();
+    fixture.detectChanges();
+    const panel = () => root.querySelector('[data-testid="line-row-pin-popover"]');
+    expect(panel()?.querySelectorAll("p")[0]?.textContent?.trim()).toBe("Click to pin");
+    expect(panel()?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+      "Pin this line to keep it in My lines at the top of the board.",
+    );
+
     pin?.click();
     fixture.detectChanges();
 
     expect(preferences.isPinned("line-42")).toBe(true);
     expect(pin?.getAttribute("aria-pressed")).toBe("true");
     expect(pin?.getAttribute("aria-label")).toBe("Unpin KJL");
+
+    // The tooltip flips with the state — re-open it, because the wrapped pin's own tap closed it.
+    trigger.click();
+    fixture.detectChanges();
+    expect(panel()?.querySelectorAll("p")[0]?.textContent?.trim()).toBe("Click to unpin");
+    expect(panel()?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+      "Unpin this line to return it to its regular group on the board.",
+    );
 
     pin?.click();
     fixture.detectChanges();
@@ -420,9 +483,9 @@ describe("LinePulseRowComponent", () => {
       expect(root.querySelector('[data-testid="line-row-reports"]')?.className).not.toContain(
         "hidden",
       );
-      expect(
-        root.querySelector('[data-testid="line-row-meta"] app-info-popover')?.className,
-      ).not.toContain("hidden");
+      // The REPORTS popover's host, not just the first popover in the meta strip — the vehicle chip
+      // now carries one there too.
+      expect(wrapper?.querySelector("app-info-popover")?.className).not.toContain("hidden");
     });
 
     it("explains the enriched label from the methodology registry, in a popover", async () => {
@@ -432,11 +495,12 @@ describe("LinePulseRowComponent", () => {
       const root = await renderWithClock(makeLine({ id: "line-9" }));
 
       // A service-day claim is a metric, so it is published and surfaced — never a literal in the
-      // template. The panel is the reports one, not a confidence chip's: the enriched label is the
-      // only popover the meta row carries.
-      const trigger = root.querySelector<HTMLButtonElement>(
-        '[data-testid="line-row-meta"] app-info-popover button',
-      );
+      // template. Scoped to the reports span, because the meta strip also carries the vehicle chip's
+      // popover now.
+      const trigger = root
+        .querySelector('[data-testid="line-row-reports"]')
+        ?.closest("app-info-popover")
+        ?.querySelector("button") as HTMLButtonElement;
       expect(trigger).not.toBeNull();
       trigger?.click();
       fixture.detectChanges();
@@ -456,9 +520,13 @@ describe("LinePulseRowComponent", () => {
       // `buckets: []` is the backend's "this line reported nothing", not an error, and a row with
       // nothing to say about the day must not claim a day total of zero it never measured.
       expect(textOf(root, "line-row-reports")).toBe("1 reports");
-      // No popover in the META row specifically: the confidence chip above is one for its own metric,
-      // so scoping the query to the meta strip is what makes this about the count.
-      expect(root.querySelector('[data-testid="line-row-meta"] app-info-popover')).toBeNull();
+      // The PLAIN count has no popover: the fallback renders no wrapper, and the count span itself
+      // has no popover ancestor. The vehicle chip's popover in the same strip is why the assertion
+      // is scoped to the reports element rather than to the meta row.
+      expect(root.querySelector('[data-testid="line-row-reports-wrap"]')).toBeNull();
+      expect(
+        root.querySelector('[data-testid="line-row-reports"]')?.closest("app-info-popover"),
+      ).toBeNull();
     });
 
     it("falls back to the rolling count when the per-line read failed", () => {
@@ -470,7 +538,12 @@ describe("LinePulseRowComponent", () => {
       // the enriched label — not its status, its chips or its actions. The confidence chip is the
       // proof it is still reading the LINE: the failure flag is the history read's, not the line's.
       expect(textOf(root, "line-row-reports")).toBe("2 reports");
-      expect(root.querySelector('[data-testid="line-row-meta"] app-info-popover')).toBeNull();
+      // Scoped to the reports element: the vehicle chip's popover is in the same strip now, and the
+      // plain rolling count must still have none of its own.
+      expect(root.querySelector('[data-testid="line-row-reports-wrap"]')).toBeNull();
+      expect(
+        root.querySelector('[data-testid="line-row-reports"]')?.closest("app-info-popover"),
+      ).toBeNull();
       expect(textOf(root, "line-row-confidence")).toBe("Unconfirmed (2 reports)");
       expect(root.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
     });
@@ -545,8 +618,10 @@ describe("LinePulseRowComponent", () => {
     // as ONE control set. Details is no longer a pro-only text link.
     for (const viewMode of ["rider", "pro"] as const) {
       const root = render(makeLine({ id: "line-7" }), { viewMode });
-      const actions = root.querySelector('[data-testid="line-row-pin"]')
-        ?.parentElement as HTMLElement;
+      // The pin is wrapped in its tooltip popover, so the cluster item is the popover host.
+      const actions = root
+        .querySelector('[data-testid="line-row-pin"]')
+        ?.closest("app-info-popover")?.parentElement as HTMLElement;
       const ids = [...actions.querySelectorAll<HTMLElement>("[data-testid]")].map((el) =>
         el.getAttribute("data-testid"),
       );

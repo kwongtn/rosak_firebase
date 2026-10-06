@@ -221,11 +221,13 @@ describe("LinePulseCardComponent", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     // Same cluster as the pin and the report button, so mobile still stacks them full-width — and
-    // the reading order is exactly pin, Details, Report.
-    const pin = root.querySelector('[data-testid="line-card-pin"]');
+    // the reading order is exactly pin, Details, Report. The pin is wrapped in its tooltip popover,
+    // so the cluster item is the popover HOST, not the button itself.
+    const pin = root.querySelector<HTMLElement>('[data-testid="line-card-pin"]');
+    const pinClusterItem = pin?.closest("app-info-popover");
     expect(details?.parentElement).toBe(report?.parentElement);
-    expect(details?.parentElement).toBe(pin?.parentElement);
-    expect((pin as HTMLElement).compareDocumentPosition(details as Node)).toBe(
+    expect(pinClusterItem?.parentElement).toBe(details?.parentElement);
+    expect((pinClusterItem as HTMLElement).compareDocumentPosition(details as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });
@@ -282,13 +284,18 @@ describe("LinePulseCardComponent", () => {
   });
 
   it("renders every status chip as a text pill with no 'i' glyph", () => {
+    // The status badge and the confidence/passenger chips never coexist on one line now: a
+    // non-Active line draws the badge, an Active one draws the confidence and passenger chips.
     const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
 
     const statusTrigger = root.querySelector("line-status-badge")?.closest("button");
     expect(statusTrigger).not.toBeNull();
     expect(statusTrigger?.querySelector('span[aria-hidden="true"]')).toBeNull();
 
-    for (const testId of ["passenger-status", "line-vehicle-count"]) {
+    fixture.componentRef.setInput("line", makeLine());
+    fixture.detectChanges();
+
+    for (const testId of ["line-card-confidence", "passenger-status", "line-vehicle-count"]) {
       const trigger = root.querySelector(`[data-testid="${testId}"]`)?.closest("button");
       expect(trigger, testId).not.toBeNull();
       expect(trigger?.querySelector('span[aria-hidden="true"]'), testId).toBeNull();
@@ -296,17 +303,11 @@ describe("LinePulseCardComponent", () => {
   });
 
   it("drops the methodology link for the line-status chip but keeps it on the passenger chip", () => {
-    const root = render(makeLine({ status: "PARTIAL_DISRUPTION", passengerStatus: "CROWDED" }));
+    const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
 
-    const passengerChip = root
-      .querySelector('[data-testid="passenger-status"]')
-      ?.closest("app-status-info-chip") as HTMLElement;
     const lineStatusChip = root
       .querySelector("line-status-badge")
       ?.closest("app-status-info-chip") as HTMLElement;
-
-    openPopover(root, "passenger-status");
-    expect(passengerChip.querySelector('[data-testid="status-info-popover"] a')).not.toBeNull();
 
     (lineStatusChip.querySelector("button") as HTMLButtonElement).click();
     fixture.detectChanges();
@@ -315,6 +316,16 @@ describe("LinePulseCardComponent", () => {
     expect(lineStatusPanel).not.toBeNull();
     expect(lineStatusPanel?.querySelector("a")).toBeNull();
     expect(lineStatusPanel?.getAttribute("role")).toBe("tooltip");
+
+    // The passenger chip only exists on an Active line, so pivot the fixture to one.
+    fixture.componentRef.setInput("line", makeLine({ passengerStatus: "CROWDED" }));
+    fixture.detectChanges();
+
+    const passengerChip = root
+      .querySelector('[data-testid="passenger-status"]')
+      ?.closest("app-status-info-chip") as HTMLElement;
+    openPopover(root, "passenger-status");
+    expect(passengerChip.querySelector('[data-testid="status-info-popover"] a')).not.toBeNull();
   });
 
   it("folds the per-status report counts into the passenger legend rows", () => {
@@ -379,6 +390,18 @@ describe("LinePulseCardComponent", () => {
     expect(pin?.getAttribute("aria-pressed")).toBe("false");
     expect(pin?.getAttribute("aria-label")).toBe("Pin KJL");
 
+    // The pin is wrapped in the shared tooltip primitive in BARE mode: the pin button IS the
+    // trigger, so there is no wrapping button to nest it inside — `closest("button")` is itself.
+    expect(pin?.closest("button")).toBe(pin);
+    const trigger = pin?.parentElement as HTMLElement;
+    trigger.click();
+    fixture.detectChanges();
+    const panel = () => root.querySelector('[data-testid="line-card-pin-popover"]');
+    expect(panel()?.querySelectorAll("p")[0]?.textContent?.trim()).toBe("Click to pin");
+    expect(panel()?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+      "Pin this line to keep it in My lines at the top of the board.",
+    );
+
     expect(preferences.isPinned("line-42")).toBe(false);
     pin?.click();
     fixture.detectChanges();
@@ -388,6 +411,14 @@ describe("LinePulseCardComponent", () => {
     expect(pin?.getAttribute("aria-pressed")).toBe("true");
     expect(pin?.getAttribute("aria-label")).toBe("Unpin KJL");
     expect(pin?.querySelector("ng-icon")?.getAttribute("class")).toContain("fill-current");
+
+    // The tooltip flips with the state — re-open it, because the wrapped pin's own tap closed it.
+    trigger.click();
+    fixture.detectChanges();
+    expect(panel()?.querySelectorAll("p")[0]?.textContent?.trim()).toBe("Click to unpin");
+    expect(panel()?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
+      "Unpin this line to return it to its regular group on the board.",
+    );
 
     pin?.click();
     fixture.detectChanges();
@@ -546,7 +577,7 @@ describe("LinePulseCardComponent", () => {
     });
 
     it("prints the report count in the unconfirmed label", () => {
-      const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+      const root = render(makeLine({ statusReportCount: 1 }));
       expect(textOf(root, "line-card-confidence")).toBe("Unconfirmed (1 reports)");
     });
 
@@ -558,7 +589,6 @@ describe("LinePulseCardComponent", () => {
     it("prefers an operator-sourced post over any rider tally", () => {
       const root = render(
         makeLine({
-          status: "TOTAL_DISRUPTION",
           statusReportCount: 40,
           pulseLinks: [pulseLink({ isAutomated: false, id: "rider" }), pulseLink()],
         }),
@@ -567,26 +597,20 @@ describe("LinePulseCardComponent", () => {
       expect(textOf(root, "line-card-confidence")).toBe("Official update");
     });
 
-    it("sits immediately after the operational pill, so the two read as one sentence", () => {
-      const root = render(makeLine({ status: "PARTIAL_DISRUPTION", statusReportCount: 1 }));
+    it("shows both the confidence and the passenger chip for an Active line, and neither otherwise", () => {
+      const root = render(makeLine());
 
-      const statusChip = root.querySelector("line-status-badge")?.closest("app-status-info-chip");
-      const confidenceChip = root
-        .querySelector('[data-testid="line-card-confidence"]')
-        ?.closest("app-status-info-chip");
-      expect(statusChip).not.toBeNull();
-      expect(confidenceChip).not.toBeNull();
-      // It also precedes the passenger chip: "Partial Disruption · Unconfirmed (1 report) · Crowded"
-      // is the reading order a rider scans.
-      const passengerChip = root
-        .querySelector('[data-testid="passenger-status"]')
-        ?.closest("app-status-info-chip");
-      expect((statusChip as HTMLElement).compareDocumentPosition(confidenceChip as Node)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-      expect((confidenceChip as HTMLElement).compareDocumentPosition(passengerChip as Node)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      );
+      expect(root.querySelector('[data-testid="line-card-confidence"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="passenger-status"]')).not.toBeNull();
+
+      // A non-Active badge already tells the story: the confidence question ("how sure are we?")
+      // and the crowd reading are noise beside it, so both chips step aside.
+      fixture.componentRef.setInput("line", makeLine({ status: "PARTIAL_DISRUPTION" }));
+      fixture.detectChanges();
+
+      expect(root.querySelector("line-status-badge")).not.toBeNull();
+      expect(root.querySelector('[data-testid="line-card-confidence"]')).toBeNull();
+      expect(root.querySelector('[data-testid="passenger-status"]')).toBeNull();
     });
 
     it("explains its own level from the methodology registry, and deep-links to it", () => {
