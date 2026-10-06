@@ -27,6 +27,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
       type="text"
       [class]="_inputClass()"
       [placeholder]="placeholder()"
+      [attr.aria-label]="ariaLabel() ?? null"
       [value]="search()"
       (input)="_onInput($event)"
       (click)="_onClick($event)"
@@ -87,6 +88,9 @@ export class HlmCombobox<T> {
   readonly items = model<ComboboxItem<T>[]>([]);
   readonly value = model<T | undefined>(undefined);
   readonly placeholder = model<string>("");
+  /** Accessible name for the field's input. Callers whose visible field text is a plain layout
+   * element (not a wrapping <label>) pass that text here so the input keeps its name. */
+  readonly ariaLabel = input<string | undefined>(undefined, { alias: "aria-label" });
   /** Overrides the default label/searchTerms substring match — for lookups where what the
    * user types doesn't literally appear in the item (e.g. a run-number → unit-ID heuristic). */
   readonly filterFn = model<

@@ -240,4 +240,11 @@ describe("HlmCombobox", () => {
     expect(root.querySelector('[data-testid="trailing"]')).toBeNull();
     expect(input.classList.contains("pr-6")).toBe(true);
   });
+
+  it("forwards ariaLabel to the input", () => {
+    fixture.componentRef.setInput("aria-label", "Line");
+    fixture.detectChanges();
+
+    expect(input().getAttribute("aria-label")).toBe("Line");
+  });
 });

@@ -268,12 +268,11 @@ describe("ReportFormComponent", () => {
     expect(badge.textContent).toContain("Out of Service");
 
     // The abnormal-status sanity check follows the vehicle field immediately, before the Date
-    // field — not down at the bottom of the form.
-    const vehicleLabel = Array.from(root.querySelectorAll("label")).find((label) =>
-      label.textContent?.includes("Vehicle"),
-    );
-    if (!vehicleLabel) throw new Error("vehicle field not rendered");
-    const sanity = vehicleLabel.nextElementSibling;
+    // field — not down at the bottom of the form. The field wrapper is a plain div (labels are
+    // layout-only now), so anchor on the combobox's own wrapper.
+    const vehicleField = vehicleCombobox?.parentElement;
+    if (!vehicleField) throw new Error("vehicle field not rendered");
+    const sanity = vehicleField.nextElementSibling;
     expect(sanity?.textContent).toContain("may not normally be spottable");
     expect(sanity?.querySelector("hlm-checkbox")).not.toBeNull();
 
@@ -282,5 +281,31 @@ describe("ReportFormComponent", () => {
     await settle();
     expect(root.querySelectorAll("vehicle-status-badge").length).toBe(0);
     expect(root.textContent).not.toContain("may not normally be spottable");
+  });
+
+  it("keeps field label text inert while preserving accessible names", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+
+    const root = fixture.nativeElement as HTMLElement;
+
+    // Label text is layout-only: the control is not nested in a <label>, so clicking "Line"
+    // can never focus the field or expand the combobox.
+    const lineInput = root.querySelector<HTMLInputElement>("hlm-combobox input");
+    if (!lineInput) throw new Error("line combobox input not rendered");
+    expect(lineInput.closest("label")).toBeNull();
+    expect(lineInput.getAttribute("aria-label")).toBe("Line");
+
+    // The names survive as explicit aria-labels on the controls.
+    expect(root.querySelector('[aria-label="Date"]')).not.toBeNull();
+    expect(root.querySelector('select[aria-label="Status"]')).not.toBeNull();
+
+    // The visible text is no longer part of any <label> ...
+    const labelTexts = Array.from(root.querySelectorAll("label")).map((l) => l.textContent?.trim());
+    expect(labelTexts.some((t) => t?.includes("Line"))).toBe(false);
+
+    // ... while the real checkbox labels stay labels (their text still toggles the box).
+    expect(labelTexts.some((t) => t?.includes("Submit anonymously"))).toBe(true);
   });
 });

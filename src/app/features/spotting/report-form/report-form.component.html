@@ -8,9 +8,10 @@
     </div>
   }
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Line
     <hlm-combobox
+      aria-label="Line"
       [formField]="reportForm.lineId"
       [items]="lineItems()"
       [itemTemplate]="lineOptionTpl"
@@ -28,12 +29,13 @@
     @if (reportForm.lineId().invalid() && reportForm.lineId().touched()) {
       <p class="text-destructive text-xs">{{ reportForm.lineId().errors()[0]?.message }}</p>
     }
-  </label>
+  </div>
 
   @if (reportForm.lineId().value()) {
-    <label class="flex flex-col gap-1.5 text-sm">
+    <div class="flex flex-col gap-1.5 text-sm">
       Vehicle
       <hlm-combobox
+        aria-label="Vehicle"
         [formField]="reportForm.vehicleId"
         [items]="vehicleItems()"
         [filterFn]="vehicleFilterFn()"
@@ -58,7 +60,7 @@
       @if (reportForm.vehicleId().invalid() && reportForm.vehicleId().touched()) {
         <p class="text-destructive text-xs">{{ reportForm.vehicleId().errors()[0]?.message }}</p>
       }
-    </label>
+    </div>
     @if (isAbnormalVehicle()) {
       <div class="bg-muted flex flex-col gap-2.5 rounded-lg p-3 text-sm">
         <p>
@@ -77,36 +79,41 @@
     }
   }
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Date
-    <input hlmInput type="date" [formField]="reportForm.spottingDate" />
-  </label>
+    <input hlmInput type="date" [formField]="reportForm.spottingDate" aria-label="Date" />
+  </div>
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Status
-    <select hlmSelect [formField]="reportForm.status">
+    <select hlmSelect [formField]="reportForm.status" aria-label="Status">
       <option value="IN_SERVICE">In Service</option>
       <option value="NOT_IN_SERVICE">Not in Service</option>
       <option value="DECOMMISSIONED">Decommissioned</option>
       <option value="TESTING">Testing</option>
     </select>
-  </label>
+  </div>
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Where did you spot it?
-    <select hlmSelect [formField]="reportForm.type" (change)="onTypeChanged()">
+    <select
+      hlmSelect
+      [formField]="reportForm.type"
+      (change)="onTypeChanged()"
+      aria-label="Where did you spot it?"
+    >
       <option value="JUST_SPOTTING">Just Spotting</option>
       <option value="DEPOT">Depot</option>
       <option value="LOCATION">Location (GPS)</option>
       <option value="AT_STATION">At Station</option>
       <option value="BETWEEN_STATIONS">Between Stations</option>
     </select>
-  </label>
+  </div>
 
   @if (model().type === "AT_STATION") {
-    <label class="flex flex-col gap-1.5 text-sm">
+    <div class="flex flex-col gap-1.5 text-sm">
       Station
-      <select hlmSelect [formField]="reportForm.atStation">
+      <select hlmSelect [formField]="reportForm.atStation" aria-label="Station">
         <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
@@ -115,13 +122,13 @@
       @if (reportForm.atStation().invalid() && reportForm.atStation().touched()) {
         <p class="text-destructive text-xs">{{ reportForm.atStation().errors()[0]?.message }}</p>
       }
-    </label>
+    </div>
   }
 
   @if (model().type === "BETWEEN_STATIONS") {
-    <label class="flex flex-col gap-1.5 text-sm">
+    <div class="flex flex-col gap-1.5 text-sm">
       Origin station
-      <select hlmSelect [formField]="reportForm.originStation">
+      <select hlmSelect [formField]="reportForm.originStation" aria-label="Origin station">
         <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
@@ -132,10 +139,14 @@
           {{ reportForm.originStation().errors()[0]?.message }}
         </p>
       }
-    </label>
-    <label class="flex flex-col gap-1.5 text-sm">
+    </div>
+    <div class="flex flex-col gap-1.5 text-sm">
       Destination station
-      <select hlmSelect [formField]="reportForm.destinationStation">
+      <select
+        hlmSelect
+        [formField]="reportForm.destinationStation"
+        aria-label="Destination station"
+      >
         <option value="">Select a station</option>
         @for (station of stationOptions(); track station.id) {
           <option [value]="station.id">{{ station.displayName }}</option>
@@ -146,7 +157,7 @@
           {{ reportForm.destinationStation().errors()[0]?.message }}
         </p>
       }
-    </label>
+    </div>
   }
 
   @if (model().type === "LOCATION") {
@@ -160,9 +171,9 @@
     }
   }
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Wheel condition (optional)
-    <select hlmSelect [formField]="reportForm.wheelStatus">
+    <select hlmSelect [formField]="reportForm.wheelStatus" aria-label="Wheel condition (optional)">
       <option value="">—</option>
       <option value="FRESH">Fresh</option>
       <option value="NEAR_PERFECT">Near Perfect</option>
@@ -170,27 +181,37 @@
       <option value="WORN_OUT">Worn Out</option>
       <option value="WORRYING">Worrying</option>
     </select>
-  </label>
+  </div>
 
   @if (allowRunNumber()) {
-    <label class="flex flex-col gap-1.5 text-sm">
+    <div class="flex flex-col gap-1.5 text-sm">
       Run number (optional)
-      <input hlmInput type="text" [formField]="reportForm.runNumber" />
-    </label>
+      <input
+        hlmInput
+        type="text"
+        [formField]="reportForm.runNumber"
+        aria-label="Run number (optional)"
+      />
+    </div>
   }
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Notes (optional)
-    <textarea hlmInput rows="5" [formField]="reportForm.notes"></textarea>
-  </label>
+    <textarea
+      hlmInput
+      rows="5"
+      [formField]="reportForm.notes"
+      aria-label="Notes (optional)"
+    ></textarea>
+  </div>
 
   <label class="flex items-center gap-2.5 text-sm">
     <hlm-checkbox [formField]="reportForm.isAnonymous" />
     Submit anonymously
   </label>
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <div class="flex flex-col gap-1.5 text-sm">
     Photos (optional)
     <app-photo-picker [(files)]="photos" />
-  </label>
+  </div>
 </div>
