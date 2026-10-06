@@ -36,10 +36,13 @@ owns its display and the consumer must wrap rather than compete. Confirm in a re
 jsdom will never resolve the tie.
 **Same-day sibling (spotting)**: the line-details activity-bar back chevron carried a static
 `inline-flex` NEXT TO a bound `[class.hidden]` gate on the SAME element — same tie, same winner
-(`.inline-flex` after `.hidden`), so the chevron rendered before its handoff. Fixed by binding the
-display class as a pair (`[class.hidden]="!titleBarHandedOff()"` + `[class.inline-flex]="titleBarHandedOff()"`,
-never both), with e2e assertions pinning hidden pre-handoff / visible post-handoff. Rule of thumb: when
-one class of a pair must beat another, bind BOTH — never rely on a static utility losing a cascade tie.
+(`.inline-flex` after `.hidden`), so the chevron rendered before its handoff. First fixed by binding the
+display class as a pair (`[class.hidden]` + `[class.inline-flex]`, never both); the final polish went
+further and removed the display toggle entirely — the chevron stays `inline-flex` with its slot
+reserved, animating `opacity`/`translate` (and `inert` + `aria-hidden` while hidden), which also
+removes the layout bump. E2e pins `opacity: 0`/`inert` pre-handoff and `opacity: 1`/no-`inert` after.
+Rule of thumb: when one class of a pair must beat another, bind BOTH — or better, don't let the two
+coexist at all — never rely on a static utility losing a cascade tie.
 
 ## [2026-10-06] testing: `ng test --filter` matches TEST NAMES, not paths — a typo is a SILENTLY GREEN zero-test run
 

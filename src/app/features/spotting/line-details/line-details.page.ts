@@ -218,9 +218,11 @@ const WINDOW_SIZE = 3;
                     data-testid="details-back-chevron"
                     [routerLink]="['/spotting', lineId()]"
                     [attr.aria-label]="'Back to ' + line.code"
-                    class="text-muted-foreground hover:text-foreground hover:bg-muted size-7 shrink-0 items-center justify-center rounded-full transition-colors md:hidden"
-                    [class.hidden]="!titleBarHandedOff()"
-                    [class.inline-flex]="titleBarHandedOff()"
+                    class="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex size-7 shrink-0 items-center justify-center rounded-full transition-[opacity,translate,color,background-color] duration-200 motion-reduce:transition-none md:hidden"
+                    [class.opacity-0]="!titleBarHandedOff()"
+                    [class.-translate-x-2]="!titleBarHandedOff()"
+                    [attr.inert]="titleBarHandedOff() ? null : ''"
+                    [attr.aria-hidden]="titleBarHandedOff() ? null : 'true'"
                   >
                     <ng-icon name="lucideChevronLeft" class="size-4" aria-hidden="true" />
                   </a>

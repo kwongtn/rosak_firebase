@@ -156,6 +156,10 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     const titleBar = host.querySelector('[data-testid="details-title-bar"]') as HTMLElement;
     expect(codeSpan?.classList.contains("hidden")).toBe(true);
     expect(identity?.classList.contains("hidden")).toBe(true);
+    const backChevron = host.querySelector('[data-testid="details-back-chevron"]') as HTMLElement;
+    expect(backChevron).toBeTruthy();
+    expect(backChevron.classList.contains("opacity-0")).toBe(true);
+    expect(backChevron.getAttribute("inert")).toBe("");
 
     lastObserver().emit(false);
     fixture.detectChanges();
@@ -163,9 +167,8 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     expect(codeSpan?.classList.contains("hidden")).toBe(false);
     expect(identity?.classList.contains("hidden")).toBe(false);
     expect(titleBar?.classList.contains("-translate-y-full")).toBe(true);
-    const backChevron = host.querySelector('[data-testid="details-back-chevron"]') as HTMLElement;
-    expect(backChevron).toBeTruthy();
-    expect(backChevron.classList.contains("hidden")).toBe(false);
+    expect(backChevron.classList.contains("opacity-0")).toBe(false);
+    expect(backChevron.getAttribute("inert")).toBeNull();
 
     lastObserver().emit(true);
     fixture.detectChanges();
@@ -173,6 +176,7 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     expect(codeSpan?.classList.contains("hidden")).toBe(true);
     expect(identity?.classList.contains("hidden")).toBe(true);
     expect(titleBar?.classList.contains("-translate-y-full")).toBe(false);
+    expect(backChevron.classList.contains("opacity-0")).toBe(true);
   });
 
   it("shows chip text when pinned", async () => {
@@ -197,6 +201,6 @@ describe("LineDetailsPage (mobile activity bar)", () => {
     expect(plain?.classList.contains("hidden")).toBe(false);
     expect(plain?.textContent).toContain("Spotting Activity");
     const backChevron = host.querySelector('[data-testid="details-back-chevron"]') as HTMLElement;
-    expect(backChevron?.classList.contains("hidden")).toBe(true);
+    expect(backChevron?.classList.contains("opacity-0")).toBe(true);
   });
 });

@@ -228,7 +228,8 @@ test.describe("spotting details grid", () => {
     await expect(page.getByTestId("details-back-link")).toBeVisible();
     await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
     await expect(page.getByTestId("details-activity-identity")).toBeHidden();
-    await expect(page.getByTestId("details-back-chevron")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("details-back-chevron")).toHaveAttribute("inert", "");
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-top.png" });
 
@@ -237,7 +238,8 @@ test.describe("spotting details grid", () => {
     expect(Math.abs((anchoredTitleBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
     await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
     await expect(page.getByTestId("details-activity-identity")).toBeHidden();
-    await expect(page.getByTestId("details-back-chevron")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("details-back-chevron")).toHaveAttribute("inert", "");
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-anchored-title.png" });
 
@@ -260,6 +262,8 @@ test.describe("spotting details grid", () => {
     await expect(chip).toBeVisible();
     const chevron = page.getByTestId("details-back-chevron");
     await expect(chevron).toBeVisible();
+    await expect(chevron).toHaveCSS("opacity", "1");
+    await expect(chevron).not.toHaveAttribute("inert", "");
     await expect(chevron).toHaveAttribute("href", "/spotting/1");
 
     await page.evaluate(() => {
