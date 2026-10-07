@@ -10,11 +10,10 @@
       "url": "http://localhost:4200/"
     },
     {
-      "name": "ng test",
-      "type": "chrome",
+      "name": "ng test (Vitest, single run)",
+      "type": "node-terminal",
       "request": "launch",
-      "preLaunchTask": "npm: test",
-      "url": "http://localhost:9876/debug.html"
+      "command": "npm test -- --no-watch"
     }
   ]
 }
