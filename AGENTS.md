@@ -83,8 +83,9 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 - **UI layer**: compose from `src/app/ui/*` (HlmBadge, HlmButton, HlmSkeleton…) and Spartan Brain for
   behavior; merge classes with `hlm()` from `src/app/ui/utils/hlm.ts`. Tailwind v4 utilities only —
   do not introduce another styling system.
-- **SSR safety**: guard every browser-only API with `isPlatformBrowser(inject(PLATFORM_ID))`, and
-  tear down Firestore `onSnapshot` subscriptions in `ngOnDestroy`.
+- **SSR safety**: guard every browser-only API with the shared helper `injectIsBrowser()` from
+  `src/app/core/composables/is-browser.ts`, and tear down Firestore `onSnapshot` subscriptions in
+  `ngOnDestroy`.
 - **Lazy-load** new features via `loadChildren`/`loadComponent` in `src/app/app.routes.ts`. Budgets
   are enforced: 1 MB initial bundle, 8 kB per component stylesheet.
 - **Never hand-edit** `src/build-info.ts` or `src/environments/*.generated.ts` — `scripts/*.mjs`
