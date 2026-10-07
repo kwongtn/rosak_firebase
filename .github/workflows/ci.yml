@@ -34,6 +34,14 @@ jobs:
           cache: "npm"
           cache-dependency-path: package-lock.json
 
+      - name: Cache Angular build cache
+        uses: actions/cache@v6
+        with:
+          path: .angular/cache
+          key: ${{ runner.os }}-angular-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-angular-
+
       - run: npm ci
 
       # Regenerate gitignored codegen files (src/build-info.ts,
@@ -63,8 +71,49 @@ jobs:
           cache: "npm"
           cache-dependency-path: package-lock.json
 
+      - name: Cache Angular build cache
+        uses: actions/cache@v6
+        with:
+          path: .angular/cache
+          key: ${{ runner.os }}-angular-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-angular-
+
       - run: npm ci
 
       - run: npm run build
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+  e2e:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Cache Angular build cache
+        uses: actions/cache@v6
+        with:
+          path: .angular/cache
+          key: ${{ runner.os }}-angular-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-angular-
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run e2e
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: playwright-results
+          path: test-results/
+          if-no-files-found: ignore
