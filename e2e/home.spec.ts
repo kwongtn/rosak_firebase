@@ -204,11 +204,13 @@ test.describe("community front page", () => {
     // badge, score, and the footer's minute-granular relative time — the exact timestamp and
     // the submitter hide in its tooltip.
     const card = page
+      .getByTestId("feed-scroll")
       .locator("app-link-card")
       .filter({ hasText: "Kelana Jaya Line disruption thread" });
     await expect(card.getByTestId("link-url-domain")).toHaveText("facebook.com");
     await expect(card.getByTestId("link-url-path")).toHaveText("/mlptf/posts/123");
-    await expect(card.getByText("www.facebook.com")).toHaveCount(0);
+    // The visible domain is www-stripped (the raw URL survives only in the anchor's accessible name).
+    await expect(card.getByTestId("link-url-domain")).not.toContainText("www.");
     await expect(card.getByTestId("link-tags")).toContainText("KJL");
     await expect(card.getByTestId("link-meta-rail")).toBeVisible();
     // The stub node is approved (status LIVE, completed false), so the Pending pill — driven by
@@ -245,76 +247,72 @@ test.describe("community front page", () => {
     );
     await expect(feedFooter.getByTestId("feed-load-more")).toBeVisible();
     const feedCall = (await recordedCalls()).find((call) => call.operationName === "Feed");
-    expect(feedCall?.variables).toEqual({ first: 8, status: "LIVE", currentServiceDayOnly: true });
+    expect(feedCall?.variables).toEqual({
+      first: 8,
+      status: "LIVE",
+      currentServiceDayOnly: true,
+      collapseThreads: true,
+    });
 
-    // Each line card: vehicle counts, passenger status and any non-active status pill.
-    const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
-    await expect(kjl.getByTestId("line-vehicle-count")).toHaveText("12/20 in service");
-    await expect(kjl.getByTestId("passenger-status")).toHaveText("Normal");
+    // The ACTIVE line renders as the compact row: vehicle ratio, passenger badge and the
+    // confidence chip, with no "Active" status pill (it is the unremarkable default).
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await expect(kjl.getByTestId("line-row-vehicles")).toHaveText("12/20 in service");
+    await expect(kjl.getByTestId("line-row-passenger")).toHaveText("Normal");
+    await expect(kjl.getByTestId("line-row-confidence")).toBeVisible();
     await expect(kjl.getByText("Active", { exact: true })).toHaveCount(0);
-    await expect(kjl.getByTestId("passenger-status-count")).toHaveCount(0);
+    await expect(kjl.getByTestId("line-row-status")).toHaveCount(0);
 
-    // The consolidated message no longer renders anywhere — not on the card, not in the popover.
+    // The consolidated message no longer renders anywhere — not on the chip, not in the popover.
     await expect(kjl.getByTestId("status-info-message")).toHaveCount(0);
-    const kjlPassengerChip = kjl
+    const kjlConfidenceChip = kjl
       .locator("app-status-info-chip")
-      .filter({ has: page.getByTestId("passenger-status") });
-    await kjlPassengerChip.hover();
-    const kjlPopover = kjlPassengerChip.getByTestId("status-info-popover");
+      .filter({ has: page.getByTestId("line-row-confidence") });
+    await kjlConfidenceChip.hover();
+    const kjlPopover = kjlConfidenceChip.getByTestId("status-info-popover");
     await expect(kjlPopover).toBeVisible();
-    await expect(kjlPopover.getByTestId("status-window")).toHaveText("Last 30 minutes");
     await expect(kjlPopover.getByTestId("status-info-message")).toHaveCount(0);
-    // The per-status counts are folded into the 7-level severity legend: the active level is
-    // flagged and each reported level carries its own count. The old pill cluster is gone.
-    const kjlLegend = kjlPopover.getByTestId("status-scale-entry");
-    await expect(kjlLegend).toHaveCount(7);
+    // The per-status severity legend rides only on a card's Active passenger chip now, so the
+    // compact row's confidence popover carries none of it (nor the old pill cluster anywhere).
+    await expect(kjlPopover.getByTestId("status-scale-entry")).toHaveCount(0);
     await expect(page.getByTestId("status-count-pill")).toHaveCount(0);
-    const kjlNormalRow = kjlLegend.filter({ hasText: "Normal" });
-    await expect(kjlNormalRow).toHaveAttribute("data-active", "true");
-    await expect(kjlNormalRow.getByTestId("status-scale-count")).toHaveText("(3)");
-    await expect(
-      kjlLegend.filter({ hasText: "Busy" }).getByTestId("status-scale-count"),
-    ).toHaveText("(2)");
-    await expect(kjlLegend.getByTestId("status-scale-count")).toHaveCount(2);
     await page.mouse.move(0, 0);
     await expect(kjlPopover).toHaveCount(0);
 
-    // Non-ACTIVE lines are folded behind a disclosure that starts collapsed.
-    const otherLines = page.getByTestId("other-lines");
-    const mrl = page.locator("app-line-pulse-card").filter({ hasText: "Monorail Line" });
-    await expect(otherLines).toBeVisible();
-    await expect(otherLines).toHaveJSProperty("open", false);
-    await expect(page.getByTestId("other-lines-summary")).toContainText("Other lines");
-    await expect(mrl).toBeHidden();
-
-    await page.getByTestId("other-lines-summary").click();
-    await expect(otherLines).toHaveJSProperty("open", true);
+    // A non-ACTIVE line is a "Needs attention" CARD, visible with no disclosure to open.
+    const attention = page.getByTestId("line-board-attention");
+    await expect(attention).toBeVisible();
+    await expect(attention.getByTestId("line-board-attention-heading")).toContainText(
+      "Needs attention",
+    );
+    const mrl = attention.locator("app-line-pulse-card").filter({ hasText: "Monorail Line" });
+    await expect(mrl).toBeVisible();
     await expect(mrl.getByTestId("line-vehicle-count")).toHaveText("4/12 in service");
-    await expect(mrl.getByTestId("passenger-status")).toHaveText("No data");
     await expect(mrl.getByText("Partial Disruption", { exact: true })).toBeVisible();
+    // A non-ACTIVE card draws no passenger chip, so there is no "No data" reading to show.
+    await expect(mrl.getByTestId("passenger-status")).toHaveCount(0);
 
-    // "No data" means no legend counts and no consolidated message to show.
-    const mrlPassengerChip = mrl
+    // Its status badge chip opens the shared popover with no legend counts or consolidated message.
+    const mrlStatusChip = mrl
       .locator("app-status-info-chip")
-      .filter({ has: page.getByTestId("passenger-status") });
-    await mrlPassengerChip.hover();
-    await expect(mrlPassengerChip.getByTestId("status-info-popover")).toBeVisible();
-    await expect(mrlPassengerChip.getByTestId("status-scale-count")).toHaveCount(0);
+      .filter({ hasText: "Partial Disruption" });
+    await mrlStatusChip.hover();
+    await expect(mrlStatusChip.getByTestId("status-info-popover")).toBeVisible();
+    await expect(mrlStatusChip.getByTestId("status-scale-count")).toHaveCount(0);
     await expect(page.getByTestId("status-count-pill")).toHaveCount(0);
-    await expect(mrlPassengerChip.getByTestId("status-info-message")).toHaveCount(0);
+    await expect(mrlStatusChip.getByTestId("status-info-message")).toHaveCount(0);
     await page.mouse.move(0, 0);
-    await expect(mrlPassengerChip.getByTestId("status-info-popover")).toHaveCount(0);
+    await expect(mrlStatusChip.getByTestId("status-info-popover")).toHaveCount(0);
 
-    // The line card's submit control opens the status sheet (login-gated here).
-    await kjl.getByTestId("submit-line-status").click();
+    // The line row's Report control opens the status sheet (login-gated here).
+    await kjl.getByTestId("line-row-report").click();
     await expect(
       page.getByRole("heading", { level: 2, name: /KJL · Kelana Jaya Line/ }),
     ).toBeVisible();
-    await expect(
-      page.getByText(/You'll need to log in before submitting a line status report\./),
-    ).toBeVisible();
+    await expect(page.getByText(/You'll need to log in before submitting/)).toBeVisible();
     await expect(page.getByTestId("login-button")).toBeVisible();
-    await expect(page.getByTestId("submit-line-status-report")).toHaveCount(0);
+    // Draft-first: the form and its submit control stay reachable while logged out.
+    await expect(page.getByTestId("submit-line-status-report")).toBeVisible();
   });
 
   test("USER: a duplicate submission surfaces the already-submitted indicator", async ({
@@ -337,15 +335,11 @@ test.describe("community front page", () => {
 
     await page.goto("/");
 
-    // Logged in, the submit box is the real form: URL input + optional line status.
+    // Logged in, the submit box is the quick URL form (the optional line-status select is gone).
     await expect(page.getByLabel("Link URL")).toBeVisible();
-    const statusSelect = page.getByRole("combobox", { name: "Line status" });
-    await expect(statusSelect).toBeVisible();
-    await expect(statusSelect).toContainText("Line status (optional)");
-    await expect(statusSelect).toContainText("Crowded");
 
     await page.getByLabel("Link URL").fill("https://www.facebook.com/mlptf/posts/123");
-    await page.getByRole("button", { name: "Submit link", exact: true }).click();
+    await page.getByRole("button", { name: "Submit Link", exact: true }).click();
 
     const duplicate = page.getByTestId("duplicate-indicator");
     await expect(duplicate).toBeVisible();
@@ -361,11 +355,12 @@ test.describe("community front page", () => {
       .toContain("SubmitFeedLink");
     const submitCall = (await recordedCalls()).find((c) => c.operationName === "SubmitFeedLink");
     expect(submitCall?.variables).toEqual({
-      input: { url: "https://www.facebook.com/mlptf/posts/123", lineIds: [] },
+      input: { url: "https://www.facebook.com/mlptf/posts/123" },
     });
 
     // The duplicate's backend upvote is mirrored into the matching feed row.
     const card = page
+      .getByTestId("feed-scroll")
       .locator("app-link-card")
       .filter({ hasText: "Kelana Jaya Line disruption thread" });
     await expect(card.getByRole("button", { name: "Upvote" })).toHaveAttribute(
@@ -374,7 +369,7 @@ test.describe("community front page", () => {
     );
   });
 
-  test("USER: submits a line status report from a line card's sheet", async ({ page }) => {
+  test("USER: submits a line status report from a line row's sheet", async ({ page }) => {
     await loginAs(page);
     await configureMock({
       FrontPageLines: { lines: [KJL_LINE] },
@@ -385,8 +380,8 @@ test.describe("community front page", () => {
 
     await page.goto("/");
 
-    const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
-    await kjl.getByTestId("submit-line-status").click();
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await kjl.getByTestId("line-row-report").click();
     await expect(
       page.getByRole("heading", { level: 2, name: /KJL · Kelana Jaya Line/ }),
     ).toBeVisible();
@@ -417,6 +412,7 @@ test.describe("community front page", () => {
     await page.goto("/");
 
     const card = page
+      .getByTestId("feed-scroll")
       .locator("app-link-card")
       .filter({ hasText: "Kelana Jaya Line disruption thread" });
     const upvote = card.getByRole("button", { name: "Upvote" });
@@ -438,7 +434,7 @@ test.describe("community front page", () => {
     );
   });
 
-  test("VISITOR: expanding a line card lazily loads the hourly chart and reports", async ({
+  test("VISITOR: expanding a line row lazily loads the hourly chart and reports", async ({
     page,
   }) => {
     const reportsCreated = new Date().toISOString();
@@ -451,12 +447,12 @@ test.describe("community front page", () => {
 
     await page.goto("/");
 
-    const kjl = page.locator("app-line-pulse-card").filter({ hasText: "Kelana Jaya Line" });
-    const toggle = kjl.getByTestId("line-card-toggle");
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    const toggle = kjl.getByTestId("line-row-toggle");
 
     // Folded, the detail panel is absent and neither lazy read has been issued at all.
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(kjl.getByTestId("line-card-expanded")).toHaveCount(0);
+    await expect(kjl.getByTestId("line-row-expanded")).toHaveCount(0);
     expect((await recordedCalls()).map((call) => call.operationName)).not.toContain(
       "LineStatusHistory",
     );
@@ -467,7 +463,7 @@ test.describe("community front page", () => {
     await toggle.click();
 
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await expect(kjl.getByTestId("line-card-expanded")).toBeVisible();
+    await expect(kjl.getByTestId("line-row-expanded")).toBeVisible();
 
     // The hourly chart: one bar per stub bucket, scaled to the busiest hour and stacked by
     // report type — the 4-report hour splits into two segments, and the breakdown is carried by
@@ -524,7 +520,7 @@ test.describe("community front page", () => {
     // Collapsing hides the panel again.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(kjl.getByTestId("line-card-expanded")).toHaveCount(0);
+    await expect(kjl.getByTestId("line-row-expanded")).toHaveCount(0);
   });
 
   test("VISITOR: clamps a right-edge popover into the viewport", async ({ page }) => {
