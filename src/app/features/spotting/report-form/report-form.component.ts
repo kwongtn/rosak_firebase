@@ -62,7 +62,14 @@ const ABNORMAL_STATUSES = new Set(["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE"
   templateUrl: "./report-form.component.html",
 })
 export class ReportFormComponent {
-  readonly submitted = output<void>();
+  /**
+   * Emitted after a successful submit, carrying the line the entry was filed against (or `null` if
+   * the model had none). The payload is the point: `ReportSheetService.lineId` is consumed-once by
+   * the open edge above, so a host cannot recover the line from the service afterwards — and the
+   * front page needs it to send the reader back to the line they just reported about. Hosts that do
+   * not care ignore the argument.
+   */
+  readonly submitted = output<string | null>();
 
   protected readonly linesStore = inject(SpottingLinesStore);
   protected readonly auth = inject(AuthService);
@@ -316,8 +323,11 @@ export class ReportFormComponent {
             ? "Please wait for uploads to complete before closing this tab."
             : undefined,
         );
+        // Read BEFORE clear() — the payload carries the line so a host can send the reader back to
+        // it, and the reset below is exactly what would take that away.
+        const reportedLineId = this.model().lineId || null;
         this.clear();
-        this.submitted.emit();
+        this.submitted.emit(reportedLineId);
       }
     } catch (err) {
       if (err instanceof GraphQLRequestError) {

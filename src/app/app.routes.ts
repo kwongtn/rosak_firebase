@@ -2,6 +2,7 @@ import { Routes } from "@angular/router";
 import { pathWithOptionalParamMatcher } from "./core/routing/optional-param-matcher";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
 import { HomeStore } from "./features/home/data/home.store";
+import { HomeViewModeService } from "./features/home/data/home-view-mode.service";
 import { LineStatusSheetService } from "./features/home/data/line-status-sheet.service";
 
 export const routes: Routes = [
@@ -12,9 +13,14 @@ export const routes: Routes = [
     // revalidates on re-entry rather than assuming a fresh store.
     // The shared line list used by the report form now comes from the root-provided
     // SpottingLinesStore.
+    //
+    // HomeViewModeService is route-scoped for the same reason, and for one more: it reads
+    // ActivatedRoute, and ONE answer to "which view is this page in" has to be shared by the page
+    // (which picks between two entirely different layouts) and the board (which owns the toggle).
     path: "",
+    title: "MLPTF | Live Network Board",
     loadComponent: () => import("./features/home/home.page").then((m) => m.HomePage),
-    providers: [HomeStore, LineStatusSheetService],
+    providers: [HomeStore, HomeViewModeService, LineStatusSheetService],
   },
   {
     path: "spotting",

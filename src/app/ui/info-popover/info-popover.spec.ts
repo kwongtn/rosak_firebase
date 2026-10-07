@@ -72,6 +72,25 @@ class InfoPopoverHost {
 })
 class InfoPopoverPairHost {}
 
+/** A trigger-template consumer: the popover stamps the CONSUMER'S button as its trigger. */
+@Component({
+  imports: [InfoPopover],
+  template: `
+    <app-info-popover
+      label="Pin this line"
+      content="Pin this line to keep it in My lines at the top of the board."
+      [showIcon]="false"
+      [showMethodologyLink]="false"
+      [triggerTpl]="pinTpl"
+      testId="bare-popover-panel"
+    ></app-info-popover>
+    <ng-template #pinTpl>
+      <button type="button" data-testid="bare-trigger">Pin</button>
+    </ng-template>
+  `,
+})
+class InfoPopoverBareHost {}
+
 /** The shared grace window between a host `mouseleave` and the panel closing. */
 const HOVER_CLOSE_DELAY_MS = 300;
 
@@ -87,8 +106,32 @@ describe("InfoPopover", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
+
+  /**
+   * jsdom reports every rect as zero, so the viewport collision pass can only be exercised by faking
+   * the panel's rect. The measure runs the moment the panel node appears, so the spy must be in
+   * place BEFORE the panel is opened — install it, then open.
+   */
+  function stubPanelRect(rect: {
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+    height: number;
+  }): void {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as unknown as DOMRect,
+    );
+  }
+
+  /** Pin the viewport so the assertions do not depend on jsdom's default dimensions. */
+  function stubViewport(width: number, height: number): void {
+    vi.stubGlobal("innerWidth", width);
+    vi.stubGlobal("innerHeight", height);
+  }
 
   /** `afterNextRender` fills the panel id and the hover probe only after one full cycle —
    * detect, settle, detect, exactly like the status-chip spec. */
@@ -214,7 +257,7 @@ describe("InfoPopover", () => {
     openByHover();
 
     expect(panel()?.classList.contains("absolute")).toBe(true);
-    expect(panel()?.classList.contains("z-20")).toBe(true);
+    expect(panel()?.classList.contains("z-50")).toBe(true);
   });
 
   it("keeps only one panel open: opening a second popover closes the first", async () => {
@@ -531,6 +574,125 @@ describe("InfoPopover", () => {
     expect(panel()?.classList.contains("max-w-[calc(100vw-2rem)]")).toBe(true);
   });
 
+  it("nudges a start-anchored panel that overflows the right edge back inside the viewport", async () => {
+    stubMatchMedia(false);
+    stubViewport(1024, 768);
+    await render();
+    stubPanelRect({ left: 900, right: 1200, top: 100, bottom: 200, height: 100 });
+
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const openPanel = panel();
+    expect(openPanel).not.toBeNull();
+    // 1200 overhangs the 1024 - 8 right margin by 184; a start-anchored panel is corrected on its
+    // LEFT margin, so the nudge is negative (move left).
+    expect(openPanel!.style.marginLeft).toBe("-184px");
+    expect(openPanel!.style.marginRight).toBe("");
+  });
+
+  it("leaves a panel that already fits the viewport unshifted", async () => {
+    stubMatchMedia(false);
+    stubViewport(1024, 768);
+    await render();
+    stubPanelRect({ left: 100, right: 300, top: 100, bottom: 200, height: 100 });
+
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(panel()?.style.marginLeft).toBe("");
+    expect(panel()?.style.marginRight).toBe("");
+  });
+
+  it("flips the panel above the trigger when it overhangs the bottom but fits above", async () => {
+    stubMatchMedia(false);
+    stubViewport(1024, 768);
+    await render();
+    // 800 overhangs the 768 - 8 bottom margin, and 100px of panel plus the 12px clearance still
+    // fits above a trigger at 700.
+    stubPanelRect({ left: 100, right: 300, top: 700, bottom: 800, height: 100 });
+
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const openPanel = panel();
+    expect(openPanel).not.toBeNull();
+    expect(openPanel!.classList.contains("bottom-full")).toBe(true);
+    expect(openPanel!.classList.contains("mb-1.5")).toBe(true);
+    expect(openPanel!.classList.contains("top-full")).toBe(false);
+    expect(openPanel!.classList.contains("mt-1.5")).toBe(false);
+  });
+
+  it("stays below when the panel overhangs the bottom but there is no room above", async () => {
+    stubMatchMedia(false);
+    stubViewport(1024, 768);
+    await render();
+    // Overhangs the bottom, but a 700px panel cannot fit above a trigger at 100 (100 - 700 - 12 < 8);
+    // the page scrolls instead of hiding the panel's top under the nav.
+    stubPanelRect({ left: 100, right: 300, top: 100, bottom: 800, height: 700 });
+
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const openPanel = panel();
+    expect(openPanel!.classList.contains("top-full")).toBe(true);
+    expect(openPanel!.classList.contains("mt-1.5")).toBe(true);
+    expect(openPanel!.classList.contains("bottom-full")).toBe(false);
+  });
+
+  it("corrects an end-anchored overflow on the right margin, not the left", async () => {
+    stubMatchMedia(false);
+    stubViewport(1024, 768);
+    await render();
+    fixture.componentInstance.align.set("end");
+    fixture.detectChanges();
+    stubPanelRect({ left: 900, right: 1200, top: 100, bottom: 200, height: 100 });
+
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const openPanel = panel();
+    expect(openPanel).not.toBeNull();
+    // A right-anchored panel is pulled back in with a POSITIVE margin-right (margins move the box
+    // away from the side they sit on); the left margin is never touched.
+    expect(openPanel!.style.marginRight).toBe("184px");
+    expect(openPanel!.style.marginLeft).toBe("");
+  });
+
+  it("re-measures on each open instead of inheriting the previous nudge", async () => {
+    stubMatchMedia(false);
+    stubViewport(1024, 768);
+    await render();
+    stubPanelRect({ left: 900, right: 1200, top: 100, bottom: 200, height: 100 });
+
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(panel()?.style.marginLeft).toBe("-184px");
+
+    openByTap(); // tap again closes
+    fixture.detectChanges();
+    expect(panel()).toBeNull();
+
+    // The next open sees a panel that fits; the stale correction must be cleared, not carried over.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      left: 100,
+      right: 300,
+      top: 100,
+      bottom: 200,
+      height: 100,
+    } as unknown as DOMRect);
+    openByTap();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(panel()?.style.marginLeft).toBe("");
+  });
+
   it("uses the testId input as the panel test id", async () => {
     stubMatchMedia(false);
     await render();
@@ -550,6 +712,98 @@ describe("InfoPopover", () => {
 
     openByTap();
     expect(panel()?.querySelector('[data-testid="popover-extra"]')).not.toBeNull();
+  });
+});
+
+describe("InfoPopover (bare trigger)", () => {
+  let fixture: ComponentFixture<InfoPopoverBareHost>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [InfoPopoverBareHost],
+      providers: [provideZonelessChangeDetection(), provideRouter([])],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  async function render(): Promise<ComponentFixture<InfoPopoverBareHost>> {
+    fixture = TestBed.createComponent(InfoPopoverBareHost);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function host(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function control(): HTMLButtonElement {
+    const el = host().querySelector<HTMLButtonElement>('[data-testid="bare-trigger"]');
+    if (!el) throw new Error("bare trigger not rendered");
+    return el;
+  }
+
+  function panel(): HTMLElement | null {
+    return host().querySelector<HTMLElement>('[data-testid="bare-popover-panel"]');
+  }
+
+  function popoverHost(): HTMLElement {
+    return host().querySelector<HTMLElement>("app-info-popover") ?? host();
+  }
+
+  it("renders the projected control as the trigger, with no wrapping button", async () => {
+    stubMatchMedia(false);
+    await render();
+
+    // The whole point: the projected button is not nested inside another button, and it is the
+    // only button the popover owns.
+    expect(control().closest("button")).toBe(control());
+    expect(popoverHost().querySelectorAll("button").length).toBe(1);
+    // No "i" glyph in bare mode — the glyphs live in the button branch.
+    expect(control().querySelector('span[aria-hidden="true"]')).toBeNull();
+    expect(panel()).toBeNull();
+  });
+
+  it("opens the panel on tap of the projected control, as a tooltip", async () => {
+    stubMatchMedia(false);
+    await render();
+
+    control().click();
+    fixture.detectChanges();
+
+    expect(panel()).not.toBeNull();
+    expect(panel()?.getAttribute("role")).toBe("tooltip");
+    expect(panel()?.textContent).toContain("Pin this line");
+    expect(panel()?.textContent).toContain(
+      "Pin this line to keep it in My lines at the top of the board.",
+    );
+
+    control().click();
+    fixture.detectChanges();
+    expect(panel()).toBeNull();
+  });
+
+  it("closes on Escape without stealing focus, having no trigger button of its own", async () => {
+    stubMatchMedia(true);
+    await render();
+    vi.useFakeTimers();
+
+    popoverHost().dispatchEvent(new MouseEvent("mouseenter"));
+    fixture.detectChanges();
+    expect(panel()).not.toBeNull();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    fixture.detectChanges();
+
+    expect(panel()).toBeNull();
+    // No `#trigger` in bare mode, so focus restoration is skipped: the consumer's control is left
+    // where it was rather than being moved to a component-owned button that does not exist.
+    expect(document.activeElement).not.toBe(control());
   });
 });
 

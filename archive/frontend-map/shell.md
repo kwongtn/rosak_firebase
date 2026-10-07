@@ -1,7 +1,7 @@
 # Global Application Shell, Routing & System Pages
 
 This document is the **canonical sitemap** for the whole app. Every other doc in
-`docs/frontend-map/` links back here instead of repeating the top-level route table, guard
+`archive/frontend-map/` links back here instead of repeating the top-level route table, guard
 logic, or maintenance-mode mechanism.
 
 Scope covered: `src/app/header/**` (top nav chrome), `src/app/app.component.{ts,html,scss}`

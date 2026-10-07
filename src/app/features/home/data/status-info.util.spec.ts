@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { metricDoc } from "../../../core/methodology/methodology-render.util";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import type { LineStatus, PassengerStatus, VehicleStatus } from "./home.queries";
 import { PASSENGER_METRIC } from "./line-status-metrics.util";
 import {
@@ -12,6 +15,8 @@ import {
   lineStatusInfo,
   passengerInfo,
   passengerScale,
+  vehicleBreakdownRows,
+  vehicleCountInfo,
   vehicleStatusRows,
 } from "./status-info.util";
 
@@ -212,6 +217,53 @@ describe("vehicleStatusRows", () => {
     const rows = vehicleStatusRows(VEHICLE_STATUSES.map((status) => ({ status, count: 1 })));
 
     expect(rows.map((row) => row.key)).toEqual(VEHICLE_STATUSES);
+  });
+});
+
+describe("vehicleBreakdownRows", () => {
+  it("returns no rows when nothing was reported", () => {
+    expect(vehicleBreakdownRows([])).toEqual([]);
+    expect(vehicleBreakdownRows(null)).toEqual([]);
+    expect(vehicleBreakdownRows(undefined)).toEqual([]);
+  });
+
+  it("renders the non-zero statuses in enum order, closed by a Total of their sum", () => {
+    const rows = vehicleBreakdownRows([
+      { status: "IN_SERVICE", count: 12 },
+      { status: "NOT_SPOTTED", count: 3 },
+      { status: "OUT_OF_SERVICE", count: 1 },
+      { status: "DECOMMISSIONED", count: 0 },
+    ]);
+
+    expect(rows).toEqual([
+      { key: "IN_SERVICE", label: "In service", value: "12" },
+      { key: "NOT_SPOTTED", label: "Not spotted", value: "3" },
+      { key: "OUT_OF_SERVICE", label: "Out of service", value: "1" },
+      { key: "TOTAL", label: "Total", value: "16" },
+    ]);
+  });
+
+  it("sums duplicate entries for one status into the Total", () => {
+    const rows = vehicleBreakdownRows([
+      { status: "IN_SERVICE", count: 10 },
+      { status: "IN_SERVICE", count: 2 },
+    ]);
+
+    expect(rows).toEqual([
+      { key: "IN_SERVICE", label: "In service", value: "12" },
+      { key: "TOTAL", label: "Total", value: "12" },
+    ]);
+  });
+});
+
+describe("vehicleCountInfo", () => {
+  it("reads the registry title and rendered definition for the vehicle-count metric", () => {
+    const doc = metricDoc("line-pulse.vehicle-count");
+
+    expect(vehicleCountInfo()).toEqual({
+      title: doc.title,
+      body: renderMethodologyCopy(doc.definition),
+    });
   });
 });
 

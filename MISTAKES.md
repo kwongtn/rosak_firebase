@@ -13,7 +13,154 @@
 
 ---
 
+## [2026-10-07] features/home: wrapping a control or chip in an `InfoPopover` / `StatusInfoChip` host relocates it in the DOM — re-scope ancestor queries and cluster-order assertions
+
+**Problem**: Wrapping `line-card-pin` / `line-row-pin` in `app-info-popover`, and `line-row-vehicles` in
+`app-status-info-chip`, inserted a host element between each node and its former parent. Specs that had
+asserted the action cluster via `pin.parentElement`, or counted `[data-testid]` under that parent, now
+targeted the wrong node; and the row's `root.querySelector('[data-testid="line-row-meta"]
+app-info-popover')` — written when the report tally was the strip's only popover — silently started
+matching the **vehicle chip's** injected host instead.
+**Root Cause**: Both wrappers project (or stamp, via `triggerTpl`) their content inside a component host
+(`<app-info-popover>` is `class="relative inline-flex"`) and inject their own trigger markup into the
+subtree — a `<button>` in the default/projected mode and for the chip, an `inline-flex` `<span>`
+wrapper in the pin's `triggerTpl` mode. So a wrapped element's `parentElement` / `closest(...)` graph
+changes, and any ancestor-scoped `querySelector` can now match the wrapper's host rather than the
+consumer's element.
+**Fix**: Re-scoped the assertions in `line-pulse-card.component.spec.ts` and
+`line-pulse-row.component.spec.ts` — cluster order/parent checks go through
+`pin.closest("app-info-popover")`, and the meta strip's report popover is reached from
+`line-row-reports`' own `closest("app-info-popover")` instead of `line-row-meta app-info-popover`. No
+template or logic change; the runtime behavior was always correct.
+**Prevention**: before wrapping an existing `data-testid` element in a host component, grep the specs
+for that testid's `.parentElement`, `closest(...)` and ancestor-scoped `querySelector`. A wrapper
+relocates the node AND adds its host plus injected children to every ancestor query that spans it.
+Prefer querying from the target's own `closest(...)` chain over a shared ancestor, and assert "no
+popover here" against the specific element rather than the whole strip once a sibling may carry one.
+
+## [2026-10-07] ui/info-popover: `ng-content` inside an `ng-template` stamped by `ngTemplateOutlet` silently renders EMPTY in the real app (and passes the whole unit suite) inside an `ngSkipHydration` component
+
+**Problem**: The intermediate `bareTrigger` implementation — an `ng-template` wrapping `<ng-content/>`
+stamped by `ngTemplateOutlet` — passed the entire unit suite, including dedicated bare-mode specs, but
+the live DOM showed `<span class="inline-flex"></span>` with zero pins. The server HTML was correct and
+the default-branch projections rendered fine in the same client runtime, yet the failure reproduced on
+both hydration re-render and client-side navigation.
+**Root Cause**: Projection inside an embedded view stamped under an `ngSkipHydration` component is not
+reliable at runtime: the construct re-renders without materialising the projected nodes. Unit tests and
+SSR never exercise that path, so nothing failed until a browser did it.
+**Fix**: replaced with the `triggerTpl` input — a plain `ngTemplateOutlet` stamping consumer markup that
+contains no projection (one raw `ng-content` remains only in the default button branch).
+**Prevention**: for an opt-in alternate trigger shape, pass a `TemplateRef` input rather than moving
+`ng-content` into an `ng-template`. And for this repo: unit tests alone did not catch it — any
+`InfoPopover` structural change must be confirmed against the running dev server.
+
+## [2026-10-06] spotting: the month label's right-edge clamp had no month floor — it pinned and got "covered" instead of being pushed away
+
+**Problem**: In the line-details vehicle-spotting grid header, the month label behaved asymmetrically
+while scrolling horizontally. At the left boundary it pinned to the viewport edge, then was pushed away
+by the month's trailing edge (correct). At the right boundary — entering from the right while scrolling
+forward, or exiting through it while scrolling back — it pinned to the viewport edge and was
+progressively clipped by its own `<th>` (read as "covered"), and entering from the right only got
+revealed instead of sliding in.
+**Root Cause**: `VehicleSpottingGridComponent.monthLabelShift` hand-rolls `position: sticky; left;
+right` (the header table is translated, not scrolled). Its lower clamp was month-bounded
+(`Math.max(monthStartPx, viewLeft)`) but its upper clamp was not
+(`Math.min(monthEndPx, viewRight) - labelSpace`). Within one label-width of the month's leading edge,
+the final `Math.min` won over the lower clamp, positioning the label LEFT of its own month box — where
+`<th class="overflow-hidden">` ate it mid-slide.
+**Fix**: floor the upper clamp at `monthStartPx` (`Math.max(min(monthEndPx, viewRight) - labelSpace,
+monthStartPx)`), so both clamps are month-bounded and the viewport only moves the label within its own
+month; the label now rides the leading edge in and out, mirroring the trailing edge on the left.
+Geometry specs pin both directions, the two viewport pins, centered rest, and a full-range sweep.
+**Prevention**: when one clamp is bounded by a containing box, bound the opposite clamp by the same
+box's other edge — an over-constrained `min(max(...))` silently prefers the LAST clamp applied (the
+`min`), so a missing floor shows up as "pinned then clipped", not as an error. If the element is
+clipped by anything (`overflow-hidden`), assert the box invariant across the whole input range in
+tests rather than eyeballing two example scroll positions.
+
+## [2026-10-06] ui/info-popover: a consumer-side `hidden sm:inline` on an `<app-info-popover>` cannot hide it — the host's OWN display utility wins the tie
+
+**Problem**: the compact row's new `N reports (X this hour)` label had to disappear below `sm`, so it
+was given `class="hidden sm:inline"` on the `<app-info-popover>` element itself. It did not hide. The
+label stayed on screen at 390px, and the spec that asserted `hidden` on the host element passed anyway —
+jsdom computes no styles.
+**Root Cause**: `InfoPopover`'s host binding is `class="relative inline-flex"`, and Tailwind emits
+`.inline-flex{display:inline-flex}` **after** `.hidden{display:none}` in the compiled stylesheet
+(verified in `dist/web/browser/styles-*.css`: offsets 12217 vs 12138). Both are single-class utilities, so
+they have equal specificity and the LATER one wins — there is no consumer-side display utility that can
+beat a component host's own display utility, however specific the responsive variant looks.
+**Fix**: `e92016c` — the popover is wrapped in a plain `<span class="hidden sm:inline"
+data-testid="line-row-reports-wrap">`. A wrapper carries no competing display utility, so `hidden` is the
+only rule that touches its `display`. The spec asserts the wrapper holds both tokens AND that neither the
+projected span nor the popover host carries `hidden`.
+**Prevention**: never put a `display` utility (`hidden`, `block`, `flex`, `inline*`) on a component host
+to gate that component responsively — check the host's own class first (`grep -rn "class=\"" <ui
+component>`), and wrap the component in a plain element to gate it. This is the sibling of the
+`"never override a directive host class from the template"` entry below: in both cases the component
+owns its display and the consumer must wrap rather than compete. Confirm in a real browser, since
+jsdom will never resolve the tie.
+**Same-day sibling (spotting)**: the line-details activity-bar back chevron carried a static
+`inline-flex` NEXT TO a bound `[class.hidden]` gate on the SAME element — same tie, same winner
+(`.inline-flex` after `.hidden`), so the chevron rendered before its handoff. First fixed by binding the
+display class as a pair (`[class.hidden]` + `[class.inline-flex]`, never both); the final polish removed
+the display toggle entirely — the chevron's footprint collapses (`w-0`/`w-7` bound pair + `-mr-2`) and
+animates open on the handoff (`opacity`/`translate`/width via `transition-all`), staying `inert` +
+`aria-hidden` while hidden — which removes both the early render and the layout bump, while leaving
+flush-left headings untouched. E2e pins `opacity: 0`/`width: 0px`/`inert` pre-handoff and
+`opacity: 1`/`width: 28px`/no-`inert` after. Rule of thumb: when one class of a pair must beat another,
+bind BOTH — or better, don't let the two coexist at all — never rely on a static utility losing a
+cascade tie.
+
+## [2026-10-06] testing: `ng test --filter` matches TEST NAMES, not paths — a typo is a SILENTLY GREEN zero-test run
+
+**Problem**: while verifying the round-3 board change, `npm test -- --no-watch --filter "network-board"`
+matched **0 tests**, reported every file as skipped, and **exited 0**. It read as a passing run of the
+suite under change when it had in fact executed nothing. The correct pattern (`--filter
+"NetworkBoardComponent"`, the spec's `describe` name) ran 32 tests.
+**Root Cause**: the filter is a regex against the test NAME, not a file path — and the runner does not
+treat an empty match as an error, so the exit code cannot distinguish "everything passed" from "nothing
+was selected". Every other agent in this repo's history hit the same thing (the `line-pulse-card` case
+had the identical symptom one commit earlier).
+**Fix**: filter on the describe/test name (`--filter "NetworkHeatStrip"`, `--filter "LinePulseRow"`,
+`--filter "PreferencesService"`) and confirm the run count is non-zero; a scoped run was always followed
+by the full `npm test -- --no-watch` before the change was called done.
+**Prevention**: **treat a 0-test filtered run as a failure**, not as a green one — check the reported
+test count before reading anything else in the output, and grep the spec's `describe(...)` for the string
+instead of guessing from the filename (`line-pulse-card.component.spec.ts` describes
+`LinePulseCardComponent`, `network-board.component.spec.ts` describes `NetworkBoardComponent`). The full
+suite's file/test count is also the only reliable regression signal.
+
 ## Traps
+
+### [2026-10-03] core/preferences: a storage-backed signal service has TWO races with hydration — one throws NG0500, the other silently destroys the stored state
+
+**Problem**: `PreferencesService` was built on the `ThemeService` pattern — signals plus a
+`localStorage` read in the constructor. Two separate failures follow from that shape in an SSR app:
+(1) reading storage in the constructor means the client's first paint already has the rider's
+pinned lines while the server HTML never could, so hydration throws `NG0500` for any rider who had
+ever pinned anything (and not at all for a fresh rider, which is the worst kind of bug); (2) the
+persist `effect` fires on its FIRST run, which happens _before_ the read has landed, so the service
+writes the empty defaults over the real stored payload — silent, no error, and it looked like the
+storage layer was simply not working.
+**Root Cause**: two different orderings, one trap. The constructor read is synchronous and
+unconditional, so it necessarily runs on the server; and an `effect`'s first run is not a
+"change", it is the initial scheduling — gating only on a signal _change_ (rather than on having
+hydrated at all) does not stop it. Neither `ThemeService` nor any other existing service in the repo
+hits this because none of them is written defensively: `ThemeService` reads storage in its
+constructor too, so it has the same first exposure and simply has not been caught yet (its stored
+value is a single enum, so a mismatch degrades to a wrong theme for one frame instead of throwing).
+**Fix**: the service constructs on the **defaults** and hydrates inside `afterNextRender`, which
+does not run on the server at all; the persist effect is gated on a private `_hydrated()` flag set at
+the end of that same pass. Stored fields are validated **independently** (corrupt JSON, a non-object
+payload, an unknown enum value and a wrong-typed id each fall back on their own) because a
+half-recognisable payload is the common case when a shape changes, not an edge case.
+**Prevention**: in an SSR app, a storage-backed service must treat the constructor as
+**server**-capable and the first effect run as **pre-hydration**. Read in `afterNextRender`
+(or `afterRenderEffect`), gate every write on "have I read yet", and **spec it with
+`{ provide: PLATFORM_ID, useValue: "server" }` plus `vi.spyOn(Storage.prototype, "getItem"/"setItem")`
+asserting NEITHER is ever called** — a jsdom TestBed runs as a browser by default and will never
+catch either failure. See also the sibling rule for anything a _reactive_ `router.navigate()` does
+during SSR: it hangs the render, so the browser guard belongs at the call site too.
 
 ### [2026-10-02] build: a Tailwind arbitrary variant starting with `@` does not compile in an Angular template — and the dev server will serve you a STALE bundle while you chase it
 
@@ -1038,3 +1185,279 @@ Every feature doc independently proposes an LLM-/embedding-based feature (captio
 ---
 
 \*Entry dates are catalogue dates (2026-08-13 Phase 1 per-feature audits; 2026-08-24 fixes) unless a fix commit is shown. Compiled from `docs/COMPONENTS.md` and `docs/components/*.md`.
+
+## [2026-10-03] ui/sheet: a sheet that OPENS another sheet must be MOUNTED FIRST, or the page scrolls behind it
+
+**Problem**: the home page's new report chooser opens the line-status / spotting / link / incident
+sheets, so two `HlmSheet`s changed `open()` in the same tick. After choosing a line, the line-status
+sheet came up correctly but the page behind it still scrolled — the modal lock was already gone.
+**Root Cause**: `HlmSheet` locks scroll from an `effect` keyed on its own `open()`, writing
+`document.body.style.overflow` / `documentElement.style.overflow` directly. Angular flushes effects in
+**creation order**, not in the order their signals were written, and both sheets' signals are written
+synchronously inside one click handler. So the UNLOCK (the chooser closing) must belong to the
+component created **before** the one that LOCKS. Mounted after it, the lock runs first and the unlock
+runs second — the exact opposite of what the click did.
+**Fix**: `<app-report-chooser />` is the first sheet in `home.page.ts`'s template, with the invariant
+written into the template comment, the chooser's own class doc, and a spec that asserts the markup
+order (`home.page.spec.ts` → "hosts the report chooser BEFORE every other sheet").
+**Prevention**: any two components that share one global side effect driven by a signal need an
+explicit order, and it has to be pinned by a spec — the failure is invisible in a unit test that only
+looks at one sheet, and in jsdom `document.body.style.overflow` is never asserted. When a new sheet is
+added to a page that already opens sheets, ask which of them is created first.
+
+## [2026-10-03] testing: one unflushed HttpTestingController request fails 84 tests in 8 unrelated files
+
+**Problem**: after adding specs for the home report chooser, the suite went from 114 files / 1455 tests
+green to **8 files / 84 tests failing** — including four spec files the change never touched
+(`line-pulse-card`, `status-info-chip`, `insiden/link-form`, `spotting/report-form`), most of them with
+`Cannot configure the test module when the test module has already been instantiated`.
+**Root Cause**: one new spec opened the line-status sheet while signed out on a known line, which fires
+its lazy `STATION_LINES_QUERY`; the request was never flushed, so `httpMock.verify()` threw in that
+file's `afterEach`. A throwing `afterEach` runs before Angular's TestBed reset, so the module stayed
+instantiated and every later file's `beforeEach` (`configureTestingModule`) refused. The cascade made
+the real failure — one line in one spec — completely invisible in the summary.
+**Fix**: the spec flushes the request (a helper `openSheetLoggedOut()` does it for every logged-out
+case, and the close-then-reopen spec was changed not to reopen, since reopening re-issues the read).
+**Prevention**: `httpMock.verify()` is a **cross-file** assertion in this runner, not a per-spec
+cleanup. Any spec that makes a lazy resource go live (opening a sheet with a known line/id) must flush
+it, even when the request is irrelevant to what it asserts. When a suite suddenly fails in files the
+change did not touch, read the FIRST failure in file order, not the last — and remember that a
+`TestBed.inject()` placed before `configureTestingModule()` throws the same misleading message.
+
+## [2026-10-03] core/graphql: a `graphqlResource` is NOT lazy until first read — it evaluates its request immediately
+
+**Problem**: the network board's two service-day history reads were added to `HomeStore` behind the
+documented lazy-resource precedent (`graphqlResource(() => { if (!gate()) return undefined; … })`, plus
+"the resource is lazy until first read — read it in the constructor"). Both reads still fired as soon as
+the **lines** read landed, in every store instance and in every store spec, whether or not a widget that
+renders them was mounted.
+**Root Cause**: `graphqlResource()` installs `effect(() => { raw.isLoading(); rawHasError(); data(); … })`
+at CALL time (`core/graphql/graphql-client.ts`). That effect subscribes to the underlying `httpResource`
+immediately, so the request function is being evaluated — and re-evaluated whenever its signals change —
+from the moment `graphqlResource()` is called. "Lazy until first read" is therefore only true for a
+resource whose signals nobody ever reads _and whose request function depends on nothing that changes_; a
+`lines()`-style gate still fires as soon as its own dependency resolves. A gate that only the exported
+projections satisfied defers nothing at all.
+**Fix**: an explicit opt-in from the surface that renders the data —
+`HomeStore.requestHistoryReads()`, called from each history widget's constructor. The store then holds two
+gates: the opt-in AND the data it needs (`lines().length > 0`). Side benefit: every store spec that is
+about the feed is untouched by the two extra queries, and a board in Rider view (no heat grid) never asks
+for them.
+**Prevention**: "lazy resource" in this codebase means _gated on a signal the DISPLAY sets_, not _read by
+nobody until a projection is read_. When adding a store-owned read, decide which component's lifetime
+should own it and put the gate on that component's existence; then check whether a store spec that
+constructs the store now needs to flush a request it does not care about. Related: `httpMock.match()`
+DEQUEUES, so it cannot be used to ask "is this request pending?" — `expectOne` and keep the object.
+
+## [2026-10-03] testing: `httpMock.match()` dequeues, so a "is it pending?" probe eats the request
+
+**Problem**: several new store specs asserted `expect(httpMock.match(() => true)).toHaveLength(1)` and
+then, on the next line, `expectOne(...)` the same request — which threw "Expected one matching request
+… found none". Several more failed in `afterEach` with "Expected no open requests", because the probe had
+already consumed them.
+**Root Cause**: `HttpClientTestingBackend.match()` REMOVES what it matches, exactly like `expectOne`. It is
+not a read-only probe, and its name suggests it is.
+**Prevention**: assert existence with `expectOne` and keep the returned request; use `match()` only when
+the test genuinely intends to consume everything still open (e.g. a final "nothing is pending" check).
+And when a variables change re-issues a request, capture BOTH resources' requests before flushing either
+— `expectOne` twice for the same predicate fails on the second call.
+
+## [2026-10-03] ui/theme: LIGHT `--brand` fails AA as text and as a fill — found by the Phase-5B contrast audit, NOT fixed (design decision, above this phase)
+
+**Problem**: the dark-mode contrast audit for the network board came back clean on every dark surface
+(`--brand` on card **7.56:1**, `--brand-foreground` on brand **8.23:1**, the post-submit highlight ring
+**8.48:1**, the feed tabs **6.98:1** — all unchanged). The same measurement on the **light** theme shows
+the accent itself is not AA: `--brand: #ee7104` (`oklch(0.68 0.17 46)`) against `--card`
+(`oklch(1 0 0)`) is **3.0:1**. That colour is used three ways on `/`:
+`text-brand` on the hero's "Live map" CTA and on the row "Open original" link — **2.66:1 at the
+mobile text size** — and as a **fill** behind `--primary-foreground` white text on "Report status" and
+"Refresh" (the brand chips and `app-info-popover` triggers), also **3.0:1**. It fails WCAG 2.1 AA
+(4.5:1 for normal text, 3:1 for large text ≥ 24px or ≥ 18.66px bold) as body text and as a white-on-fill
+button label.
+**Root Cause**: the accent was picked for hue/vibe and never measured; `--brand` is `lightness 0.68`,
+which is comfortably readable as a large accent but not at body-text contrast, and a saturated orange at
+that lightness has no headroom left for white text on top of it. The dark theme does not have this
+problem because it swaps `--brand` for a much lighter orange (`#f79331`, 0.77 lightness), which is the
+correct move for an accent on a dark surface.
+**Fix**: **not fixed here.** Darkening `--brand` for light mode would change every existing brand
+surface app-wide (buttons, chips, links, the console) and is a design call, not a Phase-5B polish item;
+this entry exists so the number is on record and nobody re-runs the audit believing it passed.
+**Prevention**: when an accent colour becomes a **text** colour or a **button fill**, measure it, and
+prefer the two-token pattern the light theme now needs — a text-safe accent for small text and a fill
+that carries a dark-enough foreground — over one `--brand` doing all three jobs. Cheap check: relative
+luminance contrast per theme, per role, not per colour.
+
+## [2026-10-03] ui/directive: a bare attribute matching a directive input binds the EMPTY STRING — the selector and the input cannot share a name
+
+**Problem**: the new tick-up directive is `selector: "[hlmTickUp]"` with input `hlmTickUp: number`.
+Writing the attribute **and** the binding — `<span hlmTickUp [hlmTickUp]="value()">` — fails to
+compile: `Type 'string' is not assignable to type 'number'`. `[hlmTickUp]="value()"` alone works, and so
+does the "hover plus a string input" spelling that `HlmButton` uses everywhere.
+**Root Cause**: a **bare** attribute is a static attribute; Angular hands the directive its value as a
+string (`""`), and `""` is not a `number`. The static attribute is also redundant — the bound
+`[hlmTickUp]` already satisfies the `[hlmTickUp]` selector — so it only adds a second, conflicting
+binding. `HlmButton` never hit this because its `selector: "button[hlmBtn], a[hlmBtn]"` matches an
+attribute **not declared as an input**, so the bare form has nothing to bind to and is inert.
+**Fix**: the templates use `[hlmTickUp]="…"` alone.
+**Prevention**: when a directive selector and an input share a name, write the binding once
+(`[x]="v"`), never the bare attribute plus the binding. A numeric/boolean input with a name equal to
+its selector part is the case that breaks; a selector prefix like `hlm` (`hlmBtn`) is what keeps the
+other directives safe.
+
+## [2026-10-03] ui/shell: the sheet SCRIM does not dim the sticky nav — z-[45] vs a z-40 backdrop. Known, app-wide, NOT a home-feature bug
+
+**Problem**: open any sheet (line-status, link, spotting, the report chooser) and the shared
+`HlmSheet` backdrop paints `bg-black/50` behind the panel — but the sticky `AppNav` bar stays at full
+brightness ABOVE the scrim, so the page behind reads as "dimmed" while the nav reads as "still live" and
+paints over the scrim edge. A QA pass on `/` in the Pro view flagged it as a home-feature visual defect.
+
+**Root Cause**: the app's z-index ladder puts the nav at `z-[45]` and `HlmSheet`'s backdrop at `z-40`.
+That ladder is **correct and deliberate** — `app-nav.component.ts`'s own comment block explains that
+`z-[45]` sits above every sticky bar used in page content (the highest today is `z-40`) while staying
+below the overlay layer at `z-50`. The consequence nobody drew explicitly is that it also sits above the
+_backdrop_, because the backdrop is a page-level scrim at `z-40`, not part of the `z-50` overlay layer.
+🔴 This is pre-existing SHARED-COMPONENT behaviour: it reproduces on every sheet in the app, on every
+page, and it has nothing to do with the Pro dashboard, the board, or the home feature's own markup.
+
+**Fix**: **not fixed here.** The home-feature polish pass that found it deliberately left it alone: any
+real fix is a change to the shared nav/sheet z-index (raise the backdrop above `z-[45]`, or portal the
+sheet out of the page stacking context), which changes layering for every consumer of `HlmSheet`
+app-wide — out of scope for a visual-polish pass, and the wrong thing to do unannounced. Recorded here
+so it is not rediscovered as a home bug and "fixed" in the wrong layer.
+
+**Prevention**: when a QA finding is _"something on screen looks wrong"_, check whether it reproduces
+outside the feature that surfaced it before editing anything. Anything that reproduces on another page
+belongs to `ui/` or `shell/` and needs its own change with its own blast radius. The fast check here is
+one grep: the z-index is in `app-nav.component.ts` and `ui/sheet/sheet.ts`, neither of which is
+`features/home/`.
+
+## [2026-10-05] ui/info-popover: a panel is clipped by an ancestor's `overflow-hidden` AND painted under the chrome by a stale z-index — two independent bugs that look like one
+
+**Problem**: every `InfoPopover` on `/` — the hero headline, the two stat tiles, the sparkline caption,
+the row's history strip, the heat grid, the card's status chips — opened **cut off** at the edge of its
+card, and the refresh control's tooltip painted **underneath the sticky nav**. A tooltip that is both
+truncated and behind the chrome reads as "this app's tooltips are broken", when neither of those two
+things is a bug in the popover component at all.
+
+**Root Cause**: two independent causes that no single assertion could see.
+(1) **Clipping**: `InfoPopover`'s panel is `position: absolute`, so it is a child of whatever container
+projects the trigger — and the hero card, `LinePulseCardComponent` and `LinePulseRowComponent` all
+carried `overflow-hidden` (for their rounded corners). An `overflow-hidden` ancestor is a hard clip on
+an absolutely-positioned descendant: the panel was never moved out of the box, it was **cut** at it. No
+`z-index` can fix that, and a spec that asserts the panel's classes cannot see it either, because the
+clipping lives on a parent.
+(2) **Stacking**: the panel was `absolute … z-20`, while `app-nav.component.ts` puts the page nav at
+`z-[45]` and the home page's sticky mobile action bar at `z-30`. A tooltip opening near the top of the
+screen was therefore a valid `z-20` element painting under two siblings. The nav's own comment already
+documented the ladder — `z-[45]` "sits below the overlay layer at `z-50`" — and the panel was the one
+thing in that overlay layer that had never been moved up to meet it.
+
+**Fix**: (1) removed `overflow-hidden` from the three containers that host popovers and **compensated
+the decoration**: the hero's countdown track took `rounded-t-2xl` and the colour ribbon `rounded-b-2xl`
+(each keeping its own `overflow-hidden`, which is correct — it clips only its own fill/segments), and
+the line cards' leading colour rails took `rounded-l-xl` / `rounded-l-lg`. (2) `InfoPopover`'s panel
+went `z-20` → **`z-50`**, and the refresh control's own tooltip `z-10` → `z-50`. The two together are
+what "a tooltip is on top of everything" means. `pro-report-ranking`'s progress track and the lanes'
+`overflow-x-auto` were left clipping on purpose: neither hosts a popover.
+
+**Prevention**: 🔴 **before adding `overflow-hidden` to a container, ask whether anything inside it is
+absolutely positioned for a reason** — a popover panel, a dropdown, a menu, a tooltip. If yes, either
+drop the clip or move the panel out (`<dialog>`, a portal, or a body-level host). Rounding corners is
+never worth a clipped tooltip: give the decorative child its own `rounded-l-*` / `rounded-t-*` instead.
+The app's z ladder is **`nav z-[45]` < `overlay z-50`** (mobile bar `z-30` sits below the nav), so
+anything that must float above page chrome — every popover panel, every sheet — belongs at `z-50`, and
+a new one should be pinned with a spec that asserts the class. 🔴 And neither class of this bug is
+assertable from the component under test: the panel's own spec cannot see its ancestor's clip, and
+jsdom has no layout, so **a clipped panel needs a browser pass** — read it as "the panel is shorter than
+its text should need", not as a z-index failure.
+
+## [2026-10-05] core/styles: component `@keyframes` are RENAMED by emulated encapsulation — an animation referenced by a CLASS must be a global `@theme` token
+
+**Problem**: the home refresh control's "Updating" spinner gained a draw-in entrance — both strokes
+draw themselves from nothing to the full ring over 500ms — and it rendered as a **finished circle from
+the first frame**, with no entrance at all. Nothing failed: the spec was green, the class strings were
+exactly right, the build was clean. In the browser `animation-name` resolved to a name **no `@keyframes`
+rule exists for**, so the strokes simply sat at the default `stroke-dashoffset: 0`.
+
+**Root Cause**: 🔴 **Angular's emulated view encapsulation rewrites `@keyframes` declared inside a
+component's `styles`.** `@keyframes home-refresh-spinner-draw-ring` in the component's own stylesheet
+came out of the build as `@keyframes _ngcontent-ng-cXXXX_home-refresh-spinner-draw-ring`, while the
+Tailwind utility emitted `animation-name: home-refresh-spinner-draw-ring` from the **global** sheet
+(arbitrary `[animation:…]` and generated `animate-*` alike). The two names can never match, and an
+unmatched `animation-name` is not an error in any tool — it is a declaration that quietly does nothing.
+Only a name referenced from **within that same component's own `styles` string** would survive, since
+the rewrite is applied consistently inside one sheet.
+
+**Fix**: the keyframes are now **global `@theme` tokens** in `src/styles.css` —
+`--animate-spinner-draw-ring: spinner-draw-ring 500ms ease-out both` and `--animate-spinner-draw-arc`,
+each with its `@keyframes` nested in the same `@theme` block — applied as the generated
+`animate-spinner-draw-ring` / `animate-spinner-draw-arc` utilities. This is the same pattern as
+`--animate-icon-glow`, `--animate-breathe`, `--animate-nav-reveal`, `--animate-wordmark-wipe`,
+`--animate-nav-progress-sweep` and `--animate-tick-up`: every `animate-*` token in this repo is global
+for this reason, not by taste. The component's `styles` array went back to `[":host { display: inline-block; }"]`.
+Live evidence in the browser after the move: track `stroke-dashoffset` **56.55 → 50.40 → 47.46 → 41.83
+→ 33.89 → 31.37** and arc **14.14 → 7.84** over the first ~180ms, with a computed
+`animation-delay: 0.5s` on the spin.
+
+**Prevention**: 🔴 **any `@keyframes` referenced by a class — whether arbitrary `[animation:…]` or a
+generated `animate-*` — must be declared in the GLOBAL `@theme` in `src/styles.css`, never in a
+component's `styles`.** Put the `@keyframes` and its `--animate-<name>` token in the same `@theme`
+block and apply the `animate-<name>` utility. 🔴 And a jsdom spec **cannot** catch the broken version:
+it computes no styles, so the only thing it can assert is the class name — which was correct while the
+animation silently was not. That gap is exactly what let this ship green. Verify a new keyframe-driven
+animation by reading the **computed** `animation-name` in a real browser, or by grepping the built CSS
+for the un-prefixed name; a spec pinning the class is necessary but not sufficient.
+
+## [2026-10-07] ui/info-popover: a panel on a right-edge trigger overflowed the viewport — invisible, because the page clips x-overflow
+
+**Problem**: a left-anchored (`align="start"`) panel opened from a trigger near the right side of a
+full-width surface — the compact board rows' pins and status chips, the Pro header chips — extended
+past the viewport's right edge. Nothing errored and nothing looked broken in isolation: `html, body`
+carry `overflow-x: clip`, so the overhang was silently cut off and the reader simply saw a panel
+missing its right-hand words. The 2026-10-05 entry above is a **different** clip: that one was an
+ancestor's `overflow-hidden` cutting a descendant mid-card; this one is the **viewport edge** cutting a
+panel that legitimately lived outside it, and no ancestor fix can reach it.
+**Root Cause**: `InfoPopover` positioned its panel with a static anchor only — `left-0`, `right-0`, or
+`left-1/2 -translate-x-1/2` from `align` — and nothing ever measured where the viewport ended. The
+panel is `position: absolute` inside whatever projects the trigger, so it had no awareness of the
+window at all; a `min-w-56` (224px) floor made the overflow worst exactly where wide chips sit closest
+to the edge. The only prior handling was `max-w-[calc(100vw-2rem)]`, which caps _size_, never
+_position_.
+**Fix**: the panel is measured **once per open** (a `viewChild` panel + a browser-only `effect`, no
+scroll/resize listeners) and nudged back inside by an 8px margin. `_shiftStyles()` writes the
+correction as a **margin** on the side the alignment owns (`margin-right` for `align="end"`, else
+`margin-left`) so it composes with `align`'s `-translate-x-1/2` instead of fighting it, and the two
+edges are clamped together so a right-edge pull cannot shove the left edge back out. When the panel
+would overhang the bottom **and** a full flipped copy fits above the trigger, `_flipAbove()` renders
+it `bottom-full mb-1.5` instead of `top-full mt-1.5`. The effect deliberately does not read `_shiftPx`
+/ `_flipAbove` back, or it would re-measure the corrected rect, compute zero, and ping-pong.
+**Prevention**: the clamp now lives in `InfoPopover`, so every consumer gets it with no call-site
+change — do not hand-roll per-feature positioning. And the browser pass that proved it is encoded as
+the e2e test `VISITOR: clamps a right-edge popover into the viewport`: assert the **clamp-relevance
+predicate** first (the trigger is close enough to the edge that an unclamped panel WOULD overflow),
+then assert the opened panel's box is inside — without the predicate a green test could be measuring a
+trigger that never needed the clamp. jsdom has no layout, so this class of bug is invisible to the unit
+suite; the predicate-plus-containment pattern is the regression net.
+
+## [2026-10-07] Angular templates: `[class.mt-1.5]` silently binds class "mt-1"; `[style]` map keys ignore a ".px" suffix
+
+**Problem**: while building the viewport clamp, two binding spellings were written that compile,
+type-check, and render — but apply the wrong thing, with no error anywhere. (1) `[class.mt-1.5]="x"`
+was intended to toggle the 6px gap; the DOM showed the class `mt-1`, the fractional part silently
+dropped. (2) A style-map key `"margin-left.px"` was intended to mean "px units"; the rendered `style`
+attribute stayed `null` — the declaration was applied nowhere.
+**Root Cause**: Angular's class-binding **name grammar stops at the first dot**. `[class.mt-1.5]` is
+parsed as class name `mt-1` and (in the space-separated name form) an extra token, so the `.5` is never
+part of the class. Map-hop `[style]` keys are taken as **CSS property names verbatim** and mixed units
+are not inferred: a `.px` suffix is not stripped or interpreted, so `"margin-left.px"` names no
+property and writes nothing — unlike the single-property `[style.margin-left.px]="n"` binding, where
+the suffix _is_ the unit and is honoured.
+**Fix**: both were worked around in code. The panel's full class list is one `[class]` string computed
+(`_panelClasses()` = align classes plus `top-full mt-1.5` / `bottom-full mb-1.5`), where `mt-1.5`
+survives intact because it is a value token, not a binding name; and the correction is a style **map**
+with the unit in the value, `{ "margin-left": "-184px" }`, never in the key.
+**Prevention**: never put a fractional or unit suffix in a binding **name** — one `[class]`/`[style]`
+string computed in TS is the safe home for spacing and geometry that must survive verbatim, and a
+style map's keys are property names with units in the values. Because both mistakes fail **silently**,
+a unit test must read the **rendered** `classList` / `style` attribute rather than just the component's
+inputs — `info-popover.spec.ts` now does exactly that, which is what would have caught either no-op.

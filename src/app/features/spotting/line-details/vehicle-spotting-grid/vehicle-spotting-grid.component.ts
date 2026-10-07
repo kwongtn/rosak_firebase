@@ -1134,16 +1134,6 @@ export class VehicleSpottingGridComponent {
     return section.rows.reduce((sum, row) => sum + this.countFor(row.vehicleId, dateKey), 0);
   }
 
-  /** Whether `group`'s label should render at all right now — only once the *currently visible
-   * slice* of this month (within `#bodyScroll`'s viewport, which is generally narrower than a
-   * whole month) is wide enough to fit the label without clipping either of its own edges.
-   * Deliberately not "is any part of this month visible" — showing the label the instant a
-   * single pixel of a new month appears, then having `monthLabelShift`'s own clamps immediately
-   * cut it off at the viewport or month edge, is exactly the half-a-label-hanging-off-the-edge
-   * look this is trying to avoid; see that method's own doc comment for the full geometry this
-   * mirrors. Uses the fallback reserve (not the real measured width) for a month that's never
-   * rendered a label yet — a brief first-frame guess is fine since the real width self-corrects
-   * the moment it *does* render (see the constructor's measurement effect). */
   /** How far right (in px, added on top of the header table's own overall `translateX`, and on
    * top of the `<span>`'s own natural position flush against the *left* edge of its `<th>` — see
    * the template's own comment on why that `<th>` is `text-left`, not centered) a month group's
@@ -1158,9 +1148,13 @@ export class VehicleSpottingGridComponent {
    *    the center of the month" once released from either sticky edge.
    *  - While that resting position would render past the *right* edge of whatever's currently
    *    visible (`viewRight`, or the month's own end, whichever is nearer) — i.e. the month has
-   *    only just started entering from the right — the label instead clamps flush against that
-   *    edge, "following in from the right" as more of the month scrolls into view, rather than
-   *    staying invisible/off-screen until the resting position itself becomes reachable.
+   *    only just started entering from the right, or is on its way back out through it — the
+   *    label instead clamps flush against that edge, "following in from the right" as more of
+   *    the month scrolls into view, rather than staying invisible/off-screen until the resting
+   *    position itself becomes reachable. The mirror of the left-edge rule below: once less than
+   *    one label's worth of the month's *leading* edge is visible, that clamp collapses onto the
+   *    month's own start instead, so the label rides the leading edge in and out — sliding into
+   *    position / being pushed away — exactly as the left side rides the trailing edge.
    *  - While that resting position would render past the *left* edge of what's visible (the
    *    month is on its way out, scrolled mostly past) — it clamps flush against that edge
    *    instead, "stays there" — until the clamp's own upper bound (the month's end, minus the
@@ -1170,7 +1164,9 @@ export class VehicleSpottingGridComponent {
    *
    * Both clamps are bounded by the month's own start/end (never the *next* month's real
    * columns, and never the previous one's) as well as by the viewport — whichever is tighter —
-   * so the label slides naturally with scroll, clipped by the <th>'s overflow-hidden. */
+   * so the label never leaves its own month's box and slides naturally with scroll, clipped
+   * only by the viewport; the <th>'s overflow-hidden is the backstop that keeps it from ever
+   * bleeding into a neighbouring month, not the thing that eats it mid-slide. */
   protected monthLabelShift(group: MonthGroup): number {
     const monthStartPx = group.startIndex * COL_W;
     const monthWidthPx = group.columns.length * COL_W;
@@ -1185,7 +1181,12 @@ export class VehicleSpottingGridComponent {
 
     const restingLeft = centerPx - labelWidth / 2;
     const stickyLeftEdge = Math.max(monthStartPx, viewLeft);
-    const stickyRightEdge = Math.min(monthEndPx, viewRight) - labelSpace;
+    // Floored at the month's own start, mirroring how stickyLeftEdge is naturally floored there.
+    // Without it, the final min() below would push the label left of its own <th> whenever the
+    // viewport's right clamp falls within labelSpace of the month's start: the label would pin
+    // to the viewport edge and be clipped by the <th> ("covered") instead of riding the month's
+    // leading edge in and out ("pushed away"), the way the trailing edge mirrors it on the left.
+    const stickyRightEdge = Math.max(Math.min(monthEndPx, viewRight) - labelSpace, monthStartPx);
     const targetLeft = Math.min(Math.max(restingLeft, stickyLeftEdge), stickyRightEdge);
     return targetLeft - monthStartPx;
   }

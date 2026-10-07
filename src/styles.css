@@ -100,6 +100,68 @@
       transform: translateX(250%);
     }
   }
+
+  /* One-shot reveal for the home hero's four stat tiles when their number CHANGES
+     (see ui/motion/tick-up.directive.ts, which adds and re-adds the class to replay it).
+
+     Deliberately NOT `infinite` and with NO fill mode: once it has finished the element is back at
+     its own styles, so there is no timer to tear down and nothing keeps running afterwards. The
+     directive never applies the class on its first run, so the first paint does not animate at all;
+     and the directive applies it as `motion-safe:animate-tick-up`, which cannot match at all under
+     `prefers-reduced-motion: reduce`.
+
+     A short upward slide rather than a rolling digit: rolling digits need a per-frame JS tween and a
+     tabular-nums column to animate inside, which is a lot of machinery to say "this number changed". */
+  --animate-tick-up: tick-up 380ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @keyframes tick-up {
+    from {
+      opacity: 0;
+      transform: translateY(-0.3em);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* The home refresh control's "Updating" spinner DRAW-IN: the bright arc animates its own
+     stroke-dashoffset from its own length to 0, so the line builds itself instead of popping in
+     whole, and the svg's own spin is delayed 500ms so the rotation starts on a complete glyph
+     (see home-refresh-control.component.ts). The 14.14 mirrors that component's geometry: a quarter
+     of the r=9 circle's 56.55 circumference — which is exactly the length of the quarter-arc path,
+     so `dashoffset: 0` is the arc drawn and 14.14 is it hidden. The faded circle is STATIC
+     (no dasharray, no animation), so it needed no token.
+
+     Lives here, in the global theme, rather than in the component's own `styles`: Angular's
+     emulated encapsulation RENAMES @keyframes declared on a component
+     (`spinner-draw-arc` -> `_ngcontent-ng-cXXXX_spinner-draw-arc`), so a generated `animate-*`
+     utility — which resolves its animation-name against the global sheet — would match nothing and
+     the entrance would silently never fire. Every other animate-* token here is global for the same
+     reason; the token pattern is `animate-<name>`, not the component-scoped arbitrary-property
+     form. */
+  --animate-spinner-draw-arc: spinner-draw-arc 500ms ease-out both;
+
+  @keyframes spinner-draw-arc {
+    from {
+      stroke-dashoffset: 14.14;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+/* Brand orange. The site's accent hue for the network board's hero ribbon and small highlights —
+   deliberately NOT a replacement for `--primary`, which stays the blue every action control uses.
+   Two values because an orange background needs its own legible foreground, and one white-on-orange
+   pair that fails contrast on the dark card.
+   `inline` rather than a default `@theme` entry on purpose: it makes `bg-brand` compile to
+   `background-color: var(--brand)`, so the `.dark` override below is picked up automatically with
+   no `dark:` utility and no chance of the two drifting apart. */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
 }
 
 /* Dark mode is toggled by ThemeService adding/removing `.dark` on <html> — not by
@@ -215,6 +277,9 @@ body {
   --accent: oklch(0.93 0.03 255);
   --accent-foreground: oklch(0.25 0.03 255);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Brand orange (#ee7104) — accent only, never an action control's fill. */
+  --brand: #ee7104;
+  --brand-foreground: #ffffff;
   --border: oklch(0.9 0.02 255);
   --input: oklch(0.9 0.02 255);
   --ring: oklch(0.55 0.19 255);
@@ -246,6 +311,10 @@ body {
   --accent: oklch(0.32 0.045 255);
   --accent-foreground: oklch(0.96 0.01 255);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Lifted for the dark card: the light-mode orange is too close to the dark background's value
+     range to hold a solid fill, while this one still reads as the same hue. */
+  --brand: #f79331;
+  --brand-foreground: #1a0f04;
   --border: oklch(1 0.02 255 / 12%);
   --input: oklch(1 0.02 255 / 16%);
   --ring: oklch(0.6 0.12 255);

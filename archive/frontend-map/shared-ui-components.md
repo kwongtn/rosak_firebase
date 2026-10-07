@@ -105,7 +105,7 @@ A reusable "Imgur-style masonry" photo grid: lays out a set of already-fetched i
 
 ### Consumers (call sites)
 
-- `src/app/gallery/gallery.component.ts`/`.html` — one `<image-grid>` per visible day-bucket (see `docs/frontend-map/gallery.md` for full detail on that feature's own two-tier lazy-render scheme around it).
+- `src/app/gallery/gallery.component.ts`/`.html` — one `<image-grid>` per visible day-bucket (see `archive/frontend-map/gallery.md` for full detail on that feature's own two-tier lazy-render scheme around it).
 - `src/app/insiden/event-list/event-card/image-drawer/image-drawer.component.ts`/`.html:28` — one `<image-grid [images]="imageUrls" />` per incident, fed from `GetCalIncidentMediasService`'s `calendarIncidents[0].medias` (`file.url`, `width`, `height`); shows `<nz-empty nzNotFoundContent="No images. Add some?" />` when empty, and **always** renders a `<spotting-form-upload>` beneath it regardless of ownership (see `FormUploadComponent`'s Consumers section for the contrast with the `isMine`-gated pairing used on the spotting side).
 - Declared via `ImageGridModule`, imported by the gallery feature and by `insiden/insiden.module.ts`.
 
@@ -254,7 +254,7 @@ query ($filters: EventFilter) {
 - `EventFilter.id: strawberry.auto` (`spotting/schema/filters.py:20-21`) — an exact-match scalar filter (not a list `in` filter), matching the frontend's single scalar `id`.
 - `EventScalar.is_mine` (`spotting/schema/scalars.py:72-79`): `self.reporter.id == info.context.user.id`, `False` if not logged in.
 - `EventScalar.medias` (`scalars.py:66-70`): batched via `info.context.loaders["spotting"]["media_from_event_loader"]`.
-- `MediaScalar.file.url` — the same legacy Imgur-hosted `ImgurField` used by the Gallery feature (see `docs/frontend-map/gallery.md`'s note that this field carries a backend `# TODO: Deprecate` comment).
+- `MediaScalar.file.url` — the same legacy Imgur-hosted `ImgurField` used by the Gallery feature (see `archive/frontend-map/gallery.md`'s note that this field carries a backend `# TODO: Deprecate` comment).
 - **Note**: a **second, distinct** `GetMediasService` class exists at `gallery/services/get-medias.service.ts` with a completely different query shape (`mediasGroupByPeriod`) — do not conflate the two when porting; see `gallery.md`'s Known Quirks for the cross-reference.
 
 ### Consumers (call sites)

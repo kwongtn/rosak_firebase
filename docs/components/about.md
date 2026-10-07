@@ -3,7 +3,8 @@
 ## 📌 Purpose & Scope
 
 - **Core Responsibility:** Renders the public `/about` page — project description, a grid of
-  sub-projects, the team ("personnel") roster, and the open-source tech stack — all sourced
+  sub-projects, the team ("personnel") roster, the open-source tech stack, and a grid of external
+  community projects — all sourced
   live from a single Firestore document (`public/about`). Admins can edit the document in-page
   via a structured editor (draft-in-signals, `setDoc` on save).
 - **Domain/Layer:** Angular Presentation (standalone, lazy-loaded routed page component). Client-
@@ -22,7 +23,7 @@
   - Derived signals exposed to the template: `isLoading`, `aboutProject` (string), `projects`
     (display-filtered, query-matched, sorted by `startDate`), `personnel` (display-filtered,
     query-matched, sorted by `order`, `socials` normalized), `techStacks` (query-matched),
-    `statusVariant(status)`, `isAdmin` (from `AuthService`).
+    `communityProjects` (query-matched), `statusVariant(status)`, `isAdmin` (from `AuthService`).
 - **Dependencies:**
   - `firebase/app`, `firebase/firestore` — direct Firebase SDK usage (`initializeApp`/`getApps`,
     `getFirestore`, `doc`, `onSnapshot`, `setDoc`), guarded by `isPlatformBrowser` so it never
@@ -34,11 +35,12 @@
     (not GraphQL) enforce write access on `public/about`.
   - `src/app/features/about/data/about.model.ts` — local TypeScript interfaces describing the
     Firestore document shape (`PublicAboutDocument`, `Personnel`, `PersonnelSocial`, `TechStack`,
-    `Project`, `ProjectStatus`) — a type contract only, not a service.
+    `CommunityProject`, `Project`, `ProjectStatus`) — a type contract only, not a service.
   - `src/app/features/about/data/about-edit.util.ts` — pure helpers for the admin editor:
     `draftFromDoc()` (normalizes missing fields), `sanitizeDraft()` (strips nameless rows,
-    coerces undefined fields), `emptyProject`/`emptyPersonnel`/`emptyTechStack`/`emptySocial`
-    factories, and `filterAndSortProjects`/`filterPersonnel`/`filterTechStacks` (query
+    coerces undefined fields), `emptyProject`/`emptyPersonnel`/`emptyTechStack`/`emptySocial`/
+    `emptyCommunityProject` factories, and
+    `filterAndSortProjects`/`filterPersonnel`/`filterTechStacks`/`filterCommunityProjects` (query
     filtering + chronological sort).
   - `src/app/shell/app-nav/app-nav.component.ts` and
     `src/app/shell/app-footer/app-footer.component.ts` — page chrome.
@@ -52,8 +54,8 @@
 - Angular Signals only, no RxJS/NgNg/BehaviorSubject.
 - `isLoading` (`signal<boolean>`, starts `true`) and `_data` (`signal<PublicAboutDocument |
 undefined>`, private) hold raw state; everything the template reads (`aboutProject`,
-  `projects`, `personnel`, `techStacks`) is a `computed()` derived from `_data` via the pure
-  filter functions in `about-edit.util.ts`.
+  `projects`, `personnel`, `techStacks`, `communityProjects`) is a `computed()` derived from
+  `_data` via the pure filter functions in `about-edit.util.ts`.
 - `searchTerm` (`signal<string>`) drives the search box; it flows into the same `computed()`s
   so the page live-filters as the user types.
 - **Admin editor:** when `isAdmin() && editMode()`, the template renders a structured form
@@ -63,7 +65,8 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
   prevent Firestore rejecting undefined values or empty placeholder rows) then `setDoc()` on
   the same `public/about` doc. The live `onSnapshot` subscription picks up the save and
   re-renders the page automatically; `cancelEdit()` discards the draft. Each entry list
-  (`projects`/`personnel`/`techStacks`) wraps its editor cards in the same responsive grid as the
+  (`projects`/`personnel`/`techStacks`/`communityProjects`) wraps its editor cards in the same
+  responsive grid as the
   public section below (`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3`), so an edit cell
   lines up with the card it produces.
 - The Firestore `onSnapshot` subscription is opened in the constructor (browser only) and torn
@@ -74,11 +77,13 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
 
 ## 🧩 Extension Points & Hooks
 
-- **Schema-driven rendering:** every section (`projects`, `personnel`, `techStacks`) is an
-  `@if`/`@for` over an array already filtered by a `display` boolean in the Firestore doc — new
-  entries appear automatically without code changes; hiding one is just an admin edit.
+- **Schema-driven rendering:** every section (`projects`, `personnel`, `techStacks`,
+  `communityProjects`) is an `@if`/`@for` over an array in the Firestore doc (`projects` and
+  `personnel` are additionally gated by their `display` boolean) — new entries appear automatically
+  without code changes; hiding one is just an admin edit.
 - **Admin editor seams:**
-  - `emptyProject()` / `emptyPersonnel()` / `emptyTechStack()` / `emptySocial()` define the
+  - `emptyProject()` / `emptyPersonnel()` / `emptyTechStack()` / `emptySocial()` /
+    `emptyCommunityProject()` define the
     default shape of new entries — change one to add a new field to all newly created rows.
   - `sanitizeDraft()` determines which fields survive the save (drops nameless placeholders,
     coerces undefineds) — new required fields get validated here.
@@ -86,8 +91,8 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
     (e.g. a `blog` array) follows the same pattern: extend `PublicAboutDocument`, add
     `emptyBlog()`, wire the same `updateIn` / `addX` / `removeX` pattern.
 - **Search/filter:** `searchTerm` feeds through `filterAndSortProjects`, `filterPersonnel`,
-  and `filterTechStacks` in `about-edit.util.ts`; additional matchable fields (e.g. project
-  `startDate`) are a one-line change in the relevant filter function.
+  `filterTechStacks`, and `filterCommunityProjects` in `about-edit.util.ts`; additional matchable
+  fields (e.g. project `startDate`) are a one-line change in the relevant filter function.
 - **Status/variant mapping table:** `STATUS_VARIANT` is a small, centralized lookup from project
   status string to badge variant, defaulting to `"neutral"` for unknown values — new
   `ProjectStatus` values can be added to the model and this map without touching template logic.

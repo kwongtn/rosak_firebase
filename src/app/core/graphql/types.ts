@@ -1,6 +1,6 @@
 /**
  * Enums/scalars mirrored from the rosak_backend Strawberry schema, scoped to what
- * /spotting needs. See docs/frontend-map/spotting.md and shared-services-and-plumbing.md
+ * /spotting needs. See archive/frontend-map/spotting.md and shared-services-and-plumbing.md
  * in the repo root for the source-verified field-by-field mapping.
  */
 

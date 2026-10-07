@@ -218,6 +218,90 @@ test.describe("spotting details grid", () => {
     await page.screenshot({ path: ".omo/evidence/spotting-details-mobile.png", fullPage: true });
   });
 
+  test("MOBILE: title anchors, then hands off to the merged bar when the chips scroll away", async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await page.goto("/spotting/1/details");
+    await expect(page.getByTestId("spotting-grid")).toBeVisible();
+
+    await expect(page.getByTestId("details-back-link")).toBeVisible();
+    await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
+    await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("width", "0px");
+    await expect(page.getByTestId("details-back-chevron")).toHaveAttribute("inert", "");
+
+    await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-top.png" });
+
+    await page.evaluate(() => window.scrollBy(0, 100));
+    const anchoredTitleBox = await page.getByTestId("details-title-bar").boundingBox();
+    expect(Math.abs((anchoredTitleBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
+    await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
+    await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("opacity", "0");
+    await expect(page.getByTestId("details-back-chevron")).toHaveCSS("width", "0px");
+    await expect(page.getByTestId("details-back-chevron")).toHaveAttribute("inert", "");
+    // The heading must stay flush with the bar's content edge while the chevron slot is collapsed.
+    const anchoredBarBox = await page.getByTestId("details-activity-bar").boundingBox();
+    const plainTitleBox = await page.getByTestId("details-activity-title-plain").boundingBox();
+    expect(
+      Math.abs((plainTitleBox?.x ?? -1) - ((anchoredBarBox?.x ?? 0) + 16)),
+    ).toBeLessThanOrEqual(2);
+
+    await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-anchored-title.png" });
+
+    await page.evaluate(() => window.scrollBy(0, 320));
+    await expect(page.getByTestId("details-title-bar")).toHaveClass(/-translate-y-full/);
+    await expect(page.getByTestId("details-title-bar")).toHaveAttribute("inert", "");
+    await expect
+      .poll(async () => {
+        const slidTitleBox = await page.getByTestId("details-title-bar").boundingBox();
+        return slidTitleBox ? slidTitleBox.y + slidTitleBox.height : 999;
+      })
+      .toBeLessThanOrEqual(62);
+    await expect(page.getByTestId("details-activity-line-code")).toBeVisible();
+    await expect(page.getByTestId("details-activity-line-code")).toContainText(
+      "L1 - Spotting Activity",
+    );
+    await expect(page.getByTestId("details-activity-identity")).toBeVisible();
+    await expect(page.getByTestId("details-activity-identity")).toContainText("Active");
+    const chip = page.getByText("16/16 In Service");
+    await expect(chip).toBeVisible();
+    const chevron = page.getByTestId("details-back-chevron");
+    await expect(chevron).toBeVisible();
+    await expect(chevron).toHaveCSS("opacity", "1");
+    await expect(chevron).toHaveCSS("width", "28px");
+    await expect(chevron).not.toHaveAttribute("inert", "");
+    await expect(chevron).toHaveAttribute("href", "/spotting/1");
+
+    await page.evaluate(() => {
+      const bar = document.querySelector('[data-testid="details-activity-bar"]');
+      if (bar) {
+        window.scrollBy(0, bar.getBoundingClientRect().top - 61);
+      }
+    });
+    const barBox = await page.getByTestId("details-activity-bar").boundingBox();
+    expect(Math.abs((barBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
+    const navBox = await page.getByTestId("details-month-nav").boundingBox();
+    if (!barBox || !navBox) {
+      throw new Error("Expected the activity bar and month nav to have bounding boxes.");
+    }
+    expect(Math.abs(navBox.x + navBox.width - (barBox.x + barBox.width - 16))).toBeLessThanOrEqual(
+      3,
+    );
+
+    await chip.hover();
+    const tooltip = page.getByTestId("details-in-service-tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText("In Service");
+    const breakdown = page.getByTestId("details-in-service-breakdown");
+    await expect(breakdown).toBeVisible();
+    await expect(breakdown).toContainText("Total");
+    await expect(breakdown).toContainText("16");
+    await page.screenshot({ path: ".omo/evidence/spotting-details-mobile-merged.png" });
+  });
+
   test("DESKTOP: keeps the two-table grid and renders no mobile rows", async ({ page }) => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.goto("/spotting/1/details");
@@ -236,6 +320,14 @@ test.describe("spotting details grid", () => {
     for (const testId of MOBILE_TEST_IDS) {
       await expect(page.getByTestId(testId)).toHaveCount(0);
     }
+
+    await expect(page.getByTestId("details-activity-line-code")).toBeHidden();
+    await expect(page.getByTestId("details-activity-identity")).toBeHidden();
+    await expect(page.getByTestId("details-back-chevron")).toBeHidden();
+    await page.evaluate(() => window.scrollBy(0, 400));
+    const titleBox = await page.getByTestId("details-title-bar").boundingBox();
+    expect(Math.abs((titleBox?.y ?? -1) - 61)).toBeLessThanOrEqual(2);
+    await expect(page.getByTestId("details-back-link")).toBeInViewport();
 
     await page.screenshot({ path: ".omo/evidence/spotting-details-desktop.png", fullPage: true });
   });

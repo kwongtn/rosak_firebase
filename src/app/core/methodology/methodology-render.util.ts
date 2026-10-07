@@ -47,6 +47,16 @@ export function metricDoc(id: string): MetricDoc {
   return doc;
 }
 
+/**
+ * The tooltip-sized copy for one metric: its `summary` when it has one, else its full `definition`.
+ * Both go through `renderMethodologyCopy()`, so `{{TOKENS}}` resolve and an unknown token throws.
+ * An unknown id throws through `metricDoc()` before any copy is produced.
+ */
+export function metricTooltip(id: string): string {
+  const doc = metricDoc(id);
+  return renderMethodologyCopy(doc.summary ?? doc.definition);
+}
+
 /** The section with this id; throws on an unknown id so a typo fails loudly. */
 export function section(id: string): MethodologySection {
   const found = METHODOLOGY_SECTIONS.find((entry) => entry.id === id);

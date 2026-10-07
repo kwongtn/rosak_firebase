@@ -25,8 +25,9 @@ export interface ComboboxItem<T, TMeta = unknown> {
     <input
       hlmInput
       type="text"
-      [class]="'pr-6 ' + userClass()"
+      [class]="_inputClass()"
       [placeholder]="placeholder()"
+      [attr.aria-label]="ariaLabel() ?? null"
       [value]="search()"
       (input)="_onInput($event)"
       (click)="_onClick($event)"
@@ -49,6 +50,11 @@ export interface ComboboxItem<T, TMeta = unknown> {
     >
       <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
     </svg>
+    @if (trailingTemplate(); as trailing) {
+      <span class="pointer-events-none absolute top-1/2 right-7 -translate-y-1/2">
+        <ng-container *ngTemplateOutlet="trailing" />
+      </span>
+    }
     @if (_isOpen() && _filtered().length > 0) {
       <ul
         class="bg-popover text-popover-foreground border-border absolute z-50 mt-1 max-h-64 w-max min-w-full overflow-x-clip overflow-y-auto rounded-lg border py-1 shadow-md"
@@ -82,6 +88,9 @@ export class HlmCombobox<T> {
   readonly items = model<ComboboxItem<T>[]>([]);
   readonly value = model<T | undefined>(undefined);
   readonly placeholder = model<string>("");
+  /** Accessible name for the field's input. Callers whose visible field text is a plain layout
+   * element (not a wrapping <label>) pass that text here so the input keeps its name. */
+  readonly ariaLabel = input<string | undefined>(undefined, { alias: "aria-label" });
   /** Overrides the default label/searchTerms substring match — for lookups where what the
    * user types doesn't literally appear in the item (e.g. a run-number → unit-ID heuristic). */
   readonly filterFn = model<
@@ -89,6 +98,11 @@ export class HlmCombobox<T> {
   >(undefined);
   /** Custom row content — receives the `ComboboxItem` as `$implicit`. Falls back to plain label text. */
   readonly itemTemplate = model<TemplateRef<{ $implicit: ComboboxItem<T> }> | undefined>(undefined);
+  /** Optional trailing content rendered inside the field, right-aligned just before the
+   * dropdown chevron — e.g. the selected item's status badge. Purely decorative:
+   * `pointer-events-none`, so clicks still land on the input. While a trailing template is
+   * present the input reserves extra right padding so its text never runs underneath. */
+  readonly trailingTemplate = model<TemplateRef<unknown> | undefined>(undefined);
   /** Shown when typed text matches nothing — callers should say what's actually being searched
    * (e.g. "No matching vehicles") rather than leave this at its generic default. */
   readonly emptyMessage = input<string>("No matching options");
@@ -133,6 +147,12 @@ export class HlmCombobox<T> {
         (item.searchTerms ?? []).some((term) => term.toLowerCase().includes(query)),
     );
   });
+
+  /** The input always clears the chevron (pr-6); when trailing content is present it also
+   * clears that content (pr-36 ≈ chevron + the widest status badge) so text never runs under it. */
+  protected readonly _inputClass = computed(
+    () => (this.trailingTemplate() ? "pr-36 " : "pr-6 ") + this.userClass(),
+  );
 
   constructor() {
     // Keep the displayed text in sync when `value` changes from outside (e.g. reset by a

@@ -2,11 +2,12 @@
 
 Guidance for agents working in `rosak_firebase`. Read this before editing.
 
-This project has an OKF knowledge bundle at ./okf_bundle/.
+This project has an OKF knowledge bundle at `../okf_bundle/` (monorepo root — one level above this
+repo; it covers both `rosak_firebase/` and `rosak_backend/`).
 
-- Use `okf lookup <Name>` for full concept context.
-- Use `okf lookup --type <Type>` to filter by type.
-- Read `SUMMARY.md` for the full knowledge map.
+- Use `okf lookup --bundle ../okf_bundle <Name>` for full concept context.
+- Use `okf lookup --bundle ../okf_bundle --type <Type>` to filter by type.
+- Read `../okf_bundle/SUMMARY.md` for the full knowledge map.
 
 ## ⚡ Quick Commands
 
@@ -21,6 +22,8 @@ npm test -- --no-watch          # Vitest single run — REQUIRED in automation (
 npm test -- --no-watch --filter "^App"   # single suite by name regex
 npx prettier --check .          # the only lint gate (also enforced in CI + pre-commit)
 npx prettier --write .          # autofix formatting
+npm run verify                  # full gate: prettier + unit tests + prod build (prefer this)
+npm run e2e                     # Playwright e2e: dev build + mock GraphQL server (see e2e/)
 ```
 
 There is **no ESLint and no `lint` script**. Type checking happens only via `npm run build`.
@@ -54,7 +57,7 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
   11 features, and where the seams are.
 - **[`docs/components/`](docs/components/)`<feature>.md`** — per-feature interfaces, internal state,
   and named extension points. Read the relevant one before touching a feature.
-- ⚠️ **[`docs/frontend-map/`](docs/frontend-map/) is LEGACY** — it describes the pre-rewrite
+- ⚠️ **[`archive/frontend-map/`](archive/frontend-map/) is LEGACY** — it describes the pre-rewrite
   Angular 18 app (ng-zorro, Apollo, `src/app/services/**`). Those paths no longer exist. Useful only
   as background on backend/GraphQL contract history; never cite it for current structure, even
   though a few code comments still link to it.
@@ -118,8 +121,8 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
    `docs/components/<feature>.md` and the actual source, then **state an explicit plan** (files,
    order, which documented seam you're extending) and get agreement before editing. The catalog
    already names the extension points — use them instead of inventing new ones.
-2. **Verify before declaring done.** Run, in order:
-   `npx prettier --check . && npm test -- --no-watch && npm run build`.
+2. **Verify before declaring done.** Run `npm run verify` (chains
+   `npx prettier --check . && npm test -- --no-watch && npm run build`).
    Report real output. If something fails, say so — never claim completion on an unverified change.
 3. **Tests**: always run them. **Add a spec for every feature and bug fix where it is reasonably
    possible** — at minimum, any new pure utility, service, store, or build-script logic must have a
@@ -176,8 +179,9 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
   `methodology.content.ts` (sections + metric definitions). Copy is rendered via
   `renderMethodologyCopy()` — never a literal in a consuming template.
 - Any user-visible metric/status/threshold/rule must add a `MetricDoc` (+ a `METHODOLOGY_CONSTANTS`
-  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is
-  `metricDoc(id).definition` rendered with the constants.
+  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is `metricTooltip(id)`
+  — the metric's optional `summary`, else its full `definition`, rendered with the constants. Author
+  a `summary` when the definition is too long to read in a tooltip.
 - When a feature changes a documented value or rule: update the registry, bump the owning section's
   `lastReviewed`, re-run `npm test -- --no-watch` (the PR template carries the checklist line).
 - Backend-owned values (reliability constants, provenance licenses, staleness windows) are fetched

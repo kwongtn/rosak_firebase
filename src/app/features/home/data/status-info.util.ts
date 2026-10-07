@@ -1,4 +1,7 @@
-import { metricDoc } from "../../../core/methodology/methodology-render.util";
+import {
+  metricDoc,
+  renderMethodologyCopy,
+} from "../../../core/methodology/methodology-render.util";
 import type { BadgeVariants } from "../../../ui/badge/badge";
 import type { LineStatus, PassengerStatus, VehicleStatus } from "./home.queries";
 import { PASSENGER_LABEL, PASSENGER_VARIANT } from "./passenger-status.util";
@@ -64,6 +67,35 @@ export function vehicleStatusRows(
     label: VEHICLE_STATUS_LABEL[status],
     count: byStatus.get(status) ?? 0,
   }));
+}
+
+/**
+ * The vehicle-count metric's popover copy, read from the methodology registry at call time so the
+ * chip and `/methodology` cannot drift. Shared by the card and the compact row.
+ */
+export function vehicleCountInfo(): StatusInfo {
+  const doc = metricDoc("line-pulse.vehicle-count");
+  return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
+}
+
+/**
+ * The vehicle-count chip's breakdown rows: the non-zero per-status counts in enum order, closed by a
+ * `Total` row equal to their sum. No counts reported means no rows at all, so the chip renders the
+ * definition alone. Structurally the `StatusBreakdownRow` shape the chip's `breakdown` input wants —
+ * kept local so the pure util never imports the component and closes a module cycle.
+ */
+export function vehicleBreakdownRows(
+  counts: Parameters<typeof vehicleStatusRows>[0],
+): { key: string; label: string; value: string }[] {
+  const rows = vehicleStatusRows(counts);
+  if (rows.length === 0) {
+    return [];
+  }
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  return [
+    ...rows.map((row) => ({ key: row.key, label: row.label, value: `${row.count}` })),
+    { key: "TOTAL", label: "Total", value: `${total}` },
+  ];
 }
 
 const NO_PASSENGER_DATA: StatusInfo = {

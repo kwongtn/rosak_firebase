@@ -3,7 +3,7 @@ import { MediaYearCount } from "../data/gallery.queries";
 
 /**
  * Per-year navigation aid for the gallery grid. There's no server-side year filter (see the
- * rewrite notes in docs/frontend-map/gallery.md) — clicking a year jumps to it within whatever's
+ * rewrite notes in archive/frontend-map/gallery.md) — clicking a year jumps to it within whatever's
  * already loaded, auto-loading more pages first if it hasn't been reached yet.
  */
 @Component({

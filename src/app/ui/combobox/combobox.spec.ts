@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection } from "@angular/core";
+import { Component, provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -9,6 +9,20 @@ const ITEMS: ComboboxItem<string>[] = [
   { label: "Banana", value: "b" },
   { label: "Cherry", value: "c" },
 ];
+
+@Component({
+  imports: [HlmCombobox],
+  template: `
+    <hlm-combobox [items]="items" [trailingTemplate]="showTrailing() ? trailingTpl : undefined" />
+    <ng-template #trailingTpl>
+      <span data-testid="trailing">Trailing</span>
+    </ng-template>
+  `,
+})
+class ComboboxHostComponent {
+  readonly items = ITEMS;
+  readonly showTrailing = signal(true);
+}
 
 describe("HlmCombobox", () => {
   let fixture: ComponentFixture<HlmCombobox<string>>;
@@ -203,5 +217,34 @@ describe("HlmCombobox", () => {
 
     expect(component.value()).toBe("c");
     expect(input().value).toBe("Cherry");
+  });
+
+  it("renders trailing content inside the field and reserves room for it", async () => {
+    const hostFixture = TestBed.createComponent(ComboboxHostComponent);
+    hostFixture.detectChanges();
+
+    const root = hostFixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>("hlm-combobox input");
+    const trailing = root.querySelector<HTMLElement>('[data-testid="trailing"]');
+    if (!input || !trailing) throw new Error("trailing content not rendered");
+
+    expect(trailing.closest("hlm-combobox")).not.toBeNull();
+    expect(trailing.parentElement?.classList.contains("pointer-events-none")).toBe(true);
+    expect(trailing.parentElement?.classList.contains("right-7")).toBe(true);
+    expect(input.classList.contains("pr-36")).toBe(true);
+
+    hostFixture.componentInstance.showTrailing.set(false);
+    await hostFixture.whenStable();
+    hostFixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="trailing"]')).toBeNull();
+    expect(input.classList.contains("pr-6")).toBe(true);
+  });
+
+  it("forwards ariaLabel to the input", () => {
+    fixture.componentRef.setInput("aria-label", "Line");
+    fixture.detectChanges();
+
+    expect(input().getAttribute("aria-label")).toBe("Line");
   });
 });

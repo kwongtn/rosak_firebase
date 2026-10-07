@@ -9,22 +9,15 @@ import {
   LineStatusHourBucket,
   PassengerStatus,
 } from "../data/home.queries";
-import { PASSENGER_LABEL } from "../data/passenger-status.util";
+import {
+  PASSENGER_BAR_CLASS,
+  PASSENGER_LABEL,
+  PASSENGER_NO_DATA_BAR_CLASS,
+} from "../data/passenger-status.util";
 import { PASSENGER_SCALE } from "../data/status-info.util";
 
 /** The community service day runs 03:00 → 02:00, so that's the hour the backend buckets from. */
 const SERVICE_DAY_START_HOUR = 3;
-
-/** Bar/segment fill per passenger status — the same palette vocabulary the fleet trend chart uses. */
-const BAR_CLASS: Record<PassengerStatus, string> = {
-  NORMAL: "bg-emerald-500",
-  BUSY: "bg-blue-500",
-  CROWDED: "bg-amber-500",
-  EXTREMELY_CROWDED: "bg-red-500",
-  BACKLOGGED: "bg-orange-500",
-  DELAYED: "bg-yellow-500",
-  DISRUPTED: "bg-rose-600",
-};
 
 /** Bucket hours are Malaysia service hours — formatted in MYT so every viewer reads the same day. */
 const HOUR_LABEL = new Intl.DateTimeFormat("en-GB", {
@@ -308,7 +301,7 @@ function toSegments(bucket: LineStatusHourBucket, barHeightPct: number): ChartSe
         status,
         count: bucket.count,
         heightPct: barHeightPct,
-        colorClass: status ? BAR_CLASS[status] : "bg-muted",
+        colorClass: status ? PASSENGER_BAR_CLASS[status] : PASSENGER_NO_DATA_BAR_CLASS,
       },
     ];
   }
@@ -318,7 +311,7 @@ function toSegments(bucket: LineStatusHourBucket, barHeightPct: number): ChartSe
       status,
       count,
       heightPct: (count / total) * barHeightPct,
-      colorClass: BAR_CLASS[status],
+      colorClass: PASSENGER_BAR_CLASS[status],
     };
   });
 }

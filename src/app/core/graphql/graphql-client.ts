@@ -37,7 +37,7 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
 /**
  * Reactive GraphQL query — thin wrapper over httpResource() so reads get Angular's
  * automatic SSR-to-browser TransferState for free (the reason this app uses signals
- * instead of Apollo Angular; see docs/frontend-map/shared-services-and-plumbing.md).
+ * instead of Apollo Angular; see archive/frontend-map/shared-services-and-plumbing.md).
  *
  * On failure, automatically retries in the background with exponential backoff (capped at 3
  * minutes) — `retryCountdownSec`/`retryNow` let a caller surface that countdown and offer an

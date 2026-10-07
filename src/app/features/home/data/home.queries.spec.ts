@@ -19,6 +19,11 @@ import {
 import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
   FEED_QUERY,
+  FRONT_PAGE_LINES_QUERY,
+  HOME_RECENT_INCIDENT_VARS,
+  HOME_RECENT_INCIDENTS_QUERY,
+  LINES_STATUS_HISTORY_QUERY,
+  NETWORK_STATUS_HISTORY_QUERY,
   REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
   SUBMIT_FEED_LINK_MUTATION,
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
@@ -227,6 +232,30 @@ const EDIT_ROUND_TRIP_SELECTIONS: Array<{ relation: string; fields: string[] }> 
  *  that grew the tree without it renders a blank time rather than failing to compile. */
 const TREE_FIELDS = ["parentId", "isThreadRoot", "sublinkCount", "created"];
 
+/** `FRONT_PAGE_LINES_QUERY`'s per-line selection. */
+function lineLevel(): SelectionSet {
+  return selectionUnder(FRONT_PAGE_LINES_QUERY, "lines");
+}
+
+describe("FRONT_PAGE_LINES_QUERY selection", () => {
+  it("asks for isAutomated on every pulse link, which is what makes 'official' possible", () => {
+    // The board's confidence chip and the hero's official-update callout are both built on ONE
+    // fact: is any of this line's pulse links an operator-sourced post? `LinePulseLink` declares
+    // `isAutomated` as a required boolean, and a fixture can invent any field it likes — so the
+    // only thing that knows whether the SERVER was asked is the document itself. Without this
+    // selection the field is `undefined` at runtime and every line silently degrades to "confirmed
+    // by riders" with no error anywhere.
+    expect(lineLevel().nested["pulseLinks"]?.fields).toContain("isAutomated");
+  });
+
+  it("keeps the pulse link a single flat level — no conversation tree follows it in", () => {
+    // The card renders one fixed-height row per related link, so the nested `sublinks` chain the
+    // feed carries is deliberately NOT selected here. Asserted so a future copy-paste of the feed's
+    // node selection into this one is a red test rather than a payload-size surprise.
+    expect(lineLevel().nested["pulseLinks"]?.nested["sublinks"]).toBeUndefined();
+  });
+});
+
 describe("FEED_QUERY selection", () => {
   it("nests sublinks exactly as deep as the document documents (root plus four levels)", () => {
     expect(linkChain(FEED_QUERY, "node")).toHaveLength(EXPECTED_LINK_LEVELS);
@@ -278,6 +307,172 @@ describe("FEED_QUERY selection", () => {
     for (const level of LEVEL_INDEXES.slice(1)) {
       expect(feedLevel(level).fields).not.toContain("normalizedUrl");
     }
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The FEED's line filter argument
+ *
+ * `$lineId` is the ONE key the authenticated vote-overlay reads omit (a wider overlay read is
+ * complete; a narrower one loses votes), which `home.store.spec.ts` pins structurally. These
+ * assertions pin the other half: the document really declares the variable and really passes it, so
+ * the store's `lineId` in the variables is not silently a no-op. A document that declared `$lineId`
+ * without passing it would still compile, still type-check and still return the whole network — the
+ * filter would simply never do anything, with no error anywhere.
+ * ---------------------------------------------------------------------- */
+
+describe("FEED_QUERY line filter", () => {
+  /** The comment-stripped document, so a prose line cannot satisfy a field assertion. */
+  function bare(document: string): string {
+    return withoutComments(document);
+  }
+
+  it("declares $lineId and passes it to the connection", () => {
+    const document = bare(FEED_QUERY);
+    expect(document).toMatch(/\$lineId:\s*ID\b/);
+    // Passing it, not just declaring it: a declared-but-unused GraphQL variable is a validation
+    // error, so a document that declared it WITHOUT using it would be rejected outright — which is
+    // why the two assertions belong together.
+    expect(document).toMatch(/publicSocialMediaLinks\([\s\S]*?lineId:\s*\$lineId/);
+  });
+
+  it("keeps collapseThreads in the same argument list — the six-read invariant is untouched", () => {
+    const document = bare(FEED_QUERY);
+    expect(document).toMatch(
+      /publicSocialMediaLinks\([\s\S]*?collapseThreads:\s*\$collapseThreads/,
+    );
+  });
+
+  it("leaves the connection's SELECTION alone, because the filter is a window, not a shape", () => {
+    // `collapseThreads` decides the SHAPE the page renders (roots with whole subtrees under them) and
+    // the overlay walk depends on it. A line filter is a narrower WINDOW over the same connection, so
+    // it must not be allowed to change what a row is.
+    expect(selectionUnderArgs(FEED_QUERY, "publicSocialMediaLinks").fields).toEqual([
+      "edges",
+      "pageInfo",
+      "totalCount",
+    ]);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The service-day history documents
+ *
+ * Three widgets draw the same 24 hourly buckets, so the two new documents must select the bucket
+ * shape EXACTLY as `LINE_STATUS_HISTORY_QUERY` already does. A missing field would still compile —
+ * `LineStatusHourBucket` is a hand-written type, and a hand-written type will happily claim a key a
+ * document never asked for — and the widget would then render an undefined count as if it were a real
+ * one.
+ * ---------------------------------------------------------------------- */
+
+describe("the service-day history documents", () => {
+  /** Every field an hour bucket must carry, and nothing else. */
+  const BUCKET_FIELDS = ["hourStart", "hourEnd", "count", "dominantStatus", "statusCounts"];
+  const STATUS_COUNT_FIELDS = ["status", "count"];
+
+  it("networkStatusHistory selects the same bucket shape as the per-line chart", () => {
+    const buckets = selectionUnderArgs(NETWORK_STATUS_HISTORY_QUERY, "networkStatusHistory");
+    expect(buckets.fields).toEqual(BUCKET_FIELDS);
+    expect(buckets.nested["statusCounts"]?.fields).toEqual(STATUS_COUNT_FIELDS);
+  });
+
+  it("linesStatusHistory keys each entry by line and nests the same buckets", () => {
+    const entries = selectionUnderArgs(LINES_STATUS_HISTORY_QUERY, "linesStatusHistory");
+    expect(entries.fields).toEqual(["lineId", "buckets"]);
+    // `lineId` is what the store keys the per-line map by — a strip that could not tell which line a
+    // bucket belonged to would draw the same history on every row.
+    expect(entries.nested["buckets"]?.fields).toEqual(BUCKET_FIELDS);
+    expect(entries.nested["buckets"]?.nested["statusCounts"]?.fields).toEqual(STATUS_COUNT_FIELDS);
+  });
+
+  it("declares and passes dayStartHour on the network read, so the defaulting call is legal", () => {
+    // The variable is DECLARED AND PASSED but deliberately omitted from every variables object this
+    // side builds, so the backend's default of 3 (the 03:00→02:00 service day) applies. A declared
+    // variable nothing references is a validation error, so "we never send it" can never quietly
+    // become "we removed it" without the server rejecting the query.
+    const bare = withoutComments(NETWORK_STATUS_HISTORY_QUERY);
+    expect(bare).toMatch(/\$dayStartHour:\s*Int\b/);
+    expect(bare).toMatch(/dayStartHour:\s*\$dayStartHour/);
+  });
+
+  it("leaves dayStartHour off the multi-line read entirely, as the plan's document specifies", () => {
+    // Only the network document declares it. The per-line document has no use for the argument, and
+    // declaring a variable it never references would be a validation error — so the honest spelling is
+    // absence, and the backend's default covers both windows identically anyway.
+    expect(withoutComments(LINES_STATUS_HISTORY_QUERY)).not.toContain("dayStartHour");
+  });
+
+  it("declares lineIds as the only REQUIRED variable on the multi-line read", () => {
+    // `[ID!]!` is non-null on the backend, so it has to be non-null here: a nullable declaration would
+    // let a caller omit it and send the empty query the backend treats as "no lines at all".
+    expect(withoutComments(LINES_STATUS_HISTORY_QUERY)).toMatch(/\$lineIds:\s*\[ID!\]!/);
+  });
+
+  it("never asks for the history twice in one document — two roots would be a mistake", () => {
+    // Cheap guard against a copy-paste that left a second root field behind: the parser's root walk is
+    // per-field, so an extra root would simply be ignored by every consumer above.
+    expect(
+      selectionUnderArgs(NETWORK_STATUS_HISTORY_QUERY, "networkStatusHistory").fields.length,
+    ).toBe(BUCKET_FIELDS.length);
+    expect(NETWORK_STATUS_HISTORY_QUERY).not.toContain("linesStatusHistory");
+    expect(LINES_STATUS_HISTORY_QUERY).not.toContain("networkStatusHistory");
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * The Pro dashboard's incidents read
+ *
+ * Two properties are load-bearing and neither is visible in the TYPE: the document must really pass
+ * the variables it declares (a declared-but-unused GraphQL variable is a validation error, so a
+ * document that declared one WITHOUT using it would be rejected outright), and the variables object
+ * must be a LITERAL — a `new Date()` anywhere in it would make the server render and the client
+ * hydration compute different values, discard the TransferState payload and refetch every read twice.
+ * ---------------------------------------------------------------------- */
+
+describe("HOME_RECENT_INCIDENTS_QUERY", () => {
+  it("declares AND passes both variables, so the read is the one the store issues", () => {
+    const bare = withoutComments(HOME_RECENT_INCIDENTS_QUERY);
+    expect(bare).toMatch(/\$filters:\s*CalendarIncidentFilter\b/);
+    expect(bare).toMatch(/\$order:\s*CalendarIncidentOrder\b/);
+    expect(bare).toMatch(/calendarIncidents\([\s\S]*?filters:\s*\$filters/);
+    expect(bare).toMatch(/calendarIncidents\([\s\S]*?order:\s*\$order/);
+  });
+
+  it("sends the CONTINUING window, never a date this client computed", () => {
+    // The whole reason this document exists. `ongoing: true` is the backend's `end_datetime IS NULL` and
+    // `startDatetime: DESC` puts the newest first, so a "recent" list needs no clock at all — and the
+    // variables are therefore byte-identical in every process, which is the property the whole home
+    // contract rests on (the same rule that makes the feed's `lastWeekOnly` a backend boolean).
+    expect(HOME_RECENT_INCIDENT_VARS).toEqual({
+      filters: { OR: { ongoing: true } },
+      order: { startDatetime: "DESC" },
+    });
+    expect(JSON.stringify(HOME_RECENT_INCIDENT_VARS)).not.toMatch(/20\d\d-\d\d-\d\d/);
+  });
+
+  it("freezes the variables so no caller can mutate the constant the server render sent", () => {
+    expect(Object.isFrozen(HOME_RECENT_INCIDENT_VARS)).toBe(true);
+  });
+
+  it("asks for a MINIMAL row — no details, medias, chronologies or nested links", () => {
+    // The insiden page's own document selects all of those because its cards render them. This widget
+    // draws one row per incident, so asking for them would multiply payload and resolver fan-out across
+    // the WHOLE dataset for fields nothing here reads. `toEqual`, not `toContain`: an added field is the
+    // failure this assertion exists to catch.
+    expect(selectionUnderArgs(HOME_RECENT_INCIDENTS_QUERY, "calendarIncidents").fields).toEqual([
+      "id",
+      "startDatetime",
+      "endDatetime",
+      "severity",
+      "title",
+      "brief",
+      "lines",
+    ]);
+  });
+
+  it("takes only the identifying pair off each line", () => {
+    const rows = selectionUnderArgs(HOME_RECENT_INCIDENTS_QUERY, "calendarIncidents");
+    expect(rows.nested["lines"]?.fields).toEqual(["id", "code"]);
   });
 });
 

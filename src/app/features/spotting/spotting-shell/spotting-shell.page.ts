@@ -12,7 +12,7 @@ import { ReportSheetService } from "../data/report-sheet.service";
 /**
  * Hosts every /spotting/** child route plus the "Add a Spotting Entry" sheet, which is
  * cross-cutting (reachable from any line/vehicle page) rather than nested under one — see the
- * routing rationale in docs/frontend-map/spotting.md and the rewrite plan. The sheet is opened
+ * routing rationale in archive/frontend-map/spotting.md and the rewrite plan. The sheet is opened
  * via ReportSheetService by trigger buttons living on the child pages themselves, not from here.
  */
 @Component({

@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection } from "@angular/core";
+import { provideZonelessChangeDetection, type WritableSignal } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
@@ -272,6 +272,76 @@ describe("VehicleSpottingGridComponent", () => {
 
     it("does not render any mobile-only rows", () => {
       expect(root.querySelectorAll('[data-testid^="grid-mobile-"]').length).toBe(0);
+    });
+  });
+
+  describe("monthLabelShift", () => {
+    interface MonthLabelInternals {
+      monthLabelShift(group: { startIndex: number; key: string; columns: unknown[] }): number;
+      monthLabelWidths: WritableSignal<Record<string, number>>;
+      headerScrollLeft: WritableSignal<number>;
+      bodyScrollWidth: WritableSignal<number>;
+    }
+
+    /** 31 columns starting at index 30 — month span 840..1708 (COL_W = 28), label 80px wide. */
+    const GROUP = { startIndex: 30, key: "test-month", columns: new Array(31) as unknown[] };
+    /** monthWidth (868) − labelSpace (80 + the 4px breathing room) — the farthest right the
+     * label may sit inside its own month. */
+    const MONTH_MAX_SHIFT = 784;
+
+    let internals: MonthLabelInternals;
+
+    beforeEach(async () => {
+      const fixture = await render(true);
+      internals = fixture.componentInstance as unknown as MonthLabelInternals;
+      internals.monthLabelWidths.set({ "test-month": 80 });
+      internals.bodyScrollWidth.set(400);
+    });
+
+    it("rides the month's leading edge while entering from the right", () => {
+      // Only 40px of the month visible at the right edge — used to pin to the viewport edge
+      // (shift −44) and get clipped by the <th> instead of sliding in with the month.
+      internals.headerScrollLeft.set(480);
+      expect(internals.monthLabelShift(GROUP)).toBe(0);
+    });
+
+    it("rides the month's leading edge while exiting to the right (pushed away, not covered)", () => {
+      // Only 20px of the month left at the right edge — used to go negative (shift −64).
+      internals.headerScrollLeft.set(460);
+      expect(internals.monthLabelShift(GROUP)).toBe(0);
+    });
+
+    it("pins flush to the right viewport edge once the visible slice fits the label", () => {
+      // viewRight 1000 → 1000 − labelSpace − monthStart.
+      internals.headerScrollLeft.set(600);
+      expect(internals.monthLabelShift(GROUP)).toBe(76);
+    });
+
+    it("rides the month's trailing edge while exiting to the left (unchanged reference)", () => {
+      // 40px of the month left at the left edge → flush against the trailing edge.
+      internals.headerScrollLeft.set(1668);
+      expect(internals.monthLabelShift(GROUP)).toBe(MONTH_MAX_SHIFT);
+    });
+
+    it("pins flush to the left viewport edge while the month is on its way out", () => {
+      // viewLeft − monthStart.
+      internals.headerScrollLeft.set(1600);
+      expect(internals.monthLabelShift(GROUP)).toBe(760);
+    });
+
+    it("rests centered in the month when neither edge is near", () => {
+      // resting 1234 − monthStart 840.
+      internals.headerScrollLeft.set(1100);
+      expect(internals.monthLabelShift(GROUP)).toBe(394);
+    });
+
+    it("never lets the label leave its own month box across the whole scroll range", () => {
+      for (let scrollLeft = -500; scrollLeft <= 2208; scrollLeft += 50) {
+        internals.headerScrollLeft.set(scrollLeft);
+        const shift = internals.monthLabelShift(GROUP);
+        expect(shift).toBeGreaterThanOrEqual(0);
+        expect(shift).toBeLessThanOrEqual(MONTH_MAX_SHIFT);
+      }
     });
   });
 });

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { HlmSheet, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { AssetMultiSelectComponent } from "../../insiden/asset-multi-select/asset-multi-select.component";
@@ -33,6 +34,9 @@ function stubMatchMedia(matches: boolean): void {
 interface ComponentUnderTest {
   submit(): Promise<void>;
   selectedStationIds: WritableSignal<string[]>;
+  notes: WritableSignal<string>;
+  delayMinutes: WritableSignal<string>;
+  status: WritableSignal<string | null>;
 }
 
 function asTestable(fixture: ComponentFixture<LineStatusSheetComponent>): ComponentUnderTest {
@@ -68,9 +72,15 @@ describe("LineStatusSheetComponent", () => {
     info: ReturnType<typeof vi.fn>;
   };
   let isLoggedIn: WritableSignal<boolean>;
+  let login: ReturnType<typeof vi.fn>;
+  let preferences: {
+    setLastReportedLine: ReturnType<typeof vi.fn>;
+    pushRecentLine: ReturnType<typeof vi.fn>;
+  };
   let sheetMock: {
     isOpen: WritableSignal<boolean>;
     lineId: WritableSignal<string | null>;
+    presetStatus: WritableSignal<string | null>;
     openFor: ReturnType<typeof vi.fn>;
     setOpen: ReturnType<typeof vi.fn>;
   };
@@ -79,9 +89,12 @@ describe("LineStatusSheetComponent", () => {
     requestMock = vi.fn().mockResolvedValue({ submitLineStatusReport: { ok: true, id: 1 } });
     toastMocks = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     isLoggedIn = signal(false);
+    login = vi.fn();
+    preferences = { setLastReportedLine: vi.fn(), pushRecentLine: vi.fn() };
     sheetMock = {
       isOpen: signal(false),
       lineId: signal<string | null>(null),
+      presetStatus: signal<string | null>(null),
       openFor: vi.fn(),
       setOpen: vi.fn(),
     };
@@ -93,11 +106,12 @@ describe("LineStatusSheetComponent", () => {
         provideHttpClientTesting(),
         {
           provide: AuthService,
-          useValue: { isLoggedIn, login: vi.fn(), idToken: async () => "token" },
+          useValue: { isLoggedIn, login, idToken: async () => "token" },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },
         { provide: LineStatusSheetService, useValue: sheetMock },
+        { provide: PreferencesService, useValue: preferences },
       ],
     }).compileComponents();
 
@@ -111,16 +125,107 @@ describe("LineStatusSheetComponent", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows the login button and no form when logged out", async () => {
-    sheetMock.isOpen.set(true);
+  /* ---- draft-first: the form is NOT behind a login wall ---------------------------------- */
+
+  it("renders the whole form AND the footer while logged out, with a banner not a wall", async () => {
+    await openSheetLoggedOut();
+
+    const root = fixture.nativeElement as HTMLElement;
+    // The banner says what is missing and what is not: sign in to SUBMIT, not to start.
+    expect(root.querySelector('[data-testid="login-button"]')).not.toBeNull();
+    expect(
+      root
+        .querySelector('[data-testid="login-button"]')
+        ?.parentElement?.textContent?.replace(/\s+/g, " ")
+        .trim(),
+    ).toContain("feel free to fill in the details first");
+    // …and the form is there to fill in. A reader standing on a platform has already decided to
+    // report; making them sign in before they can type anything throws that decision away.
+    expect(root.querySelector('[data-testid="status-option-NORMAL"]')).not.toBeNull();
+    expect(root.querySelector("form")).not.toBeNull();
+    // The footer is unconditional too, so a filled-in report can always be pressed Submit.
+    expect(root.querySelector('[data-testid="submit-line-status-report"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="cancel-line-status-report"]')).not.toBeNull();
+  });
+
+  it("asks for the account only at submit, and keeps the draft the reader typed", async () => {
+    await openSheetLoggedOut();
+
+    const root = fixture.nativeElement as HTMLElement;
+    (
+      root.querySelector<HTMLButtonElement>('[data-testid="status-option-DELAYED"]') as HTMLElement
+    ).click();
+    asTestable(fixture).notes.set("Two trains stuck at Angkasapuri");
+    asTestable(fixture).delayMinutes.set("12");
+    fixture.detectChanges();
+
+    await asTestable(fixture).submit();
+    fixture.detectChanges();
+
+    // No request went out, and the sheet is still open with everything in it.
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(toastMocks.error).toHaveBeenCalledTimes(1);
+    const error = submitErrorElement();
+    expect(error?.getAttribute("role")).toBe("alert");
+    expect(error?.textContent?.replace(/\s+/g, " ")).toContain("log in");
+    expect(sheetMock.setOpen).not.toHaveBeenCalled();
+
+    const asTestableAfter = asTestable(fixture);
+    expect(asTestableAfter.notes()).toBe("Two trains stuck at Angkasapuri");
+    expect(asTestableAfter.delayMinutes()).toBe("12");
+    expect(asTestableAfter.status()).toBe("DELAYED");
+    // The chosen chip is still rendered as selected, so the reader can see their draft survived.
+    expect(
+      root.querySelector('[data-testid="status-option-DELAYED"]')?.getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("keeps the draft across the login round-trip", async () => {
+    await openSheetLoggedOut();
+
+    const root = fixture.nativeElement as HTMLElement;
+    (
+      root.querySelector<HTMLButtonElement>('[data-testid="status-option-CROWDED"]') as HTMLElement
+    ).click();
+    asTestable(fixture).notes.set("Crushed at the door");
+    fixture.detectChanges();
+
+    // Press Submit logged out → prompted, nothing sent, nothing cleared.
+    await asTestable(fixture).submit();
+    // …then the reader signs in from the banner and comes back. Nothing about the OPEN state changed,
+    // which is the whole point: the draft is discarded on the open→closed edge only.
+    (root.querySelector<HTMLButtonElement>('[data-testid="login-button"]') as HTMLElement).click();
+    isLoggedIn.set(true);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelector('[data-testid="login-button"]')).not.toBeNull();
-    expect(root.querySelector('[data-testid="submit-line-status-report"]')).toBeNull();
-    expect(root.querySelector('[data-testid="status-option-NORMAL"]')).toBeNull();
+    expect(login).toHaveBeenCalledTimes(1);
+    const afterLogin = asTestable(fixture);
+    expect(afterLogin.notes()).toBe("Crushed at the door");
+    expect(afterLogin.status()).toBe("CROWDED");
+    expect(root.querySelector('[data-testid="login-button"]')).toBeNull();
+    // And the now-authorised submit goes through with exactly that draft.
+    await afterLogin.submit();
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0][1].input).toMatchObject({
+      lineId: "line-1",
+      status: "CROWDED",
+      notes: "Crushed at the door",
+    });
+  });
+
+  it("still drops the draft when the sheet actually closes", async () => {
+    await openSheetLoggedOut();
+    asTestable(fixture).notes.set("temporary");
+    fixture.detectChanges();
+
+    sheetMock.isOpen.set(false);
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(asTestable(fixture).notes()).toBe("");
   });
 
   it("submits the mutation with the line, status, stations and auth header", async () => {
@@ -156,6 +261,62 @@ describe("LineStatusSheetComponent", () => {
     expect(toastMocks.success).toHaveBeenCalledTimes(1);
     expect(sheetMock.setOpen).toHaveBeenCalledWith(false);
     expect(emitted).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the reported line as the prefill for next time", async () => {
+    await openSheetWithStations();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-testid="status-option-DELAYED"]')
+      ?.click();
+    fixture.detectChanges();
+
+    await asTestable(fixture).submit();
+
+    // The chooser orders its picker by pinned → recent → severity, so recording the line HERE is what
+    // makes "the line I just reported about" the one at hand next time.
+    expect(preferences.setLastReportedLine).toHaveBeenCalledWith("line-1");
+    expect(preferences.pushRecentLine).toHaveBeenCalledWith("line-1");
+  });
+
+  /* ---- the chooser's preset status ------------------------------------------------------ */
+
+  it("applies a preset status on the open edge, once", async () => {
+    // What `LineStatusSheetService.openFor(lineId, { presetStatus: "DISRUPTED" })` leaves behind.
+    await openSheetWithPreset("DISRUPTED");
+
+    expect(asTestable(fixture).status()).toBe("DISRUPTED");
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="status-option-DISRUPTED"]')
+        ?.getAttribute("aria-checked"),
+    ).toBe("true");
+    // Consume-once, exactly like the spotting form's line seed: a later seedless open must not
+    // resurrect a status from a report that was already submitted.
+    expect(sheetMock.presetStatus()).toBeNull();
+  });
+
+  it("starts blank when the chooser opened it with no preset", async () => {
+    await openSheetWithPreset(null);
+
+    expect(asTestable(fixture).status()).toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[aria-checked="true"]').length,
+    ).toBe(0);
+  });
+
+  it("lets the reader override the preset before submitting", async () => {
+    await openSheetWithStations();
+    sheetMock.presetStatus.set("DISRUPTED");
+    // A "stopped" report that turns out to be a platform crush is a correction, not a new enum
+    // member — so the pre-selection must never be a commitment.
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-testid="status-option-CROWDED"]')
+      ?.click();
+    fixture.detectChanges();
+
+    await asTestable(fixture).submit();
+
+    expect(requestMock.mock.calls[0][1].input.status).toBe("CROWDED");
   });
 
   it("does not call the mutation when no status is selected", async () => {
@@ -331,6 +492,46 @@ describe("LineStatusSheetComponent", () => {
       },
     });
     await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  /**
+   * Opens the sheet LOGGED OUT on a known line, and flushes the lazy station read the sheet fires
+   * the moment it knows its line — an unflushed request would fail `httpMock.verify()` for a reason
+   * that has nothing to do with the behaviour under test.
+   */
+  async function openSheetLoggedOut(): Promise<void> {
+    fixture.componentRef.setInput("line", makeLine());
+    sheetMock.isOpen.set(true);
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("StationLinesByLine"))
+      .flush({ data: { stationLines: [] } });
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  /**
+   * The chooser's own open path: the service already holds the line AND (maybe) a preset status
+   * before the sheet renders. The station list still has to be flushed, or `httpMock.verify()` in
+   * afterEach fails on an outstanding request — the sheet's lazy resource does not care who opened it.
+   */
+  async function openSheetWithPreset(presetStatus: string | null): Promise<void> {
+    isLoggedIn.set(true);
+    fixture.componentRef.setInput("line", makeLine());
+    sheetMock.lineId.set("line-1");
+    sheetMock.presetStatus.set(presetStatus);
+    sheetMock.isOpen.set(true);
+    fixture.detectChanges();
+
+    const stationsRequest = httpMock.expectOne(
+      (r) => r.method === "POST" && r.body.query.includes("StationLinesByLine"),
+    );
+    stationsRequest.flush({ data: { stationLines: [] } });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    // The preset lives on the OPEN edge, which is an effect flush — one tick past the first render.
+    TestBed.tick();
     fixture.detectChanges();
   }
 });

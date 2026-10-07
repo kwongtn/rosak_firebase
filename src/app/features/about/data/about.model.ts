@@ -23,6 +23,13 @@ export interface TechStack {
   url: string;
 }
 
+export interface CommunityProject {
+  name: string;
+  description: string;
+  iconUrl: string;
+  url: string;
+}
+
 export type ProjectStatus = "alpha" | "beta" | "stable" | "planned";
 
 export interface Project {
@@ -37,5 +44,6 @@ export interface PublicAboutDocument {
   aboutProject: string;
   personnel: Personnel[];
   techStacks: TechStack[];
+  communityProjects: CommunityProject[];
   projects: Project[];
 }

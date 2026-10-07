@@ -66,6 +66,12 @@ export const FRONT_PAGE_LINES_QUERY = /* GraphQL */ `
         title
         created
         occurredAt
+        # The provenance flag: true for a post the OFFICIAL-post ingestion wrote, false for every
+        # hand-submitted link. The board's confidence chip and the hero's official callout both
+        # read it, so a line the operator has announced itself never reads as merely "confirmed by
+        # riders". The field already exists on SocialMediaLinkScalar server-side — selecting it here
+        # is additive and costs no new request.
+        isAutomated
         voteScore
         userVote
         voteBreakdown {
@@ -116,6 +122,11 @@ interface LinePulseLink {
    * place of `created`, which is only "when someone reported it". Naive local wall time, no
    * offset (backend `USE_TZ = False`); never re-format through UTC. */
   occurredAt: string;
+  /** True for a post the official-post ingestion wrote (backend `is_automated`). Drives the board's
+   * `status-confidence.official` reading and the hero's official-update callout — the ONLY thing
+   * that separates "the operator said so" from "N riders think so", so it is read as `=== true` and
+   * never as truthiness. */
+  isAutomated: boolean;
   voteScore: number;
   userVote: number;
   voteBreakdown: { upvotes: number; downvotes: number };
@@ -155,6 +166,11 @@ export const FEED_QUERY = /* GraphQL */ `
     $lastWeekOnly: Boolean
     $alignPageToDay: Boolean
     $collapseThreads: Boolean
+    # Narrow the connection to links tagged with one line. NULLABLE, and every read OMITS the key
+    # when no line is selected: "no filter" is the ABSENCE of the argument, never an explicit null,
+    # so the unfiltered reads keep byte-identical variables server-side and client-side (the SSR
+    # TransferState requirement) and a null can never be mistaken for "filter to nothing".
+    $lineId: ID
   ) {
     publicSocialMediaLinks(
       first: $first
@@ -164,6 +180,7 @@ export const FEED_QUERY = /* GraphQL */ `
       lastWeekOnly: $lastWeekOnly
       alignPageToDay: $alignPageToDay
       collapseThreads: $collapseThreads
+      lineId: $lineId
     ) {
       edges {
         node {
@@ -488,6 +505,24 @@ export interface FeedQueryVars {
    * `mine` is set — this query never sends `mine`.
    */
   collapseThreads?: boolean;
+  /** Narrow the connection to links tagged with ONE line id, for the feed's line filter.
+   *
+   * 🔴 `string | undefined`, NEVER `string | null`, and every call site OMITS the key when no line
+   * is selected rather than sending `null`. Two reasons, and the second is the load-bearing one:
+   *  - the backend's own read is `lineId: ID` (nullable), so `null` would answer the same rows as
+   *    the argument being absent — but the two are DIFFERENT variable objects, and the vote-overlay
+   *    reads deliberately never send it while the resources do, so "omitted" has to stay an
+   *    unambiguous, ownable state rather than one of two spellings of the same query;
+   *  - the variable object has to be STRUCTURALLY IDENTICAL on the server and on the client or the
+   *    SSR TransferState payload is not reused and every feed read fires twice. A key that is
+   *    conditionally spread in is one value that is conditionally present, which is exactly that.
+   *
+   * A per-line `$lineId` narrows the RENDERED rows, so it must NOT be added to the authenticated
+   * vote-overlay reads: those deliberately stay unfiltered (a wider read is harmless — an unused id
+   * costs nothing — while a narrower one loses votes). `home.store.spec.ts` pins that asymmetry as
+   * "the overlay variables equal the resource variables minus `lineId`, and `lineId` is the only
+   * key the overlay may omit". */
+  lineId?: string;
 }
 
 export interface FeedQueryData {
@@ -695,6 +730,102 @@ export interface LineStatusHourBucket {
 }
 
 /* ---------------------------------------------------------------------- *
+ * networkStatusHistory / linesStatusHistory — the SERVICE-DAY hour buckets
+ *
+ * Three documents share one `LineStatusHourBucket` selection and one shape, and they differ only
+ * in scope: `lineStatusHistory` (above) is ONE line, `networkStatusHistory` is every line combined
+ * into one hour-by-hour tally, and `linesStatusHistory` is up to 64 lines answered in ONE request
+ * (so every board row's report label and the heat grid are fed by one per-line read instead of
+ * sixteen).
+ *
+ * 🔴 `networkStatusHistory` is a NETWORK AGGREGATE, not a per-line series: an hour's `count`,
+ * `dominantStatus` and `statusCounts` tally EVERY line's reports in that hour. Drawing it under one
+ * line's name would silently attribute other lines' reports to it — which is why the hero's
+ * sparkline is labelled a NETWORK read and the per-line readings behind the board rows and the heat
+ * grid come from `linesStatusHistory` instead.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * `dayStartHour` is DECLARED AND PASSED but deliberately OMITTED from every variables object this
+ * side builds, so the backend's own default (3 — the community service day runs 03:00 → 02:00)
+ * applies.
+ *
+ * The document has to declare it: a GraphQL variable declared and never used is a validation error,
+ * so the alternative is a variable nobody can set. The call sites then send `{}` / `{ lineIds }`,
+ * which is the same rule the last-week window follows (`lastWeekOnly` is computed backend-side for
+ * exactly this reason) — a `new Date()` or a client clock baked into query variables would make the
+ * server render and the client hydration compute different variables, and `retainDataIfEqual` /
+ * TransferState would then refetch instead of reusing the server payload.
+ */
+export const NETWORK_STATUS_HISTORY_QUERY = /* GraphQL */ `
+  query NetworkStatusHistory($dayStartHour: Int) {
+    networkStatusHistory(dayStartHour: $dayStartHour) {
+      hourStart
+      hourEnd
+      count
+      dominantStatus
+      statusCounts {
+        status
+        count
+      }
+    }
+  }
+`;
+
+export interface NetworkStatusHistoryQueryVars {
+  /** Deliberately never sent — see the document's own note. `number | null`, never a date. */
+  dayStartHour?: number | null;
+}
+
+export interface NetworkStatusHistoryQueryData {
+  networkStatusHistory: LineStatusHourBucket[];
+}
+
+/**
+ * Every line's reports for the current service day in ONE request, keyed back to the line id.
+ *
+ * The id list is sent SORTED, never in board order and never in the order the server would return:
+ * the variables object is compared structurally between the server render and the client hydration
+ * (SSR TransferState reuse), and a list whose order follows a reactive view would reorder whenever
+ * the board's sort changed — re-firing a read that asked for exactly the same lines. 64 ids is the
+ * backend cap, above which it answers with a typed GraphQL error rather than a silent truncation.
+ */
+export const LINES_STATUS_HISTORY_QUERY = /* GraphQL */ `
+  query LinesStatusHistory($lineIds: [ID!]!) {
+    linesStatusHistory(lineIds: $lineIds) {
+      lineId
+      buckets {
+        hourStart
+        hourEnd
+        count
+        dominantStatus
+        statusCounts {
+          status
+          count
+        }
+      }
+    }
+  }
+`;
+
+export interface LinesStatusHistoryQueryVars {
+  lineIds: string[];
+  /** Deliberately never sent — see `NETWORK_STATUS_HISTORY_QUERY`. */
+  dayStartHour?: number | null;
+}
+
+export interface LinesStatusHistoryQueryData {
+  linesStatusHistory: LineStatusHistory[];
+}
+
+/** One line's hourly buckets. `buckets: []` is this line's "nothing reported this service day" —
+ *  the absence of data, NOT an error and never a reason to zero-fill the widget. */
+export interface LineStatusHistory {
+  lineId: string;
+  buckets: LineStatusHourBucket[];
+}
+
+/* ---------------------------------------------------------------------- *
  * lineStatusReports — the per-line report list (keyset paginated)
  * ---------------------------------------------------------------------- */
 
@@ -762,6 +893,89 @@ interface LineStatusReportConnection {
   edges: LineStatusReportEdge[];
   pageInfo: LineStatusReportPageInfo;
 }
+
+/* ---------------------------------------------------------------------- *
+ * calendarIncidents — the Pro dashboard's "recent incidents" widget
+ * ---------------------------------------------------------------------- */
+
+/**
+ * 🔴 **THE VARIABLES ARE COMPILE-TIME CONSTANTS, AND THAT IS THE WHOLE REASON THIS DOCUMENT EXISTS.**
+ *
+ * The obvious way to write a "recent incidents" widget is a `date: { range: … }` spanning the last
+ * few days, and that is exactly the shape this project cannot ship: a client clock baked into query
+ * variables makes the server render and the client hydration compute DIFFERENT variables, so the SSR
+ * TransferState payload is not reused and every read fires twice (the same rule that makes the
+ * feed's `lastWeekOnly` a backend-computed boolean).
+ *
+ * So the window is expressed in terms the backend can answer without being told what time it is:
+ * `ongoing: true` (backend `end_datetime IS NULL` — "no end date yet") ordered by
+ * `startDatetime DESC`. Every value is a literal in the source, so the variables object is
+ * structurally identical in every process, which is the property the whole home contract rests on.
+ *
+ * `calendarIncidents` returns a LIST, not a connection, and takes no `first`/`after` — so "the
+ * newest N" is expressed by ORDER plus a client-side slice, which is what the widget does. The
+ * consequence, stated so nobody is surprised by it: this is one full payload of ongoing incidents
+ * and the widget shows the first {@link PRO_INCIDENT_LIMIT} of it, which is honest ("the newest
+ * ongoing ones") rather than a truncated "recent" window pretending to be complete.
+ *
+ * The selection is deliberately MINIMAL — six scalars plus the lines the incident touches. The
+ * insiden page's own document selects `details`, `medias`, `chronologies` and a first page of
+ * `links` per incident because its cards render them; this widget draws one row per incident, so
+ * asking for them would multiply payload and resolver fan-out across the whole dataset for fields
+ * nothing here reads.
+ */
+export const HOME_RECENT_INCIDENTS_QUERY = /* GraphQL */ `
+  query HomeRecentIncidents($filters: CalendarIncidentFilter, $order: CalendarIncidentOrder) {
+    calendarIncidents(filters: $filters, order: $order) {
+      id
+      startDatetime
+      endDatetime
+      severity
+      title
+      brief
+      lines {
+        id
+        code
+      }
+    }
+  }
+`;
+
+/** The one and only variables object this document is ever read with. Frozen so no caller can mutate
+ * the shared constant into something the server render never sent. */
+export const HOME_RECENT_INCIDENT_VARS = Object.freeze({
+  filters: { OR: { ongoing: true } },
+  order: { startDatetime: "DESC" },
+});
+
+export interface HomeRecentIncidentsQueryVars {
+  filters: Record<string, unknown>;
+  order: Record<string, unknown>;
+}
+
+/** The severity axis, mirroring the backend's `CalendarIncidentSeverity` enum. */
+export type HomeIncidentSeverity = "MAJOR" | "MINOR" | "OTHERS";
+
+/** One incident row in the Pro widget — the six scalars plus the lines it touches. */
+export interface HomeIncidentItem {
+  id: string;
+  /** Naive local wall time, no offset (backend `USE_TZ = False`) — never re-formatted through UTC. */
+  startDatetime: string;
+  /** `null` while the incident is still open; a resolved one carries its end instant. */
+  endDatetime: string | null;
+  severity: HomeIncidentSeverity;
+  title: string;
+  brief: string;
+  lines: Array<{ id: string; code: string }>;
+}
+
+export interface HomeRecentIncidentsQueryData {
+  calendarIncidents: HomeIncidentItem[];
+}
+
+/** How many incident rows the Pro widget shows. The backend takes no limit, so this is a
+ *  client-side slice of the newest-first list — see the document's own note on why. */
+export const PRO_INCIDENT_LIMIT = 6;
 
 /* ---------------------------------------------------------------------- *
  * Mutations

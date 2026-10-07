@@ -1,59 +1,38 @@
-# Web
+# Rosak — Web App
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.3.
+Angular 22 SSR web application for the MLPTF/LRT community platform. Talks to three backends:
+the sibling Django/Strawberry GraphQL API, Firebase (Auth, Firestore, Storage), and GTFS-realtime
+feeds for the tracker.
 
-## Development server
+**Read [`AGENTS.md`](AGENTS.md) first** — it is the source of truth for conventions, workflow gates,
+and documentation-maintenance rules.
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Quick start
 
 ```bash
-ng generate component component-name
+npm ci
+npm start          # dev server on :4200 (prestart regenerates build-info + env config)
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Key commands
 
-```bash
-ng generate --help
-```
+| Command                  | What it does                                                           |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `npm start`              | dev server on :4200                                                    |
+| `npm run build`          | production SSR build (`postbuild` uploads Sentry sourcemaps)           |
+| `npm run serve:ssr:web`  | run the built SSR server from `dist/`                                  |
+| `npm run verify`         | full gate: Prettier + unit tests + production build                    |
+| `npm test -- --no-watch` | unit tests (Vitest) — single run; watch mode hangs in a TTY            |
+| `npm run e2e`            | Playwright e2e against a development build + local mock GraphQL server |
+| `npx prettier --check .` | the only lint gate (there is no ESLint)                                |
 
-## Building
+## Documentation
 
-To build the project run:
+- [`AGENTS.md`](AGENTS.md) — conventions, verification gate, doc-maintenance rules.
+- [`docs/COMPONENTS.md`](docs/COMPONENTS.md) — system topology and the component catalog.
+- [`docs/components/`](docs/components/) — per-feature interfaces and extension points.
+- `../okf_bundle/` — OKF knowledge bundle for the monorepo (`okf lookup <Name>`).
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Never hand-edit the generated files (`src/build-info.ts`, `src/environments/*.generated.ts`) —
+`scripts/*.mjs` regenerate them on start/build. Deploys run through Firebase App Hosting; Cloud
+Functions deploy from `functions/` via GitHub Actions.
