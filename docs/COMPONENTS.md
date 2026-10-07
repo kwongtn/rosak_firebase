@@ -38,7 +38,7 @@ The app is a single Angular (standalone components, Signals-first) frontend with
 └────────────────────────────────┘   no GraphQL equivalent exists yet)
 ```
 
-**Cross-cutting UI layers** consumed by nearly every feature regardless of backend: `src/app/ui/*` (Spartan/Helm styled primitives — button, badge, skeleton, sheet, table, toast…), `src/app/domain-ui/*` (status badges, activity heatmap — thin wrappers around the shared enums in `core/graphql/types.ts`), and `src/app/shell/*` (`AppNavComponent`/`AppFooterComponent` page chrome).
+**Cross-cutting UI layers** consumed by nearly every feature regardless of backend: `src/app/ui/*` (Spartan/Helm styled primitives — button, badge, skeleton, sheet, table, toast…), `src/app/domain-ui/*` (status badges, activity heatmap — thin wrappers around the shared enums in `core/graphql/types.ts`), and `src/app/shell/*` (`AppNavComponent`/`AppFooterComponent` page chrome — `shell/app-nav/` holds the nav's menu-state class, pure helpers and its icon-tray / module-menu children).
 
 **Content models coexist by design:**
 
