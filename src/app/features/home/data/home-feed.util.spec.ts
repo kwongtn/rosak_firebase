@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FeedLink, FeedLinkEdge } from "./home.queries";
+import type { FeedLink, FeedLinkEdge } from "./home-feed-items";
 import {
   FEED_PAGE_SIZE,
   HOME_FEED_COLLAPSE_VARS,

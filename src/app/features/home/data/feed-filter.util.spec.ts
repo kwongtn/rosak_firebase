@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FeedLink, FeedLinkSublink } from "./home.queries";
+import type { FeedLink, FeedLinkSublink } from "./home-feed-items";
 import { FEED_LINK_STATUS_FILTERS, filterFeedLinks } from "./feed-filter.util";
 
 /** A lone link — a root of its own conversation, the shape the feed returns for most rows. */

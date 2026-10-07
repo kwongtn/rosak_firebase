@@ -1,6 +1,6 @@
 import { formatDate } from "@angular/common";
 
-import { FeedLink } from "./home.queries";
+import { FeedLink } from "./home-feed-items";
 
 export interface FeedDayGroup {
   key: string;

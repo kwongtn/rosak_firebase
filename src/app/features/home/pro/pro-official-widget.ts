@@ -2,7 +2,7 @@ import { Component, computed, inject } from "@angular/core";
 
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
 import { HlmBadge } from "../../../ui/badge/badge";
-import type { FeedLink } from "../data/home.queries";
+import type { FeedLink } from "../data/home-feed-items";
 import { HomeStore } from "../data/home.store";
 
 /**

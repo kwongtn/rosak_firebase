@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
-import type { FeedLink, FeedLinkSublink, LinePulse } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
+import type { FeedLink, FeedLinkSublink } from "../data/home-feed-items";
 import { HomeStore } from "../data/home.store";
 import { ProFeedWidgetComponent } from "./pro-feed-widget.component";
 

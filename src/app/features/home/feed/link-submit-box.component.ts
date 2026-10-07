@@ -10,7 +10,7 @@ import {
   SUBMIT_FEED_LINK_MUTATION,
   SubmitFeedLinkData,
   SubmitFeedLinkVars,
-} from "../data/home.queries";
+} from "../data/home-feed-mutations.queries";
 import { HomeStore } from "../data/home.store";
 import { normalizeFeedUrl } from "./feed-url.util";
 

@@ -1,5 +1,6 @@
 import type { BadgeVariants } from "../../../ui/badge/badge";
-import type { LinePulse, LineStatus, PassengerStatus } from "./home.queries";
+import type { LinePulse } from "./home-board.queries";
+import type { LineStatus, PassengerStatus } from "./home.queries";
 
 /**
  * How much a line's reported status can be trusted, as ONE plain-language chip.

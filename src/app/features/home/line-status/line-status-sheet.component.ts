@@ -21,13 +21,13 @@ import {
   StationLinesQueryData,
   StationLinesQueryVars,
 } from "../../spotting/data/spotting.queries";
+import { LinePulse } from "../data/home-board.queries";
+import { PassengerStatus } from "../data/home.queries";
 import {
-  LinePulse,
-  PassengerStatus,
   SUBMIT_LINE_STATUS_REPORT_MUTATION,
   SubmitLineStatusReportData,
   SubmitLineStatusReportVars,
-} from "../data/home.queries";
+} from "../data/home-history.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerMetric } from "../data/line-status-metrics.util";
 import { PASSENGER_LABEL } from "../data/passenger-status.util";

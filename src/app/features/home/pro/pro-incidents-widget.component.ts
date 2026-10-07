@@ -3,7 +3,7 @@ import { Component, computed, inject } from "@angular/core";
 import { RouterLink } from "@angular/router";
 
 import { HlmBadge } from "../../../ui/badge/badge";
-import { HomeIncidentItem, HomeIncidentSeverity } from "../data/home.queries";
+import { HomeIncidentItem, HomeIncidentSeverity } from "../data/home-incidents.queries";
 import { HomeStore } from "../data/home.store";
 
 /** `CalendarIncidentSeverity` → badge variant, so a MAJOR row cannot read as quieter than a MINOR

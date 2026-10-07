@@ -2,7 +2,7 @@ import { formatDate } from "@angular/common";
 import { describe, expect, it } from "vitest";
 
 import { groupFeedLinksByDay } from "./feed-day-groups.util";
-import { FeedLink } from "./home.queries";
+import { FeedLink } from "./home-feed-items";
 
 function makeLink(id: string, occurredAt: string): FeedLink {
   return {

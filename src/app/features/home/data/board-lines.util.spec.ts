@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { LinePulse } from "./home.queries";
+import type { LinePulse } from "./home-board.queries";
 import { DEFAULT_BOARD_SORT, filterProLines, partitionBoardLines } from "./board-lines.util";
 
 /** One line with every field a board predicate reads; overrides carry the interesting axis. */

@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { Router, provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { HomeIncidentItem } from "../data/home.queries";
+import type { HomeIncidentItem } from "../data/home-incidents.queries";
 import { HomeStore } from "../data/home.store";
 import { ProIncidentsWidgetComponent } from "./pro-incidents-widget.component";
 

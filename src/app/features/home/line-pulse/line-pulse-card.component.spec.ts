@@ -10,7 +10,7 @@ import {
   metricDoc,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
-import { LinePulse } from "../data/home.queries";
+import { LinePulse } from "../data/home-board.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";

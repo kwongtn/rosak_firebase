@@ -12,7 +12,8 @@ import {
 } from "../../../core/methodology/methodology-render.util";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
-import type { LinePulse, LineStatusHourBucket } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
+import type { LineStatusHourBucket } from "../data/home-history.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { HomeStore } from "../data/home.store";
 import { LinePulseRowComponent } from "./line-pulse-row.component";

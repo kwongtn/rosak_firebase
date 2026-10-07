@@ -1,7 +1,8 @@
 import { isInService, lineNeedsAttention, sortLinesBySeverity } from "./network-summary.util";
 import { passengerSeverityRank } from "./passenger-status.util";
 import { lineHasData } from "./status-confidence.util";
-import type { LinePulse, LineStatus, PassengerStatus } from "./home.queries";
+import type { LinePulse } from "./home-board.queries";
+import type { LineStatus, PassengerStatus } from "./home.queries";
 
 /**
  * How the board's "All lines" group orders the lines no higher group claimed.

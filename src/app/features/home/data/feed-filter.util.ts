@@ -1,4 +1,4 @@
-import type { FeedLink } from "./home.queries";
+import type { FeedLink } from "./home-feed-items";
 
 /**
  * The Pro feed widget's client-side narrowing.

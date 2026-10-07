@@ -1,4 +1,5 @@
-import type { LinePulse, LineStatus } from "./home.queries";
+import type { LinePulse } from "./home-board.queries";
+import type { LineStatus } from "./home.queries";
 import {
   PASSENGER_SEVERITY_RANK,
   passengerLabel,

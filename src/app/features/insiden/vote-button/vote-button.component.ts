@@ -8,7 +8,7 @@ import {
   SocialMediaLinkVoteData,
   SocialMediaLinkVoteVars,
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
-} from "../../home/data/home.queries";
+} from "../../home/data/home-feed-mutations.queries";
 import {
   ChronologyVoteMutationData,
   ChronologyVoteMutationVars,

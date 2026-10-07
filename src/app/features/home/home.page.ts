@@ -30,7 +30,7 @@ import { LinkCardItem } from "../insiden/data/link-card-item";
 import { LinkSheetService } from "../insiden/data/link-sheet.service";
 import { LinkThreadComponent } from "../insiden/link-thread/link-thread.component";
 import { LinkSheetComponent } from "../insiden/link-sheet/link-sheet.component";
-import { LinePulse } from "./data/home.queries";
+import { LinePulse } from "./data/home-board.queries";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";

@@ -5,7 +5,7 @@ import { By } from "@angular/platform-browser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
-import { LineStatusHourBucket } from "../data/home.queries";
+import { LineStatusHourBucket } from "../data/home-history.queries";
 import {
   CHART_STATE_MIN_HEIGHT_CLASS,
   LineStatusChartComponent,

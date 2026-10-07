@@ -1,4 +1,4 @@
-import type { FeedLink, FeedLinkEdge, FeedLinkPageInfo } from "./home.queries";
+import type { FeedLink, FeedLinkEdge, FeedLinkPageInfo } from "./home-feed-items";
 
 /** Links per GraphQL page: the initial read and every `loadMore()` continuation ask for this
  * many. A fetch size only — the page renders every loaded link and "Load More" pulls one

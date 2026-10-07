@@ -4,7 +4,8 @@ import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { METHODOLOGY_CONSTANTS } from "../../../core/methodology/methodology.constants";
-import type { LinePulse, LineStatusHourBucket } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
+import type { LineStatusHourBucket } from "../data/home-history.queries";
 import { HomeStore } from "../data/home.store";
 import {
   ProReportRankingComponent,

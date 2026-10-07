@@ -8,7 +8,7 @@ import { HlmButton } from "../../../ui/button/button";
 import { HlmTickUp } from "../../../ui/motion/tick-up.directive";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
-import type { LinePulse } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
 import { networkTone, summarizeNetwork } from "../data/network-summary.util";
 import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeRefreshControlComponent } from "../refresh-control/home-refresh-control.component";

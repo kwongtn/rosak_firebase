@@ -10,7 +10,7 @@ import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
   REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
-} from "../../home/data/home.queries";
+} from "../../home/data/home-feed-mutations.queries";
 import { DOWNVOTE_MUTATION, REMOVE_VOTE_MUTATION, UPVOTE_MUTATION } from "../data/insiden.queries";
 import {
   DOWNVOTE_CHRONOLOGY_MUTATION,

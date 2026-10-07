@@ -10,7 +10,7 @@ import { IncidentSheetService } from "../../insiden/data/incident-sheet.service"
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import { HomeStore } from "../data/home.store";
-import type { LinePulse } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { ReportChooserComponent } from "./report-chooser.component";
 import { ReportChooserService } from "./report-chooser.service";

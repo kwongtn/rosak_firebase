@@ -2,13 +2,13 @@ import { Component, computed, effect, input, signal } from "@angular/core";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
+import { PassengerStatus } from "../data/home.queries";
 import {
   LINE_STATUS_HISTORY_QUERY,
   LineStatusHistoryQueryData,
   LineStatusHistoryQueryVars,
   LineStatusHourBucket,
-  PassengerStatus,
-} from "../data/home.queries";
+} from "../data/home-history.queries";
 import {
   PASSENGER_BAR_CLASS,
   PASSENGER_LABEL,

@@ -18,7 +18,7 @@ import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { HomeStore } from "../data/home.store";
-import { LinePulse } from "../data/home.queries";
+import { LinePulse } from "../data/home-board.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
 import {

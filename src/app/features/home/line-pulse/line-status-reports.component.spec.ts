@@ -5,7 +5,7 @@ import { By } from "@angular/platform-browser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
-import { LineStatusReportItem } from "../data/home.queries";
+import { LineStatusReportItem } from "../data/home-history.queries";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
 
 /** One report row. `stations` defaults to none so a strip spec can be explicit about its own. */

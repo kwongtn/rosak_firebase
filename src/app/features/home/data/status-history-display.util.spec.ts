@@ -3,7 +3,7 @@ import {
   metricDoc,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
-import type { LineStatusHourBucket } from "./home.queries";
+import type { LineStatusHourBucket } from "./home-history.queries";
 import {
   HEAT_INTENSITY_CLASSES,
   HEAT_INTENSITY_STEPS,

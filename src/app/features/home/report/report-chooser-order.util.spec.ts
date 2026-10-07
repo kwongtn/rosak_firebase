@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { LinePulse } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
 import { filterChooserLines, orderChooserLines } from "./report-chooser-order.util";
 
 function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {

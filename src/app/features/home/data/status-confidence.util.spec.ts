@@ -5,7 +5,8 @@ import {
   metricDoc,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
-import type { LinePulse, LineStatus, PassengerStatus } from "./home.queries";
+import type { LinePulse } from "./home-board.queries";
+import type { LineStatus, PassengerStatus } from "./home.queries";
 import {
   CONFIRMED_MIN_REPORTS,
   StatusConfidenceInput,

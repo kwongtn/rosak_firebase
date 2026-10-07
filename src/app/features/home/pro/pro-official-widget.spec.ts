@@ -2,7 +2,7 @@ import { Component, provideZonelessChangeDetection, signal } from "@angular/core
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FeedLink } from "../data/home.queries";
+import type { FeedLink } from "../data/home-feed-items";
 import { HomeStore } from "../data/home.store";
 import { ProOfficialWidgetComponent } from "./pro-official-widget";
 

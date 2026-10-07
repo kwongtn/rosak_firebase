@@ -7,16 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
-import {
-  FeedLink,
-  FeedLinkSublink,
-  FeedQueryData,
-  FrontPageLinesQueryData,
-  LinePulse,
-  LineStatusHourBucket,
-} from "./home.queries";
+import { FrontPageLinesQueryData, LinePulse } from "./home-board.queries";
+import { FeedQueryData } from "./home-feed.queries";
+import { FeedLink, FeedLinkSublink } from "./home-feed-items";
+import { LineStatusHourBucket } from "./home-history.queries";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
-import { PRO_INCIDENT_LIMIT } from "./home.queries";
+import { PRO_INCIDENT_LIMIT } from "./home-incidents.queries";
 import { HISTORY_LINE_ID_CAP, HomeStore } from "./home.store";
 import { FEED_PAGE_SIZE, LAST_WEEK_PAGE_SIZE, OFFICIAL_NOTICES_PAGE_SIZE } from "./home-feed.util";
 

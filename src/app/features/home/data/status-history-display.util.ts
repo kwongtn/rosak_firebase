@@ -1,4 +1,5 @@
-import type { LineStatusHourBucket, PassengerStatus } from "./home.queries";
+import type { LineStatusHourBucket } from "./home-history.queries";
+import type { PassengerStatus } from "./home.queries";
 import { PASSENGER_LABEL, passengerBarClass } from "./passenger-status.util";
 
 /**

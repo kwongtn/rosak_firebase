@@ -1,4 +1,4 @@
-import type { LinePulse } from "../data/home.queries";
+import type { LinePulse } from "../data/home-board.queries";
 import { sortLinesBySeverity } from "../data/network-summary.util";
 
 /**

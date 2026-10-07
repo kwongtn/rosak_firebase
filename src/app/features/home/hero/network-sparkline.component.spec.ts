@@ -4,7 +4,7 @@ import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
-import type { LineStatusHourBucket } from "../data/home.queries";
+import type { LineStatusHourBucket } from "../data/home-history.queries";
 import { HomeStore } from "../data/home.store";
 import { NetworkSparklineComponent } from "./network-sparkline.component";
 

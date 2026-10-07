@@ -16,18 +16,16 @@ import {
   UPVOTE_CHRONOLOGY_MUTATION,
   UPVOTE_MUTATION,
 } from "../../insiden/data/insiden.queries";
+import { FRONT_PAGE_LINES_QUERY } from "./home-board.queries";
 import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
-  FEED_QUERY,
-  FRONT_PAGE_LINES_QUERY,
-  HOME_RECENT_INCIDENT_VARS,
-  HOME_RECENT_INCIDENTS_QUERY,
-  LINES_STATUS_HISTORY_QUERY,
-  NETWORK_STATUS_HISTORY_QUERY,
   REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION,
   SUBMIT_FEED_LINK_MUTATION,
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
-} from "./home.queries";
+} from "./home-feed-mutations.queries";
+import { FEED_QUERY } from "./home-feed.queries";
+import { LINES_STATUS_HISTORY_QUERY, NETWORK_STATUS_HISTORY_QUERY } from "./home-history.queries";
+import { HOME_RECENT_INCIDENT_VARS, HOME_RECENT_INCIDENTS_QUERY } from "./home-incidents.queries";
 
 /* ---------------------------------------------------------------------- *
  * Why this file parses the document instead of trusting the types

@@ -13,7 +13,7 @@ import { HlmButton } from "../../../ui/button/button";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { faviconHostnameOf } from "../../insiden/data/social-link.util";
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
-import { LinePulse } from "../data/home.queries";
+import { LinePulse } from "../data/home-board.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
 import type { StatusConfidence } from "../data/status-confidence.util";

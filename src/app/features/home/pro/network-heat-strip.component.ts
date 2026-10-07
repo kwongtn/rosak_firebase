@@ -12,7 +12,8 @@ import {
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
-import type { LineStatusHourBucket, PassengerStatus } from "../data/home.queries";
+import type { PassengerStatus } from "../data/home.queries";
+import type { LineStatusHourBucket } from "../data/home-history.queries";
 import { HomeStore } from "../data/home.store";
 import { PASSENGER_LABEL, passengerBarClass } from "../data/passenger-status.util";
 import {

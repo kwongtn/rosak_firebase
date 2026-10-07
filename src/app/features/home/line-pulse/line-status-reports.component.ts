@@ -10,7 +10,7 @@ import {
   LineStatusReportsQueryData,
   LineStatusReportsQueryVars,
   LineStatusReportItem,
-} from "../data/home.queries";
+} from "../data/home-history.queries";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
 
 /** The first page of the keyset connection — enough to read the room without a "load more". */

@@ -10,7 +10,8 @@ import { PreferencesService } from "../../../core/preferences/preferences.servic
 import { HlmSheet, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { AssetMultiSelectComponent } from "../../insiden/asset-multi-select/asset-multi-select.component";
-import { LinePulse, SUBMIT_LINE_STATUS_REPORT_MUTATION } from "../data/home.queries";
+import { LinePulse } from "../data/home-board.queries";
+import { SUBMIT_LINE_STATUS_REPORT_MUTATION } from "../data/home-history.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerMetric } from "../data/line-status-metrics.util";
 import { LineStatusSheetComponent } from "./line-status-sheet.component";

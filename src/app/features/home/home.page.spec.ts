@@ -24,13 +24,9 @@ import { LinkThreadComponent } from "../insiden/link-thread/link-thread.componen
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
 import { ReportFormComponent } from "../spotting/report-form/report-form.component";
-import type {
-  FeedLink,
-  FeedLinkPageInfo,
-  FeedLinkSublink,
-  LinePulse,
-  LineStatusHourBucket,
-} from "./data/home.queries";
+import type { LinePulse } from "./data/home-board.queries";
+import type { FeedLink, FeedLinkPageInfo, FeedLinkSublink } from "./data/home-feed-items";
+import type { LineStatusHourBucket } from "./data/home-history.queries";
 import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import type { NetworkSummary } from "./data/network-summary.util";
 import { summarizeNetwork } from "./data/network-summary.util";
