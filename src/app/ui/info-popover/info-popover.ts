@@ -8,6 +8,7 @@ import {
   TemplateRef,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -29,6 +30,21 @@ export interface InfoPopoverLink {
  * feels immediate — the one-panel-at-a-time registry, not this delay, is what stops overlap.
  */
 const HOVER_CLOSE_DELAY_MS = 300;
+
+/**
+ * Smallest gap the panel keeps from any viewport edge before it is nudged back inside. Applies to
+ * the measured correction only — the panel's own `max-w-[calc(100vw-2rem)]` (2rem = 32px) already
+ * caps its width, so this is the last-resort clamp for a panel whose *position*, not size, is off
+ * (a left-anchored panel near the right edge, a right-anchored one near the left).
+ */
+const VIEWPORT_MARGIN_PX = 8;
+
+/**
+ * Room a flipped-above panel needs below the viewport top: its own height plus the trigger gap
+ * twice — once between the panel and the top edge, once between the panel and the trigger. The gap
+ * is the 6px `mt-1.5`, so this is 2×6.
+ */
+const FLIP_ABOVE_CLEARANCE_PX = 12;
 
 /**
  * The slice of a popover the exclusivity registry needs: close at once, without stealing focus.
@@ -88,6 +104,11 @@ export class InfoPopoverRegistry {
  * the cursor is over A's panel: hit-testing lands on the panel, so the overlapped pill's host never
  * receives `mouseenter`. z-50 is the app's overlay layer (above the page nav's z-[45] and the
  * sticky mobile action bar's z-30), so a panel is never painted under chrome.
+ *
+ * `align` is the consumer's chosen anchor and stays that; on top of it the panel is clamped into the
+ * viewport once per open (see the constructor effect) — nudged horizontally by a margin and flipped
+ * above the trigger when the bottom runs out. Nothing is observed or listened for: the page scrolls
+ * normally and the next open re-measures.
  *
  * `showIcon: false` drops the "i" glyph for consumers whose projected content is already the
  * trigger (the home status chips). `showMethodologyLink: false` drops the link for chips whose
@@ -154,9 +175,11 @@ export class InfoPopoverRegistry {
     }
     @if (_open()) {
       <div
+        #panel
         [id]="_panelId()"
-        class="bg-popover text-popover-foreground border-border absolute top-full z-50 mt-1.5 min-w-56 max-w-[calc(100vw-2rem)] rounded-lg border p-3 text-left text-xs font-normal whitespace-normal shadow-md"
-        [class]="alignClasses()"
+        class="bg-popover text-popover-foreground border-border absolute z-50 min-w-56 max-w-[calc(100vw-2rem)] rounded-lg border p-3 text-left text-xs font-normal whitespace-normal shadow-md"
+        [class]="_panelClasses()"
+        [style]="_shiftStyles()"
         [attr.data-testid]="testId()"
         [attr.role]="hasLink() ? 'dialog' : 'tooltip'"
         [attr.aria-label]="label()"
@@ -249,6 +272,41 @@ export class InfoPopover {
    * ever rendered after an interaction, so it always has its id by the time it exists.
    */
   protected readonly _panelId = signal("");
+  /**
+   * Horizontal correction in px written by the measure-on-open effect below: `0` when the panel
+   * already fits, positive means "move right", negative "move left". Kept align-independent; the
+   * side the margin is written on is what turns this into a physical direction.
+   */
+  protected readonly _shiftPx = signal(0);
+  /** True when the panel is rendered above its trigger because there is no room below it. */
+  protected readonly _flipAbove = signal(false);
+  /**
+   * The correction as a style map, composed with — never replacing — the `align` classes.
+   *
+   * Margins, not `transform`: `align="center"` already owns `-translate-x-1/2`, and a transform here
+   * would stack onto (or fight) it, while a margin is inert for the other two alignments because
+   * only one side is ever written. The side follows `align` so the nudge reads as pulling the panel
+   * inward: a panel anchored on its right edge is corrected on `margin-right`, everything else on
+   * `margin-left`.
+   */
+  protected readonly _shiftStyles = computed((): Record<string, string> => {
+    const shift = this._shiftPx();
+    if (shift === 0) {
+      return {};
+    }
+    return this.align() === "end"
+      ? { "margin-right": `${-shift}px` }
+      : { "margin-left": `${shift}px` };
+  });
+  /**
+   * The panel's full class list: the consumer's `align` anchor plus the vertical placement for this
+   * open. One string rather than `[class.top-full]`-style bindings on purpose — Angular's
+   * class-binding name grammar stops at the first dot, so `[class.mt-1.5]` binds the class `mt-1`,
+   * silently dropping the fractional gap. Inside a string value the token `mt-1.5` survives intact.
+   */
+  protected readonly _panelClasses = computed(
+    () => `${this.alignClasses()} ${this._flipAbove() ? "bottom-full mb-1.5" : "top-full mt-1.5"}`,
+  );
 
   private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   /** True only during the synchronous `focus()` Escape performs while restoring focus, so the
@@ -259,6 +317,8 @@ export class InfoPopover {
   private readonly _destroyRef = inject(DestroyRef);
   private readonly _registry = inject(InfoPopoverRegistry);
   private readonly _trigger = viewChild<ElementRef<HTMLButtonElement>>("trigger");
+  /** The open panel, read only so the measure-on-open effect below can run when it appears. */
+  private readonly _panel = viewChild<ElementRef<HTMLElement>>("panel");
   /** Pending delayed close from a host `mouseleave`; null when no close is scheduled. */
   private _closeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -267,6 +327,57 @@ export class InfoPopover {
       this._cancelPendingClose();
       this._registry.release(this);
     });
+
+    // Viewport collision handling, measured once per open. An absolutely-positioned panel with a
+    // static `left-0`/`right-0`/`left-1/2` anchor has no idea where the viewport ends, so a panel
+    // near the right edge runs past it — where `html, body { overflow-x: clip }` silently cuts it
+    // off. This pass reads the panel's natural rect the moment it exists and writes a corrective
+    // margin (see `_shiftStyles`) plus a flip-above flag.
+    effect(() => {
+      // Effects never run on the server, but the guard keeps that explicit and future-proof.
+      if (!this._isBrowser) {
+        return;
+      }
+      const open = this._open();
+      const panel = this._panel();
+      if (!open || !panel) {
+        // Every close (and the initial closed render) clears the correction, so a reopen measures
+        // the natural position again instead of inheriting the previous nudge.
+        this._shiftPx.set(0);
+        this._flipAbove.set(false);
+        return;
+      }
+
+      // 🔴 Measured ONCE, on the panel's unshifted geometry. This effect intentionally does NOT read
+      // `_shiftPx()` / `_flipAbove()`: reading them back would re-run the effect after the fix is
+      // applied, measure the already-corrected rect, compute a zero shift, and snap the panel back —
+      // an endless ping-pong. Write-only, read once. (`_panel()` is read, which is exactly what
+      // re-runs this effect once when the node appears.)
+      const rect = panel.nativeElement.getBoundingClientRect();
+      const maxRight = window.innerWidth - VIEWPORT_MARGIN_PX;
+      const maxBottom = window.innerHeight - VIEWPORT_MARGIN_PX;
+
+      let shift = 0;
+      if (rect.right > maxRight) {
+        shift -= rect.right - maxRight;
+      }
+      // The right-edge clamp may have pushed the left edge past the opposite margin; pull it back.
+      // This can only shrink an existing correction, never grow it into another overflow.
+      if (rect.left + shift < VIEWPORT_MARGIN_PX) {
+        shift += VIEWPORT_MARGIN_PX - (rect.left + shift);
+      }
+      this._shiftPx.set(Math.round(shift));
+
+      // Below is the default. Flip above only when the panel actually overhangs the bottom AND a
+      // full flipped panel fits above the trigger (its own height plus both gaps). If neither side
+      // fits, stay below and let the page scroll — flipping a tall panel above would only hide its
+      // top under the nav instead of fixing anything.
+      this._flipAbove.set(
+        rect.bottom > maxBottom &&
+          rect.top - rect.height - FLIP_ABOVE_CLEARANCE_PX >= VIEWPORT_MARGIN_PX,
+      );
+    });
+
     if (!this._isBrowser) {
       return;
     }

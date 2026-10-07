@@ -1407,3 +1407,57 @@ it computes no styles, so the only thing it can assert is the class name — whi
 animation silently was not. That gap is exactly what let this ship green. Verify a new keyframe-driven
 animation by reading the **computed** `animation-name` in a real browser, or by grepping the built CSS
 for the un-prefixed name; a spec pinning the class is necessary but not sufficient.
+
+## [2026-10-07] ui/info-popover: a panel on a right-edge trigger overflowed the viewport — invisible, because the page clips x-overflow
+
+**Problem**: a left-anchored (`align="start"`) panel opened from a trigger near the right side of a
+full-width surface — the compact board rows' pins and status chips, the Pro header chips — extended
+past the viewport's right edge. Nothing errored and nothing looked broken in isolation: `html, body`
+carry `overflow-x: clip`, so the overhang was silently cut off and the reader simply saw a panel
+missing its right-hand words. The 2026-10-05 entry above is a **different** clip: that one was an
+ancestor's `overflow-hidden` cutting a descendant mid-card; this one is the **viewport edge** cutting a
+panel that legitimately lived outside it, and no ancestor fix can reach it.
+**Root Cause**: `InfoPopover` positioned its panel with a static anchor only — `left-0`, `right-0`, or
+`left-1/2 -translate-x-1/2` from `align` — and nothing ever measured where the viewport ended. The
+panel is `position: absolute` inside whatever projects the trigger, so it had no awareness of the
+window at all; a `min-w-56` (224px) floor made the overflow worst exactly where wide chips sit closest
+to the edge. The only prior handling was `max-w-[calc(100vw-2rem)]`, which caps _size_, never
+_position_.
+**Fix**: the panel is measured **once per open** (a `viewChild` panel + a browser-only `effect`, no
+scroll/resize listeners) and nudged back inside by an 8px margin. `_shiftStyles()` writes the
+correction as a **margin** on the side the alignment owns (`margin-right` for `align="end"`, else
+`margin-left`) so it composes with `align`'s `-translate-x-1/2` instead of fighting it, and the two
+edges are clamped together so a right-edge pull cannot shove the left edge back out. When the panel
+would overhang the bottom **and** a full flipped copy fits above the trigger, `_flipAbove()` renders
+it `bottom-full mb-1.5` instead of `top-full mt-1.5`. The effect deliberately does not read `_shiftPx`
+/ `_flipAbove` back, or it would re-measure the corrected rect, compute zero, and ping-pong.
+**Prevention**: the clamp now lives in `InfoPopover`, so every consumer gets it with no call-site
+change — do not hand-roll per-feature positioning. And the browser pass that proved it is encoded as
+the e2e test `VISITOR: clamps a right-edge popover into the viewport`: assert the **clamp-relevance
+predicate** first (the trigger is close enough to the edge that an unclamped panel WOULD overflow),
+then assert the opened panel's box is inside — without the predicate a green test could be measuring a
+trigger that never needed the clamp. jsdom has no layout, so this class of bug is invisible to the unit
+suite; the predicate-plus-containment pattern is the regression net.
+
+## [2026-10-07] Angular templates: `[class.mt-1.5]` silently binds class "mt-1"; `[style]` map keys ignore a ".px" suffix
+
+**Problem**: while building the viewport clamp, two binding spellings were written that compile,
+type-check, and render — but apply the wrong thing, with no error anywhere. (1) `[class.mt-1.5]="x"`
+was intended to toggle the 6px gap; the DOM showed the class `mt-1`, the fractional part silently
+dropped. (2) A style-map key `"margin-left.px"` was intended to mean "px units"; the rendered `style`
+attribute stayed `null` — the declaration was applied nowhere.
+**Root Cause**: Angular's class-binding **name grammar stops at the first dot**. `[class.mt-1.5]` is
+parsed as class name `mt-1` and (in the space-separated name form) an extra token, so the `.5` is never
+part of the class. Map-hop `[style]` keys are taken as **CSS property names verbatim** and mixed units
+are not inferred: a `.px` suffix is not stripped or interpreted, so `"margin-left.px"` names no
+property and writes nothing — unlike the single-property `[style.margin-left.px]="n"` binding, where
+the suffix _is_ the unit and is honoured.
+**Fix**: both were worked around in code. The panel's full class list is one `[class]` string computed
+(`_panelClasses()` = align classes plus `top-full mt-1.5` / `bottom-full mb-1.5`), where `mt-1.5`
+survives intact because it is a value token, not a binding name; and the correction is a style **map**
+with the unit in the value, `{ "margin-left": "-184px" }`, never in the key.
+**Prevention**: never put a fractional or unit suffix in a binding **name** — one `[class]`/`[style]`
+string computed in TS is the safe home for spacing and geometry that must survive verbatim, and a
+style map's keys are property names with units in the values. Because both mistakes fail **silently**,
+a unit test must read the **rendered** `classList` / `style` attribute rather than just the component's
+inputs — `info-popover.spec.ts` now does exactly that, which is what would have caught either no-op.
