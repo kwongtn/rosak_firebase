@@ -526,4 +526,80 @@ test.describe("community front page", () => {
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(kjl.getByTestId("line-card-expanded")).toHaveCount(0);
   });
+
+  test("VISITOR: clamps a right-edge popover into the viewport", async ({ page }) => {
+    // The clamp only matters on a narrow-enough board: the two-column grid starts at lg (1024), so
+    // below it the board is full-width and a row's right-aligned pin sits within 224px (the panel's
+    // `min-w-56` floor) of the viewport's right edge. 1000px makes the clamp-relevance predicate
+    // below hold for the rightmost trigger; the default 1280px would not.
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await configureMock({
+      FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
+      Feed: feedPage(),
+    });
+
+    await page.goto("/");
+
+    const board = page.getByTestId("network-board");
+    await expect(board.getByTestId("line-row").first()).toBeVisible();
+
+    // Pick the RIGHTMOST popover trigger the board renders: the one whose unclamped, left-anchored
+    // (`left-0`) panel is the most likely to run past the viewport edge.
+    const hosts = board.locator("app-info-popover");
+    const count = await hosts.count();
+    let rightmost = hosts.first();
+    let rightmostX = -Infinity;
+    for (let i = 0; i < count; i++) {
+      const box = await hosts.nth(i).boundingBox();
+      if (box && box.x > rightmostX) {
+        rightmostX = box.x;
+        rightmost = hosts.nth(i);
+      }
+    }
+
+    await rightmost.hover();
+    const panel = rightmost.locator('[role="tooltip"], [role="dialog"]');
+    await expect(panel).toBeVisible();
+
+    const viewport = page.viewportSize()!;
+    const triggerBox = (await rightmost.boundingBox())!;
+
+    // The clamp is genuinely being exercised: a `left-0` panel of the `min-w-56` floor (224px) from
+    // this trigger would exceed the viewport's right edge minus the 8px margin — the exact condition
+    // under which the pre-fix static panel overflowed (and was clipped by `overflow-x: clip`).
+    expect(triggerBox.x + 224).toBeGreaterThan(viewport.width - 8);
+
+    // The opened panel is contained: its left edge stays on screen and its right edge is inside the
+    // viewport (1px slack for subpixel rounding). Polled because the correction is measured and
+    // written after the panel's first paint.
+    await expect.poll(async () => (await panel.boundingBox())?.x ?? NaN).toBeGreaterThanOrEqual(-1);
+    await expect
+      .poll(async () => {
+        const box = await panel.boundingBox();
+        return box ? box.x + box.width : NaN;
+      })
+      .toBeLessThanOrEqual(viewport.width + 1);
+  });
+
+  test("VISITOR: the hero tooltip carries the short summary, not the full definition", async ({
+    page,
+  }) => {
+    await configureMock({
+      FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
+      Feed: feedPage(),
+    });
+
+    await page.goto("/");
+
+    // The headline's `app-info-popover`: hover the h1 trigger it wraps and read the panel.
+    await page.getByTestId("hero-headline").hover();
+    const panel = page.getByTestId("hero-headline-popover");
+    await expect(panel).toBeVisible();
+
+    // It renders the registry `summary` ...
+    await expect(panel).toContainText("runs normally when it is in service");
+    // ... not the full `definition`, whose "N of M lines running normally" sentence lives only on
+    // /methodology.
+    await expect(panel).not.toContainText("N of M");
+  });
 });
