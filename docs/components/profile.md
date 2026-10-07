@@ -12,7 +12,7 @@ Directory map:
 - `data/profile.queries.ts` — all GraphQL documents + response/variable TypeScript types for this feature (no components).
 - `user-card/user-card.component.ts` — identity header, nickname editor, stat cards (`UserCardComponent`, selector `app-profile-user-card`).
 - `my-spottings/my-spottings.component.ts` — "Historical Spottings" paginated list with delete + notes popover (`MySpottingsComponent`, selector `app-my-spottings`).
-- `my-links/my-links.component.ts` — "My Submitted Links": the caller's own social-media-link submissions, keyset-paginated, with per-row status badges and (own profile only) the **conversation hierarchy** — multi-select grouping, per-row Nest under / Ungroup / Move up / Move down, a depth indent and a `Thread · N links` badge (`MyLinksComponent`, selector `app-my-links`). It is hosted inline by `profile.page.ts` as `<app-my-links [isOwnProfile]="true" />`, below `<app-my-spottings>` — it is not a route.
+- `my-links/my-links.component.ts` — "My Submitted Links": the caller's own social-media-link submissions, keyset-paginated, with per-row status badges and (own profile only) the **conversation hierarchy** — multi-select grouping, per-row Nest under / Ungroup / Move up / Move down, a depth indent and a `Thread · N links` badge (`MyLinksComponent`, selector `app-my-links`). It is hosted inline by `profile.page.ts` as `<app-my-links [isOwnProfile]="true" />`, below `<app-my-spottings>` — it is not a route. The component keeps all signal state, paging and the four structural mutations; the pure tree logic lives in `my-links/my-links-tree.util.ts` (depth/ancestor chains, stored-order sibling runs, the reorder permutation, the indent ladder, the conversation-size label), the move/nest blocked-reason gates in `my-links/my-links-reasons.util.ts`, and the row markup in the presentational `my-links/my-links-row.component.ts` (`div[app-my-links-row]`, signal inputs + void outputs).
 
 ## 🔌 Interface & Data Flow
 
@@ -85,7 +85,8 @@ Directory map:
      `sublinkCount > 0` gate. `sublinkCount` is this row's OWN descendants **at any depth**, so a
      conversation is sized from the ROOT's row and the column is never summed.
 
-  **Depth** comes from one computed (`_shape`) that derives three things in a single pass over the
+  **Depth** comes from one computed (`_shape`) that delegates to `my-links-tree.util.ts`'s
+  `buildLinkShape`, which derives three things in a single pass over the
   loaded rows: `depthById` (how many loaded ancestors a row has), `ancestorsById` (the same chains,
   root-first — which is what makes a nest cycle detectable client-side) and `runs` (sibling runs
   keyed by `parentId`, roots under a `ROOT_RUN_KEY` sentinel so "reorder the roots" falls out of the
@@ -103,16 +104,18 @@ Directory map:
   the order they arrive in and appends the siblings it was not told about — so the payload is the
   **whole** run with one row moved, never the two rows involved, and sending the arrival order would
   overwrite the stored story with the timeline (and report success). The run is sorted **once**, in
-  `_shape`, so `_runOf`, `_moveReason` and `moveLink` cannot disagree.
+  `buildLinkShape`, so `_runOf`, `_moveReason` and `moveLink` cannot disagree.
 
-  **Two gates, both refusals rather than fallbacks.** `_moveReason` returns `null` for "available" and
+  **Two gates, both refusals rather than fallbacks.** `_moveReason` (a thin wrapper over
+  `my-links-reasons.util.ts`'s `moveBlockedReason`, which takes only the host state it needs) returns
+  `null` for "available" and
   otherwise the reason, which is bound straight to the button's `title` (and its `disabled` is
   `_moveReason(...) !== null`, so a control is never live and quietly inert). The checks are ordered by
   how much each would mislead: no browser session (SSR renders the button inert rather than firing a
   mutation the server would refuse); an in-flight write; an **incomplete** run (`_hasMore`, because a run may
   straddle a cursor page and a partial permutation is not rejected — the server validates that every
   id _is_ a child of the named parent but merely **tolerates absence**, silently pushing an unseen
-  sibling to the end); an **unreadable** stored order (`_runOrderIsKnown` — a missing `position` is
+  sibling to the end); an **unreadable** stored order (`runOrderIsKnown` — a missing `position` is
   not `0`, and a `?? 0` fallback would float the unknown row to the head and then WRITE that as the
   sequence; note `position` is genuinely optional on `PublicSocialMediaLink` here, which is why the
   guard is a runtime `typeof` check and not a type-driven one); and only then the two ends, which are
