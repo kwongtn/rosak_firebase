@@ -1632,9 +1632,9 @@
     "semantic_hash": ""
   },
   "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.component.ts": {
-    "mtime": 1791356913.232981,
-    "seen": 1791357866.8665495,
-    "ast_hash": "30d0648cac9b54da61714088881b0a72",
+    "mtime": 1791372056.1960208,
+    "seen": 1791373229.340008,
+    "ast_hash": "cf23e66f0e8d3f404d7448efe8960cf6",
     "semantic_hash": ""
   },
   "src/app/features/spotting/line-details/vehicle-status-trend/vehicle-status-trend.component.ts": {
@@ -2358,9 +2358,9 @@
     "semantic_hash": ""
   },
   "docs/components/spotting.md": {
-    "mtime": 1791300978.3546593,
-    "seen": 1791301008.4635882,
-    "ast_hash": "255cfc286e31b292a9c6f39031d0adb7",
+    "mtime": 1791373034.4715,
+    "seen": 1791373229.3402426,
+    "ast_hash": "d5206eef90713a5a17477f325da1f9bb",
     "semantic_hash": ""
   },
   "docs/components/tracker.md": {
@@ -2472,15 +2472,15 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/SUMMARY.md": {
-    "mtime": 1791370194.8991055,
-    "seen": 1791370542.6676402,
-    "ast_hash": "c3c32ca69f6182b7251c9be900e267f6",
+    "mtime": 1791373110.3074186,
+    "seen": 1791373229.3402731,
+    "ast_hash": "6628ad99d2fb10e5ff642675c2826d94",
     "semantic_hash": ""
   },
   "docs/progress/2026/SUMMARY.md": {
-    "mtime": 1791370195.3058,
-    "seen": 1791370542.6676433,
-    "ast_hash": "eca4e768b83fbfff2adf62475a5918e8",
+    "mtime": 1791373110.5671463,
+    "seen": 1791373229.3402743,
+    "ast_hash": "a5e741131c3ff457a34295d174944e71",
     "semantic_hash": ""
   },
   "public/ads.txt": {
@@ -2910,9 +2910,9 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/07.md": {
-    "mtime": 1791370194.274302,
-    "seen": 1791370542.6676364,
-    "ast_hash": "2a54e5f046be02ea86ed42292096ce87",
+    "mtime": 1791373109.897024,
+    "seen": 1791373229.340272,
+    "ast_hash": "1940ffb26876f1dd1f841e7645ffcb2b",
     "semantic_hash": ""
   },
   "archive/frontend-map/00-overview.md": {
@@ -3165,6 +3165,60 @@
     "mtime": 1791368879.444198,
     "seen": 1791370542.666251,
     "ast_hash": "006e7f07a5f9b45a857cd4bf9ad829fd",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid-date-row.component.ts": {
+    "mtime": 1791372295.7144477,
+    "seen": 1791373229.3399987,
+    "ast_hash": "adedceb8169ed46f4c4b28727a296344",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid-day-mirror.component.ts": {
+    "mtime": 1791371803.0797753,
+    "seen": 1791373229.340001,
+    "ast_hash": "6bef277bf9af49097714287974bd4081",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid-mobile-name-row.component.ts": {
+    "mtime": 1791371780.2712958,
+    "seen": 1791373229.3400023,
+    "ast_hash": "f5050acbd57541900efcc3ed32b79c0d",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid-mobile-pinned.component.ts": {
+    "mtime": 1791372112.5756602,
+    "seen": 1791373229.3400037,
+    "ast_hash": "a86f9c43d01778435d5dbfda37297f0f",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid-name-row.component.ts": {
+    "mtime": 1791371773.7268233,
+    "seen": 1791373229.340005,
+    "ast_hash": "33a7a2f5e07ee1bf3933a77b44e5fe0c",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.data.util.spec.ts": {
+    "mtime": 1791372296.278176,
+    "seen": 1791373229.3400092,
+    "ast_hash": "921906a3fc234b3e7abb5aa49f468113",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.data.util.ts": {
+    "mtime": 1791371722.8013315,
+    "seen": 1791373229.3400106,
+    "ast_hash": "fa2a62d3462e6ece61dfc99f565e7f25",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.layout.util.spec.ts": {
+    "mtime": 1791372287.6264935,
+    "seen": 1791373229.3400118,
+    "ast_hash": "6d068285b183f571e47db95b45a86c84",
+    "semantic_hash": ""
+  },
+  "src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.layout.util.ts": {
+    "mtime": 1791371744.4777799,
+    "seen": 1791373229.3400128,
+    "ast_hash": "25a4e580cf2ab27b167059dbfa01f53e",
     "semantic_hash": ""
   }
 }
