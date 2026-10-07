@@ -118,7 +118,21 @@
   `../data/link-status-input.util.ts`, `../data/search-debounce.util.ts`,
   `../data/same-minute.util.ts` (the Submitted cell's same-minute rule) plus the two **shared**
   insiden utils `insiden/data/link-occurred-at.util.ts` and
-  `insiden/data/link-thread-selection.util.ts`.
+  `insiden/data/link-thread-selection.util.ts`. **Split 2026-10-07 (plan Task 4.1,
+  `refactor(console): split links.component`)** — the page is now a shell over colocated pure utils
+  and presentational children; the named seams below live in these files:
+  - `link-tree.util.ts` — `compareStoredSequence`, `computeDepths` (`depthOf`), `depthRailsFor`
+    (`depthRails`), `groupRunsByParentId` (`_runsByParentId`), `childCountOf`, `siblingsOf`,
+    `runOrderIsKnown`, `siblingIndexOf`, `canMoveUp`/`canMoveDown`/`moveBlockedReason`,
+    `canNestUnder`/`nestBlockedReason`, `renderedLinksOf` (`renderedLinks`), `DEPTH_INDENT_PX`;
+  - `link-reference.util.ts` — the reference option builders (`lineOptions`/`vehicleOptions`/
+    `stationOptions`/`categoryOptions`, filter variants, vehicle parent-code indexing);
+  - `link-queue-filter.util.ts` — `CompletedFilter`, `COMPLETED_LABEL`, `appliedFiltersAreUnfiltered`,
+    `queueQueryVars`;
+  - `link-queue-row.component.*` (`tr[app-link-queue-row]`, the row), `link-url-cell.component.*`
+    (`td[app-link-url-cell]`, rails/elbow/chevron/chip), `links-filter-bar.component.*` (the filter
+    card), `links-selection-toolbar.component.*` (group/clear/hint/show-all). The parent keeps every
+    stateful handler because the spec drives them directly off the component instance.
 - **Route:** `CONSOLE_ROUTES` → `{ path: "links", canActivate: [adminOnlyGuard],
 loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   `{ path: "insiden/links", pathMatch: "full", redirectTo: "links" }`. The URL moved out from under
