@@ -11,10 +11,7 @@ import {
   viewChild,
 } from "@angular/core";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import type { LineStatusHourBucket, PassengerStatus } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
@@ -488,10 +485,8 @@ export class NetworkHeatStripComponent {
     return historySummaryLabel(row.buckets, `Line ${row.code}`);
   }
 
-  /** The definition, from the methodology registry — never a literal in this template. */
-  protected readonly _definition = computed(() =>
-    renderMethodologyCopy(metricDoc("network.heat-strip").definition),
-  );
+  /** The tooltip copy, from the methodology registry — never a literal in this template. */
+  protected readonly _definition = computed(() => metricTooltip("network.heat-strip"));
 
   /** "0 to 24 reports" — the human scale the intensity ramp draws. */
   protected readonly _intensityLabel = computed(() => `0 to ${this._maxCount()} reports`);

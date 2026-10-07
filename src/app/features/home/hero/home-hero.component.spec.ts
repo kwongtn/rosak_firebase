@@ -3,10 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse, LineStatusHourBucket } from "../data/home.queries";
@@ -273,7 +270,7 @@ describe("HomeHeroComponent", () => {
     const panel = root.querySelector('[data-testid="hero-headline-popover"]');
     expect(panel).not.toBeNull();
     expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
-      renderMethodologyCopy(metricDoc("network.lines-normal").definition),
+      metricTooltip("network.lines-normal"),
     );
     expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
   });
@@ -306,9 +303,7 @@ describe("HomeHeroComponent", () => {
 
       const panel = popover.querySelector(`[data-testid="${panelTestId}"]`) as HTMLElement;
       expect(panel, metricId).not.toBeNull();
-      expect(panel.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
-        renderMethodologyCopy(metricDoc(metricId).definition),
-      );
+      expect(panel.querySelectorAll("p")[1]?.textContent?.trim()).toBe(metricTooltip(metricId));
       expect(panel.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
     }
 

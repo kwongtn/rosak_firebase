@@ -15,6 +15,7 @@ import { RouterLink } from "@angular/router";
 
 import {
   metricDoc,
+  metricTooltip,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
 import {
@@ -390,9 +391,9 @@ export class LinePulseRowComponent {
     return `${historyTotal(buckets)} reports (${buckets[index].count} this hour)`;
   });
 
-  /** The label's definition, from the methodology registry rather than a literal in this template. */
+  /** The label's tooltip copy, from the methodology registry rather than a literal in this template. */
   protected readonly _reportsDefinition = computed(() =>
-    renderMethodologyCopy(metricDoc("network.line-reports-summary").definition),
+    metricTooltip("network.line-reports-summary"),
   );
 
   protected readonly _confidence = computed<StatusConfidence>(() =>

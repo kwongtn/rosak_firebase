@@ -3,10 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import type { LineStatusHourBucket } from "../data/home.queries";
 import type { LinePulse } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
@@ -433,7 +430,7 @@ describe("NetworkHeatStripComponent", () => {
 
     const panel = root.querySelector('[data-testid="network-heat-strip-popover"]');
     expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
-      renderMethodologyCopy(metricDoc("network.heat-strip").definition),
+      metricTooltip("network.heat-strip"),
     );
     // No methodology link: this popover is the legend, and the row's own strip already links to the
     // section that owns these definitions.

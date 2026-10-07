@@ -176,8 +176,9 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
   `methodology.content.ts` (sections + metric definitions). Copy is rendered via
   `renderMethodologyCopy()` — never a literal in a consuming template.
 - Any user-visible metric/status/threshold/rule must add a `MetricDoc` (+ a `METHODOLOGY_CONSTANTS`
-  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is
-  `metricDoc(id).definition` rendered with the constants.
+  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is `metricTooltip(id)`
+  — the metric's optional `summary`, else its full `definition`, rendered with the constants. Author
+  a `summary` when the definition is too long to read in a tooltip.
 - When a feature changes a documented value or rule: update the registry, bump the owning section's
   `lastReviewed`, re-run `npm test -- --no-watch` (the PR template carries the checklist line).
 - Backend-owned values (reliability constants, provenance licenses, staleness windows) are fetched

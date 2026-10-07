@@ -25,13 +25,15 @@ Everything a rider can read about a number comes from three files under
   in v1) and `METRIC_DOCS` (6 `line-status.*` + 7 `passenger.*` + 1 `line-pulse.*` definitions),
   with the `MethodologySection` / `MetricDoc` interfaces.
 - `methodology-render.util.ts` — `renderMethodologyCopy()`, `methodologyTokenValues()`,
-  `metricDoc(id)` and `section(id)`.
+  `metricDoc(id)`, `metricTooltip(id)` and `section(id)`.
 
 **One registry, two readers.** `/methodology` renders `MetricDoc.definition` through
-`renderMethodologyCopy()`; every `InfoPopover` on a metric renders the same string from the same
-`metricDoc(id).definition`. The page and the tooltip therefore cannot drift by construction
-(METHODOLOGY_DOCS.md §6.1). `metricDoc()` and `section()` **throw** on an unknown id, so a typo
-fails a test instead of rendering `undefined`.
+`renderMethodologyCopy()`; every `InfoPopover` on a metric renders `metricTooltip(id)`, which is the
+metric's optional `summary` (a tooltip-sized precis) falling back to `definition` when it has none.
+Both tiers live on the same registry entry, so the page and the tooltip can never disagree about the
+rule — the summary is only ever a shorter phrasing of the definition it sits beside
+(METHODOLOGY_DOCS.md §6.1). `metricDoc()`, `metricTooltip()` and `section()` **throw** on an unknown
+id, so a typo fails a test instead of rendering `undefined`.
 
 ### The token rule — never a literal in a consuming template
 
@@ -44,9 +46,10 @@ renderer so nothing can bypass it. To change a documented value: edit the consta
 ### Popover guidance — every non-obvious number gets one
 
 **Every non-obvious number or status gets an `app-info-popover`**, and the popover's `content` must
-be `metricDoc(id).definition` rendered with the current constants, never a literal typed into the
-consuming component. A popover carries **one precise paragraph**; anything longer belongs on
-`/methodology`, and the popover's optional `link` (`{ text, routerLink, fragment }`) points at the
+be `metricTooltip(id)` — the metric's `summary` when it has one, else its full `definition`, rendered
+with the current constants — never a literal typed into the consuming component. A popover carries
+**one short paragraph**; anything longer belongs on `/methodology`, where the full `definition`
+still renders, and the popover's optional `link` (`{ text, routerLink, fragment }`) points at the
 owning section anchor (`/methodology#<sectionId>`). The home status chips
 (`status-info-chip.component.ts`) and the `MethodologySectionComponent` metric rows are the two
 existing consumers; each chip carries a `linkFragment` input (default `line-status`) so it can
@@ -92,7 +95,9 @@ page stays `RenderMode.Server`.
 
 ### Anti-drift layers
 
-1. **One registry, two readers** — page and popover read the same definition string.
+1. **One registry, two readers** — the page reads `definition` and the popover reads
+   `metricTooltip(id)` (the optional `summary`, which renders with no unresolved `{{` and is strictly
+   shorter than that same `definition` — the registry spec enforces both properties).
 2. **Tokens, not digits** — a test mutates a constant and asserts the rendered output changes, and
    asserts an unknown token throws.
 3. **Registry completeness** — every `MetricDoc` has a valid `sectionId`, an `ownerRoute` present in
@@ -143,7 +148,9 @@ page stays `RenderMode.Server`.
   non-modal `role="dialog"` (with `tabindex="-1"`) when it actually renders a link
   (`showMethodologyLink()` on and `link` set) and `role="tooltip"` otherwise; Escape closes and
   returns focus to the trigger; outside click closes; focus moving into the panel does not close it;
-  the panel is width-clamped (`max-w-[calc(100vw-2rem)]`) and `align` flips its edge.
+  the panel is width-clamped (`max-w-[calc(100vw-2rem)]`) and `align` flips its edge, and its
+  position is measured on open and clamped to the viewport: shifted horizontally to stay on-screen
+  and flipped above the trigger when there is no room below (parallel change, same round).
 - **Hover is tracked on the host, not the trigger** (`(mouseenter)`/`(mouseleave)` on
   `app-info-popover`), so the panel — an absolutely-positioned descendant — counts as still-hovered
   while the cursor crosses onto it. Leaving the host schedules the close after
@@ -169,9 +176,10 @@ page stays `RenderMode.Server`.
 
 ## 🧩 Extension Points & Hooks
 
-- **Add a metric:** add one `MetricDoc` to `METRIC_DOCS` (a `{{TOKEN}}` if it has a number), surface
-  it with an `InfoPopover` whose `content` is `renderMethodologyCopy(metricDoc(id).definition)`, and
-  the completeness spec enforces the rest. No page or template change.
+- **Add a metric:** add one `MetricDoc` to `METRIC_DOCS` (a `{{TOKEN}}` if it has a number), author
+  a `summary` when the `definition` is too long to read in a tooltip (the popover falls back to
+  `definition` when omitted), surface it with an `InfoPopover` whose `content` is
+  `metricTooltip(id)`, and the completeness spec enforces the rest. No page or template change.
 - **Add a documented number:** add a `METHODOLOGY_CONSTANTS` entry (`value` + owning `source`) and
   reference its `{{TOKEN}}` in copy — never type the value.
 - **Flip a section live:** set `inProgress: false` once the owning spec's code lands and render the

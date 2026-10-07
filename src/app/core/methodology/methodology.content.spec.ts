@@ -144,6 +144,19 @@ describe("methodology registry drift", () => {
     }
   });
 
+  it("keeps every optional summary free of unresolved tokens and strictly shorter than its definition", () => {
+    // The two-tier rule: `definition` is the full text /methodology shows, `summary` is the
+    // tooltip-sized tier. A summary that rendered a raw `{{` (or wasn't actually shorter) would
+    // defeat the point, so the registry enforces both here rather than trusting the author.
+    for (const metric of METRIC_DOCS) {
+      if (metric.summary === undefined) {
+        continue;
+      }
+      expect(renderMethodologyCopy(metric.summary), metric.id).not.toContain("{{");
+      expect(metric.summary.length, metric.id).toBeLessThan(metric.definition.length);
+    }
+  });
+
   it("never carries a license or attribution string in the registry", () => {
     const serialized = JSON.stringify({ sections: METHODOLOGY_SECTIONS, metrics: METRIC_DOCS });
     expect(serialized).not.toMatch(/CC[- ]?BY|ODbL|OpenStreetMap|data\.gov\.my/i);

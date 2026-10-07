@@ -3,10 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import type { LineStatusHourBucket } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
 import { NetworkSparklineComponent } from "./network-sparkline.component";
@@ -165,7 +162,7 @@ describe("NetworkSparklineComponent", () => {
 
     const panel = root.querySelector('[data-testid="network-sparkline-popover"]');
     expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
-      renderMethodologyCopy(metricDoc("network.activity-sparkline").definition),
+      metricTooltip("network.activity-sparkline"),
     );
     expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
   });

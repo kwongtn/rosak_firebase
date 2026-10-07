@@ -1,9 +1,6 @@
 import { Component, computed, inject } from "@angular/core";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { HomeStore } from "../data/home.store";
 import {
@@ -161,9 +158,7 @@ export class ProReportRankingComponent {
   );
 
   /** The rule, from the methodology registry — never a literal in this template. */
-  protected readonly _definition = computed(() =>
-    renderMethodologyCopy(metricDoc("network.report-ranking").definition),
-  );
+  protected readonly _definition = computed(() => metricTooltip("network.report-ranking"));
 
   /** Deep link into the section that owns the rule. */
   protected readonly _methodologyLink = {

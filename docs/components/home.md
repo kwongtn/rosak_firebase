@@ -53,9 +53,9 @@
     strip ABOVE the `home-panels` grid. 🔴 Its headline is the page's **only `h1`** (Phase 5B — it
     used to be an `h2`, so the page had no top-level heading at all). It renders the plain-language headline (with an
     `app-info-popover` whose `content` is
-    `renderMethodologyCopy(metricDoc("network.lines-normal").definition)` — the registry sentence
-    now states the in-service scoping AND the tone's green/orange/red rule, so the popover explains
-    the words and the colour together), the disruption callout
+    `metricTooltip("network.lines-normal")` — the tooltip carries the short summary (in-service
+    scoping), while the tone's green/orange/red rule stays in the full definition on /methodology),
+    the disruption callout
     naming the worst line, four stat tiles (lines normal · needs attention · reports now · links
     today) and an **intent-based** CTA row — Report a delay · Spot a train · Share a link · Live map
     (`routerLink="/tracker"`). Each tile's FIGURE is an `hlmTickUp` host, so a changed number replays a
@@ -847,7 +847,7 @@ the two cells can never disagree.
 - Hidden when `linesHistoryFailed` and when every count is zero: "nobody reported anything today" is
   not a ranking, and an all-zero list of bars reads as broken rather than as quiet.
 - `InfoPopover` bound to the `network.report-ranking` metric doc, via
-  `renderMethodologyCopy(metricDoc("network.report-ranking").definition)` — it says **reports, not
+  `metricTooltip("network.report-ranking")` — it says **reports, not
   faults**: the count is what riders filed, which is not the same claim as the network being at fault.
 
 ## ⚙️ Internal State & Logic
@@ -1797,7 +1797,7 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
 - **`HOME_RECENT_INCIDENTS_QUERY` / `HOME_RECENT_INCIDENT_VARS`** in `home.queries.ts` — the home
   contract seam's one new document, with frozen constant variables.
 - **`network.has-data`** — the `MetricDoc` for the "only lines with data" rule, read by the filter's
-  info popover through `renderMethodologyCopy(metricDoc(...).definition)`.
+  info popover through `metricTooltip(...)`.
 - **`network.report-ranking`** — the `MetricDoc` for "reports per line over the current service day,
   top 5", read by the ranking widget's popover the same way. It is the honest counterpart to the heat
   grid: same numbers, different question, and the copy has to say **reports, not faults**.
@@ -2023,7 +2023,7 @@ primitives and were left alone.
 
 - **One `h1`, and it is the hero headline.** The page had no `h1` at all: the hero's sentence was an
   `h2`, so a screen reader's heading list started one level down with nothing above it. It is now the
-  page's only `h1`, inside the existing `app-info-popover` (so the metric's definition still travels
+  page's only `h1`, inside the existing `app-info-popover` (so the metric's explanation still travels
   with it). Everything else steps down: the board's group headings are `h2`, the feed column gained a
   visually-hidden `<h2>Community feed</h2>` as its first child, and the Last Week day labels went from
   `h2` to `h3` because a day is a subsection of that column, not a peer of it.
@@ -2106,7 +2106,7 @@ focus:top-3 focus:left-3 focus:z-50`. `focus:fixed` rather than `focus:relative`
   sum of per-line counts, so one rider on two lines counts twice).
 - **The registry audit's second finding:** `network.needs-attention` had a definition nobody could
   reach. It and `network.reports-now` are now surfaced from the hero's own tile labels, through
-  `renderMethodologyCopy(metricDoc(...).definition)` like every other metric on the page. "Lines normal"
+  `metricTooltip(...)` like every other metric on the page. "Lines normal"
   stays plain (the headline popover directly above it IS that sentence) and "Links today" stays plain
   (it is the row count of the feed list further down the page). `network.severity-order` is still
   reachable only through `/methodology`; putting an info trigger on the board's `Severity` sort button

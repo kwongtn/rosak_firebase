@@ -20,8 +20,9 @@ export interface MethodologySection {
 }
 
 /**
- * A precise, reusable definition of one non-obvious metric. The page and every info popover
- * read this same string, so the two can never disagree.
+ * A precise, reusable definition of one non-obvious metric. `/methodology` reads `definition` in
+ * full and every info popover reads the shorter `summary` (falling back to `definition`), both from
+ * this one entry, so the two readers can never disagree about the rule.
  */
 export interface MetricDoc {
   /** Stable key, e.g. `line-status.active`. */
@@ -32,6 +33,12 @@ export interface MetricDoc {
   title: string;
   /** One precise paragraph; may contain `{{TOKENS}}`. */
   definition: string;
+  /**
+   * Tooltip-sized precis of `definition` — the same rule in fewer words, for a popover panel rather
+   * than the full page. Optional: a metric without one falls back to `definition` (see
+   * `metricTooltip()`). May contain the same `{{TOKENS}}` as `definition`.
+   */
+  summary?: string;
   /** Feature route this metric belongs to, or `null` when no route owns it yet. */
   ownerRoute: string | null;
   /** The sibling spec file that owns this metric's substance. */
@@ -118,6 +125,17 @@ const REVIEWED_AT_SPOTTING_FLEET_CHIP = "2026-10-06";
 const REVIEWED_AT_OTHERS_BUCKET = "2026-10-06";
 
 /**
+ * Bumped when the front page's eight metrics gained a tooltip-sized `summary` (2026-10-07) — the
+ * `definition` each already published stays the full text on /methodology and the summary is what a
+ * hover panel carries.
+ *
+ * A separate constant from the reviews above even though the underlying rules did not change: this
+ * review asked a different question — is the published rule short enough to read in a tooltip? — and
+ * folding it into an earlier date would let the next bump on either silently claim the other.
+ */
+const REVIEWED_AT_TOOLTIP_CONCISION = "2026-10-07";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -161,8 +179,9 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     // Bumped by the Phase 5B registry audit — the Pro dashboard's two supporting widgets added the
     // ranking and the archive, and the audit then checked every shipped number on the front page for
     // a definition and a reachable one. Every metric on this page belongs to this section, so the
-    // section is what was reviewed. Also bumped for the line-details In-Service share chip surface.
-    lastReviewed: REVIEWED_AT_SPOTTING_FLEET_CHIP,
+    // section is what was reviewed. Also bumped for the line-details In-Service share chip surface
+    // and again when the front page's metrics gained a tooltip-sized summary.
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
     inProgress: true,
   },
   {
@@ -362,9 +381,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "Lines running normally",
     definition:
       "A line counts as running normally when its operational status is Active and no rider has reported it Delayed or Disrupted in the current window. Closed (Defunct) and not-yet-open (Testing) lines are not in service, so they are not counted in the headline at all. The headline reads “N of M lines running normally” and its colour follows the same counts: green when every in-service line runs normally, orange when some need attention, red when more than half do.",
+    summary:
+      "A line runs normally when it is in service and no rider has reported it Delayed or Disrupted. Closed and not-yet-open lines are not in service, so they are not counted.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_HEADLINE_IN_SERVICE,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   {
     id: "network.needs-attention",
@@ -372,9 +393,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "Needs attention",
     definition:
       "A line needs attention when it is in service and not fully operational, or when a rider has reported it at passenger severity {{NEEDS_ATTENTION_PASSENGER_RANK}} or above (Delayed and above) in the current window. Closed (Defunct) and not-yet-open (Testing) lines never need attention — they are not in service, and the board lists them in its Others group instead. Crowding reports below that level describe one carriage rather than the service, so they do not count against the line.",
+    summary:
+      "A line needs attention when it is in service but not fully operational, or when a rider reported it at passenger severity {{NEEDS_ATTENTION_PASSENGER_RANK}} or above (Delayed and above). Closed and not-yet-open lines never need attention.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_OTHERS_BUCKET,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   {
     // 🔴 The one tile the Phase 5B registry audit found MISSING: "Reports now" has been on the hero
@@ -391,9 +414,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "Reports now",
     definition:
       "How many rider status reports the network's lines have received inside their own current windows. Each line's window is set by the backend and can differ between lines, so this is a sum of per-line counts rather than a count of distinct reporters: one rider who filed about two lines contributes two. It counts REPORTS and not problems — the same rider can file twice, and a report can describe crowding that never reached the line's status. Read it as how much the community is currently saying, not as how many lines are affected; the count of affected lines is the “Needs attention” tile above.",
+    summary:
+      "All rider status reports the network's lines received inside their own current windows. It counts reports, not problems — one rider filing about two lines counts twice.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_POLISH,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   {
     id: "network.severity-order",
@@ -463,9 +488,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "Network activity by hour",
     definition:
       "One bar per hour of the community service day, which runs from {{SERVICE_DAY_START_HOUR}}:00 to 02:00 — {{SERVICE_DAY_HOURS}} hours in total. A bar's height is how many rider status reports EVERY line on the network received in that hour, and its colour is the passenger status most of those reports gave. This is a network-wide count, not one line's: per-line history is shown on the line itself. An hour nobody reported anything about has no colour rather than a “normal” one, because silence is not evidence that service was good.",
+    summary:
+      "One bar per hour of the {{SERVICE_DAY_HOURS}}-hour service day ({{SERVICE_DAY_START_HOUR}}:00 to 02:00). It tallies every line's reports together, so a tall bar means the network was busy — not any one line.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   {
     // The compact board row's report tally — "N reports (X this hour)". 🔴 The SENTENCE about what it
@@ -477,9 +504,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "A line's reports today",
     definition:
       "The first number is every rider status report this line received during the current community service day, which runs from {{SERVICE_DAY_START_HOUR}}:00 to 02:00 — {{SERVICE_DAY_HOURS}} hours in total. The number in brackets is how many of those arrived in the hour we are in, so a busy total can be told apart from a live one. It counts REPORTS and not faults: a line can collect a morning's worth of ordinary crowding reports and still be running normally. When this line has no reports in the service day, or the data could not be read, the row shows its own shorter reporting window instead and this label is not drawn at all.",
+    summary:
+      "Reports this line received during the {{SERVICE_DAY_HOURS}}-hour service day ({{SERVICE_DAY_START_HOUR}}:00 to 02:00); the number in brackets arrived in the current hour. It counts reports, not faults.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   {
     // The Pro board's app-network-heat-strip: the only widget here with TWO dimensions.
@@ -488,9 +517,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "The heat grid (Pro view)",
     definition:
       "One row per line and one column per hour of the {{SERVICE_DAY_HOURS}}-hour service day, for every line at once. Each cell carries TWO readings: the colour is the passenger status that dominated that line in that hour, and the strength is how many reports that was, across {{HEAT_INTENSITY_STEPS}} steps relative to the busiest cell on screen. Colour alone would say “disrupted” without saying whether one person noticed or sixty did, and the strength alone would say “busy” without saying what kind of busy. The strength is shared across every row on purpose — a per-line scale would make a line with two reports look as dark as a line with two hundred, which is the comparison this grid exists for.",
+    summary:
+      "One row per line and one column per hour of the service day. Colour is the passenger status that dominated that line that hour; strength is the report count, across {{HEAT_INTENSITY_STEPS}} steps shared by every line so the rows can be compared.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_HISTORY_WIDGETS,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   /* ---- the Pro board's "only lines with data" toggle. It is the ONE new judgement this phase
      shipped: the other two filters are exact values the reader typed (`status === PARTIAL_DISRUPTION`,
@@ -502,9 +533,11 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "Which lines count as having data",
     definition:
       "A line counts as having data when at least one of these is true: a rider filed a status report about it inside its own rolling window; riders reported a passenger status worse than Normal for it; its operational status is anything other than Active; or one of its pulse links is an official post. A passenger status of Normal is NOT data on its own — it is the reading the backend returns when nothing notable was filed, so counting it would put “we have data” on every line on the network and make the filter remove nothing. This is the same evidence the confidence chip on every row already uses, which is why the chip and this filter can never disagree about a line.",
+    summary:
+      "A line has data when a rider report arrived inside its own window, its reported passenger status is worse than Normal, its operational status is not Active, or one of its pulse links is an official post. A Normal passenger status alone is not data.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_PRO_DASHBOARD,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
   {
     // 🔴 The one rule that is genuinely NEW in this widget: it counts REPORTS, and a report is not a
@@ -517,8 +550,10 @@ export const METRIC_DOCS: MetricDoc[] = [
     title: "Worst lines by reports",
     definition:
       "The busiest {{REPORT_RANKING_TOP_LINES}} lines of the current service day, ranked by how many rider status reports each one received across the {{SERVICE_DAY_HOURS}}-hour day, and each bar is that line's share of the busiest line on the list. It counts REPORTS and not faults: a line can top this list on a morning's worth of ordinary crowding complaints and still be running, and a broken line nobody has filed about does not appear at all. Only lines with at least one report are ranked, so a service day with no rider reports shows nothing rather than five empty bars, and lines with equal totals are ordered by line code so the list cannot reshuffle itself. The hour-by-hour detail behind these totals is the heat grid.",
+    summary:
+      "The busiest {{REPORT_RANKING_TOP_LINES}} lines of the service day, ranked by how many reports each received; each bar is a share of the top line. It counts reports, not faults — a line can top this list on ordinary crowding complaints.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_PRO_OFFICIAL_WIDGETS,
+    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
 ];

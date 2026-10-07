@@ -1,10 +1,7 @@
 import { Component, OnDestroy, computed, effect, inject, input, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -60,7 +57,7 @@ interface OfficialUpdate {
  * by type and layout, so a coloured button is not what makes it recognisable.
  *
  * The headline carries an `app-info-popover` because it is a metric, not a caption: its copy comes
- * from the methodology registry (`network.lines-normal`) through `renderMethodologyCopy`, so the
+ * from the methodology registry (`network.lines-normal`) through `metricTooltip`, so the
  * tile and `/methodology` cannot drift. The refresh control sits on the SAME row as that headline
  * at every width (it used to be desktop-only in a bottom-right corner) because "Refreshing in 12s"
  * modifies the sentence above it — separating them put a page's liveness next to the sparkline and
@@ -453,22 +450,16 @@ export class HomeHeroComponent implements OnDestroy {
     };
   });
 
-  /** The headline metric's definition, read from the registry — never a literal here. */
-  protected readonly _headlineMetric = computed(() =>
-    renderMethodologyCopy(metricDoc("network.lines-normal").definition),
-  );
+  /** The headline metric's tooltip copy, read from the registry — never a literal here. */
+  protected readonly _headlineMetric = computed(() => metricTooltip("network.lines-normal"));
 
   /** 🔴 These two are not `computed` for a dependency reason but a CONSISTENCY one: they read a
    *  registry string that cannot change at runtime, and a computed would only pretend it might.
    *  Same registry, same renderer as the headline's — the whole point is that a tile's definition
    *  and `/methodology`'s sentence are literally the same string. */
-  protected readonly _needsAttentionMetric = renderMethodologyCopy(
-    metricDoc("network.needs-attention").definition,
-  );
+  protected readonly _needsAttentionMetric = metricTooltip("network.needs-attention");
 
-  protected readonly _reportsNowMetric = renderMethodologyCopy(
-    metricDoc("network.reports-now").definition,
-  );
+  protected readonly _reportsNowMetric = metricTooltip("network.reports-now");
 
   /** Deep link to the methodology section that owns the headline metric. */
   protected readonly _methodologyLink: InfoPopoverLink = {

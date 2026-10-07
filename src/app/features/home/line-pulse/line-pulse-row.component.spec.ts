@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   metricDoc,
+  metricTooltip,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
@@ -507,7 +508,7 @@ describe("LinePulseRowComponent", () => {
 
       const panel = root.querySelector('[data-testid="line-row-reports-popover"]');
       expect(panel?.querySelectorAll("p")[1]?.textContent?.trim()).toBe(
-        renderMethodologyCopy(metricDoc("network.line-reports-summary").definition),
+        metricTooltip("network.line-reports-summary"),
       );
       // No /methodology link: `showMethodologyLink: false` demotes the panel to a tooltip, so it is
       // not a dialog and carries no link to a section that does not exist.

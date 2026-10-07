@@ -1,9 +1,6 @@
 import { Component, computed, inject } from "@angular/core";
 
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
 import { HomeStore } from "../data/home.store";
 import {
@@ -177,10 +174,8 @@ export class NetworkSparklineComponent {
     ),
   );
 
-  /** The definition, from the registry: the hero must not carry its own copy of the rule. */
-  protected readonly _definition = computed(() =>
-    renderMethodologyCopy(metricDoc("network.activity-sparkline").definition),
-  );
+  /** The tooltip copy, from the registry: the hero must not carry its own copy of the rule. */
+  protected readonly _definition = computed(() => metricTooltip("network.activity-sparkline"));
 
   protected readonly _methodologyLink: InfoPopoverLink = {
     text: "How this is counted",

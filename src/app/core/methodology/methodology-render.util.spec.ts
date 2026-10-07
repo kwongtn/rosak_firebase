@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { METHODOLOGY_CONSTANTS } from "./methodology.constants";
-import { metricDoc, renderMethodologyCopy, section } from "./methodology-render.util";
+import {
+  metricDoc,
+  metricTooltip,
+  renderMethodologyCopy,
+  section,
+} from "./methodology-render.util";
 
 describe("methodology render util: renderMethodologyCopy", () => {
   it("resolves a known token from the default constants", () => {
@@ -96,6 +101,33 @@ describe("methodology render util: metricDoc", () => {
 
   it("leaves no unresolved token in a rendered metric definition", () => {
     expect(renderMethodologyCopy(metricDoc("line-status.active").definition)).not.toContain("{{");
+  });
+});
+
+describe("methodology render util: metricTooltip", () => {
+  it("renders the token-resolved SUMMARY when the metric has one", () => {
+    const doc = metricDoc("network.lines-normal");
+    expect(doc.summary).toBeDefined();
+    expect(metricTooltip("network.lines-normal")).toBe(renderMethodologyCopy(doc.summary ?? ""));
+    // Not just "a real string" — it must be the shorter tier, not the full definition.
+    expect(metricTooltip("network.lines-normal")).not.toBe(renderMethodologyCopy(doc.definition));
+  });
+
+  it("resolves a token inside a summary, not just a token-free one", () => {
+    expect(metricTooltip("network.needs-attention")).toContain(
+      String(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"].value),
+    );
+  });
+
+  it("falls back to the full DEFINITION when the metric has no summary", () => {
+    expect(metricDoc("line-status.active").summary).toBeUndefined();
+    expect(metricTooltip("line-status.active")).toBe(
+      renderMethodologyCopy(metricDoc("line-status.active").definition),
+    );
+  });
+
+  it("throws on an unknown metric id, like metricDoc", () => {
+    expect(() => metricTooltip("network.nope")).toThrow(/network\.nope/);
   });
 });
 

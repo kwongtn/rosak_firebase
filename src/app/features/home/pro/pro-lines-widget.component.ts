@@ -5,10 +5,7 @@ import { lucideDownload } from "@ng-icons/lucide";
 
 import { LINE_STATUS_LABEL } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { CsvRow, downloadCsv, toCsv } from "../../../core/export/csv.util";
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
@@ -184,10 +181,8 @@ export class ProLinesWidgetComponent {
       this.store.proOnlyWithData(),
   );
 
-  /** The published definition of "has data" — never a literal in this template. */
-  protected readonly _hasDataDefinition = computed(() =>
-    renderMethodologyCopy(metricDoc("network.has-data").definition),
-  );
+  /** The published tooltip copy of "has data" — never a literal in this template. */
+  protected readonly _hasDataDefinition = computed(() => metricTooltip("network.has-data"));
 
   protected onStatusChanged(event: Event): void {
     const value = (event.target as HTMLSelectElement | null)?.value ?? "";
