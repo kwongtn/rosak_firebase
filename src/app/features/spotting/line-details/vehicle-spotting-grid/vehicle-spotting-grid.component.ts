@@ -12,18 +12,12 @@ import {
   viewChild,
   viewChildren,
 } from "@angular/core";
-import { RouterLink } from "@angular/router";
 import { injectIsBrowser } from "../../../../core/composables/is-browser";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { VehicleStatus } from "../../../../core/graphql/types";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
 import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
-import {
-  dateKeyOf,
-  spottingIntensityClass,
-} from "../../../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { SpottingCountTooltipComponent } from "../../../../domain-ui/spotting-activity-heatmap/spotting-count-tooltip.component";
-import { VehicleStatusBadge } from "../../../../domain-ui/vehicle-status-badge/vehicle-status-badge";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import {
@@ -32,79 +26,29 @@ import {
   LineSpottingGridQueryVars,
   VehicleType,
 } from "../../data/spotting.queries";
-
-interface GridRow {
-  vehicleId: string;
-  identificationNo: string;
-  status: VehicleStatus;
-}
-
-interface GridSection {
-  typeId: string;
-  typeName: string;
-  rows: GridRow[];
-}
-
-/** One day in the visible window's column headers. */
-interface GridColumn {
-  dateKey: string;
-  dayOfMonth: number;
-  isWeekend: boolean;
-  /** True for the 1st of each visible month — draws the persistent divider (a plain `border-l`
-   * baked into the cell itself, see `dayHeaderClass`/`dayCellClass`) that survives horizontal
-   * scroll because it travels with the cell rather than needing to be redrawn as an overlay. */
-  isMonthStart: boolean;
-  isToday: boolean;
-}
-
-/** One visible month's worth of columns, under its own header label. */
-interface MonthGroup {
-  key: string;
-  label: string;
-  /** This group's first column's position in the flattened `columns()` list — lets
-   * `monthLabelShift` compute the group's pixel span without re-deriving it via a linear scan
-   * of `columns()` on every call. */
-  startIndex: number;
-  columns: GridColumn[];
-}
-
-const MONTH_GROUP_LABEL = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const TODAY_KEY = dateKeyOf(new Date());
-
-/** Every row (header, section label, data) is this tall on *both* sides of the names/grid split
- * — see the class doc comment for why those are two independent `<table>`s that need to agree
- * pixel-for-pixel to still look like one grid. Header rows are two of these stacked (month label
- * + day number). Kept tall enough to comfortably fit a status badge without the row's real
- * content height ever exceeding this — see `ROW_H`'s own note on the vehicle-row cell padding. */
-const ROW_H = 32;
-
-/** Every day column is this wide, on both the mirrored header and the scrolling body — enforced
- * via an explicit `<colgroup>` on each of those two (independent) tables rather than left to each
- * table's own auto-sizing, which is what keeps the two pixel-aligned as the body scrolls under
- * the header's mirrored transform (see the class doc comment). */
-const COL_W = 28;
-
-/** Total header height on *both* sides — month-label row + day-number row, nothing more. This has
- * to be a fixed constant, not "however tall the day-grid header happens to be at the moment": the
- * two header tables are otherwise-independent elements, and if one grew/shrank purely from
- * scrolling while the other stayed fixed, everything below them — cell rows on one side, vehicle
- * names on the other — drifts out of alignment by exactly that difference the moment they
- * disagree. The currently-pinned section's mirrored aggregate row (see `_currentSection` and the
- * template's own `dayGridMirror` div) is *not* counted here even though it visually sits right
- * below this header — it's a zero-height sticky wrapper whose actual content overflows downward
- * only while a section is pinned, so it never adds to either side's reserved flow height the way
- * an earlier revision's literal third `<tr>` did. */
-const DAY_GRID_HEADER_H = ROW_H * 2;
-
-/** Fallback reserve for `monthLabelShift`, used only for the handful of frames before
- * `monthLabelWidths` has measured each label's *real* rendered width (see that signal) — a plain
- * guess turned out too small for the actual "Mon YYYY" text at this font size, letting the label
- * visibly slide into the next month's columns before it hit its own edge. */
-const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
+import {
+  aggregateSpottingsFor,
+  buildCountsByKey,
+  buildGridSections,
+  buildMonthGroups,
+  COL_W,
+  DAY_GRID_HEADER_H,
+  GridColumn,
+  GridSection,
+  MonthGroup,
+  ROW_H,
+  spottingCountFor,
+} from "./vehicle-spotting-grid.data.util";
+import {
+  dayHeaderClass as buildDayHeaderClass,
+  monthLabelShift as computeMonthLabelShift,
+  MOBILE_TYPE_LABEL_CLASS,
+} from "./vehicle-spotting-grid.layout.util";
+import { VehicleSpottingGridDateRowComponent } from "./vehicle-spotting-grid-date-row.component";
+import { VehicleSpottingGridDayMirrorComponent } from "./vehicle-spotting-grid-day-mirror.component";
+import { VehicleSpottingGridMobileNameRowComponent } from "./vehicle-spotting-grid-mobile-name-row.component";
+import { VehicleSpottingGridMobilePinnedComponent } from "./vehicle-spotting-grid-mobile-pinned.component";
+import { VehicleSpottingGridNameRowComponent } from "./vehicle-spotting-grid-name-row.component";
 
 /**
  * The vehicle × date spotting-intensity grid for /spotting/:lineId/details — one row per vehicle
@@ -163,11 +107,14 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
    */
   host: { ngSkipHydration: "" },
   imports: [
-    RouterLink,
     HlmSkeleton,
     RetryBannerComponent,
-    VehicleStatusBadge,
     SpottingCountTooltipComponent,
+    VehicleSpottingGridDateRowComponent,
+    VehicleSpottingGridDayMirrorComponent,
+    VehicleSpottingGridMobileNameRowComponent,
+    VehicleSpottingGridMobilePinnedComponent,
+    VehicleSpottingGridNameRowComponent,
   ],
   template: `
     <div class="flex flex-col gap-3">
@@ -274,19 +221,12 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                   </tr>
                   @if (!isCollapsed(section.typeId)) {
                     @for (row of section.rows; track row.vehicleId) {
-                      <tr [style.height.px]="ROW_H">
-                        <td class="bg-card border-b px-2 py-1 whitespace-nowrap">
-                          <div class="flex items-center justify-between gap-2">
-                            <a
-                              [routerLink]="['/spotting', lineId(), 'vehicle', row.vehicleId]"
-                              class="hover:underline"
-                            >
-                              {{ row.identificationNo }}
-                            </a>
-                            <vehicle-status-badge [status]="row.status" />
-                          </div>
-                        </td>
-                      </tr>
+                      <tr
+                        app-vsg-name-row
+                        [style.height.px]="ROW_H"
+                        [row]="row"
+                        [lineId]="lineId()"
+                      ></tr>
                     }
                   }
                 }
@@ -376,107 +316,35 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                              clamp, which pushProgress alone never captures. -->
             @if (!isNarrow()) {
               <div
+                app-vsg-day-mirror
                 data-testid="grid-day-mirror"
                 class="sticky z-10"
                 [style.top.px]="stickyOffset() + DAY_GRID_HEADER_H"
+                [section]="_currentSection()"
+                [columns]="columns()"
+                [countsByKey]="_countsByKey()"
+                [headerScrollLeft]="headerScrollLeft()"
+                [pushProgress]="mirrorPushProgress()"
+                [pastGrid]="pastGrid()"
                 style="height: 0px"
-              >
-                <div
-                  class="overflow-hidden bg-muted"
-                  [style.height.px]="_currentSection() && !pastGrid() ? ROW_H : 0"
-                  [style.transform]="'translateY(-' + mirrorPushProgress() + 'px)'"
-                >
-                  <table
-                    class="border-collapse text-xs"
-                    style="table-layout: fixed"
-                    [style.width.px]="gridWidth()"
-                    [style.transform]="'translateX(-' + headerScrollLeft() + 'px)'"
-                  >
-                    <colgroup>
-                      @for (col of columns(); track col.dateKey) {
-                        <col [style.width.px]="COL_W" />
-                      }
-                    </colgroup>
-                    <tbody>
-                      <tr [style.height.px]="ROW_H" class="text-muted-foreground">
-                        @for (col of columns(); track col.dateKey) {
-                          <td
-                            class="border-t p-0 text-center text-[10px] tabular-nums"
-                            [class.border-l]="col.isMonthStart"
-                          >
-                            @if (_currentSection(); as section) {
-                              {{ aggregateFor(section, col.dateKey) || "—" }}
-                            }
-                          </td>
-                        }
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              ></div>
             }
 
             @if (isNarrow()) {
               <div
+                app-vsg-mobile-pinned
                 class="sticky z-10"
                 [style.top.px]="stickyOffset() + DAY_GRID_HEADER_H"
+                [section]="_currentSection()"
+                [columns]="columns()"
+                [countsByKey]="_countsByKey()"
+                [headerScrollLeft]="headerScrollLeft()"
+                [pushProgress]="mobilePinnedPush()"
+                [pastGrid]="pastGrid()"
+                [collapsed]="isCollapsed(_currentSection()?.typeId ?? '')"
+                (toggled)="toggleCurrentSection()"
                 style="height: 0px"
-              >
-                <div
-                  data-testid="grid-mobile-pinned"
-                  class="overflow-hidden bg-muted"
-                  [style.height.px]="_currentSection() && !pastGrid() ? MOBILE_PINNED_H : 0"
-                  [style.transform]="'translateY(-' + mobilePinnedPush() + 'px)'"
-                >
-                  <div
-                    data-testid="grid-mobile-pinned-label"
-                    [class]="mobileTypeLabelClass()"
-                    [style.height.px]="ROW_H"
-                    (click)="toggleCurrentSection()"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      class="size-3 shrink-0 transition-transform duration-150"
-                      [class.-rotate-90]="isCollapsed(_currentSection()?.typeId ?? '')"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                    {{ _currentSection()?.typeName }}
-                  </div>
-                  <table
-                    class="border-collapse text-xs"
-                    style="table-layout: fixed"
-                    [style.width.px]="gridWidth()"
-                    [style.transform]="'translateX(-' + headerScrollLeft() + 'px)'"
-                  >
-                    <colgroup>
-                      @for (col of columns(); track col.dateKey) {
-                        <col [style.width.px]="COL_W" />
-                      }
-                    </colgroup>
-                    <tbody>
-                      <tr [style.height.px]="ROW_H" class="text-muted-foreground">
-                        @for (col of columns(); track col.dateKey) {
-                          <td
-                            class="border-b p-0 text-center text-[10px] tabular-nums"
-                            [class.border-l]="col.isMonthStart"
-                          >
-                            @if (_currentSection(); as section) {
-                              {{ aggregateFor(section, col.dateKey) || "—" }}
-                            }
-                          </td>
-                        }
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              ></div>
             }
             <!-- relative z-[5]: gives this whole scrolling body one real stacking
                              context (an *explicit* z-index, not just isolation — see
@@ -564,59 +432,33 @@ const MONTH_LABEL_FALLBACK_RESERVE_PX = COL_W * 3;
                     @if (!isCollapsed(section.typeId)) {
                       @for (row of section.rows; track row.vehicleId) {
                         @if (isNarrow()) {
-                          <tr data-testid="grid-mobile-vehicle-row" [style.height.px]="ROW_H">
-                            <td [attr.colspan]="columns().length" class="bg-card">
-                              <div
-                                data-testid="grid-mobile-name-pin"
-                                class="sticky left-0 flex w-fit items-center gap-2 bg-card px-2 py-1 whitespace-nowrap"
-                              >
-                                <a
-                                  [routerLink]="['/spotting', lineId(), 'vehicle', row.vehicleId]"
-                                  class="hover:underline"
-                                >
-                                  {{ row.identificationNo }}
-                                </a>
-                                <vehicle-status-badge [status]="row.status" />
-                              </div>
-                            </td>
-                          </tr>
+                          <tr
+                            app-vsg-mobile-name-row
+                            data-testid="grid-mobile-vehicle-row"
+                            [style.height.px]="ROW_H"
+                            [row]="row"
+                            [lineId]="lineId()"
+                            [colspan]="columns().length"
+                          ></tr>
                         }
-                        <tr [style.height.px]="ROW_H">
-                          @for (col of columns(); track col.dateKey) {
-                            <td
-                              [class]="dayCellClass(col)"
-                              (mouseenter)="
-                                onCellHoverStart(
-                                  row.vehicleId,
-                                  row.identificationNo,
-                                  col.dateKey,
-                                  $event
-                                )
-                              "
-                              (mouseleave)="hoveredCell.set(null)"
-                            >
-                              @if (col.isToday) {
-                                <!-- The breathing wash, separated from the pill below rather
-                                                                     than an animate-pulse class on the <td> itself — the <td>
-                                                                     also contains the spotting-intensity pill, and pulsing
-                                                                     the whole cell's opacity would fade that pill in and out
-                                                                     along with the background, which reads as "this vehicle's
-                                                                     spotting data is flickering", not "this is today". z-0 +
-                                                                     the pill's own z-10 (below) keep this wash strictly behind
-                                                                     it despite both being absolutely/normally positioned
-                                                                     siblings. -->
-                                <div
-                                  class="bg-amber-400/15 dark:bg-amber-400/20 pointer-events-none absolute inset-0 z-0 animate-pulse"
-                                  aria-hidden="true"
-                                ></div>
-                              }
-                              <div
-                                class="relative z-10 mx-auto size-4 rounded-sm"
-                                [class]="cellClass(row.vehicleId, col.dateKey)"
-                              ></div>
-                            </td>
-                          }
-                        </tr>
+                        <tr
+                          app-vsg-date-row
+                          [style.height.px]="ROW_H"
+                          [columns]="columns()"
+                          [vehicleId]="row.vehicleId"
+                          [label]="row.identificationNo"
+                          [countsByKey]="_countsByKey()"
+                          [maxCount]="_maxCount()"
+                          (cellHoverStart)="
+                            onCellHoverStart(
+                              $event.vehicleId,
+                              $event.label,
+                              $event.dateKey,
+                              $event.event
+                            )
+                          "
+                          (cellHoverEnd)="hoveredCell.set(null)"
+                        ></tr>
                       }
                     }
                   }
@@ -792,55 +634,11 @@ export class VehicleSpottingGridComponent {
    * position — this is strictly an on-first-load behavior. */
   private hasScrolledToToday = false;
 
-  protected readonly sections = computed<GridSection[]>(() => {
-    const filter = this.statusFilter();
-    return [...this.vehicleTypes()]
-      .sort((a, b) => a.displayName.localeCompare(b.displayName))
-      .map((type) => ({
-        typeId: type.id,
-        typeName: type.displayName,
-        rows: [...type.vehicles]
-          .filter((v) => !filter || v.status === filter)
-          .sort((a, b) =>
-            a.identificationNo.localeCompare(b.identificationNo, undefined, { numeric: true }),
-          )
-          .map((v) => ({
-            vehicleId: v.id,
-            identificationNo: v.identificationNo,
-            status: v.status,
-          })),
-      }))
-      .filter((section) => section.rows.length > 0);
-  });
+  protected readonly sections = computed<GridSection[]>(() =>
+    buildGridSections(this.vehicleTypes(), this.statusFilter()),
+  );
 
-  protected readonly monthGroups = computed<MonthGroup[]>(() => {
-    let startIndex = 0;
-    return this.months().map((month) => {
-      const year = month.getUTCFullYear();
-      const monthIndex = month.getUTCMonth();
-      const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-      const columns = Array.from({ length: daysInMonth }, (_, i) => {
-        const date = new Date(Date.UTC(year, monthIndex, i + 1));
-        const weekday = date.getUTCDay();
-        const dateKey = dateKeyOf(date);
-        return {
-          dateKey,
-          dayOfMonth: i + 1,
-          isWeekend: weekday === 0 || weekday === 6,
-          isMonthStart: i === 0,
-          isToday: dateKey === TODAY_KEY,
-        };
-      });
-      const group = {
-        key: `${year}-${monthIndex}`,
-        label: MONTH_GROUP_LABEL.format(month),
-        startIndex,
-        columns,
-      };
-      startIndex += columns.length;
-      return group;
-    });
-  });
+  protected readonly monthGroups = computed<MonthGroup[]>(() => buildMonthGroups(this.months()));
 
   protected readonly columns = computed<GridColumn[]>(() =>
     this.monthGroups().flatMap((g) => g.columns),
@@ -880,16 +678,11 @@ export class VehicleSpottingGridComponent {
 
   /** `${vehicleId}|${dateKey}` → count, and the grid's own current max (for intensity scaling
    * relative to what's actually visible in this window, not some app-wide constant). */
-  private readonly _countsByKey = computed(() => {
-    const rows = this.resource.data()?.lines[0]?.vehicleSpottingTrends ?? [];
-    const map = new Map<string, number>();
-    for (const row of rows) {
-      map.set(`${row.vehicle.id}|${row.dateKey}`, row.count);
-    }
-    return map;
-  });
+  protected readonly _countsByKey = computed(() =>
+    buildCountsByKey(this.resource.data()?.lines[0]?.vehicleSpottingTrends ?? []),
+  );
 
-  private readonly _maxCount = computed(() => Math.max(1, ...this._countsByKey().values()));
+  protected readonly _maxCount = computed(() => Math.max(1, ...this._countsByKey().values()));
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -1120,115 +913,27 @@ export class VehicleSpottingGridComponent {
   }
 
   protected countFor(vehicleId: string, dateKey: string): number {
-    return this._countsByKey().get(`${vehicleId}|${dateKey}`) ?? 0;
-  }
-
-  protected cellClass(vehicleId: string, dateKey: string): string {
-    return spottingIntensityClass(this.countFor(vehicleId, dateKey), this._maxCount());
+    return spottingCountFor(this._countsByKey(), vehicleId, dateKey);
   }
 
   /** Sum of every visible (post-filter) vehicle's count in `section`, for one date column — the
    * per-vehicle-type total shown in both the inline and sticky-mirrored aggregation rows. */
   protected aggregateFor(section: GridSection, dateKey: string): number {
-    return section.rows.reduce((sum, row) => sum + this.countFor(row.vehicleId, dateKey), 0);
+    return aggregateSpottingsFor(section, dateKey, this._countsByKey());
   }
 
-  /** How far right (in px, added on top of the header table's own overall `translateX`, and on
-   * top of the `<span>`'s own natural position flush against the *left* edge of its `<th>` — see
-   * the template's own comment on why that `<th>` is `text-left`, not centered) a month group's
-   * label should slide. This is the same shape as native `position: sticky` with both `left` and
-   * `right` set, computed by hand because the header table isn't actually scrolling — it's
-   * translated by hand to mirror `#bodyScroll` (see the class doc comment) — so a *real* sticky
-   * child of it would just sit inert, never engaging, for the exact reason `dayGridMirror` can't
-   * live inside `#bodyScroll` either:
-   *
-   *  - The label's own "resting" position, with nothing scrolled near either of its edges yet,
-   *    is centered in the month (`centerPx`, not the month's start) — "assumes its position at
-   *    the center of the month" once released from either sticky edge.
-   *  - While that resting position would render past the *right* edge of whatever's currently
-   *    visible (`viewRight`, or the month's own end, whichever is nearer) — i.e. the month has
-   *    only just started entering from the right, or is on its way back out through it — the
-   *    label instead clamps flush against that edge, "following in from the right" as more of
-   *    the month scrolls into view, rather than staying invisible/off-screen until the resting
-   *    position itself becomes reachable. The mirror of the left-edge rule below: once less than
-   *    one label's worth of the month's *leading* edge is visible, that clamp collapses onto the
-   *    month's own start instead, so the label rides the leading edge in and out — sliding into
-   *    position / being pushed away — exactly as the left side rides the trailing edge.
-   *  - While that resting position would render past the *left* edge of what's visible (the
-   *    month is on its way out, scrolled mostly past) — it clamps flush against that edge
-   *    instead, "stays there" — until the clamp's own upper bound (the month's end, minus the
-   *    label's width) drops below it too, meaning even hugging the month's own trailing edge
-   *    has run out of room; from that point the label is genuinely leaving with the rest of the
-   *    month's columns, "until the last of the month exits too".
-   *
-   * Both clamps are bounded by the month's own start/end (never the *next* month's real
-   * columns, and never the previous one's) as well as by the viewport — whichever is tighter —
-   * so the label never leaves its own month's box and slides naturally with scroll, clipped
-   * only by the viewport; the <th>'s overflow-hidden is the backstop that keeps it from ever
-   * bleeding into a neighbouring month, not the thing that eats it mid-slide. */
+  /** How far right a month group's label should slide — the derivation lives in
+   * `vehicle-spotting-grid.layout.util.ts`'s `monthLabelShift`; this delegates with the
+   * component's own measured slide inputs (per-label width, header scroll, body viewport width). */
   protected monthLabelShift(group: MonthGroup): number {
-    const monthStartPx = group.startIndex * COL_W;
-    const monthWidthPx = group.columns.length * COL_W;
-    const monthEndPx = monthStartPx + monthWidthPx;
-    const labelWidth = this.monthLabelWidths()[group.key] ?? MONTH_LABEL_FALLBACK_RESERVE_PX;
-    // +4px breathing room past the label's own measured width — flush against the exact edge
-    // reads as "about to overflow" even when it technically isn't yet.
-    const labelSpace = labelWidth + 4;
-    const centerPx = monthStartPx + monthWidthPx / 2;
-    const viewLeft = this.headerScrollLeft();
-    const viewRight = viewLeft + this.bodyScrollWidth();
-
-    const restingLeft = centerPx - labelWidth / 2;
-    const stickyLeftEdge = Math.max(monthStartPx, viewLeft);
-    // Floored at the month's own start, mirroring how stickyLeftEdge is naturally floored there.
-    // Without it, the final min() below would push the label left of its own <th> whenever the
-    // viewport's right clamp falls within labelSpace of the month's start: the label would pin
-    // to the viewport edge and be clipped by the <th> ("covered") instead of riding the month's
-    // leading edge in and out ("pushed away"), the way the trailing edge mirrors it on the left.
-    const stickyRightEdge = Math.max(Math.min(monthEndPx, viewRight) - labelSpace, monthStartPx);
-    const targetLeft = Math.min(Math.max(restingLeft, stickyLeftEdge), stickyRightEdge);
-    return targetLeft - monthStartPx;
+    return computeMonthLabelShift(group, {
+      labelWidth: this.monthLabelWidths()[group.key],
+      headerScrollLeft: this.headerScrollLeft(),
+      bodyScrollWidth: this.bodyScrollWidth(),
+    });
   }
 
-  protected dayHeaderClass(col: GridColumn): string {
-    return [
-      "border-b p-1 text-center font-normal whitespace-nowrap",
-      col.isMonthStart ? "border-l" : "",
-      col.isWeekend ? "bg-muted" : "",
-      // Static — not animate-pulse. The body cells below breathe down the whole column (see
-      // the template's wash div); this header cell deliberately doesn't, so the one thing
-      // that's always on screen while scrolling isn't also the thing drawing the most
-      // attention to itself every couple of seconds.
-      col.isToday
-        ? "relative z-10 bg-amber-400/15 ring-2 ring-amber-500/70 dark:bg-amber-400/20"
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  protected dayCellClass(col: GridColumn): string {
-    return [
-      // align-middle (not flex + items-center): a plain <td> keeps the browser's native
-      // table cell layout, which lays cells out side by side per row; giving one `display:
-      // flex` instead makes the browser stop treating it as a table cell at all — confirmed
-      // directly, every row silently stacked its ~90 cells top-to-bottom instead of left-to-
-      // right, each row ballooning to (cell count × cell height) tall. `align-middle` is the
-      // table-native way to vertically center a cell's content; the pill centers horizontally
-      // via its own `mx-auto` (see the template) instead of needing flex here at all.
-      // relative (not relative+isolate): needed as the containing block for the today wash
-      // and the hover tooltip (both absolutely positioned — see the template), but isolating
-      // *here* was the wrong level for containing the tooltip's z-index — it also trapped
-      // the tooltip against *sibling cells* in the row below whenever it rendered downward
-      // instead of upward (confirmed live: it disappeared behind the very next row once
-      // hovering far enough down the grid that room-below beat room-above). That's now
-      // handled once, correctly, by #bodyScroll's own explicit z-index in the template.
-      "relative border-b p-0 align-middle",
-      col.isMonthStart ? "border-l" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-  }
+  protected readonly dayHeaderClass = buildDayHeaderClass;
 
   protected onBodyScroll(event: Event): void {
     this.headerScrollLeft.set((event.target as HTMLElement).scrollLeft);
@@ -1257,7 +962,7 @@ export class VehicleSpottingGridComponent {
    * pinned label is the same element. The overlay sits outside `<table class="text-xs">`, hence the
    * explicit `text-xs`. */
   protected mobileTypeLabelClass(): string {
-    return "flex items-center gap-1.5 cursor-pointer bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground whitespace-nowrap select-none";
+    return MOBILE_TYPE_LABEL_CLASS;
   }
 
   /** translateY for the currently-pinned section's label — see `pushProgress`'s own doc comment.
