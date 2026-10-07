@@ -1,4 +1,5 @@
 import {
+  CommunityProject,
   Personnel,
   PersonnelSocial,
   Project,
@@ -30,6 +31,12 @@ export function draftFromDoc(data: PublicAboutDocument): PublicAboutDocument {
       description: s.description ?? "",
       iconUrl: s.iconUrl ?? "",
       url: s.url ?? "",
+    })),
+    communityProjects: (data.communityProjects ?? []).map((p) => ({
+      name: p.name ?? "",
+      description: p.description ?? "",
+      iconUrl: p.iconUrl ?? "",
+      url: p.url ?? "",
     })),
   };
 }
@@ -69,6 +76,14 @@ export function sanitizeDraft(draft: PublicAboutDocument): PublicAboutDocument {
         iconUrl: s.iconUrl ?? "",
         url: s.url ?? "",
       })),
+    communityProjects: draft.communityProjects
+      .filter((p) => p.name.trim() !== "")
+      .map((p) => ({
+        name: p.name.trim(),
+        description: p.description ?? "",
+        iconUrl: p.iconUrl ?? "",
+        url: p.url ?? "",
+      })),
   };
 }
 
@@ -81,6 +96,10 @@ export function emptyPersonnel(order: number): Personnel {
 }
 
 export function emptyTechStack(): TechStack {
+  return { name: "", description: "", iconUrl: "", url: "" };
+}
+
+export function emptyCommunityProject(): CommunityProject {
   return { name: "", description: "", iconUrl: "", url: "" };
 }
 
@@ -111,5 +130,15 @@ export function filterTechStacks(stacks: TechStack[], query: string): TechStack[
   const q = query.trim().toLowerCase();
   return (stacks ?? []).filter(
     (s) => !q || [s.name, s.description].some((t) => t?.toLowerCase().includes(q)),
+  );
+}
+
+export function filterCommunityProjects(
+  projects: CommunityProject[],
+  query: string,
+): CommunityProject[] {
+  const q = query.trim().toLowerCase();
+  return (projects ?? []).filter(
+    (p) => !q || [p.name, p.description].some((t) => t?.toLowerCase().includes(q)),
   );
 }

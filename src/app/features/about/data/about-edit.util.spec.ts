@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { PublicAboutDocument } from "./about.model";
 import {
   draftFromDoc,
+  emptyCommunityProject,
   emptyPersonnel,
   emptyProject,
   emptySocial,
   emptyTechStack,
   filterAndSortProjects,
+  filterCommunityProjects,
   filterPersonnel,
   filterTechStacks,
   sanitizeDraft,
@@ -42,6 +44,20 @@ const doc: PublicAboutDocument = {
     { name: "Angular", description: "Framework", iconUrl: "", url: "" },
     { name: "PostGIS", description: "Database", iconUrl: "", url: "" },
   ],
+  communityProjects: [
+    {
+      name: "Friendly Tracker",
+      description: "A sibling community app",
+      iconUrl: "",
+      url: "https://example.org/tracker",
+    },
+    {
+      name: "Transit Wiki",
+      description: "Community documentation",
+      iconUrl: "https://example.org/wiki.png",
+      url: "https://example.org/wiki",
+    },
+  ],
 };
 
 describe("draftFromDoc", () => {
@@ -52,6 +68,7 @@ describe("draftFromDoc", () => {
     } as unknown as PublicAboutDocument);
     expect(draft.personnel[0].socials).toEqual([]);
     expect(draft.personnel[0].description).toBe("");
+    expect(draft.communityProjects).toEqual([]);
     expect(draft.aboutProject).toBe("x");
   });
 });
@@ -62,6 +79,7 @@ describe("sanitizeDraft", () => {
     draft.projects.push(emptyProject());
     draft.personnel.push(emptyPersonnel(99));
     draft.techStacks.push(emptyTechStack());
+    draft.communityProjects.push(emptyCommunityProject());
     draft.personnel[0].socials = [
       emptySocial(),
       { name: "GitHub", link: "https://github.com/x", type: "github" },
@@ -71,6 +89,10 @@ describe("sanitizeDraft", () => {
     expect(clean.projects.map((p) => p.name)).toEqual(["Beta", "Alpha", "Hidden"]);
     expect(clean.personnel.map((p) => p.name)).toEqual(["Second", "First"]);
     expect(clean.techStacks.map((s) => s.name)).toEqual(["Angular", "PostGIS"]);
+    expect(clean.communityProjects.map((p) => p.name)).toEqual([
+      "Friendly Tracker",
+      "Transit Wiki",
+    ]);
     // firestore rejects undefined — every field must be defined, empty socials dropped
     expect(clean.personnel[0].socials).toEqual([
       { name: "GitHub", link: "https://github.com/x", type: "github" },
@@ -106,5 +128,19 @@ describe("filterTechStacks", () => {
   it("matches name and description", () => {
     expect(filterTechStacks(doc.techStacks, "Framework").map((s) => s.name)).toEqual(["Angular"]);
     expect(filterTechStacks(doc.techStacks, "angular").map((s) => s.name)).toEqual(["Angular"]);
+  });
+});
+
+describe("filterCommunityProjects", () => {
+  it("matches name and description case-insensitively", () => {
+    expect(filterCommunityProjects(doc.communityProjects, "tracker").map((p) => p.name)).toEqual([
+      "Friendly Tracker",
+    ]);
+    expect(
+      filterCommunityProjects(doc.communityProjects, "documentation").map((p) => p.name),
+    ).toEqual(["Transit Wiki"]);
+    expect(filterCommunityProjects(doc.communityProjects, "WIKI").map((p) => p.name)).toEqual([
+      "Transit Wiki",
+    ]);
   });
 });

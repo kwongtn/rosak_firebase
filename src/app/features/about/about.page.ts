@@ -24,6 +24,7 @@ import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import {
+  CommunityProject,
   Personnel,
   PersonnelSocial,
   Project,
@@ -32,11 +33,13 @@ import {
 } from "./data/about.model";
 import {
   draftFromDoc,
+  emptyCommunityProject,
   emptyPersonnel,
   emptyProject,
   emptySocial,
   emptyTechStack,
   filterAndSortProjects,
+  filterCommunityProjects,
   filterPersonnel,
   filterTechStacks,
   sanitizeDraft,
@@ -106,6 +109,9 @@ export class AboutPage implements OnDestroy {
   );
   protected readonly techStacks = computed(() =>
     filterTechStacks(this._data()?.techStacks ?? [], this.searchTerm()),
+  );
+  protected readonly communityProjects = computed(() =>
+    filterCommunityProjects(this._data()?.communityProjects ?? [], this.searchTerm()),
   );
   protected statusVariant = (status: string) => STATUS_VARIANT[status] ?? "neutral";
 
@@ -276,6 +282,29 @@ export class AboutPage implements OnDestroy {
 
   protected removeTechStack(index: number): void {
     this.updateIn("techStacks", (list) => (list as TechStack[]).filter((_, i) => i !== index));
+  }
+
+  protected updateCommunityProject(
+    index: number,
+    key: keyof CommunityProject,
+    value: string,
+  ): void {
+    this.updateIn("communityProjects", (list) =>
+      this.updateItem(list as CommunityProject[], index, { [key]: value }),
+    );
+  }
+
+  protected addCommunityProject(): void {
+    this.updateIn("communityProjects", (list) => [
+      ...(list as CommunityProject[]),
+      emptyCommunityProject(),
+    ]);
+  }
+
+  protected removeCommunityProject(index: number): void {
+    this.updateIn("communityProjects", (list) =>
+      (list as CommunityProject[]).filter((_, i) => i !== index),
+    );
   }
 
   ngOnDestroy(): void {
