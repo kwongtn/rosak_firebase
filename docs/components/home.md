@@ -397,8 +397,13 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     (per-status plain-language copy), `status-info.util.ts` (popover/legend/breakdown row builders), `network-summary.util.ts` (the
     pure board roll-up: severity tables, the needs-attention rule, the comparator, the in-service
     split (`isInService` / `inService`), the headline, the worst-line callout and the `networkTone`
-    colour tone), `status-confidence.util.ts` (the pure **confidence** rule: how much to
-    trust a line's reported status, and the operator-post test), and the pure
+    colour tone), `board-lines.util.ts` (the pure board-line logic: the Pro-filter predicate, the
+    four-group partition, the name/sort comparator and the board's own option lists — `BoardSort` /
+    `LINE_STATUSES` / `PASSENGER_STATUSES`), `home-feed.util.ts` (the pure feed logic: the
+    first-page/appended-page overlap de-dupe, the page-info and total-count merges, the vote-overlay
+    subtree walk, and the feed page sizes + request variables), `status-confidence.util.ts` (the pure
+    **confidence** rule: how much to trust a line's reported status, the operator-post test, and
+    `lineHasData` — the "has data" rule the Pro filter shares with the chip), and the pure
     `passenger-status.util.ts` (labels/variants + `PASSENGER_SEVERITY_RANK`, no components).
 
 ## 🔌 Interface & Data Flow
