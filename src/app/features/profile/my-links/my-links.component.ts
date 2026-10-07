@@ -1,9 +1,7 @@
 import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
-import { DatePipe } from "@angular/common";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
-import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCardImports } from "../../../ui/card/card";
 import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
@@ -34,97 +32,19 @@ import {
   threadLabel,
   toggleSelection,
 } from "../../insiden/data/link-thread-selection.util";
-import { linkStatusLabel, linkStatusVariant } from "./my-links-status.util";
+import { moveBlockedReason, nestBlockedReason } from "./my-links-reasons.util";
+import { MyLinksRowComponent } from "./my-links-row.component";
+import {
+  buildLinkShape,
+  conversationLabelFor,
+  indentClassForDepth,
+  MoveDirection,
+  reorderedRunIds,
+  runOf,
+  runOrderIsKnown,
+} from "./my-links-tree.util";
 
 const PAGE_SIZE = 20;
-
-/**
- * Sibling-run key for the rows that are ROOTS. Ids are decimal strings from a
- * sequence column, so a value no id can take is a safe sentinel — and it makes the
- * "roots are one run" rule visible at the point the run is keyed rather than
- * hidden behind a `?? null` that reads like a missing parent.
- */
-const ROOT_RUN_KEY = "#roots";
-
-/**
- * Which way a row moves inside its sibling run. A two-value union, not a number:
- * the sign of an offset is the kind of thing that ends up multiplied by a scale
- * factor somewhere downstream, and "up" / "down" is what the button says.
- */
-type MoveDirection = "up" | "down";
-
-/**
- * Client-side mirror of the backend's write-side cap on tree depth
- * (`rosak_backend/incident/services/social_link_threads.py: MAX_THREAD_DEPTH = 3`,
- * a root being 0). 🔴 This is a mirror, NOT the authority: it exists so the nest
- * action can be disabled with a reason instead of offering a call the server will
- * reject, and a mirror that drifts is only ever optimistic — the backend still
- * measures the resulting depth itself and rejects the whole call as a unit. The
- * one thing it must never become is permissive past the real cap, so the
- * comparison below is "target is already at or past the cap" rather than any
- * attempt to also predict the depth of the links being moved (which is server
- * state this page does not have).
- */
-const MAX_NEST_DEPTH = 3;
-
-/** A decimal id, the shape every link id in this feature has (GraphQL `ID`
- *  serialised from an integer primary key), used by the tie-break below to tell a
- *  numeric key from a non-numeric one rather than trusting `Number()`. */
-const DECIMAL_ID = /^\d+$/;
-
-/**
- * The order ONE SIBLING RUN is in: `position` ASC, then `id` ASC. Total, and never
- * the list's own order. Applied ONCE, where the runs are built, so the payload, the
- * move index and the "already first / already last" reasons all read the same array
- * and cannot disagree.
- *
- * WHY THIS IS THE WHOLE RULE: `reorderSocialMediaLinks` is a PERMUTATION of one
- * existing sibling set — backend `social_link_threads.py::_reorder_sync` renumbers
- * the ids it is given to `10, 20, 30, …` from the ORDER THEY ARRIVE IN and then
- * leaves every sibling it was not told about after them — so the list this
- * comparator orders IS the list the server writes. This document's rows arrive
- * `occurredAt DESC, id DESC`, a different ordering, and the backend builds a
- * conversation OLDEST-FIRST, so a conversation the user arranged arrives here
- * reversed. Permuting the arrival order would write the timeline over the story,
- * permanently, and report success.
- *
- * 🔴 WHY `id` IS A REQUIRED SECOND KEY, not a nicety: every structural write
- * renumbers a run to the exact `10, 20, 30, …` series, EXCEPT ungrouping — backend
- * `_ungroup_sync` writes `parent` ONLY ("inventing a root order nobody asked for is
- * a presentation change disguised as a repair"), so a promoted link keeps the number
- * it held under its old parent and can TIE with a root that already holds it. A
- * root's `parentId` is `null`, so every root is a sibling of every other root and
- * the ROOT run is where the collision is observable. Sorting on `position` alone
- * leaves that to the engine's sort stability, i.e. to arrival order all over again.
- *
- * The id comparison mirrors the backend's own `(position, pk)` (see
- * `schema/loaders.py::batch_load_sublink_subtrees`, which is what renders
- * `sublinks`), so a tie resolves the way the nested conversation list is DRAWN rather
- * than lexicographically — `"10"` would otherwise sort before `"9"`. Anything that is
- * not a decimal id falls back to a code-unit compare, which is still total.
- *
- * ⚠️ `position` is OPTIONAL on this row type, so the comparator has to stay total
- * over data that can be missing the key: an absent rank sorts as `0` HERE ONLY to
- * keep the comparison antisymmetric, and no decision is ever taken on that result —
- * `_runOrderIsKnown` refuses the whole run while any sibling lacks a rank (see the
- * note there for why a synthesised order is not an acceptable fallback). The `0` is
- * a tie-break of last resort inside a sort, not a claim about where the row sits.
- */
-function compareStoredSequence(a: PublicSocialMediaLink, b: PublicSocialMediaLink): number {
-  const leftPosition = typeof a.position === "number" ? a.position : 0;
-  const rightPosition = typeof b.position === "number" ? b.position : 0;
-  if (leftPosition !== rightPosition) {
-    return leftPosition - rightPosition;
-  }
-  if (DECIMAL_ID.test(a.id) && DECIMAL_ID.test(b.id)) {
-    const left = Number(a.id);
-    const right = Number(b.id);
-    if (left !== right) {
-      return left - right;
-    }
-  }
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
 
 /**
  * "My Submitted Links" (Task 23) — the one-way-street view from spec F2: a logged-in
@@ -173,12 +93,11 @@ function compareStoredSequence(a: PublicSocialMediaLink, b: PublicSocialMediaLin
 @Component({
   selector: "app-my-links",
   imports: [
-    DatePipe,
-    HlmBadge,
     HlmButton,
     HlmCheckbox,
     HlmSkeleton,
     InfiniteScrollDirective,
+    MyLinksRowComponent,
     ...HlmCardImports,
   ],
   template: `
@@ -272,124 +191,23 @@ function compareStoredSequence(a: PublicSocialMediaLink, b: PublicSocialMediaLin
                    padding-left, so the hierarchy is visible without nesting the list. -->
               <div
                 hlmCard
+                app-my-links-row
                 [class]="_rowCardClass(link)"
                 [attr.data-testid]="'row-' + link.id"
                 [attr.data-depth]="_depthOf(link)"
-              >
-                <div class="flex items-start gap-3">
-                  <label class="flex shrink-0 items-center pt-0.5">
-                    <hlm-checkbox
-                      [checked]="_isSelected(link.id)"
-                      [attr.data-testid]="'select-link-' + link.id"
-                      (checkedChange)="toggleSelected(link.id)"
-                    />
-                    <!-- Visually hidden because the row's own title already names the link;
-                         the checkbox still needs an accessible name of its own. -->
-                    <span class="sr-only">Select {{ link.title || link.url }}</span>
-                  </label>
-
-                  <a
-                    [href]="link.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex min-w-0 flex-1 flex-col gap-2.5"
-                    [class]="_rowLinkClass(link)"
-                  >
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="flex min-w-0 flex-col gap-1">
-                        <span class="line-clamp-1 text-sm font-semibold">
-                          {{ link.title || link.url }}
-                        </span>
-                        @if (link.title) {
-                          <span class="text-muted-foreground line-clamp-1 text-xs">
-                            {{ link.url }}
-                          </span>
-                        }
-                      </div>
-                      <div class="flex shrink-0 flex-col items-end gap-1">
-                        <span class="text-muted-foreground text-xs whitespace-nowrap">
-                          {{ link.created | date: "MMM d, y HH:mm" }}
-                        </span>
-                        <span hlmBadge [variant]="linkStatusVariant(link)">
-                          {{ linkStatusLabel(link) }}
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                </div>
-
-                <!-- The row's structural actions. Unconditional, because unlike the old
-                     depth-1 model every row is now a candidate for all of them: a ROOT is a
-                     valid nest target, a LEAF is a valid thing to move, and a disabled
-                     control with a title explaining itself is more honest than a control
-                     that silently is not there. -->
-                <div class="flex flex-wrap items-center gap-2">
-                  <!-- threadLabel answers "" for a conversation of one, and
-                       sublinkCount + 1 IS the conversation size, so the badge's own
-                       non-empty test is exactly the "sublinkCount > 0" gate. NEVER
-                       isThreadRoot: it is true of every ungrouped link in the app. -->
-                  @if (_conversationLabel(link); as label) {
-                    <span hlmBadge variant="outline" [attr.data-testid]="'thread-badge-' + link.id">
-                      Thread · {{ label }}
-                    </span>
-                  }
-                  <!-- Ungroup ONLY on a row that HAS a parent. Under the tree a root is
-                       the head of its conversation, not a row in no group: there is
-                       nothing to detach, and its sublinks stay attached to it either
-                       way, so a button here would promise a cascade that deliberately
-                       does not exist. -->
-                  @if (link.parentId) {
-                    <button
-                      type="button"
-                      hlmBtn
-                      variant="ghost"
-                      size="xs"
-                      [attr.data-testid]="'ungroup-' + link.id"
-                      [disabled]="_isThreading()"
-                      (click)="ungroupLink(link)"
-                    >
-                      Ungroup
-                    </button>
-                  }
-                  <button
-                    type="button"
-                    hlmBtn
-                    variant="ghost"
-                    size="xs"
-                    [attr.data-testid]="'move-up-' + link.id"
-                    [title]="_moveReason(link, 'up') ?? ''"
-                    [disabled]="_moveReason(link, 'up') !== null"
-                    (click)="moveLink(link, 'up')"
-                  >
-                    Move up
-                  </button>
-                  <button
-                    type="button"
-                    hlmBtn
-                    variant="ghost"
-                    size="xs"
-                    [attr.data-testid]="'move-down-' + link.id"
-                    [title]="_moveReason(link, 'down') ?? ''"
-                    [disabled]="_moveReason(link, 'down') !== null"
-                    (click)="moveLink(link, 'down')"
-                  >
-                    Move down
-                  </button>
-                  <button
-                    type="button"
-                    hlmBtn
-                    variant="ghost"
-                    size="xs"
-                    aria-describedby="my-links-thread-hint"
-                    [attr.data-testid]="'nest-' + link.id"
-                    [title]="_nestReason(link) ?? ''"
-                    [disabled]="_nestReason(link) !== null"
-                    (click)="nestSelectionUnder(link)"
-                  >
-                    Nest ticked here
-                  </button>
-                </div>
-              </div>
+                [link]="link"
+                [selected]="_isSelected(link.id)"
+                [threading]="_isThreading()"
+                [conversationLabel]="_conversationLabel(link)"
+                [moveUpReason]="_moveReason(link, 'up')"
+                [moveDownReason]="_moveReason(link, 'down')"
+                [nestReason]="_nestReason(link)"
+                (toggleSelected)="toggleSelected(link.id)"
+                (ungroup)="ungroupLink(link)"
+                (moveUp)="moveLink(link, 'up')"
+                (moveDown)="moveLink(link, 'down')"
+                (nest)="nestSelectionUnder(link)"
+              ></div>
             }
 
             @if (_hasMore()) {
@@ -425,8 +243,6 @@ export class MyLinksComponent {
   /** Gate: this section is the caller's own submissions only (spec F2 one-way street). */
   readonly isOwnProfile = input.required<boolean>();
 
-  protected readonly linkStatusLabel = linkStatusLabel;
-  protected readonly linkStatusVariant = linkStatusVariant;
   /** Shared with the console triage table so the two surfaces pluralise conversations
    *  identically. Re-exposed on the class because that is the seam
    *  `link-thread-selection.util.ts` documents for this surface; the template itself no longer
@@ -475,68 +291,10 @@ export class MyLinksComponent {
     areAllSelected(this.selectedIds(), this._visibleIds()),
   );
 
-  /**
-   * The three structural facts about the loaded set, derived in ONE pass and recomputed only
-   * when the list changes:
-   *   - `depthById`: how many loaded ancestors a row has. A row whose parent is not loaded has
-   *     an EMPTY ancestor chain and therefore depth 0 — the row is a root as far as this page
-   *     can prove, and indenting it under a parent it cannot see would be a claim the payload
-   *     does not support (this is what a cursor boundary between a child and its parent looks
-   *     like, and it happens on every page over `MAX_THREAD_DEPTH`).
-   *   - `ancestorsById`: the same chains, root-first, which is what makes a NEST cycle
-   *     detectable client-side: the target is fine unless some ticked link is on its chain.
-   *   - `runs`: sibling runs keyed by `parentId` (roots under `ROOT_RUN_KEY`), each in the
-   *     STORED order — `position` ASC, then `id` (see `compareStoredSequence`). Reorder
-   *     permutes one run, so the run is the unit the action operates on, and the run's ORDER
-   *     IS the payload: these rows arrive `occurredAt DESC, id DESC`, a different ordering
-   *     from the one the server stores.
-   *
-   * The chain walk is bounded and cycle-safe. `seen` starts holding the row's own id and the
-   * loop stops on a repeat, so hand-edited cyclic data (which the backend refuses to create,
-   * but which a restore could contain) cannot hang the render; such a row simply renders at
-   * the depth the walk reached. Depth is a function of the `parentId` chain and nothing
-   * else, so no sequence of moves can change it and the indentation cannot come to disagree
-   * with the run a reorder permutes.
-   */
-  private readonly _shape = computed(() => {
-    const links = this._links();
-    const parentOf = new Map<string, string | null>();
-    for (const link of links) {
-      parentOf.set(link.id, link.parentId ?? null);
-    }
-    const depthById = new Map<string, number>();
-    const ancestorsById = new Map<string, string[]>();
-    const runs = new Map<string, PublicSocialMediaLink[]>();
-    for (const link of links) {
-      const chain: string[] = [];
-      const seen = new Set<string>([link.id]);
-      let cursor = parentOf.get(link.id) ?? null;
-      while (cursor && parentOf.has(cursor) && !seen.has(cursor)) {
-        seen.add(cursor);
-        chain.unshift(cursor);
-        cursor = parentOf.get(cursor) ?? null;
-      }
-      ancestorsById.set(link.id, chain);
-      depthById.set(link.id, chain.length);
-      const runKey = link.parentId ?? ROOT_RUN_KEY;
-      const run = runs.get(runKey);
-      if (run) {
-        run.push(link);
-      } else {
-        runs.set(runKey, [link]);
-      }
-    }
-    // THE ONE PLACE THE SEQUENCE ORDER IS ESTABLISHED. Sorting here rather than at each
-    // read is what makes `_runOf`, `_moveReason` and `moveLink` share a single answer:
-    // they all take this array, so the payload a button sends and the "already first /
-    // already last" reason printed on that button can never be derived from two
-    // different orderings. The runs are freshly built here, so sorting in place touches
-    // nothing the `_links` signal owns and re-renders are not at risk.
-    for (const run of runs.values()) {
-      run.sort(compareStoredSequence);
-    }
-    return { depthById, ancestorsById, runs };
-  });
+  /** The three structural facts about the loaded rows — depths, root-first ancestor chains and
+   *  the stored-order sibling runs — derived in one pass. See `buildLinkShape` for the full
+   *  derivation contract (the bounded, cycle-safe chain walk and the one-place run sort). */
+  private readonly _shape = computed(() => buildLinkShape(this._links()));
 
   /**
    * The one page-level caveat about ordering, and it is global because the cause is: while
@@ -570,32 +328,12 @@ export class MyLinksComponent {
   /** A row's own card: the indent, merged with the static card padding so a conditional class
    *  can never lose (or win) a Tailwind conflict. `hlm()` is the repo's one merge helper. */
   protected _rowCardClass(link: PublicSocialMediaLink): string {
-    return hlm("gap-2.5 p-4", this._indentClass(link));
-  }
-
-  /**
-   * The depth ladder, as LITERAL Tailwind classes — the classes Tailwind emits are the ones
-   * written out, so an interpolated one ("pl-" + n * 4) would silently produce no rule at
-   * all. Clamped at the last step, which is also the deepest level the backend stores
-   * (`MAX_THREAD_DEPTH = 3` admits four levels), so the clamp is unreachable for real data and
-   * exists only so a hand-edited tree cannot walk off the end of the ladder.
-   */
-  private _indentClass(link: PublicSocialMediaLink): string {
-    const ladder = ["", "pl-8", "pl-16", "pl-24", "pl-32"];
-    const depth = this._depthOf(link);
-    return depth >= ladder.length ? ladder[ladder.length - 1] : ladder[depth];
+    return hlm("gap-2.5 p-4", indentClassForDepth(this._depthOf(link)));
   }
 
   /** How many LOADED ancestors this row has; 0 when its parent is not in the loaded set. */
   protected _depthOf(link: PublicSocialMediaLink): number {
     return this._shape().depthById.get(link?.id ?? "") ?? 0;
-  }
-
-  /** A row's own link area: a ticked row is tinted so the selection is legible without
-   *  counting checkboxes. `hlm()` merges the two halves so a conditional class can never
-   *  lose (or win) a Tailwind conflict against the static one. */
-  protected _rowLinkClass(link: PublicSocialMediaLink): string {
-    return hlm("rounded-lg", this._isSelected(link.id) && "bg-primary/5");
   }
 
   protected _isSelected(id: string): boolean {
@@ -620,100 +358,36 @@ export class MyLinksComponent {
     await this._loadInFlight;
   }
 
-  /**
-   * The run of siblings this row belongs to: every LOADED row with the same `parentId`, in
-   * the STORED order (`position` ASC, then `id` — sorted once in `_shape`). It is NOT the
-   * order the list arrived in, and it is not the order the cards are rendered in. The roots
-   * are one run keyed by `ROOT_RUN_KEY`, which is what makes "reorder the roots"
-   * (`parentId: null`) fall out of the same code path as a sublink run instead of needing a
-   * second implementation.
-   */
+  /** The stored-order sibling run this row belongs to — see `runOf`. The roots are one run,
+   *  which is what lets "reorder the roots" (`parentId: null`) share the sublink code path. */
   private _runOf(link: PublicSocialMediaLink): PublicSocialMediaLink[] {
-    return this._shape().runs.get(link?.parentId ?? ROOT_RUN_KEY) ?? [];
+    return runOf(this._shape(), link);
   }
 
-  /**
-   * Can this run's STORED order be read at all? False as soon as one sibling came back
-   * without a `position`.
-   *
-   * 🔴 A MISSING `position` IS NOT ZERO, and the obvious `?? 0` is the bug this check
-   * exists to prevent. The column is gap-spaced (`10, 20, 30, …`), so `0` does not mean
-   * "before 10" — it is only the model's default for a row written outside `save()`. A
-   * fallback would float the unknown row to the head of the conversation and then, because
-   * a reorder is a PERMUTATION the server writes verbatim, make that guess the stored
-   * sequence. A synthesised order is therefore refused rather than trusted: the button is
-   * off, it says why, and nothing is sent. This is the same rule as the paging gate in
-   * `_moveReason` — a precondition this page cannot prove means no call.
-   *
-   * It is a RUNTIME check on an OPTIONAL field, which is the whole point of the guard:
-   * `position` is optional on `PublicSocialMediaLink` because that type is also the node
-   * of the narrow `links(first: 10)` sub-select in the incident card, and `strict` /
-   * `strictNullChecks` are off, so no compiler anywhere will tell a consumer the value can
-   * be missing. The console's triage table applies the identical rule to the same
-   * situation, so the two surfaces cannot disagree about it.
-   */
+  /** Whether this row's stored order is readable at all — see `runOrderIsKnown`. A missing
+   *  `position` is not `0`; a synthesised order is refused, not guessed. */
   private _runOrderIsKnown(link: PublicSocialMediaLink): boolean {
-    return this._runOf(link).every((row) => typeof row.position === "number");
+    return runOrderIsKnown(this._runOf(link));
   }
 
-  /**
-   * 🔴 WHY THIS `+ 1`, in one place: `threadLabel`'s parameter is a CONVERSATION SIZE — this
-   * node plus its publicly-visible descendants — and it answers `""` for anything `<= 1`.
-   * `sublinkCount` is the node's OWN descendant count, so a root with exactly ONE sublink
-   * reports `1`, `threadLabel(1)` answers `""`, and the badge VANISHES off a row that has
-   * something below it. Passing `sublinkCount + 1` also makes the empty-string case do the
-   * gating for free: `0 + 1` is `1`, which is `""`, which is exactly the `sublinkCount > 0`
-   * test — so the badge can never appear on a leaf and can never be `isThreadRoot`-gated.
-   */
+  /** `threadLabel(sublinkCount + 1)` — the conversation-size `+ 1` — see `conversationLabelFor`. */
   protected _conversationLabel(link: PublicSocialMediaLink): string {
-    return threadLabel((link?.sublinkCount ?? 0) + 1);
+    return conversationLabelFor(link);
   }
 
-  /**
-   * May this row move one step inside its run? `null` means yes.
-   *
-   * The order of these checks is the order of how much they would mislead:
-   *   1. an in-flight write, because the run on screen is about to be replaced;
-   *   2. an INCOMPLETE run (another page is still coming) — checked BEFORE the ends, because
-   *      "already first" is a claim about a set that may be missing rows, and a partial
-   *      permutation is not rejected by the server, it silently reorders unseen siblings;
-   *   3. an UNREADABLE stored order — likewise before the ends, for the same reason: which
-   *      end a row sits at is a claim about the run's sequence, and there is no sequence
-   *      to read. Sending a permutation of a guess is the failure this avoids;
-   *   4. the ends, which are the ordinary, self-evident reason.
-   *
-   * The ends are judged on the STORED run (`position` ASC, `id` tie-break), never on the
-   * order the pages arrived in: a conversation the backend assembled oldest-first arrives
-   * here newest-first, so the two would name opposite rows and a user would be told the
-   * first link of their story is the last.
-   */
+  /** May this row move one step inside its run? `null` means yes — see `moveBlockedReason`
+   *  for the ordering of the gates and why the ends are judged on the STORED run. */
   protected _moveReason(link: PublicSocialMediaLink, direction: MoveDirection): string | null {
-    if (!this.isBrowser) {
-      return "Ordering your links needs a browser session.";
-    }
-    if (this._isThreading()) {
-      return "Saving another change…";
-    }
-    if (this._hasMore()) {
-      return "More of your links are still loading, so this row's siblings are not all here yet.";
-    }
-    if (!this._runOrderIsKnown(link)) {
-      // Direction-agnostic on purpose: the whole run is unorderable, so neither of its
-      // ends can honestly be named.
-      return "One of the links sharing this parent arrived without its stored order (position), so the sequence they are in is unknown and reordering it would write a guess.";
-    }
     const run = this._runOf(link);
-    const index = run.findIndex((row) => row.id === link?.id);
-    if (index < 0) {
-      return "This row is no longer on the page.";
-    }
-    if (direction === "up" && index === 0) {
-      return "Already first among the links that share its parent.";
-    }
-    if (direction === "down" && index === run.length - 1) {
-      return "Already last among the links that share its parent.";
-    }
-    return null;
+    return moveBlockedReason({
+      isBrowser: this.isBrowser,
+      isThreading: this._isThreading(),
+      hasMore: this._hasMore(),
+      runOrderKnown: this._runOrderIsKnown(link),
+      index: run.findIndex((row) => row.id === link?.id),
+      runLength: run.length,
+      direction,
+    });
   }
 
   /**
@@ -756,12 +430,10 @@ export class MyLinksComponent {
     if (from < 0 || to < 0 || to >= run.length) {
       return;
     }
-    // THE PAYLOAD IS THE STORED SIBLING ORDER WITH ONE ROW MOVED: `run` is already in
-    // `position` ASC / `id` order, and the splice permutes exactly one element of it, so
-    // the whole set is preserved. Building this from `_links()` directly would be the
-    // bug this method's comment above exists to prevent.
-    const ordered = run.map((row) => row.id);
-    ordered.splice(to, 0, ...ordered.splice(from, 1));
+    // THE PAYLOAD IS THE STORED SIBLING ORDER WITH ONE ROW MOVED — see `reorderedRunIds`.
+    // Building it from `_links()` directly would be the bug this method's comment above
+    // exists to prevent.
+    const ordered = reorderedRunIds(run, from, to);
     await this._saveStructure("Couldn't reorder these links", async () =>
       this.graphql.request<ReorderSocialMediaLinksData, ReorderSocialMediaLinksVars>(
         REORDER_SOCIAL_MEDIA_LINKS_MUTATION,
@@ -771,47 +443,21 @@ export class MyLinksComponent {
     );
   }
 
-  /**
-   * May the ticked rows be nested UNDER this row? `null` means yes.
-   *
-   * The cycle checks are the reason this is not simply "is the target ticked": nesting
-   * `X` under `P` makes `X` a child of `P`, so a cycle exists whenever `P` is itself inside
-   * the subtree of something being moved — which includes `P` being ticked AND `P` having a
-   * ticked ancestor. The server rejects either as a unit, so the walk up `P`'s loaded chain
-   * catches both before a call is made. A cycle through an ancestor that is NOT loaded is not
-   * detectable here; that one is the server's to reject, and it arrives as a toast.
-   *
-   * The depth check is the client mirror of `MAX_THREAD_DEPTH` (see the constant): a target
-   * already at the cap cannot take another level. It is deliberately the ONLY structural
-   * precondition not answered from the selection.
-   */
+  /** May the ticked rows be nested UNDER this row? `null` means yes — see `nestBlockedReason`
+   *  for the cycle (target-ticked / ticked-ancestor) and depth gates. */
   protected _nestReason(link: PublicSocialMediaLink): string | null {
     const targetId = link?.id ?? "";
-    if (!targetId) {
-      return null;
-    }
-    if (!this.isBrowser) {
-      return "Nesting needs a browser session.";
-    }
-    if (this._isThreading()) {
-      return "Saving another change…";
-    }
-    if (!canNest(this._scopedSelection())) {
-      return "Tick one of your own links first — it becomes a direct child of this one.";
-    }
     const selected = this._selectedSet();
-    if (selected.has(targetId)) {
-      return "This link is ticked too — it cannot be nested under itself.";
-    }
     const ancestors = this._shape().ancestorsById.get(targetId) ?? [];
-    if (ancestors.some((ancestorId) => selected.has(ancestorId))) {
-      return "This link already sits under a ticked link — nesting here would make the conversation cyclic.";
-    }
-    const depth = this._depthOf(link);
-    if (depth >= MAX_NEST_DEPTH) {
-      return "This link is already the deepest level a conversation may reach.";
-    }
-    return null;
+    return nestBlockedReason({
+      targetId,
+      isBrowser: this.isBrowser,
+      isThreading: this._isThreading(),
+      canNestSelection: canNest(this._scopedSelection()),
+      targetSelected: selected.has(targetId),
+      hasSelectedAncestor: ancestors.some((ancestorId) => selected.has(ancestorId)),
+      depth: this._depthOf(link),
+    });
   }
 
   /** Nest the ticked rows as DIRECT CHILDREN of `link`, which may itself be a sublink. */
