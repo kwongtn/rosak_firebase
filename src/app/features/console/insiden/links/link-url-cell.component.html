@@ -1,0 +1,193 @@
+<!--
+    THE RAILS, THE CHEVRON AND THE CHIP: three hierarchy facts about
+    ONE row, which is why they share one cell and one wrapper.
+
+    `depth` walks the row's parentId chain inside the LOADED set, and
+    a row whose parent is not loaded counts as a root — which is
+    exactly what a filtered page does to a sublink (its parent is not
+    in the result), and rendering it flush is honest rather than
+    leaving a gap for a parent the payload does not contain.
+    `data-depth` is the same number the rail count is derived from, so
+    a spec can assert the hierarchy without measuring pixels.
+
+    ⚠️ THE RAILS ARE THE INDENT. `depthRails` returns one entry per
+    ancestor level and the wrapper renders that many guides, each
+    `self-stretch` so it runs the full height of the row whatever
+    that height is. The rails REPLACED the old
+    `[style.padding-left.px]` rather than joining it: an empty gap at
+    the left of a row says "indented" only while you are looking at
+    that gap, and three levels of nothing read as three unrelated
+    offsets. Their width is `[style.width.px]="depthIndentPx"` and
+    NOT a `w-5`, so `DEPTH_INDENT_PX` really is the one number the
+    geometry is defined by — a class here would render identically
+    and be a second place to change the rail step that no grep for
+    the constant would find. NO `gap` ON THE WRAPPER — a gap would
+    fall BETWEEN two rails and break the line a reader follows
+    downward — so every gap here is an explicit `ml-1` on the one
+    element that needs it.
+
+    ⚠️ THE ELBOW IS WHAT MAKES A RAIL MEAN SOMETHING. Without it a
+    rail is a bare vertical rule and nothing says the row hangs off
+    IT; with it, the last rail and one `border-t` stub form the ⌐ an
+    admin reads as "this one". It is emitted only for the LAST rail
+    (`$last`), because one per level would draw a row of ticks with
+    no row to attach the first of them to. Its `-depthIndentPx`
+    margin pulls it back under the last rail so the stub starts
+    exactly on the rail's own line — a depth-1 row gets ONE rail and
+    ONE tick from it, not a rail plus a floating dash a full
+    rail-width to its right. `h-6` is the height of one line of URL
+    text, so the tick sits at the URL's own vertical centre rather
+    than at the centre of a cell that the chip below has made taller.
+
+    ⚠️ THE PLACEHOLDER IS NOT COSMETIC. A childless row draws an
+    invisible `size-4` span where the chevron would be, because the
+    chevron is INSIDE the rail stack: without it every open/close
+    click would shift the URL (and therefore every column after it)
+    sideways, which is exactly what makes a table feel like it is
+    being redrawn under you. It carries `data-testid` because the
+    rails are `aria-hidden` spans too, and a spec asking "is the
+    chevron's width reserved here?" cannot ask for `aria-hidden` and
+    mean one specific element.
+
+    ⚠️ `break-all` ON THE ANCHOR, and it is load-bearing: a URL is one
+    unbroken token, so without it a long link runs past the cell's
+    `max-w-72` and is clipped by the table's scroll container — the
+    admin cannot read the tail of the very address they have to judge.
+    Same reason the detail sheet's own URL anchor, further down
+    this same template, is `break-all`. -->
+<div class="flex items-stretch" data-testid="link-depth" [attr.data-depth]="depth()">
+  @for (rail of depthRails(); track $index; let isLast = $last) {
+    <span
+      data-testid="link-rail"
+      aria-hidden="true"
+      class="border-border/60 shrink-0 self-stretch border-l"
+      [style.width.px]="depthIndentPx"
+    ></span>
+    @if (isLast) {
+      <span
+        data-testid="link-elbow"
+        aria-hidden="true"
+        class="border-border/60 h-6 shrink-0 self-start border-t"
+        [style.width.px]="depthIndentPx"
+        [style.margin-left.px]="-depthIndentPx"
+      ></span>
+    }
+  }
+  <!--
+      THE CHEVRON, on a row with LOADED children and nothing else
+      (`childCount`, not `sublinkCount` — see that input's note for
+      why the two must not be interchanged). `stopPropagation` because
+      the `<tr>` opens the detail panel on click: without it, opening
+      a conversation would also open the editor for that row, which is
+      not what either button says it does.
+
+      The label reuses `threadLabel` like every other conversation-size
+      surface in the app, and passes `childCount + 1` for the same
+      off-by-one reason the chip below does: the parameter is a
+      CONVERSATION SIZE, and a conversation with exactly one link
+      under it must still announce itself as "2 links".
+    -->
+  <div class="flex min-w-0 flex-1 items-start">
+    @if (childCount() > 0) {
+      <button
+        type="button"
+        class="text-muted-foreground hover:text-foreground ml-1 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors"
+        data-testid="thread-toggle"
+        [attr.aria-expanded]="expanded()"
+        [attr.aria-label]="
+          (expanded() ? 'Hide' : 'Show') +
+          ' the other links in this conversation (' +
+          toggleLabel() +
+          ')'
+        "
+        (click)="$event.stopPropagation(); conversationToggle.emit()"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          class="size-3 shrink-0 transition-transform"
+          [class.rotate-180]="expanded()"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+    } @else {
+      <span
+        data-testid="chevron-placeholder"
+        class="ml-1 size-4 shrink-0"
+        aria-hidden="true"
+      ></span>
+    }
+    <!--
+        ONE COLUMN, NOT A CELL EACH. The anchor and the chip are
+        siblings in a `flex-col items-start`, so the chip's left edge IS
+        the URL text's left edge by construction — no `margin-left` to
+        compute, and therefore nothing that can drift when the rail
+        width, the chevron reserve or the gap changes. A pixel offset
+        here would have to be re-derived from all three on every
+        layout change; this cannot.
+      -->
+    <div class="ml-1 flex min-w-0 flex-1 flex-col items-start gap-1">
+      <a
+        [href]="link().url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="hover:underline min-w-0 break-all"
+        (click)="$event.stopPropagation()"
+      >
+        {{ link().url }}
+      </a>
+      <!--
+          THE CONVERSATION CHIP, and it moved HERE from a column of its
+          own: it is a statement about the row whose URL is above it, and
+          as a column of its own it spent a tenth of the table's width
+          saying what the URL cell's second line says better — beside the
+          link it counts. `threadLabel`'s `""` answer renders NOTHING
+          here, not an em dash, because a lone ungrouped link is the
+          overwhelming majority of the queue and a column of dashes would
+          have been the loudest thing on the row.
+
+          🔴 THE `+ 1` IS LOAD-BEARING AND MUST NOT BE "SIMPLIFIED" AWAY.
+          `threadLabel`'s parameter is a CONVERSATION SIZE — this node
+          plus its publicly-visible descendants — and it answers "" for
+          anything `<= 1`. `sublinkCount` is the DESCENDANT count (`0` for
+          a leaf), so passing it raw would delete the chip on a root with
+          exactly ONE sublink (`1` -> "") while leaving every ordinary
+          row correctly chip-less (`0` -> ""), which is exactly why the
+          bug hides. Same off-by-one as `confirmThreadCoupling`; the two
+          must never diverge.
+
+          The gate is therefore `sublinkCount > 0` in effect (via
+          `threadLabel`) and NEVER `isThreadRoot`: the backend calls
+          every `parentId == null` link a root, so that flag is true for
+          every ungrouped row in the queue and would print a chip on the
+          whole page.
+
+          The tooltip states the coupling a row otherwise hides: a
+          conversation is public only while its root is, so hiding this
+          row hides everything under it — recursively. `hideLink` also
+          confirms at the moment of the click, because a tooltip is only
+          read if the admin happens to hover the badge that carries it.
+        -->
+      @if (chipLabel(); as label) {
+        <span
+          hlmBadge
+          variant="special"
+          data-testid="link-thread"
+          [title]="
+            (link().isThreadRoot ? 'Root of a conversation — ' : 'Links below this row — ') +
+            label +
+            ' at any depth. A conversation is public only while its root is, so hiding this row hides that whole subtree too.'
+          "
+        >
+          {{ label }}
+        </span>
+      }
+    </div>
+  </div>
+</div>

@@ -8,13 +8,34 @@ import { HlmButton } from "../../../../ui/button/button";
 import { HlmCardImports } from "../../../../ui/card/card";
 import { ErrorBoxComponent } from "../../../../ui/error-box/error-box";
 import { HlmInput } from "../../../../ui/input/input";
-import { HlmNativeSelect } from "../../../../ui/select/native-select";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../../ui/sheet/sheet";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { HlmTableImports } from "../../../../ui/table/table";
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { ConsoleNavComponent } from "../../console-nav.component";
+import { LinkQueueRowComponent } from "./link-queue-row.component";
+import { LinksFilterBarComponent } from "./links-filter-bar.component";
+import { LinksSelectionToolbarComponent } from "./links-selection-toolbar.component";
+import {
+  categoryOptionsOf,
+  filterStationOptionsOf,
+  filterVehicleOptionsOf,
+  indexCategoriesById,
+  indexLinesById,
+  indexStationsById,
+  indexVehiclesById,
+  lineOptionsOf,
+  stationOptionsOf,
+  vehicleOptionsOf,
+  vehicleParentCodesOf,
+} from "./link-reference.util";
+import {
+  appliedFiltersAreUnfiltered,
+  queueQueryVars,
+  type AppliedQueueFilters,
+  type CompletedFilter,
+} from "./link-queue-filter.util";
 import {
   AssetMultiSelectComponent,
   type AssetMultiSelectOption,
@@ -45,7 +66,6 @@ import {
   createTrailingDebounce,
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
-import { dateInputToIsoStart, dateInputToIsoEnd } from "../data/date-range.util";
 import { isSameMinute } from "../data/same-minute.util";
 import { linkStatusInput } from "../data/link-status-input.util";
 import {
@@ -61,6 +81,21 @@ import {
   toggleSelection,
 } from "../../../insiden/data/link-thread-selection.util";
 import {
+  DEPTH_INDENT_PX,
+  canMoveDown,
+  canMoveUp,
+  canNestUnder,
+  childCountOf,
+  computeDepths,
+  depthRailsFor,
+  groupRunsByParentId,
+  moveBlockedReason,
+  nestBlockedReason,
+  renderedLinksOf,
+  runOrderIsKnown,
+  siblingsOf,
+} from "./link-tree.util";
+import {
   GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
   GroupSocialMediaLinksData,
   GroupSocialMediaLinksVars,
@@ -72,103 +107,6 @@ import {
   UngroupSocialMediaLinksVars,
 } from "../../../insiden/data/social-links.queries";
 import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
-
-type CompletedFilter = "any" | "pending" | "completed";
-
-/** Width in pixels of ONE depth rail — which is also, because the rail STACK is
- *  the indent, the pixels a row is pushed right per level of conversation depth
- *  (see `depthRails` and the URL cell's markup).
- *
- *  🔴 THIS NUMBER IS THE ONLY DEFINITION OF THE RAIL STEP, and the template binds
- *  it rather than restating it in a class: the rail span gets
- *  `[style.width.px]="depthIndentPx"` and the elbow the same width plus
- *  `[style.margin-left.px]="-depthIndentPx"` (the negative margin is what pulls
- *  the elbow back so its stub starts ON the last rail's own line instead of
- *  floating a rail-width to the right of it). A `w-5` on either span would render
- *  identically and be a SECOND place to change the geometry — which is exactly the
- *  drift this constant exists to prevent, and why `depthIndentPx` is read in the
- *  template at all.
- *
- *  WHY A RAIL AND NOT JUST PADDING. A bare `padding-left` reads as an indent
- *  only while the admin is looking at the gap beside the URL; the moment a
- *  conversation is three levels deep the offsets are a set of unrelated
- *  distances and nothing on the row says which link hangs under which. A vertical
- *  guide per ancestor level is the one cue that survives scanning, and it is
- *  drawn from the same number the padding was, so the two cannot disagree — the
- *  rails REPLACED `[style.padding-left.px]` rather than joining it.
- *
- *  ⚠️ AND A FLAT ARITHMETIC SCALE, not a Tailwind class per level, for the same
- *  reason the old padding used one: the store bounds nesting at
- *  `MAX_THREAD_DEPTH`, but a hand-edited row can be deeper than any ladder of
- *  classes, and an out-of-ladder row must still render NESTED rather than snapping
- *  back to column zero and reading as a root. `@for` over an array of the row's
- *  depth renders an unbounded number of rails; a class ladder cannot. */
-const DEPTH_INDENT_PX = 20;
-
-const COMPLETED_LABEL: Record<CompletedFilter, string> = {
-  any: "All",
-  pending: "Pending",
-  completed: "Completed",
-};
-
-/** A decimal id, the shape every link id in this feature has (GraphQL `ID`
- *  serialised from an integer primary key). Used by the tie-break below to tell a
- *  numeric key from a non-numeric one rather than trusting `Number()`. */
-const DECIMAL_ID = /^\d+$/;
-
-/**
- * The order ONE SIBLING RUN is in: `position` ASC, then `id` ASC. Total, and
- * never the array's own order.
- *
- * WHY THIS IS THE WHOLE RULE: `reorderSocialMediaLinks` is a PERMUTATION of one
- * existing sibling set (backend `social_link_threads.py::_reorder_sync` — it
- * renumbers the ids it is given to `10, 20, 30, …` from the ORDER THEY ARRIVE IN
- * and leaves every sibling it was not told about after them), so the list this
- * comparator orders IS the list the server writes. A run taken from the queue's
- * arrival order is a different ordering, and the first move would write the
- * feed's `occurredAt DESC, id DESC` timeline over a conversation the backend
- * assembled oldest-first — arriving, here, reversed.
- *
- * 🔴 WHY `id` IS A REQUIRED SECOND KEY, not a nicety: every structural write
- * renumbers a run to the exact `10, 20, 30, …` series, EXCEPT ungrouping —
- * backend `_ungroup_sync` writes `parent` ONLY ("inventing a root order nobody
- * asked for is a presentation change disguised as a repair"), so a promoted link
- * keeps the number it held under its old parent and can TIE with a root that
- * already holds it. A root's `parentId` is `null`, so every root is a sibling of
- * every other root and the ROOT run is where the collision is observable. A sort
- * on `position` alone leaves that to the engine's sort stability, i.e. to the
- * arrival order — which is the very thing this comparator exists to stop.
- *
- * The id comparison mirrors the backend's own `(position, pk)` (see
- * `schema/loaders.py::batch_load_sublink_subtrees`, which is what renders
- * `sublinks`), so a tie resolves the way the nested list is DRAWN rather than
- * lexicographically — `"10"` would otherwise sort before `"9"`. Anything that is
- * not a decimal id falls back to a code-unit compare, which is still total: the
- * requirement is determinism, not numeric semantics.
- *
- * The `typeof` coercions below keep the comparison ANTISYMMETRIC over a payload
- * that dropped the key, so a sort can never produce `NaN` from it — they do not
- * decide anything. `position` is a required `number` here, and `runOrderIsKnown`
- * refuses the whole run while any sibling lacks one, so no consumer of a sorted run
- * can act on a row that landed by the fallback. It is spelled exactly as the
- * profile surface's copy on purpose: the two components cannot share a module, and
- * a rule written down twice has to be written down the same way twice.
- */
-function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): number {
-  const leftPosition = typeof a.position === "number" ? a.position : 0;
-  const rightPosition = typeof b.position === "number" ? b.position : 0;
-  if (leftPosition !== rightPosition) {
-    return leftPosition - rightPosition;
-  }
-  if (DECIMAL_ID.test(a.id) && DECIMAL_ID.test(b.id)) {
-    const left = Number(a.id);
-    const right = Number(b.id);
-    if (left !== right) {
-      return left - right;
-    }
-  }
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
 
 /**
  * /console/links — triage queue for crowd-submitted social media
@@ -376,7 +314,6 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
     HlmBadge,
     HlmButton,
     HlmInput,
-    HlmNativeSelect,
     HlmSkeleton,
     HlmSheet,
     HlmSheetHeader,
@@ -385,6 +322,9 @@ function compareStoredSequence(a: SocialMediaLinkRow, b: SocialMediaLinkRow): nu
     ...HlmCardImports,
     ...HlmTableImports,
     ConsoleNavComponent,
+    LinkQueueRowComponent,
+    LinksFilterBarComponent,
+    LinksSelectionToolbarComponent,
   ],
   templateUrl: "./links.component.html",
 })
@@ -406,7 +346,6 @@ export class SocialMediaLinksComponent {
   /** Defaults to PENDING per the spec ("by default only view entries that are
    * NOT completed"); All/Completed options remain available. */
   protected readonly completedFilter = signal<CompletedFilter>("pending");
-  protected readonly completedFilterLabel = COMPLETED_LABEL;
 
   /** Server-side queue filters (Task 10 resolver args), debounced like search.
    * Empty string = no filter on that axis; the applied snapshot is taken when
@@ -547,90 +486,25 @@ export class SocialMediaLinksComponent {
    *  click that resolves them. */
   protected readonly queueIsComplete = signal(false);
 
-  private readonly _rowsById = computed(() => new Map(this.links().map((l) => [l.id, l])));
+  /** Each loaded row's depth, computed by walking its `parentId` chain inside the
+   *  loaded set — see `computeDepths` for the walk and its cycle safety. A method
+   *  rather than a per-row signal: the map behind it is one computed over the
+   *  whole queue, and the template asks once per row. */
+  private readonly _depths = computed(() => computeDepths(this.links()));
 
-  /** Each loaded row's depth, computed by walking its `parentId` chain INSIDE the
-   *  loaded set.
-   *
-   *  The walk is bounded and cannot loop: it stops as soon as a `parentId` is not a
-   *  loaded row, and also on any id it has already visited, so hand-edited cyclic
-   *  data renders as "not nested" instead of hanging the queue. The store's
-   *  `MAX_THREAD_DEPTH` caps what can legitimately exist and this does not rely on
-   *  it: a chain deeper than any ladder of classes still indents.
-   *
-   *  🔴 A ROW WHOSE PARENT IS NOT IN THE LOADED SET IS TREATED AS A ROOT (depth 0),
-   *  and that is the rule for every case a filter causes — search for a phrase and
-   *  a sublink's parent is not in the result, so the sublink shows up flush with
-   *  the roots. The alternatives (indenting by a depth that cannot be derived, or
-   *  leaving a gap where an invisible parent would be) would render a hierarchy
-   *  the payload does not contain and make a filtered queue look like a corrupted
-   *  one. Every structural action a row offers is scoped to the loaded set anyway,
-   *  so the flattened depth costs nothing but an indentation.
-   *
-   *  Depth is a function of the `parentId` CHAIN and nothing else, which is why it
-   *  needs no ordering at all: no sequence of moves can change a row's depth, so
-   *  the indentation, the sibling run and the reorder payload cannot come to
-   *  disagree about it. (The run is ordered by `position` — see `siblingsOf` — and
-   *  the DISPLAY order is still the queue's `occurredAt DESC, id DESC`; three
-   *  orderings, each with one job.) */
-  private readonly _depths = computed(() => {
-    const byId = this._rowsById();
-    const depths = new Map<string, number>();
-    for (const link of this.links()) {
-      const visited = new Set<string>([link.id]);
-      let depth = 0;
-      let cursorId = link.parentId;
-      while (cursorId && byId.has(cursorId) && !visited.has(cursorId)) {
-        visited.add(cursorId);
-        depth += 1;
-        cursorId = byId.get(cursorId)?.parentId ?? null;
-      }
-      depths.set(link.id, depth);
-    }
-    return depths;
-  });
-
-  /** A method rather than a per-row signal: the map behind it is one computed over
-   *  the whole queue, and the template asks once per row. */
   protected depthOf(link: SocialMediaLinkRow): number {
     return this._depths().get(link.id) ?? 0;
   }
 
-  /** The width of ONE rail, which the template Binds rather than restates: the rail
-   *  span takes `[style.width.px]="depthIndentPx"` and the elbow the same width
-   *  with `[style.margin-left.px]="-depthIndentPx"`.
-   *
-   *  ⚠️ The template does NOT multiply a row's depth by this — the indent is the
-   *  rail STACK `depthRails` renders, one rail per level, and this number is how
-   *  wide each of them is. So the correct reading is "pixels per level", and the
-   *  two uses are the same thing: N rails of `depthIndentPx` shift the row's
-   *  content right by `N * depthIndentPx`.
-   *
-   *  It is exposed on the class (rather than the template importing the constant)
-   *  because a template can only read members off the component, and keeping the
-   *  constant private is what makes this the ONLY place the rail step can be
-   *  changed: `DEPTH_INDENT_PX` is not referenced from the markup, so a `w-5` on
-   *  the rail span would render identically and be a second definition nobody
-   *  would find by grepping. */
+  /** The width of ONE rail, which the template BINDS rather than restates; see
+   *  `DEPTH_INDENT_PX` for why the rail step is a single definition. */
   protected readonly depthIndentPx = DEPTH_INDENT_PX;
 
   /** One entry per ancestor level, so the URL cell can draw that many vertical
-   *  rails with `@for (rail of depthRails(link); track $index)`.
-   *
-   *  A method for the same reason `depthOf` is one: the depths live in a single
-   *  computed map over the whole queue, and materialising an array per row on
-   *  every render would be a second source of the same number. What comes back is
-   *  `[0, 1, 2, …]` — the VALUES are never read, only the LENGTH — so the depth
-   *  still has exactly one definition.
-   *
-   *  `Array.from({ length }, …)` rather than a fixed ladder of classes, for the
-   *  unbounded-depth reason on `DEPTH_INDENT_PX`: a hand-edited chain deeper than
-   *  any class ladder still draws a rail per level instead of snapping back to
-   *  column zero and reading as a root. A depth-0 row gets an empty array and
-   *  therefore no rail and no elbow at all, which is what makes a root look
-   *  like a root. */
+   *  rails. `depthRailsFor` is the pure helper; the depth still has exactly one
+   *  definition in `_depths`. */
   protected depthRails(link: SocialMediaLinkRow): number[] {
-    return Array.from({ length: this.depthOf(link) }, (_unused, index) => index);
+    return depthRailsFor(this.depthOf(link));
   }
 
   /* ---- Hierarchy: the accordion ---------------------------------------- */
@@ -666,270 +540,44 @@ export class SocialMediaLinksComponent {
   }
 
   /** Every loaded row grouped by the id of its PARENT, each group in the STORED
-   *  order — `position` ASC with `id` as the tie-break (`compareStoredSequence`).
-   *  The `null` key is the ROOT RUN: `parentId ?? null` normalises a payload that
-   *  omitted the key, so a real root and a row with an absent `parentId` land in
-   *  ONE group instead of two, exactly as they must for `siblingsOf`.
-   *
-   *  ONE MAP, THREE READERS, so the sequence can only be defined once: the
-   *  accordion's child runs, `siblingsOf`'s run (the same array — a row's
-   *  siblings ARE its parent's children), and `childCountOf`'s count. The groups
-   *  are built fresh here and sorted in place, so the in-place `sort` cannot touch
-   *  the `links` signal's own array; the returned arrays are MEMOISED and shared,
-   *  so a caller must copy before it reorders one (`reorderSiblings` does). */
-  private readonly _runsByParentId = computed(() => {
-    const runs = new Map<string | null, SocialMediaLinkRow[]>();
-    for (const link of this.links()) {
-      const key = link.parentId ?? null;
-      const run = runs.get(key);
-      if (run) {
-        run.push(link);
-      } else {
-        runs.set(key, [link]);
-      }
-    }
-    for (const run of runs.values()) {
-      run.sort(compareStoredSequence);
-    }
-    return runs;
-  });
-
-  /** The direct children of `parentId`, in the STORED order. `parentId` is the
-   *  node's OWN id when asking for a row's children, and its `parentId ?? null`
-   *  when asking for a row's sibling run. */
-  private runFor(parentId: string | null): SocialMediaLinkRow[] {
-    return this._runsByParentId().get(parentId) ?? [];
-  }
+   *  order — the ONE map a sibling run is built from (`groupRunsByParentId`). */
+  private readonly _runsByParentId = computed(() => groupRunsByParentId(this.links()));
 
   /** A row's direct children, in the STORED order. The chevron's gate: a row is a
-   *  PARENT iff it has LOADED children, which is the rule the whole accordion
-   *  hangs on — see `renderedLinks`.
-   *
-   *  ⚠️ LOADED, NOT `sublinkCount`. The two answer different questions and only one
-   *  of them can drive rendering: a filtered page can hold a row whose descendants
-   *  exist but are not in the result, and `sublinkCount > 0` would then draw a
-   *  chevron that expands to nothing. Conversely `sublinkCount: 0` with a loaded
-   *  child is hand-edited data, and refusing to draw the chevron would strand a
-   *  child that the payload does contain — unreachable from the queue entirely.
-   *  `sublinkCount` still owns the CHIP, which is a statement about the whole
-   *  conversation including rows this page cannot show. */
+   *  PARENT iff it has LOADED children (`childCountOf`). */
   protected childCountOf(link: SocialMediaLinkRow): number {
-    return this.runFor(link.id).length;
+    return childCountOf(this._runsByParentId(), link);
   }
 
-  /** The rows the accordion actually draws, in display order.
-   *
-   *  THE RULE, in one sentence: a row is rendered iff it has no loaded parent, or
-   *  every loaded ancestor of it is expanded.
-   *
-   *  How that falls out of the code, and why it is written as a walk rather than
-   *  as a per-row predicate: the top-level pass SKIPS a row iff its DIRECT parent
-   *  is loaded — such a row is emitted by the recursion below, from its parent's
-   *  own position, so "directly beneath it" is structural rather than something a
-   *  flat filter has to reconstruct. Recursion then emits each open row's children
-   *  in the STORED order, so a child of a collapsed row is never reached at all.
-   *  That is also why the order is: root order first (the queue's unchanged
-   *  `occurredAt DESC, id DESC` arrival order — the triage order is NOT the
-   *  conversation order, and only the second one is the accordion's business),
-   *  then each root's expanded subtree, then the next root.
-   *
-   *  🔴 A ROW THE WALK CANNOT PLACE IS STILL RENDERED — and the two reasons a row
-   *  is missing from `rendered` have to be told APART, or the safety net undoes the
-   *  accordion it is protecting. A row is unemitted either because a COLLAPSED
-   *  ancestor is hiding it (the whole point) or because nothing can reach it:
-   *  hand-edited or migrated data can be cyclic (`a → b → a`), and then every row of
-   *  the cycle has a loaded parent, so the top-level pass skips them all and the
-   *  recursion never starts. A queue that has silently swallowed rows is far worse
-   *  than one that shows them untidily — an admin cannot act on a link they cannot
-   *  see. So the net appends only the UNREACHABLE ones — AFTER everything the walk
-   *  placed, in their relative arrival order, because there is no parent position to put
-   *  them at; appending a merely-COLLAPSED child would be worse than
-   *  the bug it guards, because it would draw a closed conversation in full.
-   *  `hiddenByCollapse` is exactly that distinction.
-   *
-   *  Duplicates are impossible (`emitted` gates both the recursion and this loop),
-   *  and the walk cannot hang: `emit` returns on an id it has already placed, which
-   *  is also what bounds the cycle. `hiddenByCollapse`'s ancestor walk is bounded by
-   *  the same visited-set rule `_depths` uses, so a cycle terminates there too. */
-  protected readonly renderedLinks = computed<SocialMediaLinkRow[]>(() => {
-    const rows = this.links();
-    const loadedIds = this._rowsById();
-    const expanded = this.expandedIds();
-    const rendered: SocialMediaLinkRow[] = [];
-    const emitted = new Set<string>();
+  /** The rows the accordion actually draws, in display order — see
+   *  `renderedLinksOf` for the walk and its cycle safety net. */
+  protected readonly renderedLinks = computed<SocialMediaLinkRow[]>(() =>
+    renderedLinksOf(this.links(), this.expandedIds(), this._runsByParentId()),
+  );
 
-    const emit = (link: SocialMediaLinkRow): void => {
-      if (emitted.has(link.id)) {
-        return;
-      }
-      emitted.add(link.id);
-      rendered.push(link);
-      if (!expanded.has(link.id)) {
-        return;
-      }
-      for (const child of this.runFor(link.id)) {
-        emit(child);
-      }
-    };
-
-    for (const link of rows) {
-      const parentId = link.parentId ?? null;
-      if (parentId !== null && loadedIds.has(parentId)) {
-        continue;
-      }
-      emit(link);
-    }
-
-    /** Is this row merely HIDDEN — i.e. is some rendered ancestor of it CLOSED —
-     *  as opposed to unreachable? Bounded and cycle-safe, by the same rule as
-     *  `_depths`.
-     *
-     *  ⚠️ The test is "emitted AND closed", never just "closed". A collapsed
-     *  ancestor that the walk never emitted (which is the case for every node
-     *  inside a closed conversation) must NOT count: under the plain test, closing
-     *  a conversation would hand the safety net every one of its descendants and
-     *  the accordion would draw a closed conversation in full. Walking to the TOP
-     *  of the chain and asking only about rows the walk actually placed gets both
-     *  cases right — a closed ancestor is always somewhere above, even when the
-     *  intermediate nodes were themselves never reached. */
-    const hiddenByCollapse = (link: SocialMediaLinkRow): boolean => {
-      const visited = new Set<string>([link.id]);
-      let cursorId: string | null = link.parentId ?? null;
-      while (cursorId && loadedIds.has(cursorId) && !visited.has(cursorId)) {
-        if (emitted.has(cursorId) && !expanded.has(cursorId)) {
-          return true;
-        }
-        visited.add(cursorId);
-        cursorId = loadedIds.get(cursorId)?.parentId ?? null;
-      }
-      return false;
-    };
-
-    for (const link of rows) {
-      if (!emitted.has(link.id) && !hiddenByCollapse(link)) {
-        rendered.push(link);
-      }
-    }
-    return rendered;
-  });
-
-  /** The row's sibling RUN: every loaded row sharing its `parentId`, in the STORED
-   *  order — `position` ASC, `id` as the tie-break (see `compareStoredSequence` for
-   *  why the second key is not optional).
-   *
-   *  THIS ARRAY IS THE CONTRACT, and it is deliberately the ONLY place a run is
-   *  read: the reorder payload, the move index and the "already first / already
-   *  last" reasons all read off it, so they cannot disagree with each other — and
-   *  so it can be the SAME array the accordion expands, because a row's siblings
-   *  are exactly its parent's children. It is NOT the order the top of the table
-   *  renders — that stays the queue's `occurredAt DESC, id DESC`, and a run
-   *  permuted in the arrival order would write the queue's triage ordering as the
-   *  conversation's sequence.
-   *
-   *  ⚠️ It is memoised and SHARED now (it comes out of `_runsByParentId`), so a
-   *  caller that reorders it must copy first. `reorderSiblings` does. */
-  private siblingsOf(link: SocialMediaLinkRow): SocialMediaLinkRow[] {
-    return this.runFor(link.parentId ?? null);
-  }
-
-  /** Can the STORED order of this row's run be read at all? False as soon as any
-   *  sibling came back without a `position`.
-   *
-   *  🔴 A MISSING `position` IS NOT ZERO and must not be sorted as if it were. The
-   *  column is gap-spaced (`10, 20, 30, …`), so `0` is not "before 10" — it is only
-   *  the model's own default for a row written outside `save()`. A `?? 0` fallback
-   *  would float the unknown row to the head of the conversation and then WRITE
-   *  that as the stored sequence: a silent, permanent overwrite of an order nobody
-   *  read. Refusing is the same discipline as `queueIsComplete` — a precondition this
-   *  table cannot prove means no call, and the reason is stated rather than swallowed.
-   *
-   *  A `typeof` check, and deliberately not a type-driven one: `position` is a
-   *  required `number` on the row type, so this guards a payload that omitted the
-   *  key anyway (a stale cache, a host that stopped selecting it) — and
-   *  `strictNullChecks` is off, so the compiler would never report it. The profile
-   *  surface's identical check is load-bearing for real there, where the field is
-   *  genuinely optional. */
-  private runOrderIsKnown(link: SocialMediaLinkRow): boolean {
-    return this.siblingsOf(link).every((row) => typeof row.position === "number");
-  }
-
-  /** The row's own index in its sibling run — in the STORED order, because that is
-   *  what `siblingsOf` returns — or -1 if it is not in the run (a row re-fetched out
-   *  from under a click). Every move decision below is an index test against this
-   *  one array, which is what keeps a button's enabled state and the payload that
-   *  button produces in agreement. */
-  private siblingIndexOf(link: SocialMediaLinkRow): number {
-    return this.siblingsOf(link).findIndex((row) => row.id === link.id);
-  }
-
-  /** Offered at every row except the head of its run. A one-row run disables both
-   *  directions, which is the common case for an ungrouped link: there is no
-   *  sequence to put it in. */
+  /** Offered at every row except the head of its run (`canMoveUp`). */
   protected canMoveUp(link: SocialMediaLinkRow): boolean {
-    return this.queueIsComplete() && this.runOrderIsKnown(link) && this.siblingIndexOf(link) > 0;
+    return canMoveUp(this._runsByParentId(), link, this.queueIsComplete());
   }
 
-  /** Offered at every row except the tail of its run — the mirror of `canMoveUp`,
-   *  kept as its own method so the template never computes an index to decide a
-   *  disabled state. */
+  /** Offered at every row except the tail of its run (`canMoveDown`). */
   protected canMoveDown(link: SocialMediaLinkRow): boolean {
-    if (!this.queueIsComplete() || !this.runOrderIsKnown(link)) {
-      return false;
-    }
-    const index = this.siblingIndexOf(link);
-    return index >= 0 && index < this.siblingsOf(link).length - 1;
+    return canMoveDown(this._runsByParentId(), link, this.queueIsComplete());
   }
 
-  /** Why a sequence action is off, as copy for the disabled button's tooltip, or
-   *  `null` when it IS available — so the template binds the title straight through
-   *  and never restates any of the conditions. Three reasons, and every one of them
-   *  is a silent-failure trap, which is why a disabled button says which it is.
-   *
-   *  ⚠️ The `!queueIsComplete()` reason below is now DEFENSIVE, not rendered: while
-   *  the queue is filtered the buttons are not drawn at all (see `queueIsComplete`).
-   *  It is kept because this is a total function of the row — a programmatic caller
-   *  or a future template that wants to show a disabled button again gets the honest
-   *  reason instead of a `null` title on a control that cannot work. */
+  /** Why a sequence action is off, or `null` when it IS available (`moveBlockedReason`). */
   protected moveBlockedReason(link: SocialMediaLinkRow, direction: "up" | "down"): string | null {
-    if (!this.queueIsComplete()) {
-      return "Reordering needs every link loaded — a filtered page may be missing siblings of this link, and a partial sequence would push the hidden ones to the end of the conversation. Use “Show all links”.";
-    }
-    if (!this.runOrderIsKnown(link)) {
-      // Direction-agnostic on purpose: the whole run is unorderable, so neither of
-      // its ends can honestly be named — "already first" would be a claim about an
-      // order this queue cannot read.
-      return "Can't reorder this conversation yet: one of these links arrived without its stored order (`position`), so the sequence they are in is unknown and reordering it would write a guess.";
-    }
-    const index = this.siblingIndexOf(link);
-    const atEnd =
-      direction === "up" ? index <= 0 : index < 0 || index >= this.siblingsOf(link).length - 1;
-    if (!atEnd) {
-      return null;
-    }
-    return direction === "up"
-      ? "Already first among the links sharing this parent."
-      : "Already last among the links sharing this parent.";
+    return moveBlockedReason(this._runsByParentId(), link, direction, this.queueIsComplete());
   }
 
-  /** May the ticked rows be nested under this row? ONE tick is enough — see `canNest`
-   *  for why the target mode differs from the no-target grouping minimum. The target
-   *  itself being ticked stays a cycle the server rejects wholesale, so it is refused
-   *  here rather than sent. */
+  /** May the ticked rows be nested under this row? ONE tick is enough (`canNestUnder`). */
   protected canNestUnder(link: SocialMediaLinkRow): boolean {
-    return canNest(this.selectedIds()) && !this.selectedIds().includes(link.id);
+    return canNestUnder(this.selectedIds(), link);
   }
 
-  /** Why Nest-under is off, or `null` when it is available. Both reasons are
-   *  things the server would REJECT THE WHOLE CALL for, so the copy names them
-   *  rather than showing a dead button. */
+  /** Why Nest-under is off, or `null` when it is available (`nestBlockedReason`). */
   protected nestBlockedReason(link: SocialMediaLinkRow): string | null {
-    if (this.selectedIds().includes(link.id)) {
-      return "This link is ticked too — nesting a selection under one of its own links is a cycle, and the whole call is rejected.";
-    }
-    if (!canNest(this.selectedIds())) {
-      return "Tick a link first — the ticked links become the direct children of this one.";
-    }
-    return null;
+    return nestBlockedReason(this.selectedIds(), link);
   }
 
   /** Edit form state — same signals as LinkFormComponent's fields, driven by
@@ -957,141 +605,51 @@ export class SocialMediaLinksComponent {
   }));
 
   protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.lines ?? []).map((line) => ({
-      id: line.id,
-      label: `${line.code} — ${line.displayName}`,
-    })),
+    lineOptionsOf(this.referenceResource.data()),
   );
 
-  private readonly _linesById = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    return new Map(lines.map((line) => [line.id, line]));
-  });
+  private readonly _linesById = computed(() => indexLinesById(this.referenceResource.data()));
 
-  /** A vehicle's true line memberships, computed over ALL lines (not just the
-   * selected-filtered view vehicleOptions() uses) — a vehicle's parent codes
-   * shouldn't disappear just because its line got unchecked. */
-  private readonly _vehicleParentCodes = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    const map = new Map<string, string[]>();
-    for (const line of lines) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          const codes = map.get(vehicle.id);
-          if (codes) {
-            if (!codes.includes(line.code)) {
-              codes.push(line.code);
-            }
-          } else {
-            map.set(vehicle.id, [line.code]);
-          }
-        }
-      }
-    }
-    return map;
-  });
-
-  private readonly _vehiclesById = computed(() => {
-    const map = new Map<string, { id: string; identificationNo: string }>();
-    for (const line of this.referenceResource.data()?.lines ?? []) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          map.set(vehicle.id, { id: vehicle.id, identificationNo: vehicle.identificationNo });
-        }
-      }
-    }
-    return map;
-  });
-
-  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
-    const selected = this.selectedLineIds();
-    const lines =
-      selected.length > 0
-        ? selected.map((id) => this._linesById().get(id))
-        : [...this._linesById().values()];
-    const seen = new Set<string>();
-    const options: AssetMultiSelectOption[] = [];
-    for (const line of lines) {
-      if (!line) continue;
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          if (seen.has(vehicle.id)) continue;
-          seen.add(vehicle.id);
-          options.push({
-            id: vehicle.id,
-            label: vehicle.identificationNo,
-            parentCodes: this._vehicleParentCodes().get(vehicle.id),
-          });
-        }
-      }
-    }
-    return options;
-  });
-
-  private readonly _stationsById = computed(
-    () => new Map((this.referenceResource.data()?.stations ?? []).map((s) => [s.id, s])),
+  private readonly _vehicleParentCodes = computed(() =>
+    vehicleParentCodesOf(this.referenceResource.data()),
   );
+
+  private readonly _vehiclesById = computed(() => indexVehiclesById(this.referenceResource.data()));
+
+  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() =>
+    vehicleOptionsOf(
+      this.referenceResource.data(),
+      this.selectedLineIds(),
+      this._linesById(),
+      this._vehicleParentCodes(),
+    ),
+  );
+
+  private readonly _stationsById = computed(() => indexStationsById(this.referenceResource.data()));
 
   protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.stations ?? []).map((station) => ({
-      id: station.id,
-      label: station.displayName,
-      parentCodes: (station.lines ?? []).map((l) => l.code),
-    })),
+    stationOptionsOf(this.referenceResource.data()),
   );
 
-  /** Filter controls reuse the reference data + parent-filtering pattern, keyed
-   * on the FILTER line instead of the edit form's selectedLineIds. Selecting a
-   * line narrows the vehicle/station dropdowns to its assets; no line = all. */
-  protected readonly filterVehicleOptions = computed<AssetMultiSelectOption[]>(() => {
-    const lineId = this.filterLineId();
-    const line = lineId ? this._linesById().get(lineId) : undefined;
-    const lines = line ? [line] : [...this._linesById().values()];
-    const seen = new Set<string>();
-    const options: AssetMultiSelectOption[] = [];
-    for (const entry of lines) {
-      if (!entry) continue;
-      for (const vehicleType of entry.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          if (seen.has(vehicle.id)) continue;
-          seen.add(vehicle.id);
-          options.push({
-            id: vehicle.id,
-            label: vehicle.identificationNo,
-            parentCodes: this._vehicleParentCodes().get(vehicle.id),
-          });
-        }
-      }
-    }
-    return options;
-  });
+  protected readonly filterVehicleOptions = computed<AssetMultiSelectOption[]>(() =>
+    filterVehicleOptionsOf(
+      this.referenceResource.data(),
+      this.filterLineId(),
+      this._linesById(),
+      this._vehicleParentCodes(),
+    ),
+  );
 
-  protected readonly filterStationOptions = computed<AssetMultiSelectOption[]>(() => {
-    const lineId = this.filterLineId();
-    const stations = lineId
-      ? (this.referenceResource.data()?.stations ?? []).filter((s) =>
-          (s.lines ?? []).some((l) => l.id === lineId),
-        )
-      : (this.referenceResource.data()?.stations ?? []);
-    return stations.map((station) => ({
-      id: station.id,
-      label: station.displayName,
-      parentCodes: (station.lines ?? []).map((l) => l.code),
-    }));
-  });
+  protected readonly filterStationOptions = computed<AssetMultiSelectOption[]>(() =>
+    filterStationOptionsOf(this.referenceResource.data(), this.filterLineId()),
+  );
 
-  private readonly _categoriesById = computed(
-    () =>
-      new Map(
-        (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((c) => [c.id, c]),
-      ),
+  private readonly _categoriesById = computed(() =>
+    indexCategoriesById(this.referenceResource.data()),
   );
 
   protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
-      id: category.id,
-      label: category.name,
-    })),
+    categoryOptionsOf(this.referenceResource.data()),
   );
 
   /** Mirrors link-form.schema's `required(f.url)` — Save is disabled while the URL is blank. */
@@ -1502,10 +1060,10 @@ export class SocialMediaLinksComponent {
   private async reorderSiblings(link: SocialMediaLinkRow, delta: -1 | 1): Promise<boolean> {
     // Both gates again, not just the buttons': this is reachable from a programmatic
     // call, and a partial or a guess is worse than no call at all.
-    if (!this.queueIsComplete() || !this.runOrderIsKnown(link)) {
+    if (!this.queueIsComplete() || !runOrderIsKnown(this._runsByParentId(), link)) {
       return false;
     }
-    const siblings = this.siblingsOf(link);
+    const siblings = siblingsOf(this._runsByParentId(), link);
     const from = siblings.findIndex((row) => row.id === link.id);
     const to = from + delta;
     if (from < 0 || to < 0 || to >= siblings.length) {
@@ -1963,26 +1521,20 @@ export class SocialMediaLinksComponent {
     }
   }
 
-  /** Does the APPLIED filter snapshot describe the WHOLE table?
-   *
-   *  Read from the applied fields, never from the live controls: the dials change
-   *  up to a trailing debounce before a refetch, and the question is about the
-   *  rows currently on screen. Every axis counts, including the status select —
-   *  `completed: false` (the queue's default) already hides every completed row,
-   *  so "no search and no date range" is not enough to prove a complete sibling
-   *  set. The console resolver has no pagination and no row cap, so an unfiltered
-   *  result really is every link there is. See `queueIsComplete`. */
-  private appliedFiltersAreUnfiltered(): boolean {
-    return (
-      !this.appliedSearch &&
-      !this.appliedCategoryId &&
-      this.appliedCompleted === "any" &&
-      !this.appliedLineId &&
-      !this.appliedVehicleId &&
-      !this.appliedStationId &&
-      !this.appliedDateFrom &&
-      !this.appliedDateTo
-    );
+  /** The APPLIED filter snapshot the queue's query (and its completeness answer)
+   *  is built from — the plain fields written when a control commits, never the
+   *  live signals. See `appliedFiltersAreUnfiltered` and `queueQueryVars`. */
+  private appliedSnapshot(): AppliedQueueFilters {
+    return {
+      search: this.appliedSearch,
+      categoryId: this.appliedCategoryId,
+      completed: this.appliedCompleted,
+      lineId: this.appliedLineId,
+      vehicleId: this.appliedVehicleId,
+      stationId: this.appliedStationId,
+      dateFrom: this.appliedDateFrom,
+      dateTo: this.appliedDateTo,
+    };
   }
 
   /** 🔴 A `load()` ARRIVING MID-LOAD IS QUEUED, NOT SWALLOWED.
@@ -2077,38 +1629,11 @@ export class SocialMediaLinksComponent {
      * light up over rows whose siblings are not loaded, which is precisely the state
      * the flag exists to prevent. Capturing it here is what keeps the flag and the
      * rows it describes from ever disagreeing. */
-    const queueIsComplete = this.appliedFiltersAreUnfiltered();
+    const applied = this.appliedSnapshot();
+    const queueIsComplete = appliedFiltersAreUnfiltered(applied);
     try {
       const idToken = await this.auth.idToken();
-      const vars: SocialMediaLinksQueryVars = {
-        search: this.appliedSearch,
-        categoryId: this.appliedCategoryId || undefined,
-        completed:
-          this.appliedCompleted === "any" ? undefined : this.appliedCompleted === "completed",
-      };
-      // Filter args are optional server-side (strawberry.Maybe) — omit unset
-      // keys entirely so the wire never carries explicit nulls.
-      if (this.appliedLineId) {
-        vars.lineId = this.appliedLineId;
-      }
-      if (this.appliedVehicleId) {
-        vars.vehicleId = this.appliedVehicleId;
-      }
-      if (this.appliedStationId) {
-        vars.stationId = this.appliedStationId;
-      }
-      // The window bounds `occurredAt` — the same column the result is ordered
-      // by — so the filter and the sort can never answer different questions.
-      // (Backend args renamed createdAfter/createdBefore -> occurredAfter/
-      // occurredBefore along with the ordering change; no alias on purpose.)
-      const occurredAfter = dateInputToIsoStart(this.appliedDateFrom ?? "");
-      if (occurredAfter) {
-        vars.occurredAfter = occurredAfter;
-      }
-      const occurredBefore = dateInputToIsoEnd(this.appliedDateTo ?? "");
-      if (occurredBefore) {
-        vars.occurredBefore = occurredBefore;
-      }
+      const vars = queueQueryVars(applied);
       const data = await this.graphql.request<SocialMediaLinksQueryData, SocialMediaLinksQueryVars>(
         SOCIAL_MEDIA_LINKS_QUERY,
         vars,

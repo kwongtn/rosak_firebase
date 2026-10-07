@@ -5,217 +5,39 @@
 
     <app-console-nav />
 
-    <div hlmCard class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
-      <label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
-        Search (URL, title)
-        <input
-          hlmInput
-          type="text"
-          placeholder="e.g. twitter.com, LRT"
-          [value]="searchTerm()"
-          (input)="onSearchInput($any($event.target).value)"
-        />
-      </label>
+    <app-links-filter-bar
+      [searchTerm]="searchTerm()"
+      [categoryId]="categoryId()"
+      [categories]="categories()"
+      [completedFilter]="completedFilter()"
+      [lineOptions]="lineOptions()"
+      [filterLineId]="filterLineId()"
+      [filterVehicleOptions]="filterVehicleOptions()"
+      [filterVehicleId]="filterVehicleId()"
+      [filterStationOptions]="filterStationOptions()"
+      [filterStationId]="filterStationId()"
+      [filterDateFrom]="filterDateFrom()"
+      [filterDateTo]="filterDateTo()"
+      (searchInput)="onSearchInput($event)"
+      (categoryChange)="onCategoryChange($event)"
+      (completedChange)="onCompletedFilterChange($event)"
+      (filterLineChange)="onFilterLineChange($event)"
+      (filterVehicleChange)="onFilterVehicleChange($event)"
+      (filterStationChange)="onFilterStationChange($event)"
+      (dateFromInput)="onDateFromInput($event)"
+      (dateToInput)="onDateToInput($event)"
+      (reset)="resetFilters()"
+    />
 
-      <label class="flex flex-col gap-1.5 text-sm">
-        Category
-        <select
-          hlmSelect
-          [value]="categoryId()"
-          (change)="onCategoryChange($any($event.target).value)"
-        >
-          <option value="">All categories</option>
-          @for (category of categories(); track category.id) {
-            <option [value]="category.id">{{ category.name }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="flex flex-col gap-1.5 text-sm">
-        Status
-        <select
-          hlmSelect
-          [value]="completedFilter()"
-          (change)="onCompletedFilterChange($any($event.target).value)"
-        >
-          <option value="any">{{ completedFilterLabel.any }}</option>
-          <option value="pending">{{ completedFilterLabel.pending }}</option>
-          <option value="completed">{{ completedFilterLabel.completed }}</option>
-        </select>
-      </label>
-
-      <label class="flex flex-col gap-1.5 text-sm">
-        Line
-        <select
-          hlmSelect
-          [value]="filterLineId()"
-          (change)="onFilterLineChange($any($event.target).value)"
-        >
-          <option value="">All lines</option>
-          @for (line of lineOptions(); track line.id) {
-            <option [value]="line.id">{{ line.label }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="flex flex-col gap-1.5 text-sm">
-        Vehicle
-        <select
-          hlmSelect
-          [value]="filterVehicleId()"
-          (change)="onFilterVehicleChange($any($event.target).value)"
-        >
-          <option value="">All vehicles</option>
-          @for (vehicle of filterVehicleOptions(); track vehicle.id) {
-            <option [value]="vehicle.id">{{ vehicle.label }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="flex flex-col gap-1.5 text-sm">
-        Station
-        <select
-          hlmSelect
-          [value]="filterStationId()"
-          (change)="onFilterStationChange($any($event.target).value)"
-        >
-          <option value="">All stations</option>
-          @for (station of filterStationOptions(); track station.id) {
-            <option [value]="station.id">{{ station.label }}</option>
-          }
-        </select>
-      </label>
-
-      <button hlmBtn type="button" variant="outline" class="self-end" (click)="resetFilters()">
-        Reset
-      </button>
-
-      <!--
-        RELABELLED "Submitted between" -> "Occurred between" on purpose. The two
-        resolver args these controls drive are `occurredAfter`/`occurredBefore`,
-        i.e. the EVENT instant, and it is the same column the table is sorted by
-        (`-occurredAt, -id`) — so "Submitted" described a filter the server does
-        not apply, and collided with the "Submitted" column one screen lower,
-        which is a different clock entirely. An admin chasing a report that
-        arrived this morning but happened last week now has an honest control.
-        The `Submitted` column is untouched: it still leads with `created`, the
-        queue's triage clock, and now carries `occurredAt` as a second line only
-        where the two differ.
-      -->
-      <div class="flex flex-col gap-1.5 text-sm sm:col-span-2">
-        Occurred between
-        <div class="flex flex-wrap items-center gap-1.5">
-          <input
-            hlmInput
-            type="date"
-            aria-label="Occurred from date"
-            [value]="filterDateFrom()"
-            (input)="onDateFromInput($any($event.target).value)"
-          />
-          <input
-            hlmInput
-            type="date"
-            aria-label="Occurred to date"
-            [value]="filterDateTo()"
-            (input)="onDateToInput($any($event.target).value)"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!--
-      Selection toolbar. Rendered ALWAYS (not only once something is ticked) so the
-      affordance is discoverable, and so a blocked action shows up as a disabled
-      button with a stated reason rather than as a button that is simply absent.
-
-      ⚠️ THAT RULE IS NOW NARROWER, AND ONLY FOR "Group into thread": it is the ONE
-      action this toolbar owns, it needs TWO ticks, and a dead single button in a
-      toolbar of its own does not read as broken — a dead PAIR on every row of the
-      table does, which is why the per-row "Nest under…" waits for the first tick
-      instead (`nestSelectionReady`). The hint below is what carries the discovery
-      either way, and it has a zero-selection and a one-selection spelling so it
-      cannot under-sell nesting's one-tick minimum.
-
-      TWO different minimums live here on purpose: "Group into thread" needs two
-      (a one-link conversation is a no-op that still renders as a conversation),
-      while the per-row "Nest under…" needs only ONE — with a target, the same
-      call makes the ticked rows that row's direct children, so a single link is
-      the basic way a conversation gains its first child.
-    -->
-    <div class="flex flex-wrap items-center gap-2">
-      <button
-        hlmBtn
-        size="sm"
-        data-testid="group-selected"
-        [disabled]="isLoading() || !canGroupSelection()"
-        (click)="groupSelected()"
-      >
-        Group into thread
-      </button>
-      <span class="text-muted-foreground text-xs" data-testid="selection-count"
-        >{{ selectedCount() }} selected</span
-      >
-      @if (selectedCount() > 0) {
-        <button hlmBtn size="sm" variant="ghost" (click)="clearSelection()">Clear selection</button>
-      }
-      @if (selectedCount() < 2) {
-        <span class="text-muted-foreground text-xs" data-testid="selection-hint">
-          @if (selectedCount() === 1) {
-            One link ticked — use Nest under… on the row it should sit beneath, or tick one more to
-            group them into a conversation.
-          } @else {
-            Tick a link to nest it under another, or tick two or more to group them into one
-            conversation.
-          }
-        </span>
-      }
-      <!--
-        Why the per-row sequence actions are ABSENT, and the ONE-CLICK way out.
-        `reorderSocialMediaLinks` permutes ONE sibling set, so a filtered page can
-        only send part of it — and the server would accept the part and leave the
-        rows the admin cannot see at the end of the conversation. The queue
-        DEFAULTS to Pending, which is already a filter that can hide completed
-        siblings, so stating the reason is not enough: without the action the
-        admin has no discoverable route to the enabled state ("Reset" re-applies
-        Pending). `showAllLinks` drops every filter, status included, so the
-        loaded set is provably the whole table.
-
-        ⚠️ NO `[disabled]` ON "Show all links", DELIBERATELY. It used to grey itself
-        out mid-load, which made the one action that can unblock the queue look
-        unavailable exactly when an admin reaches for it. `load()` now queues a
-        mid-flight arrival and replays it, so a click during the first load really
-        does produce the unfiltered queue — a never-disabled button backed by a
-        handler that cannot swallow the click is the whole pair. See `load()`.
-
-        `w-full` + `flex-1 min-w-0` on the sentence + `ml-auto` on the button: the
-        hint is a full-width aside of this toolbar and the action is its
-        resolution, so the action belongs at the RIGHT edge where the eye lands
-        after reading the reason, and the sentence wraps under nothing.
-      -->
-      @if (!queueIsComplete()) {
-        <span
-          class="text-muted-foreground flex w-full items-center gap-2 text-xs"
-          data-testid="reorder-hint"
-        >
-          <span class="flex-1 min-w-0">
-            Reordering needs every link loaded: a filtered page may be missing siblings, and a
-            partial sequence would push the hidden ones to the end.
-          </span>
-          <button
-            hlmBtn
-            size="sm"
-            variant="outline"
-            type="button"
-            data-testid="reorder-show-all"
-            class="ml-auto shrink-0"
-            title="Loads every link, including completed ones, so the queue is complete and reordering turns on."
-            (click)="showAllLinks()"
-          >
-            Show all links
-          </button>
-        </span>
-      }
-    </div>
+    <app-links-selection-toolbar
+      [isLoading]="isLoading()"
+      [canGroupSelection]="canGroupSelection()"
+      [selectedCount]="selectedCount()"
+      [queueIsComplete]="queueIsComplete()"
+      (groupSelected)="groupSelected()"
+      (clearSelection)="clearSelection()"
+      (showAllLinks)="showAllLinks()"
+    />
 
     <div hlmTableContainer>
       <!-- min-w grew with the tree: the action cell now carries the sequence and
@@ -299,553 +121,45 @@
                 would do.
               -->
               <tr
+                app-link-queue-row
                 hlmTr
                 class="cursor-pointer hover:bg-muted"
                 [class.bg-muted/40]="depthOf(link) > 0"
                 [attr.tabindex]="0"
                 (click)="openLinkDetail(link)"
                 (keydown.enter)="openLinkDetail(link)"
-              >
-                <td hlmTd class="py-3">
-                  <!--
-                    stopPropagation on the click, not the change: the row itself
-                    opens the detail sheet, and `change` only fires after the
-                    click has already bubbled — so without this, ticking a row
-                    would also open its editor.
-                  -->
-                  <input
-                    type="checkbox"
-                    class="size-4 accent-primary"
-                    data-testid="link-select"
-                    [attr.aria-label]="'Select ' + link.url"
-                    [checked]="selectedIds().includes(link.id)"
-                    (click)="$event.stopPropagation()"
-                    (change)="toggleRowSelection(link.id)"
-                  />
-                </td>
-                <td hlmTd class="max-w-72 py-3">
-                  <!--
-                    THE RAILS, THE CHEVRON AND THE CHIP: three hierarchy facts about
-                    ONE row, which is why they share one cell and one wrapper.
-
-                    `depthOf` walks the row's parentId chain inside the LOADED set, and
-                    a row whose parent is not loaded counts as a root — which is
-                    exactly what a filtered page does to a sublink (its parent is not
-                    in the result), and rendering it flush is honest rather than
-                    leaving a gap for a parent the payload does not contain.
-                    `data-depth` is the same number the rail count is derived from, so
-                    a spec can assert the hierarchy without measuring pixels.
-
-                    ⚠️ THE RAILS ARE THE INDENT. `depthRails` returns one entry per
-                    ancestor level and the wrapper renders that many guides, each
-                    `self-stretch` so it runs the full height of the row whatever
-                    that height is. The rails REPLACED the old
-                    `[style.padding-left.px]` rather than joining it: an empty gap at
-                    the left of a row says "indented" only while you are looking at
-                    that gap, and three levels of nothing read as three unrelated
-                    offsets. Their width is `[style.width.px]="depthIndentPx"` and
-                    NOT a `w-5`, so `DEPTH_INDENT_PX` really is the one number the
-                    geometry is defined by — a class here would render identically
-                    and be a second place to change the rail step that no grep for
-                    the constant would find. NO `gap` ON THE WRAPPER — a gap would
-                    fall BETWEEN two rails and break the line a reader follows
-                    downward — so every gap here is an explicit `ml-1` on the one
-                    element that needs it.
-
-                    ⚠️ THE ELBOW IS WHAT MAKES A RAIL MEAN SOMETHING. Without it a
-                    rail is a bare vertical rule and nothing says the row hangs off
-                    IT; with it, the last rail and one `border-t` stub form the ⌐ an
-                    admin reads as "this one". It is emitted only for the LAST rail
-                    (`$last`), because one per level would draw a row of ticks with
-                    no row to attach the first of them to. Its `-depthIndentPx`
-                    margin pulls it back under the last rail so the stub starts
-                    exactly on the rail's own line — a depth-1 row gets ONE rail and
-                    ONE tick from it, not a rail plus a floating dash a full
-                    rail-width to its right. `h-6` is the height of one line of URL
-                    text, so the tick sits at the URL's own vertical centre rather
-                    than at the centre of a cell that the chip below has made taller.
-
-                    ⚠️ THE PLACEHOLDER IS NOT COSMETIC. A childless row draws an
-                    invisible `size-4` span where the chevron would be, because the
-                    chevron is INSIDE the rail stack: without it every open/close
-                    click would shift the URL (and therefore every column after it)
-                    sideways, which is exactly what makes a table feel like it is
-                    being redrawn under you. It carries `data-testid` because the
-                    rails are `aria-hidden` spans too, and a spec asking "is the
-                    chevron's width reserved here?" cannot ask for `aria-hidden` and
-                    mean one specific element.
-
-                    ⚠️ `break-all` ON THE ANCHOR, and it is load-bearing: a URL is one
-                    unbroken token, so without it a long link runs past the cell's
-                    `max-w-72` and is clipped by the table's scroll container — the
-                    admin cannot read the tail of the very address they have to judge.
-                    Same reason the detail sheet's own URL anchor, further down
-                    this same template, is `break-all`. -->
-                  <div
-                    class="flex items-stretch"
-                    data-testid="link-depth"
-                    [attr.data-depth]="depthOf(link)"
-                  >
-                    @for (rail of depthRails(link); track $index; let isLast = $last) {
-                      <span
-                        data-testid="link-rail"
-                        aria-hidden="true"
-                        class="border-border/60 shrink-0 self-stretch border-l"
-                        [style.width.px]="depthIndentPx"
-                      ></span>
-                      @if (isLast) {
-                        <span
-                          data-testid="link-elbow"
-                          aria-hidden="true"
-                          class="border-border/60 h-6 shrink-0 self-start border-t"
-                          [style.width.px]="depthIndentPx"
-                          [style.margin-left.px]="-depthIndentPx"
-                        ></span>
-                      }
-                    }
-                    <!--
-                      THE CHEVRON, on a row with LOADED children and nothing else
-                      (`childCountOf`, not `sublinkCount` — see that method's note for
-                      why the two must not be interchanged). `stopPropagation` because
-                      the `<tr>` opens the detail panel on click: without it, opening
-                      a conversation would also open the editor for that row, which is
-                      not what either button says it does.
-
-                      The label reuses `threadLabel` like every other conversation-size
-                      surface in the app, and passes `childCount + 1` for the same
-                      off-by-one reason the chip below does: the parameter is a
-                      CONVERSATION SIZE, and a conversation with exactly one link
-                      under it must still announce itself as "2 links".
-                    -->
-                    <div class="flex min-w-0 flex-1 items-start">
-                      @if (childCountOf(link) > 0) {
-                        <button
-                          type="button"
-                          class="text-muted-foreground hover:text-foreground ml-1 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors"
-                          data-testid="thread-toggle"
-                          [attr.aria-expanded]="isExpanded(link.id)"
-                          [attr.aria-label]="
-                            (isExpanded(link.id) ? 'Hide' : 'Show') +
-                            ' the other links in this conversation (' +
-                            threadLabel(childCountOf(link) + 1) +
-                            ')'
-                          "
-                          (click)="$event.stopPropagation(); toggleExpanded(link.id)"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            class="size-3 shrink-0 transition-transform"
-                            [class.rotate-180]="isExpanded(link.id)"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="m6 9 6 6 6-6" />
-                          </svg>
-                        </button>
-                      } @else {
-                        <span
-                          data-testid="chevron-placeholder"
-                          class="ml-1 size-4 shrink-0"
-                          aria-hidden="true"
-                        ></span>
-                      }
-                      <!--
-                        ONE COLUMN, NOT A CELL EACH. The anchor and the chip are
-                        siblings in a `flex-col items-start`, so the chip's left edge IS
-                        the URL text's left edge by construction — no `margin-left` to
-                        compute, and therefore nothing that can drift when the rail
-                        width, the chevron reserve or the gap changes. A pixel offset
-                        here would have to be re-derived from all three on every
-                        layout change; this cannot.
-                      -->
-                      <div class="ml-1 flex min-w-0 flex-1 flex-col items-start gap-1">
-                        <a
-                          [href]="link.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="hover:underline min-w-0 break-all"
-                          (click)="$event.stopPropagation()"
-                        >
-                          {{ link.url }}
-                        </a>
-                        <!--
-                          THE CONVERSATION CHIP, and it moved HERE from a column of its
-                          own: it is a statement about the row whose URL is above it, and
-                          as a column of its own it spent a tenth of the table's width
-                          saying what the URL cell's second line says better — beside the
-                          link it counts. `threadLabel`'s `""` answer renders NOTHING
-                          here, not an em dash, because a lone ungrouped link is the
-                          overwhelming majority of the queue and a column of dashes would
-                          have been the loudest thing on the row.
-
-                          🔴 THE `+ 1` IS LOAD-BEARING AND MUST NOT BE "SIMPLIFIED" AWAY.
-                          `threadLabel`'s parameter is a CONVERSATION SIZE — this node
-                          plus its publicly-visible descendants — and it answers "" for
-                          anything `<= 1`. `sublinkCount` is the DESCENDANT count (`0` for
-                          a leaf), so passing it raw would delete the chip on a root with
-                          exactly ONE sublink (`1` -> "") while leaving every ordinary
-                          row correctly chip-less (`0` -> ""), which is exactly why the
-                          bug hides. Same off-by-one as `confirmThreadCoupling`; the two
-                          must never diverge.
-
-                          The gate is therefore `sublinkCount > 0` in effect (via
-                          `threadLabel`) and NEVER `isThreadRoot`: the backend calls
-                          every `parentId == null` link a root, so that flag is true for
-                          every ungrouped row in the queue and would print a chip on the
-                          whole page.
-
-                          The tooltip states the coupling a row otherwise hides: a
-                          conversation is public only while its root is, so hiding this
-                          row hides everything under it — recursively. `hideLink` also
-                          confirms at the moment of the click, because a tooltip is only
-                          read if the admin happens to hover the badge that carries it.
-                        -->
-                        @if (threadLabel(link.sublinkCount + 1); as label) {
-                          <span
-                            hlmBadge
-                            variant="special"
-                            data-testid="link-thread"
-                            [title]="
-                              (link.isThreadRoot
-                                ? 'Root of a conversation — '
-                                : 'Links below this row — ') +
-                              label +
-                              ' at any depth. A conversation is public only while its root is, so hiding this row hides that whole subtree too.'
-                            "
-                          >
-                            {{ label }}
-                          </span>
-                        }
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td hlmTd class="max-w-64 py-3">
-                  <!--
-                    `break-words` (not `break-all`): a title is prose, so it should
-                    only break where the text has no other opportunity, and the same
-                    clipping argument as the URL cell applies — a long crowd-sourced
-                    headline must stay readable inside `max-w-64`. -->
-                  <span class="break-words">{{ link.title || "—" }}</span>
-                </td>
-                <td hlmTd class="py-3">
-                  <div class="flex flex-col items-start gap-1">
-                    @if (link.user; as submitter) {
-                      <span>{{ submitter.nickname || submitter.shortId }}</span>
-                    } @else {
-                      <span>—</span>
-                    }
-                    @if (link.isAutomated) {
-                      <span
-                        hlmBadge
-                        variant="info"
-                        data-testid="link-official"
-                        title="Captured automatically from an official operator account"
-                      >
-                        Official
-                      </span>
-                    }
-                  </div>
-                </td>
-                <td hlmTd class="py-3">
-                  @if (link.categories.length > 0) {
-                    <div class="flex flex-wrap gap-1">
-                      @for (category of link.categories; track category.name) {
-                        <span hlmBadge variant="outline">{{ category.name }}</span>
-                      }
-                    </div>
-                  } @else {
-                    —
-                  }
-                </td>
-                <td hlmTd class="py-3">
-                  @if (link.completed) {
-                    <span hlmBadge>Completed</span>
-                  } @else {
-                    <span hlmBadge variant="warning">Pending</span>
-                  }
-                </td>
-                <!--
-                  THE TWO CLOCKS, IN ONE CELL. `created` (when it was REPORTED) is
-                  the line this column is named for and the one an admin moderates
-                  against; the event instant `occurredAt` — which is what the queue
-                  is SORTED on and what "Occurred between" windows — becomes a second,
-                  quieter line UNDER it.
-
-                  🔴 THE GATE IS THE MINUTE, NOT THE INSTANT, because the RENDERING
-                  is minute-precision: both lines go through `MMM d, y HH:mm`, so the
-                  seconds are gone before the admin sees either one. An exact-instant
-                  test would print `Aug 1, 2026 09:00` directly under an identical
-                  `Aug 1, 2026 09:00` on any row whose two clocks differ only below
-                  the minute — and two indistinguishable lines are worse than either
-                  showing one line or showing two that genuinely differ, because the
-                  admin cannot tell which mistake they are looking at. Nothing about
-                  the payload needs to be broken to produce that: two `DateTime`s
-                  written microseconds apart, or a value re-serialised through a path
-                  that normalised the seconds, are enough. So "same minute ⇒ same
-                  line", which is `isSameMinute` — and it buckets by TRUNCATION
-                  (`Math.floor(ms / 60_000)`), so `09:00:59` and `09:01:00` are
-                  different minutes. A rounding implementation would push the first up
-                  into the second and report a whole-minute disagreement as agreement.
-
-                  🔴 AND `isSameMinute` NEVER LETS `NaN` DECIDE IT. Both fields are
-                  naive local ISO strings from the backend (USE_TZ = False, no offset
-                  and no `Z`), `strict`/`strictNullChecks` are off, so an
-                  under-specified fixture or a payload that dropped the key can hand
-                  the comparison two unparseable values — and `NaN !== NaN` is TRUE,
-                  which would report DIFFERENT instants as the same and render the
-                  line through the same date pipe as `Invalid Date`. The util returns
-                  `false` for any unparseable side, so a broken payload can only ever
-                  ADD a (harmless, redundant) line, never suppress a real one or print
-                  a broken one. Its exact-string fast path covers the common case —
-                  the backend writes `occurred_at = created` whenever a submitter
-                  states no event time, so most rows are byte-identical — without
-                  parsing at all.
-
-                  `whitespace-nowrap` STAYS on the cell: the two lines must each
-                  read as a single value, and a wrapped "Aug 1, 2026 08:30" reads as
-                  two. `text-xs text-muted-foreground` is what makes the second line
-                  subordinate — it is there to be read when it differs and skimmed
-                  when it does not exist.
-                -->
-                <td hlmTd class="py-3 whitespace-nowrap" data-testid="link-submitted">
-                  <div class="flex flex-col items-start gap-0.5">
-                    <span>{{ link.created | date: "MMM d, y HH:mm" }}</span>
-                    @if (!isSameMinute(link.created, link.occurredAt)) {
-                      <span class="text-muted-foreground text-xs" data-testid="link-occurred">
-                        Occurred {{ link.occurredAt | date: "MMM d, y HH:mm" }}
-                      </span>
-                    }
-                  </div>
-                </td>
-                <td hlmTd class="py-3">
-                  <!--
-                    flex-wrap: the action set grew with the tree (sequence, nesting),
-                    and a wrapping cell degrades to a taller row instead of an
-                    action that has scrolled out of reach on a wide table. The three
-                    tree verbs are now icon-only `size-7` squares rather than
-                    `size="sm"` buttons with three-to-four words each, which is what
-                    keeps the row to one line now that the sequence actions appear.
-                  -->
-                  <div class="flex flex-wrap items-center gap-2">
-                    @if (link.status !== "LIVE") {
-                      <button
-                        hlmBtn
-                        size="sm"
-                        [disabled]="isLoading()"
-                        (click)="$event.stopPropagation(); approveLink(link)"
-                      >
-                        Approve
-                      </button>
-                    }
-                    @if (link.status !== "HIDDEN") {
-                      <button
-                        hlmBtn
-                        size="sm"
-                        variant="outline"
-                        [disabled]="isLoading()"
-                        (click)="$event.stopPropagation(); hideLink(link)"
-                      >
-                        Hide
-                      </button>
-                    }
-                    @if (!link.completed) {
-                      <button
-                        hlmBtn
-                        size="sm"
-                        [disabled]="isLoading()"
-                        (click)="$event.stopPropagation(); markCompleted(link)"
-                      >
-                        Mark completed
-                      </button>
-                    }
-                    <!--
-                      THE SEQUENCE — DRAWN ONLY ON A COMPLETE QUEUE. `reorderSocialMediaLinks`
-                      permutes ONE sibling SET, so a filtered page can send only part of it
-                      and the server will accept the part and leave the rows the admin
-                      cannot see at the end of the conversation. The gate is UNCHANGED
-                      (`canMoveUp`/`canMoveDown` and `reorderSiblings` both refuse on
-                      `!queueIsComplete()`); what changed is that under the default Pending
-                      queue the two buttons are not rendered AT ALL rather than being greyed
-                      out on every row — a permanently dead pair reads as a broken table,
-                      and the toolbar's "Show all links" is the one click that turns them on.
-
-                      ONCE THE QUEUE IS COMPLETE they come back with everything else:
-                      disabled at the two ends of the STORED run. A swap needs an
-                      adjacent row, and this table shows the queue's
-                      `occurredAt DESC, id DESC` order while the write sets the STORED
-                      sibling order (`position` ASC, then `id`), so the payload is
-                      that whole run with this row moved one place — never the two
-                      rows alone, and never the order the table happens to show.
-
-                      ⚠️ ICON-ONLY, SO THE TOOLTIP IS NOT OPTIONAL AND NOT DECORATIVE.
-                      These three buttons used to spell out their labels, which is what
-                      made the action cell wrap to two lines and pushed Delete toward
-                      the edge. An arrow glyph carries none of that meaning on its
-                      own, so each button now states it TWICE and from ONE source:
-                      `aria-label` (what a screen reader announces) and `title` (what a
-                      mouse user reads on hover) are both bound to the same field on
-                      the class — `moveUpHelp` / `moveDownHelp` / `nestHelp`. The
-                      `title` is the blocked reason whenever there IS one
-                      (`moveBlockedReason` / `nestBlockedReason`), and the help copy
-                      only when the action is live, so the two states are mutually
-                      exclusive and a live button is never silently mute.
-
-                      `attr.title`, NOT `[title]` — deliberately kept even though both
-                      branches are now non-null strings, because `moveBlockedReason`
-                      returns `string | null` and the guard has to survive whoever
-                      widens it next. A property binding coerces a null to the literal
-                      string "null", which is a tooltip reading "null" on hover;
-                      attribute binding removes the attribute instead. The same
-                      reasoning covers the `aria-hidden` on each `<svg>`: the glyph is
-                      decoration beside a labelled control, so announcing it twice
-                      would read the icon's shape out loud after the sentence that
-                      already names the action.
-
-                      `size="icon-sm"` (size-7) rather than `size="sm"`: an icon
-                      button has no text to give it width, and the square keeps the
-                      row height and the neighbouring buttons' height identical.
-                    -->
-                    @if (queueIsComplete()) {
-                      <button
-                        hlmBtn
-                        size="icon-sm"
-                        variant="ghost"
-                        data-testid="move-link-up"
-                        [disabled]="isLoading() || !canMoveUp(link)"
-                        [attr.aria-label]="moveUpHelp"
-                        [attr.title]="moveBlockedReason(link, 'up') ?? moveUpHelp"
-                        (click)="$event.stopPropagation(); moveLinkUp(link)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="size-4"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="m5 12 7-7 7 7" />
-                          <path d="M12 19V5" />
-                        </svg>
-                      </button>
-                      <button
-                        hlmBtn
-                        size="icon-sm"
-                        variant="ghost"
-                        data-testid="move-link-down"
-                        [disabled]="isLoading() || !canMoveDown(link)"
-                        [attr.aria-label]="moveDownHelp"
-                        [attr.title]="moveBlockedReason(link, 'down') ?? moveDownHelp"
-                        (click)="$event.stopPropagation(); moveLinkDown(link)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="size-4"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M12 5v14" />
-                          <path d="m19 12-7 7-7-7" />
-                        </svg>
-                      </button>
-                    }
-                    <!--
-                      NESTING — DRAWN ONCE SOMETHING IS TICKED, THEN DISABLED WHERE IT
-                      CANNOT BE SENT. The ticked rows become this row's direct children.
-                      It is a ROW action rather than a target picker because the row is
-                      the target and the ticks are the payload — asking the admin to pick,
-                      from a dropdown, the target they are already looking at would add a
-                      step and a second source of truth for the same choice.
-
-                      ONE tick is enough (`canNest`): with a target, the ticked link
-                      becomes a REAL child, which is how a conversation gains its first
-                      one — unlike the no-target grouping minimum of two. The toolbar hint
-                      already says so, so the button appearing on the first tick is the
-                      hint being discharged rather than a new thing to discover.
-
-                      Once drawn it is DISABLED, with the reason on hover, on every row
-                      that cannot be the target — the ticked rows themselves, since
-                      nesting a selection under one of its own members is a CYCLE the
-                      server rejects as a unit. `canNestUnder` stays the per-row
-                      authority; `nestSelectionReady` is only the queue-wide gate for
-                      whether the button exists at all.
-
-                      ICON-ONLY, and for THIS one the glyph carries a second job: a
-                      corner-down-right indent arrow is the conventional "make this a
-                      child of the thing above it", which a word could not say in a
-                      cell this size. The tooltip is the cycle reason where there is
-                      one and `nestHelp` otherwise, sharing its `aria-label` — see
-                      the block above for why `attr.title` and not `[title]`.
-                    -->
-                    @if (nestSelectionReady()) {
-                      <button
-                        hlmBtn
-                        size="icon-sm"
-                        variant="ghost"
-                        data-testid="nest-under"
-                        [disabled]="isLoading() || !canNestUnder(link)"
-                        [attr.aria-label]="nestHelp"
-                        [attr.title]="nestBlockedReason(link) ?? nestHelp"
-                        (click)="$event.stopPropagation(); nestSelectedUnder(link)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="size-4"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="m15 10 5 5-5 5" />
-                          <path d="M4 4v7a4 4 0 0 0 4 4h12" />
-                        </svg>
-                      </button>
-                    }
-                    <!--
-                      Sublinks only. Ungrouping a ROOT is a server-side no-op (it is
-                      not a child of anything), so offering it there would be a
-                      button that succeeds and changes nothing; the root's own job is
-                      to carry the chip and the descendants' Ungroup buttons, which is
-                      why its "N links" chip now lives in the URL cell next to it.
-                    -->
-                    @if (link.parentId) {
-                      <button
-                        hlmBtn
-                        size="sm"
-                        variant="outline"
-                        data-testid="ungroup-link"
-                        [disabled]="isLoading()"
-                        (click)="$event.stopPropagation(); ungroupLink(link)"
-                      >
-                        Ungroup
-                      </button>
-                    }
-                    <button
-                      hlmBtn
-                      size="sm"
-                      variant="ghost"
-                      class="text-destructive"
-                      [disabled]="isDeleting()"
-                      (click)="$event.stopPropagation(); deleteLink(link)"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                [link]="link"
+                [depth]="depthOf(link)"
+                [childCount]="childCountOf(link)"
+                [expanded]="isExpanded(link.id)"
+                [selected]="selectedIds().includes(link.id)"
+                [queueIsComplete]="queueIsComplete()"
+                [nestSelectionReady]="nestSelectionReady()"
+                [isLoading]="isLoading()"
+                [isDeleting]="isDeleting()"
+                [canMoveUp]="canMoveUp(link)"
+                [canMoveDown]="canMoveDown(link)"
+                [canNestUnder]="canNestUnder(link)"
+                [moveUpHelp]="moveUpHelp"
+                [moveDownHelp]="moveDownHelp"
+                [nestHelp]="nestHelp"
+                [moveUpBlocked]="moveBlockedReason(link, 'up')"
+                [moveDownBlocked]="moveBlockedReason(link, 'down')"
+                [nestBlocked]="nestBlockedReason(link)"
+                [chipLabel]="threadLabel(link.sublinkCount + 1)"
+                [toggleLabel]="threadLabel(childCountOf(link) + 1)"
+                [showOccurred]="!isSameMinute(link.created, link.occurredAt)"
+                (selectionToggle)="toggleRowSelection(link.id)"
+                (conversationToggle)="toggleExpanded(link.id)"
+                (approve)="approveLink(link)"
+                (hide)="hideLink(link)"
+                (markCompleted)="markCompleted(link)"
+                (moveUp)="moveLinkUp(link)"
+                (moveDown)="moveLinkDown(link)"
+                (nestUnder)="nestSelectedUnder(link)"
+                (ungroup)="ungroupLink(link)"
+                (remove)="deleteLink(link)"
+              ></tr>
             } @empty {
               <tr hlmTr>
                 <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">

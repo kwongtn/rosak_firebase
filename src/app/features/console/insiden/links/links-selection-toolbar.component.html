@@ -1,0 +1,95 @@
+<!--
+  Selection toolbar. Rendered ALWAYS (not only once something is ticked) so the
+  affordance is discoverable, and so a blocked action shows up as a disabled
+  button with a stated reason rather than as a button that is simply absent.
+
+  ⚠️ THAT RULE IS NOW NARROWER, AND ONLY FOR "Group into thread": it is the ONE
+  action this toolbar owns, it needs TWO ticks, and a dead single button in a
+  toolbar of its own does not read as broken — a dead PAIR on every row of the
+  table does, which is why the per-row "Nest under…" waits for the first tick
+  instead (`nestSelectionReady`). The hint below is what carries the discovery
+  either way, and it has a zero-selection and a one-selection spelling so it
+  cannot under-sell nesting's one-tick minimum.
+
+  TWO different minimums live here on purpose: "Group into thread" needs two
+  (a one-link conversation is a no-op that still renders as a conversation),
+  while the per-row "Nest under…" needs only ONE — with a target, the same
+  call makes the ticked rows that row's direct children, so a single link is
+  the basic way a conversation gains its first child.
+-->
+<div class="flex flex-wrap items-center gap-2">
+  <button
+    hlmBtn
+    size="sm"
+    data-testid="group-selected"
+    [disabled]="isLoading() || !canGroupSelection()"
+    (click)="groupSelected.emit()"
+  >
+    Group into thread
+  </button>
+  <span class="text-muted-foreground text-xs" data-testid="selection-count"
+    >{{ selectedCount() }} selected</span
+  >
+  @if (selectedCount() > 0) {
+    <button hlmBtn size="sm" variant="ghost" (click)="clearSelection.emit()">
+      Clear selection
+    </button>
+  }
+  @if (selectedCount() < 2) {
+    <span class="text-muted-foreground text-xs" data-testid="selection-hint">
+      @if (selectedCount() === 1) {
+        One link ticked — use Nest under… on the row it should sit beneath, or tick one more to
+        group them into a conversation.
+      } @else {
+        Tick a link to nest it under another, or tick two or more to group them into one
+        conversation.
+      }
+    </span>
+  }
+  <!--
+    Why the per-row sequence actions are ABSENT, and the ONE-CLICK way out.
+    `reorderSocialMediaLinks` permutes ONE sibling set, so a filtered page can
+    only send part of it — and the server would accept the part and leave the
+    rows the admin cannot see at the end of the conversation. The queue
+    DEFAULTS to Pending, which is already a filter that can hide completed
+    siblings, so stating the reason is not enough: without the action the
+    admin has no discoverable route to the enabled state ("Reset" re-applies
+    Pending). `showAllLinks` drops every filter, status included, so the
+    loaded set is provably the whole table.
+
+    ⚠️ NO `[disabled]` ON "Show all links", DELIBERATELY. It used to grey itself
+    out mid-load, which made the one action that can unblock the queue look
+    unavailable exactly when an admin reaches for it. `load()` now queues a
+    mid-flight arrival and replays it, so a click during the first load really
+    does produce the unfiltered queue — a never-disabled button backed by a
+    handler that cannot swallow the click is the whole pair. See `load()`.
+
+    `w-full` + `flex-1 min-w-0` on the sentence + `ml-auto` on the button: the
+    hint is a full-width aside of this toolbar and the action is its
+    resolution, so the action belongs at the RIGHT edge where the eye lands
+    after reading the reason, and the sentence wraps under nothing.
+  -->
+  @if (!queueIsComplete()) {
+    <span
+      class="text-muted-foreground flex w-full items-center gap-2 text-xs"
+      data-testid="reorder-hint"
+    >
+      <span class="flex-1 min-w-0">
+        Reordering needs every link loaded: a filtered page may be missing siblings, and a partial
+        sequence would push the hidden ones to the end.
+      </span>
+      <button
+        hlmBtn
+        size="sm"
+        variant="outline"
+        type="button"
+        data-testid="reorder-show-all"
+        class="ml-auto shrink-0"
+        title="Loads every link, including completed ones, so the queue is complete and reordering turns on."
+        (click)="showAllLinks.emit()"
+      >
+        Show all links
+      </button>
+    </span>
+  }
+</div>

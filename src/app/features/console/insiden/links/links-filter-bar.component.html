@@ -1,0 +1,117 @@
+<div hlmCard class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+  <label class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+    Search (URL, title)
+    <input
+      hlmInput
+      type="text"
+      placeholder="e.g. twitter.com, LRT"
+      [value]="searchTerm()"
+      (input)="searchInput.emit($any($event.target).value)"
+    />
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Category
+    <select
+      hlmSelect
+      [value]="categoryId()"
+      (change)="categoryChange.emit($any($event.target).value)"
+    >
+      <option value="">All categories</option>
+      @for (category of categories(); track category.id) {
+        <option [value]="category.id">{{ category.name }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Status
+    <select
+      hlmSelect
+      [value]="completedFilter()"
+      (change)="completedChange.emit($any($event.target).value)"
+    >
+      <option value="any">{{ completedFilterLabel.any }}</option>
+      <option value="pending">{{ completedFilterLabel.pending }}</option>
+      <option value="completed">{{ completedFilterLabel.completed }}</option>
+    </select>
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Line
+    <select
+      hlmSelect
+      [value]="filterLineId()"
+      (change)="filterLineChange.emit($any($event.target).value)"
+    >
+      <option value="">All lines</option>
+      @for (line of lineOptions(); track line.id) {
+        <option [value]="line.id">{{ line.label }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Vehicle
+    <select
+      hlmSelect
+      [value]="filterVehicleId()"
+      (change)="filterVehicleChange.emit($any($event.target).value)"
+    >
+      <option value="">All vehicles</option>
+      @for (vehicle of filterVehicleOptions(); track vehicle.id) {
+        <option [value]="vehicle.id">{{ vehicle.label }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
+    Station
+    <select
+      hlmSelect
+      [value]="filterStationId()"
+      (change)="filterStationChange.emit($any($event.target).value)"
+    >
+      <option value="">All stations</option>
+      @for (station of filterStationOptions(); track station.id) {
+        <option [value]="station.id">{{ station.label }}</option>
+      }
+    </select>
+  </label>
+
+  <button hlmBtn type="button" variant="outline" class="self-end" (click)="reset.emit()">
+    Reset
+  </button>
+
+  <!--
+    RELABELLED "Submitted between" -> "Occurred between" on purpose. The two
+    resolver args these controls drive are `occurredAfter`/`occurredBefore`,
+    i.e. the EVENT instant, and it is the same column the table is sorted by
+    (`-occurredAt, -id`) — so "Submitted" described a filter the server does
+    not apply, and collided with the "Submitted" column one screen lower,
+    which is a different clock entirely. An admin chasing a report that
+    arrived this morning but happened last week now has an honest control.
+    The `Submitted` column is untouched: it still leads with `created`, the
+    queue's triage clock, and now carries `occurredAt` as a second line only
+    where the two differ.
+  -->
+  <div class="flex flex-col gap-1.5 text-sm sm:col-span-2">
+    Occurred between
+    <div class="flex flex-wrap items-center gap-1.5">
+      <input
+        hlmInput
+        type="date"
+        aria-label="Occurred from date"
+        [value]="filterDateFrom()"
+        (input)="dateFromInput.emit($any($event.target).value)"
+      />
+      <input
+        hlmInput
+        type="date"
+        aria-label="Occurred to date"
+        [value]="filterDateTo()"
+        (input)="dateToInput.emit($any($event.target).value)"
+      />
+    </div>
+  </div>
+</div>
