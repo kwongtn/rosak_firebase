@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "src/app/features/console/insiden/links/links.component.ts": {
-    "mtime": 1790956591.9641225,
-    "seen": 1791128789.9732854,
-    "ast_hash": "0ce5b6ee40998070c2e72c33fe80ac6a",
+    "mtime": 1791363733.1372643,
+    "seen": 1791364629.039655,
+    "ast_hash": "2bad03902ab6090ac46969626e893d10",
     "semantic_hash": ""
   },
   "src/app/features/console/insiden/pending/pending.component.spec.ts": {
@@ -2310,9 +2310,9 @@
     "semantic_hash": ""
   },
   "docs/components/console.md": {
-    "mtime": 1790956591.9602022,
-    "seen": 1791128789.9735286,
-    "ast_hash": "c8632e91f96bf91eb22322c3cbe343ed",
+    "mtime": 1791364559.4723394,
+    "seen": 1791364629.0401306,
+    "ast_hash": "5c1857948d3745e1d59960895b443880",
     "semantic_hash": ""
   },
   "docs/components/gallery.md": {
@@ -2472,15 +2472,15 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/SUMMARY.md": {
-    "mtime": 1791359741.535381,
-    "seen": 1791359870.137116,
-    "ast_hash": "a10dac2effe8498c36124397a6ab64dd",
+    "mtime": 1791364610.2414513,
+    "seen": 1791364629.0401685,
+    "ast_hash": "7efa82d9367cb95aea7ed4216bb743d5",
     "semantic_hash": ""
   },
   "docs/progress/2026/SUMMARY.md": {
-    "mtime": 1791359741.8547497,
-    "seen": 1791359870.1371176,
-    "ast_hash": "7b441e1484d52d280eae73f3fc66fbfe",
+    "mtime": 1791364610.4214199,
+    "seen": 1791364629.0401695,
+    "ast_hash": "fccf199f617e46b77f33e8aabe1893ed",
     "semantic_hash": ""
   },
   "public/ads.txt": {
@@ -2514,9 +2514,9 @@
     "semantic_hash": ""
   },
   "src/app/features/console/insiden/links/links.component.html": {
-    "mtime": 1790956591.9623373,
-    "seen": 1791128789.973571,
-    "ast_hash": "4ec5bcde2b4874af846c9bd9ed65a69f",
+    "mtime": 1791362702.9368668,
+    "seen": 1791364629.0401812,
+    "ast_hash": "77087986398eff3060e6f471eb7130aa",
     "semantic_hash": ""
   },
   "src/app/features/console/insiden/pending/pending.component.html": {
@@ -2910,9 +2910,9 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/07.md": {
-    "mtime": 1791359740.968433,
-    "seen": 1791359870.1371143,
-    "ast_hash": "fb39d699c8180020a79a082df707d209",
+    "mtime": 1791364609.9739807,
+    "seen": 1791364629.0401673,
+    "ast_hash": "28dda67f0987b845e70dba93a7e88728",
     "semantic_hash": ""
   },
   "archive/frontend-map/00-overview.md": {
@@ -3021,6 +3021,90 @@
     "mtime": 1791358893.216844,
     "seen": 1791359870.1369793,
     "ast_hash": "a470b0d78379a9a43d1f4d054174e863",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-queue-filter.util.spec.ts": {
+    "mtime": 1791363402.0392792,
+    "seen": 1791364629.0396416,
+    "ast_hash": "1e798438e4434e709c62945f8dd6d3db",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-queue-filter.util.ts": {
+    "mtime": 1791362284.3185854,
+    "seen": 1791364629.0396433,
+    "ast_hash": "0d7e3cb727d4ccf517d4c21c67ab2d00",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-queue-row.component.ts": {
+    "mtime": 1791362117.4899125,
+    "seen": 1791364629.0396447,
+    "ast_hash": "3de7fa01b204d8f23a62ffa733c22e53",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-reference.util.spec.ts": {
+    "mtime": 1791363740.0817778,
+    "seen": 1791364629.0396461,
+    "ast_hash": "e589c629586325ddd62092b7d203cc03",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-reference.util.ts": {
+    "mtime": 1791363752.6944892,
+    "seen": 1791364629.0396473,
+    "ast_hash": "3560814ea3fb926c5cc66ed8b45d48b0",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-tree.util.spec.ts": {
+    "mtime": 1791363402.339048,
+    "seen": 1791364629.039648,
+    "ast_hash": "3cbae35e333eb588e3075d2a995f4086",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-tree.util.ts": {
+    "mtime": 1791361124.0572503,
+    "seen": 1791364629.039649,
+    "ast_hash": "2d9c1865dbf276394028602c21bc5578",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-url-cell.component.ts": {
+    "mtime": 1791361967.1261723,
+    "seen": 1791364629.0396502,
+    "ast_hash": "df9fdf82bd2410d14e433d8fa747bd12",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/links-filter-bar.component.ts": {
+    "mtime": 1791362458.805353,
+    "seen": 1791364629.0396516,
+    "ast_hash": "027977c3bb6f003fea90d81cdd4d3640",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/links-selection-toolbar.component.ts": {
+    "mtime": 1791362484.6804457,
+    "seen": 1791364629.0396526,
+    "ast_hash": "24860bd4a88c20dfe1cc4ce8e2a44735",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-queue-row.component.html": {
+    "mtime": 1791363402.2530067,
+    "seen": 1791364629.0401769,
+    "ast_hash": "bc8427e1ed61c41492421912e016f4be",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/link-url-cell.component.html": {
+    "mtime": 1791363402.4229193,
+    "seen": 1791364629.040178,
+    "ast_hash": "160c5e15da0a66bc61b7895e0d271f21",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/links-filter-bar.component.html": {
+    "mtime": 1791363402.4769714,
+    "seen": 1791364629.0401793,
+    "ast_hash": "0a1335ae3e2fd12b41585364e1df5dfb",
+    "semantic_hash": ""
+  },
+  "src/app/features/console/insiden/links/links-selection-toolbar.component.html": {
+    "mtime": 1791363402.5075603,
+    "seen": 1791364629.04018,
+    "ast_hash": "61c06ce8d7a501bff7d96b4b0b6b321d",
     "semantic_hash": ""
   }
 }
