@@ -10,7 +10,9 @@ import {
   readTextQueryParam,
   writeQueryParams,
 } from "../../../core/url-state/query-param.util";
-import { BOARD_SORTS, BoardSort, DEFAULT_BOARD_SORT, HomeStore } from "../data/home.store";
+import { HomeStore } from "../data/home.store";
+import { BOARD_SORTS, DEFAULT_BOARD_SORT } from "../data/board-lines.util";
+import type { BoardSort } from "../data/board-lines.util";
 import { HomeViewModeService } from "../data/home-view-mode.service";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { NetworkHeatStripComponent } from "../pro/network-heat-strip.component";

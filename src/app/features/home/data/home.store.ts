@@ -35,71 +35,26 @@ import {
 } from "./home.queries";
 import type { FeedLinkStatusFilter } from "./feed-filter.util";
 import {
-  NetworkSummary,
-  isInService,
-  lineNeedsAttention,
-  sortLinesBySeverity,
-  summarizeNetwork,
-} from "./network-summary.util";
-import { passengerSeverityRank } from "./passenger-status.util";
-import { hasOfficialPulseLink, statusConfidence } from "./status-confidence.util";
-
-/**
- * "Does this line have any data behind it?", as ONE rule every consumer reads.
- *
- * 🔴 **This is deliberately `statusConfidence(line).level !== "none"`, spelled here so it can be
- * documented as a user-visible rule** rather than re-derived by the Pro board's "only lines with data"
- * toggle and by anything else that needs the same judgement.
- *
- * The alternative spelling — `statusReportCount > 0 || passengerStatus != null || status !== "ACTIVE"` —
- * reads more obviously and is WRONG, because `passengerStatus` is never null on a line that has been
- * read: the backend derives it, and `NORMAL` is its "nothing notable" answer. A toggle built on that
- * would keep every quiet line on screen and claim the page "has data" about a line nobody ever
- * reported — while the board's confidence chip beside it says "No recent reports". Two parts of one
- * page disagreeing about the same line in the same second is the exact failure the chip exists to
- * prevent.
- *
- * So "has data" means exactly what the chip means: **a report inside the line's own rolling window,
- * OR a rider-reported passenger status above `NORMAL`, OR a non-`ACTIVE` operational status, OR an
- * official post.** `passengerStatus: "NORMAL"` is the derived absence and is not evidence, and a
- * non-`ACTIVE` status IS evidence even with zero reports behind it (an operator-declared disruption
- * nobody has filed about is still something the page knows).
- */
-function lineHasData(line: LinePulse): boolean {
-  return (
-    statusConfidence({
-      reportCount: line.statusReportCount,
-      passengerStatus: line.passengerStatus,
-      status: line.status,
-      hasOfficialPost: hasOfficialPulseLink(line.pulseLinks),
-    }).level !== "none"
-  );
-}
-
-/** Links per GraphQL page: the initial read and every `loadMore()` continuation ask for this
- * many. A fetch size only — the page renders every loaded link and "Load More" pulls one
- * more continuation page. */
-export const FEED_PAGE_SIZE = 8;
-
-/** Links per page for the collapsed "Last Week" section. Larger than the today feed because it
- * spans up to seven calendar days; `alignPageToDay` keeps a page from ending mid-day. */
-export const LAST_WEEK_PAGE_SIZE = 20;
-
-/**
- * Links the Pro dashboard's OFFICIAL-NOTICES archive asks for.
- *
- * Far larger than the two rendered feeds' page sizes on purpose: those pages are the reader's
- * scrolling list, where eight rows is a screenful and every extra row is a query the reader pays
- * for. The archive is a reference panel, not a list to scroll — the reader wants "is there an
- * operator statement about this", and the cost of answering that from the newest 8 public links is
- * that an official post from last month is simply not in them. Fifty covers a Pro reader's whole
- * plausible window, and the panel shows what it holds rather than claiming the rest does not exist.
- *
- * The number is the FETCH size and nothing more: the archive renders every official row it is given
- * (there is no Load More and no pagination affordance), so this doubles as the honest upper bound
- * on what the panel can show.
- */
-export const OFFICIAL_NOTICES_PAGE_SIZE = 50;
+  BOARD_SORTS,
+  DEFAULT_BOARD_SORT,
+  LINE_STATUSES,
+  PASSENGER_STATUSES,
+  filterProLines,
+  partitionBoardLines,
+} from "./board-lines.util";
+import type { BoardLineGroups, BoardSort } from "./board-lines.util";
+import {
+  FEED_PAGE_SIZE,
+  HOME_FEED_COLLAPSE_VARS,
+  LAST_WEEK_PAGE_SIZE,
+  OFFICIAL_NOTICES_VARS,
+  dedupeEdges,
+  maxFeedTotalCount,
+  mergeFeedPageInfo,
+  recordSubtreeVotes,
+  resolveUserVote,
+} from "./home-feed.util";
+import { NetworkSummary, summarizeNetwork } from "./network-summary.util";
 
 /**
  * How long the post-submit highlight ring stays on the line that was reported about.
@@ -112,65 +67,6 @@ export const OFFICIAL_NOTICES_PAGE_SIZE = 50;
 export const HIGHLIGHT_VISIBLE_MS = 2000;
 
 /**
- * The shared `collapseThreads` argument for every home-feed read — the two `graphqlResource`s, their
- * two `loadMore*` continuations, and the two authenticated vote-overlay reads.
- *
- * This is REQUIRED, not a cosmetic grouping preference, and the reason is the feed's ordering.
- * Every link list is ordered `occurredAt DESC, id DESC`, and a thread's members are NOT generally
- * adjacent in that order: an admin can group a 09:00 post with an 11:00 post, and the feed happily
- * returns two rows several positions apart — potentially on different pages. Client-side grouping of
- * a flat page is therefore unsound: a sublink can arrive with its root nowhere on the page, and the
- * two would render as two unrelated links.
- *
- * Collapsing pushes the decision to the backend, which returns conversation ROOTS only and nests each
- * one's whole subtree under `sublinks` — a self-contained unit that needs no second request. Two
- * consequences that make this the right call rather than merely a tidier one:
- * - `totalCount` counts ROOTS while collapsing, so the page's "Showing N of M" keeps counting the
- *   rows it actually renders instead of inflating behind conversations the user has not expanded.
- * - The continuation pages MUST agree with the first page. A collapsed first page followed by an
- *   uncollapsed continuation would list every root twice and render its sublinks as loose rows,
- *   which is why this constant is spread into `loadMore()`/`loadMoreLastWeek()` too.
- *
- * Deliberately the ONLY surface that collapses (plan decision 4): the /insiden tab, the situasi tab
- * and My Links stay flat lists and must not send this flag.
- *
- * SSR-safe: a compile-time constant, so the server render and the client hydration compute identical
- * variables and the TransferState payload is reused instead of refetched — the reason the last-week
- * window is a backend-computed boolean rather than a `new Date()` baked into the variables.
- */
-const HOME_FEED_COLLAPSE_VARS = { collapseThreads: true } as const;
-
-/**
- * The ONE variables object the official-notices archive read is ever sent with.
- *
- * A compile-time constant for the reason every other home-feed variables object is one: the server
- * render and the client hydration must compute STRUCTURALLY IDENTICAL variables or the SSR
- * TransferState payload is discarded and the read fires twice. There is no `new Date()` here and no
- * client clock of any kind, which is what lets the archive exist at all (see below).
- *
- * 🔴 **NO WINDOW FLAGS — that is the archive.** Neither `currentServiceDayOnly` (backend default
- * `false`) nor `lastWeekOnly` (default `false`) is sent, so the read asks for the newest
- * {@link OFFICIAL_NOTICES_PAGE_SIZE} public `LIVE` links of ALL time. An operator statement from
- * nine days ago is still an operator statement, and a windowed read would answer a different
- * question than the panel claims to answer. Computing a window on this side instead would need a
- * date, and a date in query variables breaks SSR's variable equality — so the archive is built from
- * the ordering the backend already applies (`occurredAt DESC, id DESC`) rather than from a
- * client-side cut.
- *
- * `collapseThreads` is spread in for the same reason the two rendered feeds carry it, and the
- * effect matters for this panel too: with it, one conversation root arrives with its whole subtree
- * nested, so the newest 50 rows really are 50 cards' worth of history rather than 50 rows of a few
- * threads. Without it, a page dominated by conversations would drop most of the operator's older
- * posts off the end. (This read is deliberately NOT part of the vote-overlay id set — the archive
- * renders no votes; see the widget's own doc.)
- */
-const OFFICIAL_NOTICES_VARS = Object.freeze({
-  first: OFFICIAL_NOTICES_PAGE_SIZE,
-  status: "LIVE",
-  ...HOME_FEED_COLLAPSE_VARS,
-} as const);
-
-/**
  * The most line ids `linesStatusHistory` accepts.
  *
  * The backend answers anything above this with a typed GraphQL error rather than a silent
@@ -179,134 +75,6 @@ const OFFICIAL_NOTICES_VARS = Object.freeze({
  * declared next to the resource so a future backend cap bump has exactly one place to move.
  */
 export const HISTORY_LINE_ID_CAP = 64;
-
-/**
- * How the board's "All lines" group orders the lines no higher group claimed.
- *
- * `severity` is the default because the board's entire job is "what is broken first", and it is the
- * same order the hero's callout and the "Needs attention" group use — one reader, one order, so the
- * page can never claim a line is fine while listing it below a worse one. `name` is the alphabetical
- * fallback for a reader who wants the network as a list of names.
- *
- * 🔴 This sorts ONLY the "All lines" group. "Needs attention" and "My lines" are always
- * severity-sorted, deliberately: both are short, both are the reason the reader came to the page,
- * and re-ordering them alphabetically would put a dead line under a healthy one for no gain.
- */
-export type BoardSort = "severity" | "name";
-
-/** The board's sort with nothing chosen — also the value the URL omits. */
-export const DEFAULT_BOARD_SORT: BoardSort = "severity";
-
-/** Every accepted `?sort=` value, for the URL's own parse-and-degrade. */
-export const BOARD_SORTS: readonly BoardSort[] = ["severity", "name"];
-
-/** Every `LineStatus`, for the Pro board's operational-status filter's own options. Named once so a
- * control cannot offer a value the data cannot hold. */
-export const LINE_STATUSES: readonly LineStatus[] = [
-  "ACTIVE",
-  "PARTIAL_ACTIVE",
-  "PARTIAL_DISRUPTION",
-  "TOTAL_DISRUPTION",
-  "TESTING",
-  "DEFUNCT",
-];
-
-/** Every `PassengerStatus`, for the Pro board's passenger filter's own options. */
-export const PASSENGER_STATUSES: readonly PassengerStatus[] = [
-  "NORMAL",
-  "BUSY",
-  "CROWDED",
-  "EXTREMELY_CROWDED",
-  "BACKLOGGED",
-  "DELAYED",
-  "DISRUPTED",
-];
-
-/** Local name compare for `code`, the last tiebreak of the severity order as well as the whole of
- * the `name` order. `localeCompare` rather than `<`: MRT line codes mix letters and digits, and a
- * raw character-code compare sorts "K10" before "K2". */
-function byCode(a: LinePulse, b: LinePulse): number {
-  return a.code.localeCompare(b.code);
-}
-
-/**
- * Merge helper for a refetched first page + already-appended continuation pages, de-duplicated by
- * `node.id` and keeping the FIRST occurrence (i.e. the backend's own order: first page first).
- *
- * This is a correctness requirement, not tidiness. The poll beat / manual refresh re-reads page one
- * WITHOUT dropping the appended pages (dropping them would wipe the user's Load More progress every
- * 30s — see `reloadFirstPages()`), and the two sets can then legitimately OVERLAP: an admin edit
- * between the two reads moves a row, so a row an appended page already holds comes back INTO page
- * one and the same id lands in both. A duplicate id is not cosmetic — the page renders
- * `@for (link of store.feedLinks(); track link.id)`, and a repeated track key throws on the next
- * render of that view. First-wins keeps the newest refetched copy for a row that is in both.
- *
- * SCOPE — OVERLAP ONLY, and that limit is load-bearing rather than an omission. The other
- * consequence of preserving appended pages is INVISIBLE to this merge: a row DELETED (or aged out
- * of the window) between the two reads is simply ABSENT from the refetched page one, while its
- * older copy is still sitting in an appended page. Dedupe can only see the ids it is GIVEN, and the
- * appended copy is still given, so that row keeps rendering — correctly as far as this function is
- * concerned, because "one id, one row" is the whole of its contract. See `reloadFirstPages()` for
- * when such a row is actually cleared.
- */
-function dedupeEdges(edges: FeedLinkEdge[]): FeedLinkEdge[] {
-  const seenIds = new Set<string>();
-  const merged: FeedLinkEdge[] = [];
-  for (const edge of edges) {
-    if (seenIds.has(edge.node.id)) {
-      continue;
-    }
-    seenIds.add(edge.node.id);
-    merged.push(edge);
-  }
-  return merged;
-}
-
-/**
- * One node of a collapsed feed conversation, as far as the VOTE OVERLAY walk cares: the id the
- * overlay is keyed by, the row's own `userVote`, and the children to recurse into.
- *
- * Declared structurally rather than as `FeedLink` or one of the `FEED_QUERY` sublink levels,
- * because the walk has to accept ALL of them: `FEED_QUERY` nests `sublinks` four levels deep and
- * each level is its own derived type (they stop at different depths), so naming any single one
- * would type the recursion at exactly one level — which is the bug this function exists to fix.
- * `sublinks` is OPTIONAL here because the deepest level selects no children at all, and a target
- * property that may be absent is satisfied by a source type that omits it. Every level's `id` /
- * `userVote` are required in its own type, so nothing unchecked reaches the overlay.
- */
-interface VoteOverlayNode {
-  id: string;
-  userVote: number;
-  sublinks?: VoteOverlayNode[] | null;
-}
-
-/**
- * Record every non-zero vote in one conversation's whole subtree into `overlay`, mutating it in
- * place — the overlay map is a local accumulator, never a signal, so the reference-based
- * reactivity this file is built on does not apply inside it.
- *
- * The RECURSION is the point, and it is unbounded on purpose. The collapsed feed renders a root
- * plus its entire tree, and every node in that tree is a votable card, so the set of ids the page
- * can draw is `∪ over every level of sublinks` — not just the roots and not just their direct
- * children. A walk that stopped at either of those two levels shipped as a live bug: the reads
- * were correctly collapsed and window-matched, and members one level down still read as the
- * ANONYMOUS zero, because a missing overlay entry falls back to `link.userVote`, which for
- * `graphqlResource` data is always 0. So: no depth limit, no `MAX_THREAD_DEPTH` mirror, and no
- * early exit — the server's write-side cap is not the client business, and a client that mirrors
- * it silently loses a level the day the cap moves.
- *
- * Only NON-ZERO votes are recorded, so the overlay never shadows a genuine anonymous 0. `?? []`
- * because `strictNullChecks` is OFF: a hand-built fixture or a partially cached payload must not
- * throw inside this fire-and-forget walk.
- */
-function recordSubtreeVotes(node: VoteOverlayNode, overlay: Record<string, number>): void {
-  if (node.userVote !== 0) {
-    overlay[node.id] = node.userVote;
-  }
-  for (const child of node.sublinks ?? []) {
-    recordSubtreeVotes(child, overlay);
-  }
-}
 
 /**
  * Route-scoped store for the community front page (provided by the route in a later wave —
@@ -637,22 +405,6 @@ export class HomeStore {
   readonly feedStatusFilter = this._feedStatusFilter.asReadonly();
 
   /**
-   * The lines the PRO board draws, over every Pro filter.
-   *
-   * Each axis is applied in order and independently, so a reader who set two filters sees their
-   * intersection rather than whichever control fired last. The ORDER of the three is only about
-   * readability of the predicate; they are independent `&&`s.
-   *
-   * 🔴 **"Has data" is {@link lineHasData} — `statusConfidence(line).level !== "none"` — and it is
-   * deliberately the SAME rule the board's confidence chip already shows the reader.** That is not
-   * convenience — it is what makes the filter honest. See the function for why the more obvious
-   * spelling would claim a quiet line has data while the chip beside it says "No recent reports".
-   *
-   * Every other axis is exact equality — `status === X`, `severity >= X` — because those are literal
-   * values the reader named; only this one is a judgement call, which is why it is the one published
-   * in the methodology registry.
-   */
-  /**
    * The lines the BOARD draws: `lines()` narrowed by the three Pro filters, which default to no
    * narrowing.
    *
@@ -666,22 +418,13 @@ export class HomeStore {
    * NETWORK, and the two history reads are keyed by line id. Narrowing those would make the page
    * describe a subset while claiming to describe the network.
    */
-  readonly visibleLines = computed<LinePulse[]>(() => {
-    const status = this._proStatusFilter();
-    const passenger = this._proPassengerFilter();
-    const onlyWithData = this._proOnlyWithData();
-    const floor = passenger === null ? null : passengerSeverityRank(passenger);
-
-    return this.lines().filter((line) => {
-      if (status !== null && line.status !== status) {
-        return false;
-      }
-      if (floor !== null && passengerSeverityRank(line.passengerStatus) < floor) {
-        return false;
-      }
-      return !onlyWithData || lineHasData(line);
-    });
-  });
+  readonly visibleLines = computed<LinePulse[]>(() =>
+    filterProLines(this.lines(), {
+      status: this._proStatusFilter(),
+      passengerStatus: this._proPassengerFilter(),
+      onlyWithData: this._proOnlyWithData(),
+    }),
+  );
 
   /** Sets the operational-status filter. `null` (or `""`) clears it; an unknown value is a no-op. */
   setProStatusFilter(status: LineStatus | null): void {
@@ -871,34 +614,11 @@ export class HomeStore {
    * ------------------------------------------------------------------ *
    *
    * 🔴 **The four groups partition `visibleLines()`: every line appears in EXACTLY ONE of
-   * `attentionLines` / `myLines` / `allLines` / `othersLines`.** That is the property the whole
-   * board rests on, and it is achieved by ONE decision, applied in one order:
-   *
-   *  - **Attention membership always wins.** A line that needs attention is in `attentionLines` even
-   *    when the reader has pinned it. Pinning is a way of saying "I care about this line", not a way
-   *    of hiding a broken one further down the page — a pinned line with a `TOTAL_DISRUPTION` status
-   *    is exactly the line the reader most wants at the top, and duplicating it into "My lines" would
-   *    print it twice on one page. Out-of-service lines (TESTING/DEFUNCT) never reach this group:
-   *    `lineNeedsAttention` skips them, so a closed or pre-opening line is never painted as a
-   *    problem.
-   *  - `myLines` is therefore "pinned AND NOT already in attention" — including a pinned
-   *    out-of-service line: for those, "pin wins", because the reader explicitly asked to keep it.
-   *  - `allLines` is the in-service rest — "neither claimed, and actually running" — so it never
-   *    absorbs a Defunct/Testing line it does not describe.
-   *  - `othersLines` is "out of service AND unpinned" — the administrative bucket, rendered LAST as
-   *    "Others", never counted by the hero and never listed as needing attention.
-   *
-   * The consequence is the point: no line renders twice, and no line disappears — a reader who pins
-   * three lines still sees every other line, and one bad report can never make a line vanish from a
-   * group it belonged to. Each group subtracts the ids the previous ones CLAIMED rather than
-   * re-deriving its own predicate, because four independently-written filters is how a line ends up
-   * in two groups or in none.
-   *
-   * The counts and the headline come from the SAME pure `summarizeNetwork` the hero reads, so the
-   * hero's tiles and the board's groups cannot disagree about which lines need attention — which is
-   * also why the partition is taken over `visibleLines()` (the board's own Pro filters) rather than
-   * `lines()`: the partition has to be over the same set the rows are drawn from, or a Pro filter
-   * would shrink a group without shrinking the others.
+   * `attentionLines` / `myLines` / `allLines` / `othersLines`.** The full rule (attention always
+   * wins, "pin wins" for an out-of-service line, the Others bucket) lives with
+   * {@link partitionBoardLines}; this store only feeds it the board's own Pro filters, the reader's
+   * pins and the sort — so the hero's tiles and the board's groups cannot disagree about which lines
+   * need attention.
    */
 
   /** The rolled-up network state (headline, counts, worst line) over the one lines read. */
@@ -926,30 +646,20 @@ export class HomeStore {
     this._boardSort.set(sort);
   }
 
-  /** Lines needing attention, worst first — the board's full `LinePulseCardComponent` group. */
-  readonly attentionLines = computed<LinePulse[]>(() =>
-    sortLinesBySeverity(this.visibleLines().filter(lineNeedsAttention)),
+  /** The board's four groups, computed once so every projection and the partition share one pass. */
+  private readonly _boardPartition = computed<BoardLineGroups>(() =>
+    partitionBoardLines(this.visibleLines(), this.preferences.pinnedLineIds(), this.boardSort()),
   );
+
+  /** Lines needing attention, worst first — the board's full `LinePulseCardComponent` group. */
+  readonly attentionLines = computed<LinePulse[]>(() => this._boardPartition().attention);
 
   /** The reader's pinned lines that no higher group claimed, worst first. Includes pinned
    * out-of-service lines: for them, "pin wins" over the Others bucket. */
-  readonly myLines = computed<LinePulse[]>(() => {
-    const claimed = new Set(this.attentionLines().map((line) => line.id));
-    const pinned = new Set(this.preferences.pinnedLineIds());
-    return sortLinesBySeverity(
-      this.visibleLines().filter((line) => pinned.has(line.id) && !claimed.has(line.id)),
-    );
-  });
+  readonly myLines = computed<LinePulse[]>(() => this._boardPartition().mine);
 
   /** The in-service lines neither group above claimed, in the board's current sort. */
-  readonly allLines = computed<LinePulse[]>(() => {
-    const claimed = new Set([
-      ...this.attentionLines().map((line) => line.id),
-      ...this.myLines().map((line) => line.id),
-    ]);
-    const rest = this.visibleLines().filter((line) => isInService(line) && !claimed.has(line.id));
-    return this.boardSort() === "name" ? [...rest].sort(byCode) : sortLinesBySeverity(rest);
-  });
+  readonly allLines = computed<LinePulse[]>(() => this._boardPartition().all);
 
   /**
    * The out-of-service lines no group above claimed — the board's LAST group, "Others".
@@ -960,11 +670,7 @@ export class HomeStore {
    * out-of-service line stays in My lines instead — "pin wins" — which is why this group subtracts
    * the ids `myLines` claimed rather than filtering on pin state itself.
    */
-  readonly othersLines = computed<LinePulse[]>(() => {
-    const claimed = new Set(this.myLines().map((line) => line.id));
-    const rest = this.visibleLines().filter((line) => !isInService(line) && !claimed.has(line.id));
-    return this.boardSort() === "name" ? [...rest].sort(byCode) : sortLinesBySeverity(rest);
-  });
+  readonly othersLines = computed<LinePulse[]>(() => this._boardPartition().others);
 
   private readonly appendedEdges = signal<FeedLinkEdge[]>([]);
   private readonly appendedHasNext = signal<boolean | null>(null);
@@ -990,35 +696,22 @@ export class HomeStore {
 
   readonly feedLinks = computed<FeedLink[]>(() => this.edges().map((edge) => edge.node));
 
-  readonly feedPageInfo = computed<FeedLinkPageInfo | null>(() => {
-    const first = this.feedResource.data()?.publicSocialMediaLinks.pageInfo;
-    if (!first) {
-      return null;
-    }
-    return {
-      hasNextPage: this.appendedHasNext() ?? first.hasNextPage,
-      endCursor: this.nextCursor() ?? first.endCursor,
-    };
-  });
+  readonly feedPageInfo = computed<FeedLinkPageInfo | null>(() =>
+    mergeFeedPageInfo(
+      this.feedResource.data()?.publicSocialMediaLinks.pageInfo ?? null,
+      this.appendedHasNext(),
+      this.nextCursor(),
+    ),
+  );
 
-  /**
-   * The "Showing N of M" denominator for the today feed.
-   *
-   * `Math.max(...)`, NOT `appendedTotalCount() ?? first ?? 0`. That chain made the frozen appended
-   * total WIN over the live first-page one, and the beat now refreshes page one while every appended
-   * signal is deliberately left alone (see `reloadFirstPages()`) — so the appended reading is pinned
-   * at whatever the last continuation page happened to report and can silently disagree with the
-   * refreshed page one in either direction. The LIVE first-page total is the authoritative one (the
-   * same collapsed-roots count the resource's own `edges` came back with), and the appended total is
-   * only ever another reading of the same connection, so the larger of the two is never a lie: it is
-   * also the rule that a denominator must never be smaller than EITHER source, because a shrink
-   * under a reader who has already loaded more pages than the stale count knew about is the one
-   * reading that is visibly wrong ("Showing 40 of 12").
-   */
-  readonly feedTotalCount = computed<number>(() => {
-    const first = this.feedResource.data()?.publicSocialMediaLinks.totalCount;
-    return Math.max(this.appendedTotalCount() ?? 0, first ?? 0);
-  });
+  /** The "Showing N of M" denominator for the today feed — see {@link maxFeedTotalCount} for why it
+   * is the `Math.max` of the live first page and the appended reading. */
+  readonly feedTotalCount = computed<number>(() =>
+    maxFeedTotalCount(
+      this.appendedTotalCount(),
+      this.feedResource.data()?.publicSocialMediaLinks.totalCount ?? null,
+    ),
+  );
 
   /** First page (resource) + appended continuation pages of the last-week section, in backend
    * order (newest-first), de-duplicated by `node.id` like the today feed. */
@@ -1033,23 +726,22 @@ export class HomeStore {
     this.lastWeekEdges().map((edge) => edge.node),
   );
 
-  readonly lastWeekPageInfo = computed<FeedLinkPageInfo | null>(() => {
-    const first = this.lastWeekResource.data()?.publicSocialMediaLinks.pageInfo;
-    if (!first) {
-      return null;
-    }
-    return {
-      hasNextPage: this.lastWeekAppendedHasNext() ?? first.hasNextPage,
-      endCursor: this.lastWeekNextCursor() ?? first.endCursor,
-    };
-  });
+  readonly lastWeekPageInfo = computed<FeedLinkPageInfo | null>(() =>
+    mergeFeedPageInfo(
+      this.lastWeekResource.data()?.publicSocialMediaLinks.pageInfo ?? null,
+      this.lastWeekAppendedHasNext(),
+      this.lastWeekNextCursor(),
+    ),
+  );
 
   /** The "Showing N of M" denominator for the last-week section — `Math.max` of the two sources for
    * exactly the reason `feedTotalCount` documents. */
-  readonly lastWeekTotalCount = computed<number>(() => {
-    const first = this.lastWeekResource.data()?.publicSocialMediaLinks.totalCount;
-    return Math.max(this.lastWeekAppendedTotalCount() ?? 0, first ?? 0);
-  });
+  readonly lastWeekTotalCount = computed<number>(() =>
+    maxFeedTotalCount(
+      this.lastWeekAppendedTotalCount(),
+      this.lastWeekResource.data()?.publicSocialMediaLinks.totalCount ?? null,
+    ),
+  );
 
   /** The last-week links bucketed into local calendar days (up to 7 groups, newest first). */
   readonly lastWeekDayGroups = computed<FeedDayGroup[]>(() =>
@@ -1250,11 +942,7 @@ export class HomeStore {
 
   /** The caller's vote for a link: overlay first, else the anonymous feed value, else 0. */
   userVoteFor(linkId: string): number {
-    const overlay = this._userVotes()[linkId];
-    if (overlay !== undefined) {
-      return overlay;
-    }
-    return this.feedLinks().find((link) => link.id === linkId)?.userVote ?? 0;
+    return resolveUserVote(this._userVotes(), this.feedLinks(), linkId);
   }
 
   /** Records the caller's vote after a successful vote mutation. Records against the id the

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import type { LinePulse } from "../data/home.queries";
-import type { BoardSort } from "../data/home.store";
+import type { BoardSort } from "../data/board-lines.util";
 import { HomeStore } from "../data/home.store";
 import { HomeViewModeService } from "../data/home-view-mode.service";
 import { isInService, lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";

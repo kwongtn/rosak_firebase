@@ -1,5 +1,5 @@
 import type { BadgeVariants } from "../../../ui/badge/badge";
-import type { LineStatus, PassengerStatus } from "./home.queries";
+import type { LinePulse, LineStatus, PassengerStatus } from "./home.queries";
 
 /**
  * How much a line's reported status can be trusted, as ONE plain-language chip.
@@ -173,4 +173,36 @@ export function hasOfficialPulseLink(
   pulseLinks: readonly { isAutomated?: boolean | null }[] | null | undefined,
 ): boolean {
   return (pulseLinks ?? []).some((link) => link?.isAutomated === true);
+}
+
+/**
+ * "Does this line have any data behind it?", as ONE rule every consumer reads.
+ *
+ * 🔴 **This is deliberately `statusConfidence(line).level !== "none"`, spelled here so it can be
+ * documented as a user-visible rule** rather than re-derived by the Pro board's "only lines with data"
+ * toggle and by anything else that needs the same judgement.
+ *
+ * The alternative spelling — `statusReportCount > 0 || passengerStatus != null || status !== "ACTIVE"` —
+ * reads more obviously and is WRONG, because `passengerStatus` is never null on a line that has been
+ * read: the backend derives it, and `NORMAL` is its "nothing notable" answer. A toggle built on that
+ * would keep every quiet line on screen and claim the page "has data" about a line nobody ever
+ * reported — while the board's confidence chip beside it says "No recent reports". Two parts of one
+ * page disagreeing about the same line in the same second is the exact failure the chip exists to
+ * prevent.
+ *
+ * So "has data" means exactly what the chip means: **a report inside the line's own rolling window,
+ * OR a rider-reported passenger status above `NORMAL`, OR a non-`ACTIVE` operational status, OR an
+ * official post.** `passengerStatus: "NORMAL"` is the derived absence and is not evidence, and a
+ * non-`ACTIVE` status IS evidence even with zero reports behind it (an operator-declared disruption
+ * nobody has filed about is still something the page knows).
+ */
+export function lineHasData(line: LinePulse): boolean {
+  return (
+    statusConfidence({
+      reportCount: line.statusReportCount,
+      passengerStatus: line.passengerStatus,
+      status: line.status,
+      hasOfficialPost: hasOfficialPulseLink(line.pulseLinks),
+    }).level !== "none"
+  );
 }

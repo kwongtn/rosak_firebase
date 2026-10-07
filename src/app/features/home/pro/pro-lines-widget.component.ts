@@ -13,7 +13,8 @@ import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { NetworkBoardComponent } from "../line-pulse/network-board.component";
 import { LineStatus, PassengerStatus } from "../data/home.queries";
-import { HomeStore, LINE_STATUSES, PASSENGER_STATUSES } from "../data/home.store";
+import { HomeStore } from "../data/home.store";
+import { LINE_STATUSES, PASSENGER_STATUSES } from "../data/board-lines.util";
 import { passengerLabel } from "../data/passenger-status.util";
 
 /** The export's column set, written out once so the header row and the row builder cannot disagree. */

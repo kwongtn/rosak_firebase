@@ -34,7 +34,7 @@ import type {
 import type { FeedDayGroup } from "./data/feed-day-groups.util";
 import type { NetworkSummary } from "./data/network-summary.util";
 import { summarizeNetwork } from "./data/network-summary.util";
-import type { BoardSort } from "./data/home.store";
+import type { BoardSort } from "./data/board-lines.util";
 import { HomeStore } from "./data/home.store";
 import { HomeViewModeService } from "./data/home-view-mode.service";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";

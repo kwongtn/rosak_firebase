@@ -5,11 +5,12 @@ import {
   metricDoc,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
-import type { LineStatus, PassengerStatus } from "./home.queries";
+import type { LinePulse, LineStatus, PassengerStatus } from "./home.queries";
 import {
   CONFIRMED_MIN_REPORTS,
   StatusConfidenceInput,
   hasOfficialPulseLink,
+  lineHasData,
   statusConfidence,
 } from "./status-confidence.util";
 
@@ -243,5 +244,54 @@ describe("status-confidence.util: hasOfficialPulseLink", () => {
     expect(hasOfficialPulseLink([{ isAutomated: null }])).toBe(false);
     expect(hasOfficialPulseLink([{ isAutomated: 1 as unknown as boolean }])).toBe(false);
     expect(hasOfficialPulseLink([{ isAutomated: "yes" as unknown as boolean }])).toBe(false);
+  });
+});
+
+describe("status-confidence.util: lineHasData", () => {
+  /** A line with nothing notable: the confidence rule resolves it to `none`. */
+  function quietLine(overrides: Partial<LinePulse> = {}): LinePulse {
+    return {
+      id: "a",
+      code: "A",
+      displayName: "Line A",
+      displayColor: "#ff0000",
+      status: "ACTIVE",
+      inServiceVehicleCount: 0,
+      totalVehicleCount: 0,
+      passengerStatus: "NORMAL",
+      passengerStatusMessage: null,
+      statusReportCount: 0,
+      vehicleStatusCounts: [],
+      passengerStatusCount: 0,
+      statusWindowMinutes: 60,
+      pulseLinks: [],
+      ...overrides,
+    };
+  }
+
+  it("is false for a quiet line — a derived NORMAL passenger status is not evidence", () => {
+    // The exact failure the rule guards: NORMAL is the backend's "nothing notable" answer, not a
+    // report, so a line nobody has reported must not claim to "have data".
+    expect(lineHasData(quietLine())).toBe(false);
+  });
+
+  it("is true for a report inside the line's window", () => {
+    expect(lineHasData(quietLine({ statusReportCount: 1 }))).toBe(true);
+  });
+
+  it("is true for a non-ACTIVE operational status even with no reports behind it", () => {
+    expect(lineHasData(quietLine({ status: "PARTIAL_DISRUPTION" }))).toBe(true);
+  });
+
+  it("is true for a rider-reported passenger status above NORMAL", () => {
+    expect(lineHasData(quietLine({ passengerStatus: "CROWDED" }))).toBe(true);
+  });
+
+  it("is true for an operator-sourced pulse link", () => {
+    expect(
+      lineHasData(
+        quietLine({ pulseLinks: [{ isAutomated: true } as LinePulse["pulseLinks"][number]] }),
+      ),
+    ).toBe(true);
   });
 });

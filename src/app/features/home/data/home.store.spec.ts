@@ -17,13 +17,8 @@ import {
 } from "./home.queries";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { PRO_INCIDENT_LIMIT } from "./home.queries";
-import {
-  FEED_PAGE_SIZE,
-  HISTORY_LINE_ID_CAP,
-  HomeStore,
-  LAST_WEEK_PAGE_SIZE,
-  OFFICIAL_NOTICES_PAGE_SIZE,
-} from "./home.store";
+import { HISTORY_LINE_ID_CAP, HomeStore } from "./home.store";
+import { FEED_PAGE_SIZE, LAST_WEEK_PAGE_SIZE, OFFICIAL_NOTICES_PAGE_SIZE } from "./home-feed.util";
 
 /** The preferences service's own storage key, restated so a rename breaks this spec loudly rather
  * than silently seeding a payload nothing reads. */
