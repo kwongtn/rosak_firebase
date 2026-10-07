@@ -388,7 +388,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `reloadFirstPages()` and not `reloadAll()`; `reloadAll()` (full reset) stays with the submit box,
     the sheets and the retry banner.
 
-  - `data/` — `home.queries.ts` (GraphQL documents + types), `home.store.ts` (the route-scoped
+  - `data/` — the GraphQL query modules split by domain — `home.queries.ts` (the shared schema
+    enums), `home-board.queries.ts`, `home-feed.queries.ts` + `home-feed-items.ts`,
+    `home-history.queries.ts`, `home-incidents.queries.ts`, `home-feed-mutations.queries.ts` — plus
+    `home.store.ts` (the route-scoped
     `HomeStore`), `home-view-mode.service.ts` (the route-scoped owner of `?view=`),
     `feed-filter.util.ts` (the pure Pro feed narrowing — status provenance + free text, over the
     resident conversation roots),
@@ -484,8 +487,9 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     **and** rings the reported line — the line id comes from the service, which keeps it after the close,
     so the output stays payload-free).
   - `ReportFormComponent.submitted = output<string | null>()` (spotting; the line it filed against).
-- **GraphQL documents** (`data/home.queries.ts`, single contract seam; hand-written types, no
-  codegen):
+- **GraphQL documents** (the `data/home-*.queries.ts` module family — split by domain from the
+  former monolithic `home.queries.ts`, which now holds only the shared schema enums; hand-written
+  types, no codegen):
   - `FRONT_PAGE_LINES_QUERY` — per-line pulse list: `id/code/displayName/displayColor/status`,
     `inServiceVehicleCount`/`totalVehicleCount`, `vehicleStatusCounts` (the per-status fleet
     breakdown), `passengerStatus`/`passengerStatusMessage` (both nullable), `statusReportCount`,
@@ -1279,9 +1283,14 @@ the two cells can never disagree.
 
 ## 🧩 Extension Points & Hooks
 
-- **`home.queries.ts`** is the single GraphQL contract seam — new fields/queries/mutations are
-  additive documents plus matching interfaces, keeping query strings out of components (mirrors
-  `insiden.queries.ts`/`spotting.queries.ts`).
+- **The `data/home-*.queries.ts` modules** are the GraphQL contract seam — new fields/queries/
+  mutations are additive documents plus matching interfaces, keeping query strings out of
+  components (mirrors `insiden.queries.ts`/`spotting.queries.ts`). The domain split keeps each
+  module focused: `home.queries.ts` holds the shared schema enums; `home-board.queries.ts` the line
+  pulse list; `home-feed.queries.ts` + `home-feed-items.ts` the feed connection and its node/tree
+  types; `home-history.queries.ts` the service-day history + per-line reports; and
+  `home-incidents.queries.ts` / `home-feed-mutations.queries.ts` the Pro incidents read and the
+  feed submit + link vote mutations.
 - **`status-history-display.util.ts`** is the one place the three service-day history widgets are
   allowed to describe an hour: `serviceHourLabel` / `serviceHourRangeLabel` (MYT, so a reader in
   another timezone still lines the bars up with the backend's own hours), `reportsPhrase`,
@@ -1799,7 +1808,7 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   a CSV of hourly status buckets read one hour off is a plausible-looking lie. `isBrowser` is a
   parameter for the documented `writeQueryParams` reason — reading `PLATFORM_ID` needs an injection
   context a plain function should not have.
-- **`HOME_RECENT_INCIDENTS_QUERY` / `HOME_RECENT_INCIDENT_VARS`** in `home.queries.ts` — the home
+- **`HOME_RECENT_INCIDENTS_QUERY` / `HOME_RECENT_INCIDENT_VARS`** in `home-incidents.queries.ts` — the home
   contract seam's one new document, with frozen constant variables.
 - **`network.has-data`** — the `MetricDoc` for the "only lines with data" rule, read by the filter's
   info popover through `metricTooltip(...)`.
