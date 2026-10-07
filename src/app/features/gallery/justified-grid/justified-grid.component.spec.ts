@@ -1,20 +1,13 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { JustifiedGridComponent } from "./justified-grid.component";
-
-class FakeObserver {
-  observe(): void {}
-  disconnect(): void {}
-  unobserve(): void {}
-}
 
 describe("JustifiedGridComponent smoke", () => {
   let fixture: ComponentFixture<JustifiedGridComponent>;
 
   beforeEach(async () => {
-    vi.stubGlobal("ResizeObserver", FakeObserver);
     await TestBed.configureTestingModule({
       imports: [JustifiedGridComponent],
       providers: [provideZonelessChangeDetection()],

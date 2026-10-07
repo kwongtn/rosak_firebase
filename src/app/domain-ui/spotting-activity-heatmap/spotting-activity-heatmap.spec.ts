@@ -4,15 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SpottingActivityHeatmap } from "./spotting-activity-heatmap";
 
-class FakeObserver {
-  observe(): void {}
-  disconnect(): void {}
-  unobserve(): void {}
-}
-
 describe("SpottingActivityHeatmap smoke", () => {
   beforeEach(() => {
-    vi.stubGlobal("ResizeObserver", FakeObserver);
     vi.stubGlobal("requestAnimationFrame", (_cb: FrameRequestCallback) => 0);
   });
 

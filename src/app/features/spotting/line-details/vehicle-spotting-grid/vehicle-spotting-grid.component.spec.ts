@@ -54,12 +54,6 @@ const VEHICLE_TYPES: VehicleType[] = [
   makeVehicleType("type-b", "Beta Class", [makeVehicle("v3", "201")]),
 ];
 
-class FakeResizeObserver {
-  observe(): void {}
-  disconnect(): void {}
-  unobserve(): void {}
-}
-
 /** Must run BEFORE `TestBed.createComponent` — the component reads `matchMedia` while
  * constructing to derive its `isNarrow` layout signal. */
 function stubMatchMedia(matches: boolean): void {
@@ -87,7 +81,6 @@ describe("VehicleSpottingGridComponent", () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
-    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
     vi.stubGlobal("requestAnimationFrame", (_callback: FrameRequestCallback) => 0);
   });
 

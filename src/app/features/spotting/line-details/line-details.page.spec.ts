@@ -22,12 +22,6 @@ const VEHICLE_TYPE = {
   vehicles: [],
 };
 
-class FakeResizeObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
 function stubMatchMedia(matches: boolean): void {
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches,
@@ -110,7 +104,6 @@ describe("LineDetailsPage (mobile activity bar)", () => {
   async function render(mobile: boolean): Promise<void> {
     FakeIntersectionObserver.instances = [];
     vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
-    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
     stubMatchMedia(!mobile);
 
     await TestBed.configureTestingModule({
