@@ -4,7 +4,6 @@ import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../../core/auth/auth.service";
 import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
-import { HlmBadge, type BadgeVariants } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmCheckbox } from "../../../../ui/checkbox/checkbox";
@@ -22,20 +21,16 @@ import {
   type AssetMultiSelectOption,
 } from "../../../insiden/asset-multi-select/asset-multi-select.component";
 import {
-  CalendarIncident,
   CalendarIncidentSeverity,
-  ChronologyIndicator,
   INSIDEN_REFERENCE_QUERY,
   InsidenReferenceQueryData,
 } from "../../../insiden/data/insiden.queries";
 import {
-  ExtractedIncidentData,
+  type ExtractedIncidentData,
   IncidentAiService,
 } from "../../../insiden/data/incident-ai.service";
 import { IncidentCardComponent } from "../../../insiden/incident-card/incident-card.component";
 import {
-  canMoveDown,
-  canMoveUp,
   emptyChronology,
   moveChronology,
   removeChronology,
@@ -74,68 +69,24 @@ import {
   createTrailingDebounce,
   searchTermOrUndefined,
 } from "../data/search-debounce.util";
-import { linesLabel } from "../../../../core/util/lines-label.util";
 import { isPendingIncidentStatus } from "../../../insiden/data/incident-status.util";
+import { isChronologyPendingDeletion } from "../../../insiden/data/chronology-status.util";
+import { PendingRowComponent } from "./pending-row.component";
+import { PendingChronologyEditorComponent } from "./pending-chronology-editor.component";
+import { PendingDeletionRequestsComponent } from "./pending-deletion-requests.component";
 import {
-  chronologyStatusLabel,
-  isChronologyPendingDeletion,
-} from "../../../insiden/data/chronology-status.util";
-
-const SEVERITY_VARIANT: Record<PendingIncident["severity"], BadgeVariants["variant"]> = {
-  MAJOR: "destructive",
-  MINOR: "warning",
-  OTHERS: "neutral",
-};
-
-const SEVERITY_LABEL: Record<PendingIncident["severity"], string> = {
-  MAJOR: "Major",
-  MINOR: "Minor",
-  OTHERS: "Other",
-};
+  asCalendarIncident,
+  buildUpdatedIncidentRow,
+  isIncidentFormSaveable,
+  severityLabelText,
+  type ChronologyExtractState,
+} from "./pending-incident.util";
 
 const SEVERITIES: CalendarIncidentSeverity[] = ["MAJOR", "MINOR", "OTHERS"];
-const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
 /** Client-side ceiling on an Extract Data call; the firebase function itself
  * runs with a 20s timeout, so a 15s front-end cap means a slow extraction is
  * surfaced to the user (and offered as a late result) rather than hanging. */
 const EXTRACT_TIMEOUT_MS = 15_000;
-
-/** Per-chronology state for the Extract Data flow. Late results (responses that
- * arrive after the 15s cap) are held here until the user opts to apply them. */
-interface ChronologyExtractState {
-  extracting: boolean;
-  lateResult: ExtractedIncidentData | null;
-  preReplaceSnapshot: { datetime: string; content: string } | null;
-  replaced: boolean;
-}
-
-/** Map a pending row onto the public `CalendarIncident` shape so the /insiden source-page
- *  element — `IncidentCardComponent` — can be embedded as-is in the detail panel. */
-function asCalendarIncident(row: PendingIncident): CalendarIncident {
-  return {
-    id: row.id,
-    startDatetime: row.startDatetime,
-    endDatetime: row.endDatetime,
-    severity: row.severity,
-    title: row.title,
-    brief: row.brief,
-    details: row.details,
-    hasDetails: row.hasDetails,
-    impactFactor: row.impactFactor,
-    longTerm: row.longTerm,
-    inaccurate: row.inaccurate,
-    status: row.status,
-    lastUpdated: row.lastUpdated,
-    lines: row.lines,
-    vehicles: row.vehicles,
-    stations: row.stations,
-    chronologies: row.chronologies,
-    voteScore: row.voteScore,
-    voteBreakdown: row.voteBreakdown,
-    userVote: row.userVote,
-    medias: row.medias,
-  };
-}
 
 /**
  * /console/insiden/pending — admin approval queue for calendar incidents.
@@ -164,7 +115,6 @@ function asCalendarIncident(row: PendingIncident): CalendarIncident {
     DatePipe,
     ErrorBoxComponent,
     FormField,
-    HlmBadge,
     HlmButton,
     HlmCheckbox,
     HlmInput,
@@ -178,6 +128,9 @@ function asCalendarIncident(row: PendingIncident): CalendarIncident {
     ...HlmTableImports,
     ConsoleNavComponent,
     IncidentCardComponent,
+    PendingRowComponent,
+    PendingChronologyEditorComponent,
+    PendingDeletionRequestsComponent,
   ],
   templateUrl: "./pending.component.html",
 })
@@ -187,7 +140,6 @@ export class PendingIncidentsComponent {
   private readonly toast = inject(ToastService);
   private readonly ai = inject(IncidentAiService);
   private readonly searchDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
-  protected readonly linesLabel = linesLabel;
 
   protected readonly rows = signal<PendingIncident[]>([]);
   protected readonly isLoading = signal(false);
@@ -205,7 +157,6 @@ export class PendingIncidentsComponent {
     return row ? asCalendarIncident(row) : null;
   });
 
-  protected readonly chronologyStatusLabel = chronologyStatusLabel;
   protected readonly isPendingIncidentStatus = isPendingIncidentStatus;
 
   /** Chronologies of the selected row awaiting admin deletion review (spec E1). The queue now
@@ -237,7 +188,6 @@ export class PendingIncidentsComponent {
   private nextKey = 0;
 
   protected readonly severities = SEVERITIES;
-  protected readonly indicators = INDICATORS;
 
   /** Impact factor lives outside the report form's model (the public form never
    *  exposes it), but the panel keeps it editable and echoes it in the update. */
@@ -352,18 +302,9 @@ export class PendingIncidentsComponent {
 
   /** Mirrors incident-form.schema's required(title/brief/startDatetime/severity)
    *  plus the end>=start tree check — Save is disabled while the form is invalid. */
-  protected readonly canSave = computed(() => {
-    const m = this.model();
-    if (!m.title.trim() || !m.brief.trim() || !m.startDatetime.trim() || !m.severity) {
-      return false;
-    }
-    if (m.endDatetime && m.endDatetime < m.startDatetime) {
-      return false;
-    }
-    return true;
-  });
+  protected readonly canSave = computed(() => isIncidentFormSaveable(this.model()));
 
-  private readonly extractStates = signal(new Map<number, ChronologyExtractState>());
+  protected readonly extractStates = signal(new Map<number, ChronologyExtractState>());
   protected readonly isSummarizing = signal(false);
 
   private appliedSearch: string | undefined;
@@ -376,13 +317,7 @@ export class PendingIncidentsComponent {
     return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   }
 
-  protected severityVariant(severity: PendingIncident["severity"]): BadgeVariants["variant"] {
-    return SEVERITY_VARIANT[severity];
-  }
-
-  protected severityLabel(severity: PendingIncident["severity"]): string {
-    return SEVERITY_LABEL[severity];
-  }
+  protected readonly severityLabel = severityLabelText;
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
@@ -586,24 +521,6 @@ export class PendingIncidentsComponent {
    * Form actions — same surface as IncidentFormComponent.
    * ----------------------------------------------------------------- */
 
-  protected isExtracting(key: number): boolean {
-    return this.extractStates().get(key)?.extracting ?? false;
-  }
-
-  protected hasLateResult(key: number): boolean {
-    return (this.extractStates().get(key)?.lateResult ?? null) !== null;
-  }
-
-  protected isReplaced(key: number): boolean {
-    return this.extractStates().get(key)?.replaced ?? false;
-  }
-
-  protected canMove(index: number, direction: "up" | "down"): boolean {
-    return direction === "up"
-      ? canMoveUp(this.chronologies(), index)
-      : canMoveDown(this.chronologies(), index);
-  }
-
   protected addChronology(): void {
     const chronology = emptyChronology(this.nextKey++);
     this.chronologies.update((list) => [...list, chronology]);
@@ -623,7 +540,7 @@ export class PendingIncidentsComponent {
    * applied directly; anything later is offered through a replace/undo box. */
   protected async extractChronology(key: number): Promise<void> {
     const row = this.chronologies().find((c) => c.key === key);
-    if (!row || this.isExtracting(key)) {
+    if (!row || (this.extractStates().get(key)?.extracting ?? false)) {
       return;
     }
     if (!this.auth.isLoggedIn()) {
@@ -844,7 +761,20 @@ export class PendingIncidentsComponent {
         // Nothing was sent — the amended payload stays in the panel.
         return;
       }
-      const updated = this.buildUpdatedRow(row);
+      const updated = buildUpdatedIncidentRow({
+        row,
+        model: this.model(),
+        impactFactor: this.editImpactFactor(),
+        chronologies: this.chronologies(),
+        selectedLineIds: this.selectedLineIds(),
+        selectedVehicleIds: this.selectedVehicleIds(),
+        selectedStationIds: this.selectedStationIds(),
+        selectedCategoryIds: this.selectedCategoryIds(),
+        linesById: this._linesById(),
+        vehiclesById: this._vehiclesById(),
+        stationsById: this._stationsById(),
+        categoriesById: this._categoriesById(),
+      });
       this.rows.update((rows) => rows.map((r) => (r.id === row.id ? updated : r)));
       this.selectedRow.set(updated);
       this.toast.success("Incident updated", `"${updated.title}" saved.`);
@@ -859,50 +789,7 @@ export class PendingIncidentsComponent {
   }
 
   /** Rebuilds the local row from the saved form state so the table row and the
-   *  detail card show exactly what the backend now holds. Preference goes to
-   *  reference data (it carries the display labels); anything the reference set
-   *  doesn't know yet falls back to the row's own objects. */
-  private buildUpdatedRow(row: PendingIncident): PendingIncident {
-    const m = this.model();
-    const resolve = <T extends { id: string }>(
-      ids: string[],
-      current: T[],
-      lookup: (id: string) => T | undefined,
-    ): T[] =>
-      ids
-        .map((id) => lookup(id) ?? current.find((item) => item.id === id))
-        .filter((x): x is T => x !== undefined);
-    const linesById = this._linesById();
-    const vehiclesById = this._vehiclesById();
-    const stationsById = this._stationsById();
-    const categoriesById = this._categoriesById();
-    return {
-      ...row,
-      title: m.title,
-      brief: m.brief,
-      details: m.details,
-      hasDetails: m.details.trim().length > 0,
-      startDatetime: new Date(m.startDatetime).toISOString(),
-      endDatetime: m.endDatetime ? new Date(m.endDatetime).toISOString() : null,
-      severity: m.severity as CalendarIncidentSeverity,
-      longTerm: m.longTerm,
-      inaccurate: m.inaccurate,
-      impactFactor: this.editImpactFactor(),
-      lines: resolve(this.selectedLineIds(), row.lines, (id) => linesById.get(id)),
-      vehicles: resolve(this.selectedVehicleIds(), row.vehicles, (id) => vehiclesById.get(id)),
-      stations: resolve(this.selectedStationIds(), row.stations, (id) => stationsById.get(id)),
-      categories: resolve(this.selectedCategoryIds(), row.categories, (id) =>
-        categoriesById.get(id),
-      ),
-      chronologies: this.chronologies().map((chronology, index) => ({
-        order: index,
-        indicator: chronology.indicator,
-        datetime: chronology.datetime ? new Date(chronology.datetime).toISOString() : "",
-        content: chronology.content || "",
-        sourceUrl: chronology.sourceUrl || null,
-      })),
-    };
-  }
+   *  detail card show exactly what the backend now holds (see `buildUpdatedIncidentRow`). */
 
   private async runIncidentMutation(
     mutation: string,

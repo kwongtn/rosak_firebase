@@ -55,56 +55,16 @@
             @for (row of rows(); track row.id) {
               <tr
                 hlmTr
+                app-pending-row
                 class="cursor-pointer hover:bg-muted"
                 [attr.tabindex]="0"
+                [row]="row"
+                [mutating]="isMutating()"
                 (click)="openDetail(row)"
                 (keydown.enter)="openDetail(row)"
-              >
-                <td hlmTd class="py-3 font-medium">{{ row.title }}</td>
-                <td hlmTd class="max-w-72 py-3">
-                  <p class="line-clamp-2">{{ row.brief }}</p>
-                </td>
-                <td hlmTd class="py-3">
-                  <span hlmBadge [variant]="severityVariant(row.severity)">
-                    {{ severityLabel(row.severity) }}
-                  </span>
-                </td>
-                <td hlmTd class="py-3 whitespace-nowrap">
-                  {{ row.startDatetime | date: "MMM d, y HH:mm" }}
-                </td>
-                <td hlmTd class="py-3">
-                  {{ linesLabel(row.lines) || "—" }}
-                </td>
-                <td hlmTd class="py-3">{{ row.chronologies.length }}</td>
-                <td hlmTd class="py-3 whitespace-nowrap">
-                  {{ row.created | date: "MMM d, y HH:mm" }}
-                </td>
-                <td hlmTd class="py-3">
-                  @if (row.status && !isPendingIncidentStatus(row.status)) {
-                    <span hlmBadge variant="destructive">Pending deletion</span>
-                  } @else {
-                    <div class="flex items-center gap-2">
-                      <button
-                        hlmBtn
-                        size="sm"
-                        [disabled]="isMutating()"
-                        (click)="$event.stopPropagation(); approve(row)"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        hlmBtn
-                        size="sm"
-                        variant="destructive"
-                        [disabled]="isMutating()"
-                        (click)="$event.stopPropagation(); openReject(row)"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  }
-                </td>
-              </tr>
+                (approve)="approve(row)"
+                (reject)="openReject(row)"
+              ></tr>
             } @empty {
               <tr hlmTr>
                 <td hlmTd colspan="8" class="text-muted-foreground py-8 text-center">
@@ -209,50 +169,15 @@
           <app-incident-card [incident]="incident" [editActionEnabled]="false" />
         }
         @if (pendingDeletionChronologies().length > 0) {
-          <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
-            <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-              Chronology deletion requests
-            </h3>
-            @for (chronology of pendingDeletionChronologies(); track chronology.id) {
-              <div class="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
-                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span class="text-muted-foreground text-xs whitespace-nowrap">
-                    {{ chronology.datetime | date: "MMM d, HH:mm" }}
-                  </span>
-                  <span class="text-xs">{{ chronology.content || "—" }}</span>
-                  @if (chronologyStatusLabel(chronology.status); as statusLabel) {
-                    <span hlmBadge variant="destructive">{{ statusLabel }}</span>
-                  }
-                </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    hlmBtn
-                    size="sm"
-                    variant="destructive"
-                    class="shrink-0"
-                    [disabled]="isMutating() || deletingChronologyId() !== null"
-                    (click)="approveChronologyDeletion(chronology)"
-                  >
-                    {{
-                      deletingChronologyId() === chronology.id ? "Approving…" : "Approve deletion"
-                    }}
-                  </button>
-                  <button
-                    hlmBtn
-                    size="sm"
-                    variant="outline"
-                    class="shrink-0"
-                    [disabled]="isMutating() || deletingChronologyId() !== null"
-                    (click)="rejectChronologyDeletion(chronology)"
-                  >
-                    {{
-                      deletingChronologyId() === chronology.id ? "Rejecting…" : "Reject deletion"
-                    }}
-                  </button>
-                </div>
-              </div>
-            }
-          </section>
+          <section
+            app-pending-deletion-requests
+            class="border-border flex flex-col gap-3 rounded-lg border p-3"
+            [chronologies]="pendingDeletionChronologies()"
+            [mutating]="isMutating()"
+            [deletingId]="deletingChronologyId()"
+            (approve)="approveChronologyDeletion($event)"
+            (reject)="rejectChronologyDeletion($event)"
+          ></section>
         }
         @if (selectedRow(); as row) {
           <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); savePanelEdit()">
@@ -429,247 +354,21 @@
               }
             </section>
 
-            <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
-              <div class="flex items-center justify-between">
-                <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                  Chronology
-                </h3>
-                <button hlmBtn size="sm" variant="outline" type="button" (click)="addChronology()">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    class="size-4"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  Add entry
-                </button>
-              </div>
-
-              @for (chronology of chronologies(); track chronology.key; let i = $index) {
-                <div class="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
-                  <div
-                    class="flex cursor-pointer items-center justify-between gap-2"
-                    [attr.aria-expanded]="!chronology.collapsed"
-                    (click)="toggleChronologyCollapsed(chronology.key)"
-                  >
-                    <span class="flex items-center gap-1.5 text-xs font-medium">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        class="text-muted-foreground size-3.5 transition-transform"
-                        [class.rotate-180]="!chronology.collapsed"
-                        aria-hidden="true"
-                      >
-                        <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
-                      {{ i + 1 }}.
-                    </span>
-                    <div class="flex items-center gap-1" (click)="$event.stopPropagation()">
-                      <button
-                        hlmBtn
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        aria-label="Move up"
-                        [disabled]="!canMove(i, 'up')"
-                        (click)="moveChronologyBy(i, -1)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          class="size-4"
-                          aria-hidden="true"
-                        >
-                          <path d="m18 15-6-6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                      </button>
-                      <button
-                        hlmBtn
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        aria-label="Move down"
-                        [disabled]="!canMove(i, 'down')"
-                        (click)="moveChronologyBy(i, 1)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          class="size-4"
-                          aria-hidden="true"
-                        >
-                          <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                      </button>
-                      <button
-                        hlmBtn
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        aria-label="Remove entry"
-                        (click)="removeChronology(chronology.key)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          class="size-4"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M18 6 6 18M6 6l12 12"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  @if (!chronology.collapsed) {
-                    <div class="flex flex-col gap-2">
-                      <select
-                        hlmSelect
-                        class="text-sm"
-                        [disabled]="isExtracting(chronology.key)"
-                        [value]="chronology.indicator"
-                        (change)="chronology.indicator = $any($event.target).value"
-                      >
-                        @for (indicator of indicators; track indicator) {
-                          <option [value]="indicator">{{ indicator }}</option>
-                        }
-                      </select>
-                      <input
-                        hlmInput
-                        type="datetime-local"
-                        class="text-sm"
-                        [disabled]="isExtracting(chronology.key)"
-                        [value]="chronology.datetime"
-                        (change)="chronology.datetime = $any($event.target).value"
-                      />
-                      <div class="flex items-center gap-2">
-                        <input
-                          hlmInput
-                          type="url"
-                          class="min-w-0 flex-1 text-sm"
-                          [disabled]="isExtracting(chronology.key)"
-                          placeholder="Source URL (optional)"
-                          [value]="chronology.sourceUrl"
-                          (change)="chronology.sourceUrl = $any($event.target).value"
-                        />
-                        <button
-                          hlmBtn
-                          variant="outline"
-                          size="sm"
-                          type="button"
-                          class="shrink-0"
-                          [disabled]="isExtracting(chronology.key)"
-                          (click)="extractChronology(chronology.key)"
-                        >
-                          @if (isExtracting(chronology.key)) {
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="2"
-                              class="size-3.5 animate-spin"
-                              aria-hidden="true"
-                            >
-                              <circle cx="12" cy="12" r="9" class="opacity-25" />
-                              <path d="M12 3a9 9 0 0 1 9 9" stroke-linecap="round" />
-                            </svg>
-                            Extracting…
-                          } @else {
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="2"
-                              class="size-3.5"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.5-6.5-2 2m-7 7-2 2m0-11 2 2m7 7 2 2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                              />
-                            </svg>
-                            Extract
-                          }
-                        </button>
-                      </div>
-                      <textarea
-                        hlmInput
-                        rows="3"
-                        class="text-sm"
-                        [disabled]="isExtracting(chronology.key)"
-                        placeholder="What happened at this point"
-                        [value]="chronology.content"
-                        (change)="chronology.content = $any($event.target).value"
-                      ></textarea>
-                      @if (hasLateResult(chronology.key)) {
-                        <div
-                          class="bg-muted/60 flex items-center justify-between gap-2 rounded-lg border p-2"
-                        >
-                          @if (isReplaced(chronology.key)) {
-                            <span class="text-xs">Extracted data applied.</span>
-                            <button
-                              hlmBtn
-                              variant="outline"
-                              size="sm"
-                              type="button"
-                              (click)="undoExtraction(chronology.key)"
-                            >
-                              Undo
-                            </button>
-                          } @else {
-                            <span class="text-xs">Gemini results in — click to replace data.</span>
-                            <button
-                              hlmBtn
-                              variant="outline"
-                              size="sm"
-                              type="button"
-                              (click)="replaceWithExtraction(chronology.key)"
-                            >
-                              Replace
-                            </button>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              } @empty {
-                <p class="text-muted-foreground text-xs">
-                  No chronology entries yet — add the sequence of events as they unfolded.
-                </p>
-              }
-
-              <button
-                hlmBtn
-                type="button"
-                variant="outline"
-                [disabled]="isSummarizing() || chronologies().length === 0"
-                (click)="summarize()"
-              >
-                @if (isSummarizing()) {
-                  Summarizing…
-                } @else {
-                  Summarize Incident
-                }
-              </button>
-            </section>
+            <section
+              app-pending-chronology-editor
+              class="border-border flex flex-col gap-3 rounded-lg border p-3"
+              [chronologies]="chronologies()"
+              [extractStates]="extractStates()"
+              [isSummarizing]="isSummarizing()"
+              (add)="addChronology()"
+              (remove)="removeChronology($event)"
+              (toggleCollapsed)="toggleChronologyCollapsed($event)"
+              (moveBy)="moveChronologyBy($event.index, $event.offset)"
+              (extract)="extractChronology($event)"
+              (replace)="replaceWithExtraction($event)"
+              (undo)="undoExtraction($event)"
+              (summarize)="summarize()"
+            ></section>
 
             <button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
           </form>
