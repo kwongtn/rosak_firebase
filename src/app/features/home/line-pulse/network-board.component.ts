@@ -1,8 +1,8 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Component, PLATFORM_ID, computed, effect, inject, input } from "@angular/core";
+import { Component, computed, effect, inject, input } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { PreferencesViewMode } from "../../../core/preferences/preferences.service";
 import {
   queryParamForWrite,
@@ -337,7 +337,7 @@ export class NetworkBoardComponent {
   private readonly viewMode = inject(HomeViewModeService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   /**
    * The query params as a signal. Seeded from `route.snapshot.queryParamMap` so the FIRST read —

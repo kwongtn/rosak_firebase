@@ -1,7 +1,5 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
-  PLATFORM_ID,
   afterNextRender,
   computed,
   effect,
@@ -10,6 +8,7 @@ import {
   type OnDestroy,
 } from "@angular/core";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { HomeStore } from "../data/home.store";
 
 /**
@@ -363,7 +362,7 @@ export class HomeRefreshControlComponent implements OnDestroy {
     return Math.round(RING_CIRCUMFERENCE * (1 - fraction) * 100) / 100;
   });
 
-  private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly _isBrowser = injectIsBrowser();
 
   /** The transient "Updated" confirmation, shown after ANY refresh settles clean. */
   protected readonly _showRefreshed = signal(false);

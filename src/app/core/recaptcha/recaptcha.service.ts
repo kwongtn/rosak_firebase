@@ -1,5 +1,6 @@
-import { Injectable, PLATFORM_ID, inject } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { Injectable, inject } from "@angular/core";
+
+import { injectIsBrowser } from "../composables/is-browser";
 import { environment } from "../../../environments/environment";
 
 declare global {
@@ -19,7 +20,7 @@ declare global {
  */
 @Injectable({ providedIn: "root" })
 export class RecaptchaService {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private scriptLoadPromise: Promise<void> | undefined;
 
   private loadScript(): Promise<void> {

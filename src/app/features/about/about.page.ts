@@ -1,5 +1,4 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Component, OnDestroy, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { getApps, initializeApp } from "firebase/app";
 import {
@@ -9,6 +8,7 @@ import {
   onSnapshot,
   setDoc,
 } from "firebase/firestore";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { environment } from "../../../environments/environment";
 import { AuthService } from "../../core/auth/auth.service";
 import { resolveAdSlot } from "../../core/ads/ads.config";
@@ -81,7 +81,7 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
   templateUrl: "./about.page.html",
 })
 export class AboutPage implements OnDestroy {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 

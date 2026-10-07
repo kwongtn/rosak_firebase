@@ -1,8 +1,6 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
   ElementRef,
-  PLATFORM_ID,
   afterNextRender,
   computed,
   effect,
@@ -11,6 +9,7 @@ import {
   viewChild,
 } from "@angular/core";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import type { LineStatusHourBucket, PassengerStatus } from "../data/home.queries";
@@ -337,7 +336,7 @@ const ROWS_POPPING_BELOW = 2;
 })
 export class NetworkHeatStripComponent {
   private readonly store = inject(HomeStore);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly _serviceDayLabel = SERVICE_DAY_LABEL;
   protected readonly _legend = heatLegendEntries();

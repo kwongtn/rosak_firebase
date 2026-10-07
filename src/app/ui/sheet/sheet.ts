@@ -1,9 +1,8 @@
 import { A11yModule } from "@angular/cdk/a11y";
-import { isPlatformBrowser } from "@angular/common";
+
 import {
   Component,
   OnDestroy,
-  PLATFORM_ID,
   computed,
   effect,
   inject,
@@ -11,6 +10,7 @@ import {
   model,
   signal,
 } from "@angular/core";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 
 /**
  * A slide-in panel, replacing ng-zorro's nz-drawer. Deliberately built directly on CDK's
@@ -61,7 +61,7 @@ export class HlmSheet implements OnDestroy {
   // Opt-in so hosts with dense multi-column forms can widen without changing every consumer.
   readonly wide = input(false);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   protected readonly _everOpened = signal(false);
 
   protected readonly _panelClass = computed(() => {

@@ -1,6 +1,7 @@
-import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { DestroyRef, Injectable, inject, signal } from "@angular/core";
+
 import * as Sentry from "@sentry/angular";
+import { injectIsBrowser } from "../composables/is-browser";
 import { buildInfo } from "../../../build-info";
 import { ToastService } from "../../ui/toast/toast.service";
 import { isChunkLoadError } from "./chunk-load-error.util";
@@ -27,7 +28,7 @@ interface VersionManifest {
  */
 @Injectable({ providedIn: "root" })
 export class NewVersionService {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
 

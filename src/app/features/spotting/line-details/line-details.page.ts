@@ -8,10 +8,10 @@ import {
   input,
   signal,
   viewChild,
-  PLATFORM_ID,
 } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+
 import { Router, RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
 import { isSpottingDetailsRoute } from "../data/spotting-route-patterns";
@@ -401,7 +401,7 @@ export class LineDetailsPage {
   private readonly activityControls = viewChild("activityControls", { read: ElementRef });
   protected readonly activityControlsHeight = signal(0);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   /** True below 768px. Initialised synchronously from the real viewport so the very first render
    * already picks the right branch — browser-guarded and SSR-safe with default false. */

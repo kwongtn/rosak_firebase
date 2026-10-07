@@ -1,5 +1,6 @@
-import { Injectable, PLATFORM_ID, computed, effect, inject, signal } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { Injectable, computed, effect, inject, signal } from "@angular/core";
+
+import { injectIsBrowser } from "../composables/is-browser";
 
 export type ThemeMode = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
@@ -20,7 +21,7 @@ const MODES: ThemeMode[] = ["light", "dark", "system"];
  */
 @Injectable({ providedIn: "root" })
 export class ThemeService {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   readonly mode = signal<ThemeMode>("system");
   private readonly systemPrefersDark = signal(false);

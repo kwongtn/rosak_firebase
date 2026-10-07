@@ -1,8 +1,6 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
   ElementRef,
-  PLATFORM_ID,
   computed,
   effect,
   inject,
@@ -12,6 +10,7 @@ import {
   untracked,
   viewChild,
 } from "@angular/core";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { observeHeight } from "../../../core/dom/observe-height";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../../ui/sheet/sheet";
@@ -368,7 +367,7 @@ export class TrackerInfoPanelComponent {
   readonly label = input.required<string>();
   readonly docsUrl = input<string | null>(null);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly gtfsRealtime = inject(GtfsRealtimeService);
   private readonly gtfsStatic = inject(GtfsStaticService);
   private readonly layerSelection = inject(LayerSelectionService);

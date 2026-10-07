@@ -1,7 +1,7 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Injectable, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import { Injectable, computed, inject, signal } from "@angular/core";
 import type { OnDestroy } from "@angular/core";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, graphqlResource } from "../../../core/graphql/graphql-client";
 import { PollingSource } from "../../../core/polling/polling-source";
@@ -334,7 +334,7 @@ function recordSubtreeVotes(node: VoteOverlayNode, overlay: Record<string, numbe
 export class HomeStore {
   private readonly graphql = inject(GraphQLClient);
   private readonly auth = inject(AuthService);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   /**
    * Reader-owned display state (which lines are pinned, which view the reader chose).

@@ -1,6 +1,7 @@
-import { Component, PLATFORM_ID, computed, effect, inject, input } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { Component, computed, effect, inject, input } from "@angular/core";
+
 import { Router, RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
@@ -156,7 +157,7 @@ export class VehicleDetailPage {
   protected readonly linesStore = inject(SpottingLinesStore);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   // Density cap: this page state already gets `footerEnd` from spotting-shell (it wraps every
   // /spotting/** child route) — with this between-cards unit that's 2, the per-page maximum.

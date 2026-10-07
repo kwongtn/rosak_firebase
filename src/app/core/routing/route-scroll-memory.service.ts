@@ -1,7 +1,8 @@
-import { isPlatformBrowser, ViewportScroller } from "@angular/common";
-import { DestroyRef, Injectable, PLATFORM_ID, inject } from "@angular/core";
+import { ViewportScroller } from "@angular/common";
+import { DestroyRef, Injectable, inject } from "@angular/core";
 import { NavigationEnd, NavigationStart, Router, Scroll } from "@angular/router";
 import { filter } from "rxjs";
+import { injectIsBrowser } from "../composables/is-browser";
 import { urlPath } from "./revalidate-on-return";
 
 const MAX_SCROLL_POSITIONS = 50;
@@ -22,7 +23,7 @@ export class RouteScrollMemoryService {
   private readonly router = inject(Router);
   private readonly viewportScroller = inject(ViewportScroller);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly positions = new Map<string, ScrollPosition>();
 
   private currentUrl: string;

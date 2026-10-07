@@ -86,7 +86,7 @@ export function readTextQueryParam(
  * `isBrowser` is a parameter rather than an internal `isPlatformBrowser` check because this is a
  * plain function, and reading `PLATFORM_ID` would need an injection context it has no business
  * having. Callers pass the flag they already hold — every route page computes
- * `isPlatformBrowser(inject(PLATFORM_ID))` once.
+ * `injectIsBrowser()` once.
  *
  * 🔴 The guard is load-bearing, not a nicety: a *reactive* `router.navigate()` during SSR hangs
  * the render (the server waits on a navigation the client will never answer), which is why

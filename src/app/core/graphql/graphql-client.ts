@@ -13,6 +13,7 @@ import { httpResource } from "@angular/common/http";
 import { firstValueFrom } from "rxjs";
 import * as Sentry from "@sentry/angular";
 
+import { injectIsBrowser } from "../composables/is-browser";
 import { environment } from "../../../environments/environment";
 import { ToastService } from "../../ui/toast/toast.service";
 import { deepEqual } from "../util/deep-equal.util";
@@ -141,7 +142,7 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
   // this whole retry loop is a client-side, post-hydration concern anyway. inject() still has
   // to run unconditionally (it only works synchronously within the call that set up this
   // injection context), so the platform check itself is the *only* thing gated below.
-  const isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  const isBrowser = injectIsBrowser();
   const destroyRef = inject(DestroyRef);
 
   if (isBrowser) {

@@ -1,15 +1,14 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
   ElementRef,
   OnDestroy,
-  PLATFORM_ID,
   afterNextRender,
   computed,
   inject,
   input,
   signal,
 } from "@angular/core";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { AD_DISCLOSURE, ADS_CONFIG } from "../../core/ads/ads.config";
 import { InfoPopover } from "../info-popover/info-popover";
 
@@ -178,7 +177,7 @@ export class AdSlotComponent implements OnDestroy {
   /** Force the dashed QA preview box regardless of config. */
   readonly placeholder = input<boolean>(false);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly elementRef = inject(ElementRef<HTMLElement>);
   private observer: IntersectionObserver | undefined;
   private fillObserver: MutationObserver | undefined;

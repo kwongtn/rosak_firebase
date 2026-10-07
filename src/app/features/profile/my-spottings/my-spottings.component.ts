@@ -1,7 +1,6 @@
 import {
   Component,
   DestroyRef,
-  PLATFORM_ID,
   afterNextRender,
   computed,
   effect,
@@ -10,7 +9,8 @@ import {
   signal,
   untracked,
 } from "@angular/core";
-import { DatePipe, isPlatformBrowser } from "@angular/common";
+import { DatePipe } from "@angular/common";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
@@ -238,7 +238,7 @@ export class MySpottingsComponent {
   private readonly destroyRef = inject(DestroyRef);
   /** Firebase-id-token requests only exist in the browser; on the server `auth.idToken()`
    * resolves null and an unauthenticated `onlyMine` query would just fail. */
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly _events = computed<MyEvent[]>(() =>
     this.isOwnProfile() ? this._ownEvents() : this.spottingsData(),

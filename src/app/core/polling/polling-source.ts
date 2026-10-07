@@ -1,5 +1,5 @@
-import { isPlatformBrowser } from "@angular/common";
-import { DestroyRef, PLATFORM_ID, inject, signal } from "@angular/core";
+import { DestroyRef, inject, signal } from "@angular/core";
+import { injectIsBrowser } from "../composables/is-browser";
 
 /** `null` = "Never refresh" — no timer, no countdown, nothing scheduled. */
 type PollingIntervalMs = number | null;
@@ -25,7 +25,7 @@ export class PollingSource {
   readonly secondsRemaining = signal(0);
   readonly percentRemaining = signal(0);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly destroyRef = inject(DestroyRef);
   private readonly onRefresh: () => void;
 

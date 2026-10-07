@@ -1,5 +1,5 @@
-import { ErrorHandler, Injectable, PLATFORM_ID, inject, signal } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { ErrorHandler, Injectable, inject, signal } from "@angular/core";
+
 import { getApps, initializeApp } from "firebase/app";
 import {
   Auth,
@@ -12,6 +12,7 @@ import {
   User,
 } from "firebase/auth";
 
+import { injectIsBrowser } from "../composables/is-browser";
 import { environment } from "../../../environments/environment";
 import { ToastService } from "../../ui/toast/toast.service";
 
@@ -38,7 +39,7 @@ const firstNameStorageKey = (uid: string) => `auth:given-name:${uid}`;
  */
 @Injectable({ providedIn: "root" })
 export class AuthService {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly toast = inject(ToastService);
   private readonly errorHandler = inject(ErrorHandler);
   private auth: Auth | undefined;

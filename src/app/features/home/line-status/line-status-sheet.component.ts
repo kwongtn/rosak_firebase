@@ -1,14 +1,5 @@
-import { isPlatformBrowser } from "@angular/common";
-import {
-  Component,
-  PLATFORM_ID,
-  computed,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from "@angular/core";
+import { Component, computed, effect, inject, input, output, signal } from "@angular/core";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { AuthService } from "../../../core/auth/auth.service";
 import {
   GraphQLClient,
@@ -246,7 +237,7 @@ export class LineStatusSheetComponent {
   private readonly toast = inject(ToastService);
   private readonly preferences = inject(PreferencesService);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   /** `sm` — the same breakpoint HlmSheet's side-panel width cap uses. Read once, eagerly rather
    * than via afterNextRender, so the sheet never renders on one edge and visibly flips; SSR

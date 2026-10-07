@@ -1,5 +1,6 @@
-import { isPlatformBrowser, DatePipe } from "@angular/common";
-import { Component, OnDestroy, PLATFORM_ID, inject, input, output } from "@angular/core";
+import { DatePipe } from "@angular/common";
+import { Component, OnDestroy, inject, input, output } from "@angular/core";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { MediaNode } from "../data/gallery.queries";
 
 /**
@@ -70,7 +71,7 @@ export class MediaViewerComponent implements OnDestroy {
   readonly media = input.required<MediaNode>();
   readonly close = output<void>();
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   constructor() {
     if (this.isBrowser) {

@@ -1,9 +1,10 @@
 import { HttpClient } from "@angular/common/http";
-import { isPlatformBrowser } from "@angular/common";
-import { Injectable, InjectionToken, PLATFORM_ID, inject, signal } from "@angular/core";
+
+import { Injectable, InjectionToken, inject, signal } from "@angular/core";
 import { PromisePool } from "@supercharge/promise-pool";
 import { firstValueFrom } from "rxjs";
 
+import { injectIsBrowser } from "../composables/is-browser";
 import { environment } from "../../../environments/environment";
 import { AuthService } from "../auth/auth.service";
 import { ImageFile } from "./image-file";
@@ -66,7 +67,7 @@ export class ImageUploadService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly reportError = inject(UPLOAD_ERROR_REPORTER);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   private pendingUploads: PendingUpload[] = [];
   private uploadInterval: ReturnType<typeof setInterval> | undefined;

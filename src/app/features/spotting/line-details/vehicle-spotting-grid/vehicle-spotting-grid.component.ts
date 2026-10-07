@@ -1,10 +1,8 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
   DestroyRef,
   ElementRef,
   Injector,
-  PLATFORM_ID,
   afterNextRender,
   computed,
   effect,
@@ -15,6 +13,7 @@ import {
   viewChildren,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../../../core/composables/is-browser";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { VehicleStatus } from "../../../../core/graphql/types";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
@@ -686,7 +685,7 @@ export class VehicleSpottingGridComponent {
    * a one-frame desktop flash on a phone would also be the exact hydration-mismatch frame this
    * component skips hydration to avoid. The listener created in the constructor keeps it live. */
   protected readonly isNarrow = signal(
-    isPlatformBrowser(inject(PLATFORM_ID)) && typeof window.matchMedia === "function"
+    injectIsBrowser() && typeof window.matchMedia === "function"
       ? !window.matchMedia("(min-width: 768px)").matches
       : false,
   );
@@ -908,7 +907,7 @@ export class VehicleSpottingGridComponent {
     // Keeps `isNarrow` live across viewport resizes/rotations. Guarded exactly like the field's
     // own initialiser: browser-only, and tolerant of environments without `matchMedia` (the SSR
     // shim, or a test that never stubs it).
-    if (isPlatformBrowser(inject(PLATFORM_ID)) && typeof window.matchMedia === "function") {
+    if (injectIsBrowser() && typeof window.matchMedia === "function") {
       const mediaQuery = window.matchMedia("(min-width: 768px)");
       const onChange = (event: MediaQueryListEvent) => this.isNarrow.set(!event.matches);
       mediaQuery.addEventListener("change", onChange);

@@ -1,6 +1,7 @@
-import { Component, PLATFORM_ID, RESPONSE_INIT, computed, inject, signal } from "@angular/core";
-import { Location, isPlatformBrowser } from "@angular/common";
+import { Component, RESPONSE_INIT, computed, inject, signal } from "@angular/core";
+import { Location } from "@angular/common";
 import { Router, RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { HlmButton } from "../../ui/button/button";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { LineStatusBadge } from "../../domain-ui/line-status-badge/line-status-badge";
@@ -197,7 +198,7 @@ async function fetchRandomPet(): Promise<PetPic> {
 export class NotFoundPage {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly responseInit = inject(RESPONSE_INIT);
 
   protected readonly attemptedPath = () => this.router.url;

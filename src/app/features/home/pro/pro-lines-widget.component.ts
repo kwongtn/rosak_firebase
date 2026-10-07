@@ -1,8 +1,9 @@
-import { Component, PLATFORM_ID, computed, inject } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { Component, computed, inject } from "@angular/core";
+
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucideDownload } from "@ng-icons/lucide";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { LINE_STATUS_LABEL } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { CsvRow, downloadCsv, toCsv } from "../../../core/export/csv.util";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
@@ -166,7 +167,7 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
 })
 export class ProLinesWidgetComponent {
   protected readonly store = inject(HomeStore);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly _statuses = LINE_STATUSES;
   protected readonly _passengerStatuses = PASSENGER_STATUSES;

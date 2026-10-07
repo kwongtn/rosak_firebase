@@ -1,10 +1,8 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
   ElementRef,
   HostListener,
   OnDestroy,
-  PLATFORM_ID,
   computed,
   effect,
   inject,
@@ -13,6 +11,7 @@ import {
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { HlmButton } from "../../../ui/button/button";
 import {
   queryParamForWrite,
@@ -206,7 +205,7 @@ export class ProDashboardComponent implements OnDestroy {
   private readonly viewMode = inject(HomeViewModeService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   private readonly feedWidget = viewChild.required(ProFeedWidgetComponent);
 

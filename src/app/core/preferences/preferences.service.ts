@@ -1,5 +1,5 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Injectable, PLATFORM_ID, afterNextRender, effect, inject, signal } from "@angular/core";
+import { Injectable, afterNextRender, effect, inject, signal } from "@angular/core";
+import { injectIsBrowser } from "../composables/is-browser";
 
 /** Who the board is tuned for: a quick glance (rider) or a dense operational view (pro). */
 export type PreferencesViewMode = "rider" | "pro";
@@ -123,7 +123,7 @@ export function parseStoredPreferences(raw: string | null | undefined): Preferen
  */
 @Injectable({ providedIn: "root" })
 export class PreferencesService {
-  private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly _isBrowser = injectIsBrowser();
 
   private readonly _pinnedLineIds = signal<string[]>([]);
   private readonly _viewMode = signal<PreferencesViewMode>(DEFAULT_PREFERENCES.viewMode);

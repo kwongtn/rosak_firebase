@@ -3,16 +3,16 @@ import {
   computed,
   DestroyRef,
   ElementRef,
-  PLATFORM_ID,
   effect,
   inject,
   input,
   signal,
   viewChild,
 } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
@@ -199,7 +199,7 @@ export class LineOverviewPage {
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly _line = computed(() => this.linesStore.lineById(this.lineId()));
   protected readonly statusFilter = signal<VehicleStatus | null>(null);

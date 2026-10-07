@@ -1,8 +1,9 @@
-import { Injectable, PLATFORM_ID, inject } from "@angular/core";
-import { isPlatformBrowser } from "@angular/common";
+import { Injectable, inject } from "@angular/core";
+
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { environment } from "../../../../environments/environment";
 import { ToastService } from "../../../ui/toast/toast.service";
 
@@ -76,7 +77,7 @@ async function currentIdToken(): Promise<string | null> {
  */
 @Injectable({ providedIn: "root" })
 export class IncidentAiService {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly toast = inject(ToastService);
 
   /** Summarizes a list of chronology entries into title/brief/details. Returns

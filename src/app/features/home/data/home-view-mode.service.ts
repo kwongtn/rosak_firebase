@@ -1,5 +1,4 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Injectable, PLATFORM_ID, computed, effect, inject } from "@angular/core";
+import { Injectable, computed, effect, inject } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
@@ -14,6 +13,7 @@ import {
   readTextQueryParam,
   writeQueryParams,
 } from "../../../core/url-state/query-param.util";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 
 /** Every view the toggle offers. Named once so the service's parse and the board's buttons agree. */
 export const HOME_VIEW_MODES: readonly PreferencesViewMode[] = ["rider", "pro"];
@@ -69,7 +69,7 @@ export class HomeViewModeService {
   private readonly preferences = inject(PreferencesService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   /**
    * The query params as a signal, SEEDED FROM THE SNAPSHOT.

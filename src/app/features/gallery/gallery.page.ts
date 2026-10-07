@@ -1,15 +1,6 @@
-import { isPlatformBrowser } from "@angular/common";
-import {
-  Component,
-  PLATFORM_ID,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-  untracked,
-} from "@angular/core";
+import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
 import { Router } from "@angular/router";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { GraphQLClient, graphqlResource } from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { ToastService } from "../../ui/toast/toast.service";
@@ -84,7 +75,7 @@ export class GalleryPage {
   /** Absent on the bare `/gallery` route (see app.routes.ts) — that's the closed state. */
   readonly mediaIdParam = input<string | undefined>(undefined, { alias: "mediaId" });
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);

@@ -1,5 +1,4 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Injectable, PLATFORM_ID, inject } from "@angular/core";
+import { Injectable, inject } from "@angular/core";
 import { NavigationEnd, Router } from "@angular/router";
 import { filter } from "rxjs";
 import { getApps, initializeApp } from "firebase/app";
@@ -9,6 +8,7 @@ import {
   logEvent,
   setAnalyticsCollectionEnabled,
 } from "firebase/analytics";
+import { injectIsBrowser } from "../composables/is-browser";
 import { environment } from "../../../environments/environment";
 
 function firebaseApp() {
@@ -34,7 +34,7 @@ function firebaseApp() {
  */
 @Injectable({ providedIn: "root" })
 export class AnalyticsService {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private analytics: Analytics | null = null;
 
   constructor() {

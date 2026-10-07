@@ -1,14 +1,4 @@
-import { isPlatformBrowser } from "@angular/common";
-import {
-  Component,
-  PLATFORM_ID,
-  afterNextRender,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-} from "@angular/core";
+import { Component, afterNextRender, computed, effect, inject, input, signal } from "@angular/core";
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
@@ -22,6 +12,7 @@ import {
   PreferencesService,
   PreferencesViewMode,
 } from "../../../core/preferences/preferences.service";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -337,7 +328,7 @@ export class LinePulseRowComponent {
   protected readonly sheet = inject(LineStatusSheetService);
   private readonly preferences = inject(PreferencesService);
   private readonly store = inject(HomeStore);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly passengerLabel = passengerLabel;
   protected readonly passengerVariant = passengerVariant;

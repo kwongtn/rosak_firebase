@@ -1,9 +1,7 @@
-import { isPlatformBrowser } from "@angular/common";
 import {
   Component,
   ElementRef,
   OnDestroy,
-  PLATFORM_ID,
   afterNextRender,
   computed,
   inject,
@@ -12,6 +10,7 @@ import {
   signal,
   viewChild,
 } from "@angular/core";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { MediaNode } from "../data/gallery.queries";
 import { getImgurThumbnail } from "../data/imgur.util";
 import { computeJustifiedRows } from "../data/justified-layout.util";
@@ -55,7 +54,7 @@ export class JustifiedGridComponent implements OnDestroy {
   readonly items = input.required<MediaNode[]>();
   readonly imageClick = output<MediaNode>();
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>("container");
   private readonly containerWidth = signal(0);
   private resizeObserver: ResizeObserver | undefined;

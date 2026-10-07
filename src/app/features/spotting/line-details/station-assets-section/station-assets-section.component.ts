@@ -1,5 +1,5 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Component, PLATFORM_ID, computed, inject, input } from "@angular/core";
+import { Component, computed, inject, input } from "@angular/core";
+import { injectIsBrowser } from "../../../../core/composables/is-browser";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
 import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
@@ -117,7 +117,7 @@ export class StationAssetsSectionComponent {
    * as VehicleSpottingGridComponent's `stickyOffset`. */
   readonly stickyOffset = input(0);
 
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
   private readonly toast = inject(ToastService);
 
   protected readonly ASSET_TYPE_LABEL = ASSET_TYPE_LABEL;

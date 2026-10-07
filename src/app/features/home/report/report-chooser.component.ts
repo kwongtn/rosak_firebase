@@ -1,5 +1,4 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Component, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import { Component, computed, inject, signal } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import {
@@ -11,6 +10,7 @@ import {
   lucideClock,
 } from "@ng-icons/lucide";
 
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmInput } from "../../../ui/input/input";
@@ -270,7 +270,7 @@ export class ReportChooserComponent {
   private readonly preferences = inject(PreferencesService);
   private readonly store = inject(HomeStore);
   private readonly router = inject(Router);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly TILES = TILES;
 

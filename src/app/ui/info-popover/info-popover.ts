@@ -1,10 +1,9 @@
-import { NgTemplateOutlet, isPlatformBrowser } from "@angular/common";
+import { NgTemplateOutlet } from "@angular/common";
 import {
   Component,
   DestroyRef,
   ElementRef,
   Injectable,
-  PLATFORM_ID,
   TemplateRef,
   afterNextRender,
   computed,
@@ -15,6 +14,7 @@ import {
   viewChild,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 
 /** Optional deep link rendered at the bottom of the panel (e.g. "How this is counted"). */
 export interface InfoPopoverLink {
@@ -308,7 +308,7 @@ export class InfoPopover {
     () => `${this.alignClasses()} ${this._flipAbove() ? "bottom-full mb-1.5" : "top-full mt-1.5"}`,
   );
 
-  private readonly _isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly _isBrowser = injectIsBrowser();
   /** True only during the synchronous `focus()` Escape performs while restoring focus, so the
    * restore does not immediately re-open the panel it just closed. */
   private _restoringFocus = false;

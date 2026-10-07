@@ -1,14 +1,6 @@
-import {
-  Component,
-  PLATFORM_ID,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-  untracked,
-} from "@angular/core";
-import { DatePipe, isPlatformBrowser } from "@angular/common";
+import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
+import { DatePipe } from "@angular/common";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { HlmBadge } from "../../../ui/badge/badge";
@@ -448,7 +440,7 @@ export class MyLinksComponent {
   private readonly toast = inject(ToastService);
   /** Firebase-id-token requests only exist in the browser; on the server `auth.idToken()`
    * resolves null and the `mine` query would just fail (same reasoning as my-spottings). */
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly _links = signal<PublicSocialMediaLink[]>([]);
   protected readonly _isLoading = signal(false);

@@ -1,7 +1,7 @@
-import { isPlatformBrowser } from "@angular/common";
-import { Component, OnDestroy, PLATFORM_ID, computed, inject, signal } from "@angular/core";
+import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { getApps, initializeApp } from "firebase/app";
 import { Unsubscribe, doc as firestoreDoc, getFirestore, onSnapshot } from "firebase/firestore";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { environment } from "../../../environments/environment";
 import { HlmBadge } from "../../ui/badge/badge";
 import { HlmButton } from "../../ui/button/button";
@@ -31,7 +31,7 @@ function firebaseApp() {
   templateUrl: "./gdpr.page.html",
 })
 export class GdprPage implements OnDestroy {
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly isLoading = signal(true);
   protected readonly isError = signal(false);
