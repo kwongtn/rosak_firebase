@@ -56,7 +56,7 @@ const STATUS_LABEL: Record<VehicleStatus, string> = {
 };
 
 /** How far back this chart looks — the old app's equivalent (`ui-vehicle-status-history`, see
- * docs/frontend-map/situasi.md) hardcoded a trailing 10 months; this uses a shorter 6-month
+ * archive/frontend-map/situasi.md) hardcoded a trailing 10 months; this uses a shorter 6-month
  * window instead, since day-by-day resolution over 10 months makes for a very long horizontal
  * scroll for a section that's collapsed by default and meant as a quick trend glance. */
 const WINDOW_DAYS = 180;

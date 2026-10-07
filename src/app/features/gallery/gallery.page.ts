@@ -45,7 +45,7 @@ const SKELETON_ROWS: number[][] = [
   [2, 1.2, 1.6, 1],
 ];
 // Jumping to an old year has to walk every newer item first (no server-side year filter — see
-// the rewrite notes in docs/frontend-map/gallery.md), which can genuinely be 1000+ photos deep
+// the rewrite notes in archive/frontend-map/gallery.md), which can genuinely be 1000+ photos deep
 // for a popular year. A bigger page size here (vs. PAGE_SIZE's smaller, UI-friendly granularity)
 // keeps the request count reasonable, and the delay between requests keeps this from reading as
 // a burst/scrape against the real backend.
@@ -62,7 +62,7 @@ interface YearGroup {
  * /gallery — community-submitted spotting photos. Ported from gallery.component.ts, but fixing
  * the one thing every prior doc pass and this rewrite plan flagged as the real problem: the old
  * page fetched every image that has ever existed in one request (`mediasGroupByPeriod` has no
- * pagination argument at all — see docs/frontend-map/gallery.md). This uses the `medias` Relay
+ * pagination argument at all — see archive/frontend-map/gallery.md). This uses the `medias` Relay
  * connection instead, which is genuinely paginated, loading a reasonable first page and more
  * only on request.
  */

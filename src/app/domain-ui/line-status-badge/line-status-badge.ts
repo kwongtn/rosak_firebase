@@ -24,7 +24,7 @@ export const LINE_STATUS_LABEL: Record<LineStatus, string> = {
   TOTAL_DISRUPTION: "Total Disruption",
 };
 
-/** Ported from @ui/line-status-tag — see docs/frontend-map/shared-ui-components.md. */
+/** Ported from @ui/line-status-tag — see archive/frontend-map/shared-ui-components.md. */
 @Component({
   selector: "line-status-badge",
   imports: [HlmBadge],

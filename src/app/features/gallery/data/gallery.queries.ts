@@ -3,7 +3,7 @@
  * Deliberately NOT `mediasGroupByPeriod` (what the old app used): that field has no pagination
  * argument at all — the resolver loads and returns every media row that has ever existed on
  * every call, which is exactly the "load everything at once" behavior this rewrite is meant to
- * avoid. See docs/frontend-map/gallery.md's rewrite notes for the full backend gap writeup.
+ * avoid. See archive/frontend-map/gallery.md's rewrite notes for the full backend gap writeup.
  * ---------------------------------------------------------------------- */
 
 export const MEDIAS_QUERY = /* GraphQL */ `

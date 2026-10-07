@@ -26,7 +26,7 @@ Directory map:
 - **Outputs / Events / API Responses:**
   - `UserCardComponent.nicknameSaved` — `output<string>()`, emitted after a successful `UPDATE_USER_MUTATION`; `ProfilePage.onNicknameSaved` merges it into the locally held `UserData` (avoids a full re-fetch).
   - GraphQL operations (all in `data/profile.queries.ts`):
-    - `GET_USER_DATA_QUERY` — `user { nickname, spottingsCount, mediaCount, spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, vars `{ typeGroup, freeRange }`. Always resolves to the _caller's own_ user (backend has no by-id lookup — see Known Quirks in `docs/frontend-map/profile.md`).
+    - `GET_USER_DATA_QUERY` — `user { nickname, spottingsCount, mediaCount, spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, vars `{ typeGroup, freeRange }`. Always resolves to the _caller's own_ user (backend has no by-id lookup — see Known Quirks in `archive/frontend-map/profile.md`).
     - `UPDATE_USER_MUTATION` — `updateUser(input: UserInput!) { nickname }`.
     - `GET_MY_EVENTS_QUERY` — `events(filters: {onlyMine: true}, order: {created: DESC}, pagination: {limit, offset})`, returns `MyEvent[]` (id, spottingDate, notes, created, status, type, runNumber, mediaCount, isMine, vehicle{…}).
     - `DELETE_EVENT_MUTATION` — `deleteEvent(input: DeleteEventInput!) { ok }`; server enforces both ownership and a hard 3‑day window (`DELETE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000`, mirrored client-side purely for UI affordance).

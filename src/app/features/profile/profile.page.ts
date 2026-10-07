@@ -28,7 +28,7 @@ import {
  * That's not a frontend restriction we chose — the backend has no query that can fetch another
  * user's data by id at all today: `CommonScalars.user` always resolves `info.context.user` (the
  * caller), with no id argument, and no other field/filter anywhere in the schema accepts one
- * either (see docs/frontend-map/profile.md's rewrite notes for the full gap writeup). Rendering
+ * either (see archive/frontend-map/profile.md's rewrite notes for the full gap writeup). Rendering
  * the query result for a non-owner id would either fail outright or — worse — silently show the
  * *caller's own* data mislabeled as someone else's, so this deliberately shows neither: for any
  * id that isn't yours, it says so rather than guessing.

@@ -8,7 +8,7 @@ import {
 
 /* ---------------------------------------------------------------------- *
  * lines — line tabs / redirect target for bare /spotting
- * See docs/frontend-map/spotting.md § Data & API Contracts, "lines (query)".
+ * See archive/frontend-map/spotting.md § Data & API Contracts, "lines (query)".
  * ---------------------------------------------------------------------- */
 
 export const LINES_QUERY = /* GraphQL */ `

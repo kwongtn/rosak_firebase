@@ -3,7 +3,7 @@
 > Scope: `src/app/services/**`, `src/app/models/**`, `src/app/pipes/**`, `src/app/@util/**`,
 > `src/app/graphql.module.ts`, `src/app/app.module.ts`. This is app-wide plumbing, not a routed
 > feature — **"Path(s) & Routing" and "Component Tree" are not applicable and are omitted.**
-> Every other `docs/frontend-map/*.md` doc should treat `AuthService`/`auth-permissions.ts` here as
+> Every other `archive/frontend-map/*.md` doc should treat `AuthService`/`auth-permissions.ts` here as
 > the canonical source of truth for the permission model, and `graphql.module.ts` here as the
 > canonical source of truth for how Apollo authenticates.
 

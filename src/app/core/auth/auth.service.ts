@@ -33,7 +33,7 @@ const firstNameStorageKey = (uid: string) => `auth:given-name:${uid}`;
 /**
  * Signals-based wrapper over Firebase Auth, ported from src/app/services/auth.service.ts.
  * Deliberately SSR-safe by doing nothing on the server: viewing /spotting is fully public
- * (see docs/frontend-map/spotting.md Permissions), so rendering "logged out" server-side is
+ * (see archive/frontend-map/spotting.md Permissions), so rendering "logged out" server-side is
  * correct, not a shortcut — the real client picks up the real auth state after hydration.
  */
 @Injectable({ providedIn: "root" })

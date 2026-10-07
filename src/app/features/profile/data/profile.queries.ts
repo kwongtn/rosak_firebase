@@ -2,7 +2,7 @@ import { SpottingType, VehicleStatus } from "../../../core/graphql/types";
 
 /* ---------------------------------------------------------------------- *
  * user — profile identity + stats + spotting trend + favourite vehicle.
- * See docs/frontend-map/profile.md § Data & API Contracts.
+ * See archive/frontend-map/profile.md § Data & API Contracts.
  * ---------------------------------------------------------------------- */
 
 export const GET_USER_DATA_QUERY = /* GraphQL */ `
@@ -272,7 +272,7 @@ export interface MyVotesCastData {
 /* ---------------------------------------------------------------------- *
  * deleteEvent — server enforces both ownership and a 3-day window
  * (spotting/schema/schema.py) regardless of what the client thinks
- * `canDelete` should be — see docs/frontend-map/profile.md Known Quirks
+ * `canDelete` should be — see archive/frontend-map/profile.md Known Quirks
  * for the old app's client/server window mismatch, which this rewrite
  * fixes by just computing the 3-day window correctly.
  * ---------------------------------------------------------------------- */
