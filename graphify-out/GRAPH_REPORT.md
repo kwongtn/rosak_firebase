@@ -2,73 +2,73 @@
 
 ## Corpus Check
 
-- 521 files · ~661,569 words
+- 526 files · ~663,833 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 14 file(s) not represented in the graph (top: (none) 8, .ico 3, .css 2)
 
 ## Summary
 
-- 4168 nodes · 10524 edges · 222 communities (192 shown, 30 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 1134 edges (avg confidence: 0.94)
+- 4187 nodes · 10619 edges · 212 communities (183 shown, 29 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 1150 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
 
-- Built from commit: `7027769d`
+- Built from commit: `6cfdbad5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 
-- graphql/types.ts
-- profile.page.ts
+- line-pulse-row.component.spec.ts
+- my-spottings.component.ts
 - index.ts
-- link-submit-box.component.ts
+- link-submit-box.component.spec.ts
 - ConsolePage
 - console.page.spec.ts
 - ad-slot.component.ts
-- SpottingType
+- vehicle-detail.page.ts
 - PendingIncidentsComponent
-- methodology-render.util.ts
+- AppFooterComponent
 - scripts
-- ⚙️ Internal State & Logic
-- CompactNavComponent
+- home.page.ts
+- ProLinesWidgetComponent
 - line-overview.page.ts
-- Functionality & Behavior
+- Situasi
 - my-links-tree.util.ts
-- line-pulse-row.component.spec.ts
+- Highlights
 - Highlights
 - links.component.spec.ts
-- app.config.ts
+- vote-state.util.ts
 - 🧩 Extension Points & Hooks
 - vehicle-spotting-grid.component.ts
-- tracker-map.component.ts
+- humanizeSince
 - System Topology - Angular features over Shared Core, Firebase SDK, and External GTFS feeds
 - links.component.ts
-- gtfs-realtime.service.ts
-- not-found.page.spec.ts
-- pro-dashboard.component.spec.ts
-- ref_vitest
-- .fetchLinks
+- vehicle-popup-content.ts
+- not-found.page.ts
+- StatusInfoChipComponent
+- console.routes.spec.ts
+- link-queue-filter.util.ts
 - spotting.queries.ts
 - Progress Log 2026-08-24 — Major Feature Day (14 commits across insiden, tracker, profile, spotting, navigation, console, gdpr, about, core)
 - ImageUploadService
-- situasi-section.component.ts
+- revalidateOnReturn
 - home.store.spec.ts
 - incident-card.component.spec.ts
-- ThemeService
+- Global Application Shell, Routing & System Pages
 - compilerOptions
-- pro-incidents-widget.component.spec.ts
+- pro-incidents-widget.component.ts
 - IncidentFormComponent
-- ImageCompressionService
-- CalendarIncident
+- ImageFile
+- IncidentCalendarComponent
 - line-pulse-row.component.ts
-- pro-lines-widget.component.ts
-- app-nav-icon-tray.component.ts
+- injectIsBrowser
+- HomeRefreshControlComponent
 - devDependencies
-- InsidenPage
+- isPendingIncidentStatus
 - incident-ai.service.ts
-- layer-checklist.component.ts
+- @angular/core
 - about.page.ts
 - options
 - Spartan UI - Angular UI library with Brain and Helm layers
@@ -79,7 +79,7 @@
 - TrackerMapComponent
 - 00-overview.md
 - GalleryPage
-- compact-nav.component.ts
+- console-nav.component.ts
 - AuthService
 - dependencies
 - incident-form.component.ts
@@ -89,7 +89,7 @@
 - InsidenPage
 - package.json
 - TranSPOT / Spotting
-- Highlights
+- SocialMediaLinkRow
 - architect
 - spotting-keep-alive.spec.ts
 - generate-build-info.mjs
@@ -101,16 +101,16 @@
 - generate-firebase-config.mjs
 - sentry-sourcemaps.mjs
 - home-refresh-control.component.spec.ts
-- Console
+- Data & API Contracts
 - pending.component.spec.ts
-- links-section.component.spec.ts
-- theme-toggle.component.ts
+- LinksSectionComponent
+- compact-nav.component.ts
 - scripts
-- Line
+- image-upload.service.ts
 - AccountPanelComponent
 - production
 - GdprDetail
-- VehicleSpottingGridComponent
+- vehicle-spotting-grid.component.spec.ts
 - Gallery
 - ref_node_fs
 - generate-runtime-config.mjs
@@ -118,32 +118,32 @@
 - environment.ts
 - SocialMediaLinksComponent
 - CI Pipeline - lint, test, build jobs on pull_request and push main/staging
-- GtfsRealtimeService
+- RtSource
 - NotFoundPage
 - Insiden
-- LayerSelectionService
+- link-form.component.spec.ts
 - chrome-devtools
 - Firebase App Hosting - production base config with runConfig and env vars
 - Blue favicon (#2563EB) - 500x500 SVG fan/ray mark with three triangular paths radiating from apex at 14.1,36.3 sharing class st0 fill #2563EB
-- home.page.spec.ts
+- AssetMultiSelectComponent
 - PublicSocialMediaLink
 - combobox.spec.ts
-- incident-link-line.util.ts
+- link-card.component.ts
 - Functionality & Behavior
 - link-tree.util.ts
 - link-thread.component.spec.ts
 - TrackerInfoPanelComponent
 - graphql-client.ts
-- linkStatusInput
-- home.page.ts
-- Situasi
+- .fetchLinks
+- app-nav.component.ts
+- 2026-09-30
 - VehicleListComponent
-- ReportFormComponent
-- pro-report-ranking.component.spec.ts
-- injectIsBrowser
-- isPendingIncidentStatus
-- incident-card.component.ts
-- pro-feed-widget.component.spec.ts
+- report-form.component.spec.ts
+- home-history.queries.ts
+- link-list.component.ts
+- [2026-10-03] home — Phase 5B: motion, dark-mode contrast, accessibility, docs (plan §4 Phase 5, §5, §8)
+- insiden.queries.ts
+- ProFeedWidgetComponent
 - Compliance
 - gallery.page.ts
 - SpottingLineCalendarHeatmapComponent
@@ -151,19 +151,19 @@
 - IncidentCardComponent
 - app-footer.component.ts
 - info-popover.spec.ts
-- vehicle-spotting-grid.component.spec.ts
+- pending-deletion-requests.component.ts
 - functions/package.json
-- Progress Log — 2026-09-15
+- 09/SUMMARY.md
 - extractionParser.ts
 - Functionality & Behavior
 - pageContentFetcher.ts
-- 10/SUMMARY.md
+- 2026-10-05
 - GalleryPage
 - MySpottingsComponent
-- home-feed-items.ts
-- useBulkActions
+- feed-filter.util.ts
+- links-section.component.spec.ts
 - HlmCombobox
-- InfoPopover
+- MetricDoc
 - VerificationCodeCardComponent
 - console.page.ts
 - 2026-10-06
@@ -173,11 +173,11 @@
 - getImgurThumbnail
 - MEDIA_YEAR_COUNTS_QUERY
 - GeojsonStorageService
-- NavMenuState
+- situasi-section.component.spec.ts
 - LinkSheetService
 - Component: {COMPONENT_NAME}
-- infinite-scroll.directive.spec.ts
-- 09/SUMMARY.md
+- ref_vitest
+- incident-history-line.util.ts
 - UserCardComponent
 - 2026-10-07
 - TrackerMapComponent
@@ -197,59 +197,49 @@
 - WheelStatusTagComponent
 - FooterComponent
 - home.store.ts
-- GdprPage
+- isSameMinute
 - social-links.queries.spec.ts
 - Image Not Found Placeholder
 - ProfilePage
 - HlmCheckbox
 - recaptcha.service.ts
-- 2026-09-23
-- home-hero.component.spec.ts
-- Traps
+- TrackerShellPage
 - dependencies
-- @angular/core
-- report-chooser.component.spec.ts
-- card.ts
+- button.ts
+- ⚙️ Internal State & Logic
+- skeleton.ts
 - pending.component.ts
-- justified-layout.util.ts
-- NotFoundPage
-- disclaimer-note.spec.ts
-- line-details.page.ts
+- justified-grid.component.ts
+- line-details.page.spec.ts
 - Data & API Contracts
 - line-status-chart.component.spec.ts
 - PollingSource
 - scroll
-- my-links-status.util.ts
-- ImageGridComponent
+- my-links-row.component.ts
+- Shared UI Component Library (`@ui`)
 - Profile
 - AGENTS.md
 - pull_request_template.md
 - line-status-sheet.component.spec.ts
-- Split the `my-links.component` god file (agent-friction Task 4.5)
 - NoopResizeObserver
-- AppNavIconTrayComponent
 - threadLabel
 - InfiniteScrollDirective
-- my-spottings.component.ts
-- Data & API Contracts
+- lines-label.util.ts
 - formatHourKey
-- Known Defects & Traps — rosak_firebase
-- FakeObserver
+- InfoPopover
 - HomeStore
-- SpottingRedirectPage
 - devDependencies
-- Shared UI Component Library (`@ui`)
-- .sendGrouping
+- console/links: the triage queue is an ACCORDION over the link tree (L4)
 - StubFooter
 
 ## God Nodes (most connected - your core abstractions)
 
-1. `@angular/core` - 234 edges
+1. `@angular/core` - 237 edges
 2. `@angular/router` - 88 edges
 3. `AuthService` - 83 edges
 4. `🧩 Extension Points & Hooks` - 79 edges
 5. `HomeStore` - 78 edges
-6. `@angular/common` - 62 edges
+6. `@angular/common` - 64 edges
 7. `SocialMediaLinksComponent` - 62 edges
 8. `InfoPopover` - 59 edges
 9. `⚙️ Internal State & Logic` - 59 edges
@@ -263,36 +253,41 @@
   docs/progress/2026/09/24.md → src/app/core/auth/admin-only.guard.ts
 - `Data & API Contracts` --references--> `AuthService` [INFERRED]
   archive/frontend-map/about.md → src/app/core/auth/auth.service.ts
-- `Component Tree` --references--> `AuthService` [INFERRED]
-  archive/frontend-map/console.md → src/app/core/auth/auth.service.ts
-- `Path(s) & Routing` --references--> `AuthService` [INFERRED]
-  archive/frontend-map/console.md → src/app/core/auth/auth.service.ts
+- `Firebase SDK usage` --references--> `AuthService` [INFERRED]
+  archive/frontend-map/profile.md → src/app/core/auth/auth.service.ts
+- `Purpose` --references--> `AuthService` [INFERRED]
+  archive/frontend-map/profile.md → src/app/core/auth/auth.service.ts
 
 ## Import Cycles
 
 - None detected.
 
-## Communities (222 total, 30 thin omitted)
+## Communities (212 total, 29 thin omitted)
 
-### Community 0 - "graphql/types.ts"
+### Community 0 - "line-pulse-row.component.spec.ts"
 
-Cohesion: 0.13
-Nodes (14): models/query/get-vehicles.ts, Known Quirks / Tech Debt, `vehicleTypes` (query) — per-line vehicle table data, GraphQLResponse, VehicleStatus, FleetCountChip, fleetCountChips(), LinesAndVehiclesQueryData (+6 more)
+Cohesion: 0.08
+Nodes (6): Home: recent-reports list capped in its own scroll container (commit `4c92101`), LinePulseRowComponent, render(), renderWithClock(), LineStatusChartComponent, LineStatusReportsComponent
 
-### Community 1 - "profile.page.ts"
+### Community 1 - "my-spottings.component.ts"
 
-Cohesion: 0.20
-Nodes (16): DateTrend, FavouriteVehicle, GET_MY_VOTES_CAST_QUERY, GET_PUBLIC_USER_QUERY, GET_USER_DATA_QUERY, GetPublicUserData, GetPublicUserVars, GetUserDataData (+8 more)
+Cohesion: 0.14
+Nodes (23): DateTrend, DELETE_EVENT_MUTATION, DELETE_WINDOW_MS, DeleteEventData, DeleteEventVars, FavouriteVehicle, GET_MY_EVENTS_QUERY, GET_MY_VOTES_CAST_QUERY (+15 more)
 
 ### Community 2 - "index.ts"
 
 Cohesion: 0.19
 Nodes (13): api, ApiError, buildPrompt(), ConfigError, handleExtract(), rateLimit(), RateLimitError, UnavailableError (+5 more)
 
-### Community 3 - "link-submit-box.component.ts"
+### Community 3 - "link-submit-box.component.spec.ts"
 
 Cohesion: 0.12
-Nodes (14): RFC-3986, Home: front-page UX round (commits 9c1acf8, dcf9885, a0f1b95, 858d059, 3e46c04), [2026-09-22] home/feed: capture URLs as `type="text"` and normalize in a pure util, SUBMIT_FEED_LINK_MUTATION, SubmitFeedLinkData, SubmitFeedLinkVars, normalizeFeedUrl(), LinkSubmitBoxComponent (+6 more)
+Nodes (11): RFC-3986, Home: front-page UX round (commits 9c1acf8, dcf9885, a0f1b95, 858d059, 3e46c04), [2026-09-22] home/feed: capture URLs as `type="text"` and normalize in a pure util, SUBMIT_FEED_LINK_MUTATION, SubmitFeedLinkData, normalizeFeedUrl(), LinkSubmitBoxComponent, ComponentUnderTest (+3 more)
+
+### Community 4 - "ConsolePage"
+
+Cohesion: 0.08
+Nodes (10): console/spotting: rows are selectable by default, and Shift-click range-selects, Fixed, BulkActions, IDS, toggleCheckedRange(), useBulkActions(), setChecked(), toggleChecked() (+2 more)
 
 ### Community 5 - "console.page.spec.ts"
 
@@ -301,83 +296,83 @@ Nodes (16): ng-recaptcha-2, asTestable(), byTestId(), checkbox(), checkedText(),
 
 ### Community 6 - "ad-slot.component.ts"
 
-Cohesion: 0.12
-Nodes (10): AD_DISCLOSURE, ADS_CONFIG, AdSlotKey, resolveAdSlot(), AdFillState, AdSlotComponent, isAdPreviewEnabled(), mapAdStatus() (+2 more)
+Cohesion: 0.10
+Nodes (11): AD_DISCLOSURE, ADS_CONFIG, AdSlotKey, resolveAdSlot(), AdFillState, AdSlotComponent, isAdPreviewEnabled(), mapAdStatus() (+3 more)
 
-### Community 7 - "SpottingType"
-
-Cohesion: 0.13
-Nodes (12): SpottingType, DayCell, SpottingActivityHeatmap, SpottingActivityPoint, spottingIntensityClass(), TypeCount, WeekColumn, SpottingCountTooltipComponent (+4 more)
-
-### Community 8 - "PendingIncidentsComponent"
+### Community 7 - "vehicle-detail.page.ts"
 
 Cohesion: 0.09
-Nodes (3): PendingIncident, PendingIncidentsComponent, CalendarIncidentStatus
+Nodes (15): DayCell, SpottingActivityHeatmap, SpottingActivityPoint, toSpottingActivityPoints(), TypeCount, WeekColumn, SpottingCountTooltipComponent, WheelStatusBadge (+7 more)
 
-### Community 9 - "methodology-render.util.ts"
+### Community 9 - "AppFooterComponent"
 
-Cohesion: 0.08
-Nodes (32): Anti-drift layers, CMS overlay escape hatch (documented, **not built**), In-progress rule, 🔌 Interface & Data Flow, `ownerRoute: null` — the one documented exception, Popover guidance — every non-obvious number gets one, 📌 Purpose & Scope, The registry contract (one registry, two readers) (+24 more)
+Cohesion: 0.09
+Nodes (19): 🔌 Interface & Data Flow, @angular/platform-browser, METHODOLOGY_SECTIONS, MethodologySection, METRIC_DOCS, ALL_ENTRIES, DEPENDENCY_SPECS, ownerRouteResolves() (+11 more)
 
 ### Community 10 - "scripts"
 
 Cohesion: 0.25
 Nodes (8): scripts, build, deploy, logs, serve, shell, start, test
 
-### Community 11 - "⚙️ Internal State & Logic"
+### Community 11 - "home.page.ts"
 
-Cohesion: 0.05
-Nodes (31): Component: home, 🔌 Interface & Data Flow, ⚙️ Internal State & Logic, 💡 Potential AI Feature Opportunities, 💡 Potential Feature Opportunities, 2026-09-22, Fix: the Pending pill and the pending group now key off the approval status, Home: service-day feed, shared-card e2e and minute-granular time (+23 more)
+Cohesion: 0.13
+Nodes (13): 🔌 Interface & Data Flow, Fix: the Pending pill and the pending group now key off the approval status, FEED_TABS, FeedTab, canEditLink(), CanEditLinkContext, LinkPayload, LinkCardItem (+5 more)
+
+### Community 12 - "ProLinesWidgetComponent"
+
+Cohesion: 0.13
+Nodes (10): CsvCell, CsvRow, downloadCsv(), RFC-4180, visible(), visibleRows(), toCsv(), toField() (+2 more)
 
 ### Community 13 - "line-overview.page.ts"
 
-Cohesion: 0.07
-Nodes (25): LineStatusBadge, VARIANT_BY_STATUS, toSpottingActivityPoints(), WheelStatusBadge, VEHICLE_SPOTTING_HISTORY_QUERY, VEHICLE_TYPES_QUERY, VehicleSpottingHistoryQueryData, VehicleSpottingHistoryQueryVars (+17 more)
+Cohesion: 0.10
+Nodes (17): VehicleStatus, FleetCountChip, fleetCountChips(), LinesAndVehiclesQueryData, VehicleType, VehicleStatusTrendComponent, CHIP_STYLE, FleetSummaryComponent (+9 more)
 
-### Community 14 - "Functionality & Behavior"
+### Community 14 - "Situasi"
 
-Cohesion: 0.18
-Nodes (11): Functionality & Behavior, Line — `LineComponent` (route `:lineId`, i.e. `/situasi/:lineId`), Overall — `OverallComponent` (route `""`, i.e. `/situasi`), Shell — `SituasiComponent` (`situasi.component.ts` / `.html`), Station Details — `StationDetailsComponent` (route `:lineId/station/:assetId`), Stations — `StationsComponent` (route `:lineId/station`), Sub-component: `spotting-line-calendar-heatmap` (`@ui/spotting-line-calendar-heatmap/`), Sub-component: `spotting-vehicle-calendar-heatmap` (`@ui/spotting-vehicle-calendar-heatmap/`) (+3 more)
+Cohesion: 0.08
+Nodes (24): Component Tree, Data & API Contracts, Firebase / browser storage, Full path reference (with param meaning), Functionality & Behavior, GraphQL, Known Quirks / Tech Debt, Line — `LineComponent` (route `:lineId`, i.e. `/situasi/:lineId`) (+16 more)
 
 ### Community 15 - "my-links-tree.util.ts"
 
-Cohesion: 0.16
-Nodes (18): Extraction map, moveBlockedReason(), MoveGate, nestBlockedReason(), NestGate, openMove, openNest, buildLinkShape() (+10 more)
+Cohesion: 0.14
+Nodes (21): Byte-stable contract, Extraction map, Split the `my-links.component` god file (agent-friction Task 4.5), Verification, moveBlockedReason(), MoveGate, nestBlockedReason(), NestGate (+13 more)
 
-### Community 16 - "line-pulse-row.component.spec.ts"
+### Community 16 - "Highlights"
 
-Cohesion: 0.05
-Nodes (19): home: the network board, Phase 0 — foundations and quick wins, home/line-pulse: the board says what it is doing, [2026-10-05] ui/info-popover: a panel is clipped by an ancestor's `overflow-hidden` AND painted under the chrome by a stale z-index — two independent bugs that look like one, [2026-10-06] testing: `ng test --filter` matches TEST NAMES, not paths — a typo is a SILENTLY GREEN zero-test run, DEFAULT_PREFERENCES, defaults(), isRecord(), MAX_RECENT_LINES (+11 more)
+Cohesion: 0.08
+Nodes (30): home: the network board, Phase 0 — foundations and quick wins, home/line-pulse: the board says what it is doing, Home round 4: the "Others" bucket and unified per-line actions, Verification, Daily Logs, Highlights, Monthly Summary — 2026-10, Tests & Gates (+22 more)
 
 ### Community 17 - "Highlights"
 
-Cohesion: 0.12
-Nodes (15): Console/insiden — social-media link delete in the triage queue (2026-09-23), Highlights, Home — community front page (2026-09-22), Home — front-page UX round (2026-09-22), Home/insiden — Pending pill keyed off the approval status (2026-09-22), Home — recent-reports scroll container (2026-09-22), Home — shared card, service-day feed and e2e (2026-09-22), Home/spotting — front-page round 7 (2026-09-23, dbacb1c..6bbb2a0) (+7 more)
+Cohesion: 0.08
+Nodes (21): 2026-09-26, console/links: Approve action for the social-media link queue (OFFICIAL_POST_INGESTION.md §5.3, this change), console: social-media link triage — Occurred column, grouping, Ungroup, Console/insiden — social-media link delete in the triage queue (2026-09-23), Highlights, Home — community front page (2026-09-22), Home — front-page UX round (2026-09-22), Home/insiden — Pending pill keyed off the approval status (2026-09-22) (+13 more)
 
 ### Community 18 - "links.component.spec.ts"
 
-Cohesion: 0.06
-Nodes (18): SocialMediaLinkRow, approveButton(), asTestable(), callsFor(), completeCalls(), ComponentUnderTest, expand(), groupCalls() (+10 more)
+Cohesion: 0.05
+Nodes (17): approveButton(), asTestable(), callsFor(), completeCalls(), ComponentUnderTest, expand(), groupCalls(), hideButton() (+9 more)
 
-### Community 19 - "app.config.ts"
+### Community 19 - "vote-state.util.ts"
 
-Cohesion: 0.16
-Nodes (8): ngx-markdown, AppErrorHandler, is404Error(), routes, AnalyticsService, firebaseApp(), CHUNK_LOAD_ERROR_PHRASES, isChunkLoadError()
+Cohesion: 0.21
+Nodes (13): 2. The vote indicator no longer snaps back, [2026-10-01] insiden/vote-button: a `linkedSignal` display re-seeds from EVERY input, including the host's echo of your own value, VoteMutationPayload, VoteButtonComponent, formatBreakdown(), formatNetScore(), nextVoteState(), state (+5 more)
 
 ### Community 20 - "🧩 Extension Points & Hooks"
 
-Cohesion: 0.08
-Nodes (41): Open Questions / Verify Against Live Site, Accessibility (Phase 5B), Dark-mode contrast audit (Phase 5B), 🧩 Extension Points & Hooks, What shipped, home/pro heat grid: the grid becomes readable, Home round 3: clearer line board, rebuilt Pro heat grid, LineStatusHourBucket (+33 more)
+Cohesion: 0.05
+Nodes (57): Open Questions / Verify Against Live Site, Accessibility (Phase 5B), Dark-mode contrast audit (Phase 5B), 🧩 Extension Points & Hooks, ⚙️ Internal State & Logic, The registry contract (one registry, two readers), home/pro heat grid: the grid becomes readable, Home round 3: clearer line board, rebuilt Pro heat grid (+49 more)
 
 ### Community 21 - "vehicle-spotting-grid.component.ts"
 
 Cohesion: 0.10
-Nodes (30): Extraction map, dateKeyOf(), aggregateSpottingsFor(), buildCountsByKey(), buildGridSections(), buildMonthGroups(), COL_W, DAY_GRID_HEADER_H (+22 more)
+Nodes (31): Extraction map, dateKeyOf(), spottingIntensityClass(), aggregateSpottingsFor(), buildCountsByKey(), buildGridSections(), buildMonthGroups(), COL_W (+23 more)
 
-### Community 22 - "tracker-map.component.ts"
+### Community 22 - "humanizeSince"
 
-Cohesion: 0.16
-Nodes (10): jszip, papaparse, @sentry/angular, GeojsonStorageService, RtSourceConfig, GtfsStaticService, StaticSource, StaticSourceConfig (+2 more)
+Cohesion: 0.17
+Nodes (6): ProOfficialWidgetComponent, makeStore(), StoreMock, widget(), humanizeSince(), NOW
 
 ### Community 23 - "System Topology - Angular features over Shared Core, Firebase SDK, and External GTFS feeds"
 
@@ -386,38 +381,38 @@ Nodes (23): AboutPage - standalone lazy-loaded routed component reading public/a
 
 ### Community 24 - "links.component.ts"
 
-Cohesion: 0.09
-Nodes (26): isSameMinute(), createTrailingDebounce(), SEARCH_DEBOUNCE_MS, searchTermOrUndefined(), TrailingDebouncer, LinkQueueRowComponent, categoryOptionsOf(), filterStationOptionsOf() (+18 more)
+Cohesion: 0.18
+Nodes (19): categoryOptionsOf(), filterStationOptionsOf(), filterVehicleOptionsOf(), indexCategoriesById(), indexLinesById(), indexStationsById(), indexVehiclesById(), lineOptionsOf() (+11 more)
 
-### Community 25 - "gtfs-realtime.service.ts"
+### Community 25 - "vehicle-popup-content.ts"
 
-Cohesion: 0.13
-Nodes (15): @antv/l7, gtfs-realtime-bindings, IFeedEntity, PanelInternals, PopupState, RtMarkerLayerController, createVehicleMarkerElement(), iconModeForSourceKey() (+7 more)
+Cohesion: 0.38
+Nodes (6): buildVehiclePopupHtml(), CONGESTION_LABEL, escapeHtml(), OCCUPANCY_LABEL, relativeTimeFrom(), STOP_STATUS_LABEL
 
-### Community 26 - "not-found.page.spec.ts"
+### Community 26 - "not-found.page.ts"
 
-Cohesion: 0.28
-Nodes (8): LineStatus, hashString(), NOT_FOUND_MESSAGES, NOT_FOUND_SCROLL_LINES, NotFoundMessage, scrollLineFor(), flushFetch(), render()
+Cohesion: 0.16
+Nodes (12): not-found: the cat is one screen down, and the footer stays put while you go get it, LineStatus, hashString(), NOT_FOUND_MESSAGES, NOT_FOUND_SCROLL_LINES, NotFoundMessage, scrollLineFor(), fetchRandomPet() (+4 more)
 
-### Community 27 - "pro-dashboard.component.spec.ts"
+### Community 27 - "StatusInfoChipComponent"
 
 Cohesion: 0.15
-Nodes (7): isTypingTarget(), ProDashboardComponent, dashboard(), makeFeedLink(), makeStore(), ProHostStub, StoreMock
+Nodes (12): 2026-09-24, Copy: drop the schedule-derived rail claim from the disclaimer and tracker (6727641), Docs: stale-doc sweep + the `vitest --filter` case-sensitivity trap (this change), Home chips: text-pill triggers and a delayed popover close (this change), Methodology reviewer follow-ups: passenger deep-link, vehicle-count registry entry, about link (15f7bd0, this change), Popover: one panel at a time + a 300 ms hover grace (53255b4, this change), spotting/line-details: vehicle-spotting-grid mobile stacked layout below 768px (this change), spotting: roster table↔cards switch raised from `sm` to `md` (table overflowed 640–~700px band) (+4 more)
 
-### Community 28 - "ref_vitest"
+### Community 28 - "console.routes.spec.ts"
 
-Cohesion: 0.17
-Nodes (8): Fixed, adminOnlyGuard(), AuthStub, runGuard(), CONSOLE_ROUTES, fakeAuth, stubRoutes, TestOutlet
+Cohesion: 0.19
+Nodes (7): adminOnlyGuard(), AuthStub, runGuard(), CONSOLE_ROUTES, fakeAuth, stubRoutes, TestOutlet
 
-### Community 29 - ".fetchLinks"
+### Community 29 - "link-queue-filter.util.ts"
 
-Cohesion: 0.14
-Nodes (15): Byte-stable contract, Extraction map, Split the `links.component` god file (agent-friction Task 4.1), Verification, Why the parent `.ts` did not reach ≈800, [2026-09-30] console/insiden: the queue's date args were renamed `createdAfter`/`createdBefore` → `occurredAfter`/`occurredBefore`, with NO alias, [2026-10-01] insiden/link-thread: a PARTIAL permutation is not rejected server-side — both clients must prove the sibling set is complete, dateInputToIsoEnd() (+7 more)
+Cohesion: 0.20
+Nodes (9): Extraction map, [2026-09-30] console/insiden: the queue's date args were renamed `createdAfter`/`createdBefore` → `occurredAfter`/`occurredBefore`, with NO alias, dateInputToIsoEnd(), dateInputToIsoStart(), SocialMediaLinksQueryVars, appliedFiltersAreUnfiltered(), AppliedQueueFilters, COMPLETED_LABEL (+1 more)
 
 ### Community 30 - "spotting.queries.ts"
 
 Cohesion: 0.07
-Nodes (29): WheelStatus, ADD_SPOTTING_EVENT_MUTATION, AddSpottingEventData, AddSpottingEventInput, AddSpottingEventVars, AssetType, LINE_SPOTTING_BOUNDS_QUERY, LINE_SPOTTING_GRID_QUERY (+21 more)
+Nodes (31): `vehicleIncidents` (query) — per-vehicle incident timeline, IncidentSeverity, SpottingLinesStore, AssetType, Line, LINE_SPOTTING_BOUNDS_QUERY, LINE_SPOTTING_GRID_QUERY, LINE_STATION_ASSETS_QUERY (+23 more)
 
 ### Community 31 - "Progress Log 2026-08-24 — Major Feature Day (14 commits across insiden, tracker, profile, spotting, navigation, console, gdpr, about, core)"
 
@@ -426,83 +421,83 @@ Nodes (17): Progress Log 2026-08-24 — Major Feature Day (14 commits across ins
 
 ### Community 32 - "ImageUploadService"
 
-Cohesion: 0.12
-Nodes (22): Component Tree, Data & API Contracts, Other browser/Firebase APIs, Photo submission / moderation pipeline (REST, not GraphQL), ImageUploadService, Known Quirks / Tech Debt, Consumers (call sites), Consumers (call sites) (+14 more)
+Cohesion: 0.14
+Nodes (18): Component Tree, Data & API Contracts, Other browser/Firebase APIs, Photo submission / moderation pipeline (REST, not GraphQL), Consumers (call sites), Consumers (call sites), FormUploadComponent, FormUploadComponent & ImagePreviewButtonComponent (`@ui/spotting/`) (+10 more)
 
-### Community 33 - "situasi-section.component.ts"
+### Community 33 - "revalidateOnReturn"
 
-Cohesion: 0.08
-Nodes (20): spotting/route-persistence: keep-alive pages, scroll memory, and silent revalidation, [2026-09-25] spotting/route-persistence: default route reuse destroyed retained page state, rxjs, revalidateOnReturn(), install(), urlPath(), RouteScrollMemoryService, ScrollPosition (+12 more)
+Cohesion: 0.09
+Nodes (15): spotting/route-persistence: keep-alive pages, scroll memory, and silent revalidation, [2026-09-25] spotting/route-persistence: default route reuse destroyed retained page state, revalidateOnReturn(), install(), urlPath(), RouteScrollMemoryService, isSpottingDetailsRoute(), isSpottingLineRoute() (+7 more)
 
 ### Community 34 - "home.store.spec.ts"
 
-Cohesion: 0.11
-Nodes (20): FrontPageLinesQueryData, HISTORY_LINE_ID_CAP, archiveRequest(), boardLine(), FeedBody, FeedBodyVars, feedData(), feedRequest() (+12 more)
+Cohesion: 0.12
+Nodes (19): HISTORY_LINE_ID_CAP, archiveRequest(), boardLine(), FeedBody, FeedBodyVars, feedData(), feedRequest(), flushInitial() (+11 more)
 
 ### Community 35 - "incident-card.component.spec.ts"
 
 Cohesion: 0.10
-Nodes (4): CALENDAR_INCIDENT_HISTORY_QUERY, CalendarIncidentLinks, REQUEST_CHRONOLOGY_DELETION_MUTATION, TestableCard
+Nodes (3): ngx-markdown, CalendarIncidentLinks, TestableCard
 
-### Community 36 - "ThemeService"
+### Community 36 - "Global Application Shell, Routing & System Pages"
 
-Cohesion: 0.09
-Nodes (19): SpottingStorageService, ThemeService, Browser storage, Canonical route table, Component Tree, Data & API Contracts, Firebase (via `AuthService`, shared plumbing — see `auth.service.ts`), Global Application Shell, Routing & System Pages (+11 more)
+Cohesion: 0.11
+Nodes (16): Browser storage, Canonical route table, Component Tree, Data & API Contracts, Firebase (via `AuthService`, shared plumbing — see `auth.service.ts`), Global Application Shell, Routing & System Pages, GraphQL, Guard functions (defined at the top of the file) (+8 more)
 
 ### Community 37 - "compilerOptions"
 
 Cohesion: 0.15
 Nodes (12): compileOnSave, compilerOptions, esModuleInterop, module, noImplicitReturns, noUnusedLocals, outDir, sourceMap (+4 more)
 
-### Community 38 - "pro-incidents-widget.component.spec.ts"
+### Community 38 - "pro-incidents-widget.component.ts"
 
-Cohesion: 0.16
-Nodes (7): HomeIncidentItem, HomeIncidentSeverity, ProIncidentsWidgetComponent, IncidentsHostStub, makeStore(), StoreMock, widget()
+Cohesion: 0.17
+Nodes (8): HomeIncidentItem, HomeIncidentSeverity, ProIncidentsWidgetComponent, SEVERITY_VARIANT, IncidentsHostStub, makeStore(), StoreMock, widget()
 
-### Community 40 - "ImageCompressionService"
+### Community 40 - "ImageFile"
 
-Cohesion: 0.21
-Nodes (4): ImageCompressionService, ImageCompressionService, ACCEPTED_TYPES, PhotoPickerComponent
+Cohesion: 0.17
+Nodes (7): ImageCompressionService, ImageUploadService, ImageCompressionService, ImageFile, PendingUpload, ACCEPTED_TYPES, PhotoPickerComponent
 
-### Community 41 - "CalendarIncident"
+### Community 41 - "IncidentCalendarComponent"
 
-Cohesion: 0.11
-Nodes (14): clampToMonth(), dateFromKey(), DayCell, IncidentCalendarComponent, MONTH_NAMES, SEVERITY_DOT, startOfMonth(), WEEKDAY_LABELS (+6 more)
+Cohesion: 0.27
+Nodes (3): clampToMonth(), dateFromKey(), IncidentCalendarComponent
 
 ### Community 42 - "line-pulse-row.component.ts"
 
 Cohesion: 0.05
-Nodes (66): Home: community front page is now the landing route (commits de073ff, 0dc074f, ca8b495, f4ede6b), Home: hourly report bars stack by report type, Home: recent-reports list capped in its own scroll container (commit `4c92101`), LINE_STATUS_HISTORY_QUERY, LineStatusHistoryQueryData, LineStatusHistoryQueryVars, LineStatusReportInput, PassengerStatus (+58 more)
+Nodes (83): Home: community front page is now the landing route (commits de073ff, 0dc074f, ca8b495, f4ede6b), Home: hourly report bars stack by report type, Methodology: `/methodology` page, shared `app-info-popover`, disclaimer, code-first registry (6355d6b, 1bb21a0, 4af4550, 1dbb800, 22c0d66, 977e10f, 5c53c4c, 548581d, 56ac071), Home board polish: round 4, Verification, @ng-icons/core, @ng-icons/lucide, metricDoc() (+75 more)
 
-### Community 43 - "pro-lines-widget.component.ts"
+### Community 43 - "injectIsBrowser"
 
-Cohesion: 0.05
-Nodes (38): Deliberate deviations (Phase 4), New seams and testids (Phase 4), CsvCell, CsvRow, downloadCsv(), RFC-4180, visible(), visibleRows() (+30 more)
+Cohesion: 0.06
+Nodes (31): Deliberate deviations (Phase 4), New seams and testids (Phase 4), What shipped, injectIsBrowser(), isBrowserOn(), PollingIntervalMs, PreferencesViewMode, parseEnumQueryParam() (+23 more)
 
-### Community 44 - "app-nav-icon-tray.component.ts"
+### Community 44 - "HomeRefreshControlComponent"
 
-Cohesion: 0.36
-Nodes (10): Extraction map, avatarButtonClassFor(), avatarLabelText(), GENERIC_TITLE, moduleLabelFor(), NAV_LINKS, NavLink, newVersionButtonClassFor() (+2 more)
+Cohesion: 0.20
+Nodes (4): 1. `86cae7f` — the refresh control reads Updating → Updated → countdown, Round 2e (enhancements): the circle stays put, all three glyphs are 22×22, "Updated" acknowledges every clean settle, the tooltip says how stale, and the tone bar announces itself, [2026-10-01] core/graphql: `isLoading` is PRISTINE-ONLY — a refresh that completes can never be observed through it (FIXED), HomeRefreshControlComponent
 
 ### Community 45 - "devDependencies"
 
 Cohesion: 0.11
 Nodes (19): devDependencies, @angular/build, @angular/cli, @angular/compiler-cli, husky, jsdom, lint-staged, @playwright/test (+11 more)
 
-### Community 46 - "InsidenPage"
+### Community 46 - "isPendingIncidentStatus"
 
-Cohesion: 0.17
-Nodes (4): 2026-09-17, Incident card: chronology row hover-highlight + right-side source link indicator, Insiden: month-window server-side incident fetching, InsidenPage
+Cohesion: 0.11
+Nodes (9): 2026-09-17, Incident card: chronology row hover-highlight + right-side source link indicator, Insiden: month-window server-side incident fetching, AuthorPayload, canEditIncident(), CanEditIncidentContext, isPendingIncidentStatus(), PENDING_STATUSES (+1 more)
 
 ### Community 47 - "incident-ai.service.ts"
 
 Cohesion: 0.24
 Nodes (9): apiUrl(), currentIdToken(), envSegment(), ExtractIncidentResult, firebaseApp(), functionsBaseUrl(), IncidentAiService, SummarizeChronology (+1 more)
 
-### Community 48 - "layer-checklist.component.ts"
+### Community 48 - "@angular/core"
 
-Cohesion: 0.07
-Nodes (20): Motion (Phase 5B), Round 2d (follow-up): the ring is 22px again, in one fixed glyph slot, RefreshIntervalMs, LayerCheckbox, RAILWAY_LINE_SOURCE, REALTIME_LAYER_CHECKBOXES, STOPS_LAYER_CHECKBOXES, InfoPanelKind (+12 more)
+Cohesion: 0.05
+Nodes (43): Motion (Phase 5B), Round 2d (follow-up): the ring is 22px again, in one fixed glyph slot, @angular/common, @angular/core, @antv/l7, gtfs-realtime-bindings, jszip, @sentry/angular (+35 more)
 
 ### Community 49 - "about.page.ts"
 
@@ -531,8 +526,8 @@ Nodes (16): 2026-09-25, core/graphql: retain equal response data references, dee
 
 ### Community 54 - "home.queries.spec.ts"
 
-Cohesion: 0.08
-Nodes (42): 2. The vote indicator no longer snaps back, Overview, [2026-10-01] insiden/vote-button: a `linkedSignal` display re-seeds from EVERY input, including the host's echo of your own value, DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION, REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION, SocialMediaLinkVoteData, SocialMediaLinkVotePayload, SocialMediaLinkVoteVars (+34 more)
+Cohesion: 0.10
+Nodes (32): DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION, FeedLinkInput, REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION, SocialMediaLinkVoteData, SocialMediaLinkVotePayload, SocialMediaLinkVoteVars, SubmitFeedLinkVars, UPVOTE_SOCIAL_MEDIA_LINK_MUTATION (+24 more)
 
 ### Community 55 - "ProfilePage"
 
@@ -546,23 +541,23 @@ Nodes (11): CountdownRingComponent, GtfsRealtimeService, GtfsStaticService, laye
 
 ### Community 57 - "00-overview.md"
 
-Cohesion: 0.11
-Nodes (12): Cross-cutting findings worth knowing before you start, Doc index, Frontend Map — Overview & Index, How to use this doc set, Known limitation: live-site verification, QA pass verdict, Sitemap (summary — see `shell.md` for full detail), Tech stack (+4 more)
+Cohesion: 0.14
+Nodes (8): Cross-cutting findings worth knowing before you start, Doc index, Frontend Map — Overview & Index, How to use this doc set, Known limitation: live-site verification, QA pass verdict, Sitemap (summary — see `shell.md` for full detail), Tech stack
 
 ### Community 58 - "GalleryPage"
 
 Cohesion: 0.20
 Nodes (10): computeJustifiedRows, GalleryPage, GalleryYearSliderComponent, GraphQLClient, graphqlResource, JustifiedGridComponent, MediaNode, MEDIAS_QUERY (+2 more)
 
-### Community 59 - "compact-nav.component.ts"
+### Community 59 - "console-nav.component.ts"
 
-Cohesion: 0.31
-Nodes (6): 1. The queue is served from `/console/links` (L1), ITEMS, CONSOLE_LINKS, MODULE_NAV_LINKS, ModuleNavLink, ThemeToggleComponent
+Cohesion: 0.20
+Nodes (6): 1. The queue is served from `/console/links` (L1), ConsoleNavComponent, ConsoleNavItem, ITEMS, TestHost, TestOutlet
 
 ### Community 60 - "AuthService"
 
-Cohesion: 0.12
-Nodes (16): Component Tree, AuthService, @angular/common, AuthService, E2EAuthOverride, firebaseApp(), firstNameStorageKey(), UPLOAD_ERROR_REPORTER (+8 more)
+Cohesion: 0.13
+Nodes (16): Component Tree, Console, Known Quirks / Tech Debt, Open Questions / Verify Against Live Site, Path(s) & Routing, Permissions, Roles & Flags, Purpose, State Management (+8 more)
 
 ### Community 61 - "dependencies"
 
@@ -571,13 +566,13 @@ Nodes (31): dependencies, @angular/cdk, @angular/common, @angular/compiler, @ang
 
 ### Community 62 - "incident-form.component.ts"
 
-Cohesion: 0.10
-Nodes (25): CREATE_CALENDAR_INCIDENT_MUTATION, SUBMIT_CALENDAR_INCIDENT_MUTATION, UPDATE_CALENDAR_INCIDENT_MUTATION, canMoveDown(), canMoveUp(), ChronologyDraft, ChronologyIndicator, emptyChronology() (+17 more)
+Cohesion: 0.07
+Nodes (32): PendingChronologyEditorComponent, CREATE_CALENDAR_INCIDENT_MUTATION, CreateCalendarIncidentData, CreateCalendarIncidentVars, INSIDEN_REFERENCE_QUERY, SUBMIT_CALENDAR_INCIDENT_MUTATION, SubmitCalendarIncidentData, SubmitCalendarIncidentVars (+24 more)
 
 ### Community 63 - "table.ts"
 
-Cohesion: 0.33
-Nodes (8): HlmTable, HlmTableContainer, HlmTableImports, HlmTBody, HlmTd, HlmTh, HlmTHead, HlmTr
+Cohesion: 0.20
+Nodes (10): LinkQueueRowComponent, LinkUrlCellComponent, HlmTable, HlmTableContainer, HlmTableImports, HlmTBody, HlmTd, HlmTh (+2 more)
 
 ### Community 64 - "angular.json"
 
@@ -587,7 +582,7 @@ Nodes (7): cli, analytics, packageManager, newProjectRoot, projects, $schema, ve
 ### Community 65 - "ToastService"
 
 Cohesion: 0.14
-Nodes (9): Functionality & Behavior, GraphQLModule (`graphql.module.ts`), @spartan-ng/brain, REQUEST_VERIFICATION_CODE_MUTATION, RequestVerificationCodeData, ToastContentComponent, ToastVisualType, TYPE_ICON_CLASS (+1 more)
+Nodes (7): Functionality & Behavior, GraphQLModule (`graphql.module.ts`), @spartan-ng/brain, ToastContentComponent, ToastVisualType, TYPE_ICON_CLASS, ToastService
 
 ### Community 66 - "InsidenPage"
 
@@ -596,18 +591,13 @@ Nodes (8): CalendarIncident, graphqlResource, ImageUploadService, IncidentCalend
 
 ### Community 67 - "package.json"
 
-Cohesion: 0.06
-Nodes (33): engines, node, express, @types/express, @types/node, typescript, vitest, lint-staged (+25 more)
+Cohesion: 0.05
+Nodes (35): engines, node, express, @types/express, @types/node, typescript, vitest, lint-staged (+27 more)
 
 ### Community 68 - "TranSPOT / Spotting"
 
-Cohesion: 0.13
-Nodes (17): Data & API Contracts, Component Tree, Functionality & Behavior, Inline timeline (`InlineTimelineComponent`), Line tabs (`SpottingMainComponent`), Open Questions / Verify Against Live Site, Path(s) & Routing, Purpose (+9 more)
-
-### Community 69 - "Highlights"
-
-Cohesion: 0.07
-Nodes (49): 📌 Purpose & Scope, home/hero: the top edge is the status line, and the countdown moved onto the headline row, Home round 4: the "Others" bucket and unified per-line actions, Verification, Byte-stable contract, Extraction map, Observations (not fixed — behavior-preserving), Split the `home.store` god file (agent-friction Task 4.2) (+41 more)
+Cohesion: 0.20
+Nodes (9): Component Tree, Functionality & Behavior, Inline timeline (`InlineTimelineComponent`), Line tabs (`SpottingMainComponent`), Open Questions / Verify Against Live Site, Path(s) & Routing, Purpose, Submission form (`SpottingFormComponent`) (+1 more)
 
 ### Community 70 - "architect"
 
@@ -661,38 +651,38 @@ Nodes (3): distDir, release, rootDir
 
 ### Community 80 - "home-refresh-control.component.spec.ts"
 
-Cohesion: 0.05
-Nodes (35): 1. `86cae7f` — the refresh control reads Updating → Updated → countdown, Round 2e (enhancements): the circle stays put, all three glyphs are 22×22, "Updated" acknowledges every clean settle, the tooltip says how stale, and the tone bar announces itself, [2026-10-01] core/graphql: `isLoading` is PRISTINE-ONLY — a refresh that completes can never be observed through it (FIXED), MAX_REUSABLE_ROUTE_HANDLES, ReusableRouteStrategy, asFixture(), detailsParentRoute, detailsRoute (+27 more)
+Cohesion: 0.07
+Nodes (31): MAX_REUSABLE_ROUTE_HANDLES, ReusableRouteStrategy, asFixture(), detailsParentRoute, detailsRoute, makeBaseChain(), makeDetails(), makeOverview() (+23 more)
 
-### Community 81 - "Console"
+### Community 81 - "Data & API Contracts"
 
-Cohesion: 0.14
-Nodes (14): Component Tree, Console, Data & API Contracts, `EventFilter` shape (confirmed live SDL) and a confirmed frontend/backend mismatch, `EventRead` model (`spotting/models.py:156-172`), Firebase SDK / browser storage, Known Quirks / Tech Debt, Mutation: `MarkReadService` (`console/services/mark-read.service.ts:8-54`) (+6 more)
+Cohesion: 0.33
+Nodes (6): Data & API Contracts, `EventFilter` shape (confirmed live SDL) and a confirmed frontend/backend mismatch, `EventRead` model (`spotting/models.py:156-172`), Firebase SDK / browser storage, Mutation: `MarkReadService` (`console/services/mark-read.service.ts:8-54`), Query: `ConsoleEventsGqlService` (`console/services/events-gql.service.ts:82-139`)
 
 ### Community 82 - "pending.component.spec.ts"
 
-Cohesion: 0.15
-Nodes (5): PendingIncidentChronology, ComponentUnderTest, StubFooter, StubNav, IncidentFormModel
+Cohesion: 0.13
+Nodes (10): Byte-stable contract, Split the `pending.component` god file (agent-friction Task 4.7), Verification, What moved and what stayed, PendingIncident, PendingIncidentChronology, ComponentUnderTest, StubFooter (+2 more)
 
-### Community 83 - "links-section.component.spec.ts"
+### Community 83 - "LinksSectionComponent"
 
-Cohesion: 0.07
-Nodes (14): 2026-09-16, Incident form: chronology polish, mandatory category dropdown, Undo All (commit 6b76a41), Links tab: edit flow, compact cards, day grouping (frontend of Task 24 backend rule), Situasi tab: link edit pencil + edit-mode sheet (follow-up to link edit flow), Theme: Pre-paint theme init for dark-mode ads (commit 32edd8b), Unify link list + link sheet into a shared component set, @angular/platform-browser, LinksSectionComponent (+6 more)
+Cohesion: 0.14
+Nodes (8): 2026-09-16, Incident form: chronology polish, mandatory category dropdown, Undo All (commit 6b76a41), Situasi tab: link edit pencil + edit-mode sheet (follow-up to link edit flow), Theme: Pre-paint theme init for dark-mode ads (commit 32edd8b), Unify link list + link sheet into a shared component set, LinksSectionComponent, optionValueToRefreshInterval(), SituasiSectionComponent
 
-### Community 84 - "theme-toggle.component.ts"
+### Community 84 - "compact-nav.component.ts"
 
-Cohesion: 0.16
-Nodes (7): MODES, ResolvedTheme, ThemeMode, NavIconHoverGroupService, EXPANDED_WIDTH, MODE_LABEL, NEXT_MODE
+Cohesion: 0.08
+Nodes (13): MODES, ResolvedTheme, ThemeMode, NavIconHoverGroupService, CompactNavComponent, TestOutlet, CONSOLE_LINKS, MODULE_NAV_LINKS (+5 more)
 
 ### Community 85 - "scripts"
 
 Cohesion: 0.12
 Nodes (17): scripts, build, e2e, generate, ng, postbuild, prebuild, pree2e (+9 more)
 
-### Community 86 - "Line"
+### Community 86 - "image-upload.service.ts"
 
-Cohesion: 0.18
-Nodes (7): Functionality & Behavior, ProfileMainComponent (`profile.component.ts`), ProfileUserComponent (`user/user.component.ts` + `.html`), SpottingTrendsComponent (`spotting-trends/spotting-trends.component.ts` + `.html`), Open Questions / Verify Against Live Site, Line, LineSwitcherComponent
+Cohesion: 0.29
+Nodes (10): Data & API Contracts, State Management, @supercharge/promise-pool, PendingUploadType, UPLOAD_ERROR_REPORTER, deletePendingUpload(), loadAllPendingUploads(), openDb() (+2 more)
 
 ### Community 88 - "production"
 
@@ -704,10 +694,10 @@ Nodes (9): build, builder, configurations, defaultConfiguration, production, bud
 Cohesion: 0.40
 Nodes (5): GdprDetail, GdprDetailChild, GdprPage, onSnapshot, PublicGdprDocument
 
-### Community 90 - "VehicleSpottingGridComponent"
+### Community 90 - "vehicle-spotting-grid.component.spec.ts"
 
-Cohesion: 0.15
-Nodes (7): spotting/line-details: pinned mobile type label styling parity (this change), Boundary rules that kept the DOM byte-stable, Split the `vehicle-spotting-grid.component` god file (agent-friction Task 4.4), Verification, [2026-09-24] SSR/hydration: two ways a server render breaks the client's first render, [2026-09-25] spotting/vehicle-spotting-grid: a pinned overlay is a second copy — derive both from one class source, VehicleSpottingGridComponent
+Cohesion: 0.11
+Nodes (9): Boundary rules that kept the DOM byte-stable, Split the `vehicle-spotting-grid.component` god file (agent-friction Task 4.4), Verification, MonthLabelInternals, MONTHS, render(), stubMatchMedia(), VEHICLE_TYPES (+1 more)
 
 ### Community 91 - "Gallery"
 
@@ -726,13 +716,13 @@ Nodes (4): config, FALLBACK, outPath, rootDir
 
 ### Community 94 - "Functionality & Behavior"
 
-Cohesion: 0.17
-Nodes (12): AppModule (`app.module.ts`), auth-permissions.ts (`isUserAllowed`), BuildInfoService, Functionality & Behavior, models/spotting-table/source-type.ts, Pipes: BeautifulDecimalPipe, Pipes: CalendarIncidentSeverityPipe, Pipes: CoordinatesHumanizerPipe (+4 more)
+Cohesion: 0.08
+Nodes (23): AppModule (`app.module.ts`), auth-permissions.ts (`isUserAllowed`), BuildInfoService, Cross-Cutting Services, Models, Pipes & GraphQL/API Plumbing, Functionality & Behavior, Known Quirks / Tech Debt, models/query/get-vehicles.ts, models/spotting-table/source-type.ts (+15 more)
 
 ### Community 95 - "environment.ts"
 
-Cohesion: 0.09
-Nodes (16): @angular/ssr, @sentry/node, App, appConfig, config, serverConfig, serverRoutes, NavProgressComponent (+8 more)
+Cohesion: 0.07
+Nodes (19): @angular/ssr, firebase, @sentry/node, App, appConfig, config, serverConfig, serverRoutes (+11 more)
 
 ### Community 97 - "CI Pipeline - lint, test, build jobs on pull_request and push main/staging"
 
@@ -749,10 +739,10 @@ Nodes (3): LineStatusBadge, NOT_FOUND_MESSAGES, NotFoundPage
 Cohesion: 0.15
 Nodes (12): Calendar panel (`CalendarComponent`), Details modal (`EventDetailsModalComponent`), Event card (`EventCardComponent`), Event list panel (`EventListComponent`), Functionality & Behavior, Image drawer (`ImageDrawerComponent`), Insiden, Open Questions / Verify Against Live Site (+4 more)
 
-### Community 101 - "LayerSelectionService"
+### Community 101 - "link-form.component.spec.ts"
 
-Cohesion: 0.20
-Nodes (6): 1. Shared URL / query-param sync — `syncSignalWithQueryParam` (`core/composables/`) — 7 features, 2. Shared client-side export utility — `core/export` — 4 features, 3. Shared persistence — `UserPreferenceService` (`core/services/`) — 3 features, 4. Shared AI / LLM gateway — `AiGatewayService` (`core/ai`) — 9 features, Cross-Component Opportunities, LayerSelectionService
+Cohesion: 0.21
+Nodes (6): SUBMIT_SOCIAL_MEDIA_LINK_MUTATION, UPDATE_SOCIAL_MEDIA_LINK_MUTATION, ComponentUnderTest, LinkFormModel, makeLink(), makeLinkBase()
 
 ### Community 103 - "Firebase App Hosting - production base config with runConfig and env vars"
 
@@ -764,25 +754,25 @@ Nodes (3): Deploy Functions - branch-aware single-project rosak-7223b via WIF, o
 Cohesion: 1.00
 Nodes (3): Blue favicon (#2563EB) - 500x500 SVG fan/ray mark with three triangular paths radiating from apex at 14.1,36.3 sharing class st0 fill #2563EB, Default favicon (#EE7104 orange) - 500x500 SVG fan/ray mark with three triangular paths radiating from apex at 14.1,36.3 sharing class st0 fill #EE7104, Green favicon (#22C55E) - 500x500 SVG fan/ray mark with three triangular paths radiating from apex at 14.1,36.3 sharing class st0 fill #22C55E
 
-### Community 105 - "home.page.spec.ts"
+### Community 105 - "AssetMultiSelectComponent"
 
-Cohesion: 0.16
-Nodes (13): calendarDaysAgo(), dayLabel(), FeedDayGroup, groupFeedLinksByDay(), localDayKey(), NOW, descendantCount(), makeFeedLink() (+5 more)
+Cohesion: 0.22
+Nodes (3): Link form: pinned selections, parent-code chips, mandatory category dropdown, AssetMultiSelectComponent, parentCodeChipText()
 
 ### Community 106 - "PublicSocialMediaLink"
 
-Cohesion: 0.18
-Nodes (6): What moved and what stayed, [2026-10-01] insiden/link-thread: a MISSING `position` is not zero, and a synthesised order becomes the stored truth, CalendarIncidentLinkEdge, PublicSocialMediaLink, MyLinksComponent, LinkShape
+Cohesion: 0.19
+Nodes (5): What moved and what stayed, [2026-10-01] insiden/link-thread: a MISSING `position` is not zero, and a synthesised order becomes the stored truth, PublicSocialMediaLink, MyLinksComponent, LinkShape
 
 ### Community 107 - "combobox.spec.ts"
 
-Cohesion: 0.28
-Nodes (7): ToastService, blurAndSettle(), ComboboxHostComponent, input(), ITEMS, options(), selectCherryViaEnter()
+Cohesion: 0.31
+Nodes (6): ComboboxItem, blurAndSettle(), ComboboxHostComponent, input(), ITEMS, selectCherryViaEnter()
 
-### Community 108 - "incident-link-line.util.ts"
+### Community 108 - "link-card.component.ts"
 
 Cohesion: 0.24
-Nodes (10): incidentLinkLine, IncidentLinkRow, isPendingApproval(), pad2(), parseHttpUrl(), restPathOf(), splitHttpUrl(), toLocalDateTimeLabel() (+2 more)
+Nodes (11): incidentLinkLine, IncidentLinkRow, isPendingApproval(), pad2(), parseHttpUrl(), restPathOf(), splitHttpUrl(), toLocalDateTimeLabel() (+3 more)
 
 ### Community 109 - "Functionality & Behavior"
 
@@ -791,8 +781,8 @@ Nodes (9): `AppComponent` (`app.component.ts`), `ConstructionComponent` (`app-co
 
 ### Community 110 - "link-tree.util.ts"
 
-Cohesion: 0.19
-Nodes (18): canMoveDown(), canMoveUp(), canNestUnder(), childCountOf(), compareStoredSequence(), computeDepths(), DEPTH_INDENT_PX, depthRailsFor() (+10 more)
+Cohesion: 0.22
+Nodes (17): canMoveDown(), canMoveUp(), canNestUnder(), childCountOf(), compareStoredSequence(), computeDepths(), DEPTH_INDENT_PX, depthRailsFor() (+9 more)
 
 ### Community 111 - "link-thread.component.spec.ts"
 
@@ -801,63 +791,58 @@ Nodes (10): cards(), expandChild(), makeChild(), makeLink(), makeNodeWith(), que
 
 ### Community 113 - "graphql-client.ts"
 
-Cohesion: 0.06
-Nodes (34): 📏 Non-Negotiable Code Conventions, Link form: pinned selections, parent-code chips, mandatory category dropdown, profile: "My Submitted Links" thread grouping (submitter side), [2026-09-16] ui/card: never override a directive host class from the template, @angular/forms, clsx, tailwind-merge, GraphQLClient (+26 more)
+Cohesion: 0.09
+Nodes (27): profile: "My Submitted Links" thread grouping (submitter side), [2026-09-16] ui/card: never override a directive host class from the template, @angular/forms, clsx, tailwind-merge, GraphQLClient, GraphQLRequestBody, GraphQLRequestError (+19 more)
 
-### Community 114 - "linkStatusInput"
+### Community 114 - ".fetchLinks"
 
-Cohesion: 0.15
-Nodes (10): 2026-09-26, console/links: Approve action for the social-media link queue (OFFICIAL_POST_INGESTION.md §5.3, this change), 2. Long URLs and titles wrap instead of clipping (L2), 3. Approve also marks the link completed (L3), console/links: the queue moved URL, wraps its long text, and approving retires the row, Gates, [2026-09-26] incident/schema: `SocialMediaLinkInput` is not a patch — a status-only update blanks the row, ConsoleNavComponent (+2 more)
+Cohesion: 0.21
+Nodes (5): 2. Long URLs and titles wrap instead of clipping (L2), 3. Approve also marks the link completed (L3), console/links: the queue moved URL, wraps its long text, and approving retires the row, Gates, console/links: rails instead of offsets, eight columns instead of ten, and buttons that wait for their own precondition
 
-### Community 115 - "home.page.ts"
+### Community 115 - "app-nav.component.ts"
 
-Cohesion: 0.08
-Nodes (22): Home: spotting entry sheet hosted on the front page (wave 1 of the UI revision), @ng-icons/core, @ng-icons/lucide, observeHeight(), FEED_TABS, FeedTab, TILES, LinkSheetComponent (+14 more)
+Cohesion: 0.07
+Nodes (26): Boundaries that kept the DOM byte-stable, Extraction map, Split the `app-nav.component` god file (agent-friction Task 4.6), Verification, Why this one lands clean (no Task 4.1 spec wall), SpottingShellPage, AppNavIconTrayComponent, HOVER_CLOSE_DELAY_MS (+18 more)
 
-### Community 116 - "Situasi"
-
-Cohesion: 0.22
-Nodes (8): Component Tree, Full path reference (with param meaning), Known Quirks / Tech Debt, Path(s) & Routing, Permissions, Roles & Flags, Purpose, Situasi, State Management
-
-### Community 118 - "ReportFormComponent"
-
-Cohesion: 0.28
-Nodes (3): 2026-10-04, spotting/report-form: the vehicle picker is alphabetical, with Married/Decommissioned sunk to the bottom, ReportFormComponent
-
-### Community 119 - "pro-report-ranking.component.spec.ts"
+### Community 116 - "2026-09-30"
 
 Cohesion: 0.24
-Nodes (6): ProReportRankingComponent, REPORT_RANKING_TOP_LINES, hour(), makeStore(), ranking(), StoreMock
+Nodes (7): 2026-09-30, Correction: the thread docs asserted the opposite of the code, and the vote overlay read a different window, insiden/home: thread grouping on the home feed, ui/ad-slot: "why we run ads" disclosure tooltip on the Advertisement caption, Wave close-out: gates (point-in-time — superseded by the Correction entry below), insiden/home: the link conversation becomes a nested, ordered, editable tree, [2026-09-30] home/store: the authenticated vote overlay read must be the SAME READ as the feed it mirrors — window included
 
-### Community 120 - "injectIsBrowser"
+### Community 118 - "report-form.component.spec.ts"
 
-Cohesion: 0.10
-Nodes (11): firebase, injectIsBrowser(), isBrowserOn(), PollingIntervalMs, HomeHeroComponent, OfficialUpdate, PetPic, ExclusivePopoverHandle (+3 more)
+Cohesion: 0.11
+Nodes (16): Known Quirks / Tech Debt, 2026-10-04, spotting/report-form: the vehicle picker is alphabetical, with Married/Decommissioned sunk to the bottom, allowRunNumber(), numberSeenToSetNumbers(), sortVehiclesForPicker(), ReportFormComponent, ComponentUnderTest (+8 more)
 
-### Community 121 - "isPendingIncidentStatus"
-
-Cohesion: 0.31
-Nodes (5): AuthorPayload, canEditIncident(), CanEditIncidentContext, isPendingIncidentStatus(), PENDING_STATUSES
-
-### Community 122 - "incident-card.component.ts"
+### Community 119 - "home-history.queries.ts"
 
 Cohesion: 0.05
-Nodes (40): MediaViewerComponent, CHRONOLOGY_STATUS_LABELS, chronologyStatusLabel(), isChronologyDeletionRequestable(), isChronologyPendingDeletion(), buildChronologyEntries(), ChronologyEntry, defaultChronology() (+32 more)
+Nodes (34): What shipped, LINE_STATUS_HISTORY_QUERY, LINE_STATUS_REPORTS_QUERY, LINES_STATUS_HISTORY_QUERY, LinesStatusHistoryQueryData, LinesStatusHistoryQueryVars, LineStatusHistory, LineStatusHistoryQueryData (+26 more)
 
-### Community 123 - "pro-feed-widget.component.spec.ts"
+### Community 120 - "link-list.component.ts"
 
-Cohesion: 0.10
-Nodes (6): ProFeedWidgetComponent, makeLink(), makeStore(), makeSublink(), StoreMock, widget()
+Cohesion: 0.53
+Nodes (6): insiden: links are timestamped by when the event happened (`occurredAt`), groupLinksByDay(), linkDateKey(), LinkDayGroup, linkDayLabel(), linkDisplayInstant()
+
+### Community 121 - "[2026-10-03] home — Phase 5B: motion, dark-mode contrast, accessibility, docs (plan §4 Phase 5, §5, §8)"
+
+Cohesion: 0.22
+Nodes (9): [2026-10-03] home — Phase 5B: motion, dark-mode contrast, accessibility, docs (plan §4 Phase 5, §5, §8), Accessibility, Dark-mode contrast audit, Docs, Methodology registry audit, Motion, Specs, Verified (+1 more)
+
+### Community 122 - "insiden.queries.ts"
+
+Cohesion: 0.05
+Nodes (47): start(), DayCell, MONTH_NAMES, SEVERITY_DOT, startOfMonth(), WEEKDAY_LABELS, calendarMonthRange(), dateKeyOf() (+39 more)
 
 ### Community 124 - "Compliance"
 
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (14): Compliance, Component Tree, Data & API Contracts, Functionality & Behavior, Known Quirks / Tech Debt, Open Questions / Verify Against Live Site, Path(s) & Routing, Permissions, Roles & Flags (+6 more)
 
 ### Community 125 - "gallery.page.ts"
 
-Cohesion: 0.13
-Nodes (14): MEDIA_YEAR_COUNTS_QUERY, MediaNode, MEDIAS_QUERY, MediasFeedQueryData, MediasFeedQueryVars, MediaYearCount, MediaYearCountsQueryData, getImgurThumbnail() (+6 more)
+Cohesion: 0.15
+Nodes (11): MEDIA_YEAR_COUNTS_QUERY, MediaNode, MEDIAS_QUERY, MediasFeedQueryData, MediasFeedQueryVars, MediaYearCount, MediaYearCountsQueryData, SKELETON_ROWS (+3 more)
 
 ### Community 126 - "SpottingLineCalendarHeatmapComponent"
 
@@ -866,13 +851,13 @@ Nodes (5): Consumers (call sites), Inputs / Outputs, Purpose, Rendering & stylin
 
 ### Community 127 - "2026-10-01"
 
-Cohesion: 0.22
-Nodes (9): 1. The "N links" indicator moves into the chip row, 2026-10-01, [2026-10-01] insiden/home: the conversation chip joins the chip row, and the vote repaints from the server, 2. `403bd1e` — the submit-link error appears on submit, not on blur, Docs & methodology, Gates, home: the refresh beat covers the links section too, and its confirmation actually fires, home: the refresh control says what it is doing, and the submit box waits for Submit (+1 more)
+Cohesion: 0.18
+Nodes (10): 1. The "N links" indicator moves into the chip row, 2026-10-01, [2026-10-01] insiden/home: the conversation chip joins the chip row, and the vote repaints from the server, 2. `403bd1e` — the submit-link error appears on submit, not on blur, Docs & methodology, docs: `reorderSocialMediaLinks.parentId` is nullable-and-defaultless, so "required" was never true of it, Gates, home: the refresh control says what it is doing, and the submit box waits for Submit (+2 more)
 
 ### Community 128 - "IncidentCardComponent"
 
-Cohesion: 0.15
-Nodes (3): Known Quirks / Tech Debt, getReadableTimeDifference(), IncidentCardComponent
+Cohesion: 0.10
+Nodes (8): Known Quirks / Tech Debt, 1. Shared URL / query-param sync — `syncSignalWithQueryParam` (`core/composables/`) — 7 features, 2. Shared client-side export utility — `core/export` — 4 features, 3. Shared persistence — `UserPreferenceService` (`core/services/`) — 3 features, 4. Shared AI / LLM gateway — `AiGatewayService` (`core/ai`) — 9 features, Cross-Component Opportunities, getReadableTimeDifference(), IncidentCardComponent
 
 ### Community 129 - "app-footer.component.ts"
 
@@ -884,20 +869,20 @@ Nodes (10): NewVersionService, VersionManifest, isSameCommit(), BackendVersion, 
 Cohesion: 0.18
 Nodes (11): control(), host(), InfoPopoverBareHost, InfoPopoverHost, InfoPopoverPairHost, leaveHost(), openByHover(), openByTap() (+3 more)
 
-### Community 131 - "vehicle-spotting-grid.component.spec.ts"
+### Community 131 - "pending-deletion-requests.component.ts"
 
-Cohesion: 0.24
-Nodes (5): MonthLabelInternals, MONTHS, render(), stubMatchMedia(), VEHICLE_TYPES
+Cohesion: 0.33
+Nodes (5): PendingDeletionRequestsComponent, CHRONOLOGY_STATUS_LABELS, chronologyStatusLabel(), isChronologyDeletionRequestable(), isChronologyPendingDeletion()
 
 ### Community 132 - "functions/package.json"
 
 Cohesion: 0.12
 Nodes (15): description, engines, node, express, @types/express, @types/node, typescript, vitest (+7 more)
 
-### Community 133 - "Progress Log — 2026-09-15"
+### Community 133 - "09/SUMMARY.md"
 
-Cohesion: 0.20
-Nodes (9): CI: unmocked `graphqlResource` HttpClient in console specs, Commits by Module, console / core (CI test fixes), Deploy Functions: install, runtime, and target config, Detailed Changes, Follow-up: hermetic reporter + step gates (same day), functions / deploy (Deploy Functions fixes), Progress Log — 2026-09-15 (+1 more)
+Cohesion: 0.09
+Nodes (15): CI: unmocked `graphqlResource` HttpClient in console specs, Commits by Module, console / core (CI test fixes), Deploy Functions: install, runtime, and target config, Detailed Changes, Follow-up: hermetic reporter + step gates (same day), functions / deploy (Deploy Functions fixes), Progress Log — 2026-09-15 (+7 more)
 
 ### Community 134 - "extractionParser.ts"
 
@@ -914,30 +899,30 @@ Nodes (6): Filter bar (`events-table.component.html:2-129`), Functionality & Beh
 Cohesion: 0.23
 Nodes (7): CheerioFetcher, FetcherStrategy, getPageContentFetcher(), MAIN_CONTENT_SELECTORS, PageContentFetcher, PuppeteerFetcher, cheerio
 
+### Community 137 - "2026-10-05"
+
+Cohesion: 0.14
+Nodes (9): 2026-10-05, home/hero sparkline: empty and failed now hold the chart's height, home/line-pulse + home page: trailing glyphs, un-clipped cards, one button theme, home/refresh-control: text only, and a tooltip you can actually read, Round 2b (follow-up): the edge lines clip, the fill snaps, the headline counts in service, Round 2b · gradual refinement: the fill tweens again, and snaps only on reset, Round 2c (follow-up): the countdown moves back into the click-to-action control, Round 2f (follow-up): the "Updating" spinner draws itself in instead of popping in whole (+1 more)
+
 ### Community 139 - "MySpottingsComponent"
 
 Cohesion: 0.28
 Nodes (3): MyEvent, EventDayGroup, MySpottingsComponent
 
-### Community 140 - "home-feed-items.ts"
+### Community 140 - "feed-filter.util.ts"
 
-Cohesion: 0.12
-Nodes (19): conversationMatchesQuery(), conversationMatchesStatus(), conversationMentionsLine(), conversationNodes(), FEED_LINK_STATUS_FILTERS, FeedLinkFilter, FilterableNode, filterFeedLinks() (+11 more)
-
-### Community 141 - "useBulkActions"
-
-Cohesion: 0.18
-Nodes (7): BulkActions, IDS, toggleCheckedRange(), useBulkActions(), setChecked(), toggleChecked(), toggleCheckedInRange()
+Cohesion: 0.23
+Nodes (12): conversationMatchesQuery(), conversationMatchesStatus(), conversationMentionsLine(), conversationNodes(), FEED_LINK_STATUS_FILTERS, FeedLinkFilter, FeedLinkStatusFilter, FilterableNode (+4 more)
 
 ### Community 142 - "HlmCombobox"
 
-Cohesion: 0.25
-Nodes (5): Spotting: a cleared combobox / station select really deselects (commit `1f37d7d`), UI: a cleared combobox no longer re-commits on Enter (22add7c), Spotting — combobox / station clear-to-deselect (2026-09-22), [2026-09-23] ui/combobox: text and value are two states — clear must clear, Enter must commit only a deliberate choice, HlmCombobox
+Cohesion: 0.13
+Nodes (13): 2026-09-23, Console: admins can delete social-media link entries from the triage queue (481a332), Home: refresh countdown is the control, with a hover/tap "Click to Refresh Now" tooltip, Home: the URL form heads the desktop left column; the feed gains empty and skeleton states (dbacb1c), Home: two-panel front page + 30s line-refresh countdown (commit `feat(home): split the front page into two panels with a line-refresh countdown`), Home: vehicle-count badge, non-ACTIVE-only status pill, consolidated message removed (b1bde7c, b5cee5a), Spotting: a cleared combobox / station select really deselects (commit `1f37d7d`), Spotting: the station resource projects its line/type dependencies (6bbb2a0) (+5 more)
 
-### Community 143 - "InfoPopover"
+### Community 143 - "MetricDoc"
 
-Cohesion: 0.05
-Nodes (47): 📝 Documentation Maintenance Rules, Methodology & Metric Constants, MISTAKES.md, Progress Documentation (docs/progress/), Workflow Integration, New seams and testids (home-page polish, round 2 · 2b · 2c), New seams and testids (Phase 5B), Component: methodology (+39 more)
+Cohesion: 0.11
+Nodes (22): 📝 Documentation Maintenance Rules, Methodology & Metric Constants, MISTAKES.md, Progress Documentation (docs/progress/), Workflow Integration, New seams and testids (Phase 5B), Anti-drift layers, CMS overlay escape hatch (documented, **not built**) (+14 more)
 
 ### Community 144 - "VerificationCodeCardComponent"
 
@@ -946,13 +931,13 @@ Nodes (7): Consumers (call sites), Data contract, Inputs / Outputs, Purpose, Ren
 
 ### Community 145 - "console.page.ts"
 
-Cohesion: 0.16
-Nodes (16): SpottingVehicleStatus, AnyVehicleStatus, LABEL_BY_STATUS, VARIANT_BY_STATUS, VehicleStatusBadge, FilterFormModel, SPOTTING_TYPE_OPTIONS, STATUS_OPTIONS (+8 more)
+Cohesion: 0.10
+Nodes (29): GraphQLResponse, SpottingType, SpottingVehicleStatus, WheelStatus, SpottingTypeCount, LABEL_BY_TYPE, SpottingTypeBadge, VARIANT_BY_TYPE (+21 more)
 
 ### Community 146 - "2026-10-06"
 
-Cohesion: 0.13
-Nodes (14): 2026-10-06, Round 2g (refinement), Round 2h (refinement), Round 2i (refinement), spotting: inert field labels in the report form, Spotting: mobile title anchoring + chip handoff (round 2), Spotting: mobile title anchoring + chip handoff (round 2), Spotting: the month label's right-edge scroll behavior mirrors the left (+6 more)
+Cohesion: 0.11
+Nodes (18): 2026-10-06, Round 2g (refinement), Round 2h (refinement), Round 2i (refinement), spotting: inert field labels in the report form, Spotting: mobile activity-bar identity merge, Spotting: mobile title anchoring + chip handoff (round 2), Spotting: mobile title anchoring + chip handoff (round 2) (+10 more)
 
 ### Community 147 - "api.ts"
 
@@ -961,8 +946,8 @@ Nodes (14): app, asChronologyList(), AuthError, buildSummarizePrompt(), createEx
 
 ### Community 148 - "2026-10-03"
 
-Cohesion: 0.06
-Nodes (30): 2026-10-03, [2026-10-03] home — board-first layout + Today/Last Week feed tabs (plan §2.1), [2026-10-03] home — Phase 5B: motion, dark-mode contrast, accessibility, docs (plan §4 Phase 5, §5, §8), [2026-10-03] home — visual polish after a live browser QA of Phase 5B: bento balance, heat empty state, row-meta wrapping, Acceptance specs, Acceptance specs, Acceptance specs, Accessibility (+22 more)
+Cohesion: 0.09
+Nodes (21): 2026-10-03, [2026-10-03] home — board-first layout + Today/Last Week feed tabs (plan §2.1), [2026-10-03] home — visual polish after a live browser QA of Phase 5B: bento balance, heat empty state, row-meta wrapping, Acceptance specs, Acceptance specs, Acceptance specs, Docs, Known limits (deliberate, Phase 1) (+13 more)
 
 ### Community 149 - "insiden-console.queries.spec.ts"
 
@@ -971,28 +956,28 @@ Nodes (9): SOCIAL_MEDIA_LINKS_QUERY, closingBraceIndex(), parseSelectionSet(), q
 
 ### Community 154 - "LinkSheetService"
 
-Cohesion: 0.12
-Nodes (12): home: quick submit box rework + advanced-input sheet prefill, insiden: links are timestamped by when the event happened (`occurredAt`), groupLinksByDay(), linkDateKey(), LinkDayGroup, linkDayLabel(), linkDisplayInstant(), LinkEditTarget (+4 more)
+Cohesion: 0.11
+Nodes (11): Popover guidance — every non-obvious number gets one, Links tab: edit flow, compact cards, day grouping (frontend of Task 24 backend rule), Unification: one shared URL-list card for the feed, /insiden and situasi, home: quick submit box rework + advanced-input sheet prefill, [2026-10-01] home/feed: a document that OMITS a replace-not-patch input is silent data loss, and an optional key is not a contract, LinkEditTarget, LinkSheetContext, LinkSheetService (+3 more)
 
 ### Community 155 - "Component: {COMPONENT_NAME}"
 
 Cohesion: 0.29
 Nodes (6): Component: {COMPONENT_NAME}, 🧩 Extension Points & Hooks, 🔌 Interface & Data Flow, ⚙️ Internal State & Logic, 💡 Potential AI Feature Opportunities, 📌 Purpose & Scope
 
-### Community 156 - "infinite-scroll.directive.spec.ts"
+### Community 156 - "ref_vitest"
 
-Cohesion: 0.22
-Nodes (4): create(), FakeEntry, FakeIntersectionObserver, HostComponent
+Cohesion: 0.06
+Nodes (17): createResource(), LinesData, boot(), listedLineIds(), makeLine(), pickTile(), root(), stubMatchMedia() (+9 more)
 
-### Community 157 - "09/SUMMARY.md"
+### Community 157 - "incident-history-line.util.ts"
 
-Cohesion: 0.20
-Nodes (6): 2026-09-28, about: Admin editor cards flow in the public display grid, Commit Statistics, Daily Logs, Monthly Summary — 2026-09, Overview
+Cohesion: 0.52
+Nodes (5): CHANGED_FIELD_LABELS, incidentHistoryChangedLabel(), incidentHistoryDatetimeLabel(), incidentHistoryLine(), MONTHS
 
 ### Community 159 - "2026-10-07"
 
-Cohesion: 0.17
-Nodes (12): 2026-10-07, Boundaries that kept the DOM byte-stable, DX automation, e2e gate, and repo hygiene, `injectIsBrowser()` SSR guard helper (agent-friction Task 1), Shared Vitest setup for jsdom polyfills (agent-friction Task 2), Split the `app-nav.component` god file (agent-friction Task 4.6), Verification, Verification (+4 more)
+Cohesion: 0.11
+Nodes (17): 2026-10-07, Byte-stable contract, Byte-stable contract, DX automation, e2e gate, and repo hygiene, Home tooltip concision + `InfoPopover` viewport clamp, `injectIsBrowser()` SSR guard helper (agent-friction Task 1), Shared Vitest setup for jsdom polyfills (agent-friction Task 2), Split the `home.queries` god file (agent-friction Task 4.3) (+9 more)
 
 ### Community 160 - "TrackerMapComponent"
 
@@ -1001,8 +986,8 @@ Nodes (13): Component Tree, Data & API Contracts, Functionality & Behavior, Know
 
 ### Community 161 - "[2026-10-01] insiden/link-thread: a PERMUTATION API needs the STORED order, not the order the rows happen to arrive in"
 
-Cohesion: 0.08
-Nodes (22): insiden/home: thread grouping on the home feed, docs: `reorderSocialMediaLinks.parentId` is nullable-and-defaultless, so "required" was never true of it, [2026-09-15 → 2026-09-24] testing: Angular unit-test builder & Vitest traps, [2026-09-15] CI/deploy: keep installs hermetic and workflows validator-safe, [2026-09-22 → 2026-10-01] insiden/link-card: interactive controls must stay outside the navigational `<a>` — including the one that moved INTO the card, [2026-09-22] build: serialize builds and tests — they write the one repo-root `dist/`, [2026-09-22] home/line-status-chart: `line-status-bar` stays on the hour container, never on a segment, [2026-09-22] home: the 30s poll beat reloads lines only, never `reloadAll()` (+14 more)
+Cohesion: 0.10
+Nodes (20): spotting/line-details: pinned mobile type label styling parity (this change), [2026-09-15 → 2026-09-24] testing: Angular unit-test builder & Vitest traps, [2026-09-15] CI/deploy: keep installs hermetic and workflows validator-safe, [2026-09-22 → 2026-10-01] insiden/link-card: interactive controls must stay outside the navigational `<a>` — including the one that moved INTO the card, [2026-09-22] build: serialize builds and tests — they write the one repo-root `dist/`, [2026-09-22] home/line-status-chart: `line-status-bar` stays on the hour container, never on a segment, [2026-09-22] home: `status` (approval) and `completed` (admin handled) are independent axes, [2026-09-22] home: the 30s poll beat reloads lines only, never `reloadAll()` (+12 more)
 
 ### Community 162 - "SpottingImageListComponent"
 
@@ -1011,13 +996,13 @@ Nodes (6): Consumers (call sites), Data contract, Inputs / Outputs, Purpose, Ren
 
 ### Community 163 - "@angular/router"
 
-Cohesion: 0.11
-Nodes (10): @angular/router, redirectToOwnProfileGuard(), HoverPreloadStrategy, pathWithOptionalParamMatcher(), ConsoleNavItem, TestHost, TestOutlet, PROFILE_ROUTES (+2 more)
+Cohesion: 0.07
+Nodes (18): @angular/router, rxjs, AppErrorHandler, is404Error(), routes, AnalyticsService, firebaseApp(), redirectToOwnProfileGuard() (+10 more)
 
 ### Community 164 - "my-links.component.ts"
 
 Cohesion: 0.09
-Nodes (22): GROUP_SOCIAL_MEDIA_LINKS_MUTATION, GroupSocialMediaLinksData, GroupSocialMediaLinksVars, PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, PublicSocialMediaLinkEdge, PublicSocialMediaLinkLine, PublicSocialMediaLinkPageInfo, PublicSocialMediaLinksConnection (+14 more)
+Nodes (23): Why the parent `.ts` did not reach ≈800, GROUP_SOCIAL_MEDIA_LINKS_MUTATION, GroupSocialMediaLinksData, GroupSocialMediaLinksVars, PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, PublicSocialMediaLinkEdge, PublicSocialMediaLinkLine, PublicSocialMediaLinkPageInfo (+15 more)
 
 ### Community 165 - "System Component Registry & Architecture Map"
 
@@ -1076,8 +1061,8 @@ Nodes (5): Consumers (call sites), FooterComponent, Inputs / Outputs, Purpose, R
 
 ### Community 176 - "home.store.ts"
 
-Cohesion: 0.07
-Nodes (47): Byte-stable contract, Domain file map, Split the `home.queries` god file (agent-friction Task 4.3), Verification, What moved (all genuinely pure), What moved and what stayed, filterProLines(), FeedLinkEdge (+39 more)
+Cohesion: 0.05
+Nodes (63): feed + console: Official badge for ingested posts, HIDDEN status wired through the UI, Byte-stable contract, Domain file map, Extraction map, Observations (not fixed — behavior-preserving), Split the `home.store` god file (agent-friction Task 4.2), Verification, What moved (all genuinely pure) (+55 more)
 
 ### Community 178 - "social-links.queries.spec.ts"
 
@@ -1089,65 +1074,45 @@ Nodes (7): closingBraceIndex(), EDIT_ROUND_TRIP_RELATIONS, parseSelectionSet(), 
 Cohesion: 0.32
 Nodes (3): ready(), RecaptchaService, Window
 
-### Community 184 - "2026-09-23"
-
-Cohesion: 0.29
-Nodes (7): 2026-09-23, Console: admins can delete social-media link entries from the triage queue (481a332), Home: refresh countdown is the control, with a hover/tap "Click to Refresh Now" tooltip, Home: the URL form heads the desktop left column; the feed gains empty and skeleton states (dbacb1c), Home: two-panel front page + 30s line-refresh countdown (commit `feat(home): split the front page into two panels with a line-refresh countdown`), Home: vehicle-count badge, non-ACTIVE-only status pill, consolidated message removed (b1bde7c, b5cee5a), Spotting: the station resource projects its line/type dependencies (6bbb2a0)
-
-### Community 185 - "home-hero.component.spec.ts"
-
-Cohesion: 0.32
-Nodes (3): linesWith(), makeLine(), networkLines()
-
-### Community 186 - "Traps"
-
-Cohesion: 0.29
-Nodes (7): [2026-10-01] ui/animation: an inline `animation` SHORTHAND resets `animation-direction` — the class beside it is dead markup, [2026-10-01] ui/forms: signal-forms' `required` is a NATIVE `required` — a `<form>` without `novalidate` never fires `submit`, [2026-10-02] build: a Tailwind arbitrary variant starting with `@` does not compile in an Angular template — and the dev server will serve you a STALE bundle while you chase it, [2026-10-02] console/insiden: `[title]="… ?? null"` is not an absent title — a property binding coerces the null to the literal string `"null"`, [2026-10-02] ui/ad-slot: `InfoPopover` tracks hover on its HOST, so a stretched flex child makes the WHOLE ROW a hover hotspot, [2026-10-03] core/preferences: a storage-backed signal service has TWO races with hydration — one throws NG0500, the other silently destroys the stored state, Traps
-
 ### Community 187 - "dependencies"
 
 Cohesion: 0.29
 Nodes (7): dependencies, cheerio, cors, express, firebase-admin, firebase-functions, @google/generative-ai
 
-### Community 188 - "@angular/core"
+### Community 188 - "button.ts"
 
-Cohesion: 0.10
-Nodes (17): @angular/core, class-variance-authority, VARIANT_BY_STATUS, LineStatusReportItem, StationStripEntry, SEVERITY_VARIANT, INSIDEN_INCIDENTS_QUERY, InsidenIncidentsQueryData (+9 more)
+Cohesion: 0.17
+Nodes (7): LinksSelectionToolbarComponent, LinkSheetComponent, REFRESH_INTERVAL_OPTIONS, RefreshIntervalOption, ButtonVariants, HlmButton, RetryBannerComponent
 
-### Community 189 - "report-chooser.component.spec.ts"
+### Community 189 - "⚙️ Internal State & Logic"
 
-Cohesion: 0.07
-Nodes (16): ChooserTile, ReportChooserComponent, boot(), listedLineIds(), makeLine(), pickTile(), root(), stubMatchMedia() (+8 more)
+Cohesion: 0.04
+Nodes (30): Component: home, ⚙️ Internal State & Logic, 💡 Potential AI Feature Opportunities, 💡 Potential Feature Opportunities, 📌 Purpose & Scope, 2026-09-22, Home: service-day feed, shared-card e2e and minute-granular time, Home: spotting entry sheet hosted on the front page (wave 1 of the UI revision) (+22 more)
 
-### Community 190 - "card.ts"
+### Community 190 - "skeleton.ts"
 
-Cohesion: 0.43
-Nodes (6): HlmCard, HlmCardContent, HlmCardDescription, HlmCardFooter, HlmCardHeader, HlmCardTitle
+Cohesion: 0.12
+Nodes (14): VehicleRow, BoardStat, LineStatusBoardComponent, VehicleStatusBoardComponent, TrackerMapSkeletonComponent, StatusCardSkeletonComponent, HlmCard, HlmCardContent (+6 more)
 
 ### Community 191 - "pending.component.ts"
 
-Cohesion: 0.08
-Nodes (33): APPROVE_CHRONOLOGY_DELETION_MUTATION, APPROVE_INCIDENT_MUTATION, ApproveIncidentVars, CalendarIncidentSeverity, ChronologyDeletionDecisionData, ChronologyDeletionDecisionVars, ChronologyIndicator, CONSOLE_CATEGORIES_QUERY (+25 more)
-
-### Community 192 - "justified-layout.util.ts"
-
-Cohesion: 0.43
-Nodes (5): computeJustifiedRows(), JustifiedCell, JustifiedItem, JustifiedRow, MockPhoto
-
-### Community 194 - "disclaimer-note.spec.ts"
-
-Cohesion: 0.38
-Nodes (4): DisclaimerVariant, CANONICAL_SENTENCES, note(), textOf()
-
-### Community 195 - "line-details.page.ts"
-
 Cohesion: 0.06
-Nodes (20): graphqlResource(), createResource(), LinesData, SpottingLinesStore, InsidenSectionComponent, optionValueToRefreshInterval(), addMonths(), LINE_DETAILS_TABS (+12 more)
+Nodes (43): Extraction map, APPROVE_CHRONOLOGY_DELETION_MUTATION, APPROVE_INCIDENT_MUTATION, ApproveIncidentVars, CalendarIncidentSeverity, ChronologyDeletionDecisionData, ChronologyDeletionDecisionVars, ChronologyIndicator (+35 more)
+
+### Community 192 - "justified-grid.component.ts"
+
+Cohesion: 0.15
+Nodes (9): getImgurThumbnail(), ImgurThumbSize, computeJustifiedRows(), JustifiedCell, JustifiedItem, JustifiedRow, MockPhoto, JustifiedGridComponent (+1 more)
+
+### Community 195 - "line-details.page.spec.ts"
+
+Cohesion: 0.12
+Nodes (9): addMonths(), LineDetailsPage, monthKey(), drain(), FakeIntersectionObserver, LINE, render(), stubMatchMedia() (+1 more)
 
 ### Community 196 - "Data & API Contracts"
 
-Cohesion: 0.16
-Nodes (13): `AddSpottingEntry` → `addEvent` (mutation) — submitting a report, Browser storage, Data & API Contracts, `events` (query, aliased via `GetSpottingHistoryService`) — per-vehicle spotting history, Firebase SDK usage, `GetLinesAndVehicles` (query) — form dropdowns, `GetStationLines` (query) — station dropdowns, `lines` (query) — line tabs (+5 more)
+Cohesion: 0.20
+Nodes (11): `AddSpottingEntry` → `addEvent` (mutation) — submitting a report, Browser storage, Data & API Contracts, `events` (query, aliased via `GetSpottingHistoryService`) — per-vehicle spotting history, Firebase SDK usage, `GetLinesAndVehicles` (query) — form dropdowns, `GetStationLines` (query) — station dropdowns, `lines` (query) — line tabs (+3 more)
 
 ### Community 197 - "line-status-chart.component.spec.ts"
 
@@ -1161,18 +1126,18 @@ Nodes (5): home/core-polling: returning to `/` no longer loses the refresh contr
 
 ### Community 199 - "scroll"
 
-Cohesion: 0.47
-Nodes (5): Infinite scroll (`events-table.component.ts:276-282`, `109-117`, `342-368`), ProfileSpottingsComponent (`spottings/spottings.component.ts` + `.html`), Inline history (`InlineHistoryComponent`), end(), scroll()
+Cohesion: 0.22
+Nodes (10): Infinite scroll (`events-table.component.ts:276-282`, `109-117`, `342-368`), Functionality & Behavior, ProfileMainComponent (`profile.component.ts`), ProfileSpottingsComponent (`spottings/spottings.component.ts` + `.html`), ProfileUserComponent (`user/user.component.ts` + `.html`), SpottingTrendsComponent (`spotting-trends/spotting-trends.component.ts` + `.html`), Inputs / Outputs, Inline history (`InlineHistoryComponent`) (+2 more)
 
-### Community 200 - "my-links-status.util.ts"
+### Community 200 - "my-links-row.component.ts"
 
-Cohesion: 0.60
-Nodes (4): isPendingLink(), linkStatusLabel, LinkStatusSource, linkStatusVariant
+Cohesion: 0.39
+Nodes (5): MyLinksRowComponent, isPendingLink(), linkStatusLabel, LinkStatusSource, linkStatusVariant
 
-### Community 201 - "ImageGridComponent"
+### Community 201 - "Shared UI Component Library (`@ui`)"
 
-Cohesion: 0.40
-Nodes (5): Consumers (call sites), ImageGridComponent, Inputs / Outputs, Purpose, Rendering & styling — behavior to preserve
+Cohesion: 0.25
+Nodes (8): Consumers (call sites), ImageGridComponent, Open Questions / Verify Against Live Site, Path(s) & Routing, Purpose, Purpose, Rendering & styling — behavior to preserve, Shared UI Component Library (`@ui`)
 
 ### Community 202 - "Profile"
 
@@ -1181,80 +1146,60 @@ Nodes (15): Data & API Contracts, Firebase SDK usage, Known Quirks / Tech Debt, 
 
 ### Community 203 - "AGENTS.md"
 
-Cohesion: 0.20
-Nodes (7): 🏛️ Architecture & Component Pointer, ⚡ Quick Commands, 🔄 Workflow & Execution Rules, Documentation, Key commands, Quick start, Rosak — Web App
+Cohesion: 0.18
+Nodes (8): 🏛️ Architecture & Component Pointer, 📏 Non-Negotiable Code Conventions, ⚡ Quick Commands, 🔄 Workflow & Execution Rules, Documentation, Key commands, Quick start, Rosak — Web App
 
 ### Community 205 - "line-status-sheet.component.spec.ts"
 
-Cohesion: 0.11
-Nodes (11): [2026-10-03] testing: one unflushed HttpTestingController request fails 84 tests in 8 unrelated files, LineStatusSheetService, LineStatusSheetComponent, ComponentUnderTest, createWithViewport(), makeLine(), openSheetLoggedOut(), openSheetWithPreset() (+3 more)
-
-### Community 206 - "Split the `my-links.component` god file (agent-friction Task 4.5)"
-
-Cohesion: 0.33
-Nodes (5): Byte-stable contract, Split the `my-links.component` god file (agent-friction Task 4.5), Verification, Why the parent `.ts` did not reach ≈800, TestableMyLinks
+Cohesion: 0.14
+Nodes (9): LineStatusSheetComponent, ComponentUnderTest, createWithViewport(), makeLine(), openSheetLoggedOut(), openSheetWithPreset(), openSheetWithStations(), prepareSubmit() (+1 more)
 
 ### Community 209 - "threadLabel"
 
-Cohesion: 0.15
-Nodes (15): 2026-09-30, console: social-media link triage — Occurred column, grouping, Ungroup, Correction: the thread docs asserted the opposite of the code, and the vote overlay read a different window, home: collapsed Last Week link list with day-grouped Load More, insiden: shared pure utilities the `occurredAt` + thread wave introduced, ui/ad-slot: "why we run ads" disclosure tooltip on the Advertisement caption, Wave close-out: gates (point-in-time — superseded by the Correction entry below), [2026-09-30 → 2026-10-01] insiden/link-thread: two counts, one question — `isThreadRoot` is `parentId == null`, and `threadLabel` takes a conversation SIZE (+7 more)
+Cohesion: 0.13
+Nodes (17): insiden: shared pure utilities the `occurredAt` + thread wave introduced, [2026-09-30 → 2026-10-01] insiden/link-thread: two counts, one question — `isThreadRoot` is `parentId == null`, and `threadLabel` takes a conversation SIZE, [2026-09-30] docs: a parallel docs task can assert the opposite of a component fix that lands mid-wave, [2026-10-01] ui/animation: an inline `animation` SHORTHAND resets `animation-direction` — the class beside it is dead markup, [2026-10-01] ui/forms: signal-forms' `required` is a NATIVE `required` — a `<form>` without `novalidate` never fires `submit`, [2026-10-02] build: a Tailwind arbitrary variant starting with `@` does not compile in an Angular template — and the dev server will serve you a STALE bundle while you chase it, [2026-10-02] console/insiden: `[title]="… ?? null"` is not an absent title — a property binding coerces the null to the literal string `"null"`, [2026-10-02] console/profile links: a targeted nest was gated on the UNTARGETED verb's minimum, so the basic tree operation was impossible (+9 more)
 
-### Community 211 - "my-spottings.component.ts"
+### Community 214 - "InfoPopover"
 
-Cohesion: 0.23
-Nodes (9): linesLabel(), vehicleLinesLabel(), DELETE_EVENT_MUTATION, DELETE_WINDOW_MS, DeleteEventData, DeleteEventVars, GET_MY_EVENTS_QUERY, GetMyEventsData (+1 more)
-
-### Community 212 - "Data & API Contracts"
-
-Cohesion: 0.50
-Nodes (4): Data & API Contracts, Firebase / browser storage, GraphQL, REST (Django REST Framework, under `environment.backendUrl` = `https://api-community.mlptf.org.my/` in prod, `http://localhost:8000/` in dev — `/home/kwongtn/rosak_firebase/src/environments/environment.prod.ts:3`, `environment.ts:7`)
-
-### Community 214 - "Known Defects & Traps — rosak_firebase"
-
-Cohesion: 0.12
-Nodes (15): [2026-10-01] insiden/link-card: a chip row inside the `<a>` is why the conversation chip could not join it, [2026-10-03] testing: `httpMock.match()` dequeues, so a "is it pending?" probe eats the request, [2026-10-03] ui/directive: a bare attribute matching a directive input binds the EMPTY STRING — the selector and the input cannot share a name, [2026-10-03] ui/sheet: a sheet that OPENS another sheet must be MOUNTED FIRST, or the page scrolls behind it, [2026-10-03] ui/shell: the sheet SCRIM does not dim the sticky nav — z-[45] vs a z-40 backdrop. Known, app-wide, NOT a home-feature bug, [2026-10-03] ui/theme: LIGHT `--brand` fails AA as text and as a fill — found by the Phase-5B contrast audit, NOT fixed (design decision, above this phase), [2026-10-05] core/styles: component `@keyframes` are RENAMED by emulated encapsulation — an animation referenced by a CLASS must be a global `@theme` token, [2026-10-06] spotting: the month label's right-edge clamp had no month floor — it pinned and got "covered" instead of being pushed away (+7 more)
+Cohesion: 0.09
+Nodes (20): New seams and testids (home-page polish, round 2 · 2b · 2c), [2026-10-01] insiden/link-card: a chip row inside the `<a>` is why the conversation chip could not join it, [2026-10-03] testing: `httpMock.match()` dequeues, so a "is it pending?" probe eats the request, [2026-10-03] testing: one unflushed HttpTestingController request fails 84 tests in 8 unrelated files, [2026-10-03] ui/directive: a bare attribute matching a directive input binds the EMPTY STRING — the selector and the input cannot share a name, [2026-10-03] ui/sheet: a sheet that OPENS another sheet must be MOUNTED FIRST, or the page scrolls behind it, [2026-10-03] ui/shell: the sheet SCRIM does not dim the sticky nav — z-[45] vs a z-40 backdrop. Known, app-wide, NOT a home-feature bug, [2026-10-03] ui/theme: LIGHT `--brand` fails AA as text and as a fill — found by the Phase-5B contrast audit, NOT fixed (design decision, above this phase) (+12 more)
 
 ### Community 216 - "HomeStore"
 
-Cohesion: 0.07
-Nodes (20): Keyboard shortcuts (Pro only), The branch, and what stays outside it, The feed widget's three axes, The filters — Pro-only, default off, reset on leaving Pro, The incidents widget — the decision and its reasoning, The official-notices widget — an archive, not a feed, 🧩 The Pro dashboard (Phase 4), The report-ranking widget — the same read, a different order (+12 more)
+Cohesion: 0.08
+Nodes (21): Keyboard shortcuts (Pro only), The branch, and what stays outside it, The feed widget's three axes, The filters — Pro-only, default off, reset on leaving Pro, The incidents widget — the decision and its reasoning, The official-notices widget — an archive, not a feed, 🧩 The Pro dashboard (Phase 4), The report-ranking widget — the same read, a different order (+13 more)
 
 ### Community 219 - "devDependencies"
 
 Cohesion: 0.33
 Nodes (6): devDependencies, @types/cors, @types/express, @types/node, typescript, vitest
 
-### Community 225 - "Shared UI Component Library (`@ui`)"
+### Community 226 - "console/links: the triage queue is an ACCORDION over the link tree (L4)"
 
-Cohesion: 0.50
-Nodes (4): Open Questions / Verify Against Live Site, Path(s) & Routing, Purpose, Shared UI Component Library (`@ui`)
-
-### Community 226 - ".sendGrouping"
-
-Cohesion: 0.20
+Cohesion: 0.29
 Nodes (5): console/links: the triage queue is an ACCORDION over the link tree (L4), Gates, Tests, The rules, and the two places they could go wrong, What replaced the flat table — and why the old rationale was half right
 
 ## Knowledge Gaps
 
-- **831 isolated node(s):** `/bin/bash`, `$schema`, `version`, `packageManager`, `analytics` (+826 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1481 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **30 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **832 isolated node(s):** `/bin/bash`, `$schema`, `version`, `packageManager`, `analytics` (+827 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1486 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `@angular/core` connect `@angular/core` to `profile.page.ts`, `link-submit-box.component.ts`, `console.page.spec.ts`, `ad-slot.component.ts`, `SpottingType`, `methodology-render.util.ts`, `⚙️ Internal State & Logic`, `CompactNavComponent`, `line-overview.page.ts`, `line-pulse-row.component.spec.ts`, `links.component.spec.ts`, `app.config.ts`, `🧩 Extension Points & Hooks`, `vehicle-spotting-grid.component.ts`, `tracker-map.component.ts`, `links.component.ts`, `gtfs-realtime.service.ts`, `not-found.page.spec.ts`, `pro-dashboard.component.spec.ts`, `ref_vitest`, `spotting.queries.ts`, `situasi-section.component.ts`, `home.store.spec.ts`, `incident-card.component.spec.ts`, `pro-incidents-widget.component.spec.ts`, `ImageCompressionService`, `CalendarIncident`, `line-pulse-row.component.ts`, `pro-lines-widget.component.ts`, `app-nav-icon-tray.component.ts`, `incident-ai.service.ts`, `layer-checklist.component.ts`, `about.page.ts`, `vehicle-status-trend.component.ts`, `home.queries.spec.ts`, `compact-nav.component.ts`, `AuthService`, `incident-form.component.ts`, `table.ts`, `ToastService`, `package.json`, `Highlights`, `home-refresh-control.component.spec.ts`, `pending.component.spec.ts`, `links-section.component.spec.ts`, `theme-toggle.component.ts`, `environment.ts`, `home.page.spec.ts`, `combobox.spec.ts`, `link-tree.util.ts`, `link-thread.component.spec.ts`, `graphql-client.ts`, `home.page.ts`, `pro-report-ranking.component.spec.ts`, `injectIsBrowser`, `incident-card.component.ts`, `pro-feed-widget.component.spec.ts`, `gallery.page.ts`, `app-footer.component.ts`, `info-popover.spec.ts`, `vehicle-spotting-grid.component.spec.ts`, `home-feed-items.ts`, `useBulkActions`, `console.page.ts`, `NavMenuState`, `LinkSheetService`, `infinite-scroll.directive.spec.ts`, `@angular/router`, `my-links.component.ts`, `home.store.ts`, `recaptcha.service.ts`, `home-hero.component.spec.ts`, `report-chooser.component.spec.ts`, `card.ts`, `pending.component.ts`, `disclaimer-note.spec.ts`, `line-details.page.ts`, `line-status-chart.component.spec.ts`, `PollingSource`, `line-status-sheet.component.spec.ts`, `my-spottings.component.ts`, `HomeStore`?**
-  _High betweenness centrality (0.239) - this node is a cross-community bridge._
-- **Why does `AuthService` connect `AuthService` to `profile.page.ts`, `link-submit-box.component.ts`, `console.page.spec.ts`, `⚙️ Internal State & Logic`, `console.page.ts`, `links.component.spec.ts`, `links.component.ts`, `LinkSheetService`, `ref_vitest`, `ImageUploadService`, `home.store.spec.ts`, `@angular/router`, `ThemeService`, `incident-card.component.spec.ts`, `my-links.component.ts`, `app-nav-icon-tray.component.ts`, `home.store.ts`, `about.page.ts`, `home.queries.spec.ts`, `00-overview.md`, `compact-nav.component.ts`, `@angular/core`, `incident-form.component.ts`, `pending.component.ts`, `ToastService`, `TranSPOT / Spotting`, `Profile`, `line-status-sheet.component.spec.ts`, `home-refresh-control.component.spec.ts`, `Console`, `pending.component.spec.ts`, `links-section.component.spec.ts`, `my-spottings.component.ts`, `home.page.spec.ts`, `link-thread.component.spec.ts`, `graphql-client.ts`, `home.page.ts`, `incident-card.component.ts`, `pro-feed-widget.component.spec.ts`, `Compliance`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `@angular/router` connect `@angular/router` to `app-footer.component.ts`, `info-popover.spec.ts`, `vehicle-spotting-grid.component.spec.ts`, `console.page.spec.ts`, `ad-slot.component.ts`, `methodology-render.util.ts`, `CompactNavComponent`, `line-overview.page.ts`, `line-pulse-row.component.spec.ts`, `console.page.ts`, `links.component.spec.ts`, `app.config.ts`, `🧩 Extension Points & Hooks`, `vehicle-spotting-grid.component.ts`, `not-found.page.spec.ts`, `pro-dashboard.component.spec.ts`, `ref_vitest`, `situasi-section.component.ts`, `pro-incidents-widget.component.spec.ts`, `line-pulse-row.component.ts`, `pro-lines-widget.component.ts`, `about.page.ts`, `home-hero.component.spec.ts`, `compact-nav.component.ts`, `@angular/core`, `report-chooser.component.spec.ts`, `ToastService`, `package.json`, `line-details.page.ts`, `Highlights`, `home-refresh-control.component.spec.ts`, `pending.component.spec.ts`, `HomeStore`, `environment.ts`, `home.page.spec.ts`, `home.page.ts`, `pro-report-ranking.component.spec.ts`, `injectIsBrowser`, `pro-feed-widget.component.spec.ts`, `gallery.page.ts`?**
-  _High betweenness centrality (0.040) - this node is a cross-community bridge._
+- **Why does `@angular/core` connect `@angular/core` to `line-pulse-row.component.spec.ts`, `my-spottings.component.ts`, `link-submit-box.component.spec.ts`, `ConsolePage`, `console.page.spec.ts`, `ad-slot.component.ts`, `vehicle-detail.page.ts`, `AppFooterComponent`, `home.page.ts`, `line-overview.page.ts`, `Highlights`, `links.component.spec.ts`, `🧩 Extension Points & Hooks`, `vehicle-spotting-grid.component.ts`, `humanizeSince`, `links.component.ts`, `not-found.page.ts`, `console.routes.spec.ts`, `spotting.queries.ts`, `revalidateOnReturn`, `home.store.spec.ts`, `incident-card.component.spec.ts`, `pro-incidents-widget.component.ts`, `ImageFile`, `line-pulse-row.component.ts`, `injectIsBrowser`, `incident-ai.service.ts`, `about.page.ts`, `vehicle-status-trend.component.ts`, `home.queries.spec.ts`, `console-nav.component.ts`, `AuthService`, `incident-form.component.ts`, `table.ts`, `ToastService`, `package.json`, `home-refresh-control.component.spec.ts`, `pending.component.spec.ts`, `compact-nav.component.ts`, `image-upload.service.ts`, `vehicle-spotting-grid.component.spec.ts`, `environment.ts`, `link-form.component.spec.ts`, `AssetMultiSelectComponent`, `combobox.spec.ts`, `link-card.component.ts`, `link-tree.util.ts`, `link-thread.component.spec.ts`, `graphql-client.ts`, `app-nav.component.ts`, `report-form.component.spec.ts`, `home-history.queries.ts`, `link-list.component.ts`, `insiden.queries.ts`, `gallery.page.ts`, `app-footer.component.ts`, `info-popover.spec.ts`, `pending-deletion-requests.component.ts`, `links-section.component.spec.ts`, `console.page.ts`, `situasi-section.component.spec.ts`, `LinkSheetService`, `ref_vitest`, `@angular/router`, `my-links.component.ts`, `home.store.ts`, `recaptcha.service.ts`, `button.ts`, `⚙️ Internal State & Logic`, `skeleton.ts`, `pending.component.ts`, `justified-grid.component.ts`, `line-details.page.spec.ts`, `line-status-chart.component.spec.ts`, `PollingSource`, `my-links-row.component.ts`, `line-status-sheet.component.spec.ts`?**
+  _High betweenness centrality (0.242) - this node is a cross-community bridge._
+- **Why does `AuthService` connect `AuthService` to `my-spottings.component.ts`, `link-submit-box.component.spec.ts`, `console.page.spec.ts`, `home.page.ts`, `links-section.component.spec.ts`, `console.page.ts`, `links.component.spec.ts`, `links.component.ts`, `situasi-section.component.spec.ts`, `LinkSheetService`, `console.routes.spec.ts`, `home.store.spec.ts`, `@angular/router`, `Global Application Shell, Routing & System Pages`, `incident-card.component.spec.ts`, `my-links.component.ts`, `ImageFile`, `@angular/core`, `about.page.ts`, `home.store.ts`, `home.queries.spec.ts`, `⚙️ Internal State & Logic`, `incident-form.component.ts`, `pending.component.ts`, `ToastService`, `Profile`, `line-status-sheet.component.spec.ts`, `home-refresh-control.component.spec.ts`, `pending.component.spec.ts`, `compact-nav.component.ts`, `image-upload.service.ts`, `Functionality & Behavior`, `link-form.component.spec.ts`, `link-thread.component.spec.ts`, `graphql-client.ts`, `app-nav.component.ts`, `report-form.component.spec.ts`, `link-list.component.ts`, `insiden.queries.ts`, `Compliance`?**
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
+- **Why does `@angular/router` connect `@angular/router` to `line-pulse-row.component.spec.ts`, `app-footer.component.ts`, `info-popover.spec.ts`, `console.page.spec.ts`, `ad-slot.component.ts`, `vehicle-detail.page.ts`, `AppFooterComponent`, `home.page.ts`, `line-overview.page.ts`, `Highlights`, `console.page.ts`, `links.component.spec.ts`, `🧩 Extension Points & Hooks`, `vehicle-spotting-grid.component.ts`, `not-found.page.ts`, `console.routes.spec.ts`, `ref_vitest`, `spotting.queries.ts`, `revalidateOnReturn`, `pro-incidents-widget.component.ts`, `line-pulse-row.component.ts`, `injectIsBrowser`, `home.store.ts`, `about.page.ts`, `console-nav.component.ts`, `button.ts`, `⚙️ Internal State & Logic`, `AuthService`, `package.json`, `line-details.page.spec.ts`, `home-refresh-control.component.spec.ts`, `pending.component.spec.ts`, `compact-nav.component.ts`, `vehicle-spotting-grid.component.spec.ts`, `environment.ts`, `app-nav.component.ts`, `home-history.queries.ts`, `insiden.queries.ts`, `gallery.page.ts`?**
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Are the 26 inferred relationships involving `AuthService` (e.g. with `Data & API Contracts` and `State Management`) actually correct?**
   _`AuthService` has 26 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 71 inferred relationships involving `🧩 Extension Points & Hooks` (e.g. with `graphqlResource()` and `renderMethodologyCopy()`) actually correct?**
   _`🧩 Extension Points & Hooks` has 71 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `/bin/bash`, `$schema`, `version` to the rest of the system?**
-  _831 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `graphql/types.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.12681159420289856 - nodes in this community are weakly interconnected._
+  _832 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `line-pulse-row.component.spec.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.07936507936507936 - nodes in this community are weakly interconnected._
