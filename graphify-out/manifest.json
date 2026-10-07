@@ -1494,9 +1494,9 @@
     "semantic_hash": ""
   },
   "src/app/features/profile/my-links/my-links.component.ts": {
-    "mtime": 1791356890.561456,
-    "seen": 1791357866.8664875,
-    "ast_hash": "f303b83eb11c2ce9e830861009b9e95a",
+    "mtime": 1791374711.6214774,
+    "seen": 1791378049.1884844,
+    "ast_hash": "a52ee1f9447832fa7862186a28f0e225",
     "semantic_hash": ""
   },
   "src/app/features/profile/my-spottings/my-spottings.component.ts": {
@@ -2352,9 +2352,9 @@
     "semantic_hash": ""
   },
   "docs/components/profile.md": {
-    "mtime": 1791351768.0507822,
-    "seen": 1791354418.6602116,
-    "ast_hash": "540b225160844a44bf29fcdc2f2a02f7",
+    "mtime": 1791377600.5888124,
+    "seen": 1791378049.188834,
+    "ast_hash": "c271a63c7b6c9935990af36ce9ba3eac",
     "semantic_hash": ""
   },
   "docs/components/spotting.md": {
@@ -2472,15 +2472,15 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/SUMMARY.md": {
-    "mtime": 1791373110.3074186,
-    "seen": 1791373229.3402731,
-    "ast_hash": "6628ad99d2fb10e5ff642675c2826d94",
+    "mtime": 1791377881.3664966,
+    "seen": 1791378049.1888661,
+    "ast_hash": "92aaad0a951787d0149b7ec3a3aa50da",
     "semantic_hash": ""
   },
   "docs/progress/2026/SUMMARY.md": {
-    "mtime": 1791373110.5671463,
-    "seen": 1791373229.3402743,
-    "ast_hash": "a5e741131c3ff457a34295d174944e71",
+    "mtime": 1791377881.5625749,
+    "seen": 1791378049.188867,
+    "ast_hash": "699c7ff5fc131ebe968b6ce7b0477417",
     "semantic_hash": ""
   },
   "public/ads.txt": {
@@ -2910,9 +2910,9 @@
     "semantic_hash": ""
   },
   "docs/progress/2026/10/07.md": {
-    "mtime": 1791373109.897024,
-    "seen": 1791373229.340272,
-    "ast_hash": "1940ffb26876f1dd1f841e7645ffcb2b",
+    "mtime": 1791377881.084515,
+    "seen": 1791378049.1888647,
+    "ast_hash": "3196dba9eabe3ac512b2cf5a03e19738",
     "semantic_hash": ""
   },
   "archive/frontend-map/00-overview.md": {
@@ -3219,6 +3219,36 @@
     "mtime": 1791371744.4777799,
     "seen": 1791373229.3400128,
     "ast_hash": "25a4e580cf2ab27b167059dbfa01f53e",
+    "semantic_hash": ""
+  },
+  "src/app/features/profile/my-links/my-links-reasons.util.spec.ts": {
+    "mtime": 1791374711.0870857,
+    "seen": 1791378049.1884727,
+    "ast_hash": "2b77a050f339c36482bd389cb6c537dd",
+    "semantic_hash": ""
+  },
+  "src/app/features/profile/my-links/my-links-reasons.util.ts": {
+    "mtime": 1791374292.4776952,
+    "seen": 1791378049.1884754,
+    "ast_hash": "88beef00902a9dc3dce02a90e7980832",
+    "semantic_hash": ""
+  },
+  "src/app/features/profile/my-links/my-links-row.component.ts": {
+    "mtime": 1791374309.0591228,
+    "seen": 1791378049.1884766,
+    "ast_hash": "d3c4b9e2fce3862097ef4c39703a3c7b",
+    "semantic_hash": ""
+  },
+  "src/app/features/profile/my-links/my-links-tree.util.spec.ts": {
+    "mtime": 1791375191.571306,
+    "seen": 1791378049.1884806,
+    "ast_hash": "c78b08278f35372191d4d23616c7fee8",
+    "semantic_hash": ""
+  },
+  "src/app/features/profile/my-links/my-links-tree.util.ts": {
+    "mtime": 1791374711.3858185,
+    "seen": 1791378049.1884818,
+    "ast_hash": "493d6d62739798a50f5f6cf2bde07a17",
     "semantic_hash": ""
   }
 }
