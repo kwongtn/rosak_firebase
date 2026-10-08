@@ -13,6 +13,27 @@
 
 ---
 
+## [2026-10-08] app-nav-icon-tray: NG0911 on teardown during auth init
+
+**Problem**: Navigating away from a page before Firebase auth finished initialising threw
+`RuntimeError: NG0911: View has already been destroyed.` from
+`app-nav-icon-tray.component.ts`'s `this.destroyRef.onDestroy(...)` (Sentry-captured; reachable on
+slow auth, e.g. mobile networks).
+**Root Cause**: `<app-nav>` (and this tray) is recreated on every top-level navigation, while
+`auth.whenReady` resolves asynchronously. If the user navigated away first, the tray's view was
+already destroyed when the `whenReady.then` callback ran, and calling `DestroyRef.onDestroy` on a
+destroyed view throws NG0911.
+**Fix**: the `whenReady.then` early return now also checks `this.destroyRef.destroyed`
+(`if (hasShownAvatarHintThisPageLoad || this.destroyRef.destroyed) return;`). Because a destroyed
+tray never showed the hint, the module-level one-shot flag is deliberately NOT consumed, so the
+next page's tray may still show it once. Pinned by
+`app-nav-icon-tray.component.spec.ts` (red: NG0911 unhandled rejection + the 2500ms hint timer
+armed; green after the guard).
+**Prevention**: any async callback that registers `DestroyRef.onDestroy` after an `await`/`.then`
+must check `destroyRef.destroyed` first — the view can die between scheduling and running. Guard
+before consuming one-shot module/global state, so a cancelled run does not burn the "already shown"
+flag.
+
 ## [2026-10-07] features/home: wrapping a control or chip in an `InfoPopover` / `StatusInfoChip` host relocates it in the DOM — re-scope ancestor queries and cluster-order assertions
 
 **Problem**: Wrapping `line-card-pin` / `line-row-pin` in `app-info-popover`, and `line-row-vehicles` in

@@ -295,7 +295,7 @@ export class AppNavIconTrayComponent {
   constructor() {
     afterNextRender(() => {
       this.auth.whenReady.then(() => {
-        if (hasShownAvatarHintThisPageLoad) {
+        if (hasShownAvatarHintThisPageLoad || this.destroyRef.destroyed) {
           return;
         }
         hasShownAvatarHintThisPageLoad = true;
