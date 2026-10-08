@@ -2,8 +2,8 @@ import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
 import type { SocialMediaLinkRow, UpdateSocialMediaLinkVars } from "./insiden-console.queries";
 
 /**
- * The `SocialMediaLinkInput` for a status-only change (the console queue's Approve → `LIVE`
- * and Hide → `HIDDEN` verbs).
+ * The `SocialMediaLinkInput` for a status-only change (the console queue's Approve →
+ * `LIVE`, Hide → `HIDDEN` and Unhide → `LIVE` verbs).
  *
  * `SocialMediaLinkInput` is NOT a patch: `url` is non-nullable and the backend service assigns
  * `title` and calls `.set()` on the four M2M tag relations unconditionally. A status-only payload

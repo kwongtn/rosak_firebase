@@ -4,7 +4,12 @@ import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmNativeSelect } from "../../../../ui/select/native-select";
 import type { AssetMultiSelectOption } from "../../../insiden/asset-multi-select/asset-multi-select.component";
-import { COMPLETED_LABEL, type CompletedFilter } from "./link-queue-filter.util";
+import {
+  COMPLETED_LABEL,
+  VISIBILITY_LABEL,
+  type CompletedFilter,
+  type VisibilityFilter,
+} from "./link-queue-filter.util";
 
 /**
  * The `/console/links` filter card, extracted from the page component. Purely
@@ -23,6 +28,7 @@ export class LinksFilterBarComponent {
   readonly categoryId = input("");
   readonly categories = input<{ id: string; name: string }[]>([]);
   readonly completedFilter = input<CompletedFilter>("pending");
+  readonly visibilityFilter = input<VisibilityFilter>("all");
   readonly lineOptions = input<AssetMultiSelectOption[]>([]);
   readonly filterLineId = input("");
   readonly filterVehicleOptions = input<AssetMultiSelectOption[]>([]);
@@ -35,6 +41,7 @@ export class LinksFilterBarComponent {
   readonly searchInput = output<string>();
   readonly categoryChange = output<string>();
   readonly completedChange = output<CompletedFilter>();
+  readonly visibilityChange = output<VisibilityFilter>();
   readonly filterLineChange = output<string>();
   readonly filterVehicleChange = output<string>();
   readonly filterStationChange = output<string>();
@@ -43,4 +50,5 @@ export class LinksFilterBarComponent {
   readonly reset = output<void>();
 
   protected readonly completedFilterLabel = COMPLETED_LABEL;
+  protected readonly visibilityFilterLabel = VISIBILITY_LABEL;
 }

@@ -239,6 +239,7 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
     $search: String
     $categoryId: ID
     $completed: Boolean
+    $hidden: Boolean
     $lineId: ID
     $vehicleId: ID
     $stationId: ID
@@ -249,6 +250,7 @@ export const SOCIAL_MEDIA_LINKS_QUERY = /* GraphQL */ `
       search: $search
       categoryId: $categoryId
       completed: $completed
+      hidden: $hidden
       lineId: $lineId
       vehicleId: $vehicleId
       stationId: $stationId
@@ -394,10 +396,10 @@ export interface SocialMediaLinkRow {
   completedAt: string | null;
   /** Display name of the completing admin (nickname or shortId), null until completed. */
   completedBy: string | null;
-  /** Approval lifecycle — `PENDING_APPROVAL` for a community submission (or an
-   *  auto-ingested post) awaiting an admin, `LIVE` once published, `HIDDEN` when an
-   *  admin removed it from the feed. Distinct from `completed`, the queue's own
-   *  "mark handled" flag. */
+  /** Approval lifecycle — `PENDING_APPROVAL` for a community submission awaiting
+   *  an admin, `LIVE` once published (an auto-ingested operator post is written
+   *  straight to `LIVE`), `HIDDEN` when an admin removed it from the feed.
+   *  Distinct from `completed`, the queue's own "mark handled" flag. */
   status: SocialMediaLinkStatus;
   /** True for rows written by the official-post ingestion (backend `is_automated`) —
    *  drives the row's "Official" chip. False for every hand-submitted link. */
@@ -417,6 +419,12 @@ export interface SocialMediaLinksQueryVars {
   search?: string;
   categoryId?: string;
   completed?: boolean;
+  /** The FEED-VISIBILITY axis, distinct from `completed` (the handled flag):
+   *  `true` returns ONLY rows an admin has hidden, `false` excludes them, and
+   *  omitting the key returns every row. Drives the queue's Visibility filter
+   *  (All / Visible only / Hidden only); omitted for "All" so the wire never
+   *  carries an explicit null. */
+  hidden?: boolean;
   lineId?: string;
   vehicleId?: string;
   stationId?: string;

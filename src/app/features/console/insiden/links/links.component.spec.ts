@@ -141,6 +141,7 @@ interface ComponentUnderTest {
   onSearchInput(value: string): void;
   onCategoryChange(value: string): void;
   onCompletedFilterChange(value: "any" | "pending" | "completed"): void;
+  onVisibilityFilterChange(value: "all" | "visible" | "hidden"): void;
   onFilterLineChange(value: string): void;
   onFilterVehicleChange(value: string): void;
   onFilterStationChange(value: string): void;
@@ -149,6 +150,7 @@ interface ComponentUnderTest {
   resetFilters(): void;
   showAllLinks(): void;
   completedFilter: WritableSignal<"any" | "pending" | "completed">;
+  visibilityFilter: WritableSignal<"all" | "visible" | "hidden">;
   filterLineId: WritableSignal<string>;
   filterVehicleId: WritableSignal<string>;
   filterStationId: WritableSignal<string>;
@@ -156,10 +158,13 @@ interface ComponentUnderTest {
   filterDateTo: WritableSignal<string>;
   approveLink(link: SocialMediaLinkRow): Promise<boolean>;
   hideLink(link: SocialMediaLinkRow): Promise<boolean>;
+  unhideLink(link: SocialMediaLinkRow): Promise<boolean>;
   markCompleted(link: SocialMediaLinkRow): Promise<boolean>;
   openLinkDetail(link: SocialMediaLinkRow): void;
   closeLinkPanel(): void;
   approveFromPanel(): Promise<void>;
+  hideFromPanel(): Promise<void>;
+  unhideFromPanel(): Promise<void>;
   markCompletedFromPanel(): Promise<void>;
   isDeleting: WritableSignal<boolean>;
   deleteLink(link: SocialMediaLinkRow): Promise<void>;
@@ -298,6 +303,10 @@ describe("SocialMediaLinksComponent", () => {
 
   function hideButton(): HTMLButtonElement | null {
     return rowButton("Hide");
+  }
+
+  function unhideButton(): HTMLButtonElement | null {
+    return rowButton("Unhide");
   }
 
   /** First tbody row button with the given label (the sheet's own buttons never match). */
@@ -462,6 +471,29 @@ describe("SocialMediaLinksComponent", () => {
     expect(vars).toEqual({ search: undefined, categoryId: undefined, completed: undefined });
   });
 
+  it("visibility toggle maps all/visible/hidden to omitted/false/true on the hidden var", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+
+    component.onVisibilityFilterChange("hidden");
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
+    let [, vars] = callsFor("socialMediaLinks")[0];
+    expect(vars["hidden"]).toBe(true);
+
+    component.onVisibilityFilterChange("visible");
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(2));
+    [, vars] = callsFor("socialMediaLinks")[1];
+    expect(vars["hidden"]).toBe(false);
+
+    component.onVisibilityFilterChange("all");
+    await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(3));
+    [, vars] = callsFor("socialMediaLinks")[2];
+    // "All links" OMITS the key rather than sending an explicit null.
+    expect("hidden" in vars).toBe(false);
+  });
+
   it("debounces line/vehicle/station filters into one query carrying the resolver args", async () => {
     await initialLoadsSettled(asTestable(fixture));
     vi.useFakeTimers();
@@ -540,10 +572,12 @@ describe("SocialMediaLinksComponent", () => {
     component.filterDateFrom.set("2026-08-01");
     component.filterDateTo.set("2026-08-03");
     component.completedFilter.set("completed");
+    component.visibilityFilter.set("hidden");
 
     component.resetFilters();
 
     expect(component.completedFilter()).toBe("pending");
+    expect(component.visibilityFilter()).toBe("all");
     expect(component.filterLineId()).toBe("");
     expect(component.filterVehicleId()).toBe("");
     expect(component.filterStationId()).toBe("");
@@ -553,6 +587,8 @@ describe("SocialMediaLinksComponent", () => {
     await vi.waitFor(() => expect(callsFor("socialMediaLinks")).toHaveLength(1));
     const [, vars] = callsFor("socialMediaLinks")[0];
     expect(vars).toEqual({ search: undefined, categoryId: undefined, completed: false });
+    // Reset restores the unfiltered visibility default by OMITTING the key.
+    expect("hidden" in vars).toBe(false);
     expect("lineId" in vars).toBe(false);
     expect("vehicleId" in vars).toBe(false);
     expect("stationId" in vars).toBe(false);
@@ -583,21 +619,23 @@ describe("SocialMediaLinksComponent", () => {
     });
   });
 
-  it("offers Approve only on rows whose approval status is not LIVE", async () => {
+  it("offers Approve only on PENDING_APPROVAL rows, never on a LIVE or HIDDEN one", async () => {
     await initialLoadsSettled(asTestable(fixture));
 
     const component = asTestable(fixture);
     component.links.set([
       makeLink({ id: "pending-1" }),
       makeLink({ id: "live-1", status: "LIVE" }),
+      makeLink({ id: "hidden-1", status: "HIDDEN" }),
     ]);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const labels = rowActionLabels();
-    expect(labels).toHaveLength(2);
+    expect(labels).toHaveLength(3);
     expect(labels[0]).toContain("Approve");
     expect(labels[1]).not.toContain("Approve");
+    expect(labels[2]).not.toContain("Approve");
   });
 
   it("approveLink sends status LIVE with the row id and its current fields", async () => {
@@ -795,7 +833,7 @@ describe("SocialMediaLinksComponent", () => {
     expect(component.links().map((l) => l.id)).toEqual(["pending-1"]);
   });
 
-  it("offers Hide on every non-HIDDEN row and keeps Approve as the un-hide verb", async () => {
+  it("offers Hide on every non-HIDDEN row and Unhide on a HIDDEN one", async () => {
     await initialLoadsSettled(asTestable(fixture));
 
     const component = asTestable(fixture);
@@ -811,9 +849,9 @@ describe("SocialMediaLinksComponent", () => {
     expect(labels).toHaveLength(3);
     expect(labels[0]).toContain("Hide");
     expect(labels[1]).toContain("Hide");
-    // Already hidden: nothing to hide, but Approve stays so the row can be republished.
+    // Already hidden: nothing to hide, so the row offers the inverse verb instead.
     expect(labels[2]).not.toContain("Hide");
-    expect(labels[2]).toContain("Approve");
+    expect(labels[2]).toContain("Unhide");
   });
 
   it("hideLink sends status HIDDEN with the row id and its current fields", async () => {
@@ -935,7 +973,7 @@ describe("SocialMediaLinksComponent", () => {
     expect(operationSequence()).toEqual(["UpdateSocialMediaLink", "ConsoleSocialMediaLinks"]);
   });
 
-  it("approveLink un-hides a HIDDEN row by sending status LIVE", async () => {
+  it("unhideLink sends status LIVE without retiring the row", async () => {
     await initialLoadsSettled(asTestable(fixture));
     requestMock.mockClear();
     requestMock.mockImplementation((query: string) => {
@@ -953,7 +991,10 @@ describe("SocialMediaLinksComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    approveButton()?.click();
+    // 🔴 The row offers Unhide, never Approve: a hidden row's only publish verb is
+    // the one that does NOT mark it completed.
+    expect(hideButton()).toBeNull();
+    unhideButton()?.click();
     await vi.waitFor(() => expect(statusUpdateCalls()).toHaveLength(1));
 
     const [, vars] = statusUpdateCalls()[0];
@@ -961,10 +1002,31 @@ describe("SocialMediaLinksComponent", () => {
       socialMediaLinkId: "hidden-1",
       input: { status: "LIVE" },
     });
-    // Republishing is an Approve, so it retires the row as well — including one
-    // an admin had previously hidden.
-    await vi.waitFor(() => expect(completeCalls()).toHaveLength(1));
-    expect(completeCalls()[0][1]).toEqual({ linkId: "hidden-1" });
+    // 🔴 Unhiding is a FEED decision, not a "handled it" gesture: unlike Approve it
+    // must never retire the row from the queue.
+    expect(completeCalls()).toHaveLength(0);
+    expect(operationSequence()).toEqual(["UpdateSocialMediaLink", "ConsoleSocialMediaLinks"]);
+  });
+
+  it("toasts when the unhide mutation fails and leaves the list alone", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.reject(new Error("backend down"));
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.links.set([makeLink({ id: "hidden-1", status: "HIDDEN" })]);
+
+    const ok = await component.unhideLink(makeLink({ id: "hidden-1", status: "HIDDEN" }));
+
+    expect(ok).toBe(false);
+    expect(callsFor("socialMediaLinks")).toHaveLength(0);
+    expect(toastMocks.error).toHaveBeenCalledWith("Couldn't unhide link", "backend down");
+    expect(component.links().map((l) => l.status)).toEqual(["HIDDEN"]);
   });
 
   it("badges an ingested row as Official and leaves a community row unbadged", async () => {
@@ -989,6 +1051,27 @@ describe("SocialMediaLinksComponent", () => {
     const rows = (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr");
     expect(rows[0].querySelector('[data-testid="link-official"]')).not.toBeNull();
     expect(rows[1].querySelector('[data-testid="link-official"]')).toBeNull();
+  });
+
+  it("badges a HIDDEN row and leaves visible rows unbadged", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+
+    const component = asTestable(fixture);
+    component.links.set([
+      makeLink({ id: "live-1", status: "LIVE" }),
+      makeLink({ id: "hidden-1", status: "HIDDEN" }),
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const chips = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'tbody [data-testid="link-hidden"]',
+    );
+    expect(chips).toHaveLength(1);
+    expect(chips[0].textContent).toContain("Hidden");
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll("tbody tr");
+    expect(rows[0].querySelector('[data-testid="link-hidden"]')).toBeNull();
+    expect(rows[1].querySelector('[data-testid="link-hidden"]')).not.toBeNull();
   });
 
   it("markCompleted calls the mutation and reloads the list", async () => {
@@ -1086,7 +1169,7 @@ describe("SocialMediaLinksComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    // The sheet renders its own Approve only while the row is not LIVE.
+    // The sheet renders its own Approve only while the row is PENDING_APPROVAL.
     byTestId("panel-approve")?.click();
     await vi.waitFor(() => expect(component.selectedLink()).toBeNull());
 
@@ -1099,7 +1182,7 @@ describe("SocialMediaLinksComponent", () => {
     expect(completeCalls()[0][1]).toEqual({ linkId: "pending-1" });
   });
 
-  it("offers the panel Approve only while the row is not LIVE", async () => {
+  it("offers the panel Approve only on PENDING_APPROVAL, and swaps in Unhide on a HIDDEN row", async () => {
     await initialLoadsSettled(asTestable(fixture));
 
     const component = asTestable(fixture);
@@ -1107,11 +1190,52 @@ describe("SocialMediaLinksComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(byTestId("panel-approve")).not.toBeNull();
+    expect(byTestId("panel-unhide")).toBeNull();
+    expect(byTestId("panel-hide")).not.toBeNull();
 
     component.openLinkDetail(makeLink({ id: "live-1", status: "LIVE" }));
     await fixture.whenStable();
     fixture.detectChanges();
     expect(byTestId("panel-approve")).toBeNull();
+    expect(byTestId("panel-unhide")).toBeNull();
+    expect(byTestId("panel-hide")).not.toBeNull();
+
+    component.openLinkDetail(makeLink({ id: "hidden-1", status: "HIDDEN" }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(byTestId("panel-approve")).toBeNull();
+    expect(byTestId("panel-hide")).toBeNull();
+    expect(byTestId("panel-unhide")).not.toBeNull();
+  });
+
+  it("unhideFromPanel sends status LIVE with no completion and closes the panel", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockImplementation((query: string) => {
+      if (query.includes("updateSocialMediaLink")) {
+        return Promise.resolve({ updateSocialMediaLink: { ok: true } });
+      }
+      if (query.includes("markSocialMediaLinkCompleted")) {
+        return Promise.resolve({ markSocialMediaLinkCompleted: { ok: true } });
+      }
+      return Promise.resolve({ socialMediaLinks: [] });
+    });
+
+    const component = asTestable(fixture);
+    component.openLinkDetail(makeLink({ id: "hidden-1", status: "HIDDEN" }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    byTestId("panel-unhide")?.click();
+    await vi.waitFor(() => expect(component.selectedLink()).toBeNull());
+
+    expect(statusUpdateCalls()[0][1]).toMatchObject({
+      socialMediaLinkId: "hidden-1",
+      input: { status: "LIVE" },
+    });
+    // Same single-write shape as the row's Unhide — no MarkLinkCompleted step.
+    expect(completeCalls()).toHaveLength(0);
+    expect(operationSequence()).toEqual(["UpdateSocialMediaLink", "ConsoleSocialMediaLinks"]);
   });
 
   it("openLinkDetail prefills the edit form from the selected row", () => {

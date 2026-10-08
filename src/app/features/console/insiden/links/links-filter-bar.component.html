@@ -38,6 +38,20 @@
   </label>
 
   <label class="flex flex-col gap-1.5 text-sm">
+    Visibility
+    <select
+      hlmSelect
+      data-testid="links-visibility-filter"
+      [value]="visibilityFilter()"
+      (change)="visibilityChange.emit($any($event.target).value)"
+    >
+      <option value="all">{{ visibilityFilterLabel.all }}</option>
+      <option value="visible">{{ visibilityFilterLabel.visible }}</option>
+      <option value="hidden">{{ visibilityFilterLabel.hidden }}</option>
+    </select>
+  </label>
+
+  <label class="flex flex-col gap-1.5 text-sm">
     Line
     <select
       hlmSelect

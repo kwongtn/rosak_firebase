@@ -108,7 +108,7 @@
 - **Core Responsibility:** the admin triage queue for every crowd-submitted social-media link — a
   moderation table over `socialMediaLinks` rendered as an **accordion over the ordered link tree**
   (collapsed by default, one row per link, children revealed beneath their parent), with server-side
-  filters, per-row status actions (Approve / Hide / Mark completed / Delete), a full editable panel,
+  filters, per-row status actions (Approve / Unhide / Hide / Mark completed / Delete), a full editable panel,
   and the conversation hierarchy as both a moderation/organisation tool (multi-select → group, per-row
   Nest under / Ungroup / Move up / Move down — the three tree verbs are **icon-only** buttons with
   hover help) and a display mode (per-row chevron, one **rail** per
@@ -127,8 +127,8 @@
     `canNestUnder`/`nestBlockedReason`, `renderedLinksOf` (`renderedLinks`), `DEPTH_INDENT_PX`;
   - `link-reference.util.ts` — the reference option builders (`lineOptions`/`vehicleOptions`/
     `stationOptions`/`categoryOptions`, filter variants, vehicle parent-code indexing);
-  - `link-queue-filter.util.ts` — `CompletedFilter`, `COMPLETED_LABEL`, `appliedFiltersAreUnfiltered`,
-    `queueQueryVars`;
+  - `link-queue-filter.util.ts` — `CompletedFilter`, `COMPLETED_LABEL`, `VisibilityFilter`,
+    `VISIBILITY_LABEL`, `appliedFiltersAreUnfiltered`, `queueQueryVars`;
   - `link-queue-row.component.*` (`tr[app-link-queue-row]`, the row), `link-url-cell.component.*`
     (`td[app-link-url-cell]`, rails/elbow/chevron/chip), `links-filter-bar.component.*` (the filter
     card), `links-selection-toolbar.component.*` (group/clear/hint/show-all). The parent keeps every
@@ -172,15 +172,19 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
 - **Inputs:** none — a page-level component, all state local signals.
 - **Filters** (a card above the table; `appliedX` plain fields hold what was last committed, so
   editing a control does not refetch until its own trigger fires). Free text search (URL + title,
-  matched server-side) is **debounced**; Category, and the All/Pending/Completed status select refetch
+  matched server-side) is **debounced**; Category, the All/Pending/Completed status select and the
+  All/Visible/Hidden visibility select refetch
   **immediately**; Line, Vehicle, Station and the date range refetch through the same trailing
-  debounce; **Reset** clears everything. The default status filter is **Pending** (not-completed).
+  debounce; **Reset** clears everything. The default status filter is **Pending** (not-completed) and
+  the default visibility filter is **All links** (hidden rows included, so the admin sees the whole
+  moderation surface until they narrow it).
 
   | control                                                                                                 | backend argument                                   |
   | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
   | Search (URL, title)                                                                                     | `search: String`                                   |
   | Category                                                                                                | `categoryId: ID`                                   |
   | Status (All / Pending / Completed)                                                                      | `completed: Boolean` (omitted for "any")           |
+  | Visibility (All links / Visible only / Hidden only)                                                     | `hidden: Boolean` (omitted for "All links")        |
   | Line / Vehicle / Station                                                                                | `lineId` / `vehicleId` / `stationId`               |
   | **Occurred between** (two `<input type="date">`, aria-labels "Occurred from date" / "Occurred to date") | **`occurredAfter` / `occurredBefore`: `DateTime`** |
   | (sorting, not a control)                                                                                | fixed `-occurredAt, -id`                           |
@@ -206,13 +210,16 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   optional for the flat hosts), so the document and the row type cannot drift apart.
 - **Mutations** (all with the `firebase-auth-key` header; all reload the list on success):
   - `updateSocialMediaLink` (**`IsLoggedIn`** — see the gate note below, _not_ `IsAdmin`) — Approve
-    (`status: "LIVE"`) and Hide (`status: "HIDDEN"`) build their payload through the single shared
+    (`status: "LIVE"`), Unhide (`status: "LIVE"`) and Hide (`status: "HIDDEN"`) build their payload
+    through the single shared
     builder `linkStatusInput(link, status)`, which re-sends the row's current `url`, `title`, all
     four M2M id lists **and `occurredAt` verbatim**. Both halves are load-bearing:
     `SocialMediaLinkInput` is replace-not-patch (it would otherwise blank the title and strip every
     tag), and `occurredAt` is tri-state with a destructive `null` (reset to the row's submission
     time) — so `?? null` here would rewrite the event time of every row on every click, and re-sort
-    the public feed with it. Approve stays available on a hidden row; it is the un-hide verb.
+    the public feed with it. A **HIDDEN** row offers Unhide — the same `LIVE` write as Approve but
+    **without** the completion step (see Row actions), so republishing a hidden link does not retire
+    it from the queue.
     ⚠️ **Why an `IsLoggedIn` mutation is still safe on an admin page.** The GraphQL class is the
     wrong place to look for this page's authority: the **route** is what is gated
     (`adminOnlyGuard`, genuinely enforced — do not "re-fix" it), and the finer rule lives in the
@@ -266,9 +273,11 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   - ⚠️ The "Status" column and the "Status" filter are BOTH about the admin's `completed` handled flag
     (a `Completed` / warning `Pending` badge, and the All/Pending/Completed select →
     `completed: Boolean`) — **not** the link's approval `status` (`LIVE` / `PENDING_APPROVAL` /
-    `HIDDEN`), which this queue never renders as a column. Approve and Hide are the verbs for that
-    axis. The two are independent (see `MISTAKES.md`), so a row can be `LIVE` and still read
-    "Pending" here.
+    `HIDDEN`), which this queue renders only as the per-row action verbs (Approve / Unhide / Hide)
+    and, for a hidden row, a neutral **Hidden** chip (`data-testid="link-hidden"`) beside the
+    submitter. The **Visibility** select (All links / Visible only / Hidden only → `hidden: Boolean`)
+    is the filter for that axis. The two axes are independent (see `MISTAKES.md`), so a row can be
+    `LIVE` and still read "Pending" here.
 - **Depth is drawn as RAILS plus a tint, not as padding (2026-10-02).** The URL cell's wrapper is
   `data-testid="link-depth"`, carrying `[attr.data-depth]="depthOf(link)"` — the same number the rail
   count is derived from, so a spec can assert the hierarchy without measuring pixels. The indent itself
@@ -321,7 +330,9 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   `Aug 1, 2026 08:30` reads as two values, and the whole point of showing the event instant is that it
   is legible at a glance next to the report one. The detail sheet's URL anchor already used `break-all`
   and is the precedent.
-- **Row actions:** Approve (when `status !== "LIVE"`), Hide (when `status !== "HIDDEN"`), Mark
+- **Row actions:** Approve (`status === "PENDING_APPROVAL"` only — a hidden row never shows it), Unhide
+  (`status === "HIDDEN"` only — a single `LIVE` write with **no** completion, so it does not retire
+  the row), Hide (every row whose `status !== "HIDDEN"`), Mark
   completed (when not `completed`), the **icon-only** tree verbs **Move up** / **Move down** /
   **Nest under…** (`data-testid="move-link-up"` / `move-link-down` / `nest-under` — arrow-up, arrow-down,
   corner-down-right), **Ungroup** (`data-testid="ungroup-link"`, **sublinks only** — a root has nothing
@@ -367,8 +378,10 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   `data-testid="detail-occurred-at"` line, the submitter, the completion metadata
   (`completedAt` + `completedBy`), and the same field set as "Submit a link". The sheet's footer
   carries its own **Approve** (`data-testid="panel-approve"`, rendered only while
-  `status !== "LIVE"`), which is the _same_ `approveLink` the row calls — not a panel-only variant —
-  so the two surfaces cannot disagree about what approving means. Save calls the
+  `status === "PENDING_APPROVAL"`), **Unhide** (`data-testid="panel-unhide"`, only while
+  `status === "HIDDEN"`) and **Hide** (`data-testid="panel-hide"`, every other row), which are the
+  _same_ `approveLink` / `unhideLink` / `hideLink` the row calls — not panel-only variants —
+  so the two surfaces cannot disagree about what the verbs mean. Save calls the
   `IsLoggedIn` `updateSocialMediaLink` with the **complete** form state (the backend replaces the
   M2M sets verbatim) and patches the row locally, mirroring the server's tri-state with
   `occurredAtInputToIso(...) ?? link.created` so a cleared box optimistically shows the fallback.
@@ -393,7 +406,7 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
     of children changes, from wherever the arrival order interleaved them to under their parent;
   - the **rails + child-row tint** (which are the indent itself), the `N links` chip + its coupling
     tooltip — now the URL cell's second line rather than a column of its own — and every per-row verb
-    (Ungroup / the icon-only Move up / Move down / Nest under… / Approve / Hide / Mark completed /
+    (Ungroup / the icon-only Move up / Move down / Nest under… / Approve / Unhide / Hide / Mark completed /
     Delete) are reachable
     on every rendered row, the two that need a precondition only once it holds (see Row actions above). A
     collapsed conversation's descendants are simply not on screen — which is the point;
@@ -636,9 +649,12 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
     and the reload **still** happens so the admin sees server truth instead of an optimistic chip. The
     return value is the **publish** outcome, which is what `approveFromPanel` reads to decide whether
     to close the sheet.
-  - 🔴 **Hide deliberately does NOT complete.** `completed` is the triage flag and hiding is a feed
-    decision: auto-completing on Hide would retire a row from the queue because an admin removed it
-    from the feed. The asymmetry is asserted in the spec.
+  - 🔴 **Hide deliberately does NOT complete, and neither does Unhide.** `completed` is the triage
+    flag while both are FEED decisions: auto-completing on Hide would retire a row from the queue
+    because an admin removed it from the feed, and auto-completing on Unhide would retire it because
+    an admin put it back. Unhide is therefore a single `updateSocialMediaLink(status: "LIVE")` — it
+    deliberately does **not** reuse Approve's completion step. Both asymmetries are asserted in the
+    spec.
   - The implementation shape that keeps this honest: `sendLinkStatus` / `sendMarkCompleted` are
     request-only helpers that **reject** on failure and never catch, and `setLinkStatus` / `markCompleted`
     are the toast-and-reload wrappers over them. Approve composes the helpers directly instead of
@@ -685,9 +701,10 @@ loadComponent: SocialMediaLinksComponent }`, **plus** a legacy redirect
   (drag-and-drop, a bulk "reverse this conversation") must derive its run from `siblingsOf` and must
   re-check both gates (`queueIsComplete`, `runOrderIsKnown`) rather than reading `this.links()`
   directly — that direct read is the exact bug the stored-order rule exists to prevent.
-- **`linkStatusInput` is the single builder for the status-only verbs**, extracted so Approve and Hide
-  can never drift apart into one of them losing a field; `sendLinkStatus` is the single request both
-  of them issue, so the two-step Approve reuses it rather than re-deriving the payload. A third
+- **`linkStatusInput` is the single builder for the status-only verbs**, extracted so Approve, Hide and
+  Unhide can never drift apart into one of them losing a field; `sendLinkStatus` is the single request
+  they all issue, so the two-step Approve and the single-write Hide/Unhide reuse it rather than
+  re-deriving the payload. A further
   status verb (Reject, say) should reuse both rather than build its own payload — the replace-not-patch
   and `occurredAt` tri-state traps are both live here (see `MISTAKES.md`).
 - **The edit panel is a full `SocialMediaLinkInput`**, so every future editable link field is one

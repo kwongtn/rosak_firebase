@@ -9,6 +9,16 @@ export const COMPLETED_LABEL: Record<CompletedFilter, string> = {
   completed: "Completed",
 };
 
+/** The FEED-VISIBILITY axis, independent of `completed`: "all" omits the `hidden`
+ *  query var, "visible" excludes HIDDEN rows and "hidden" returns only them. */
+export type VisibilityFilter = "all" | "visible" | "hidden";
+
+export const VISIBILITY_LABEL: Record<VisibilityFilter, string> = {
+  all: "All links",
+  visible: "Visible only",
+  hidden: "Hidden only",
+};
+
 /** The APPLIED filter snapshot the queue's query is built from — the plain fields
  *  the component writes when a control commits, NOT the live signals (a dial
  *  changes up to a trailing debounce before any refetch). */
@@ -16,6 +26,7 @@ export interface AppliedQueueFilters {
   search?: string;
   categoryId: string;
   completed: CompletedFilter;
+  visibility: VisibilityFilter;
   lineId?: string;
   vehicleId?: string;
   stationId?: string;
@@ -25,15 +36,17 @@ export interface AppliedQueueFilters {
 
 /** Does the APPLIED filter snapshot describe the WHOLE table?
  *
- *  Every axis counts, including the status select — `completed: false` (the queue's
- *  default) already hides every completed row, so "no search and no date range" is
- *  not enough to prove a complete sibling set. The console resolver has no
+ *  Every axis counts, including the status select and the visibility select —
+ *  `completed: false` (the queue's default) already hides every completed row and
+ *  `visibility: "visible"` hides every hidden one, so "no search and no date range"
+ *  is not enough to prove a complete sibling set. The console resolver has no
  *  pagination and no row cap, so an unfiltered result really is every link there is. */
 export function appliedFiltersAreUnfiltered(applied: AppliedQueueFilters): boolean {
   return (
     !applied.search &&
     !applied.categoryId &&
     applied.completed === "any" &&
+    applied.visibility === "all" &&
     !applied.lineId &&
     !applied.vehicleId &&
     !applied.stationId &&
@@ -56,6 +69,9 @@ export function queueQueryVars(applied: AppliedQueueFilters): SocialMediaLinksQu
     categoryId: applied.categoryId || undefined,
     completed: applied.completed === "any" ? undefined : applied.completed === "completed",
   };
+  if (applied.visibility !== "all") {
+    vars.hidden = applied.visibility === "hidden";
+  }
   if (applied.lineId) {
     vars.lineId = applied.lineId;
   }

@@ -121,8 +121,8 @@ function parseSelectionSet(body: string): SelectionSet {
 
 /** The selection set hanging off `<field>(…) { … }` or `<field> { … }`.
  *
- *  Both spellings occur in this repo: the console document's root field carries EIGHT arguments
- *  (`search`, `categoryId`, `completed`, `lineId`, `vehicleId`, `stationId`, `occurredAfter`,
+ *  Both spellings occur in this repo: the console document's root field carries NINE arguments
+ *  (`search`, `categoryId`, `completed`, `hidden`, `lineId`, `vehicleId`, `stationId`, `occurredAfter`,
  *  `occurredBefore`) and the public document's root field carries six, so the argument list has to
  *  be walked out before the `{` is found — a plain `indexOf("socialMediaLinks {")` matches
  *  nothing. `node {` (the public document's per-row selection) is the no-arguments case. */
@@ -224,7 +224,7 @@ const REQUIRED_ROW_FIELDS: Array<{ field: string; because: string }> = [
   {
     field: "status",
     because:
-      "the Approve button is offered only while this isn't LIVE and the Hide button only while it isn't already HIDDEN",
+      "the queue's status verbs all gate on it: Approve only while PENDING_APPROVAL, Unhide only while HIDDEN, Hide on every row that isn't already HIDDEN",
   },
   {
     field: "isAutomated",

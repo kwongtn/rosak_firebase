@@ -10,6 +10,7 @@
       [categoryId]="categoryId()"
       [categories]="categories()"
       [completedFilter]="completedFilter()"
+      [visibilityFilter]="visibilityFilter()"
       [lineOptions]="lineOptions()"
       [filterLineId]="filterLineId()"
       [filterVehicleOptions]="filterVehicleOptions()"
@@ -21,6 +22,7 @@
       (searchInput)="onSearchInput($event)"
       (categoryChange)="onCategoryChange($event)"
       (completedChange)="onCompletedFilterChange($event)"
+      (visibilityChange)="onVisibilityFilterChange($event)"
       (filterLineChange)="onFilterLineChange($event)"
       (filterVehicleChange)="onFilterVehicleChange($event)"
       (filterStationChange)="onFilterStationChange($event)"
@@ -152,6 +154,7 @@
                 (selectionToggle)="toggleRowSelection(link.id)"
                 (conversationToggle)="toggleExpanded(link.id)"
                 (approve)="approveLink(link)"
+                (unhide)="unhideLink(link)"
                 (hide)="hideLink(link)"
                 (markCompleted)="markCompleted(link)"
                 (moveUp)="moveLinkUp(link)"
@@ -393,12 +396,13 @@
             Save changes
           </button>
           <!--
-            The sheet's mirror of the row's Approve, and the same two writes: publish
-            the row, then retire it, then one reload (see `approveLink`). Offered
-            only while the row is not LIVE, so this is the un-hide verb on a hidden
-            row and a no-op button is never rendered.
+            The sheet's mirror of the row's status verbs, reached through the same
+            handlers so the two surfaces cannot disagree: Approve (PENDING_APPROVAL
+            only — the same two writes, publish then retire), then Hide (every row
+            that isn't already HIDDEN) or Unhide (HIDDEN only — LIVE without
+            retiring it). A hidden row never shows Approve.
           -->
-          @if (link.status !== "LIVE") {
+          @if (link.status === "PENDING_APPROVAL") {
             <button
               hlmBtn
               variant="outline"
@@ -407,6 +411,27 @@
               (click)="approveFromPanel()"
             >
               Approve
+            </button>
+          }
+          @if (link.status === "HIDDEN") {
+            <button
+              hlmBtn
+              variant="outline"
+              data-testid="panel-unhide"
+              [disabled]="isSaving() || isLoading()"
+              (click)="unhideFromPanel()"
+            >
+              Unhide
+            </button>
+          } @else {
+            <button
+              hlmBtn
+              variant="outline"
+              data-testid="panel-hide"
+              [disabled]="isSaving() || isLoading()"
+              (click)="hideFromPanel()"
+            >
+              Hide
             </button>
           }
           @if (!link.completed) {

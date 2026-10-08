@@ -52,6 +52,16 @@
         Official
       </span>
     }
+    @if (link().status === "HIDDEN") {
+      <span
+        hlmBadge
+        variant="neutral"
+        data-testid="link-hidden"
+        title="Hidden from the public feed; visible only to admins"
+      >
+        Hidden
+      </span>
+    }
   </div>
 </td>
 <td hlmTd class="py-3">
@@ -135,7 +145,7 @@
     keeps the row to one line now that the sequence actions appear.
   -->
   <div class="flex flex-wrap items-center gap-2">
-    @if (link().status !== "LIVE") {
+    @if (link().status === "PENDING_APPROVAL") {
       <button
         hlmBtn
         size="sm"
@@ -145,7 +155,17 @@
         Approve
       </button>
     }
-    @if (link().status !== "HIDDEN") {
+    @if (link().status === "HIDDEN") {
+      <button
+        hlmBtn
+        size="sm"
+        variant="outline"
+        [disabled]="isLoading()"
+        (click)="$event.stopPropagation(); unhide.emit()"
+      >
+        Unhide
+      </button>
+    } @else {
       <button
         hlmBtn
         size="sm"

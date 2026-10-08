@@ -53,6 +53,7 @@ export class LinkQueueRowComponent {
   readonly selectionToggle = output<void>();
   readonly conversationToggle = output<void>();
   readonly approve = output<void>();
+  readonly unhide = output<void>();
   readonly hide = output<void>();
   readonly markCompleted = output<void>();
   readonly moveUp = output<void>();

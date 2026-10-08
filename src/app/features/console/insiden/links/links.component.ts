@@ -35,6 +35,7 @@ import {
   queueQueryVars,
   type AppliedQueueFilters,
   type CompletedFilter,
+  type VisibilityFilter,
 } from "./link-queue-filter.util";
 import {
   AssetMultiSelectComponent,
@@ -151,14 +152,15 @@ import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
  * row's completion state and timestamp come back as server truth. The detail
  * card names the completing admin (`completedBy`) next to `completedAt`.
  *
- * Approve is the publish gate for a row that isn't LIVE yet (a community
- * submission, or an auto-ingested operator post): it sends the same
- * `updateSocialMediaLink` with `status: "LIVE"`, then reloads. Hide is its
- * moderation counterpart (`status: "HIDDEN"`) for rows that must not appear in
- * the feed at all — it is offered on every row that isn't already HIDDEN, and
- * Approve stays available on a hidden row so un-hiding is just Approve. Both go
- * through one private `setLinkStatus`, which re-sends the row's full payload
- * (the input is replace-not-patch) and reloads. The console route is already
+ * Approve is the publish gate for a community submission: it publishes
+ * (`status: "LIVE"`) and then retires the row (`markSocialMediaLinkCompleted`)
+ * in one ordered, single-reload sequence. Hide is its moderation counterpart
+ * (`status: "HIDDEN"`) for rows that must not appear in the feed at all — it is
+ * offered on every row that isn't already HIDDEN. A HIDDEN row instead offers
+ * Unhide (`status: "LIVE"` ONLY, never a completion), which puts it back in the
+ * feed without retiring it. Hide and Unhide both go through one private
+ * `setLinkStatus`, which re-sends the row's full payload (the input is
+ * replace-not-patch) and reloads. The console route is already
  * `adminOnlyGuard`-gated, and the backend refuses a non-admin status change, so
  * the row action carries no second permission check.
  *
@@ -346,6 +348,11 @@ export class SocialMediaLinksComponent {
   /** Defaults to PENDING per the spec ("by default only view entries that are
    * NOT completed"); All/Completed options remain available. */
   protected readonly completedFilter = signal<CompletedFilter>("pending");
+
+  /** The FEED-VISIBILITY axis, independent of the completed filter above.
+   * Defaults to "all" (every row, hidden included) so the admin queue shows the
+   * whole moderation surface until they narrow it. */
+  protected readonly visibilityFilter = signal<VisibilityFilter>("all");
 
   /** Server-side queue filters (Task 10 resolver args), debounced like search.
    * Empty string = no filter on that axis; the applied snapshot is taken when
@@ -658,6 +665,7 @@ export class SocialMediaLinksComponent {
   private appliedSearch: string | undefined;
   private appliedCategoryId = "";
   private appliedCompleted: CompletedFilter = "pending";
+  private appliedVisibility: VisibilityFilter = "all";
   private appliedLineId: string | undefined;
   private appliedVehicleId: string | undefined;
   private appliedStationId: string | undefined;
@@ -692,6 +700,13 @@ export class SocialMediaLinksComponent {
   protected onCompletedFilterChange(value: CompletedFilter): void {
     this.completedFilter.set(value);
     this.appliedCompleted = value;
+    this.load();
+  }
+
+  /** Visibility refetches immediately, exactly like the Status select above. */
+  protected onVisibilityFilterChange(value: VisibilityFilter): void {
+    this.visibilityFilter.set(value);
+    this.appliedVisibility = value;
     this.load();
   }
 
@@ -771,6 +786,7 @@ export class SocialMediaLinksComponent {
     this.searchTerm.set("");
     this.categoryId.set("");
     this.completedFilter.set(completed);
+    this.visibilityFilter.set("all");
     this.filterLineId.set("");
     this.filterVehicleId.set("");
     this.filterStationId.set("");
@@ -779,6 +795,7 @@ export class SocialMediaLinksComponent {
     this.appliedSearch = undefined;
     this.appliedCategoryId = "";
     this.appliedCompleted = completed;
+    this.appliedVisibility = "all";
     this.appliedLineId = undefined;
     this.appliedVehicleId = undefined;
     this.appliedStationId = undefined;
@@ -1100,8 +1117,7 @@ export class SocialMediaLinksComponent {
     }
   }
 
-  /** Publish a row that isn't LIVE yet (community submission or an
-   *  auto-ingested operator post) AND retire it: approving is the queue's
+  /** Publish a community submission AND retire it: approving is the queue's
    *  "handled it" gesture, so it runs TWO mutations in a fixed order —
    *  `updateSocialMediaLink(status: "LIVE")` then
    *  `markSocialMediaLinkCompleted(linkId:)` — and exactly ONE reload at the
@@ -1167,8 +1183,8 @@ export class SocialMediaLinksComponent {
   /** Moderation counterpart of approveLink: pull a row out of the public feed
    *  (`status: "HIDDEN"`) without deleting it — e.g. a celebratory update that
    *  must not sit in the feed. The row keeps its title, tags and votes because
-   *  the same full payload is re-sent. Approve stays available on a hidden row,
-   *  which is how an admin puts it back (Approve → `LIVE`).
+   *  the same full payload is re-sent. A hidden row offers Unhide instead (see
+   *  `unhideLink`), which is how an admin puts it back (`LIVE`, no completion).
    *
    *  On any row that has links BELOW it the action is not confined to the row:
    *  the feed renders a conversation as its root, a conversation is public IFF
@@ -1180,6 +1196,16 @@ export class SocialMediaLinksComponent {
       return false;
     }
     return this.setLinkStatus(link, "HIDDEN", "Link hidden", "Couldn't hide link");
+  }
+
+  /** The inverse of `hideLink`: put a HIDDEN row back in the public feed
+   *  (`status: "LIVE"`). Deliberately a SINGLE write with NO completion step —
+   *  unlike Approve, un-hiding is a visibility change and not a "handled it"
+   *  gesture, so it must not retire the row from the queue. It reuses
+   *  `setLinkStatus`, the same one-request path Hide takes, so the
+   *  replace-not-patch payload and the reload cannot drift between the two. */
+  protected async unhideLink(link: SocialMediaLinkRow): Promise<boolean> {
+    return this.setLinkStatus(link, "LIVE", "Link unhidden", "Couldn't unhide link");
   }
 
   /** WHY A CONFIRM, AND WHY ONLY HERE.
@@ -1491,6 +1517,33 @@ export class SocialMediaLinksComponent {
     }
   }
 
+  /** The sheet's Hide — the same `hideLink` the row calls (including its
+   *  conversation-coupling confirm), reached from the panel so the two surfaces
+   *  cannot disagree. Closes on success, like the other panel verbs. */
+  protected async hideFromPanel(): Promise<void> {
+    const link = this.selectedLink();
+    if (!link) {
+      return;
+    }
+    const ok = await this.hideLink(link);
+    if (ok) {
+      this.closeLinkPanel();
+    }
+  }
+
+  /** The sheet's Unhide — the same single-write `unhideLink` the row calls, with
+   *  no completion step. Closes on success. */
+  protected async unhideFromPanel(): Promise<void> {
+    const link = this.selectedLink();
+    if (!link) {
+      return;
+    }
+    const ok = await this.unhideLink(link);
+    if (ok) {
+      this.closeLinkPanel();
+    }
+  }
+
   /** Admin hard-delete of a link entry. Mirrors the spotting-history delete:
    *  a native confirm guard, then the admin mutation; on success the row is
    *  dropped locally and the panel closes. */
@@ -1529,6 +1582,7 @@ export class SocialMediaLinksComponent {
       search: this.appliedSearch,
       categoryId: this.appliedCategoryId,
       completed: this.appliedCompleted,
+      visibility: this.appliedVisibility,
       lineId: this.appliedLineId,
       vehicleId: this.appliedVehicleId,
       stationId: this.appliedStationId,
