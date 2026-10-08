@@ -152,6 +152,13 @@
                       />
                       Show
                     </label>
+                    <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <hlm-checkbox
+                        [checked]="person.retired"
+                        (checkedChange)="updatePersonnel($index, 'retired', $event)"
+                      />
+                      Retired
+                    </label>
                     <button hlmBtn variant="ghost" size="sm" (click)="removePersonnel($index)">
                       Remove
                     </button>
@@ -162,6 +169,26 @@
                     [value]="person.title"
                     (input)="updatePersonnel($index, 'title', $any($event.target).value)"
                   />
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-medium text-muted-foreground">Period</span>
+                    <input
+                      hlmInput
+                      type="month"
+                      class="w-40"
+                      aria-label="Period start month"
+                      [value]="person.startDate"
+                      (input)="updatePersonnel($index, 'startDate', $any($event.target).value)"
+                    />
+                    <span class="text-xs text-muted-foreground">to</span>
+                    <input
+                      hlmInput
+                      type="month"
+                      class="w-40"
+                      aria-label="Period end month (leave empty for Present)"
+                      [value]="person.endDate"
+                      (input)="updatePersonnel($index, 'endDate', $any($event.target).value)"
+                    />
+                  </div>
                   <input
                     hlmInput
                     placeholder="Avatar image URL"
@@ -381,47 +408,85 @@
         [label]="'Advertisement'"
       />
 
-      @if (personnel().length > 0) {
+      @if (activePersonnel().length > 0 || retiredPersonnel().length > 0) {
         <section class="flex flex-col gap-4">
           <h1 class="text-2xl font-bold">About the team</h1>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            @for (person of personnel(); track person.name) {
-              <div hlmCard>
-                <div hlmCardContent class="flex-row items-center gap-3">
-                  @if (person.avatar) {
-                    <img
-                      [src]="person.avatar"
-                      [alt]="person.name"
-                      class="size-12 rounded-full object-cover"
-                    />
-                  }
-                  <div class="flex flex-col">
-                    <span class="font-medium">{{ person.name }}</span>
-                    <span class="text-muted-foreground text-xs">{{ person.title }}</span>
-                  </div>
-                </div>
-                @if (person.description) {
-                  <div hlmCardContent>
-                    <p class="text-muted-foreground text-sm">{{ person.description }}</p>
-                  </div>
+          <ng-template #personCard let-person>
+            <div hlmCard>
+              <div hlmCardContent class="flex-row items-center gap-3">
+                @if (person.avatar) {
+                  <img
+                    [src]="person.avatar"
+                    [alt]="person.name"
+                    class="size-12 rounded-full object-cover"
+                  />
                 }
-                @if (person.socials.length > 0) {
-                  <div hlmCardContent class="flex-row gap-3">
-                    @for (social of person.socials; track social.link) {
-                      <a
-                        [href]="social.link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-muted-foreground hover:text-foreground text-xs underline"
-                      >
-                        {{ social.name }}
-                      </a>
-                    }
-                  </div>
+                <div class="flex flex-col">
+                  <span class="font-medium">{{ person.name }}</span>
+                  <span class="text-muted-foreground text-xs">{{ person.title }}</span>
+                  @if (personPeriod(person); as period) {
+                    <span class="text-muted-foreground text-xs">{{ period }}</span>
+                  }
+                </div>
+              </div>
+              @if (person.description) {
+                <div hlmCardContent>
+                  <p class="text-muted-foreground text-sm">{{ person.description }}</p>
+                </div>
+              }
+              @if (person.socials.length > 0) {
+                <div hlmCardContent class="flex-row gap-3">
+                  @for (social of person.socials; track social.link) {
+                    <a
+                      [href]="social.link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-muted-foreground hover:text-foreground text-xs underline"
+                    >
+                      {{ social.name }}
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          </ng-template>
+          @if (activePersonnel().length > 0) {
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              @for (person of activePersonnel(); track person.name) {
+                <ng-container
+                  [ngTemplateOutlet]="personCard"
+                  [ngTemplateOutletContext]="{ $implicit: person }"
+                />
+              }
+            </div>
+          }
+          @if (retiredPersonnel().length > 0) {
+            <details class="group rounded-lg border" data-testid="personnel-retired">
+              <summary class="flex cursor-pointer items-center gap-2 p-3 text-sm font-medium">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="text-muted-foreground size-3.5 shrink-0 transition-transform duration-150 group-open:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+                Retired ({{ retiredPersonnel().length }})
+              </summary>
+              <div class="grid grid-cols-1 gap-3 p-3 pt-0 sm:grid-cols-2 lg:grid-cols-3">
+                @for (person of retiredPersonnel(); track person.name) {
+                  <ng-container
+                    [ngTemplateOutlet]="personCard"
+                    [ngTemplateOutletContext]="{ $implicit: person }"
+                  />
                 }
               </div>
-            }
-          </div>
+            </details>
+          }
         </section>
       }
 

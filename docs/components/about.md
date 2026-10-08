@@ -22,8 +22,10 @@
     remote change re-renders the page reactively via signals.
   - Derived signals exposed to the template: `isLoading`, `aboutProject` (string), `projects`
     (display-filtered, query-matched, sorted by `startDate`), `personnel` (display-filtered,
-    query-matched, sorted by `order`, `socials` normalized), `techStacks` (query-matched),
-    `communityProjects` (query-matched), `statusVariant(status)`, `isAdmin` (from `AuthService`).
+    query-matched, sorted by `order`, `socials` normalized), `activePersonnel` / `retiredPersonnel`
+    (`personnel` split on the `retired` boolean), `techStacks` (query-matched),
+    `communityProjects` (query-matched), `statusVariant(status)`, `personPeriod(person)` (the
+    formatted period label), `isAdmin` (from `AuthService`).
 - **Dependencies:**
   - `firebase/app`, `firebase/firestore` — direct Firebase SDK usage (`initializeApp`/`getApps`,
     `getFirestore`, `doc`, `onSnapshot`, `setDoc`), guarded by `isPlatformBrowser` so it never
@@ -36,12 +38,17 @@
   - `src/app/features/about/data/about.model.ts` — local TypeScript interfaces describing the
     Firestore document shape (`PublicAboutDocument`, `Personnel`, `PersonnelSocial`, `TechStack`,
     `CommunityProject`, `Project`, `ProjectStatus`) — a type contract only, not a service.
+    `Personnel` carries `retired` (collapsed group) plus month-precision `startDate`/`endDate`
+    strings (empty end = "Present").
   - `src/app/features/about/data/about-edit.util.ts` — pure helpers for the admin editor:
     `draftFromDoc()` (normalizes missing fields), `sanitizeDraft()` (strips nameless rows,
     coerces undefined fields), `emptyProject`/`emptyPersonnel`/`emptyTechStack`/`emptySocial`/
     `emptyCommunityProject` factories, and
     `filterAndSortProjects`/`filterPersonnel`/`filterTechStacks`/`filterCommunityProjects` (query
-    filtering + chronological sort).
+    filtering + chronological sort). It also holds the **display** helpers
+    `formatPeriod(startDate, endDate)`, `formatElapsed(startDate, endDate, now?)` and
+    `formatPersonPeriod(person, now?)` — deterministic, locale-free "MMM YYYY - MMM YYYY · N years
+    M months" labels; they take a `now` argument so the tenure is testable off a fixed clock.
   - `src/app/shell/app-nav/app-nav.component.ts` and
     `src/app/shell/app-footer/app-footer.component.ts` — page chrome.
   - `src/app/ui/*` (Spartan/Helm-style UI primitives): `HlmBadge`, `HlmButton`,
@@ -55,7 +62,10 @@
 - `isLoading` (`signal<boolean>`, starts `true`) and `_data` (`signal<PublicAboutDocument |
 undefined>`, private) hold raw state; everything the template reads (`aboutProject`,
   `projects`, `personnel`, `techStacks`, `communityProjects`) is a `computed()` derived from
-  `_data` via the pure filter functions in `about-edit.util.ts`.
+  `_data` via the pure filter functions in `about-edit.util.ts`. The public team grid splits
+  `personnel` into `activePersonnel` and `retiredPersonnel` (one `computed()` each, filtering on the
+  `retired` boolean) so retired people render under a collapsed `<details>` rather than in the
+  active grid; the card's period line comes from `personPeriod(person)`.
 - `searchTerm` (`signal<string>`) drives the search box; it flows into the same `computed()`s
   so the page live-filters as the user types.
 - **Admin editor:** when `isAdmin() && editMode()`, the template renders a structured form
@@ -81,6 +91,14 @@ undefined>`, private) hold raw state; everything the template reads (`aboutProje
   `communityProjects`) is an `@if`/`@for` over an array in the Firestore doc (`projects` and
   `personnel` are additionally gated by their `display` boolean) — new entries appear automatically
   without code changes; hiding one is just an admin edit.
+- **Retired personnel group:** the team section partitions on `Personnel.retired` — active people
+  render in the 3-column grid, retired people inside a collapsed native `<details>`
+  (`data-testid="personnel-retired"`) sharing one `#personCard` template through `[ngTemplateOutlet]`
+  / `[ngTemplateOutletContext]`. The whole section renders when either group is non-empty.
+- **Period fields:** `Personnel.startDate`/`endDate` are month-precision `"YYYY-MM"` strings (empty
+  end = "Present"); the editor uses native `<input type="month">` and the card label is composed by
+  `formatPersonPeriod`. Rendering is defensive — a legacy entry with no dates simply shows no period
+  line.
 - **Admin editor seams:**
   - `emptyProject()` / `emptyPersonnel()` / `emptyTechStack()` / `emptySocial()` /
     `emptyCommunityProject()` define the

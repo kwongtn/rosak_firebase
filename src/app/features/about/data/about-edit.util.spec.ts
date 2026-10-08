@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PublicAboutDocument } from "./about.model";
+import { Personnel, PublicAboutDocument } from "./about.model";
 import {
   draftFromDoc,
   emptyCommunityProject,
@@ -11,6 +11,9 @@ import {
   filterCommunityProjects,
   filterPersonnel,
   filterTechStacks,
+  formatElapsed,
+  formatPeriod,
+  formatPersonPeriod,
   sanitizeDraft,
 } from "./about-edit.util";
 
@@ -34,11 +37,36 @@ const doc: PublicAboutDocument = {
       title: "",
       description: "",
       display: true,
+      retired: false,
+      startDate: "",
+      endDate: "",
       order: 2,
       socials: [],
     },
-    { name: "First", avatar: "", title: "", description: "", display: true, order: 1, socials: [] },
-    { name: "", avatar: "", title: "", description: "", display: true, order: 3, socials: [] },
+    {
+      name: "First",
+      avatar: "",
+      title: "",
+      description: "",
+      display: true,
+      retired: false,
+      startDate: "",
+      endDate: "",
+      order: 1,
+      socials: [],
+    },
+    {
+      name: "",
+      avatar: "",
+      title: "",
+      description: "",
+      display: true,
+      retired: false,
+      startDate: "",
+      endDate: "",
+      order: 3,
+      socials: [],
+    },
   ],
   techStacks: [
     { name: "Angular", description: "Framework", iconUrl: "", url: "" },
@@ -68,6 +96,9 @@ describe("draftFromDoc", () => {
     } as unknown as PublicAboutDocument);
     expect(draft.personnel[0].socials).toEqual([]);
     expect(draft.personnel[0].description).toBe("");
+    expect(draft.personnel[0].retired).toBe(false);
+    expect(draft.personnel[0].startDate).toBe("");
+    expect(draft.personnel[0].endDate).toBe("");
     expect(draft.communityProjects).toEqual([]);
     expect(draft.aboutProject).toBe("x");
   });
@@ -84,6 +115,9 @@ describe("sanitizeDraft", () => {
       emptySocial(),
       { name: "GitHub", link: "https://github.com/x", type: "github" },
     ];
+    draft.personnel[0].retired = true;
+    draft.personnel[0].startDate = " 2019-03 ";
+    draft.personnel[0].endDate = "2021-05";
 
     const clean = sanitizeDraft(draft);
     expect(clean.projects.map((p) => p.name)).toEqual(["Beta", "Alpha", "Hidden"]);
@@ -97,6 +131,9 @@ describe("sanitizeDraft", () => {
     expect(clean.personnel[0].socials).toEqual([
       { name: "GitHub", link: "https://github.com/x", type: "github" },
     ]);
+    expect(clean.personnel[0].retired).toBe(true);
+    expect(clean.personnel[0].startDate).toBe("2019-03");
+    expect(clean.personnel[0].endDate).toBe("2021-05");
     expect(JSON.parse(JSON.stringify(clean))).toEqual(clean);
   });
 });
@@ -122,6 +159,32 @@ describe("filterPersonnel", () => {
   it("defaults socials to an empty array", () => {
     expect(filterPersonnel(doc.personnel, "")[0].socials).toEqual([]);
   });
+
+  it("normalizes retired/startDate/endDate, defaulting a legacy entry without them", () => {
+    const legacy = [
+      {
+        name: "Legacy",
+        avatar: "",
+        title: "",
+        description: "",
+        display: true,
+        order: 1,
+        socials: [],
+      },
+    ] as unknown as Personnel[];
+    const normalized = filterPersonnel(legacy, "")[0];
+    expect(normalized.retired).toBe(false);
+    expect(normalized.startDate).toBe("");
+    expect(normalized.endDate).toBe("");
+
+    const dated = filterPersonnel(
+      [{ ...doc.personnel[0], retired: true, startDate: "2020-02", endDate: "2022-11" }],
+      "",
+    )[0];
+    expect(dated.retired).toBe(true);
+    expect(dated.startDate).toBe("2020-02");
+    expect(dated.endDate).toBe("2022-11");
+  });
 });
 
 describe("filterTechStacks", () => {
@@ -142,5 +205,51 @@ describe("filterCommunityProjects", () => {
     expect(filterCommunityProjects(doc.communityProjects, "WIKI").map((p) => p.name)).toEqual([
       "Transit Wiki",
     ]);
+  });
+});
+
+// Fixed clock: 8 Oct 2026. Never rely on the real one.
+const NOW = new Date(2026, 9, 8);
+
+describe("formatPeriod", () => {
+  it("renders a month-precision range, Present when the end is missing", () => {
+    expect(formatPeriod("2024-01", "")).toBe("Jan 2024 - Present");
+    expect(formatPeriod("2020-02", "2022-11")).toBe("Feb 2020 - Nov 2022");
+  });
+
+  it("returns empty for a missing or unparseable start", () => {
+    expect(formatPeriod("", "2022-11")).toBe("");
+    expect(formatPeriod("garbage", "")).toBe("");
+  });
+
+  it("leniently accepts a day-precision start", () => {
+    expect(formatPeriod("2024-01-15", "")).toBe("Jan 2024 - Present");
+  });
+});
+
+describe("formatElapsed", () => {
+  it("humanizes whole months, omitting zero months", () => {
+    expect(formatElapsed("2026-08", "", NOW)).toBe("2 months");
+    expect(formatElapsed("2026-09", "", NOW)).toBe("1 month");
+    expect(formatElapsed("2026-10", "", NOW)).toBe("Less than a month");
+    expect(formatElapsed("2024-01", "2025-04", NOW)).toBe("1 year 3 months");
+    expect(formatElapsed("2024-01", "2025-01", NOW)).toBe("1 year");
+    expect(formatElapsed("2024-01", "", NOW)).toBe("2 years 9 months");
+  });
+
+  it("is empty when the start is missing", () => {
+    expect(formatElapsed("", "", NOW)).toBe("");
+  });
+});
+
+describe("formatPersonPeriod", () => {
+  it("composes the range and the elapsed tenure", () => {
+    expect(formatPersonPeriod({ startDate: "2024-01", endDate: "" }, NOW)).toBe(
+      "Jan 2024 - Present · 2 years 9 months",
+    );
+  });
+
+  it("is empty when there is no period", () => {
+    expect(formatPersonPeriod({ startDate: "", endDate: "" }, NOW)).toBe("");
   });
 });

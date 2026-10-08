@@ -12,6 +12,11 @@ export interface Personnel {
   title: string;
   description: string;
   display: boolean;
+  /** Manually placed in the collapsed "Retired" group on /about. */
+  retired: boolean;
+  /** Period served, month precision "YYYY-MM". Empty endDate = still serving ("Present"). */
+  startDate: string;
+  endDate: string;
   order: number;
   socials: PersonnelSocial[];
 }

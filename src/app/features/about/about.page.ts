@@ -1,4 +1,5 @@
 import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
+import { NgTemplateOutlet } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { getApps, initializeApp } from "firebase/app";
 import {
@@ -42,6 +43,7 @@ import {
   filterCommunityProjects,
   filterPersonnel,
   filterTechStacks,
+  formatPersonPeriod,
   sanitizeDraft,
 } from "./data/about-edit.util";
 
@@ -76,6 +78,7 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
     AppNavComponent,
     AppFooterComponent,
     RouterLink,
+    NgTemplateOutlet,
     ...HlmCardImports,
   ],
   templateUrl: "./about.page.html",
@@ -107,6 +110,8 @@ export class AboutPage implements OnDestroy {
   protected readonly personnel = computed(() =>
     filterPersonnel(this._data()?.personnel ?? [], this.searchTerm()),
   );
+  protected readonly activePersonnel = computed(() => this.personnel().filter((p) => !p.retired));
+  protected readonly retiredPersonnel = computed(() => this.personnel().filter((p) => p.retired));
   protected readonly techStacks = computed(() =>
     filterTechStacks(this._data()?.techStacks ?? [], this.searchTerm()),
   );
@@ -118,6 +123,11 @@ export class AboutPage implements OnDestroy {
   /** Templates can't call `Number()` — `$any($event.target).value` is a string from a number input. */
   protected asNumber(value: unknown): number {
     return Number(value);
+  }
+
+  /** "Jan 2024 - Present · 2 years 3 months", or "" when no valid start date. */
+  protected personPeriod(person: Personnel): string {
+    return formatPersonPeriod(person);
   }
 
   constructor() {

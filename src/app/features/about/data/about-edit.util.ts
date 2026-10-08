@@ -24,6 +24,9 @@ export function draftFromDoc(data: PublicAboutDocument): PublicAboutDocument {
       avatar: p.avatar ?? "",
       title: p.title ?? "",
       description: p.description ?? "",
+      retired: p.retired ?? false,
+      startDate: p.startDate ?? "",
+      endDate: p.endDate ?? "",
       socials: (p.socials ?? []).map((s) => ({ ...s })),
     })),
     techStacks: (data.techStacks ?? []).map((s) => ({
@@ -65,6 +68,9 @@ export function sanitizeDraft(draft: PublicAboutDocument): PublicAboutDocument {
         title: p.title ?? "",
         description: p.description ?? "",
         display: p.display ?? true,
+        retired: p.retired ?? false,
+        startDate: (p.startDate ?? "").trim(),
+        endDate: (p.endDate ?? "").trim(),
         order: p.order ?? 0,
         socials: (p.socials ?? []).filter((s) => s.name.trim() !== "" && s.link.trim() !== ""),
       })),
@@ -92,7 +98,18 @@ export function emptyProject(): Project {
 }
 
 export function emptyPersonnel(order: number): Personnel {
-  return { name: "", avatar: "", title: "", description: "", display: true, order, socials: [] };
+  return {
+    name: "",
+    avatar: "",
+    title: "",
+    description: "",
+    display: true,
+    retired: false,
+    startDate: "",
+    endDate: "",
+    order,
+    socials: [],
+  };
 }
 
 export function emptyTechStack(): TechStack {
@@ -123,7 +140,13 @@ export function filterPersonnel(personnel: Personnel[], query: string): Personne
     .filter((p) => p.display && p.name)
     .filter((p) => !q || [p.name, p.title, p.description].some((s) => s?.toLowerCase().includes(q)))
     .sort((a, b) => a.order - b.order)
-    .map((p) => ({ ...p, socials: p.socials ?? [] }));
+    .map((p) => ({
+      ...p,
+      retired: !!p.retired,
+      startDate: p.startDate ?? "",
+      endDate: p.endDate ?? "",
+      socials: p.socials ?? [],
+    }));
 }
 
 export function filterTechStacks(stacks: TechStack[], query: string): TechStack[] {
@@ -141,4 +164,74 @@ export function filterCommunityProjects(
   return (projects ?? []).filter(
     (p) => !q || [p.name, p.description].some((t) => t?.toLowerCase().includes(q)),
   );
+}
+
+// --- Personnel period display helpers -------------------------------------
+
+/** Fixed month labels so "MMM YYYY" never depends on the runtime locale. */
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** Parses a month-precision "YYYY-MM" (leniently "YYYY-MM-DD") to a local-time month start. */
+function parseMonth(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})/.exec((value ?? "").trim());
+  if (!match) return undefined;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return undefined;
+  // Local-time constructor, NOT `new Date("YYYY-MM")` which parses as UTC.
+  return new Date(year, month - 1, 1);
+}
+
+/** "Jan 2024 - Present" / "Feb 2020 - Nov 2022", or "" when the start is missing/unparseable. */
+export function formatPeriod(startDate: string, endDate: string): string {
+  const start = parseMonth(startDate);
+  if (!start) return "";
+  const startLabel = `${MONTH_NAMES[start.getMonth()]} ${start.getFullYear()}`;
+  const end = parseMonth(endDate);
+  const endLabel = end ? `${MONTH_NAMES[end.getMonth()]} ${end.getFullYear()}` : "Present";
+  return `${startLabel} - ${endLabel}`;
+}
+
+/** Humanized whole-month tenure, e.g. "2 years 3 months"; negative spans clamp to "Less than a month". */
+export function formatElapsed(startDate: string, endDate: string, now: Date = new Date()): string {
+  const start = parseMonth(startDate);
+  if (!start) return "";
+  const end = parseMonth(endDate) ?? now;
+  const months = Math.max(
+    0,
+    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()),
+  );
+  if (months < 1) return "Less than a month";
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  const parts: string[] = [];
+  if (years > 0) parts.push(`${years} ${years === 1 ? "year" : "years"}`);
+  if (rest > 0) parts.push(`${rest} ${rest === 1 ? "month" : "months"}`);
+  return parts.join(" ");
+}
+
+/** Composed "Jan 2024 - Present · 2 years 3 months", or "" when there is no period to show. */
+export function formatPersonPeriod(
+  person: Pick<Personnel, "startDate" | "endDate">,
+  now: Date = new Date(),
+): string {
+  const startDate = person?.startDate ?? "";
+  const endDate = person?.endDate ?? "";
+  const period = formatPeriod(startDate, endDate);
+  if (!period) return "";
+  const elapsed = formatElapsed(startDate, endDate, now);
+  return elapsed ? `${period} · ${elapsed}` : period;
 }
