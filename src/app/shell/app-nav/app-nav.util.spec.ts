@@ -5,6 +5,7 @@ import {
   avatarLabelText,
   moduleLabelFor,
   newVersionButtonClassFor,
+  routeSegmentOf,
   welcomeLabelText,
   wordmarkClassFor,
 } from "./app-nav.util";
@@ -32,6 +33,20 @@ describe("moduleLabelFor", () => {
     for (const link of NAV_LINKS) {
       expect(moduleLabelFor(link.path.slice(1))).toBe(link.label);
     }
+  });
+});
+
+describe("routeSegmentOf", () => {
+  it("reads the first path segment with query and fragment stripped", () => {
+    expect(routeSegmentOf("/")).toBe("");
+    expect(routeSegmentOf("/tracker")).toBe("tracker");
+    expect(routeSegmentOf("/spotting?line=3")).toBe("spotting");
+    expect(routeSegmentOf("/gallery#top")).toBe("gallery");
+  });
+
+  it("keeps Home labelled Home when the URL carries a query", () => {
+    expect(moduleLabelFor(routeSegmentOf("/?view=pro"))).toBe("Home");
+    expect(moduleLabelFor(routeSegmentOf("/?view=pro&line=3"))).toBe("Home");
   });
 });
 

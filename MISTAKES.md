@@ -13,6 +13,21 @@
 
 ---
 
+## [2026-10-08] app-nav: `router.url.split("/")[1]` keeps the query string
+
+**Problem**: The collapsed module-menu trigger showed **Menu** instead of **Home** on `/?view=pro`
+(mobile home page, and any route opened with a query, e.g. `?sort=name`).
+**Root Cause**: `AppNavComponent` derived the active segment with `router.url.split("/")[1]`.
+Angular keeps the query glued to the segment, so on `/?view=pro` that expression returns
+`"?view=pro"` — `moduleLabelFor` matches no `NAV_LINKS` path and falls through to the generic
+`"Menu"` fallback.
+**Fix**: new pure `routeSegmentOf(url)` in `app-nav.util.ts` strips query and fragment first
+(`url.split(/[?#]/)[0].split("/")[1] ?? ""`), used for both the `toSignal` `initialValue` and its
+`NavigationEnd` projection; regression pinned in `app-nav.util.spec.ts`.
+**Prevention**: never take a route segment straight off `router.url` — use `routeSegmentOf()` (or
+`router.parseUrl` / `route.firstChild.snapshot.paramMap`). When a label silently becomes the generic
+fallback, suspect a segment that never matched rather than a missing nav link.
+
 ## [2026-10-08] app-nav-icon-tray: NG0911 on teardown during auth init
 
 **Problem**: Navigating away from a page before Firebase auth finished initialising threw

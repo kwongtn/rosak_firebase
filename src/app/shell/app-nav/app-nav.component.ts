@@ -24,7 +24,13 @@ import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy"
 import { AppNavIconTrayComponent } from "./app-nav-icon-tray.component";
 import { AppNavModuleMenuComponent } from "./app-nav-module-menu.component";
 import { NavMenuState } from "./app-nav-menu-state";
-import { GENERIC_TITLE, NAV_LINKS, moduleLabelFor, wordmarkClassFor } from "./app-nav.util";
+import {
+  GENERIC_TITLE,
+  NAV_LINKS,
+  moduleLabelFor,
+  routeSegmentOf,
+  wordmarkClassFor,
+} from "./app-nav.util";
 
 /** Module-level, not a class field: `<app-nav>` is recreated on every top-level page navigation
  * (it's not a persistent shell — see the class doc comment), so a class field would re-arm the
@@ -304,9 +310,9 @@ export class AppNavComponent {
   private readonly routeSegment = toSignal(
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      map(() => this.router.url.split("/")[1] ?? ""),
+      map(() => routeSegmentOf(this.router.url)),
     ),
-    { initialValue: this.router.url.split("/")[1] ?? "" },
+    { initialValue: routeSegmentOf(this.router.url) },
   );
   /** The nav-link label for whichever module is currently active — what shows on the collapsed
    * trigger. */

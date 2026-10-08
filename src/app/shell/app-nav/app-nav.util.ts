@@ -17,6 +17,12 @@ export const NAV_LINKS: NavLink[] = [
   { path: "/about", label: "About", exact: false },
 ];
 
+/** The first path segment of a router URL, query and fragment stripped — `/?view=pro` is the
+ * Home segment, not `"?view=pro"`. */
+export function routeSegmentOf(url: string): string {
+  return url.split(/[?#]/)[0].split("/")[1] ?? "";
+}
+
 /** The nav-link label for whichever module is currently active — what shows on the collapsed
  * trigger. Matches a first-path link if one exists, then the two non-nav routes that still get a
  * name, then falls back to the generic "Menu". */
