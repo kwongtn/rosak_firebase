@@ -1,5 +1,6 @@
 import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { NgTemplateOutlet } from "@angular/common";
+import { Meta } from "@angular/platform-browser";
 import { RouterLink } from "@angular/router";
 import { getApps, initializeApp } from "firebase/app";
 import {
@@ -50,6 +51,9 @@ import {
 function firebaseApp() {
   return getApps().length ? getApps()[0] : initializeApp(environment.firebase);
 }
+
+const META_DESCRIPTION =
+  "About the MLPTF community platform: the team, the projects, the open-source tech behind them, and how to support the work.";
 
 const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral"> = {
   alpha: "warning",
@@ -131,6 +135,13 @@ export class AboutPage implements OnDestroy {
   }
 
   constructor() {
+    // Client-rendered, so this helps crawlers that run JS (Google); link-preview scrapers
+    // (WhatsApp/Telegram) still see only the static index.html tags.
+    const meta = inject(Meta);
+    meta.updateTag({ name: "description", content: META_DESCRIPTION });
+    meta.updateTag({ property: "og:title", content: "MLPTF | About" });
+    meta.updateTag({ property: "og:description", content: META_DESCRIPTION });
+    meta.updateTag({ property: "og:type", content: "website" });
     if (!this.isBrowser) {
       return;
     }

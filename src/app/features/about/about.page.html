@@ -13,6 +13,7 @@
           rel="noopener noreferrer"
         >
           View source on GitHub
+          <span class="sr-only">(opens in new tab)</span>
         </a>
         @if (isAdmin() && !isLoading() && !isError() && !editMode()) {
           <button hlmBtn variant="outline" size="sm" (click)="beginEdit()">Edit</button>
@@ -21,12 +22,16 @@
     </div>
 
     @if (isLoading()) {
-      <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-3" aria-busy="true">
+        <span class="sr-only" role="status">Loading the about page…</span>
         <div hlmSkeleton class="h-24 w-full"></div>
         <div hlmSkeleton class="h-24 w-full"></div>
       </div>
     } @else if (isError()) {
-      <div class="flex flex-col items-start gap-3 rounded-lg border border-destructive p-4">
+      <div
+        class="flex flex-col items-start gap-3 rounded-lg border border-destructive p-4"
+        role="alert"
+      >
         <p class="text-sm font-medium">Couldn't load the about page. Please try again.</p>
         <button hlmBtn variant="outline" size="sm" (click)="retry()">Retry</button>
       </div>
@@ -35,6 +40,7 @@
         <input
           hlmInput
           type="search"
+          aria-label="Search projects, personnel, tech stack"
           placeholder="Search projects, personnel, tech stack…"
           [value]="searchTerm()"
           (input)="searchTerm.set($any($event.target).value)"
@@ -52,8 +58,9 @@
           </div>
 
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium">About the project</label>
+            <label class="text-sm font-medium" for="about-project-input">About the project</label>
             <textarea
+              id="about-project-input"
               hlmInput
               rows="5"
               [value]="draft()?.aboutProject"
@@ -80,6 +87,7 @@
                     <select
                       hlmSelect
                       class="w-32"
+                      aria-label="Status"
                       [value]="project.status"
                       (change)="updateProject($index, 'status', $any($event.target).value)"
                     >
@@ -356,12 +364,13 @@
 
         <a
           routerLink="/methodology"
-          class="text-muted-foreground hover:text-foreground self-start text-sm underline"
+          class="text-muted-foreground hover:text-foreground self-start text-sm underline focus-visible:ring-ring/50 rounded-sm focus-visible:ring-3 focus-visible:outline-none"
         >
           How this is counted
         </a>
 
         @if (projects().length > 0) {
+          <h2 class="text-2xl font-bold">Projects</h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (project of projects(); track project.name) {
               <div hlmCard>
@@ -390,11 +399,11 @@
             href="https://opencollective.com/mlptf/projects/community-site"
             target="_blank"
             rel="noopener noreferrer"
-            class="self-start"
+            class="self-start focus-visible:ring-ring/50 rounded-sm focus-visible:ring-3 focus-visible:outline-none"
           >
             <img
               src="https://opencollective.com/mlptf/contribute/button@2x.png?color=blue"
-              alt="Donate on Open Collective"
+              alt="Donate on Open Collective (opens in new tab)"
               class="h-10"
             />
           </a>
@@ -410,16 +419,12 @@
 
       @if (activePersonnel().length > 0 || retiredPersonnel().length > 0) {
         <section class="flex flex-col gap-4">
-          <h1 class="text-2xl font-bold">About the team</h1>
+          <h2 class="text-2xl font-bold">About the team</h2>
           <ng-template #personCard let-person>
             <div hlmCard>
               <div hlmCardContent class="flex-row items-center gap-3">
                 @if (person.avatar) {
-                  <img
-                    [src]="person.avatar"
-                    [alt]="person.name"
-                    class="size-12 rounded-full object-cover"
-                  />
+                  <img [src]="person.avatar" alt="" class="size-12 rounded-full object-cover" />
                 }
                 <div class="flex flex-col">
                   <span class="font-medium">{{ person.name }}</span>
@@ -441,9 +446,10 @@
                       [href]="social.link"
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="text-muted-foreground hover:text-foreground text-xs underline"
+                      class="text-muted-foreground hover:text-foreground text-xs underline focus-visible:ring-ring/50 rounded-sm focus-visible:ring-3 focus-visible:outline-none"
                     >
                       {{ social.name }}
+                      <span class="sr-only">— {{ person.name }} (opens in new tab)</span>
                     </a>
                   }
                 </div>
@@ -462,7 +468,9 @@
           }
           @if (retiredPersonnel().length > 0) {
             <details class="group rounded-lg border" data-testid="personnel-retired">
-              <summary class="flex cursor-pointer items-center gap-2 p-3 text-sm font-medium">
+              <summary
+                class="focus-visible:ring-ring/50 flex cursor-pointer items-center gap-2 rounded-lg p-3 text-sm font-medium focus-visible:ring-3 focus-visible:outline-none"
+              >
                 <svg
                   viewBox="0 0 24 24"
                   class="text-muted-foreground size-3.5 shrink-0 transition-transform duration-150 group-open:rotate-180"
@@ -492,7 +500,7 @@
 
       @if (techStacks().length > 0) {
         <section class="flex flex-col gap-4">
-          <h1 class="text-2xl font-bold">Tech Stack &amp; Open Source</h1>
+          <h2 class="text-2xl font-bold">Tech Stack &amp; Open Source</h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (stack of techStacks(); track stack.name) {
               <a
@@ -500,13 +508,14 @@
                 target="_blank"
                 rel="noopener noreferrer"
                 hlmCard
-                class="gap-3 hover:bg-muted/50"
+                class="gap-3 hover:bg-muted/50 focus-visible:ring-ring/50 focus-visible:ring-3 focus-visible:outline-none"
               >
                 <div class="flex items-center gap-3">
                   @if (stack.iconUrl) {
-                    <img [src]="stack.iconUrl" [alt]="stack.name" class="size-8 object-contain" />
+                    <img [src]="stack.iconUrl" alt="" class="size-8 object-contain" />
                   }
                   <span class="font-medium">{{ stack.name }}</span>
+                  <span class="sr-only">(opens in new tab)</span>
                 </div>
                 @if (stack.description) {
                   <p class="text-muted-foreground text-sm">{{ stack.description }}</p>
@@ -519,7 +528,7 @@
 
       @if (communityProjects().length > 0) {
         <section class="flex flex-col gap-4">
-          <h1 class="text-2xl font-bold">Other Community Projects</h1>
+          <h2 class="text-2xl font-bold">Other Community Projects</h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (project of communityProjects(); track project.name) {
               <a
@@ -527,17 +536,14 @@
                 target="_blank"
                 rel="noopener noreferrer"
                 hlmCard
-                class="gap-3 hover:bg-muted/50"
+                class="gap-3 hover:bg-muted/50 focus-visible:ring-ring/50 focus-visible:ring-3 focus-visible:outline-none"
               >
                 <div class="flex items-center gap-3">
                   @if (project.iconUrl) {
-                    <img
-                      [src]="project.iconUrl"
-                      [alt]="project.name"
-                      class="size-8 object-contain"
-                    />
+                    <img [src]="project.iconUrl" alt="" class="size-8 object-contain" />
                   }
                   <span class="font-medium">{{ project.name }}</span>
+                  <span class="sr-only">(opens in new tab)</span>
                 </div>
                 @if (project.description) {
                   <p class="text-muted-foreground text-sm">{{ project.description }}</p>
