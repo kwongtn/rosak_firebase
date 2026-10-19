@@ -13,6 +13,15 @@
 
 ---
 
+## [2026-10-20] about: legacy Firestore rows broke the admin save, and a stale comment named the wrong sort order
+
+**Problem**: Two save bugs on legacy `public/about` rows. A personnel social without a `name` made `sanitizeDraft` throw on `.trim()` of undefined, which surfaced as a "Save failed" toast. A personnel row without `display` was hidden on the public page, but the first admin save made it visible. Separately, the `filterAndSortProjects` comment said newest-first while the code and spec sorted oldest-first.
+**Root Cause**: `draftFromDoc` copied legacy rows without defaulting fields the editor now requires. `sanitizeDraft` defaulted a missing `display` to `true`, the opposite of the public read, which treats it as hidden. The comment was never updated when the sort changed.
+**Fix**: `e8075ac`. `draftFromDoc` defaults `name` and social `name`/`link`, and keeps a missing `display` as hidden. The stale sort comment and a dangling comment reference in `about.page.ts` are corrected.
+**Prevention**: Normalize legacy rows once, in `draftFromDoc`, and let the save path trust the draft. A default must match the public read's default. When a comment states an order, check it against the comparator and the spec when you touch that code.
+
+---
+
 ## [2026-10-19] home/SSR: staging `/` cold start takes ~17s TTFB — partly fixed, still open
 
 **Problem**: First response from staging after an idle period takes about 17s to first byte. Server-timing shows about 7s spent in the SSR render. The staging response had no `content-encoding` and no `cache-control` before the change.
@@ -1169,6 +1178,7 @@ Historical fixes with no live action; kept so the ground isn't re-covered. Full 
 - **2026-08-24** — `gdpr`/`about`: Firestore read failures rendered identically to an empty document; added `isError`/`hasError` + a retry action (`ba95758`).
 - **2026-08-24** — `console`/`profile`: the duplicated bulk-action pattern was extracted to `useBulkActions` (`873202f`, inferred).
 - **2026-09-22** — `AGENTS.md`: it documented a `postGraphQL()` helper that never existed; it now names `inject(GraphQLClient).request(query, variables, headers)` for writes.
+- **2026-10-20** — `about`: legacy rows threw on save (missing social name) or flipped to visible on the first save (missing `display`); `draftFromDoc` now normalizes them (`e8075ac`).
 
 ---
 
