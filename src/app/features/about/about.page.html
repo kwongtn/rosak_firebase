@@ -36,15 +36,21 @@
         <button hlmBtn variant="outline" size="sm" (click)="retry()">Retry</button>
       </div>
     } @else {
-      @if (!editMode()) {
-        <input
-          hlmInput
-          type="search"
-          aria-label="Search projects, personnel, tech stack"
-          placeholder="Search projects, personnel, tech stack…"
-          [value]="searchTerm()"
-          (input)="searchTerm.set($any($event.target).value)"
-        />
+      @if (!editMode() && !isEmptyDoc()) {
+        <div class="flex items-center gap-2">
+          <input
+            hlmInput
+            class="min-w-0 flex-1"
+            type="search"
+            aria-label="Search projects, personnel, tech stack"
+            placeholder="Search projects, personnel, tech stack…"
+            [value]="searchTerm()"
+            (input)="searchTerm.set($any($event.target).value)"
+          />
+          @if (searchTerm()) {
+            <button hlmBtn variant="ghost" size="sm" (click)="clearSearch()">Clear</button>
+          }
+        </div>
       }
 
       @if (isAdmin() && editMode()) {
@@ -368,6 +374,16 @@
         >
           How this is counted
         </a>
+
+        @if (isEmptyDoc() && !editMode()) {
+          <p class="text-muted-foreground text-sm" data-testid="about-empty">
+            Nothing has been published on this page yet.
+          </p>
+        } @else if (noResults()) {
+          <p class="text-muted-foreground text-sm" role="status" data-testid="about-no-results">
+            No results for “{{ searchTerm().trim() }}”.
+          </p>
+        }
 
         @if (projects().length > 0) {
           <h2 class="text-2xl font-bold">Projects</h2>

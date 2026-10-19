@@ -122,6 +122,20 @@ export class AboutPage implements OnDestroy {
   protected readonly communityProjects = computed(() =>
     filterCommunityProjects(this._data()?.communityProjects ?? [], this.searchTerm()),
   );
+  private readonly visibleCount = computed(
+    () =>
+      this.projects().length +
+      this.personnel().length +
+      this.techStacks().length +
+      this.communityProjects().length,
+  );
+  /** Doc missing or with nothing visible — distinct from "search matched nothing". */
+  protected readonly isEmptyDoc = computed(
+    () => !this.aboutProject() && this.searchTerm().trim() === "" && this.visibleCount() === 0,
+  );
+  protected readonly noResults = computed(
+    () => this.searchTerm().trim() !== "" && this.visibleCount() === 0,
+  );
   protected statusVariant = (status: string) => STATUS_VARIANT[status] ?? "neutral";
 
   /** Templates can't call `Number()` — `$any($event.target).value` is a string from a number input. */
@@ -163,6 +177,10 @@ export class AboutPage implements OnDestroy {
     );
   }
 
+  protected clearSearch(): void {
+    this.searchTerm.set("");
+  }
+
   protected retry(): void {
     this.isError.set(false);
     this.isLoading.set(true);
@@ -174,11 +192,8 @@ export class AboutPage implements OnDestroy {
 
   /** Copy of the last snapshot, normalized so every input can bind; Firestore untouched until Save. */
   protected beginEdit(): void {
-    const data = this._data();
-    if (!data) {
-      return;
-    }
-    this._draft.set(draftFromDoc(data));
+    // A missing doc starts from an empty draft; saving creates it.
+    this._draft.set(draftFromDoc(this._data() ?? ({} as PublicAboutDocument)));
     this.editMode.set(true);
   }
 
