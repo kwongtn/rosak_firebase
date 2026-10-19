@@ -13,7 +13,6 @@ function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 1,
     totalVehicleCount: 2,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 0,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,

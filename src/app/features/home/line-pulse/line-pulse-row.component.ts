@@ -163,7 +163,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
               variant="ghost"
               data-testid="line-row-pin"
               [attr.aria-pressed]="_isPinned()"
-              [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
+              [attr.aria-label]="(_isPinned() ? 'Unpin ' : 'Pin ') + line().displayName"
               (click)="togglePin()"
             >
               <!-- 🔴 The icon FILLS when the row is pinned. aria-pressed alone leaves the glyph saying
@@ -179,11 +179,14 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
               />
             </button>
           </ng-template>
+          <!-- The visible labels are the same on every row, so each names its line for a screen
+               reader: a list of sixteen bare "Report" buttons is unusable out of context. -->
           <a
             hlmBtn
             size="sm"
             variant="outline"
             [routerLink]="['/spotting', line().id, 'details']"
+            [attr.aria-label]="'Details for ' + line().displayName"
             data-testid="line-row-details"
           >
             Details
@@ -192,6 +195,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
             hlmBtn
             size="sm"
             variant="outline"
+            [attr.aria-label]="'Report delay on ' + line().displayName"
             data-testid="line-row-report"
             (click)="sheet.openFor(line().id)"
           >
@@ -239,7 +243,11 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
            it still shows its status badge and the Pro block below carries "2 reports · 15 min window". Both
            testids are unchanged, and both come back from sm up. -->
       <div class="mt-1 flex flex-wrap items-center gap-1.5" data-testid="line-row-meta">
-        <app-status-info-chip [info]="_vehicleCountInfo()" [breakdown]="_vehicleBreakdown()">
+        <app-status-info-chip
+          [info]="_vehicleCountInfo()"
+          [breakdown]="_vehicleBreakdown()"
+          [showIcon]="true"
+        >
           <span
             hlmBadge
             variant="secondary"
@@ -471,7 +479,8 @@ export class LinePulseRowComponent {
 
     // Opts the store's single per-line history read in, now that this row reads it directly. Sixteen
     // rows mount and it is still ONE request: the store owns the resource, this call only opens the
-    // gate (`requestHistoryReads`).
-    this.store.requestHistoryReads();
+    // gate (`requestHistoryReads`). Deferred to `afterNextRender` so SSR never issues the read — the
+    // server's markup has no report label, and the client asks once it has rendered.
+    afterNextRender(() => this.store.requestHistoryReads());
   }
 }

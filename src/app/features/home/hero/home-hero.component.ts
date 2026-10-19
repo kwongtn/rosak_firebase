@@ -2,6 +2,7 @@ import { Component, OnDestroy, computed, effect, inject, input, signal } from "@
 import { RouterLink } from "@angular/router";
 
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -9,6 +10,7 @@ import { HlmTickUp } from "../../../ui/motion/tick-up.directive";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home-board.queries";
+import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { networkTone, summarizeNetwork } from "../data/network-summary.util";
 import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeRefreshControlComponent } from "../refresh-control/home-refresh-control.component";
@@ -146,9 +148,15 @@ interface OfficialUpdate {
                  all h2/h3 UNDER it, so a screen reader's heading list is "what is the network doing"
                  followed by "which parts need attention" rather than a page of peers with no parent.
                  Its colour is the network TONE, read from the same two counts as the words. -->
+            <!-- 🔴 Announces the network sentence when it changes (aria-live, atomic so the whole
+                 sentence is read, not the fragment that changed). It must NEVER wrap the countdown:
+                 the "Refreshing in Ns" label ticks every second and would be read aloud every second.
+                 The countdown lives in HomeRefreshControlComponent, outside this region. -->
             <h1
               class="text-xl font-semibold tracking-tight sm:text-2xl"
               [class]="_headlineClass()"
+              aria-live="polite"
+              aria-atomic="true"
               data-testid="hero-headline"
             >
               {{ _summary().headline }}
@@ -292,16 +300,57 @@ interface OfficialUpdate {
              of them — sending them to a sheet that needs a line id, or (as this used to) scrolling
              them to a board to hunt for a row, both answered a question they did not ask. The
              chooser asks "which line?" itself and hands the sheet a seeded line. -->
-        <button hlmBtn data-testid="hero-report-delay" (click)="chooser.open()">
+        <!-- 🔴 The one PRIMARY action: filled, the largest CTA, and at least 44px tall for touch.
+             Spot a train and Share a link are secondary (outlined, still 44px); Live map is a
+             tertiary text link. Hierarchy is carried by size and weight, not brand colour. -->
+        <button
+          hlmBtn
+          class="h-11 px-4 text-base"
+          data-testid="hero-report-delay"
+          (click)="chooser.open()"
+        >
           Report a delay
         </button>
-        <button hlmBtn variant="outline" data-testid="hero-spot-train" (click)="reportSheet.open()">
+        <!-- The shortcut to the line the reader last reported on: the same line-status sheet the board's
+             Report button opens, pre-scoped to the line, so a repeat report is one tap rather than a
+             chooser and a picker. Drawn from sm up only, because below that the report chooser carries
+             the same shortcut as a chip, and a phone's hero is not where a repeat report starts.
+             The width lives on this wrapper, not on the button: hlmBtn's inline-flex would otherwise
+             win the tie against a hidden class. -->
+        @if (_lastLine(); as last) {
+          <span class="hidden sm:inline-flex" data-testid="hero-report-last-wrap">
+            <button
+              hlmBtn
+              variant="outline"
+              class="h-11 max-w-full"
+              data-testid="hero-report-last"
+              (click)="lineSheet.openFor(last.id)"
+            >
+              <span class="truncate">Report on {{ last.displayName }}</span>
+            </button>
+          </span>
+        }
+        <button
+          hlmBtn
+          variant="outline"
+          class="h-11"
+          data-testid="hero-spot-train"
+          (click)="reportSheet.open()"
+        >
           Spot a train
         </button>
-        <button hlmBtn variant="outline" data-testid="hero-share-link" (click)="linkSheet.open()">
+        <button
+          hlmBtn
+          variant="outline"
+          class="h-11"
+          data-testid="hero-share-link"
+          (click)="linkSheet.open()"
+        >
           Share a link
         </button>
-        <a hlmBtn variant="ghost" routerLink="/tracker" data-testid="hero-live-map">Live map</a>
+        <a hlmBtn variant="link" class="h-11" routerLink="/tracker" data-testid="hero-live-map">
+          Live map
+        </a>
       </div>
     </section>
   `,
@@ -315,6 +364,18 @@ export class HomeHeroComponent implements OnDestroy {
   protected readonly reportSheet = inject(ReportSheetService);
   protected readonly linkSheet = inject(LinkSheetService);
   protected readonly chooser = inject(ReportChooserService);
+  protected readonly lineSheet = inject(LineStatusSheetService);
+  private readonly preferences = inject(PreferencesService);
+
+  /**
+   * The line the reader last reported on (or opened the form for), resolved against the lines on
+   * screen. `null` when none is remembered or it is no longer in the list, and the shortcut is then
+   * not drawn at all rather than offered for a line the page cannot name.
+   */
+  protected readonly _lastLine = computed<LinePulse | null>(() => {
+    const id = this.preferences.lastReportedLineId();
+    return id === null ? null : (this.lines().find((line) => line.id === id) ?? null);
+  });
 
   protected readonly _summary = computed(() => summarizeNetwork(this.lines()));
 

@@ -30,7 +30,6 @@ function makeLine(id: string): FrontPageLinesQueryData["lines"][number] {
     inServiceVehicleCount: 3,
     totalVehicleCount: 5,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 1,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -167,7 +166,10 @@ describe("HomeStore", () => {
     );
   }
 
+  /** The Last Week section is lazy: ask for it the way the tab does, then take its request. */
   function lastWeekRequest() {
+    TestBed.inject(HomeStore).requestLastWeek();
+    TestBed.tick();
     return httpMock.expectOne(
       (r) =>
         r.method === "POST" &&
@@ -1079,6 +1081,88 @@ describe("HomeStore", () => {
 
     expect(requestMock).toHaveBeenCalledTimes(1);
   });
+  it("does not read Last Week on load, and leaves its count unknown until it is asked for", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], false, null) });
+    await afterVariablesChange();
+
+    // The tab is hidden on load, so its read, and every SSR render of it, waits for the tab.
+    expect(httpMock.match((r) => r.body.variables?.lastWeekOnly === true)).toHaveLength(0);
+    expect(store.lastWeekLinks()).toEqual([]);
+    expect(store.lastWeekPending()).toBe(false);
+    expect(store.lastWeekCount()).toBeNull();
+  });
+
+  it("reads Last Week once when asked, reports it pending until the answer lands, then counts it", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    await afterVariablesChange();
+
+    store.requestLastWeek();
+    store.requestLastWeek();
+    await afterVariablesChange();
+    expect(store.lastWeekPending()).toBe(true);
+    expect(store.lastWeekCount()).toBeNull();
+
+    // `expectOne` fails on a second request, so this is also the one-read-not-one-per-call check.
+    lastWeekRequest().flush({
+      data: feedData([makeFeedLink("w1"), makeFeedLink("w2")], false, null),
+    });
+    await afterVariablesChange();
+
+    expect(store.lastWeekPending()).toBe(false);
+    expect(store.lastWeekCount()).toBe(2);
+  });
+
+  it("reports the Last Week count as unknown after a failed first read, never as zero", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    store.requestLastWeek();
+    await afterVariablesChange();
+
+    lastWeekRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await afterVariablesChange();
+
+    expect(store.lastWeekPending()).toBe(false);
+    expect(store.lastWeekCount()).toBeNull();
+  });
+
+  it("keeps the poll beat and reloadAll off Last Week until it is requested, then refreshes it", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    await afterVariablesChange();
+
+    // Unrequested: the beat and a full reload each re-read the two first pages, never the section.
+    store.reloadFirstPages();
+    TestBed.tick();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    await afterVariablesChange();
+    store.reloadAll();
+    TestBed.tick();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    await afterVariablesChange();
+    expect(httpMock.match((r) => r.body.variables?.lastWeekOnly === true)).toHaveLength(0);
+
+    store.requestLastWeek();
+    await afterVariablesChange();
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+    await afterVariablesChange();
+
+    // Requested: the beat refreshes the section alongside its two siblings.
+    store.reloadFirstPages();
+    TestBed.tick();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w9")], false, null) });
+    await afterVariablesChange();
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w9"]);
+  });
 });
 
 /* ---------------------------------------------------------------------- *
@@ -1168,14 +1252,6 @@ describe("HomeStore: the service-day history reads", () => {
           r.method === "POST" &&
           r.body.query.includes("query Feed") &&
           r.body.variables?.lastWeekOnly !== true,
-      )
-      .flush({ data: feedData([], false, null) });
-    httpMock
-      .expectOne(
-        (r) =>
-          r.method === "POST" &&
-          r.body.query.includes("query Feed") &&
-          r.body.variables?.lastWeekOnly === true,
       )
       .flush({ data: feedData([], false, null) });
   }
@@ -1366,6 +1442,57 @@ describe("HomeStore: the service-day history reads", () => {
     alsoInFlight.flush({ data: { linesStatusHistory: [] } });
     await Promise.resolve();
   });
+  it("reports the sparkline's read as PENDING until it lands, never as an empty network", async () => {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    // Before the lines read answers, the sparkline has nothing yet: a skeleton, not "no activity".
+    expect(store.networkHistoryPending()).toBe(true);
+
+    flushPageReads([makeLine("a")]);
+    await afterVariablesChange();
+    // Lines are in but the widget has not opted in. The read is still coming, so it is still pending.
+    // This is the state the server paints, because the widget asks only after its first render.
+    expect(store.networkHistoryPending()).toBe(true);
+
+    store.requestHistoryReads();
+    await afterVariablesChange();
+    expect(store.networkHistoryPending()).toBe(true);
+
+    historyRequest("NetworkStatusHistory").flush({ data: { networkStatusHistory: [] } });
+    httpMock
+      .match((r) => r.body.query.includes("LinesStatusHistory"))
+      .forEach((r) => r.flush({ data: { linesStatusHistory: [] } }));
+    await afterVariablesChange();
+    expect(store.networkHistoryPending()).toBe(false);
+  });
+
+  it("is not pending for an empty network once its lines have settled, nor after a failed read", async () => {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    flushPageReads([]);
+    await afterVariablesChange();
+    // No lines means no read is ever issued, so waiting on one would be a skeleton forever.
+    expect(store.networkHistoryPending()).toBe(false);
+  });
+
+  it("is not pending once the network read has FAILED", async () => {
+    const store = TestBed.inject(HomeStore);
+    TestBed.tick();
+    flushPageReads([makeLine("a")]);
+    store.requestHistoryReads();
+    await afterVariablesChange();
+
+    historyRequest("NetworkStatusHistory").flush(
+      { message: "boom" },
+      { status: 500, statusText: "Server Error" },
+    );
+    httpMock
+      .match((r) => r.body.query.includes("LinesStatusHistory"))
+      .forEach((r) => r.flush({ data: { linesStatusHistory: [] } }));
+    await afterVariablesChange();
+    expect(store.networkHistoryFailed()).toBe(true);
+    expect(store.networkHistoryPending()).toBe(false);
+  });
 });
 
 /* ---------------------------------------------------------------------- *
@@ -1420,7 +1547,10 @@ describe("HomeStore: the feed line filter", () => {
     );
   }
 
+  /** The Last Week section is lazy: ask for it the way the tab does, then take its request. */
   function lastWeekRequest() {
+    TestBed.inject(HomeStore).requestLastWeek();
+    TestBed.tick();
     return httpMock.expectOne(
       (r) =>
         r.method === "POST" &&
@@ -1650,14 +1780,6 @@ describe("HomeStore: the board partition", () => {
           r.body.variables?.lastWeekOnly !== true,
       )
       .flush({ data: feedData([], false, null) });
-    httpMock
-      .expectOne(
-        (r) =>
-          r.method === "POST" &&
-          r.body.query.includes("query Feed") &&
-          r.body.variables?.lastWeekOnly === true,
-      )
-      .flush({ data: feedData([], false, null) });
     await Promise.resolve();
     return store;
   }
@@ -1810,14 +1932,6 @@ describe("HomeStore: the board partition", () => {
           r.method === "POST" &&
           r.body.query.includes("query Feed") &&
           r.body.variables?.lastWeekOnly !== true,
-      )
-      .flush({ data: feedData([], false, null) });
-    httpMock
-      .expectOne(
-        (r) =>
-          r.method === "POST" &&
-          r.body.query.includes("query Feed") &&
-          r.body.variables?.lastWeekOnly === true,
       )
       .flush({ data: feedData([], false, null) });
     await Promise.resolve();
@@ -1999,7 +2113,10 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
     );
   }
 
+  /** The Last Week section is lazy: ask for it the way the tab does, then take its request. */
   function lastWeekRequest() {
+    TestBed.inject(HomeStore).requestLastWeek();
+    TestBed.tick();
     return httpMock.expectOne(
       (r) =>
         r.method === "POST" &&
@@ -2046,6 +2163,34 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
     expect(store.proPassengerFilter()).toBeNull();
     expect(store.proOnlyWithData()).toBe(false);
     expect(store.visibleLines()).toEqual(lines);
+  });
+
+  it("narrows the board to one operator family, and the Pro filters apply on top of it", async () => {
+    const store = await startedWith([
+      makeProLine("ktm1", { code: "KTM1" }),
+      makeProLine("ktm2", { code: "KTM2", status: "TOTAL_DISRUPTION" }),
+      makeProLine("kjl1", { code: "KJL1" }),
+    ]);
+
+    store.setLineFamily("KTM");
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["ktm1", "ktm2"]);
+
+    store.setProStatusFilter("TOTAL_DISRUPTION");
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["ktm2"]);
+    expect(store.attentionLines().map((line) => line.id)).toEqual(["ktm2"]);
+
+    store.setLineFamily(null);
+    expect(store.lineFamily()).toBeNull();
+    expect(store.visibleLines().map((line) => line.id)).toEqual(["ktm2"]);
+  });
+
+  it("keeps the operator family through resetProFilters, because it is a shared board view", async () => {
+    const store = await startedWith([makeProLine("ktm1", { code: "KTM1" })]);
+
+    store.setLineFamily("KTM");
+    store.resetProFilters();
+
+    expect(store.lineFamily()).toBe("KTM");
   });
 
   it("partitions its three groups over the FILTERED set, so no group disagrees with the rows", async () => {
@@ -2330,14 +2475,6 @@ describe("HomeStore: the official-notices archive read", () => {
           r.method === "POST" &&
           r.body.query.includes("query Feed") &&
           r.body.variables?.lastWeekOnly !== true,
-      )
-      .flush({ data: feedData([], false, null) });
-    httpMock
-      .expectOne(
-        (r) =>
-          r.method === "POST" &&
-          r.body.query.includes("query Feed") &&
-          r.body.variables?.lastWeekOnly === true,
       )
       .flush({ data: feedData([], false, null) });
     await Promise.resolve();

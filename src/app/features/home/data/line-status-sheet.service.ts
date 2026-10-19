@@ -1,4 +1,5 @@
-import { Injectable, signal } from "@angular/core";
+import { Injectable, inject, signal } from "@angular/core";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import type { PassengerStatus } from "./home.queries";
 
 /** How a caller can pre-select a status when it already knows which one the rider meant. */
@@ -11,6 +12,8 @@ export interface OpenLineStatusOptions {
  * later wave). Mirrors features/insiden/data/link-sheet.service.ts. */
 @Injectable()
 export class LineStatusSheetService {
+  private readonly preferences = inject(PreferencesService);
+
   readonly isOpen = signal(false);
 
   /** Line being reported on — `null` means the sheet is closed/unset. */
@@ -32,6 +35,10 @@ export class LineStatusSheetService {
     this.lineId.set(lineId);
     this.presetStatus.set(options?.presetStatus ?? null);
     this.isOpen.set(true);
+    // Opening the form for a line is the reader's last report intent, and it is what the "Report on
+    // {line}" shortcut repeats. Recorded here rather than only on submit, so a reader who opens the
+    // form and closes it still gets the shortcut to the line they were working on.
+    this.preferences.setLastReportedLine(lineId);
   }
 
   setOpen(open: boolean): void {

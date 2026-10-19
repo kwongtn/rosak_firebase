@@ -11,7 +11,7 @@ import {
 import { Meta } from "@angular/platform-browser";
 import { RouterLink } from "@angular/router";
 import { NgIcon, provideIcons } from "@ng-icons/core";
-import { lucideMapPin, lucideRefreshCw } from "@ng-icons/lucide";
+import { lucideMapPin, lucideRefreshCw, lucideTrainFront } from "@ng-icons/lucide";
 
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -65,7 +65,7 @@ type FeedTab = (typeof FEED_TABS)[number];
  * submit box heads a **Today / Last Week tab set**, each panel a `role="tabpanel"`. The retry banner
  * and footer stay full width. The refresh control (`app-home-refresh-control`) now lives in the HERO
  * only (from `lg` up); below that the sticky mobile action bar carries a Refresh button on the same
- * store beat plus Report and Live map, which is what keeps every intent reachable on a phone.
+ * store beat plus Report, Spot a train and Live map, which is what keeps every intent reachable on a phone.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
  * app.routes.ts. The router retains that route injector while the page component is recreated on
@@ -112,7 +112,7 @@ type FeedTab = (typeof FEED_TABS)[number];
     RouterLink,
     NgIcon,
   ],
-  providers: [provideIcons({ lucideRefreshCw, lucideMapPin })],
+  providers: [provideIcons({ lucideRefreshCw, lucideMapPin, lucideTrainFront })],
   template: `
     <app-nav />
 
@@ -279,7 +279,7 @@ type FeedTab = (typeof FEED_TABS)[number];
                      it: a reader deciding whether to switch should see what they would switch TO, and
                      a count that only existed inside the panel would be one tap too late. -->
                 <span data-testid="last-week-count"
-                  >Last Week ({{ store.lastWeekTotalCount() }})</span
+                  >Last Week ({{ store.lastWeekCount() ?? "–" }})</span
                 >
               </button>
             </div>
@@ -353,9 +353,13 @@ type FeedTab = (typeof FEED_TABS)[number];
               [hidden]="feedTab() !== 'lastweek'"
             >
               <div class="flex flex-col gap-3">
-                @if (store.isLoadingLastWeek() && store.lastWeekLinks().length === 0) {
+                @if (store.lastWeekPending()) {
                   <div hlmSkeleton class="h-24 w-full" data-testid="last-week-skeleton"></div>
-                } @else if (store.lastWeekLinks().length === 0 && !store.hasError()) {
+                } @else if (
+                  store.lastWeekCount() !== null &&
+                  store.lastWeekLinks().length === 0 &&
+                  !store.hasError()
+                ) {
                   <p
                     class="text-muted-foreground border-border rounded-xl border border-dashed p-6 text-center text-sm"
                     data-testid="last-week-empty"
@@ -410,7 +414,7 @@ type FeedTab = (typeof FEED_TABS)[number];
          control are already above the fold on every layout, so a second copy would duplicate both.
          🔴 The acceptance this bar exists to satisfy is "no intent becomes unreachable on mobile":
          Report opens the chooser (which carries every intent, including the incident one the hero
-         row does not), Refresh drives the SAME store.polling beat the countdown does — one beat,
+         row does not), Spot a train is the one-tap sighting the chooser otherwise buries, Refresh drives the SAME store.polling beat the countdown does — one beat,
          two affordances, never two beats — and Live map keeps the tracker one tap away so the hero's
          fourth CTA is not something mobile lost. The safe-area padding keeps the buttons
          clear of the iOS home indicator; main grows a matching bottom padding below lg so the bar
@@ -426,6 +430,19 @@ type FeedTab = (typeof FEED_TABS)[number];
         (click)="openReportChooser()"
       >
         Report
+      </button>
+      <!-- One tap to Spot a train, without the chooser: it opens the same spotting sheet the hero's
+           CTA does (no line preset, the sheet asks). Icon-only at 44px, labelled for screen readers. -->
+      <button
+        hlmBtn
+        variant="outline"
+        size="icon"
+        class="size-11"
+        aria-label="Spot a train"
+        data-testid="home-mobile-spot"
+        (click)="reportSheet.open()"
+      >
+        <ng-icon name="lucideTrainFront" class="size-4" aria-hidden="true" />
       </button>
       <button
         hlmBtn
@@ -571,6 +588,9 @@ export class HomePage implements OnDestroy {
    *  panels there is nothing to defer for, and a tab that only moved focus would make a reader who
    *  clicked it read the wrong list. */
   protected selectFeedTab(tab: FeedTab): void {
+    if (tab === "lastweek") {
+      this.store.requestLastWeek();
+    }
     this.feedTab.set(tab);
   }
 
@@ -604,6 +624,9 @@ export class HomePage implements OnDestroy {
     }
     event.preventDefault();
     const tab = FEED_TABS[next];
+    if (tab === "lastweek") {
+      this.store.requestLastWeek();
+    }
     this.feedTab.set(tab);
     (tab === "today" ? this._todayTab() : this._lastWeekTab())?.nativeElement.focus();
   }

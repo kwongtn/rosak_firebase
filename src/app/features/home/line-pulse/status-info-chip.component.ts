@@ -25,7 +25,7 @@ export interface StatusBreakdownRow {
       [label]="info().title"
       [content]="info().body"
       [link]="_methodologyLink()"
-      [showIcon]="false"
+      [showIcon]="showIcon()"
       [showMethodologyLink]="showMethodologyLink()"
       testId="status-info-popover"
     >
@@ -106,6 +106,12 @@ export class StatusInfoChipComponent {
   readonly linkFragment = input("line-status");
   /** Whether the panel renders the "How this is counted" link; off for chips with no metric doc. */
   readonly showMethodologyLink = input(true);
+  /**
+   * Whether the trigger shows the visible "i" glyph. Off by default — most chips are a status badge
+   * whose colour already says what it is — but the in-service badge has no colour that explains a
+   * count, so it turns the glyph on to tell a reader the number has a definition behind it.
+   */
+  readonly showIcon = input(false);
 
   /** Deep link to the methodology section that owns this chip's metric. */
   protected readonly _methodologyLink = computed<InfoPopoverLink>(() => ({

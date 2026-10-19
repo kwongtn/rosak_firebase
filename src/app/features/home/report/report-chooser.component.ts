@@ -205,6 +205,22 @@ const TILES: readonly ChooserTile[] = [
             }
           </div>
         } @else {
+          @if (_lastLine(); as last) {
+            <!-- The repeat-report shortcut: the line the reader last reported on, as one tap. It sits
+                 above the tiles because a repeat report is the common case on a phone, where the hero's
+                 own shortcut is out of sight. It goes straight to the line sheet, skipping the picker. -->
+            <div class="mb-3">
+              <button
+                hlmBtn
+                variant="outline"
+                class="h-11 max-w-full justify-start"
+                data-testid="chooser-report-last"
+                (click)="onReportLast(last)"
+              >
+                <span class="truncate">Report on {{ last.displayName }}</span>
+              </button>
+            </div>
+          }
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="chooser-tiles">
             @for (tile of TILES; track tile.intent) {
               <button
@@ -286,6 +302,12 @@ export class ReportChooserComponent {
 
   protected readonly _hasLines = computed(() => this.store.lines().length > 0);
 
+  /** The remembered line, resolved against the lines on screen; `null` hides the shortcut entirely. */
+  protected readonly _lastLine = computed<LinePulse | null>(() => {
+    const id = this.preferences.lastReportedLineId();
+    return id === null ? null : (this.store.lines().find((line) => line.id === id) ?? null);
+  });
+
   protected readonly _visibleLines = computed<LinePulse[]>(() =>
     filterChooserLines(
       orderChooserLines(
@@ -354,6 +376,13 @@ export class ReportChooserComponent {
     this.incidentSheet.open();
     this.chooser.setOpen(false);
     void this.router.navigate(["/insiden"]);
+  }
+
+  /** The repeat-report shortcut. Same order as a line pick: open the sheet, then close the chooser. */
+  protected onReportLast(line: LinePulse): void {
+    this.preferences.pushRecentLine(line.id);
+    this.lineStatusSheet.openFor(line.id);
+    this.chooser.setOpen(false);
   }
 
   protected onLineChosen(line: LinePulse): void {

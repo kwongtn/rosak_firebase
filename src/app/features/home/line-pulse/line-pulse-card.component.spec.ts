@@ -26,7 +26,6 @@ function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 3,
     vehicleStatusCounts: [
       { status: "IN_SERVICE", count: 12 },
@@ -144,7 +143,6 @@ describe("LinePulseCardComponent", () => {
     const root = render(
       makeLine({
         passengerStatus: "CROWDED",
-        passengerStatusMessage: "According to 5 social media entries, this line is Crowded.",
       }),
     );
 
@@ -191,6 +189,20 @@ describe("LinePulseCardComponent", () => {
     const pin = root.querySelector('[data-testid="line-card-pin"]') as HTMLElement;
     expect(pin.className).toContain("size-7");
     expect(pin.className).not.toContain("w-full");
+  });
+
+  it("labels Details and Report with the line's name, matching the compact row", () => {
+    const root = render(makeLine({ displayName: "Kelana Jaya Line" }));
+
+    expect(
+      root.querySelector('[data-testid="line-card-details"]')?.getAttribute("aria-label"),
+    ).toBe("Details for Kelana Jaya Line");
+    expect(
+      root.querySelector('[data-testid="submit-line-status"]')?.getAttribute("aria-label"),
+    ).toBe("Report delay on Kelana Jaya Line");
+    // The visible text is unchanged: the label only sharpens what a screen reader announces.
+    expect(textOf(root, "line-card-details")).toBe("Details");
+    expect(textOf(root, "submit-line-status")).toBe("Report");
   });
 
   it("names the actions as the reader's intent, not as internal nouns", () => {
@@ -259,7 +271,7 @@ describe("LinePulseCardComponent", () => {
       .querySelector('[data-testid="status-info-popover"]')
       ?.querySelectorAll("p")[1];
     expect(definition?.textContent?.trim()).toBe(
-      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").definition),
+      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").summary ?? ""),
     );
   });
 
@@ -554,16 +566,9 @@ describe("LinePulseCardComponent", () => {
       return {
         id: "pl-1",
         url: "https://operator.example/post/1",
-        normalizedUrl: "https://operator.example/post/1",
         title: "Signal fault at Angkasapuri",
         created: "2026-10-03T08:00:00",
-        occurredAt: "2026-10-03T08:00:00",
         isAutomated: true,
-        voteScore: 0,
-        userVote: 0,
-        voteBreakdown: { upvotes: 0, downvotes: 0 },
-        lines: [],
-        user: null,
         ...overrides,
       };
     }

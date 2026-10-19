@@ -136,6 +136,21 @@ const REVIEWED_AT_OTHERS_BUCKET = "2026-10-06";
 const REVIEWED_AT_TOOLTIP_CONCISION = "2026-10-07";
 
 /**
+ * Bumped when the board's "N/M in service" badge got its own explanation: the vehicle-count metric
+ * now says where both numbers come from, and the badge's popover opens on a visible info glyph
+ * instead of only on the bare badge (2026-10-19). Only the `line-status` section and this metric are
+ * bumped; the other sections were not re-read.
+ */
+const REVIEWED_AT_IN_SERVICE_BADGE = "2026-10-19";
+
+/**
+ * Bumped when the board gained its operator-family filter and the Pro dashboard its compact lines
+ * table. Both introduce a rule the reader is asked to trust: lines grouped by code prefix (there is
+ * no operator field to group by), and a last-report column that is the hour, not the minute (2026-10-19).
+ */
+const REVIEWED_AT_OPERATOR_AND_TABLE = "2026-10-19";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -180,8 +195,9 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     // ranking and the archive, and the audit then checked every shipped number on the front page for
     // a definition and a reachable one. Every metric on this page belongs to this section, so the
     // section is what was reviewed. Also bumped for the line-details In-Service share chip surface
-    // and again when the front page's metrics gained a tooltip-sized summary.
-    lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
+    // and again when the front page's metrics gained a tooltip-sized summary, and when the vehicle
+    // count's "in service" badge was explained (REVIEWED_AT_IN_SERVICE_BADGE).
+    lastReviewed: REVIEWED_AT_IN_SERVICE_BADGE,
     inProgress: true,
   },
   {
@@ -300,11 +316,36 @@ export const METRIC_DOCS: MetricDoc[] = [
   {
     id: "line-pulse.vehicle-count",
     sectionId: "line-status",
-    title: "Vehicles",
-    definition: "Vehicles in service right now.",
+    title: "In service",
+    definition:
+      "Vehicles in service right now, out of every vehicle assigned to this line. A vehicle counts as in service when its current recorded status is In Service. The total counts every assigned vehicle whatever its status, so it includes vehicles that are out of service, not yet spotted, or decommissioned.",
+    summary:
+      "Vehicles whose current recorded status is In Service, out of every vehicle assigned to this line.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_SHIP,
+    lastReviewed: REVIEWED_AT_IN_SERVICE_BADGE,
+  },
+  {
+    id: "line-status.operator-family",
+    sectionId: "line-status",
+    title: "Operator groups",
+    definition:
+      "Lines are grouped by the letters at the start of their line code, so KTM1 falls in KTM and KJL in KJL. The line data carries no operator field, so a group is a code prefix, not a named operator. A code with no letters is grouped as OTHER.",
+    summary: "Grouped by the letters at the start of each line code, not by a named operator.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_OPERATOR_AND_TABLE,
+  },
+  {
+    id: "line-status.last-report-hour",
+    sectionId: "line-status",
+    title: "Last report",
+    definition:
+      "The start of the most recent service hour in which this line had at least one community report, shown as an age. Reports are counted by the hour, so the time is to the hour, not the minute. Blank until the service-day history has loaded.",
+    summary: "The most recent service hour with a report on this line, to the hour.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_OPERATOR_AND_TABLE,
   },
   {
     id: "passenger.normal",

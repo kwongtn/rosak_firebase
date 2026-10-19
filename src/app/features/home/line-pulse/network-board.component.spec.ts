@@ -6,10 +6,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import type { LinePulse } from "../data/home-board.queries";
+import { partitionBoardLines } from "../data/board-lines.util";
 import type { BoardSort } from "../data/board-lines.util";
 import { HomeStore } from "../data/home.store";
 import { HomeViewModeService } from "../data/home-view-mode.service";
-import { isInService, lineNeedsAttention, sortLinesBySeverity } from "../data/network-summary.util";
+import { filterByLineFamily } from "../data/line-family.util";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseRowComponent } from "./line-pulse-row.component";
 import { NetworkBoardComponent } from "./network-board.component";
@@ -38,7 +39,6 @@ function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 0,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -86,40 +86,52 @@ function codesIn(root: HTMLElement, group: "attention" | "mine" | "all" | "other
  * partition, and then every group spec below would pass for the wrong reason — which is the one thing
  * a composition spec must never be.
  */
-function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSort = "severity") {
-  const byCode = (a: LinePulse, b: LinePulse): number => a.code.localeCompare(b.code);
-  const inSort = (list: LinePulse[]): LinePulse[] =>
-    sort === "name" ? [...list].sort(byCode) : sortLinesBySeverity(list);
-
-  const attention = sortLinesBySeverity(lines.filter(lineNeedsAttention));
-  const attentionIds = new Set(attention.map((line) => line.id));
-  const mine = sortLinesBySeverity(
-    lines.filter((line) => pinned.includes(line.id) && !attentionIds.has(line.id)),
-  );
-  const claimed = new Set([...attentionIds, ...mine.map((line) => line.id)]);
-  const all = lines.filter((line) => isInService(line) && !claimed.has(line.id));
-  const others = lines.filter((line) => !isInService(line) && !claimed.has(line.id));
+function makeBoardStore(
+  lines: LinePulse[],
+  pinned: string[] = [],
+  sort: BoardSort = "severity",
+  quietExpanded = false,
+) {
+  // The groups come from the REAL `partitionBoardLines` over the REAL family filter, recomputed
+  // whenever the sort or the family changes — the same two inputs the store's own derived views read.
+  const apply = (family: string | null, boardSort: BoardSort): void => {
+    const visible = filterByLineFamily(lines, family);
+    const groups = partitionBoardLines(visible, pinned, boardSort);
+    store.visibleLines.set(visible);
+    store.attentionLines.set(groups.attention);
+    store.myLines.set(groups.mine);
+    store.allLines.set(groups.all);
+    store.othersLines.set(groups.others);
+  };
 
   const store = {
     lines: signal(lines),
     // `visibleLines` is what the board draws and what the groups partition — it equals `lines`
-    // until a Pro filter narrows it, and a rider board can never narrow it. Aliasing the same signal
-    // here keeps the mock honest about that default instead of inventing a second source.
-    visibleLines: signal(lines),
-    attentionLines: signal(attention),
-    myLines: signal(mine),
-    allLines: signal(inSort(all)),
-    othersLines: signal(inSort(others)),
+    // until a Pro filter or the operator family narrows it, and a rider board can never narrow it
+    // through a Pro filter.
+    visibleLines: signal<LinePulse[]>(lines),
+    attentionLines: signal<LinePulse[]>([]),
+    myLines: signal<LinePulse[]>([]),
+    allLines: signal<LinePulse[]>([]),
+    othersLines: signal<LinePulse[]>([]),
     boardSort: signal<BoardSort>(sort),
     setBoardSort: vi.fn((next: BoardSort) => {
       store.boardSort.set(next);
-      store.allLines.set(next === "name" ? [...all].sort(byCode) : sortLinesBySeverity([...all]));
-      store.othersLines.set(
-        next === "name" ? [...others].sort(byCode) : sortLinesBySeverity([...others]),
-      );
+      apply(store.lineFamily(), next);
+    }),
+    lineFamily: signal<string | null>(null),
+    setLineFamily: vi.fn((family: string | null) => {
+      store.lineFamily.set(family);
+      apply(family, store.boardSort());
     }),
     isLoading: signal(false),
     linesRefreshTick: signal(0),
+    // The quiet-lines summary's expanded state. Store-owned in the real store, so the mock mirrors
+    // that: a plain signal the board reads and its toggle writes.
+    quietLinesExpanded: signal(quietExpanded),
+    setQuietLinesExpanded: vi.fn((expanded: boolean) => {
+      store.quietLinesExpanded.set(expanded);
+    }),
     // The post-submit highlight. A real `signal` (not a literal) because the board reacts to its
     // CHANGES — the mock has to be able to ring a line the way `HomeStore.highlightLine()` does.
     highlightedLineId: signal<string | null>(null),
@@ -130,6 +142,7 @@ function makeBoardStore(lines: LinePulse[], pinned: string[] = [], sort: BoardSo
     linesHistoryFailed: signal(false),
     requestHistoryReads: vi.fn(),
   };
+  apply(null, sort);
   return store;
 }
 
@@ -140,6 +153,14 @@ interface BoardOptions {
   sort?: BoardSort;
   url?: string;
   platform?: string;
+  /**
+   * The quiet-lines summary's starting state. Defaults OPEN here, not to the store's collapsed
+   * default: most specs below are about which GROUP a line lands in, and a collapsed summary would
+   * hide the rows they count. The collapsed default has its own specs in the quiet-lines block.
+   */
+  quietExpanded?: boolean;
+  /** The host's `foldQuiet` input. Unset leaves the component's own default (fold). */
+  foldQuiet?: boolean;
 }
 
 describe("NetworkBoardComponent", () => {
@@ -164,7 +185,12 @@ describe("NetworkBoardComponent", () => {
    * be asserted without the router actually re-activating anything.
    */
   async function board(lines: LinePulse[], options: BoardOptions = {}): Promise<HTMLElement> {
-    storeMock = makeBoardStore(lines, options.pinned ?? [], options.sort ?? "severity");
+    storeMock = makeBoardStore(
+      lines,
+      options.pinned ?? [],
+      options.sort ?? "severity",
+      options.quietExpanded ?? true,
+    );
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [NetworkBoardComponent],
@@ -192,6 +218,9 @@ describe("NetworkBoardComponent", () => {
     navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
 
     fixture = TestBed.createComponent(NetworkBoardComponent);
+    if (options.foldQuiet !== undefined) {
+      fixture.componentRef.setInput("foldQuiet", options.foldQuiet);
+    }
     fixture.detectChanges();
     TestBed.tick();
     fixture.detectChanges();
@@ -780,6 +809,222 @@ describe("NetworkBoardComponent", () => {
     // …and the ring is still drawn, because it is a CSS class and not an animation.
     expect(root.querySelector<HTMLElement>('[id="line-a"]')?.classList.contains("ring-2")).toBe(
       true,
+    );
+  });
+
+  /* ---- quiet lines: one summary row, rows on demand ------------------------------- */
+
+  /** The quiet summary's toggle, the one control that owns the folded rows. */
+  function quietToggle(root: HTMLElement): HTMLButtonElement {
+    return root.querySelector<HTMLButtonElement>(
+      '[data-testid="line-board-quiet-toggle"]',
+    ) as HTMLButtonElement;
+  }
+
+  it("folds quiet lines into one collapsed summary row, and keeps the lines with reports in full", async () => {
+    const root = await board(
+      [makeLine("a"), makeLine("b"), makeLine("busy", { statusReportCount: 3 })],
+      { quietExpanded: false },
+    );
+
+    expect(codesIn(root, "all")).toEqual(["BUSY"]);
+    expect(quietToggle(root).textContent?.trim()).toBe("2 other lines running normally");
+    expect(quietToggle(root).getAttribute("aria-expanded")).toBe("false");
+    // The toggle names a panel that is always in the DOM, so aria-controls always resolves.
+    const panelId = quietToggle(root).getAttribute("aria-controls");
+    expect(panelId).toBe("line-board-quiet-panel");
+    expect(
+      root.querySelector(`[id="${panelId}"]`)?.querySelectorAll('[data-testid="line-board-row"]'),
+    ).toHaveLength(0);
+  });
+
+  it("renders every quiet row once the summary is expanded, and folds them again on collapse", async () => {
+    const root = await board(
+      [makeLine("a"), makeLine("b"), makeLine("busy", { statusReportCount: 3 })],
+      { quietExpanded: false },
+    );
+
+    quietToggle(root).click();
+    fixture.detectChanges();
+
+    expect(storeMock.setQuietLinesExpanded).toHaveBeenLastCalledWith(true);
+    expect(quietToggle(root).getAttribute("aria-expanded")).toBe("true");
+    expect(codesIn(root, "all")).toEqual(["BUSY", "A", "B"]);
+
+    quietToggle(root).click();
+    fixture.detectChanges();
+
+    expect(storeMock.setQuietLinesExpanded).toHaveBeenLastCalledWith(false);
+    expect(codesIn(root, "all")).toEqual(["BUSY"]);
+  });
+
+  it("keeps the summary, and the pinned lines above it, when every line is quiet", async () => {
+    const root = await board([makeLine("a"), makeLine("b"), makeLine("p")], {
+      pinned: ["p"],
+      quietExpanded: false,
+    });
+
+    expect(root.querySelector('[data-testid="line-board-attention"]')).toBeNull();
+    expect(codesIn(root, "mine")).toEqual(["P"]);
+    // The pinned line is shown above the summary, so the quiet ones are "other" lines.
+    expect(quietToggle(root).textContent?.trim()).toBe("2 other lines running normally");
+  });
+
+  it("drops the word other when nothing is shown above the summary", async () => {
+    const root = await board([makeLine("a"), makeLine("b")], { quietExpanded: false });
+
+    expect(quietToggle(root).textContent?.trim()).toBe("2 lines running normally");
+  });
+
+  it("uses the singular for a single quiet line", async () => {
+    const root = await board([makeLine("a", { statusReportCount: 1 }), makeLine("b")], {
+      quietExpanded: false,
+    });
+
+    expect(quietToggle(root).textContent?.trim()).toBe("1 other line running normally");
+  });
+
+  it("never folds a pinned quiet line — it stays fully rendered in My lines", async () => {
+    const root = await board([makeLine("a"), makeLine("p")], {
+      pinned: ["p"],
+      quietExpanded: false,
+    });
+
+    expect(codesIn(root, "mine")).toEqual(["P"]);
+    expect(codesIn(root, "all")).toEqual([]);
+    expect(quietToggle(root).textContent?.trim()).toBe("1 other line running normally");
+  });
+
+  it("does not draw the summary at all when no line is quiet", async () => {
+    const root = await board([makeLine("busy", { statusReportCount: 2 })], {
+      quietExpanded: false,
+    });
+
+    expect(root.querySelector('[data-testid="line-board-quiet"]')).toBeNull();
+    expect(codesIn(root, "all")).toEqual(["BUSY"]);
+  });
+
+  it("shows the one-time pin hint in the collapsed summary, and dismissing it sticks", async () => {
+    const root = await board([makeLine("a"), makeLine("b")], { quietExpanded: false });
+
+    expect(textOf(root, "line-board-pin-hint")).toContain("Pin your lines to see them first");
+
+    (
+      root.querySelector('[data-testid="line-board-pin-hint-dismiss"]') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="line-board-pin-hint"]')).toBeNull();
+    expect(preferences.pinHintDismissed()).toBe(true);
+  });
+
+  it("hides the pin hint while the summary is expanded, and once any line is pinned", async () => {
+    const expanded = await board([makeLine("a")], { quietExpanded: true });
+    expect(expanded.querySelector('[data-testid="line-board-pin-hint"]')).toBeNull();
+
+    localStorage.setItem("rosak:preferences:v1", JSON.stringify({ pinnedLineIds: ["p"] }));
+    const pinned = await board([makeLine("a"), makeLine("p")], {
+      pinned: ["p"],
+      quietExpanded: false,
+    });
+    expect(pinned.querySelector('[data-testid="line-board-pin-hint"]')).toBeNull();
+  });
+
+  it("opens the summary when the highlighted line is folded inside it", async () => {
+    const root = await board([makeLine("a"), makeLine("b")], { quietExpanded: false });
+    expect(codesIn(root, "all")).toEqual([]);
+
+    storeMock.highlightedLineId.set("b");
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(storeMock.setQuietLinesExpanded).toHaveBeenCalledWith(true);
+    expect(root.querySelector('[id="line-b"]')).not.toBeNull();
+  });
+
+  it("does not show the pin hint to a reader who already dismissed it", async () => {
+    localStorage.setItem("rosak:preferences:v1", JSON.stringify({ pinHintDismissed: true }));
+
+    const root = await board([makeLine("a"), makeLine("b")], { quietExpanded: false });
+
+    expect(root.querySelector('[data-testid="line-board-quiet-toggle"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="line-board-pin-hint"]')).toBeNull();
+  });
+  /* ---- the Pro fold switch and the operator family ------------------------------------ */
+
+  it("shows every quiet line in full, with no summary row, when the host turns folding off", async () => {
+    const root = await board(
+      [makeLine("a"), makeLine("b"), makeLine("busy", { statusReportCount: 3 })],
+      { foldQuiet: false, quietExpanded: false },
+    );
+
+    expect(codesIn(root, "all").sort()).toEqual(["A", "B", "BUSY"]);
+    expect(root.querySelector('[data-testid="line-board-quiet"]')).toBeNull();
+  });
+
+  it("still folds the quiet lines by default, so the Rider board is unchanged", async () => {
+    const root = await board([makeLine("a"), makeLine("b")], { quietExpanded: false });
+
+    expect(root.querySelector('[data-testid="line-board-quiet"]')).not.toBeNull();
+    expect(codesIn(root, "all")).toEqual([]);
+  });
+
+  it("draws one chip per operator family plus All, and hides the chips when there is only one family", async () => {
+    const root = await board([makeLine("ktm1"), makeLine("kjl1"), makeLine("ktm2")]);
+
+    const filter = root.querySelector('[data-testid="board-family-filter"]');
+    expect(filter?.textContent?.replace(/\s+/g, " ").trim()).toBe("All KJL KTM");
+
+    const single = await board([makeLine("ktm1"), makeLine("ktm2")]);
+    expect(single.querySelector('[data-testid="board-family-filter"]')).toBeNull();
+  });
+
+  it("narrows every group to the family in ?op=, attention and pinned lines included", async () => {
+    const root = await board(
+      [
+        makeLine("ktm1"),
+        makeLine("ktm2", { status: "TOTAL_DISRUPTION" }),
+        makeLine("kjl1", { status: "TOTAL_DISRUPTION" }),
+        makeLine("kjl2"),
+      ],
+      { pinned: ["kjl2"] },
+    );
+    await gotoUrl("/?op=ktm");
+
+    expect(codesIn(root, "attention")).toEqual(["KTM2"]);
+    expect(codesIn(root, "all")).toEqual(["KTM1"]);
+    expect(root.querySelector('[data-testid="line-board-mine"]')).toBeNull();
+    expect(
+      root.querySelector('[data-testid="board-family-KTM"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(storeMock.setLineFamily).toHaveBeenLastCalledWith("KTM");
+  });
+
+  it("reads a malformed or unknown ?op= as All, and leaves the link as it was", async () => {
+    const root = await board([makeLine("ktm1"), makeLine("kjl1")]);
+    await gotoUrl("/?op=zzz");
+
+    expect(
+      root.querySelector('[data-testid="board-family-all"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(codesIn(root, "all").sort()).toEqual(["KJL1", "KTM1"]);
+    expect(storeMock.setLineFamily).toHaveBeenLastCalledWith(null);
+  });
+
+  it("writes ?op= through the router when a chip is chosen, and removes it for All", async () => {
+    const root = await board([makeLine("ktm1"), makeLine("kjl1")]);
+
+    (root.querySelector('[data-testid="board-family-KJL"]') as HTMLButtonElement).click();
+    expect(navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { op: "KJL" } }),
+    );
+
+    (root.querySelector('[data-testid="board-family-all"]') as HTMLButtonElement).click();
+    expect(navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { op: null } }),
     );
   });
 });

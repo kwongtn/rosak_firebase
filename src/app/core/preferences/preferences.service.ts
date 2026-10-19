@@ -4,12 +4,44 @@ import { injectIsBrowser } from "../composables/is-browser";
 /** Who the board is tuned for: a quick glance (rider) or a dense operational view (pro). */
 export type PreferencesViewMode = "rider" | "pro";
 
+/** How the Pro dashboard draws its lines: the grouped board, or one flat sortable table. */
+export type ProLinesLayout = "board" | "table";
+
+/** The columns the Pro lines table can sort by. */
+export const PRO_LINES_SORT_COLUMNS = [
+  "line",
+  "status",
+  "reports",
+  "inService",
+  "lastReport",
+] as const;
+
+export type ProLinesSortColumn = (typeof PRO_LINES_SORT_COLUMNS)[number];
+
+export type ProLinesSortDirection = "asc" | "desc";
+
+/** A table sort: which column, and which way. Stored whole so the pair cannot drift apart. */
+export interface ProLinesSort {
+  column: ProLinesSortColumn;
+  direction: ProLinesSortDirection;
+}
+
+const PRO_LINES_LAYOUTS: readonly ProLinesLayout[] = ["board", "table"];
+const PRO_LINES_SORT_DIRECTIONS: readonly ProLinesSortDirection[] = ["asc", "desc"];
+
 /** The whole persisted shape. Versioned by the storage key, never by the field names. */
 export interface Preferences {
   pinnedLineIds: string[];
   viewMode: PreferencesViewMode;
   lastReportedLineId: string | null;
   recentLineIds: string[];
+  /** Set once the reader has seen the "pin your lines" hint or pinned a line, so it stops. */
+  pinHintDismissed: boolean;
+  /** The Pro dashboard's lines layout. A field added after v1 shipped: an older payload lacks it,
+   * and {@link parseStoredPreferences} then reads the default, so the key does not change. */
+  proLinesLayout: ProLinesLayout;
+  /** The Pro lines table's sort. Same additive rule as {@link proLinesLayout}. */
+  proLinesSort: ProLinesSort;
 }
 
 /**
@@ -24,11 +56,17 @@ export const MAX_RECENT_LINES = 5;
 
 const VIEW_MODES: readonly PreferencesViewMode[] = ["rider", "pro"];
 
+/** The Pro lines table's sort when nothing is stored: line code, A to Z. */
+export const DEFAULT_PRO_LINES_SORT: ProLinesSort = { column: "line", direction: "asc" };
+
 const DEFAULT_PREFERENCES: Preferences = {
   pinnedLineIds: [],
   viewMode: "rider",
   lastReportedLineId: null,
   recentLineIds: [],
+  pinHintDismissed: false,
+  proLinesLayout: "board",
+  proLinesSort: DEFAULT_PRO_LINES_SORT,
 };
 
 function defaults(): Preferences {
@@ -37,7 +75,27 @@ function defaults(): Preferences {
     viewMode: DEFAULT_PREFERENCES.viewMode,
     lastReportedLineId: null,
     recentLineIds: [],
+    pinHintDismissed: false,
+    proLinesLayout: DEFAULT_PREFERENCES.proLinesLayout,
+    proLinesSort: { ...DEFAULT_PRO_LINES_SORT },
   };
+}
+
+/**
+ * A stored table sort when both halves are recognised, else the default. The pair is validated
+ * together: a column with a direction from some other shape would be a sort no header can show.
+ */
+function parseProLinesSort(value: unknown): ProLinesSort {
+  if (!isRecord(value)) {
+    return { ...DEFAULT_PRO_LINES_SORT };
+  }
+  const column = oneOf(value["column"], PRO_LINES_SORT_COLUMNS, DEFAULT_PRO_LINES_SORT.column);
+  const direction = oneOf(
+    value["direction"],
+    PRO_LINES_SORT_DIRECTIONS,
+    DEFAULT_PRO_LINES_SORT.direction,
+  );
+  return { column, direction };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -104,7 +162,31 @@ export function parseStoredPreferences(raw: string | null | undefined): Preferen
         ? parsed["lastReportedLineId"]
         : null,
     recentLineIds: toIdList(parsed["recentLineIds"], MAX_RECENT_LINES),
+    pinHintDismissed: parsed["pinHintDismissed"] === true,
+    proLinesLayout: oneOf(parsed["proLinesLayout"], PRO_LINES_LAYOUTS, base.proLinesLayout),
+    proLinesSort: parseProLinesSort(parsed["proLinesSort"]),
   };
+}
+
+/**
+ * Storage access, wrapped because `localStorage` can throw (blocked site data, some private windows,
+ * a full quota). A failed read degrades to the defaults and a failed write is dropped: the rider
+ * loses persistence for this visit, not the page. Only ever called from browser-gated code.
+ */
+function readStorage(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(value: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, value);
+  } catch {
+    // Persistence is best-effort; the in-memory signals still drive this visit's UI.
+  }
 }
 
 /**
@@ -129,6 +211,9 @@ export class PreferencesService {
   private readonly _viewMode = signal<PreferencesViewMode>(DEFAULT_PREFERENCES.viewMode);
   private readonly _lastReportedLineId = signal<string | null>(null);
   private readonly _recentLineIds = signal<string[]>([]);
+  private readonly _pinHintDismissed = signal(false);
+  private readonly _proLinesLayout = signal<ProLinesLayout>(DEFAULT_PREFERENCES.proLinesLayout);
+  private readonly _proLinesSort = signal<ProLinesSort>({ ...DEFAULT_PRO_LINES_SORT });
 
   /**
    * False until the browser-only hydration pass has run. True forever on the server, where there
@@ -140,6 +225,9 @@ export class PreferencesService {
   readonly viewMode = this._viewMode.asReadonly();
   readonly lastReportedLineId = this._lastReportedLineId.asReadonly();
   readonly recentLineIds = this._recentLineIds.asReadonly();
+  readonly pinHintDismissed = this._pinHintDismissed.asReadonly();
+  readonly proLinesLayout = this._proLinesLayout.asReadonly();
+  readonly proLinesSort = this._proLinesSort.asReadonly();
   readonly hydrated = this._hydrated.asReadonly();
 
   /** True when the line is pinned. Reads the signal, so a template call stays reactive. */
@@ -154,6 +242,9 @@ export class PreferencesService {
       viewMode: this._viewMode(),
       lastReportedLineId: this._lastReportedLineId(),
       recentLineIds: this._recentLineIds(),
+      pinHintDismissed: this._pinHintDismissed(),
+      proLinesLayout: this._proLinesLayout(),
+      proLinesSort: this._proLinesSort(),
     };
   }
 
@@ -163,11 +254,14 @@ export class PreferencesService {
     }
 
     afterNextRender(() => {
-      const stored = parseStoredPreferences(localStorage.getItem(STORAGE_KEY));
+      const stored = parseStoredPreferences(readStorage());
       this._pinnedLineIds.set(stored.pinnedLineIds);
       this._viewMode.set(stored.viewMode);
       this._lastReportedLineId.set(stored.lastReportedLineId);
       this._recentLineIds.set(stored.recentLineIds);
+      this._pinHintDismissed.set(stored.pinHintDismissed);
+      this._proLinesLayout.set(stored.proLinesLayout);
+      this._proLinesSort.set(stored.proLinesSort);
       this._hydrated.set(true);
     });
 
@@ -177,7 +271,7 @@ export class PreferencesService {
       if (!this._hydrated()) {
         return;
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.snapshot()));
+      writeStorage(JSON.stringify(this.snapshot()));
     });
   }
 
@@ -186,9 +280,26 @@ export class PreferencesService {
     if (lineId === "") {
       return;
     }
+    // Pinning is the reader using the feature, so the "pin your lines" hint has done its job.
+    if (!this.isPinned(lineId)) {
+      this._pinHintDismissed.set(true);
+    }
     this._pinnedLineIds.update((current) =>
       current.includes(lineId) ? current.filter((id) => id !== lineId) : [...current, lineId],
     );
+  }
+
+  dismissPinHint(): void {
+    this._pinHintDismissed.set(true);
+  }
+
+  setProLinesLayout(layout: ProLinesLayout): void {
+    this._proLinesLayout.set(oneOf(layout, PRO_LINES_LAYOUTS, DEFAULT_PREFERENCES.proLinesLayout));
+  }
+
+  /** Stores a table sort. A column or direction outside its list falls back to the default. */
+  setProLinesSort(sort: ProLinesSort): void {
+    this._proLinesSort.set(parseProLinesSort(sort));
   }
 
   setViewMode(mode: PreferencesViewMode): void {
@@ -216,5 +327,8 @@ export class PreferencesService {
     this._viewMode.set(fresh.viewMode);
     this._lastReportedLineId.set(fresh.lastReportedLineId);
     this._recentLineIds.set(fresh.recentLineIds);
+    this._pinHintDismissed.set(fresh.pinHintDismissed);
+    this._proLinesLayout.set(fresh.proLinesLayout);
+    this._proLinesSort.set(fresh.proLinesSort);
   }
 }

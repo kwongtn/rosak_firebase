@@ -4,10 +4,12 @@ import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home-board.queries";
 import type { LineStatusHourBucket } from "../data/home-history.queries";
+import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { HomeStore } from "../data/home.store";
 import { ReportChooserService } from "../report/report-chooser.service";
 import { HomeHeroComponent } from "./home-hero.component";
@@ -19,16 +21,9 @@ function pulseLink(
   return {
     id: "pl-1",
     url: "https://operator.example/post/1",
-    normalizedUrl: "https://operator.example/post/1",
     title: "Signal fault at Angkasapuri",
     created: "2026-10-03T08:00:00",
-    occurredAt: "2026-10-03T08:00:00",
     isAutomated: true,
-    voteScore: 0,
-    userVote: 0,
-    voteBreakdown: { upvotes: 0, downvotes: 0 },
-    lines: [],
-    user: null,
     ...overrides,
   };
 }
@@ -43,7 +38,6 @@ function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 2,
     vehicleStatusCounts: [],
     passengerStatusCount: 1,
@@ -103,6 +97,9 @@ describe("HomeHeroComponent", () => {
   let reportSheet: { open: ReturnType<typeof vi.fn>; openFor: ReturnType<typeof vi.fn> };
   let linkSheet: { open: ReturnType<typeof vi.fn>; openEdit: ReturnType<typeof vi.fn> };
   let chooser: { open: ReturnType<typeof vi.fn> };
+  let lineSheet: { openFor: ReturnType<typeof vi.fn> };
+  /** The preference the hero reads for the "Report on {line}" shortcut. Null until a test sets it. */
+  let lastReportedLineId: ReturnType<typeof signal<string | null>>;
   let storeMock: {
     isRefreshing: ReturnType<typeof signal<boolean>>;
     isLoading: ReturnType<typeof signal<boolean>>;
@@ -114,6 +111,7 @@ describe("HomeHeroComponent", () => {
     // fixed-height empty state.
     networkHistory: ReturnType<typeof signal<LineStatusHourBucket[]>>;
     networkHistoryFailed: ReturnType<typeof signal<boolean>>;
+    networkHistoryPending: ReturnType<typeof signal<boolean>>;
     requestHistoryReads: ReturnType<typeof vi.fn>;
     polling: {
       intervalMs: ReturnType<typeof signal<number | null>>;
@@ -126,6 +124,8 @@ describe("HomeHeroComponent", () => {
     reportSheet = { open: vi.fn(), openFor: vi.fn() };
     linkSheet = { open: vi.fn(), openEdit: vi.fn() };
     chooser = { open: vi.fn() };
+    lineSheet = { openFor: vi.fn() };
+    lastReportedLineId = signal<string | null>(null);
     // The hero hosts the page's live refresh indicator, which injects `HomeStore` itself — so the
     // hero's own "reads nothing" claim is about REQUESTS, and the store it renders against is the
     // same route-scoped one the page already has.
@@ -136,6 +136,7 @@ describe("HomeHeroComponent", () => {
       hasError: signal(false),
       networkHistory: signal<LineStatusHourBucket[]>([]),
       networkHistoryFailed: signal(false),
+      networkHistoryPending: signal(false),
       requestHistoryReads: vi.fn(),
       polling: {
         intervalMs: signal<number | null>(30000),
@@ -153,6 +154,8 @@ describe("HomeHeroComponent", () => {
         { provide: LinkSheetService, useValue: linkSheet },
         // Root-provided, and HOSTED by the page rather than the hero — the hero is only a trigger.
         { provide: ReportChooserService, useValue: chooser },
+        { provide: LineStatusSheetService, useValue: lineSheet },
+        { provide: PreferencesService, useValue: { lastReportedLineId } },
         { provide: HomeStore, useValue: storeMock },
       ],
     }).compileComponents();
@@ -331,6 +334,46 @@ describe("HomeHeroComponent", () => {
     expect(linkSheet.open).not.toHaveBeenCalled();
   });
 
+  it("offers Report on the last line beside Report a delay, and opens its line sheet directly", () => {
+    lastReportedLineId.set("ok-3");
+    const root = render(networkLines());
+
+    const shortcut = root.querySelector<HTMLButtonElement>('[data-testid="hero-report-last"]');
+    expect(shortcut?.textContent?.trim()).toBe("Report on Kelana Jaya Line");
+    expect(shortcut?.className.split(/\s+/)).toContain("h-11");
+
+    shortcut?.click();
+
+    expect(lineSheet.openFor).toHaveBeenCalledWith("ok-3");
+    // The shortcut is a sheet, not a chooser: the reader already named the line.
+    expect(chooser.open).not.toHaveBeenCalled();
+  });
+
+  it("leaves the shortcut out when no line is remembered", () => {
+    const root = render(networkLines());
+
+    expect(root.querySelector('[data-testid="hero-report-last-wrap"]')).toBeNull();
+  });
+
+  it("leaves the shortcut out when the remembered line is no longer on the board", () => {
+    lastReportedLineId.set("gone-line");
+    const root = render(networkLines());
+
+    expect(root.querySelector('[data-testid="hero-report-last-wrap"]')).toBeNull();
+  });
+
+  it("hides the shortcut below sm with a wrapper, so the button's inline-flex cannot override it", () => {
+    lastReportedLineId.set("ok-3");
+    const root = render(networkLines());
+
+    const wrap = root.querySelector('[data-testid="hero-report-last-wrap"]');
+    expect(wrap?.className.split(/\s+/)).toContain("hidden");
+    expect(wrap?.className.split(/\s+/)).toContain("sm:inline-flex");
+    expect(wrap?.querySelector('[data-testid="hero-report-last"]')?.className).not.toContain(
+      "hidden",
+    );
+  });
+
   it("opens the spotting sheet from Spot a train and the link sheet from Share a link", () => {
     const root = render(networkLines());
 
@@ -356,6 +399,40 @@ describe("HomeHeroComponent", () => {
 
     expect(root.querySelectorAll("h1")).toHaveLength(1);
     expect(root.querySelector("h1")?.getAttribute("data-testid")).toBe("hero-headline");
+  });
+
+  it("announces the headline politely and as a whole sentence, and never the countdown", () => {
+    const root = render(networkLines());
+
+    expect(root.querySelector("h1")?.getAttribute("aria-live")).toBe("polite");
+    expect(root.querySelector("h1")?.getAttribute("aria-atomic")).toBe("true");
+    // The 1s "Refreshing in Ns" label must stay outside every live region, or screen readers would
+    // read it aloud every second.
+    expect(root.querySelector('[data-testid="hero-refresh-slot"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="line-refresh-countdown"]')).not.toBeNull();
+    expect(root.querySelector('[aria-live] [data-testid="line-refresh-countdown"]')).toBeNull();
+    expect(root.querySelector('[data-testid="hero-refresh-slot"] [aria-live]')).toBeNull();
+  });
+
+  it("makes Report a delay the one filled primary CTA, with the secondaries outlined and the map a link", () => {
+    const root = render(networkLines());
+    const tokens = (testId: string): string[] =>
+      (root.querySelector(`[data-testid="${testId}"]`)?.className ?? "").split(/\s+/);
+
+    // Primary: filled (default variant), and the only one with the larger text size.
+    expect(tokens("hero-report-delay")).toEqual(expect.arrayContaining(["bg-primary", "h-11"]));
+    expect(tokens("hero-report-delay")).toContain("text-base");
+
+    // Secondary: outlined, still a 44px touch target.
+    for (const testId of ["hero-spot-train", "hero-share-link"]) {
+      expect(tokens(testId), testId).toEqual(expect.arrayContaining(["bg-background", "h-11"]));
+      expect(tokens(testId), testId).not.toContain("bg-primary");
+    }
+
+    // Tertiary: a text link, still a 44px target.
+    expect(tokens("hero-live-map")).toEqual(expect.arrayContaining(["underline-offset-4", "h-11"]));
+    expect(tokens("hero-live-map")).not.toContain("bg-primary");
+    expect(tokens("hero-live-map")).not.toContain("bg-background");
   });
 
   it("animates a changed stat tile through the tick-up directive, and not before", () => {

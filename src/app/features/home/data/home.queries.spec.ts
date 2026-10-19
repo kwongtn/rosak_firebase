@@ -252,6 +252,19 @@ describe("FRONT_PAGE_LINES_QUERY selection", () => {
     // node selection into this one is a red test rather than a payload-size surprise.
     expect(lineLevel().nested["pulseLinks"]?.nested["sublinks"]).toBeUndefined();
   });
+
+  it("selects only the pulse-link and line fields the board reads", () => {
+    // Asserted so re-adding a field with no consumer under features/home (normalizedUrl, occurredAt,
+    // votes, lines, user, passengerStatusMessage) is a deliberate, red change rather than drift.
+    expect(lineLevel().nested["pulseLinks"]?.fields).toEqual([
+      "id",
+      "url",
+      "title",
+      "created",
+      "isAutomated",
+    ]);
+    expect(lineLevel().fields).not.toContain("passengerStatusMessage");
+  });
 });
 
 describe("FEED_QUERY selection", () => {

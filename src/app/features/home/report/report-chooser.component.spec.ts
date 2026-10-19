@@ -41,7 +41,6 @@ function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 1,
     totalVehicleCount: 2,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 2,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -70,6 +69,7 @@ describe("ReportChooserComponent", () => {
   let preferences: {
     pinnedLineIds: WritableSignal<string[]>;
     recentLineIds: WritableSignal<string[]>;
+    lastReportedLineId: WritableSignal<string | null>;
     pushRecentLine: ReturnType<typeof vi.fn>;
   };
   let lines: WritableSignal<LinePulse[]>;
@@ -89,6 +89,7 @@ describe("ReportChooserComponent", () => {
     preferences = {
       pinnedLineIds: signal<string[]>([]),
       recentLineIds: signal<string[]>([]),
+      lastReportedLineId: signal<string | null>(null),
       pushRecentLine: vi.fn(),
     };
 
@@ -398,6 +399,57 @@ describe("ReportChooserComponent", () => {
       await pickTile("chooser-tile-link");
 
       expect(linkSheet.open).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("the repeat-report shortcut", () => {
+    /** Set AFTER boot: boot() builds a fresh preferences mock, so a value set before it is lost. */
+    function rememberLine(id: string): void {
+      preferences.lastReportedLineId.set(id);
+      fixture.detectChanges();
+      TestBed.tick();
+      fixture.detectChanges();
+    }
+
+    it("shows Report on the remembered line above the tiles, and skips the picker", async () => {
+      await boot();
+      rememberLine("dead");
+
+      const shortcut = root().querySelector<HTMLButtonElement>(
+        '[data-testid="chooser-report-last"]',
+      );
+      expect(shortcut?.textContent?.trim()).toBe("Report on Line dead");
+      expect(shortcut?.className.split(/\s+/)).toContain("h-11");
+
+      shortcut?.click();
+
+      expect(lineStatusSheet.openFor).toHaveBeenCalledWith("dead");
+      expect(preferences.pushRecentLine).toHaveBeenCalledWith("dead");
+      expect(chooser.isOpen()).toBe(false);
+    });
+
+    it("is absent when no line is remembered", async () => {
+      await boot();
+
+      expect(root().querySelector('[data-testid="chooser-report-last"]')).toBeNull();
+      expect(root().querySelector('[data-testid="chooser-tiles"]')).not.toBeNull();
+    });
+
+    it("is absent when the remembered line is not in the list", async () => {
+      await boot();
+      rememberLine("retired");
+
+      expect(root().querySelector('[data-testid="chooser-report-last"]')).toBeNull();
+    });
+
+    it("is not drawn on the line picker step, where the list already offers every line", async () => {
+      await boot();
+      rememberLine("dead");
+
+      await pickTile("chooser-tile-delay");
+
+      expect(root().querySelector('[data-testid="chooser-report-last"]')).toBeNull();
+      expect(root().querySelector('[data-testid="chooser-line-picker"]')).not.toBeNull();
     });
   });
 

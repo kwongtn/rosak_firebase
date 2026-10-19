@@ -173,7 +173,6 @@ function makeLine(id: string, status: LinePulse["status"] = "ACTIVE"): LinePulse
     inServiceVehicleCount: 1,
     totalVehicleCount: 2,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 0,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -195,13 +194,19 @@ interface StoreMock {
   othersLines: WritableSignal<LinePulse[]>;
   boardSort: WritableSignal<BoardSort>;
   setBoardSort: ReturnType<typeof vi.fn>;
+  lineFamily: WritableSignal<string | null>;
+  setLineFamily: ReturnType<typeof vi.fn>;
+  quietLinesExpanded: WritableSignal<boolean>;
+  setQuietLinesExpanded: ReturnType<typeof vi.fn>;
   feedLinks: WritableSignal<FeedLink[]>;
   feedPageInfo: WritableSignal<FeedLinkPageInfo | null>;
   feedTotalCount: WritableSignal<number>;
   lastWeekLinks: WritableSignal<FeedLink[]>;
   lastWeekDayGroups: WritableSignal<FeedDayGroup[]>;
   lastWeekPageInfo: WritableSignal<FeedLinkPageInfo | null>;
-  lastWeekTotalCount: WritableSignal<number>;
+  lastWeekCount: WritableSignal<number | null>;
+  lastWeekPending: WritableSignal<boolean>;
+  requestLastWeek: ReturnType<typeof vi.fn>;
   isLoading: WritableSignal<boolean>;
   isLoadingMore: WritableSignal<boolean>;
   isLoadingLastWeek: WritableSignal<boolean>;
@@ -214,6 +219,7 @@ interface StoreMock {
   // The two service-day history reads, opted in by the widgets that draw them.
   networkHistory: WritableSignal<LineStatusHourBucket[]>;
   networkHistoryFailed: WritableSignal<boolean>;
+  networkHistoryPending: WritableSignal<boolean>;
   linesHistoryFor: (lineId: string) => LineStatusHourBucket[];
   linesHistoryFailed: WritableSignal<boolean>;
   requestHistoryReads: ReturnType<typeof vi.fn>;
@@ -288,13 +294,23 @@ describe("HomePage", () => {
       othersLines: signal<LinePulse[]>([]),
       boardSort: signal<BoardSort>("severity"),
       setBoardSort: vi.fn(),
+      lineFamily: signal<string | null>(null),
+      setLineFamily: vi.fn(),
+      // Open, because these page specs assert on the rows themselves; the board's own spec owns the
+      // collapsed default and the summary.
+      quietLinesExpanded: signal(true),
+      setQuietLinesExpanded: vi.fn(),
       feedLinks: signal<FeedLink[]>([makeFeedLink("a"), makeFeedLink("b")]),
       feedPageInfo: signal<FeedLinkPageInfo | null>({ hasNextPage: true, endCursor: "cursor-a" }),
       feedTotalCount: signal(2),
       lastWeekLinks: signal<FeedLink[]>([]),
       lastWeekDayGroups: signal<FeedDayGroup[]>([]),
       lastWeekPageInfo: signal<FeedLinkPageInfo | null>(null),
-      lastWeekTotalCount: signal(0),
+      // Loaded and empty by default, so the existing Last Week specs see a settled section. `null` is
+      // the store's "not known yet" state, which the tab renders as "–".
+      lastWeekCount: signal<number | null>(0),
+      lastWeekPending: signal(false),
+      requestLastWeek: vi.fn(),
       isLoading: signal(false),
       isLoadingMore: signal(false),
       isLoadingLastWeek: signal(false),
@@ -308,6 +324,7 @@ describe("HomePage", () => {
       // without them; `network-sparkline.component.spec.ts` and the row's spec cover what they draw.
       networkHistory: signal([]),
       networkHistoryFailed: signal(false),
+      networkHistoryPending: signal(false),
       linesHistoryFor: () => [],
       linesHistoryFailed: signal(false),
       requestHistoryReads: vi.fn(),
@@ -636,6 +653,32 @@ describe("HomePage", () => {
     const main = root.querySelector("main") as HTMLElement;
     expect(main.className.split(/\s+/)).toContain("pb-24");
     expect(main.className.split(/\s+/)).toContain("lg:pb-6");
+  });
+
+  it("gives every mobile bar control a 44px target and opens the spotting sheet in one tap", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const bar = root.querySelector<HTMLElement>('[data-testid="home-mobile-bar"]');
+    const controls = [...(bar?.querySelectorAll<HTMLElement>("a, button") ?? [])];
+
+    // Four actions at most, or the bar crowds: Report, Spot a train, Refresh, Live map.
+    expect(controls).toHaveLength(4);
+    // 44px (h-11 / size-11) on every control — the WCAG 2.5.5 minimum for a touch target.
+    for (const control of controls) {
+      const classes = control.className.split(/\s+/);
+      expect(
+        classes.includes("h-11") || classes.includes("size-11"),
+        control.getAttribute("data-testid") ?? "",
+      ).toBe(true);
+    }
+
+    const spot = root.querySelector<HTMLButtonElement>('[data-testid="home-mobile-spot"]');
+    expect(spot?.getAttribute("aria-label")).toBe("Spot a train");
+    const reportSheet = TestBed.inject(ReportSheetService);
+    reportSheet.setOpen(false);
+    spot?.click();
+    // Straight to the spotting sheet, no chooser step in between.
+    expect(reportSheet.isOpen()).toBe(true);
+    expect(TestBed.inject(ReportChooserService).isOpen()).toBe(false);
   });
 
   it("opens the chooser from the bar's Report, and drives the shared beat from its Refresh", () => {
@@ -1091,7 +1134,7 @@ describe("HomePage", () => {
   });
 
   it("keeps the last-week count on the tab, where the collapsed header used to carry it", () => {
-    store.lastWeekTotalCount.set(5);
+    store.lastWeekCount.set(5);
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
@@ -1179,6 +1222,55 @@ describe("HomePage", () => {
     );
     expect(today.getAttribute("tabindex")).toBe("-1");
     expect(lastWeek.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("asks the store for Last Week when its tab is selected, and not before", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const today = root.querySelector('[data-testid="feed-tab-today"]') as HTMLButtonElement;
+    const lastWeek = root.querySelector('[data-testid="feed-tab-lastweek"]') as HTMLButtonElement;
+
+    // The section is lazy: nothing on the page asks for it while the Today tab is showing.
+    expect(store.requestLastWeek).not.toHaveBeenCalled();
+
+    lastWeek.click();
+    fixture.detectChanges();
+    expect(store.requestLastWeek).toHaveBeenCalledTimes(1);
+
+    today.click();
+    fixture.detectChanges();
+    expect(store.requestLastWeek).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for Last Week when the arrow keys move selection onto it", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const today = root.querySelector('[data-testid="feed-tab-today"]') as HTMLButtonElement;
+
+    today.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
+    );
+    fixture.detectChanges();
+
+    expect(store.requestLastWeek).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the last-week skeleton, not the empty message, while the first page is pending", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    store.lastWeekPending.set(true);
+    store.lastWeekCount.set(null);
+    (root.querySelector('[data-testid="feed-tab-lastweek"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="last-week-skeleton"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="last-week-empty"]')).toBeNull();
+  });
+
+  it("shows a dash on the Last Week tab until the section has loaded, never a zero", () => {
+    const root = fixture.nativeElement as HTMLElement;
+    store.lastWeekCount.set(null);
+    fixture.detectChanges();
+
+    const count = root.querySelector('[data-testid="last-week-count"]') as HTMLElement;
+    expect(count.textContent?.replace(/\s+/g, " ").trim()).toBe("Last Week (–)");
   });
 
   it("leaves an unhandled key on the tablist alone, so Tab can still leave the set", () => {

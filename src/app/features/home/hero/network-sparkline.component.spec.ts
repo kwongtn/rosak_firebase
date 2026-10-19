@@ -33,12 +33,14 @@ describe("NetworkSparklineComponent", () => {
   let buckets: ReturnType<typeof signal<LineStatusHourBucket[]>>;
   let failed: ReturnType<typeof signal<boolean>>;
   let lines: ReturnType<typeof signal<number>>;
+  let pending: ReturnType<typeof signal<boolean>>;
   let requestHistoryReads: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     buckets = signal<LineStatusHourBucket[]>([]);
     failed = signal(false);
     lines = signal(16);
+    pending = signal(false);
     requestHistoryReads = vi.fn();
 
     await TestBed.configureTestingModule({
@@ -52,6 +54,7 @@ describe("NetworkSparklineComponent", () => {
           useValue: {
             networkHistory: buckets,
             networkHistoryFailed: failed,
+            networkHistoryPending: pending,
             lines,
             requestHistoryReads,
           },
@@ -67,9 +70,39 @@ describe("NetworkSparklineComponent", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it("asks the store for the network read — the widget owns the opt-in, not the page", () => {
+  it("asks the store for the network read after its first render, never while being constructed", async () => {
+    // Constructing is not rendering: the read is opened from `afterNextRender`, so a server render
+    // (which never runs that hook) issues no second round trip.
+    expect(requestHistoryReads).not.toHaveBeenCalled();
+
     render();
+    await fixture.whenStable();
     expect(requestHistoryReads).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws a skeleton while the read is pending, never the 'no activity' copy", async () => {
+    pending.set(true);
+    const root = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="network-sparkline-skeleton"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="network-sparkline-empty"]')).toBeNull();
+    expect(root.querySelector('[data-testid="sparkline-bar"]')).toBeNull();
+    // The total is a dash until the answer lands, not a "0" that would claim a quiet network.
+    expect((root.textContent ?? "").replace(/\s+/g, " ")).toContain("– reports");
+    expect((root.textContent ?? "").replace(/\s+/g, " ")).not.toContain("No activity reported yet");
+  });
+
+  it("stops drawing the skeleton the moment the answer lands", () => {
+    pending.set(true);
+    render();
+    pending.set(false);
+    buckets.set(serviceDay());
+    const root = render();
+
+    expect(root.querySelector('[data-testid="network-sparkline-skeleton"]')).toBeNull();
+    expect(root.querySelectorAll('[data-testid="sparkline-bar"]')).toHaveLength(24);
   });
 
   it("draws one bar per service-day hour, tall by count", () => {

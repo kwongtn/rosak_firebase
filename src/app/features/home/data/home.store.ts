@@ -38,6 +38,7 @@ import {
   partitionBoardLines,
 } from "./board-lines.util";
 import type { BoardLineGroups, BoardSort } from "./board-lines.util";
+import { filterByLineFamily } from "./line-family.util";
 import {
   FEED_PAGE_SIZE,
   HOME_FEED_COLLAPSE_VARS,
@@ -189,23 +190,45 @@ export class HomeStore {
     },
   }));
 
+  /**
+   * Set by the Last Week tab the first time it is selected. `false` until then, which keeps the
+   * section's read — and its share of every poll beat — off the page for a reader who never opens it.
+   */
+  private readonly _lastWeekRequested = signal(false);
+
+  /**
+   * Asks the store to read the Last Week section. Called by the page when the Last Week tab becomes
+   * active, never on load (the tab is hidden until then, and SSR would otherwise pay for it too).
+   *
+   * Idempotent: `signal.set` with an equal value does not notify, so re-selecting the tab re-requests
+   * nothing. Once requested it stays requested, so the 30s beat keeps the section fresh from then on.
+   */
+  requestLastWeek(): void {
+    this._lastWeekRequested.set(true);
+  }
+
   /** The collapsed "Last Week" section's first page: a 7-calendar-day window with TODAY EXCLUDED
    * (the backend's `displayTodayInLastWeek` default is `false`, so the newest day group is
    * "Yesterday"), day-aligned pages. Variables are STATIC (only the boolean flags, never a computed
    * date) so SSR's TransferState hydrates without a refetch. Collapses threads too — this surface
    * renders `app-link-thread` per day group exactly like the today feed, so an uncollapsed last week
-   * would split a group across two day headers. */
-  private readonly lastWeekResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => ({
-    query: FEED_QUERY,
-    variables: {
-      first: LAST_WEEK_PAGE_SIZE,
-      status: "LIVE",
-      lastWeekOnly: true,
-      alignPageToDay: true,
-      ...HOME_FEED_COLLAPSE_VARS,
-      ...this._lineFilterVars(),
-    },
-  }));
+   * would split a group across two day headers. Inert until {@link requestLastWeek}. */
+  private readonly lastWeekResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => {
+    if (!this._lastWeekRequested()) {
+      return undefined;
+    }
+    return {
+      query: FEED_QUERY,
+      variables: {
+        first: LAST_WEEK_PAGE_SIZE,
+        status: "LIVE",
+        lastWeekOnly: true,
+        alignPageToDay: true,
+        ...HOME_FEED_COLLAPSE_VARS,
+        ...this._lineFilterVars(),
+      },
+    };
+  });
 
   readonly lines = computed<LinePulse[]>(() => this.linesResource.data()?.lines ?? []);
 
@@ -322,6 +345,24 @@ export class HomeStore {
   readonly networkHistoryFailed = this.networkHistoryResource.hasError;
 
   /**
+   * True while the sparkline has no answer yet and one is still coming — the sparkline's skeleton.
+   *
+   * 🔴 **NOT gated on the widget's opt-in, on purpose.** On the server the sparkline has not asked
+   * yet (its request moves to `afterNextRender`), and the skeleton is exactly what SSR should paint
+   * for a read the client is about to make. A network with NO lines issues no read at all, so it is
+   * pending only while the lines read itself is still on its way — otherwise it would show a
+   * skeleton forever for a network that has nothing to plot.
+   *
+   * `networkHistoryFailed` is checked first, and it is a failure, not a pending state.
+   */
+  readonly networkHistoryPending = computed(() => {
+    if (this.networkHistoryFailed() || this.networkHistoryResource.data() !== undefined) {
+      return false;
+    }
+    return this.lines().length > 0 || this.linesResource.isLoading();
+  });
+
+  /**
    * Every line's buckets, keyed by line id, for the board rows' report labels and the Pro heat grid.
    *
    * A MAP rather than an array lookup per widget because there is one of these per rendered row and
@@ -391,6 +432,15 @@ export class HomeStore {
   private readonly _proOnlyWithData = signal(false);
   readonly proOnlyWithData = this._proOnlyWithData.asReadonly();
 
+  /**
+   * The operator / line-family the board is narrowed to, or `null` for every family. Owned by the
+   * URL (`?op=`) like `boardSort`: `NetworkBoardComponent` reads the param and pushes the result in,
+   * so this signal is a mirror, not a choice. Not cleared by {@link resetProFilters} — it is a board
+   * view the reader can share, not a Pro-only narrowing.
+   */
+  private readonly _lineFamily = signal<string | null>(null);
+  readonly lineFamily = this._lineFamily.asReadonly();
+
   /** The Pro feed widget's free-text search over the resident roots, or `""` for no search. */
   private readonly _feedSearchQuery = signal("");
   readonly feedSearchQuery = this._feedSearchQuery.asReadonly();
@@ -409,17 +459,25 @@ export class HomeStore {
    * IS `lines()` on a Rider view and in any store that never touched a Pro control, so the rider board
    * is byte-for-byte what it was; the Rider view additionally has no control that can set one.
    *
+   * The operator / line-family narrowing (`?op=`, see {@link setLineFamily}) applies first and is NOT
+   * a Pro filter: a shared link to one family must render on the Rider board too.
+   *
    * The store's OTHER views deliberately stay on `lines()`: the hero's headline and tiles describe the
    * NETWORK, and the two history reads are keyed by line id. Narrowing those would make the page
    * describe a subset while claiming to describe the network.
    */
   readonly visibleLines = computed<LinePulse[]>(() =>
-    filterProLines(this.lines(), {
+    filterProLines(filterByLineFamily(this.lines(), this._lineFamily()), {
       status: this._proStatusFilter(),
       passengerStatus: this._proPassengerFilter(),
       onlyWithData: this._proOnlyWithData(),
     }),
   );
+
+  /** Sets the operator / line-family narrowing. `null` is every family. */
+  setLineFamily(family: string | null): void {
+    this._lineFamily.set(family);
+  }
 
   /** Sets the operational-status filter. `null` (or `""`) clears it; an unknown value is a no-op. */
   setProStatusFilter(status: LineStatus | null): void {
@@ -641,6 +699,18 @@ export class HomeStore {
     this._boardSort.set(sort);
   }
 
+  /**
+   * Whether the board's quiet-lines summary is expanded. Store-owned rather than component-local so
+   * the choice survives the board re-mounting within this page session (a view toggle, a Pro filter),
+   * and it is deliberately NOT persisted: a fresh visit starts collapsed.
+   */
+  private readonly _quietLinesExpanded = signal(false);
+  readonly quietLinesExpanded = this._quietLinesExpanded.asReadonly();
+
+  setQuietLinesExpanded(expanded: boolean): void {
+    this._quietLinesExpanded.set(expanded);
+  }
+
   /** The board's four groups, computed once so every projection and the partition share one pass. */
   private readonly _boardPartition = computed<BoardLineGroups>(() =>
     partitionBoardLines(this.visibleLines(), this.preferences.pinnedLineIds(), this.boardSort()),
@@ -745,6 +815,34 @@ export class HomeStore {
 
   /** True only for the last-week resource's very first, pristine fetch (drives its skeleton). */
   readonly isLoadingLastWeek = this.lastWeekResource.isLoading;
+
+  /**
+   * True while the Last Week section is requested and its first page has not answered yet, and it
+   * has not failed. The panel's skeleton signal: it covers the beat between selecting the tab and
+   * the answer landing, which `isLoadingLastWeek` cannot (that one is false for an unrequested read).
+   *
+   * `hasError` is checked BEFORE `data()`, for the same reason as `recentIncidents`: the payload
+   * read throws while the resource is in an error state.
+   */
+  readonly lastWeekPending = computed(
+    () =>
+      this._lastWeekRequested() &&
+      !this.lastWeekResource.hasError() &&
+      this.lastWeekResource.data() === undefined,
+  );
+
+  /**
+   * The Last Week tab's count, or `null` while it is not yet known — before the tab is requested,
+   * while its first page is pending, and after a failure. The tab renders `null` as "–", so a
+   * section that has not loaded is never labelled "0" as if it were empty.
+   */
+  readonly lastWeekCount = computed<number | null>(() =>
+    this._lastWeekRequested() &&
+    !this.lastWeekResource.hasError() &&
+    this.lastWeekResource.data() !== undefined
+      ? this.lastWeekTotalCount()
+      : null,
+  );
 
   /** True while a `loadMoreLastWeek()` continuation page is in flight. */
   readonly isLoadingMoreLastWeek = this.lastWeekLoadingMore.asReadonly();
@@ -900,6 +998,8 @@ export class HomeStore {
     // `requestHistoryReads()` (see the block above for why that gate is necessary rather than
     // merely tidy), so a store with no mounted history surface — and every store spec that is about
     // the feed rather than about the charts — issues neither read.
+    //
+    // The Last Week resource is inert too, until the Last Week tab asks (`requestLastWeek()`).
     this.lines();
     this.feedLinks();
     this.lastWeekLinks();
@@ -965,7 +1065,7 @@ export class HomeStore {
     this.lastWeekNextCursor.set(null);
     this.linesResource.reload();
     this.feedResource.reload();
-    this.lastWeekResource.reload();
+    this.reloadLastWeekIfRequested();
     this.networkHistoryResource.reload();
     this.linesHistoryResource.reload();
   }
@@ -993,7 +1093,18 @@ export class HomeStore {
     this.linesResource.reload();
     this.linesRefreshTick.update((tick) => tick + 1);
     this.feedResource.reload();
-    this.lastWeekResource.reload();
+    this.reloadLastWeekIfRequested();
+  }
+
+  /**
+   * Re-reads the Last Week first page only once the tab has asked for it. An unrequested resource
+   * is inert, so a reload would be a no-op anyway; the explicit gate makes that the stated contract
+   * rather than an incidental property of `httpResource`.
+   */
+  private reloadLastWeekIfRequested(): void {
+    if (this._lastWeekRequested()) {
+      this.lastWeekResource.reload();
+    }
   }
 
   /** Loads the next feed page through the same query with the last page's cursor. Coalesced by

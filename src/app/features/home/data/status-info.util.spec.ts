@@ -262,8 +262,9 @@ describe("vehicleCountInfo", () => {
 
     expect(vehicleCountInfo()).toEqual({
       title: doc.title,
-      body: renderMethodologyCopy(doc.definition),
+      body: renderMethodologyCopy(doc.summary ?? doc.definition),
     });
+    expect(vehicleCountInfo().title).toBe("In service");
   });
 });
 

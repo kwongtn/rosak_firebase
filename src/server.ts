@@ -9,6 +9,7 @@ import express from "express";
 import { join } from "node:path";
 import { environment } from "./environments/environment";
 import { sentrySharedOptions } from "./sentry-options";
+import { homeCacheControl } from "./server-cache-control";
 
 // As early as possible, before anything below it that could throw — this is the SSR-side
 // counterpart to main.ts's browser Sentry.init(), sharing the same dsn/release/environment
@@ -93,7 +94,21 @@ app.use(
 app.use((req, res, next) => {
   angularApp
     .handle(req)
-    .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
+    .then((response) => {
+      if (!response) {
+        return next();
+      }
+      const cacheControl = homeCacheControl(
+        req.method,
+        req.path,
+        response.status,
+        response.headers.get("cache-control"),
+      );
+      if (cacheControl) {
+        response.headers.set("Cache-Control", cacheControl);
+      }
+      return writeResponseToNodeResponse(response, res);
+    })
     .catch(next);
 });
 

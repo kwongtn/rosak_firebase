@@ -13,6 +13,15 @@
 
 ---
 
+## [2026-10-19] home/SSR: staging `/` cold start takes ~17s TTFB — partly fixed, still open
+
+**Problem**: First response from staging after an idle period takes about 17s to first byte. Server-timing shows about 7s spent in the SSR render. The staging response had no `content-encoding` and no `cache-control` before the change.
+**Root Cause**: Not fully confirmed. Observed: `apphosting.yaml` ran `runConfig.concurrency: 80` with `minInstances: 0`, so one instance queued many requests behind a slow render, and cold starts paid the whole boot.
+**Fix**: _Partial._ `concurrency` 80→20 in `apphosting.yaml`, and `src/server-cache-control.ts` sets `public, s-maxage=20, stale-while-revalidate=60` on `GET /` 200 responses only (wired in `server.ts`). `minInstances` is still 0, so cold starts remain.
+**Prevention**: Read server-timing per phase before changing concurrency. Keep the cache header on `GET /` only, so authenticated and other routes never inherit it. Decide on `minInstances` as a cost trade-off, not a code change.
+
+---
+
 ## [2026-10-08] app-nav: `router.url.split("/")[1]` keeps the query string
 
 **Problem**: The collapsed module-menu trigger showed **Menu** instead of **Home** on `/?view=pro`

@@ -260,7 +260,6 @@ describe("status-confidence.util: lineHasData", () => {
       inServiceVehicleCount: 0,
       totalVehicleCount: 0,
       passengerStatus: "NORMAL",
-      passengerStatusMessage: null,
       statusReportCount: 0,
       vehicleStatusCounts: [],
       passengerStatusCount: 0,

@@ -33,7 +33,6 @@ function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 0,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -47,16 +46,9 @@ function pulseLink(overrides: Partial<LinePulse["pulseLinks"][number]> = {}) {
   return {
     id: "pl-1",
     url: "https://operator.example/post/1",
-    normalizedUrl: "https://operator.example/post/1",
     title: "Signal fault at Angkasapuri",
     created: "2026-10-03T08:00:00",
-    occurredAt: "2026-10-03T08:00:00",
     isAutomated: true,
-    voteScore: 0,
-    userVote: 0,
-    voteBreakdown: { upvotes: 0, downvotes: 0 },
-    lines: [],
-    user: null,
     ...overrides,
   };
 }
@@ -228,8 +220,16 @@ describe("LinePulseRowComponent", () => {
 
     const definition = chip?.querySelectorAll('[data-testid="status-info-popover"] p')[1];
     expect(definition?.textContent?.trim()).toBe(
-      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").definition),
+      renderMethodologyCopy(metricDoc("line-pulse.vehicle-count").summary ?? ""),
     );
+  });
+
+  it("draws a visible info glyph on the in-service badge, so its explanation is discoverable", () => {
+    const root = render(makeLine());
+
+    const trigger = root.querySelector('[data-testid="line-row-vehicles"]')?.closest("button");
+    expect(trigger).not.toBeNull();
+    expect(trigger?.querySelector('span[aria-hidden="true"]')?.textContent?.trim()).toBe("i");
   });
 
   it("keeps the fleet count and the report count as ONE fragment, and drops the count on a phone", () => {
@@ -317,7 +317,7 @@ describe("LinePulseRowComponent", () => {
 
     expect(preferences.isPinned("line-42")).toBe(false);
     expect(pin?.getAttribute("aria-pressed")).toBe("false");
-    expect(pin?.getAttribute("aria-label")).toBe("Pin KJL");
+    expect(pin?.getAttribute("aria-label")).toBe("Pin Kelana Jaya Line");
 
     // The pin is wrapped in the shared tooltip primitive in BARE mode: the pin button IS the
     // trigger, so there is no wrapping button to nest it inside — `closest("button")` is itself.
@@ -336,7 +336,7 @@ describe("LinePulseRowComponent", () => {
 
     expect(preferences.isPinned("line-42")).toBe(true);
     expect(pin?.getAttribute("aria-pressed")).toBe("true");
-    expect(pin?.getAttribute("aria-label")).toBe("Unpin KJL");
+    expect(pin?.getAttribute("aria-label")).toBe("Unpin Kelana Jaya Line");
 
     // The tooltip flips with the state — re-open it, because the wrapped pin's own tap closed it.
     trigger.click();
@@ -349,6 +349,17 @@ describe("LinePulseRowComponent", () => {
     pin?.click();
     fixture.detectChanges();
     expect(preferences.isPinned("line-42")).toBe(false);
+  });
+
+  it("names its Details and Report buttons after the line, so sixteen rows are not sixteen 'Report's", () => {
+    const root = render(makeLine({ displayName: "Kelana Jaya Line" }));
+
+    expect(root.querySelector('[data-testid="line-row-report"]')?.getAttribute("aria-label")).toBe(
+      "Report delay on Kelana Jaya Line",
+    );
+    expect(root.querySelector('[data-testid="line-row-details"]')?.getAttribute("aria-label")).toBe(
+      "Details for Kelana Jaya Line",
+    );
   });
 
   it("opens the line-status report sheet for THIS line, and nothing else", () => {
@@ -454,11 +465,14 @@ describe("LinePulseRowComponent", () => {
       }));
     }
 
-    it("opts the store's single service-day read in, once per row", () => {
-      render(makeLine({ id: "line-9" }));
+    it("opts the store's single service-day read in once per row, after the row has rendered", async () => {
+      expect(requestHistoryReads).not.toHaveBeenCalled();
 
       // The row reads the buckets ITSELF now the strip is gone, so it is the widget that must open
-      // the gate. Sixteen rows mounting is still one request — the store owns the resource.
+      // the gate. It does so from `afterNextRender`, so SSR never issues the read. Sixteen rows
+      // mounting is still one request — the store owns the resource.
+      render(makeLine({ id: "line-9" }));
+      await fixture.whenStable();
       expect(requestHistoryReads).toHaveBeenCalledTimes(1);
     });
 

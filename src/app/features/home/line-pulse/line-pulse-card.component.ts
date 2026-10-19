@@ -231,6 +231,7 @@ const MAX_PULSE_LINKS = 5;
             size="sm"
             variant="outline"
             [routerLink]="['/spotting', line().id, 'details']"
+            [attr.aria-label]="'Details for ' + line().displayName"
             data-testid="line-card-details"
             class="w-full sm:w-auto"
           >
@@ -239,6 +240,7 @@ const MAX_PULSE_LINKS = 5;
           <button
             hlmBtn
             size="sm"
+            [attr.aria-label]="'Report delay on ' + line().displayName"
             data-testid="submit-line-status"
             class="w-full sm:w-auto"
             (click)="sheet.openFor(line().id)"

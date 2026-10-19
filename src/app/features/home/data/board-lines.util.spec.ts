@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { LinePulse } from "./home-board.queries";
-import { DEFAULT_BOARD_SORT, filterProLines, partitionBoardLines } from "./board-lines.util";
+import {
+  DEFAULT_BOARD_SORT,
+  filterProLines,
+  isQuietLine,
+  partitionBoardLines,
+  splitQuietLines,
+} from "./board-lines.util";
 
 /** One line with every field a board predicate reads; overrides carry the interesting axis. */
 function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
@@ -14,7 +20,6 @@ function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 3,
     totalVehicleCount: 5,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 0,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -202,5 +207,45 @@ describe("board-lines.util: partitionBoardLines", () => {
     partitionBoardLines(visible, [], "name");
 
     expect(ids(visible)).toEqual(before);
+  });
+});
+
+describe("board-lines.util: quiet lines", () => {
+  it("counts an active line with no recent reports as quiet", () => {
+    expect(isQuietLine(makeLine("ok"))).toBe(true);
+  });
+
+  it("keeps a line with a recent report out of the quiet set", () => {
+    expect(isQuietLine(makeLine("busy", { statusReportCount: 2 }))).toBe(false);
+  });
+
+  it("keeps a degraded or crowded line out of the quiet set", () => {
+    expect(isQuietLine(makeLine("dead", { status: "TOTAL_DISRUPTION" }))).toBe(false);
+    expect(isQuietLine(makeLine("late", { passengerStatus: "DELAYED" }))).toBe(false);
+  });
+
+  it("never counts an out-of-service line as quiet", () => {
+    expect(isQuietLine(makeLine("pre", { status: "TESTING" }))).toBe(false);
+  });
+
+  it("splits lines into loud and quiet, keeping each side in input order", () => {
+    const lines = [
+      makeLine("a"),
+      makeLine("b", { statusReportCount: 1 }),
+      makeLine("c"),
+      makeLine("d", { statusReportCount: 4 }),
+    ];
+
+    const { loud, quiet } = splitQuietLines(lines);
+
+    expect(ids(loud)).toEqual(["b", "d"]);
+    expect(ids(quiet)).toEqual(["a", "c"]);
+  });
+
+  it("returns an empty quiet list when every line has something to say", () => {
+    const { loud, quiet } = splitQuietLines([makeLine("a", { statusReportCount: 1 })]);
+
+    expect(ids(loud)).toEqual(["a"]);
+    expect(quiet).toEqual([]);
   });
 });

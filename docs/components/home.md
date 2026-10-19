@@ -14,11 +14,11 @@
   submission on the page goes through ONE chooser** (`app-report-chooser`): five intent tiles (Delay /
   crowding · Stopped · Spot a train · Share a link · Report an incident) and, for the three line-based
   intents, a line picker ordered pinned → recent → severity. It is triggered by the hero's "Report a
-  delay" and by the sticky **mobile action bar** (`Report` · `Refresh` · `Live map`, `lg:hidden`), so
+  delay" and by the sticky **mobile action bar** (`Report` · `Spot a train` icon-only · `Refresh` · `Live map`, `lg:hidden`, every control 44px), so
   no intent is reachable on desktop and unreachable on a phone. After a successful status or spotting
   report the affected line's `#line-<id>` anchor is scrolled into view and briefly ringed. One
   fixed-cadence refresh beat (30s) keeps the whole page current — line statuses, the Today feed and
-  the Last Week first page — and its countdown / manual click are the same action.
+  the Last Week first page (once that tab has been opened) — and its countdown / manual click are the same action.
 - **Domain/Layer:** Angular Presentation (standalone, lazy-loaded routed feature, route-scoped
   providers). It reads and mutates the Django/Strawberry GraphQL backend; Firebase Auth gates every
   submit and vote. It has no Firestore involvement.
@@ -111,8 +111,13 @@
     is not clamped. The lines carry no rounding of their own any more — the overlay does the
     cutting, and its `pointer-events-none` is what keeps it from swallowing a click on what it
     covers.
-    🔴 Every CTA wears the **default theme** — "Report a delay" and "Live map" lost their MLPTF brand
-    override, because the page's identity is carried by type and layout, not by a coloured button.
+    🔴 The CTA row has **one primary action**: "Report a delay" is the filled default button (`hlmBtn`,
+    `h-11`); "Spot a train" and "Share a link" are `variant="outline"` (`h-11`); "Live map" is
+    `variant="link"` (`h-11`). All of them wear the default theme, not the MLPTF brand, because the
+    page's identity is carried by type and layout, not by a coloured button. 🔴 Beside the row, at `sm` and up, a **"Report on {line}"** shortcut
+    (`hero-report-last`) opens the line-status sheet for the last line the reader reported on
+    (`PreferencesService.lastReportedLineId`, written by `LineStatusSheetService.openFor`). The report
+    chooser offers the same line as a button above its tiles, and it skips the picker.
     The hero hosts the page's **live refresh indicator** (`app-home-refresh-control`) in the
     `hero-refresh-slot` at the right end of the headline row, at **every width** — see the
     refresh-control bullet.
@@ -123,7 +128,7 @@
     Phase 2 — the CTA answers a question a reader on a platform cannot (they do not know a line id),
     so scrolling them to the board to find one was the wrong affordance.
   - `line-pulse/` — `network-board.component.ts` (the four-group board: skeleton rows / empty state /
-    the controls row / `Needs attention` cards / `My lines` + `All lines` + `Others` rows — its `h2`
+    the controls row / `Needs attention` cards / `My lines` + `All lines` (quiet lines folded) + `Others` rows — its `h2`
     headings carry a decorative `motion-safe:animate-breathe` dot, the one pulse on the page),
     `line-pulse-row.component.ts` (one compact line row + its lazy expanded panel; its
     `line-row-reports` tally reads `N reports (X this hour)` off the store's ONE per-line read —
@@ -285,7 +290,7 @@
     `ReportSheetService.openFor(lineId)`. It hosts `app-report-chooser` as the **first** sheet in the
     template (ordering is load-bearing — see the `report/` bullet) and ends with the sticky **mobile
     action bar** (`data-testid="home-mobile-bar"`, `fixed inset-x-0 bottom-0 z-30 lg:hidden
-pb-[env(safe-area-inset-bottom)]`) hosting `home-mobile-report` (the chooser),
+pb-[env(safe-area-inset-bottom)]`) hosting `home-mobile-report` (the chooser), `home-mobile-spot` (icon-only "Spot a train", `size-11`, opens `ReportSheetService.open()` with no line seed),
     `home-mobile-refresh` (the SAME `store.polling.refreshNow()` the countdown's click calls — one
     beat, two affordances) and `home-mobile-map` (a `routerLink="/tracker"` anchor, because "Live map"
     must not be the one intent mobile loses). 🔴 Report and Live map, plus the page's skip link, lost
@@ -335,7 +340,10 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
     `[hidden]` rule and the hidden panel would still take up space. The state is one signal,
     `HomePage.feedTab` (`"today" | "lastweek"`, default `"today"`), which **replaced** the old
     `_lastWeekExpanded` boolean: two periods of which one shows is an EXCLUSIVE choice, so one signal
-    holds it, and nothing is persisted. 🔴 `last-week-count` stayed on the **tab label** (`Last Week
+    holds it, and nothing is persisted. 🔴 The Last Week read is **lazy**: once requested it stays
+    requested and the 30s beat keeps it fresh. Until its first page lands the tab label reads
+    `Last Week (–)` (`store.lastWeekCount()` is `null`), so SSR and first paint never pay for it. 🔴
+    `last-week-count` stayed on the **tab label** (`Last Week
 (N)` from `store.lastWeekTotalCount()`), where the collapsed disclosure's header used to carry it:
     a count that only appeared after switching would be one tap too late to decide with. The retired
     `last-week-toggle` button is gone. The Last Week panel lists the same feed links over
@@ -492,13 +500,15 @@ lg:border-t-0 lg:pt-0`): the rule is what separates the two sections below `lg`,
   types, no codegen):
   - `FRONT_PAGE_LINES_QUERY` — per-line pulse list: `id/code/displayName/displayColor/status`,
     `inServiceVehicleCount`/`totalVehicleCount`, `vehicleStatusCounts` (the per-status fleet
-    breakdown), `passengerStatus`/`passengerStatusMessage` (both nullable), `statusReportCount`,
+    breakdown), `passengerStatus` (nullable; `passengerStatusMessage` was dropped on 2026-10-19 — nothing rendered it), `statusReportCount`,
     `passengerStatusCount`/`passengerStatusCounts` (the per-category report breakdown the passenger
     chip's severity legend reads), `statusWindowMinutes` (the rolling window), and nested
-    `pulseLinks` (a `SocialMediaLinkScalar` subset — including **`isAutomated`**, the backend
+    `pulseLinks` (a flat subset: `id url title created` and **`isAutomated`**, the backend
     provenance flag that is the ONLY thing separating "the operator announced it" from "N riders think
     so"; the board's confidence chip and the hero's official callout both read it, and
-    `home.queries.spec.ts` pins the selection because a fixture can invent any field it likes).
+    `home.queries.spec.ts` pins the selection because a fixture can invent any field it likes). The
+    2026-10-19 slim-down also dropped `pulseLinks` `user`, `lines`, `voteScore`, `userVote`,
+    `voteBreakdown`, `normalizedUrl` and `occurredAt`; the board read none of them.
     `NETWORK_STATUS_HISTORY_QUERY` (`networkStatusHistory(dayStartHour)`) and
     `LINES_STATUS_HISTORY_QUERY` (`linesStatusHistory(lineIds)`) back the four history widgets
     (the sparkline, the compact row's report tally, the heat grid and the Pro report ranking);
@@ -589,7 +599,10 @@ notes? }`. `FeedLinkInput.occurredAt` is only ever sent when a caller has a valu
     the authenticated vote-overlay read.
   - `AuthService` (`core/auth/auth.service.ts`) — `isLoggedIn`, `login()`, `idToken()`,
     `whenReady`.
-  - `PollingSource` (`core/polling/polling-source.ts`) — the shared polling beat.
+  - `PollingSource` (`core/polling/polling-source.ts`) — the shared polling beat. It **pauses while
+    `document.hidden`** (timers stop, the wall-clock deadline is kept) and on `visibilitychange` back to
+    visible refreshes at once if the deadline passed, else re-arms for the remaining time. The timers
+    are browser-only, so SSR never arms one, and a hidden tab costs no requests.
   - `AssetMultiSelectComponent` (`features/insiden/asset-multi-select/`) — cross-feature reuse for
     the line-status sheet's station picker (and the advanced link form's line picker).
   - `VoteButtonComponent` (`features/insiden/vote-button/`) — reused with `targetType="link"` for
@@ -634,14 +647,14 @@ thing this refactor exists to prevent, and `home.page.spec.ts` pins the sheet or
 
 ### The six cells, in three rows
 
-| Row | Cell                     | Component                  | Owns                                                                   |
-| --- | ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
-| A   | Lines (large, left)      | `app-pro-lines-widget`     | three Pro-only filters, the reused `app-network-board`, the CSV export |
-| A   | Community feed (right)   | `app-pro-feed-widget`      | line / provenance / search filters over the rider feed's rows          |
-| B   | Reports by line and hour | `app-network-heat-strip`   | nothing — a pure projection of the shared per-line read                |
-| C   | Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                            |
-| C   | Worst lines by reports   | `app-pro-report-ranking`   | nothing — a projection of the same shared per-line read, re-ranked     |
-| C   | Official notices         | `app-pro-official-widget`  | its own lazy all-time notices read                                     |
+| Row | Cell                     | Component                  | Owns                                                                                                                                                                                                                 |
+| --- | ------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | Lines (large, left)      | `app-pro-lines-widget`     | three Pro-only filters, a Board/Table layout toggle (Table = `app-pro-lines-table`, sortable; `proLinesLayout` / `proLinesSort` preferences), the reused `app-network-board` (`[foldQuiet]="false"`), the CSV export |
+| A   | Community feed (right)   | `app-pro-feed-widget`      | line / provenance / search filters over the rider feed's rows                                                                                                                                                        |
+| B   | Reports by line and hour | `app-network-heat-strip`   | nothing — a pure projection of the shared per-line read                                                                                                                                                              |
+| C   | Recent incidents         | `app-pro-incidents-widget` | its own lazy incidents read                                                                                                                                                                                          |
+| C   | Worst lines by reports   | `app-pro-report-ranking`   | nothing — a projection of the same shared per-line read, re-ranked                                                                                                                                                   |
+| C   | Official notices         | `app-pro-official-widget`  | its own lazy all-time notices read                                                                                                                                                                                   |
 
 **Rows are sized by the HEIGHT of their answer, not by how important it is.** `pro-bento` is a flex
 column of three rows:
@@ -866,8 +879,9 @@ the two cells can never disagree.
   - Three `graphqlResource`s: `linesResource` (`FRONT_PAGE_LINES_QUERY`), `feedResource`
     (`FEED_QUERY` with `first: FEED_PAGE_SIZE` (8), `status: "LIVE"`, `currentServiceDayOnly: true`)
     and `lastWeekResource` (`FEED_QUERY` with `first: LAST_WEEK_PAGE_SIZE` (20), `status: "LIVE"`,
-    `lastWeekOnly: true`, `alignPageToDay: true`). The constructor reads all three once so the lazy
-    `httpResource` fetches on store creation. **Both link resources also spread
+    `lastWeekOnly: true`, `alignPageToDay: true`). The constructor reads the two first-page resources
+    once; `lastWeekResource` stays inert until `requestLastWeek()` (called by the page the first time
+    the Last Week tab is activated, never on load). **Both link resources also spread
     `HOME_FEED_COLLAPSE_VARS = { collapseThreads: true }`** — see the threading bullet below.
   - 🔴 **The two SERVICE-DAY HISTORY reads are lazy, widget-opted-in, and deliberately ISOLATED from
     the page's error state.** `networkHistoryResource` (`NETWORK_STATUS_HISTORY_QUERY`, variables
@@ -984,7 +998,8 @@ the two cells can never disagree.
     permanently dead — the control's `@if (intervalMs() !== null)` then renders _nothing_ at all, which
     is exactly how the refresh row disappeared for the rest of the session (fixed, `7221ff6`; the
     rule is recorded in `MISTAKES.md`).
-    `reloadFirstPages()` re-reads page one of **all three** resources and bumps `linesRefreshTick` —
+    `reloadFirstPages()` re-reads page one of all three resources (the Last Week one only once it has
+    been requested, see `requestLastWeek()` below) and bumps `linesRefreshTick` —
     the beat covers the whole page (line statuses + Today feed + Last Week), because on mobile the
     countdown heads the links section and would otherwise be lying about what it refreshes — but it
     touches **no** appended-page signal, so a poll can never drop the reader's Load More progress. `reloadAll()` (full reset of both
@@ -1181,7 +1196,8 @@ the two cells can never disagree.
   `[showMethodologyLink]="false"` — line status has no method section of its own, so its popover is
   a plain tooltip while the passenger and vehicle chips keep the "How this is counted" link; and the
   consolidated
-  `passengerStatusMessage` is not rendered — the query still selects it, but the card passes no
+  `passengerStatusMessage` is not rendered and is no longer selected (dropped from the front-page
+  query on 2026-10-19), so the card passes no
   `message` to its chips. The
   title row toggles the lazy expanded panel (`line-status-chart` + `line-status-reports`, both gated
   on `expanded`).
@@ -1537,7 +1553,7 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   away — while adding the grouping the plan asks for. Structure: skeleton rows
   (`line-skeleton`, kept from the old list) while the first read is in flight AND there is nothing to
   show (a later reload never blanks the board), the dashed/muted `line-board-empty` ("No lines yet."),
-  then the `board-controls` row and four groups.
+  then the `board-controls` row (operator-family chips, then sort and view) and four groups.
   - `Needs attention · N` (`line-board-attention` / `line-board-attention-heading`, the testid KEPT
     from the old list) — full `app-line-pulse-card`s, in-service lines only (out-of-service ones can
     never need attention — see the summary bullet), and **hidden entirely when empty**: a reader with
@@ -1548,6 +1564,12 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
     "nothing is here" is noise on a board whose whole job is showing lines. Pinned out-of-service lines
     stay here ("pin wins").
   - `All lines` (`line-board-all` / `-all-heading`) — compact rows; hidden when empty.
+    🔴 **Quiet lines fold.** On `All lines` (`foldQuiet`, default `true`; the Pro lines widget passes
+    `[foldQuiet]="false"`) a quiet line — in service, no attention state, `statusReportCount` 0, not
+    pinned (`isQuietLine` / `splitQuietLines` in `data/board-lines.util.ts`) — is not drawn as a row.
+    They sit behind one toggle (`line-board-quiet-toggle`, `aria-controls="line-board-quiet-panel"`,
+    text "N lines running normally", open state `HomeStore.quietLinesExpanded`), and the panel renders
+    their rows only when expanded. A pinned quiet line stays a row under `My lines`.
   - `Others` (`line-board-others` / `-others-heading`) — compact rows, rendered LAST and hidden when
     empty: the unpinned out-of-service lines (TESTING pre-opening / DEFUNCT closed). This is where the
     lines that once polluted "Needs attention" and the hero now live; the board still shows every line
@@ -1570,7 +1592,7 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
     view must not pay for it. It hides itself on a failed or empty read rather than reaching the
     page's error state.
 
-- **The controls row** is **two** labelled `role="group"` segmented controls — four buttons — each an
+- **The controls row** holds (1) the operator-family chips (`board-family-<code>`, shown only when the network has more than one family) and (2) two labelled `role="group"` segmented controls — four buttons — each an
   `aria-pressed` pair: `board-sort-severity` / `board-sort-name` and `board-view-rider` /
   `board-view-pro`. The Comfortable/Compact density group is **gone** with the row's `density` input
   and the preference behind it; all rows are comfortable at every width.
@@ -1727,7 +1749,8 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   `overflow-hidden` here, check first whether a popover is nested inside.
 - **`PreferencesService`** (`core/preferences/preferences.service.ts`, `providedIn: "root"`) is the
   reader-owned board display state — `pinnedLineIds`, `viewMode` (`"rider" | "pro"`),
-  `lastReportedLineId`, `recentLineIds` — persisted under the **versioned** key
+  `lastReportedLineId`, `recentLineIds`, `pinHintDismissed` (the one-time pin hint), `proLinesLayout`
+  (`"board" | "table"`, the Pro lines widget's toggle) and `proLinesSort` — persisted under the **versioned** key
   `rosak:preferences:v1` (the `:v1` is the migration seam: a shape change bumps it, so a stale
   payload is orphaned rather than half-read). API: `isPinned(lineId)`, `togglePin`, `setViewMode`,
   `setLastReportedLine`, `pushRecentLine` (most-recent-first, de-duplicated, capped at
@@ -1775,7 +1798,7 @@ needsAttentionCount, worstLine, headline, callout, reportsNow }`. 🔴
   🔴 `pro-shortcut-rider` is the `<kbd>p</kbd>` **inside** `pro-back-to-rider` — one control, so
   "Back to rider view" appears exactly once in the row (a touch reader has no `p` key, so the button
   cannot go; the words are how the key is discovered, so they cannot either).
-- Lines widget: `pro-lines-widget`, `pro-lines-filters`, `pro-filter-status`, `pro-filter-passenger`,
+- Lines widget: `pro-lines-widget`, `pro-lines-layout-board` / `pro-lines-layout-table`, `pro-lines-filters`, `pro-filter-status`, `pro-filter-passenger`,
   `pro-filter-only-with-data` (+ `-popover`), `pro-filter-clear`, `pro-lines-export`.
 - Feed widget: `pro-feed-widget`, `pro-feed-window`, `pro-feed-filters`, `pro-feed-search`,
   `pro-feed-line`, `pro-feed-status`, `pro-feed-skeleton`, `pro-feed-empty`, `pro-feed-list`,
@@ -2204,13 +2227,18 @@ element the round-2 spec asserted _absent_).
   authenticated query when `loadMore()`/`loadMoreLastWeek()` resolves.
 - **Optimistic voting.** `VoteButtonComponent` is reused as-is; the store's overlay makes optimistic
   score updates straightforward (record the overlay value first, roll back on a GraphQL error).
-- **A dedicated route `title` and share metadata.** ✅ The `title` and `<meta name="description">`
-  landed with the network board's Phase 0 (`title: "MLPTF | Live Network Board"` on the `""` route;
-  `Meta.updateTag` in `HomePage`, so the tag is in the SSR HTML). Still missing: open-graph /
-  Twitter card tags and a per-route share image.
-- ~~**Client-side search/sort over the resident feed page.**~~ ✅ Shipped in Phase 4 for the Pro view
-  (`filterFeedLinks`, `?q=`). The Rider feed deliberately has no search box — it is a glance, not a
-  query surface.
+- **Share metadata.** Open-graph / Twitter card tags and a per-route share image are missing. The
+  `title` and `<meta name="description">` are already set by `HomePage` (`Meta.updateTag`, in the SSR HTML).
+- **Cause and direction on the expanded line row.** Not in the GraphQL `Line` schema, so neither the
+  expanded row nor the Pro table can say why a line is disrupted or which way it runs. Needs an
+  additive backend field first.
+- **Operator grouping is a heuristic.** `lineFamily()` (`data/line-family.util.ts`) takes the leading
+  letters of the line code because the schema has no operator field. Replace it when the backend
+  exposes one.
+- **Pro table last-report precision.** The table's last-report column shows the HOUR of the last report
+  (the history is hourly, and the header says so). Minute precision needs a backend timestamp.
+- **E2E mock** (`e2e/home.spec.ts`) still returns `passengerStatusMessage` and the dropped `pulseLinks`
+  fields. Harmless, but prune it with the query.
 - 🔴 **Light-mode brand-orange contrast — a design decision, not a home-page bug.** `--brand`
   `#ee7104` on `--card` measures **3.0:1**, so `text-brand` fails WCAG AA for body text and white on a
   `bg-brand` fill is the same 3.0:1. Dark mode passes (7.56:1 / 8.23:1), so this is the light theme
@@ -2237,13 +2265,13 @@ element the round-2 spec asserted _absent_).
 ## 💡 Potential AI Feature Opportunities
 
 - **"What's happening right now" digest.** The home page already consolidates exactly the inputs a
-  digest needs — the global feed plus per-line `passengerStatus`/`passengerStatusMessage` and their
+  digest needs — the global feed plus per-line `passengerStatus` and their
   supporting `pulseLinks`. This is the concrete surface for the catalog's cross-component
   "service health AI digest" opportunity (spotting + insiden + tracker share the same status
   vocabulary).
 - **Spam / relevance classification of submitted links.** `submitFeedLink` already normalizes URLs for
   duplicate detection; an LLM/classifier layer on top could score link relevance, detect
   near-duplicates the normalizer misses, and suggest line tags from the link's content.
-- **Passenger-status inference from feed text.** The per-line `passengerStatusMessage` is
-  backend-consolidated today; an LLM could draft a plain-language line status from a cluster of recent
+- **Passenger-status inference from feed text.** The backend still consolidates a per-line
+  `passengerStatusMessage`, but the home page no longer reads it (dropped 2026-10-19); an LLM could draft a plain-language line status from a cluster of recent
   link titles/notes, or pre-fill the status sheet's status chip from free-text notes.

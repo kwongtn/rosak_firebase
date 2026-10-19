@@ -1,7 +1,8 @@
-import { Component, computed, inject } from "@angular/core";
+import { Component, afterNextRender, computed, inject } from "@angular/core";
 
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
+import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { HomeStore } from "../data/home.store";
 import {
   SERVICE_DAY_LABEL,
@@ -60,7 +61,7 @@ interface SparkBar {
  */
 @Component({
   selector: "app-network-sparkline",
-  imports: [InfoPopover],
+  imports: [HlmSkeleton, InfoPopover],
   template: `
     <figure class="flex flex-col gap-1" data-testid="network-sparkline">
       <figcaption class="text-muted-foreground flex items-center justify-between gap-2 text-xs">
@@ -74,7 +75,7 @@ interface SparkBar {
         >
           <span class="hover:underline">Network activity · service day {{ _serviceDayLabel }}</span>
         </app-info-popover>
-        <span class="tabular-nums">{{ _total() }} reports</span>
+        <span class="tabular-nums">{{ _pending() ? "–" : _total() }} reports</span>
       </figcaption>
 
       <!-- One role="img" with a sentence, not 24 focusable or announced bars. Each bar keeps its
@@ -98,6 +99,10 @@ interface SparkBar {
             ></div>
           }
         </div>
+      } @else if (_pending()) {
+        <!-- The read has not answered yet. A skeleton, not the quiet copy below: "No activity reported
+             yet" is a claim about the network, and it is only true once the answer has landed. -->
+        <div hlmSkeleton class="h-10 w-full" data-testid="network-sparkline-skeleton"></div>
       } @else {
         <!-- 🔴 Same h-10 as the bar row, so an empty or failed read costs the hero no height and the
              page does not jump under the reader. Dashed rather than filled: there is nothing to plot
@@ -158,6 +163,12 @@ export class NetworkSparklineComponent {
   );
 
   /**
+   * Whether the answer is still on its way — the skeleton's branch. Excludes a failure and a settled
+   * empty network, which are the two quiet states below, and it is checked before them in the template.
+   */
+  protected readonly _pending = computed(() => this.store.networkHistoryPending());
+
+  /**
    * Which of the two QUIET states this is, in words. They read differently on purpose: `[]` is the
    * backend's documented "nothing reported in this service day", while a failure is a read the
    * reader may see succeed on the next poll.
@@ -194,6 +205,8 @@ export class NetworkSparklineComponent {
   constructor() {
     // The store holds the read but does not ask for it on its own — this widget is the surface that
     // renders the answer, so it is the one that opts in (see `HomeStore.requestHistoryReads`).
-    this.store.requestHistoryReads();
+    // Deferred to `afterNextRender` so the server never issues the read: SSR paints the skeleton, and
+    // the client asks once it has rendered. Browser-only by construction — the hook never runs on the server.
+    afterNextRender(() => this.store.requestHistoryReads());
   }
 }

@@ -3,17 +3,25 @@ import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
 import { injectIsBrowser } from "../../../core/composables/is-browser";
-import { PreferencesViewMode } from "../../../core/preferences/preferences.service";
+import {
+  PreferencesService,
+  PreferencesViewMode,
+} from "../../../core/preferences/preferences.service";
 import {
   queryParamForWrite,
   readEnumQueryParam,
   readTextQueryParam,
   writeQueryParams,
 } from "../../../core/url-state/query-param.util";
+import type { LinePulse } from "../data/home-board.queries";
 import { HomeStore } from "../data/home.store";
-import { BOARD_SORTS, DEFAULT_BOARD_SORT } from "../data/board-lines.util";
+import { BOARD_SORTS, DEFAULT_BOARD_SORT, splitQuietLines } from "../data/board-lines.util";
 import type { BoardSort } from "../data/board-lines.util";
 import { HomeViewModeService } from "../data/home-view-mode.service";
+import { LINE_FAMILY_PARAM, lineFamilies, parseLineFamilyParam } from "../data/line-family.util";
+import { HlmButton } from "../../../ui/button/button";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
+import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { NetworkHeatStripComponent } from "../pro/network-heat-strip.component";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
@@ -81,7 +89,14 @@ const SORT_PARAM = "sort";
  */
 @Component({
   selector: "app-network-board",
-  imports: [HlmSkeleton, LinePulseCardComponent, LinePulseRowComponent, NetworkHeatStripComponent],
+  imports: [
+    HlmButton,
+    HlmSkeleton,
+    InfoPopover,
+    LinePulseCardComponent,
+    LinePulseRowComponent,
+    NetworkHeatStripComponent,
+  ],
   template: `
     <div class="flex flex-col gap-4" data-testid="network-board">
       @if (_showSkeleton()) {
@@ -100,23 +115,66 @@ const SORT_PARAM = "sort";
           class="border-border flex flex-wrap items-center justify-between gap-2 border-b pb-2"
           data-testid="board-controls"
         >
-          <div
-            class="bg-muted/40 flex items-center gap-0.5 rounded-lg p-0.5"
-            role="group"
-            aria-label="Sort lines"
-          >
-            @for (option of _sortOptions; track option.value) {
-              <button
-                type="button"
-                class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
-                [class.bg-background]="_sort() === option.value"
-                [attr.aria-pressed]="_sort() === option.value"
-                [attr.data-testid]="'board-sort-' + option.value"
-                (click)="setSort(option.value)"
+          <div class="flex flex-wrap items-center gap-2">
+            @if (_families().length > 1) {
+              <div
+                class="bg-muted/40 flex flex-wrap items-center gap-0.5 rounded-lg p-0.5"
+                role="group"
+                aria-label="Filter lines by operator"
+                data-testid="board-family-filter"
               >
-                {{ option.label }}
-              </button>
+                <button
+                  type="button"
+                  class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
+                  [class.bg-background]="_family() === null"
+                  [attr.aria-pressed]="_family() === null"
+                  data-testid="board-family-all"
+                  (click)="setFamily(null)"
+                >
+                  All
+                </button>
+                @for (family of _families(); track family) {
+                  <button
+                    type="button"
+                    class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
+                    [class.bg-background]="_family() === family"
+                    [attr.aria-pressed]="_family() === family"
+                    [attr.data-testid]="'board-family-' + family"
+                    (click)="setFamily(family)"
+                  >
+                    {{ family }}
+                  </button>
+                }
+              </div>
+              <app-info-popover
+                label="How operator groups are formed"
+                iconPosition="end"
+                [content]="_familyInfo"
+                testId="board-family-popover"
+                [showMethodologyLink]="true"
+              >
+                <span class="sr-only">About operator groups</span>
+              </app-info-popover>
             }
+
+            <div
+              class="bg-muted/40 flex items-center gap-0.5 rounded-lg p-0.5"
+              role="group"
+              aria-label="Sort lines"
+            >
+              @for (option of _sortOptions; track option.value) {
+                <button
+                  type="button"
+                  class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
+                  [class.bg-background]="_sort() === option.value"
+                  [attr.aria-pressed]="_sort() === option.value"
+                  [attr.data-testid]="'board-sort-' + option.value"
+                  (click)="setSort(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
@@ -249,26 +307,119 @@ const SORT_PARAM = "sort";
             >
               All lines
             </h2>
-            <div class="flex flex-col gap-2">
-              @for (line of _all(); track line.id) {
+            @if (_allLoud().length > 0) {
+              <div class="flex flex-col gap-2">
+                @for (line of _allLoud(); track line.id) {
+                  <div
+                    class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+                    [class.ring-2]="_isHighlighted(line.id)"
+                    [class.ring-brand]="_isHighlighted(line.id)"
+                    [class.ring-offset-2]="_isHighlighted(line.id)"
+                    [class.ring-offset-background]="_isHighlighted(line.id)"
+                    [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+                    [attr.id]="'line-' + line.id"
+                    data-testid="line-board-row"
+                  >
+                    <app-line-pulse-row
+                      [line]="line"
+                      [refreshTick]="_refreshTick()"
+                      [viewMode]="_view()"
+                    />
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Quiet lines: in service, running normally, nothing reported in the window, not pinned.
+                 They are most of the network on a normal day, and a full row each is what made the
+                 board read as fifteen identical lines. One summary row stands in for them; the rows
+                 render only when the reader asks. The panel element is always present so the toggle's
+                 aria-controls always resolves, even while collapsed. -->
+            @if (_quiet().length > 0) {
+              <div class="flex flex-col gap-2" data-testid="line-board-quiet">
                 <div
-                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
-                  [class.ring-2]="_isHighlighted(line.id)"
-                  [class.ring-brand]="_isHighlighted(line.id)"
-                  [class.ring-offset-2]="_isHighlighted(line.id)"
-                  [class.ring-offset-background]="_isHighlighted(line.id)"
-                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
-                  [attr.id]="'line-' + line.id"
-                  data-testid="line-board-row"
+                  class="border-border bg-muted/30 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed px-2 py-1"
                 >
-                  <app-line-pulse-row
-                    [line]="line"
-                    [refreshTick]="_refreshTick()"
-                    [viewMode]="_view()"
-                  />
+                  <button
+                    hlmBtn
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    class="min-h-11 min-w-0 flex-1 justify-start gap-2 text-left text-sm font-normal"
+                    data-testid="line-board-quiet-toggle"
+                    [attr.aria-expanded]="_quietExpanded()"
+                    aria-controls="line-board-quiet-panel"
+                    (click)="toggleQuiet()"
+                  >
+                    <span>{{ _quietSummary() }}</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      class="text-muted-foreground size-4 shrink-0 transition-transform duration-150 motion-reduce:transition-none"
+                      [class.rotate-180]="_quietExpanded()"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+
+                  <!-- The pin hint is the one piece of onboarding on the board: a reader who has
+                       never pinned anything is told what the pin buttons are for, once. It sits in the
+                       collapsed summary only, and it goes for good on dismiss or on the first pin. -->
+                  @if (_showPinHint() && !_quietExpanded()) {
+                    <p
+                      class="text-muted-foreground flex min-w-0 items-center gap-1 text-xs"
+                      data-testid="line-board-pin-hint"
+                    >
+                      <span>Pin your lines to see them first</span>
+                      <button
+                        hlmBtn
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        class="min-h-11 px-2"
+                        aria-label="Dismiss the pin hint"
+                        data-testid="line-board-pin-hint-dismiss"
+                        (click)="dismissPinHint()"
+                      >
+                        Dismiss
+                      </button>
+                    </p>
+                  }
                 </div>
-              }
-            </div>
+
+                <div
+                  id="line-board-quiet-panel"
+                  class="flex flex-col gap-2"
+                  data-testid="line-board-quiet-panel"
+                >
+                  @if (_quietExpanded()) {
+                    @for (line of _quiet(); track line.id) {
+                      <div
+                        class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+                        [class.ring-2]="_isHighlighted(line.id)"
+                        [class.ring-brand]="_isHighlighted(line.id)"
+                        [class.ring-offset-2]="_isHighlighted(line.id)"
+                        [class.ring-offset-background]="_isHighlighted(line.id)"
+                        [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+                        [attr.id]="'line-' + line.id"
+                        data-testid="line-board-row"
+                      >
+                        <app-line-pulse-row
+                          [line]="line"
+                          [refreshTick]="_refreshTick()"
+                          [viewMode]="_view()"
+                        />
+                      </div>
+                    }
+                  }
+                </div>
+              </div>
+            }
           </section>
         }
 
@@ -335,10 +486,22 @@ export class NetworkBoardComponent {
    */
   readonly embedHeatStrip = input(true);
 
+  /**
+   * Whether the "All lines" group folds its quiet lines into one summary row.
+   *
+   * Default `true`: on the front page most of the network is quiet, and a full row each is what made
+   * the board read as fifteen identical lines. The Pro dashboard turns it off, because a power reader
+   * is there to see every line and a fold would hide the very lines they came to compare. Like
+   * {@link embedHeatStrip} it gates one piece of rendering, so the Rider board is unchanged unless a
+   * host asks for the difference.
+   */
+  readonly foldQuiet = input(true);
+
   private readonly store = inject(HomeStore);
   private readonly viewMode = inject(HomeViewModeService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly preferences = inject(PreferencesService);
   private readonly isBrowser = injectIsBrowser();
 
   /**
@@ -382,6 +545,41 @@ export class NetworkBoardComponent {
   protected readonly _allRendered = computed(() => this._all().length > 0);
 
   /**
+   * "All lines" split into the rows that say something and the quiet ones folded into the summary.
+   * The split is over the store's already-partitioned `allLines`, so a quiet line is never also in
+   * another group. `_quietExpanded` is store-owned: the choice survives a re-mount within the page.
+   */
+  private readonly _allSplit = computed(() =>
+    this.foldQuiet()
+      ? splitQuietLines(this._all())
+      : { loud: [...this._all()], quiet: [] as LinePulse[] },
+  );
+  protected readonly _allLoud = computed(() => this._allSplit().loud);
+  protected readonly _quiet = computed(() => this._allSplit().quiet);
+  protected readonly _quietExpanded = this.store.quietLinesExpanded;
+
+  /**
+   * The summary's text. "other" is only true when a fully-shown line sits above the summary, so a
+   * board that is entirely quiet reads "12 lines running normally" rather than "12 other lines".
+   */
+  protected readonly _quietSummary = computed(() => {
+    const count = this._quiet().length;
+    const hasLinesAbove =
+      this._attention().length > 0 || this._mine().length > 0 || this._allLoud().length > 0;
+    const noun = count === 1 ? "line" : "lines";
+    return `${count} ${hasLinesAbove ? "other " : ""}${noun} running normally`;
+  });
+
+  /**
+   * The one-time pin hint: shown while the reader has never pinned a line and has not dismissed it.
+   * Both conditions are needed — a reader with pins from before the hint existed has no reason to
+   * see it, and a reader who unpins everything later must not get it back.
+   */
+  protected readonly _showPinHint = computed(
+    () => !this.preferences.pinHintDismissed() && this.preferences.pinnedLineIds().length === 0,
+  );
+
+  /**
    * Skeletons only while the FIRST read is in flight and there is nothing to show — the same shape
    * the feed column uses. A later reload never blanks the board: dropping sixteen rows for a
    * fraction of a second every 30 seconds would be worse than stale data.
@@ -402,6 +600,26 @@ export class NetworkBoardComponent {
       return this.store.boardSort();
     }
     return readEnumQueryParam(params, SORT_PARAM, BOARD_SORTS, DEFAULT_BOARD_SORT);
+  });
+
+  /**
+   * The operator / line families the chips offer: derived from EVERY line, not the Pro-narrowed set,
+   * so a chip does not vanish the moment a Pro filter hides its lines.
+   */
+  protected readonly _families = computed(() => lineFamilies(this.store.lines()));
+
+  /** The family chips' popover copy, from the methodology registry. */
+  protected readonly _familyInfo = metricTooltip("line-status.operator-family");
+
+  /**
+   * The family in force: the URL's when it names a family the data actually has, else `null` (All).
+   * While the lines are still loading there are no families yet, so a deep link resolves to All for
+   * that moment and to its family the moment the lines arrive — the URL is never rewritten here, so
+   * the link itself is not lost.
+   */
+  protected readonly _family = computed<string | null>(() => {
+    const param = parseLineFamilyParam(readTextQueryParam(this.queryParamMap(), LINE_FAMILY_PARAM));
+    return param !== null && this._families().includes(param) ? param : null;
   });
 
   /** The view in force — owned by {@link HomeViewModeService}, not re-derived here. */
@@ -429,6 +647,11 @@ export class NetworkBoardComponent {
     // parameter it just left. `?view=` is deliberately absent from this patch: it is
     // `HomeViewModeService`'s param now, and `queryParamsHandling: "merge"` means each half can
     // own its own key without either one clobbering the other.
+    // Family mirror: the URL decides, the store follows so the partition narrows with the chips.
+    effect(() => {
+      this.store.setLineFamily(this._family());
+    });
+
     effect(() => {
       const sortTarget = queryParamForWrite(this._sort(), DEFAULT_BOARD_SORT);
       if (sortTarget === readTextQueryParam(this.queryParamMap(), SORT_PARAM)) {
@@ -445,6 +668,15 @@ export class NetworkBoardComponent {
       const sort = this._sort();
       if (sort !== this.store.boardSort()) {
         this.store.setBoardSort(sort);
+      }
+    });
+
+    // A ring on a line folded into the quiet summary would have no anchor to land on, so the summary
+    // opens for it. A report normally makes its line loud on the next read; this covers the gap.
+    effect(() => {
+      const lineId = this._highlightedLineId();
+      if (lineId && !this._quietExpanded() && this._quiet().some((line) => line.id === lineId)) {
+        this.store.setQuietLinesExpanded(true);
       }
     });
 
@@ -471,6 +703,23 @@ export class NetworkBoardComponent {
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       anchor.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
     });
+  }
+
+  /** Expands or collapses the quiet-lines summary. The state lives in the store for the session. */
+  protected toggleQuiet(): void {
+    this.store.setQuietLinesExpanded(!this._quietExpanded());
+  }
+
+  protected dismissPinHint(): void {
+    this.preferences.dismissPinHint();
+  }
+
+  /**
+   * Family chip: writes the URL only. `null` removes the param, so "All" leaves a clean URL; the
+   * store follows through the mirror effect once the navigation lands.
+   */
+  protected setFamily(family: string | null): void {
+    writeQueryParams(this.router, this.route, { [LINE_FAMILY_PARAM]: family }, this.isBrowser);
   }
 
   /** Sort toggle: the store AND the URL, so the order survives a reload and is shareable. */

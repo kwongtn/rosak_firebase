@@ -57,7 +57,6 @@ function makeLine(id: string): LinePulse {
     inServiceVehicleCount: 1,
     totalVehicleCount: 2,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 0,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,

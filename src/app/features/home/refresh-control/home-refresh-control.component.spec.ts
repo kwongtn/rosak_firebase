@@ -1207,6 +1207,9 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
 
     fixture = TestBed.createComponent(HomeRefreshControlComponent);
     store = TestBed.inject(HomeStore);
+    // A reader who has opened the Last Week tab: its section is then one of the three reads every
+    // refresh re-reads, which is the ordering these specs exercise. Unopened, it is inert.
+    store.requestLastWeek();
     fixture.detectChanges();
     TestBed.tick();
 
@@ -1245,6 +1248,9 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
 
     fixture = TestBed.createComponent(HomeRefreshControlComponent);
     store = TestBed.inject(HomeStore);
+    // A reader who has opened the Last Week tab: its section is then one of the three reads every
+    // refresh re-reads, which is the ordering these specs exercise. Unopened, it is inert.
+    store.requestLastWeek();
     fixture.detectChanges();
     TestBed.tick();
     flushAll("success");
@@ -1289,6 +1295,9 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
 
     fixture = TestBed.createComponent(HomeRefreshControlComponent);
     store = TestBed.inject(HomeStore);
+    // A reader who has opened the Last Week tab: its section is then one of the three reads every
+    // refresh re-reads, which is the ordering these specs exercise. Unopened, it is inert.
+    store.requestLastWeek();
     fixture.detectChanges();
     TestBed.tick();
 

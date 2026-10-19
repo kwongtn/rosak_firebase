@@ -54,7 +54,6 @@ function makeLine(): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 3,
     vehicleStatusCounts: [{ status: "IN_SERVICE", count: 12 }],
     passengerStatusCount: 3,

@@ -2,7 +2,12 @@ import { PLATFORM_ID } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MAX_RECENT_LINES, PreferencesService } from "./preferences.service";
+import {
+  DEFAULT_PRO_LINES_SORT,
+  MAX_RECENT_LINES,
+  PreferencesService,
+  parseStoredPreferences,
+} from "./preferences.service";
 
 /** The service's own key, restated here on purpose: the spec must fail if the key ever moves. */
 const STORAGE_KEY = "rosak:preferences:v1";
@@ -235,6 +240,9 @@ describe("PreferencesService", () => {
         viewMode: "rider",
         lastReportedLineId: null,
         recentLineIds: [],
+        pinHintDismissed: false,
+        proLinesLayout: "board",
+        proLinesSort: { column: "line", direction: "asc" },
       });
     });
 
@@ -248,6 +256,70 @@ describe("PreferencesService", () => {
       service.setViewMode("poweruser" as "pro");
 
       expect(service.viewMode()).toBe("rider");
+    });
+  });
+
+  describe("pin hint", () => {
+    it("starts undismissed and stays dismissed once the reader dismisses it", () => {
+      const service = configure();
+      hydrate();
+
+      expect(service.pinHintDismissed()).toBe(false);
+      service.dismissPinHint();
+      expect(service.pinHintDismissed()).toBe(true);
+      hydrate();
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}")).toMatchObject({
+        pinHintDismissed: true,
+      });
+    });
+
+    it("dismisses the hint the first time a line is pinned", () => {
+      const service = configure();
+      hydrate();
+
+      service.togglePin("line-1");
+
+      expect(service.pinHintDismissed()).toBe(true);
+    });
+
+    it("keeps the hint dismissed when the last pin is removed", () => {
+      const service = configure();
+      hydrate();
+      service.togglePin("line-1");
+
+      service.togglePin("line-1");
+
+      expect(service.pinHintDismissed()).toBe(true);
+    });
+
+    it("restores a stored dismissal and ignores a non-boolean one", () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinHintDismissed: "yes" }));
+      const service = configure();
+      hydrate();
+      expect(service.pinHintDismissed()).toBe(false);
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinHintDismissed: true }));
+      TestBed.resetTestingModule();
+      const restored = configure();
+      hydrate();
+      expect(restored.pinHintDismissed()).toBe(true);
+    });
+  });
+
+  describe("storage failures", () => {
+    it("keeps working in memory when storage throws on read and write", () => {
+      vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new DOMException("blocked", "SecurityError");
+      });
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new DOMException("quota", "QuotaExceededError");
+      });
+
+      const service = configure();
+      expect(() => hydrate()).not.toThrow();
+      expect(service.hydrated()).toBe(true);
+      expect(() => service.togglePin("line-1")).not.toThrow();
+      expect(service.isPinned("line-1")).toBe(true);
     });
   });
 
@@ -269,6 +341,88 @@ describe("PreferencesService", () => {
       for (const call of setItem.mock.calls) {
         expect(String(call[1])).toContain("stored-line");
       }
+    });
+  });
+
+  describe("pro lines layout and sort", () => {
+    it("defaults to the board layout and a line-code sort when nothing is stored", () => {
+      const service = configure();
+      hydrate();
+
+      expect(service.proLinesLayout()).toBe("board");
+      expect(service.proLinesSort()).toEqual(DEFAULT_PRO_LINES_SORT);
+    });
+
+    it("keeps a stored table layout and sort, and persists a change", () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          pinnedLineIds: ["line-2"],
+          proLinesLayout: "table",
+          proLinesSort: { column: "inService", direction: "desc" },
+        }),
+      );
+
+      const service = configure();
+      hydrate();
+      expect(service.proLinesLayout()).toBe("table");
+      expect(service.proLinesSort()).toEqual({ column: "inService", direction: "desc" });
+
+      service.setProLinesSort({ column: "reports", direction: "asc" });
+      service.setProLinesLayout("board");
+      // The persist effect runs on the next tick, the same way the page's writes land.
+      hydrate();
+
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Record<
+        string,
+        unknown
+      >;
+      expect(stored["proLinesLayout"]).toBe("board");
+      expect(stored["proLinesSort"]).toEqual({ column: "reports", direction: "asc" });
+      expect(stored["pinnedLineIds"]).toEqual(["line-2"]);
+    });
+
+    it("reads an older payload that predates the fields as the defaults, without touching its pins", () => {
+      const parsed = parseStoredPreferences(
+        JSON.stringify({ pinnedLineIds: ["line-9"], viewMode: "pro" }),
+      );
+
+      expect(parsed.pinnedLineIds).toEqual(["line-9"]);
+      expect(parsed.proLinesLayout).toBe("board");
+      expect(parsed.proLinesSort).toEqual(DEFAULT_PRO_LINES_SORT);
+    });
+
+    it("degrades an unknown layout, and a sort whose column or direction is unknown, to the default", () => {
+      const parsed = parseStoredPreferences(
+        JSON.stringify({
+          proLinesLayout: "grid",
+          proLinesSort: { column: "colour", direction: "sideways" },
+        }),
+      );
+
+      expect(parsed.proLinesLayout).toBe("board");
+      expect(parsed.proLinesSort).toEqual(DEFAULT_PRO_LINES_SORT);
+    });
+
+    it("keeps a valid column when only the direction is bad, and does not share the default object", () => {
+      const parsed = parseStoredPreferences(
+        JSON.stringify({ proLinesSort: { column: "status", direction: "sideways" } }),
+      );
+      expect(parsed.proLinesSort).toEqual({ column: "status", direction: "asc" });
+
+      const service = configure();
+      service.setProLinesSort({ column: "reports", direction: "desc" });
+      service.reset();
+      expect(service.proLinesSort()).toEqual(DEFAULT_PRO_LINES_SORT);
+    });
+
+    it("ignores an unknown layout passed to the setter", () => {
+      const service = configure();
+      hydrate();
+
+      service.setProLinesLayout("grid" as "board");
+
+      expect(service.proLinesLayout()).toBe("board");
     });
   });
 });

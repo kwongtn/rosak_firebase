@@ -1,4 +1,5 @@
 import { DestroyRef, inject, signal } from "@angular/core";
+import { DOCUMENT } from "@angular/common";
 import { injectIsBrowser } from "../composables/is-browser";
 
 /** `null` = "Never refresh" — no timer, no countdown, nothing scheduled. */
@@ -19,6 +20,10 @@ const DEFAULT_POLLING_INTERVAL_MS = 30000;
  * that mounts/unmounts via `@if` starts polling when it appears and stops when it leaves. The
  * only *mandatory* guard is the platform one: timers exist on the server process too, and a
  * polling timer scheduled during SSR must never run there.
+ *
+ * While the document is hidden the timers are paused, and the wall-clock deadline is kept: on
+ * `visibilitychange` back to visible, a deadline that passed while hidden refreshes at once, and
+ * one still ahead is re-armed for the remaining time. A hidden tab therefore costs no requests.
  */
 export class PollingSource {
   readonly intervalMs = signal<PollingIntervalMs>(DEFAULT_POLLING_INTERVAL_MS);
@@ -27,6 +32,7 @@ export class PollingSource {
 
   private readonly isBrowser = injectIsBrowser();
   private readonly destroyRef = inject(DestroyRef);
+  private readonly doc = inject(DOCUMENT);
   private readonly onRefresh: () => void;
 
   private nextRefreshAtMs = 0;
@@ -41,9 +47,15 @@ export class PollingSource {
   constructor(onRefresh: () => void) {
     this.onRefresh = onRefresh;
     if (this.isBrowser) {
+      this.doc.addEventListener("visibilitychange", this.onVisibilityChange);
       this.scheduleNext(this.intervalMs() ?? Infinity);
     }
-    this.destroyRef.onDestroy(() => this.stop());
+    this.destroyRef.onDestroy(() => {
+      this.stop();
+      if (this.isBrowser) {
+        this.doc.removeEventListener("visibilitychange", this.onVisibilityChange);
+      }
+    });
   }
 
   /** Changes the cadence and rescales the countdown from *now* — whatever was scheduled before
@@ -80,14 +92,17 @@ export class PollingSource {
   }
 
   private scheduleNext(delayMs: number): void {
-    clearTimeout(this.pollTimeout);
-    this.pollTimeout = undefined;
     this.scheduledDelayMs = delayMs;
     this.nextRefreshAtMs = Date.now() + delayMs;
     this.secondsRemaining.set(Number.isFinite(delayMs) ? Math.ceil(delayMs / 1000) : 0);
-    if (!Number.isFinite(delayMs)) {
-      // "Never" — nothing scheduled, and nothing to count down to.
-      this.stopTicker();
+    this.armTimers(delayMs);
+  }
+
+  /** Arms the refresh timeout and the countdown ticker for `delayMs` from now. Arms nothing on the
+   * server, while the document is hidden, or for "Never" (a non-finite delay). */
+  private armTimers(delayMs: number): void {
+    this.pauseTimers();
+    if (!this.isBrowser || this.doc.hidden || !Number.isFinite(delayMs)) {
       return;
     }
     this.startTicker();
@@ -109,11 +124,35 @@ export class PollingSource {
     this.tickInterval = undefined;
   }
 
-  private stop(): void {
+  /** Clears the pending refresh and the ticker but keeps the deadline, so a resume can re-arm it. */
+  private pauseTimers(): void {
     clearTimeout(this.pollTimeout);
     this.pollTimeout = undefined;
     this.stopTicker();
   }
+
+  private stop(): void {
+    this.pauseTimers();
+  }
+
+  /** Hidden: pause. Visible: refresh now if the deadline passed while hidden, else re-arm for the
+   * time that remains (keeping the cadence's percent scale, so the countdown does not jump). */
+  private readonly onVisibilityChange = (): void => {
+    if (this.doc.hidden) {
+      this.pauseTimers();
+      return;
+    }
+    if (!Number.isFinite(this.scheduledDelayMs)) {
+      return;
+    }
+    const remainingMs = this.nextRefreshAtMs - Date.now();
+    if (remainingMs <= 0) {
+      this.refreshNow();
+      return;
+    }
+    this.armTimers(remainingMs);
+    this.tick();
+  };
 
   private tick(): void {
     const remainingMs = Math.max(0, this.nextRefreshAtMs - Date.now());

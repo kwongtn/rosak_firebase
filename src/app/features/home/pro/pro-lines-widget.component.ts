@@ -4,6 +4,10 @@ import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucideDownload } from "@ng-icons/lucide";
 
 import { injectIsBrowser } from "../../../core/composables/is-browser";
+import {
+  PreferencesService,
+  type ProLinesLayout,
+} from "../../../core/preferences/preferences.service";
 import { LINE_STATUS_LABEL } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { CsvRow, downloadCsv, toCsv } from "../../../core/export/csv.util";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
@@ -16,6 +20,7 @@ import { LineStatus, PassengerStatus } from "../data/home.queries";
 import { HomeStore } from "../data/home.store";
 import { LINE_STATUSES, PASSENGER_STATUSES } from "../data/board-lines.util";
 import { passengerLabel } from "../data/passenger-status.util";
+import { ProLinesTableComponent } from "./pro-lines-table.component";
 
 /** The export's column set, written out once so the header row and the row builder cannot disagree. */
 const EXPORT_COLUMNS: readonly string[] = [
@@ -65,7 +70,15 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
  */
 @Component({
   selector: "app-pro-lines-widget",
-  imports: [HlmButton, HlmCheckbox, HlmNativeSelect, InfoPopover, NetworkBoardComponent, NgIcon],
+  imports: [
+    HlmButton,
+    HlmCheckbox,
+    HlmNativeSelect,
+    InfoPopover,
+    NetworkBoardComponent,
+    NgIcon,
+    ProLinesTableComponent,
+  ],
   providers: [provideIcons({ lucideDownload })],
   template: `
     <section
@@ -74,17 +87,37 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
     >
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-sm font-semibold tracking-wide uppercase">Lines</h2>
-        <button
-          hlmBtn
-          variant="outline"
-          size="sm"
-          class="gap-1.5"
-          data-testid="pro-lines-export"
-          (click)="exportCsv()"
-        >
-          <ng-icon name="lucideDownload" class="size-4" aria-hidden="true" />
-          Export CSV
-        </button>
+        <div class="flex items-center gap-2">
+          <div
+            class="bg-muted/40 flex items-center gap-0.5 rounded-lg p-0.5"
+            role="group"
+            aria-label="Lines layout"
+          >
+            @for (option of _layoutOptions; track option.value) {
+              <button
+                type="button"
+                class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs font-medium outline-none focus-visible:ring-2"
+                [class.bg-background]="_layout() === option.value"
+                [attr.aria-pressed]="_layout() === option.value"
+                [attr.data-testid]="'pro-lines-layout-' + option.value"
+                (click)="setLayout(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            class="gap-1.5"
+            data-testid="pro-lines-export"
+            (click)="exportCsv()"
+          >
+            <ng-icon name="lucideDownload" class="size-4" aria-hidden="true" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <!-- Each filter's own default says itself ("Any status", "Any crowding") rather than offering a
@@ -161,14 +194,27 @@ const EXPORT_FILENAME = "mlptf-line-service-day-history.csv";
       </div>
 
       <!-- The Rider board, reused whole. The embedHeatStrip input is off because the dashboard gives that
-           grid its own cell. -->
-      <app-network-board [embedHeatStrip]="false" />
+           grid its own cell, and foldQuiet is off because a Pro reader came to see every line. The table
+           is the same visible set, drawn flat with sortable columns; the layout toggle picks one. -->
+      @if (_layout() === "table") {
+        <app-pro-lines-table />
+      } @else {
+        <app-network-board [embedHeatStrip]="false" [foldQuiet]="false" />
+      }
     </section>
   `,
 })
 export class ProLinesWidgetComponent {
   protected readonly store = inject(HomeStore);
+  private readonly preferences = inject(PreferencesService);
   private readonly isBrowser = injectIsBrowser();
+
+  /** The layout in force. Stored in the preferences, so a Pro reader keeps the table they chose. */
+  protected readonly _layout = this.preferences.proLinesLayout;
+  protected readonly _layoutOptions: ReadonlyArray<{ value: ProLinesLayout; label: string }> = [
+    { value: "board", label: "Board" },
+    { value: "table", label: "Table" },
+  ];
 
   protected readonly _statuses = LINE_STATUSES;
   protected readonly _passengerStatuses = PASSENGER_STATUSES;
@@ -185,6 +231,10 @@ export class ProLinesWidgetComponent {
 
   /** The published tooltip copy of "has data" — never a literal in this template. */
   protected readonly _hasDataDefinition = computed(() => metricTooltip("network.has-data"));
+
+  protected setLayout(layout: ProLinesLayout): void {
+    this.preferences.setProLinesLayout(layout);
+  }
 
   protected onStatusChanged(event: Event): void {
     const value = (event.target as HTMLSelectElement | null)?.value ?? "";

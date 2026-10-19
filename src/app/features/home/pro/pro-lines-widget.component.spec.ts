@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LinePulse } from "../data/home-board.queries";
 import type { LineStatusHourBucket } from "../data/home-history.queries";
+import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { HomeStore } from "../data/home.store";
 import { HomeViewModeService } from "../data/home-view-mode.service";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
@@ -25,7 +26,6 @@ function makeLine(id: string, overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 2,
     vehicleStatusCounts: [],
     passengerStatusCount: 0,
@@ -69,6 +69,9 @@ function makeStore(lines: LinePulse[], history: Map<string, LineStatusHourBucket
     setProPassengerFilter: vi.fn(),
     proOnlyWithData: signal(false),
     setProOnlyWithData: vi.fn(),
+    // The board's operator-family mirror. The widget never reads it, but the board's effect writes it.
+    lineFamily: signal<string | null>(null),
+    setLineFamily: vi.fn(),
   };
   store.setProStatusFilter = vi.fn((value: string | null) => store.proStatusFilter.set(value));
   store.setProPassengerFilter = vi.fn((value: string | null) =>
@@ -90,6 +93,8 @@ describe("pro-lines-widget.component: ProLinesWidgetComponent", () => {
   let revoked: string[];
 
   beforeEach(() => {
+    // The layout is persisted, and a stored "table" from one test must not leak into the next.
+    localStorage.clear();
     history = new Map();
     clicked = [];
     blobs = [];
@@ -351,5 +356,43 @@ describe("pro-lines-widget.component: ProLinesWidgetComponent", () => {
     // An SSR render that built a Blob would produce a document no browser will ever download from.
     expect(blobs).toHaveLength(0);
     expect(clicked).toHaveLength(0);
+  });
+
+  it("draws the board by default, with the fold switched off so every line is listed", async () => {
+    await widget([makeLine("a")]);
+
+    const board = fixture.debugElement.query(By.directive(NetworkBoardComponent));
+    expect((board.componentInstance as NetworkBoardComponent).foldQuiet()).toBe(false);
+    expect(fixture.nativeElement.querySelector("app-pro-lines-table")).toBeNull();
+  });
+
+  it("switches to the compact table from the layout toggle, and keeps the choice in the preferences", async () => {
+    const root = await widget([makeLine("a")]);
+
+    const boardButton = root.querySelector('[data-testid="pro-lines-layout-board"]');
+    const tableButton = root.querySelector('[data-testid="pro-lines-layout-table"]');
+    expect(boardButton?.getAttribute("aria-pressed")).toBe("true");
+    expect(tableButton?.getAttribute("aria-pressed")).toBe("false");
+
+    (tableButton as HTMLButtonElement).click();
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(root.querySelector("app-pro-lines-table")).not.toBeNull();
+    expect(root.querySelector("app-network-board")).toBeNull();
+    expect(TestBed.inject(PreferencesService).proLinesLayout()).toBe("table");
+    expect(
+      root.querySelector('[data-testid="pro-lines-layout-table"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("opens in the table when the reader stored that layout", async () => {
+    localStorage.setItem("rosak:preferences:v1", JSON.stringify({ proLinesLayout: "table" }));
+
+    const root = await widget([makeLine("a")]);
+
+    expect(root.querySelector("app-pro-lines-table")).not.toBeNull();
+    expect(root.querySelector("app-network-board")).toBeNull();
   });
 });

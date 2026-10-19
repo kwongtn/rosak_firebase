@@ -1,5 +1,6 @@
 import {
   metricDoc,
+  metricTooltip,
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
 import type { BadgeVariants } from "../../../ui/badge/badge";
@@ -75,7 +76,7 @@ export function vehicleStatusRows(
  */
 export function vehicleCountInfo(): StatusInfo {
   const doc = metricDoc("line-pulse.vehicle-count");
-  return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
+  return { title: doc.title, body: metricTooltip("line-pulse.vehicle-count") };
 }
 
 /**

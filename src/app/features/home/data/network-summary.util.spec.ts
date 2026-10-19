@@ -31,7 +31,6 @@ function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
     inServiceVehicleCount: 12,
     totalVehicleCount: 16,
     passengerStatus: "NORMAL",
-    passengerStatusMessage: null,
     statusReportCount: 2,
     vehicleStatusCounts: [],
     passengerStatusCount: 1,
