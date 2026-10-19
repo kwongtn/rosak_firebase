@@ -102,6 +102,34 @@ describe("draftFromDoc", () => {
     expect(draft.communityProjects).toEqual([]);
     expect(draft.aboutProject).toBe("x");
   });
+
+  it("keeps a legacy row hidden: a missing `display` is not flipped to visible by a save", () => {
+    const legacy = {
+      aboutProject: "",
+      projects: [{ name: "Legacy" }],
+      personnel: [{ name: "Old", socials: [{ link: "https://x.test" }] }],
+    } as unknown as PublicAboutDocument;
+    const draft = draftFromDoc(legacy);
+    expect(draft.projects[0].display).toBe(false);
+    expect(draft.personnel[0].display).toBe(false);
+    const clean = sanitizeDraft(draft);
+    expect(clean.projects[0].display).toBe(false);
+    expect(clean.personnel[0].display).toBe(false);
+  });
+
+  it("defaults a missing name/social name so sanitizeDraft does not throw on a legacy row", () => {
+    const legacy = {
+      aboutProject: "",
+      projects: [{ description: "no name" }],
+      personnel: [{ socials: [{ link: "https://x.test" }] }],
+    } as unknown as PublicAboutDocument;
+    const draft = draftFromDoc(legacy);
+    expect(draft.projects[0].name).toBe("");
+    expect(draft.personnel[0].socials[0].name).toBe("");
+    const clean = sanitizeDraft(draft);
+    expect(clean.projects).toEqual([]);
+    expect(clean.personnel).toEqual([]);
+  });
 });
 
 describe("sanitizeDraft", () => {

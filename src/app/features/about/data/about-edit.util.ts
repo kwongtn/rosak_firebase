@@ -10,24 +10,33 @@ import {
 
 /**
  * Pure helpers for the /about admin editor. The `public/about` Firestore doc is hand-edited
- * legacy content: not every entry reliably carries every field (see the `socials ?? []`
- * comment in about.page.ts), so these defensively normalize on read and sanitize on write.
+ * legacy content: not every entry reliably carries every field, so these defensively normalize
+ * on read and sanitize on write.
  */
 
 /** Defaults injected when a doc field is missing so the editor can bind every input safely. */
 export function draftFromDoc(data: PublicAboutDocument): PublicAboutDocument {
   return {
     aboutProject: data.aboutProject ?? "",
-    projects: (data.projects ?? []).map((p) => ({ ...p, description: p.description ?? "" })),
+    projects: (data.projects ?? []).map((p) => ({
+      ...p,
+      name: p.name ?? "",
+      description: p.description ?? "",
+      // The public page hides rows without `display: true`; show the editor what visitors see
+      // rather than letting sanitizeDraft's `?? true` flip a hidden row to visible on save.
+      display: p.display ?? false,
+    })),
     personnel: (data.personnel ?? []).map((p) => ({
       ...p,
+      name: p.name ?? "",
+      display: p.display ?? false,
       avatar: p.avatar ?? "",
       title: p.title ?? "",
       description: p.description ?? "",
       retired: p.retired ?? false,
       startDate: p.startDate ?? "",
       endDate: p.endDate ?? "",
-      socials: (p.socials ?? []).map((s) => ({ ...s })),
+      socials: (p.socials ?? []).map((s) => ({ ...s, name: s.name ?? "", link: s.link ?? "" })),
     })),
     techStacks: (data.techStacks ?? []).map((s) => ({
       name: s.name ?? "",
@@ -124,7 +133,7 @@ export function emptySocial(): PersonnelSocial {
   return { name: "", link: "", type: "github" };
 }
 
-/** Projects visible on the page, matching the query, newest first by start date. */
+/** Projects visible on the page, matching the query, oldest first by start date. */
 export function filterAndSortProjects(projects: Project[], query: string): Project[] {
   const q = query.trim().toLowerCase();
   return projects
