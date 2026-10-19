@@ -1,5 +1,5 @@
 import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
-import { NgTemplateOutlet } from "@angular/common";
+import { DOCUMENT, NgTemplateOutlet } from "@angular/common";
 import { Meta } from "@angular/platform-browser";
 import { RouterLink } from "@angular/router";
 import { getApps, initializeApp } from "firebase/app";
@@ -91,6 +91,7 @@ export class AboutPage implements OnDestroy {
   private readonly isBrowser = injectIsBrowser();
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly document = inject(DOCUMENT);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
   protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
@@ -137,6 +138,15 @@ export class AboutPage implements OnDestroy {
   protected readonly noResults = computed(
     () => this.searchTerm().trim() !== "" && this.visibleCount() === 0,
   );
+  /** Jump links for the sections that currently have something to show. */
+  protected readonly sectionLinks = computed(() =>
+    [
+      { id: "projects", label: "Projects", show: this.projects().length > 0 },
+      { id: "team", label: "Team", show: this.personnel().length > 0 },
+      { id: "tech-stack", label: "Tech stack", show: this.techStacks().length > 0 },
+      { id: "community", label: "Community", show: this.communityProjects().length > 0 },
+    ].filter((link) => link.show),
+  );
   protected statusVariant = (status: string) => STATUS_VARIANT[status] ?? "neutral";
 
   /** Templates can't call `Number()` — `$any($event.target).value` is a string from a number input. */
@@ -176,6 +186,19 @@ export class AboutPage implements OnDestroy {
         this.isLoading.set(false);
       },
     );
+  }
+
+  /** A plain `#id` href would resolve against `<base href="/">` and leave the page. */
+  protected jumpTo(id: string): void {
+    const el = this.document.getElementById(id);
+    if (!el) {
+      return;
+    }
+    const reduceMotion = this.document.defaultView?.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    el.focus({ preventScroll: true });
   }
 
   protected clearSearch(): void {

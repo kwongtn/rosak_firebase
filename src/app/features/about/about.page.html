@@ -1,7 +1,7 @@
 <app-nav />
 <div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
   <main class="flex flex-1 flex-col gap-10">
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold">About the project</h1>
       <div class="flex items-center gap-2">
         <a
@@ -51,6 +51,16 @@
             <button hlmBtn variant="ghost" size="sm" (click)="clearSearch()">Clear</button>
           }
         </div>
+      }
+
+      @if (!editMode() && sectionLinks().length > 1) {
+        <nav aria-label="On this page" class="flex flex-wrap gap-2">
+          @for (link of sectionLinks(); track link.id) {
+            <button hlmBtn variant="outline" size="sm" (click)="jumpTo(link.id)">
+              {{ link.label }}
+            </button>
+          }
+        </nav>
       }
 
       @if (isAdmin() && editMode()) {
@@ -386,7 +396,13 @@
         }
 
         @if (projects().length > 0) {
-          <h2 class="text-2xl font-bold">Projects</h2>
+          <h2
+            id="projects"
+            class="text-2xl font-bold scroll-mt-20 focus:outline-none"
+            tabindex="-1"
+          >
+            Projects
+          </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (project of projects(); track project.name) {
               <div hlmCard>
@@ -420,6 +436,7 @@
             <img
               src="https://opencollective.com/mlptf/contribute/button@2x.png?color=blue"
               alt="Donate on Open Collective (opens in new tab)"
+              height="40"
               class="h-10"
             />
           </a>
@@ -435,12 +452,22 @@
 
       @if (activePersonnel().length > 0 || retiredPersonnel().length > 0) {
         <section class="flex flex-col gap-4">
-          <h2 class="text-2xl font-bold">About the team</h2>
+          <h2 id="team" class="text-2xl font-bold scroll-mt-20 focus:outline-none" tabindex="-1">
+            About the team
+          </h2>
           <ng-template #personCard let-person>
             <div hlmCard>
               <div hlmCardContent class="flex-row items-center gap-3">
                 @if (person.avatar) {
-                  <img [src]="person.avatar" alt="" class="size-12 rounded-full object-cover" />
+                  <img
+                    [src]="person.avatar"
+                    alt=""
+                    width="48"
+                    height="48"
+                    loading="lazy"
+                    decoding="async"
+                    class="size-12 rounded-full object-cover"
+                  />
                 }
                 <div class="flex flex-col">
                   <span class="font-medium">{{ person.name }}</span>
@@ -516,7 +543,13 @@
 
       @if (techStacks().length > 0) {
         <section class="flex flex-col gap-4">
-          <h2 class="text-2xl font-bold">Tech Stack &amp; Open Source</h2>
+          <h2
+            id="tech-stack"
+            class="text-2xl font-bold scroll-mt-20 focus:outline-none"
+            tabindex="-1"
+          >
+            Tech Stack &amp; Open Source
+          </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (stack of techStacks(); track stack.name) {
               <a
@@ -528,7 +561,15 @@
               >
                 <div class="flex items-center gap-3">
                   @if (stack.iconUrl) {
-                    <img [src]="stack.iconUrl" alt="" class="size-8 object-contain" />
+                    <img
+                      [src]="stack.iconUrl"
+                      alt=""
+                      width="32"
+                      height="32"
+                      loading="lazy"
+                      decoding="async"
+                      class="size-8 object-contain"
+                    />
                   }
                   <span class="font-medium">{{ stack.name }}</span>
                   <span class="sr-only">(opens in new tab)</span>
@@ -544,7 +585,13 @@
 
       @if (communityProjects().length > 0) {
         <section class="flex flex-col gap-4">
-          <h2 class="text-2xl font-bold">Other Community Projects</h2>
+          <h2
+            id="community"
+            class="text-2xl font-bold scroll-mt-20 focus:outline-none"
+            tabindex="-1"
+          >
+            Other Community Projects
+          </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @for (project of communityProjects(); track project.name) {
               <a
@@ -556,7 +603,15 @@
               >
                 <div class="flex items-center gap-3">
                   @if (project.iconUrl) {
-                    <img [src]="project.iconUrl" alt="" class="size-8 object-contain" />
+                    <img
+                      [src]="project.iconUrl"
+                      alt=""
+                      width="32"
+                      height="32"
+                      loading="lazy"
+                      decoding="async"
+                      class="size-8 object-contain"
+                    />
                   }
                   <span class="font-medium">{{ project.name }}</span>
                   <span class="sr-only">(opens in new tab)</span>
