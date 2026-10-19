@@ -104,6 +104,7 @@ export class AboutPage implements OnDestroy {
   protected readonly isAdmin = this.auth.isAdmin;
   protected readonly searchTerm = signal("");
   protected readonly editMode = signal(false);
+  protected readonly saving = signal(false);
   private readonly _draft = signal<PublicAboutDocument | undefined>(undefined);
   protected readonly draft = this._draft.asReadonly();
 
@@ -204,9 +205,10 @@ export class AboutPage implements OnDestroy {
 
   protected async saveDraft(): Promise<void> {
     const draft = this._draft();
-    if (!draft) {
+    if (!draft || this.saving()) {
       return;
     }
+    this.saving.set(true);
     try {
       await setDoc(
         firestoreDoc(getFirestore(firebaseApp()), "public", "about"),
@@ -216,6 +218,8 @@ export class AboutPage implements OnDestroy {
       this.toast.success("Saved", "The about page has been updated.");
     } catch (err) {
       this.toast.error("Save failed", err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      this.saving.set(false);
     }
   }
 

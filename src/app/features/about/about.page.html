@@ -55,13 +55,7 @@
 
       @if (isAdmin() && editMode()) {
         <section class="flex flex-col gap-6 rounded-lg border p-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">Edit about page</h2>
-            <div class="flex gap-2">
-              <button hlmBtn variant="ghost" size="sm" (click)="cancelEdit()">Cancel</button>
-              <button hlmBtn size="sm" (click)="saveDraft()">Save</button>
-            </div>
-          </div>
+          <h2 class="text-lg font-semibold">Edit about page</h2>
 
           <div class="flex flex-col gap-2">
             <label class="text-sm font-medium" for="about-project-input">About the project</label>
@@ -356,9 +350,15 @@
             </div>
           </div>
 
-          <div class="flex justify-end gap-2">
-            <button hlmBtn variant="ghost" (click)="cancelEdit()">Cancel</button>
-            <button hlmBtn (click)="saveDraft()">Save</button>
+          <div
+            class="bg-background/95 sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-2 rounded-b-lg border-t px-4 py-3 backdrop-blur"
+          >
+            <button hlmBtn variant="ghost" [disabled]="saving()" (click)="cancelEdit()">
+              Cancel
+            </button>
+            <button hlmBtn [disabled]="saving()" (click)="saveDraft()">
+              {{ saving() ? "Saving…" : "Save" }}
+            </button>
           </div>
         </section>
       }
