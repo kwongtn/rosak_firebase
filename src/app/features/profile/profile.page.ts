@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from "@angular/core";
+import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { AuthService } from "../../core/auth/auth.service";
@@ -143,6 +143,10 @@ export class ProfilePage {
   protected readonly _isLoading = signal(true);
   protected readonly _user = signal<PublicUserData | undefined>(undefined);
 
+  /** Bumped by every `load()`. A response whose number is no longer current belongs to a profile
+   * (or a session) the page has since moved on from, and must not overwrite what is showing. */
+  private _loadSeq = 0;
+
   constructor() {
     this.auth.whenReady.then(() => this.isAuthReady.set(true));
 
@@ -150,37 +154,53 @@ export class ProfilePage {
       if (!this.isAuthReady()) {
         return;
       }
-      this.load();
+      // The dependencies are read HERE, not inside `load()`: it runs untracked and reads neither
+      // after its first `await`. /profile/A -> /profile/B keeps this instance mounted
+      // (`withComponentInputBinding` only updates `id`), so this effect is what notices.
+      // `auth.user()` is tracked too: a login, logout or account switch re-loads.
+      const id = this.id();
+      const isOwn = this.auth.user()?.uid === id;
+      untracked(() => void this.load(id, isOwn));
     });
   }
 
-  private async load(): Promise<void> {
+  private async load(id: string, isOwn: boolean): Promise<void> {
+    const seq = ++this._loadSeq;
     this._isLoading.set(true);
     try {
       const idToken = await this.auth.idToken();
+      const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
+      let user: PublicUserData | undefined;
 
-      if (this.isOwnProfile()) {
+      if (isOwn) {
         const data = await this.graphql.request<GetUserDataData, GetUserDataVars>(
           GET_USER_DATA_QUERY,
           { typeGroup: true, freeRange: true },
-          idToken ? { "firebase-auth-key": idToken } : {},
+          headers,
         );
         // `spottings` stays null on the owner branch: GET_USER_DATA_QUERY doesn't return them,
         // and the owner's history is fetched by <app-my-spottings> itself (GET_MY_EVENTS_QUERY,
         // paginated) — only public profiles inherit a ready-made list here.
-        this._user.set({ ...data.user, spottings: null });
+        user = { ...data.user, spottings: null };
       } else {
         const data = await this.graphql.request<GetPublicUserData, GetPublicUserVars>(
           GET_PUBLIC_USER_QUERY,
-          { id: this.id(), typeGroup: true, freeRange: true },
-          idToken ? { "firebase-auth-key": idToken } : {},
+          { id, typeGroup: true, freeRange: true },
+          headers,
         );
-        this._user.set(data.publicUser ?? undefined);
+        user = data.publicUser ?? undefined;
+      }
+      if (seq === this._loadSeq) {
+        this._user.set(user);
       }
     } catch {
-      this._user.set(undefined);
+      if (seq === this._loadSeq) {
+        this._user.set(undefined);
+      }
     } finally {
-      this._isLoading.set(false);
+      if (seq === this._loadSeq) {
+        this._isLoading.set(false);
+      }
     }
   }
 
