@@ -228,7 +228,7 @@ export class UserCardComponent {
     () => this._savedNickname() ?? this.user().nickname,
   );
 
-  protected readonly _favouriteVehicle = computed(() => this.user().favouriteVehicles[0]);
+  protected readonly _favouriteVehicle = computed(() => this.user().favouriteVehicles?.[0]);
   protected readonly _favouriteVehicleLines = computed(() =>
     this._favouriteVehicle()
       ?.vehicle.lines.map((l) => l.code)
