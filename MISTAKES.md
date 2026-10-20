@@ -13,6 +13,15 @@
 
 ---
 
+## [2026-10-20] spotting: Most Recently Spotted ties broken arbitrarily
+
+**Problem**: The "Most Recently Spotted" card on the line overview showed vehicle 110 on MRT Kajang Line, though vehicle 151 was spotted later. Seven vehicles tied on 2026-10-18, and the card kept whichever one came first in the list.
+**Root Cause**: `Vehicle.lastSpottingDate` is date-only (`Event.spotting_date` is a `DateField`), so same-day sightings are indistinguishable. The comparator `a > b ? -1 : 1` also never returned `0`, so ties were ordered by list position.
+**Fix**: _Fixed (this commit)._ The sort uses `lastSpottingDate`, then the new `lastSpottedAt` (backend `Vehicle.lastSpottedAt`, queried as `VehicleRow.lastSpottedAt`). The comparator returns `0` only when both keys are equal. Covered by `line-status-board.component.spec.ts`.
+**Prevention**: A sort comparator must return `0` on ties, not `±1`. When the display key is date-only, sort by a finer-grained secondary key such as a timestamp, and test with several rows that share the primary key.
+
+---
+
 ## [2026-10-20] about/editor: a nested `@for` reuses the INNER `$index`, so an edit lands on the wrong person
 
 **Problem**: In the admin editor, editing or removing one person's social changed a different person's social, or was lost. The nested socials `@for` passed its own `$index` (the social's position) to `updateSocial` / `removeSocial` as the person index.
