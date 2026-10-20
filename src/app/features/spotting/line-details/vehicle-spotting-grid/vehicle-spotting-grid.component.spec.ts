@@ -23,6 +23,7 @@ function makeVehicle(id: string, identificationNo: string): VehicleRow {
     status: "IN_SERVICE",
     nickname: null,
     lastSpottingDate: null,
+    lastSpottedAt: null,
     inServiceSince: null,
     spottingCount: 0,
     notes: null,

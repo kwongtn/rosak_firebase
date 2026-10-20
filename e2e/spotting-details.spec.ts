@@ -36,6 +36,7 @@ function vehicle(id: string, identificationNo: string): Record<string, unknown> 
     status: "IN_SERVICE",
     nickname: null,
     lastSpottingDate: null,
+    lastSpottedAt: null,
     inServiceSince: null,
     spottingCount: 0,
     notes: null,

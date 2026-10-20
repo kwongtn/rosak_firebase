@@ -22,6 +22,7 @@ function makeVehicle(
     status,
     nickname: null,
     lastSpottingDate: null,
+    lastSpottedAt: null,
     inServiceSince: null,
     spottingCount: 0,
     notes: null,

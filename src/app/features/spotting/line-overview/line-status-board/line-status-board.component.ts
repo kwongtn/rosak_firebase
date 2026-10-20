@@ -70,7 +70,12 @@ export class LineStatusBoardComponent {
     () =>
       [...this._vehicles()]
         .filter((v) => v.lastSpottingDate)
-        .sort((a, b) => (a.lastSpottingDate! > b.lastSpottingDate! ? -1 : 1))[0],
+        // lastSpottingDate is date-only, so many vehicles tie; lastSpottedAt breaks the tie.
+        .sort(
+          (a, b) =>
+            b.lastSpottingDate!.localeCompare(a.lastSpottingDate!) ||
+            (b.lastSpottedAt ?? "").localeCompare(a.lastSpottedAt ?? ""),
+        )[0],
   );
 
   protected readonly _stats = computed<BoardStat[]>(() => {

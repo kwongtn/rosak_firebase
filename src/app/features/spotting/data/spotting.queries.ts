@@ -62,6 +62,7 @@ export const VEHICLE_TYPES_QUERY = /* GraphQL */ `
         status
         nickname
         lastSpottingDate
+        lastSpottedAt
         inServiceSince
         spottingCount
         notes
@@ -101,6 +102,8 @@ export interface VehicleRow {
   status: VehicleStatus;
   nickname: string | null;
   lastSpottingDate: string | null;
+  /** Creation time of the latest spotting; orders vehicles sharing a `lastSpottingDate`. */
+  lastSpottedAt: string | null;
   inServiceSince: string | null;
   spottingCount: number;
   notes: string | null;
