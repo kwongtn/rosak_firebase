@@ -73,7 +73,7 @@
       <button hlmBtn variant="outline" size="sm" (click)="addPersonnel()">Add person</button>
     </div>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      @for (person of draft()?.personnel; track $index) {
+      @for (person of draft()?.personnel; track $index; let personIndex = $index) {
         <div hlmCard class="flex flex-col gap-3 p-4">
           <div class="flex flex-wrap items-center gap-2">
             <input
@@ -150,27 +150,27 @@
           ></textarea>
           <div class="flex flex-col gap-2">
             <div class="text-xs font-medium text-muted-foreground">Socials</div>
-            @for (social of person.socials; track socialIndex; let socialIndex = $index) {
+            @for (social of person.socials; track $index; let socialIndex = $index) {
               <div class="flex flex-wrap items-center gap-2">
                 <input
                   hlmInput
                   class="min-w-24"
                   placeholder="Name"
                   [value]="social.name"
-                  (input)="updateSocial($index, socialIndex, 'name', valueOf($event))"
+                  (input)="updateSocial(personIndex, socialIndex, 'name', valueOf($event))"
                 />
                 <input
                   hlmInput
                   class="flex-1"
                   placeholder="https://…"
                   [value]="social.link"
-                  (input)="updateSocial($index, socialIndex, 'link', valueOf($event))"
+                  (input)="updateSocial(personIndex, socialIndex, 'link', valueOf($event))"
                 />
                 <button
                   hlmBtn
                   variant="ghost"
                   size="sm"
-                  (click)="removeSocial($index, socialIndex)"
+                  (click)="removeSocial(personIndex, socialIndex)"
                 >
                   Remove
                 </button>

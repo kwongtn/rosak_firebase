@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PublicAboutDocument } from "../data/about.model";
+import { emptyPersonnel } from "../data/about-edit.util";
 import { AboutEditorComponent } from "./about-editor.component";
 
 const DOC: PublicAboutDocument = {
@@ -183,5 +184,50 @@ describe("AboutEditorComponent", () => {
     expect(root.querySelector<HTMLTextAreaElement>("#about-project-input")?.value).toBe(
       "We build transit tools.",
     );
+  });
+
+  describe("socials on the second person", () => {
+    const TWO_PEOPLE: PublicAboutDocument = {
+      ...DOC,
+      projects: [],
+      personnel: [
+        { ...emptyPersonnel(0), name: "Ann" },
+        {
+          ...emptyPersonnel(1),
+          name: "Bob",
+          socials: [{ name: "GitHub", link: "https://github.com/bob", type: "github" }],
+        },
+      ],
+    };
+
+    it("edits the social of the person it belongs to", () => {
+      const { submitted } = create({ initial: TWO_PEOPLE });
+
+      const link = root.querySelector<HTMLInputElement>('input[placeholder="https://…"]');
+      if (!link) throw new Error("social link input not rendered");
+      typeInto(link, "https://github.com/bobby");
+      detect();
+      buttonWithText("Save").click();
+
+      const emitted = submitted.mock.calls[0][0] as PublicAboutDocument;
+      expect(emitted.personnel[0].socials).toEqual([]);
+      expect(emitted.personnel[1].socials.map((s) => s.link)).toEqual(["https://github.com/bobby"]);
+    });
+
+    it("removes the social of the person it belongs to", () => {
+      const { submitted } = create({ initial: TWO_PEOPLE });
+
+      // Ann has no socials, so the only social row on the page is Bob's: its Remove button
+      // follows the social link input in the same row.
+      const link = root.querySelector<HTMLInputElement>('input[placeholder="https://…"]');
+      const remove = link?.parentElement?.querySelector("button");
+      if (!remove) throw new Error("social Remove button not rendered");
+      remove.click();
+      detect();
+      buttonWithText("Save").click();
+
+      const emitted = submitted.mock.calls[0][0] as PublicAboutDocument;
+      expect(emitted.personnel[1].socials).toEqual([]);
+    });
   });
 });
