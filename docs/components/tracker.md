@@ -2,173 +2,64 @@
 
 ## 📌 Purpose & Scope
 
-- **Core Responsibility:** Renders `/tracker`, a full-bleed live map of Malaysian public-transit
-  vehicles. It polls multiple GTFS-realtime vehicle-position feeds and GTFS-static stop/route
-  data, lets the user opt in/out of individual data sources (per-operator realtime feeds, per-
-  operator stop layers, a static railway-line overlay) through a two-stage draft/Apply flow, and
-  renders the result as an `@antv/l7` WebGL scene with markers, popups, and a per-layer debug/
-  info panel (stats, sortable table, raw JSON + CSV export).
-- **Domain/Layer:** Angular Presentation (standalone, lazy-loaded routed page + a cluster of child
-  components) backed by root-provided Angular services that own polling/state — no server-side
-  business logic of its own; one small proxy endpoint (`/api/gtfs-proxy`, outside this directory)
-  exists purely to work around a CORS limitation on the upstream GTFS-static host.
+- **Core Responsibility:** Renders `/tracker`, a full-bleed live map of Malaysian public-transit vehicles. It polls several GTFS-realtime vehicle-position feeds plus GTFS-static stop data. Users opt sources in/out (per-operator realtime feeds, per-operator stop layers, a static railway-line overlay) through a draft → Apply flow. The result is drawn as an `@antv/l7` WebGL scene with markers, popups, and a per-layer info panel (stats, sortable table, raw JSON + CSV export).
+- **Domain/Layer:** Angular Presentation: a standalone, lazy-routed page plus child components, backed by root-provided services that own polling and state. No Django/GraphQL involvement and no server-side business logic. One proxy endpoint, `/api/gtfs-proxy` (in `src/server.ts`, outside this feature), exists only to work around CORS on the GTFS-static host.
 
 ## 🔌 Interface & Data Flow
 
-- **Route:** `tracker.routes.ts` — single lazy route (`path: ""`) loading `TrackerShellPage`
-  (`tracker-shell.page.ts`), the feature's entry point. No route params.
-- **Inputs / Props / Signals** (component-level, `input()`/`@Input`-style):
-  - `CountdownRingComponent` (`status-card/countdown-ring.component.ts`): `source =
-input.required<RtSource>()`, `error = input(false)`.
-  - `TrackerInfoPanelComponent` (`info-panel/tracker-info-panel.component.ts`): `open =
-input(false)`, `kind = input.required<InfoPanelKind>()` (`"realtime" | "stops" | "railway"`),
-    `sourceKey = input<string | null>(null)`, `label = input.required<string>()`, `docsUrl =
-input<string | null>(null)`.
-  - All other subcomponents (`TrackerMapComponent`, `StatusCardComponent`,
-    `LayerChecklistComponent`, `LayerApplyBarComponent`, `MobileLayerSheetComponent`) take no
-    inputs — they read shared state directly via `inject()`.
-- **Outputs / Events / API Responses:**
-  - `TrackerInfoPanelComponent.openChange = output<boolean>()` — sheet open/close, consumed by
-    `LayerChecklistComponent` to clear `activePanel`.
-  - No `@Output`s elsewhere; state changes propagate through shared services' signals rather than
-    component events.
-  - Network responses consumed (not re-exposed): decoded `transit_realtime.FeedMessage` protobuf
-    per realtime source; parsed `stops.txt` rows turned into a GeoJSON `FeatureCollection<Point>`
-    per static source; a zipped GeoJSON `FeatureCollection` (railway line) from Firebase Storage.
+- **Route:** `tracker.routes.ts`, one lazy route (`path: ""`) → `TrackerShellPage` (`tracker-shell.page.ts`). No route params.
+- **Inputs (`input()` signals):**
+  - `CountdownRingComponent` (`status-card/countdown-ring.component.ts`): `source` (required `RtSource`), `error`.
+  - `TrackerInfoPanelComponent` (`info-panel/tracker-info-panel.component.ts`): `open`, `kind` (required `InfoPanelKind` = `"realtime" | "stops" | "railway"`), `sourceKey`, `label` (required), `docsUrl`.
+  - All other children (`TrackerMapComponent`, `StatusCardComponent`, `LayerChecklistComponent`, `LayerApplyBarComponent`, `MobileLayerSheetComponent`) take no inputs and read shared state via `inject()`.
+- **Outputs:** only `TrackerInfoPanelComponent.openChange`, consumed by `LayerChecklistComponent` to clear `activePanel`. Everything else propagates through service signals.
+- **Network payloads (consumed, not re-exposed):** a decoded `transit_realtime.FeedMessage` per realtime source; parsed `stops.txt` rows as a GeoJSON `FeatureCollection<Point>` per static source; a zipped GeoJSON `FeatureCollection` for the railway line, fetched from Firebase Storage.
 - **Dependencies:**
-  - **In-feature (`data/`):** `GtfsRealtimeService`, `GtfsStaticService`, `LayerSelectionService`,
-    `GeojsonStorageService` (all `providedIn: "root"`, so state survives navigation away from
-    `/tracker`), plus static config (`layer-config.ts`) and shared types (`types.ts`).
-  - **Core:** `src/app/core/theme/theme.service.ts` (`ThemeService.resolvedTheme` — drives both
-    the L7 map style and the Sentry feedback widget theme); `src/app/core/dom/observe-height.ts`
-    (`observeHeight` — measures the info panel's sticky tabs-row height for stacked sticky
-    headers).
-  - **Shared UI (`src/app/ui/*`, Spartan/Helm-style):** `HlmCardImports`, `HlmButton`,
-    `HlmCheckbox`, `HlmSheet`/`HlmSheetHeader`/`HlmSheetBody` — style-only directives, no state.
-  - **Shell:** `src/app/ui/theme-toggle/theme-toggle.component.ts` (`ThemeToggleComponent`),
-    rendered inline in the shell's own compact nav rather than the app-wide `<app-nav>`.
-  - **Environment:** `src/environments/environment.ts` — supplies `environment.mapbox.token` (map
-    tiles) and `environment.firebase` (Storage config for the railway overlay).
-  - **Third-party:** `@antv/l7` / `@antv/l7-maps` (`Scene`, `Mapbox`, `PointLayer`, `LineLayer`,
-    `MarkerLayer`, `Marker`, `Popup`) for the WebGL map; `gtfs-realtime-bindings`
-    (`transit_realtime.FeedMessage`) to decode realtime protobuf; `jszip` to unzip GTFS-static and
-    the railway GeoJSON archive; `papaparse` to parse `stops.txt`; `firebase/app` +
-    `firebase/storage` for the railway overlay's download URL; `@sentry/angular` for the shell's
-    "Report a bug" feedback widget.
+  - In-feature `data/` (all `providedIn: "root"`, so state survives navigating away from `/tracker`): `GtfsRealtimeService`, `GtfsStaticService`, `LayerSelectionService`, `GeojsonStorageService`; plus `layer-config.ts` and `types.ts`.
+  - Core: `core/theme/theme.service.ts` (`ThemeService.resolvedTheme`, which drives the L7 map style and the Sentry feedback theme); `core/dom/observe-height.ts` (`observeHeight`, measures the info panel's sticky tabs row).
+  - Shared UI (`src/app/ui/*`, Spartan/Helm, style-only): `HlmCardImports`, `HlmButton`, `HlmCheckbox`, `HlmSheet` / `HlmSheetHeader` / `HlmSheetBody`.
+  - Shell: `ThemeToggleComponent` (`ui/theme-toggle/theme-toggle.component.ts`), rendered inline in the shell's compact nav rather than the app-wide `<app-nav>`.
+  - Environment (`src/environments/environment.ts`): `environment.mapbox.token` (map tiles), `environment.firebase` (Storage, for the railway overlay).
+  - Third-party: `@antv/l7` / `@antv/l7-maps` (`Scene`, `Mapbox`, `PointLayer`, `LineLayer`, `MarkerLayer`, `Marker`, `Popup`); `gtfs-realtime-bindings`; `jszip` (GTFS-static and railway archives); `papaparse` (`stops.txt`); `firebase/app` + `firebase/storage`; `@sentry/angular` (the shell's "Report a bug" widget).
 
 ## ⚙️ Internal State & Logic
 
-- **Angular Signals only** — no RxJS subjects/NgRx in this feature's own code (RxJS appears only
-  as `firstValueFrom(http.get(...))` one-shot HTTP calls inside `GtfsStaticService`/
-  `GeojsonStorageService`).
-- **`GtfsRealtimeService`** (root): `sources = signal<Record<string, RtSource>>({})`, one `RtSource`
-  per applied realtime checkbox. Each `RtSource` self-schedules its own `setTimeout` (not a fixed
-  `setInterval`), exposes `feedEntities`, `isLoading`, `hasLoadedOnce`, `hasError`,
-  `lastErrorMessage`, `secondsRemaining`, `percentRemaining` as signals, and implements
-  exponential backoff on fetch failure (5s → capped 5min) independent of the shared "normal"
-  refresh cadence (`refreshIntervalMs`, adjustable live from the layer panel). `pauseAll()` /
-  `resumeAll()` stop/restart timers without discarding data — driven by `TrackerShellPage`'s
-  `ngOnDestroy`/constructor so navigating away truly stops background polling (documented as a fix
-  for a bug in the ported predecessor).
-- **`GtfsStaticService`** (root): `sources = signal<Record<string, StaticSource>>({})`; each
-  `StaticSource` loads once (no polling) via a server-proxied fetch (`/api/gtfs-proxy`) to sidestep
-  upstream CORS, unzips, and parses only `stops.txt` into a `FeatureCollection<Point>` signal.
-- **`LayerSelectionService`** (root): draft vs. applied state pattern — `realtimeChecked` /
-  `stopsChecked` / `railwayChecked` signals hold in-progress checkbox state;
-  `appliedRealtimeChecked` / `appliedStopsChecked` / `appliedRailway` hold what's live on the map;
-  `hasUnsavedChanges` gates the Apply/Undo bar. `apply()` snapshots the draft as applied and
-  returns the concrete `RtSourceConfig`/`StaticSourceConfig` maps for the two data services to
-  consume; `undo()` reverts drafts to last-applied without touching the map/services.
-  `realtimeCount`/`stopsCount`/`railwayCount`/`selectedCount` are `computed()` badges shown in both
-  the desktop card and mobile sheet.
-- **`TrackerMapComponent`** owns the single `@antv/l7` `Scene` instance (created in
-  `afterNextRender`, since it needs real DOM/WebGL). It reactively diffs
-  `gtfsRealtime.sources()`/`gtfsStatic.sources()` keys each `effect()` tick against internally
-  tracked `Set`s (`seenRtKeys`/`seenStopsKeys`) to create/tear down one `RtMarkerLayerController`
-  (realtime) or one `PointLayer` (stops) per active source, deferring controller construction via
-  `queueMicrotask` to avoid Angular's NG0602 (no nested-effect-creation) error. The railway
-  `LineLayer` is fetched once but added/removed from the scene reactively based on
-  `layerSelection.appliedRailway()`.
-- **`RtMarkerLayerController`** (`map/rt-marker-layer.controller.ts`) is a plain class (not an
-  Angular component) wrapping one `MarkerLayer`; an internal `effect()` redraws all vehicle markers
-  - popups on every `RtSource.feedEntities()` change, clearing and re-adding all markers each tick
-    (no incremental diffing) since L7's `MarkerLayer.addMarker` has no dedup.
-- **`TrackerInfoPanelComponent`** freezes a snapshot of live data (`snapshotVehicles`) on open and
-  only refreshes it on explicit user action (`refreshSnapshot()`), computing an `isStale` flag by
-  reference-inequality against the live signal — deliberately decoupled from the ticking countdown
-  so the Table/JSON views don't visibly shift underfoot while being read.
+- **Signals only.** No RxJS subjects or NgRx. RxJS appears only as `firstValueFrom(http.get(...))` one-shots in `GtfsStaticService` / `GeojsonStorageService`.
+- **`GtfsRealtimeService`** (root): `sources = signal<Record<string, RtSource>>({})`, one `RtSource` per applied realtime checkbox.
+  - Each `RtSource` schedules its own `setTimeout` (not a fixed `setInterval`) and exposes signals `feedEntities`, `isLoading`, `hasLoadedOnce`, `hasError`, `lastErrorMessage`, `secondsRemaining`, `percentRemaining`.
+  - Normal cadence: `refreshIntervalMs` (default 30 s, adjustable live from the layer panel).
+  - On fetch failure: exponential backoff from 5 s, capped at 5 min, independent of the normal cadence.
+  - `pauseAll()` / `resumeAll()` stop and restart timers without discarding data. `TrackerShellPage` calls them from its constructor and `ngOnDestroy`, so leaving `/tracker` really stops background polling.
+- **`GtfsStaticService`** (root): `sources = signal<Record<string, StaticSource>>({})`. Each `StaticSource` loads once (no polling) through `/api/gtfs-proxy`, unzips, and parses only `stops.txt` into a `FeatureCollection<Point>` signal.
+- **`LayerSelectionService`** (root): draft vs. applied state.
+  - Draft: `realtimeChecked`, `stopsChecked`, `railwayChecked` (default `true`).
+  - Applied: `appliedRealtimeChecked`, `appliedStopsChecked`, `appliedRailway`.
+  - `hasUnsavedChanges` gates the Apply/Undo bar.
+  - `apply()` snapshots draft → applied and returns the concrete `RtSourceConfig` / `StaticSourceConfig` maps for the two data services. `undo()` reverts drafts to applied without touching the map or services.
+  - `realtimeCount` / `stopsCount` / `railwayCount` / `selectedCount` are `computed()` badges shown in the desktop card and mobile sheet.
+- **`TrackerMapComponent`** owns the single `@antv/l7` `Scene`, created in `afterNextRender` (it needs real DOM and WebGL). An `effect()` diffs the `gtfsRealtime.sources()` / `gtfsStatic.sources()` keys against internal `Set`s (`seenRtKeys` / `seenStopsKeys`) and creates or tears down one `RtMarkerLayerController` per realtime source, or one `PointLayer` per stops source. Controller construction is deferred with `queueMicrotask` to avoid Angular's NG0602 (nested effect creation). The railway `LineLayer` is fetched once and added or removed reactively from `layerSelection.appliedRailway()`.
+- **`RtMarkerLayerController`** (`map/rt-marker-layer.controller.ts`): a plain class, not a component, wrapping one `MarkerLayer`. An internal `effect()` clears and re-adds all vehicle markers and popups on every `RtSource.feedEntities()` change. There is no incremental diffing because L7's `MarkerLayer.addMarker` has no dedup.
+- **`TrackerInfoPanelComponent`** freezes `snapshotVehicles` on open and refreshes it only on explicit `refreshSnapshot()`. `isStale` compares by reference against the live signal. This is deliberately decoupled from the ticking countdown, so the Table and JSON views don't shift while being read.
 
 ## 🧩 Extension Points & Hooks
 
-- **Config-driven checkbox catalogs:** `data/layer-config.ts`'s `REALTIME_LAYER_CHECKBOXES` /
-  `STOPS_LAYER_CHECKBOXES` arrays (`{ label, value, endpoint, source }`) are the single source of
-  truth for available feeds — adding a new operator/city feed is a data-only change; the
-  checklist, apply flow, map layering, and info panel all key off `value` and pick it up with no
-  further code changes.
-- **`InfoPanelKind` union (`"realtime" | "stops" | "railway"`):** a new layer _type_ (e.g. a
-  service-alerts overlay) would extend this union plus the small `switch` blocks in
-  `TrackerInfoPanelComponent` (`overviewLabel`/`overviewValue`/`rows`/`jsonText`) — the sheet
-  chrome (tabs, sticky header, CSV export, JSON highlighter) is already generic over `kind`.
-  Every info-panel row is independently optional (`buildVehiclePopupHtml`'s `rows.push(...)`
-  pattern), so a feed exposing a new GTFS-RT field is a one-line addition, not a template rewrite.
-- **`VehicleIconMode` (`vehicle-marker-icon.ts`):** icon selection is a single hardcoded function
-  (`iconModeForSourceKey`) keyed on source `value` — currently only distinguishes "train" (KTMB)
-  vs. "bus" (everything else); a real mapping would key off GTFS-static `route_type` once that
-  data is wired through, without touching marker-rendering code.
-- **Draft/Apply separation (`LayerSelectionService`):** any future layer category can plug into
-  the same checked/applied/undo signal triplet + `apply()` contract rather than inventing new
-  state-management per layer type.
-- **`RtSource`'s self-rescheduling timer + backoff:** isolated per source, so per-feed reliability
-  behavior (retry caps, jitter, circuit-breaking) can be tuned or extended without touching the
-  map or UI layers that merely observe its signals.
+- **Config-driven checkbox catalogs:** `data/layer-config.ts` `REALTIME_LAYER_CHECKBOXES` / `STOPS_LAYER_CHECKBOXES` (`{ label, value, endpoint, source }`) are the single source of feeds. A new operator or city feed is data-only. The checklist, apply flow, map layering and info panel all key off `value`.
+- **New layer type:** extend `InfoPanelKind` and the `switch` blocks in `TrackerInfoPanelComponent` (`overviewLabel` / `overviewValue` / `rows` / `jsonText`). The sheet chrome (tabs, sticky header, CSV export, JSON highlighter) is already generic over `kind`.
+- **New GTFS-RT field:** every info-panel row is independently optional (`buildVehiclePopupHtml`'s `rows.push(...)`), so exposing a field is a one-line addition.
+- **New layer category:** plug into the checked / applied / undo signal triplet and the `apply()` contract.
+- **Per-source timer and backoff:** isolated in `RtSource`, so retry caps, jitter or circuit-breaking can change without touching the map or UI observers.
+- **Icon selection:** `iconModeForSourceKey` (`map/vehicle-marker-icon.ts`) is one hardcoded function keyed on source `value`, returning `VehicleIconMode` (`"train" | "bus"`). See the vehicle-type opportunity below for the real mapping.
 
 ## 💡 Potential Feature Opportunities
 
-- **Shareable/deep-linkable map views:** `LayerSelectionService`'s applied signals
-  (`appliedRealtimeChecked`/`appliedStopsChecked`/`appliedRailway`) already represent the single
-  source of truth for what's live on the map, so serializing them to query params (and reading
-  them back on load to seed the draft before `apply()`) is a small additive change — no new state
-  model needed, just a sync point between the existing signals and the router.
-- **In-panel vehicle/stop search or filter:** `TrackerInfoPanelComponent` already freezes a
-  `snapshotVehicles` array and renders it as a sortable table; adding a text filter or column
-  search is additive on top of that existing snapshot rather than a new data path, and wouldn't
-  disturb the deliberate live/snapshot decoupling (`isStale`) design.
-- **Center-on-me / geolocation follow:** `TrackerMapComponent` owns the single `Scene` instance
-  created in `afterNextRender`, which is exactly the SSR-safe boundary the codebase's conventions
-  require for browser-only APIs — calling `navigator.geolocation` behind the existing
-  `isPlatformBrowser` guard and panning/zooming the scene to the result is structurally ready
-  today.
-- **Saved/favorite layer presets:** the draft/applied/undo signal triplet in
-  `LayerSelectionService` is the natural seam for "save this checkbox combination as a preset,"
-  but there's currently no persistence layer (no localStorage, user profile, or Firestore doc)
-  backing any tracker state — everything resets to `layer-config.ts` defaults on reload. Context
-  for future LLMs: this needs a new small persistence service (localStorage is the lowest-lift
-  option; a Firestore CMS doc keyed by user would match patterns used elsewhere in the app) before
-  presets can survive a page reload; the checkbox/apply/undo logic itself needs no changes.
-- **Vehicle-type filtering (train vs. bus vs. other):** `VehicleIconMode`'s `iconModeForSourceKey`
-  already hardcodes a train/bus split per source `value`, so a checklist filter to show/hide
-  vehicle types feels like an obvious next step — but it isn't ready: real filtering needs
-  GTFS-static `route_type` data, and `GtfsStaticService` currently only parses `stops.txt`, not
-  `routes.txt`/`trips.txt`. Context for future LLMs: wiring `route_type` through means extending
-  `GtfsStaticService`'s unzip/parse step to also read `routes.txt` (and `trips.txt` to join
-  `route_id` → `route_type` per vehicle), then threading that value alongside `feedEntities` so
-  `iconModeForSourceKey` (and a new filter control) can key off it instead of the source-name
-  heuristic.
+- **Shareable, deep-linkable map views.** `LayerSelectionService`'s applied signals (`appliedRealtimeChecked` / `appliedStopsChecked` / `appliedRailway`) already are the single source of truth for what is live. Serialize them to query params, and read them back on load to seed the draft before `apply()`. This is a small additive change with no new state model, just a sync point with the router. Nothing in the tracker reads query params today.
+- **In-panel vehicle/stop search or filter.** Add a text filter or column search on the existing `snapshotVehicles` table. It is additive and leaves the live/snapshot decoupling (`isStale`) intact. `TrackerInfoPanelComponent` has no filter input today.
+- **Center-on-me / geolocation follow.** `TrackerMapComponent` creates its `Scene` in `afterNextRender`, the SSR-safe boundary. Calling `navigator.geolocation` behind an `injectIsBrowser()` guard and panning the scene is structurally ready. There is no geolocation code today.
+- **Saved/favorite layer presets.** The draft/applied/undo triplet in `LayerSelectionService` is the natural seam, but nothing persists tracker state. Everything resets to `layer-config.ts` defaults on reload. A small persistence service has to come first (localStorage is the lowest-lift option; a per-user Firestore doc matches patterns used elsewhere). The checkbox/apply/undo logic needs no changes. See COMPONENTS.md, Non-AI cross-cutting item 3.
+- **Vehicle-type filtering (train vs. bus vs. other).** `iconModeForSourceKey` already hardcodes a train/bus split per source `value`, but real filtering needs GTFS-static `route_type`. `GtfsStaticService` parses only `stops.txt`. Wiring it means extending the static unzip/parse to read `routes.txt`, plus `trips.txt` to join `route_id` → `route_type` per vehicle. Then thread `route_type` alongside `feedEntities`, so `iconModeForSourceKey` and a filter control key off it instead of the source-name heuristic.
 
 ## 💡 Potential AI Feature Opportunities
 
-- **Natural-language feed/layer queries:** since every source already exposes structured, typed
-  data (`IFeedEntity`, parsed stop `FeatureCollection`s) and the info panel already builds
-  table/JSON views on demand, an LLM could answer ad-hoc questions ("which KTMB vehicles haven't
-  reported in over 10 minutes?", "how many buses are currently in the Kuantan feed?") directly
-  against the live snapshot already surfaced in `TrackerInfoPanelComponent`.
-- **Anomaly / delay summarization:** `relativeTimeFrom` (staleness) and occupancy/congestion
-  labels are already computed per vehicle in `vehicle-popup-content.ts` — an AI layer could
-  aggregate these across a feed to surface a plain-language "service health" summary (e.g. "3 of
-  12 KTMB vehicles are reporting stale data; RapidBus KL shows heavier-than-usual congestion")
-  rather than requiring a user to manually inspect each vehicle popup or table row.
-- **Smart default layer selection:** `LayerSelectionService`'s draft/apply model is a natural seam
-  for an AI-suggested starting layer set (e.g. inferring likely-relevant operators from a user's
-  rough location or recent `/spotting` activity elsewhere in the app) that pre-populates the
-  draft checkboxes before the user ever opens the panel, without changing the apply/undo
-  contract itself.
+- **Natural-language feed/layer queries.** Sources already expose typed data (`IFeedEntity`, parsed stop collections), and the info panel builds table and JSON views on demand. An LLM could answer ad-hoc questions ("which KTMB vehicles haven't reported in over 10 minutes?") against the live snapshot in `TrackerInfoPanelComponent`.
+- **Anomaly / delay summarization.** `relativeTimeFrom` (staleness) and the occupancy/congestion labels are already computed per vehicle in `vehicle-popup-content.ts`. An AI layer could aggregate them into a plain-language service-health summary per feed (e.g. "3 of 12 KTMB vehicles are reporting stale data; RapidBus KL shows heavier-than-usual congestion"), instead of making users inspect each popup or row.
+- **Smart default layer selection.** Pre-populate the draft checkboxes with likely-relevant operators inferred from a rough location or recent `/spotting` activity. The apply/undo contract stays unchanged.

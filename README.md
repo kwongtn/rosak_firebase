@@ -1,38 +1,35 @@
 # Rosak — Web App
 
-Angular 22 SSR web application for the MLPTF/LRT community platform. Talks to three backends:
-the sibling Django/Strawberry GraphQL API, Firebase (Auth, Firestore, Storage), and GTFS-realtime
-feeds for the tracker.
+Angular 22 SSR web application for the MLPTF/LRT community platform. Talks to three backends: the
+sibling Django/Strawberry GraphQL API, Firebase (Auth, Firestore, Storage), and GTFS-realtime feeds
+for the tracker.
 
-**Read [`AGENTS.md`](AGENTS.md) first** — it is the source of truth for conventions, workflow gates,
-and documentation-maintenance rules.
+**Read [`AGENTS.md`](AGENTS.md) first** — it is the source of truth for conventions, commands,
+workflow gates, and documentation-maintenance rules.
 
 ## Quick start
+
+Node 24 (`.nvmrc`), npm 11.
 
 ```bash
 npm ci
 npm start          # dev server on :4200 (prestart regenerates build-info + env config)
+npm run verify     # before pushing: Prettier + unit tests + production build
 ```
 
-## Key commands
-
-| Command                  | What it does                                                           |
-| ------------------------ | ---------------------------------------------------------------------- |
-| `npm start`              | dev server on :4200                                                    |
-| `npm run build`          | production SSR build (`postbuild` uploads Sentry sourcemaps)           |
-| `npm run serve:ssr:web`  | run the built SSR server from `dist/`                                  |
-| `npm run verify`         | full gate: Prettier + unit tests + production build                    |
-| `npm test -- --no-watch` | unit tests (Vitest) — single run; watch mode hangs in a TTY            |
-| `npm run e2e`            | Playwright e2e against a development build + local mock GraphQL server |
-| `npx prettier --check .` | the only lint gate (there is no ESLint)                                |
+The remaining commands (build, SSR serve, single test suites, Playwright e2e) are in
+[`AGENTS.md`](AGENTS.md) § Quick Commands. There is no ESLint; Prettier is the only lint gate.
 
 ## Documentation
 
-- [`AGENTS.md`](AGENTS.md) — conventions, verification gate, doc-maintenance rules.
-- [`docs/COMPONENTS.md`](docs/COMPONENTS.md) — system topology and the component catalog.
+- [`AGENTS.md`](AGENTS.md) — conventions, commands, verification gate, doc-maintenance rules.
+- [`docs/COMPONENTS.md`](docs/COMPONENTS.md) — system topology and the feature catalog.
 - [`docs/components/`](docs/components/) — per-feature interfaces and extension points.
-- `../okf_bundle/` — OKF knowledge bundle for the monorepo (`okf lookup <Name>`).
+- [`MISTAKES.md`](MISTAKES.md) — known defects and traps.
+- `../okf_bundle/` — OKF knowledge bundle for the monorepo
+  (`okf lookup --bundle ../okf_bundle <Name>`).
 
-Never hand-edit the generated files (`src/build-info.ts`, `src/environments/*.generated.ts`) —
-`scripts/*.mjs` regenerate them on start/build. Deploys run through Firebase App Hosting; Cloud
-Functions deploy from `functions/` via GitHub Actions.
+Never hand-edit generated files (`src/build-info.ts`, `src/environments/*.generated.ts`,
+`public/favicon.{svg,ico}`) — `scripts/*.mjs` regenerate them on start/build. Deploys run through
+Firebase App Hosting (`apphosting.yaml`, `apphosting.staging.yaml`); Cloud Functions deploy from
+`functions/` via GitHub Actions.

@@ -1,108 +1,92 @@
 # AGENTS.md
 
-Guidance for agents working in `rosak_firebase`. Read this before editing.
+Guidance for agents working in `rosak_firebase` (the frontend; `../AGENTS.md` covers cross-repo
+rules). Read before editing.
 
-This project has an OKF knowledge bundle at `../okf_bundle/` (monorepo root — one level above this
-repo; it covers both `rosak_firebase/` and `rosak_backend/`).
+OKF knowledge bundle: `../okf_bundle/` (monorepo root; covers both repos).
+`okf lookup --bundle ../okf_bundle <Name>` for concept context, add `--type <Type>` to filter;
+`../okf_bundle/SUMMARY.md` is the knowledge map.
 
-- Use `okf lookup --bundle ../okf_bundle <Name>` for full concept context.
-- Use `okf lookup --bundle ../okf_bundle --type <Type>` to filter by type.
-- Read `../okf_bundle/SUMMARY.md` for the full knowledge map.
+## Quick Commands
 
-## ⚡ Quick Commands
-
-**Frontend** (this repo, `/home/kwongtn/rosak_firebase`) — npm 11, Node 24:
+npm 11, Node 24 (`.nvmrc`).
 
 ```bash
 npm start                       # dev server :4200 (prestart regenerates build-info + configs)
 npm run build                   # prod SSR build; postbuild uploads Sentry sourcemaps
 npm run serve:ssr:web           # run the built SSR server from dist/
-npm test -- --no-watch          # Vitest single run — REQUIRED in automation (watch defaults
-                                # to true in a TTY and will hang)
+npm test -- --no-watch          # Vitest single run (= npm run test:ci). REQUIRED in automation:
+                                # watch defaults to true in a TTY and hangs
 npm test -- --no-watch --filter "^App"   # single suite by name regex
-npx prettier --check .          # the only lint gate (also enforced in CI + pre-commit)
-npx prettier --write .          # autofix formatting
+npx prettier --check .          # the only lint gate (CI + pre-commit); --write . autofixes
 npm run verify                  # full gate: prettier + unit tests + prod build (prefer this)
-npm run e2e                     # Playwright e2e: dev build + mock GraphQL server (see e2e/)
+npm run e2e                     # Playwright: dev build + mock GraphQL server (see e2e/);
+                                # run `npx playwright install chromium` once first
 ```
 
 There is **no ESLint and no `lint` script**. Type checking happens only via `npm run build`.
 
-**Backend** (`rosak_backend`, sibling repo at `/home/kwongtn/rosak/rosak_backend` — Django 5.2 +
-Strawberry GraphQL + Celery, rye-managed). `rye`/`uv` are not on PATH; use the committed `.venv`
-or Docker:
+Backend (`../rosak_backend`, Django 5.2 + Strawberry GraphQL + Celery): commands live in
+`../AGENTS.md` and `../rosak_backend/AGENTS.md`.
 
-```bash
-cd /home/kwongtn/rosak/rosak_backend
-docker compose up                          # full stack: postgis, valkey, granian app, nginx :8000,
-                                           # celery worker + beat
-.venv/bin/python manage.py makemigrations <app>   # then commit the migration WITH the model change
-.venv/bin/python manage.py migrate
-.venv/bin/python manage.py test            # Django runner — the real suite is pytest under tests/
-ruff check --fix . && ruff format .        # or: pre-commit run --all-files
-celery -A rosak.celery_app worker -l INFO -c 2
-```
-
-## 🏛️ Architecture & Component Pointer
+## Architecture & Component Pointer
 
 A zoneless, signals-first Angular 22 SSR app (standalone components, Tailwind v4, Spartan Brain
 primitives with a local Helm layer in `src/app/ui/`), served by Express on Firebase App Hosting.
-It talks to three independent backends: the sibling Django/Strawberry GraphQL API via
+Three independent backends: the sibling Django/Strawberry GraphQL API via
 `graphqlResource()`/`GraphQLClient`, Firebase directly (Auth, Firestore CMS docs, Storage), and
-third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
+third-party GTFS-realtime feeds for the tracker.
 
 **Do not guess component interfaces, dependencies, or extension points — look them up:**
 
 - **[`docs/COMPONENTS.md`](docs/COMPONENTS.md) is canonical** — system topology, the catalog of all
   11 features, and where the seams are.
 - **[`docs/components/`](docs/components/)`<feature>.md`** — per-feature interfaces, internal state,
-  and named extension points. Read the relevant one before touching a feature.
-- ⚠️ **[`archive/frontend-map/`](archive/frontend-map/) is LEGACY** — it describes the pre-rewrite
-  Angular 18 app (ng-zorro, Apollo, `src/app/services/**`). Those paths no longer exist. Useful only
-  as background on backend/GraphQL contract history; never cite it for current structure, even
-  though a few code comments still link to it.
+  named extension points. Read the relevant one before touching a feature.
+- **[`archive/frontend-map/`](archive/frontend-map/) is LEGACY** — the pre-rewrite Angular 18 app
+  (ng-zorro, Apollo, `src/app/services/**`); those paths no longer exist. Background on
+  backend/GraphQL contract history only; never cite it for current structure, even though a few code
+  comments still link to it.
 
-## 📏 Non-Negotiable Code Conventions
+## Non-Negotiable Code Conventions
 
 **Frontend**
 
-- **Zoneless** — there is no `zone.js`. Never add `provideZoneChangeDetection`, and don't reach for
-  `ChangeDetectionStrategy.OnPush` (unused repo-wide; it's meaningless here).
-- **Standalone is implicit** — no file sets `standalone: true`; don't start. Declare deps in the
-  `@Component({ imports: [...] })` array.
-- **Signals over RxJS.** `signal`/`computed`/`resource` only. There are zero `BehaviorSubject`s or
-  `Subject`s in app code — keep it that way. Private state is `private readonly _x = signal(...)`
-  exposed through `computed()` projections; anything the template reads is `protected readonly`.
-- **Data access**: reads go through `graphqlResource()` (gives SSR TransferState + backoff retry for
+- **Zoneless** — no `zone.js`. Never add `provideZoneChangeDetection`; don't reach for
+  `ChangeDetectionStrategy.OnPush` (unused repo-wide, meaningless here).
+- **Standalone is implicit** — no file sets `standalone: true`; don't start. Declare deps in
+  `@Component({ imports: [...] })`.
+- **Signals over RxJS.** `signal`/`computed`/`resource` only; no `BehaviorSubject`/`Subject` in app
+  code. Private state is `private readonly _x = signal(...)` exposed through `computed()`
+  projections; anything a template reads is `protected readonly`.
+- **Data access**: reads go through `graphqlResource()` (SSR TransferState + backoff retry for
   free); mutations call `inject(GraphQLClient).request(query, variables, headers)` from an event
   handler — never `httpResource`, whose re-fetch-on-signal-change lifecycle is wrong for one-shot
   writes.
-- **`inject()`, not constructor parameters** (116 call sites vs 2 legacy holdouts).
-- **Built-in control flow** `@if`/`@for`/`@switch`. `CommonModule`, `NgIf`, and `NgFor` appear
-  nowhere — never import them.
-- **UI layer**: compose from `src/app/ui/*` (HlmBadge, HlmButton, HlmSkeleton…) and Spartan Brain for
-  behavior; merge classes with `hlm()` from `src/app/ui/utils/hlm.ts`. Tailwind v4 utilities only —
-  do not introduce another styling system.
-- **SSR safety**: guard every browser-only API with the shared helper `injectIsBrowser()` from
-  `src/app/core/composables/is-browser.ts`, and tear down Firestore `onSnapshot` subscriptions in
+- **`inject()`, not constructor parameters.**
+- **Built-in control flow** `@if`/`@for`/`@switch`; never import `CommonModule`, `NgIf`, or `NgFor`.
+- **UI layer**: compose from `src/app/ui/*` (HlmBadge, HlmButton, HlmSkeleton…) and Spartan Brain
+  for behavior; merge classes with `hlm()` from `src/app/ui/utils/hlm.ts`. Tailwind v4 utilities
+  only — no other styling system.
+- **SSR safety**: guard every browser-only API with `injectIsBrowser()` from
+  `src/app/core/composables/is-browser.ts`; tear down Firestore `onSnapshot` subscriptions in
   `ngOnDestroy`.
-- **Lazy-load** new features via `loadChildren`/`loadComponent` in `src/app/app.routes.ts`. Budgets
-  are enforced: 1 MB initial bundle, 8 kB per component stylesheet.
-- **Never hand-edit** `src/build-info.ts` or `src/environments/*.generated.ts` — `scripts/*.mjs`
-  regenerate them on every `prestart`/`prebuild`. Config changes belong in `apphosting.yaml` /
-  `apphosting.staging.yaml`.
+- **Lazy-load** new features via `loadChildren`/`loadComponent` in `src/app/app.routes.ts`. Error
+  budgets: 1 MB initial bundle, 8 kB per component stylesheet.
+- **Never hand-edit** `src/build-info.ts`, `src/environments/*.generated.ts`,
+  `public/favicon.{svg,ico}` — `scripts/*.mjs` regenerate them on every `prestart`/`prebuild`.
+  Config changes belong in `apphosting.yaml` / `apphosting.staging.yaml`.
 
 **Typing & error handling**
 
-- ⚠️ **`strict`, `strictNullChecks`, and `strictTemplates` are all OFF** in `tsconfig.json`. The
-  compiler will not catch null/undefined for you — guard explicitly with `?.` / `??` / early
-  returns. Enabled and enforced: `noImplicitOverride`, `noImplicitReturns`,
-  `noPropertyAccessFromIndexSignature`, `noFallthroughCasesInSwitch`.
-- **`any` is banned** (2 occurrences repo-wide). Use `unknown` plus narrowing, or a real type.
+- **`strict`, `strictNullChecks`, and `strictTemplates` are all OFF** in `tsconfig.json`: the
+  compiler will not catch null/undefined — guard explicitly with `?.` / `??` / early returns.
+  Enforced: `noImplicitOverride`, `noImplicitReturns`, `noPropertyAccessFromIndexSignature`,
+  `noFallthroughCasesInSwitch`.
+- **`any` is banned.** Use `unknown` plus narrowing, or a real type.
 - **Never swallow errors.** No empty `catch`, no catch-and-`console.log`. The global `ErrorHandler`
   is Sentry-backed — let unexpected errors reach it. Throw typed errors (e.g.
-  `GraphQLRequestError`); surface expected failures to users via `ToastService` or the retry-banner
-  pattern.
+  `GraphQLRequestError`); surface expected failures via `ToastService` or the retry-banner pattern.
 
 **Backend & database**
 
@@ -110,68 +94,68 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
   backend change lands first — never stub or fake a response shape.
 - **Migrations ship with their model change**, in the same commit. Never hand-edit an applied
   migration; never `--fake` without saying so explicitly.
-- `tach.yml` enforces dependency boundaries between Django apps — check it before adding a
-  cross-app import.
+- `tach.yml` enforces dependency boundaries between Django apps — check it before adding a cross-app
+  import.
 - Long-running or scheduled work goes to a **Celery task** (`rosak.celery_app`), never inline in a
   request or GraphQL resolver.
 - Ruff is the formatter and linter (via pre-commit). Database is Postgres/PostGIS.
 
-## 🔄 Workflow & Execution Rules
+## Workflow & Execution Rules
 
 1. **Explore → Plan → Code → Verify.** Before any change touching more than one file: read
    `docs/components/<feature>.md` and the actual source, then **state an explicit plan** (files,
    order, which documented seam you're extending) and get agreement before editing. The catalog
    already names the extension points — use them instead of inventing new ones.
-2. **Verify before declaring done.** Run `npm run verify` (chains
-   `npx prettier --check . && npm test -- --no-watch && npm run build`).
-   Report real output. If something fails, say so — never claim completion on an unverified change.
+2. **Verify before declaring done.** Run `npm run verify` (Prettier + `npm test -- --no-watch` +
+   `npm run build`). Report real output. If something fails, say so — never claim completion on an
+   unverified change.
 3. **Tests**: always run them. **Add a spec for every feature and bug fix where it is reasonably
    possible** — at minimum, any new pure utility, service, store, or build-script logic must have a
-   test. Write new specs for pure utilities, services, and stores. Component specs with
-   `data-testid` assertions are established too: the repo has 69 spec files (e.g.
-   `features/home/home.page.spec.ts`, `features/home/feed/link-submit-box.component.spec.ts`), not
-   just `src/app/app.spec.ts`, so follow the existing TestBed patterns rather than treating component
-   tests as out of scope.
-4. **Context hygiene**: `/clear` between unrelated features. Feature areas here are deeply
-   documented but largely independent — stale context from another feature causes wrong assumptions.
-5. **Git**: commit at logical checkpoints — one concern per commit — so the history reads chronologically and the working tree is never left full of uncommitted changes; push only when asked. Pre-commit runs `lint-staged` → Prettier.
-   Any AI-assisted commit must append a `Co-authored-by:` trailer naming the agent **and**
-   the model used, e.g. `Co-authored-by: opencode (opencode-go/deepseek-v4-flash)
-<noreply@opencode.ai>` or `Co-authored-by: Claude Code (claude-sonnet-4-5)
-<noreply@anthropic.com>`. Never attribute AI work to a human co-author.
-6. **Resolved trap**: `adminOnlyGuard` was previously a `return true` stub, but is **fixed** — it
-   awaits `auth.whenReady` then returns `auth.isAdmin() ? true : router.createUrlTree(["/spotting"])`
-   (`src/app/core/auth/admin-only.guard.ts:8-14`, commit 29b5d6d). `/console` is genuinely
-   admin-gated. Do not "re-fix" it.
+   test. Component specs with `data-testid` assertions are established too (e.g.
+   `features/home/home.page.spec.ts`, `features/home/feed/link-submit-box.component.spec.ts`);
+   follow the existing TestBed patterns rather than treating component tests as out of scope.
+4. **Context hygiene**: `/clear` between unrelated features. Feature areas are deeply documented but
+   largely independent — stale context from another feature causes wrong assumptions.
+5. **Git**: commit at logical checkpoints — one concern per commit — so history reads
+   chronologically and the working tree is never left full of uncommitted changes; push only when
+   asked. Pre-commit runs `lint-staged` → Prettier. Any AI-assisted commit must append a
+   `Co-authored-by:` trailer naming the agent **and** the model, e.g.
+   `Co-authored-by: opencode (opencode-go/deepseek-v4-flash) <noreply@opencode.ai>` or
+   `Co-authored-by: Claude Code (claude-sonnet-4-5) <noreply@anthropic.com>`. Never attribute AI
+   work to a human co-author.
+6. **Resolved trap**: `adminOnlyGuard` was once a `return true` stub but is **fixed** — it awaits
+   `auth.whenReady`, then returns `auth.isAdmin() ? true : router.createUrlTree(["/spotting"])`
+   (`src/app/core/auth/admin-only.guard.ts`, commit 29b5d6d). `/console` is genuinely admin-gated.
+   Do not "re-fix" it.
 
-**Code Definitions** - Never attempt to open, grep, or search files inside `.venv` or `node_modules`. If you need library or framework documentation, use the LSP tools or ask/run python introspection directly.
+**Code definitions**: never open, grep, or search files inside `.venv` or `node_modules`. For
+library or framework docs, use the LSP tools or ask/run Python introspection directly.
 
 ---
 
-## 📝 Documentation Maintenance Rules
+## Documentation Maintenance Rules
 
 ### MISTAKES.md
 
-- **Location**: Repo root (`MISTAKES.md`)
-- **Purpose**: Catalog of known defects, traps, and past mistakes so future agents don't repeat them
-- **Update trigger**: When you discover a new defect/trap, or when a documented trap is fixed
-- **Format**:
-  ```markdown
-  ## [YYYY-MM-DD] Component: Brief Title
+[`MISTAKES.md`](MISTAKES.md) (repo root) catalogs known defects, traps, and past mistakes so future
+agents don't repeat them. Update it when you discover a new defect/trap or fix a documented one.
+Format:
 
-  **Problem**: What went wrong
-  **Root Cause**: Why it happened
-  **Fix**: What was done (commit ref if applicable)
-  **Prevention**: How to avoid in future
-  ```
+```markdown
+## [YYYY-MM-DD] Component: Brief Title
+
+**Problem**: What went wrong
+**Root Cause**: Why it happened
+**Fix**: What was done (commit ref if applicable)
+**Prevention**: How to avoid in future
+```
 
 ### Progress Documentation (docs/progress/)
 
-- **Structure**: `docs/progress/<yyyy>/<mm>/<dd>.md` + `SUMMARY.md` at month/year levels
-- **Update trigger**: When implementing features, fixing bugs, or resolving TODOs
-- **Content**: Grouped by module/feature, with commit references
-- **Cleanup**: Remove completed items from "Suggested Features", "TODO", "Potential Feature Opportunities" sections in component docs
-- **Main docs stay clean**: Component docs only show _current_ opportunities, not history
+- **Structure**: `docs/progress/<yyyy>/<mm>/<dd>.md` + `SUMMARY.md` at month/year levels.
+- **Update trigger**: implementing features, fixing bugs, or resolving TODOs.
+- **Content**: grouped by module/feature, with commit references.
+- **Main docs stay clean**: component docs show only _current_ opportunities, not history.
 
 ### Methodology & Metric Constants
 
@@ -180,9 +164,9 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
   `methodology.content.ts` (sections + metric definitions). Copy is rendered via
   `renderMethodologyCopy()` — never a literal in a consuming template.
 - Any user-visible metric/status/threshold/rule must add a `MetricDoc` (+ a `METHODOLOGY_CONSTANTS`
-  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is `metricTooltip(id)`
-  — the metric's optional `summary`, else its full `definition`, rendered with the constants. Author
-  a `summary` when the definition is too long to read in a tooltip.
+  token if it has a number) and be surfaced by an `InfoPopover` whose `content` is
+  `metricTooltip(id)` — the metric's optional `summary`, else its full `definition`, rendered with
+  the constants. Author a `summary` when the definition is too long to read in a tooltip.
 - When a feature changes a documented value or rule: update the registry, bump the owning section's
   `lastReviewed`, re-run `npm test -- --no-watch` (the PR template carries the checklist line).
 - Backend-owned values (reliability constants, provenance licenses, staleness windows) are fetched
@@ -192,8 +176,11 @@ third-party GTFS-realtime feeds for the tracker — no Supabase anywhere.
 
 ### Workflow Integration
 
-1. After any verified task completion → check if it resolves a MISTAKES entry or completes a TODO
-2. If yes → append to today's `docs/progress/<yyyy>/<mm>/<dd>.md`
-3. Update monthly/yearly SUMMARY.md
-4. Remove from component doc's opportunity/TODO sections
-5. If it was a documented trap → update MISTAKES.md with fix reference
+After any verified task completion:
+
+1. Check whether it resolves a MISTAKES entry or completes a TODO. If not, stop.
+2. Append to today's `docs/progress/<yyyy>/<mm>/<dd>.md`.
+3. Update the monthly/yearly `SUMMARY.md`.
+4. Remove it from the component doc's "Suggested Features" / "TODO" / "Potential Feature
+   Opportunities" sections.
+5. If it was a documented trap, update MISTAKES.md with the fix reference.
