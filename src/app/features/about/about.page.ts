@@ -17,36 +17,21 @@ import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmBadge } from "../../ui/badge/badge";
 import { HlmButton } from "../../ui/button/button";
 import { HlmCardImports } from "../../ui/card/card";
-import { HlmCheckbox } from "../../ui/checkbox/checkbox";
 import { HlmInput } from "../../ui/input/input";
-import { HlmNativeSelect } from "../../ui/select/native-select";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { ToastService } from "../../ui/toast/toast.service";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
+import { Personnel, PublicAboutDocument } from "./data/about.model";
 import {
-  CommunityProject,
-  Personnel,
-  PersonnelSocial,
-  Project,
-  PublicAboutDocument,
-  TechStack,
-} from "./data/about.model";
-import {
-  draftFromDoc,
-  emptyCommunityProject,
-  emptyPersonnel,
-  emptyProject,
-  emptySocial,
-  emptyTechStack,
   filterAndSortProjects,
   filterCommunityProjects,
   filterPersonnel,
   filterTechStacks,
   formatPersonPeriod,
-  sanitizeDraft,
 } from "./data/about-edit.util";
+import { AboutEditorComponent } from "./editor/about-editor.component";
 
 function firebaseApp() {
   return getApps().length ? getApps()[0] : initializeApp(environment.firebase);
@@ -72,11 +57,10 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
 @Component({
   selector: "app-about",
   imports: [
+    AboutEditorComponent,
     HlmBadge,
     HlmButton,
-    HlmCheckbox,
     HlmInput,
-    HlmNativeSelect,
     HlmSkeleton,
     AdSlotComponent,
     AppNavComponent,
@@ -100,14 +84,13 @@ export class AboutPage implements OnDestroy {
   protected readonly isLoading = signal(true);
   protected readonly isError = signal(false);
   private readonly _data = signal<PublicAboutDocument | undefined>(undefined);
+  protected readonly data = this._data.asReadonly();
   private unsubscribe: Unsubscribe | undefined;
 
   protected readonly isAdmin = this.auth.isAdmin;
   protected readonly searchTerm = signal("");
   protected readonly editMode = signal(false);
   protected readonly saving = signal(false);
-  private readonly _draft = signal<PublicAboutDocument | undefined>(undefined);
-  protected readonly draft = this._draft.asReadonly();
 
   protected readonly aboutProject = computed(() => this._data()?.aboutProject ?? "");
   protected readonly projects = computed(() =>
@@ -148,11 +131,6 @@ export class AboutPage implements OnDestroy {
     ].filter((link) => link.show),
   );
   protected statusVariant = (status: string) => STATUS_VARIANT[status] ?? "neutral";
-
-  /** Templates can't call `Number()` — `$any($event.target).value` is a string from a number input. */
-  protected asNumber(value: unknown): number {
-    return Number(value);
-  }
 
   /** "Jan 2024 - Present · 2 years 3 months", or "" when no valid start date. */
   protected personPeriod(person: Personnel): string {
@@ -213,30 +191,24 @@ export class AboutPage implements OnDestroy {
   }
 
   // --- Admin editor ---------------------------------------------------------
+  // The form itself lives in `AboutEditorComponent`; the page owns visibility and persistence.
 
-  /** Copy of the last snapshot, normalized so every input can bind; Firestore untouched until Save. */
   protected beginEdit(): void {
-    // A missing doc starts from an empty draft; saving creates it.
-    this._draft.set(draftFromDoc(this._data() ?? ({} as PublicAboutDocument)));
     this.editMode.set(true);
   }
 
   protected cancelEdit(): void {
-    this._draft.set(undefined);
     this.editMode.set(false);
   }
 
-  protected async saveDraft(): Promise<void> {
-    const draft = this._draft();
-    if (!draft || this.saving()) {
+  /** Writes the editor's sanitized doc; the live snapshot then re-renders the page. */
+  protected async saveDoc(doc: PublicAboutDocument): Promise<void> {
+    if (this.saving()) {
       return;
     }
     this.saving.set(true);
     try {
-      await setDoc(
-        firestoreDoc(getFirestore(firebaseApp()), "public", "about"),
-        sanitizeDraft(draft),
-      );
+      await setDoc(firestoreDoc(getFirestore(firebaseApp()), "public", "about"), doc);
       this.cancelEdit();
       this.toast.success("Saved", "The about page has been updated.");
     } catch (err) {
@@ -244,130 +216,6 @@ export class AboutPage implements OnDestroy {
     } finally {
       this.saving.set(false);
     }
-  }
-
-  protected patchDraft(patch: Partial<PublicAboutDocument>): void {
-    this._draft.update((d) => (d ? { ...d, ...patch } : d));
-  }
-
-  private updateIn<K extends keyof PublicAboutDocument>(
-    key: K,
-    updater: (list: PublicAboutDocument[K]) => PublicAboutDocument[K],
-  ): void {
-    this._draft.update((d) => (d ? { ...d, [key]: updater(d[key]) } : d));
-  }
-
-  private updateItem<T>(list: T[], index: number, patch: Partial<T>): T[] {
-    return list.map((item, i) => (i === index ? { ...item, ...patch } : item));
-  }
-
-  protected updateProject(
-    index: number,
-    key: keyof Project,
-    value: boolean | string | number,
-  ): void {
-    this.updateIn("projects", (list) =>
-      this.updateItem(list as Project[], index, { [key]: value }),
-    );
-  }
-
-  protected addProject(): void {
-    this.updateIn("projects", (list) => [...(list as Project[]), emptyProject()]);
-  }
-
-  protected removeProject(index: number): void {
-    this.updateIn("projects", (list) => (list as Project[]).filter((_, i) => i !== index));
-  }
-
-  protected updatePersonnel(
-    index: number,
-    key: keyof Personnel,
-    value: boolean | string | number,
-  ): void {
-    this.updateIn("personnel", (list) =>
-      this.updateItem(list as Personnel[], index, { [key]: value }),
-    );
-  }
-
-  protected addPersonnel(): void {
-    this.updateIn("personnel", (list) => {
-      const items = list as Personnel[];
-      return [...items, emptyPersonnel(items.length)];
-    });
-  }
-
-  protected removePersonnel(index: number): void {
-    this.updateIn("personnel", (list) => (list as Personnel[]).filter((_, i) => i !== index));
-  }
-
-  protected updateSocial(
-    personIndex: number,
-    socialIndex: number,
-    key: keyof PersonnelSocial,
-    value: string,
-  ): void {
-    this.updateIn("personnel", (list) =>
-      (list as Personnel[]).map((p, i) =>
-        i === personIndex
-          ? { ...p, socials: this.updateItem(p.socials ?? [], socialIndex, { [key]: value }) }
-          : p,
-      ),
-    );
-  }
-
-  protected addSocial(personIndex: number): void {
-    this.updateIn("personnel", (list) =>
-      (list as Personnel[]).map((p, i) =>
-        i === personIndex ? { ...p, socials: [...(p.socials ?? []), emptySocial()] } : p,
-      ),
-    );
-  }
-
-  protected removeSocial(personIndex: number, socialIndex: number): void {
-    this.updateIn("personnel", (list) =>
-      (list as Personnel[]).map((p, i) =>
-        i === personIndex
-          ? { ...p, socials: (p.socials ?? []).filter((_, j) => j !== socialIndex) }
-          : p,
-      ),
-    );
-  }
-
-  protected updateTechStack(index: number, key: keyof TechStack, value: string): void {
-    this.updateIn("techStacks", (list) =>
-      this.updateItem(list as TechStack[], index, { [key]: value }),
-    );
-  }
-
-  protected addTechStack(): void {
-    this.updateIn("techStacks", (list) => [...(list as TechStack[]), emptyTechStack()]);
-  }
-
-  protected removeTechStack(index: number): void {
-    this.updateIn("techStacks", (list) => (list as TechStack[]).filter((_, i) => i !== index));
-  }
-
-  protected updateCommunityProject(
-    index: number,
-    key: keyof CommunityProject,
-    value: string,
-  ): void {
-    this.updateIn("communityProjects", (list) =>
-      this.updateItem(list as CommunityProject[], index, { [key]: value }),
-    );
-  }
-
-  protected addCommunityProject(): void {
-    this.updateIn("communityProjects", (list) => [
-      ...(list as CommunityProject[]),
-      emptyCommunityProject(),
-    ]);
-  }
-
-  protected removeCommunityProject(index: number): void {
-    this.updateIn("communityProjects", (list) =>
-      (list as CommunityProject[]).filter((_, i) => i !== index),
-    );
   }
 
   ngOnDestroy(): void {

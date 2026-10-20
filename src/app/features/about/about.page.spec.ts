@@ -141,6 +141,14 @@ describe("AboutPage", () => {
     return input;
   }
 
+  /** Clicks Edit and waits for the `@defer`-loaded editor to render. */
+  async function openEditor(): Promise<void> {
+    buttonWithText("Edit").click();
+    detect();
+    await fixture.whenStable();
+    detect();
+  }
+
   function typeSearch(term: string): void {
     const input = searchInput();
     input.value = term;
@@ -262,8 +270,7 @@ describe("AboutPage", () => {
     createPage();
     pushSnapshot(FULL_DOC);
 
-    buttonWithText("Edit").click();
-    detect();
+    await openEditor();
 
     let resolveSave: () => void = () => undefined;
     firestore.setDoc.mockReturnValueOnce(
@@ -303,8 +310,7 @@ describe("AboutPage", () => {
     expect(root.textContent).not.toContain("Legacy Project");
     expect(root.textContent).not.toContain("Legacy Person");
 
-    buttonWithText("Edit").click();
-    detect();
+    await openEditor();
     buttonWithText("Save").click();
     await fixture.whenStable();
     detect();

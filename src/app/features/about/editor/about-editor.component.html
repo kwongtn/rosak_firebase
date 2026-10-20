@@ -1,0 +1,286 @@
+<section class="flex flex-col gap-6 rounded-lg border p-4">
+  <h2 class="text-lg font-semibold">Edit about page</h2>
+
+  <div class="flex flex-col gap-2">
+    <label class="text-sm font-medium" for="about-project-input">About the project</label>
+    <textarea
+      id="about-project-input"
+      hlmInput
+      rows="5"
+      [value]="draft()?.aboutProject"
+      (input)="patchDraft({ aboutProject: valueOf($event) })"
+    ></textarea>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold">Projects</h3>
+      <button hlmBtn variant="outline" size="sm" (click)="addProject()">Add project</button>
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      @for (project of draft()?.projects; track $index) {
+        <div hlmCard class="flex flex-col gap-3 p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              hlmInput
+              class="min-w-40 flex-1"
+              placeholder="Name"
+              [value]="project.name"
+              (input)="updateProject($index, 'name', valueOf($event))"
+            />
+            <select
+              hlmSelect
+              class="w-32"
+              aria-label="Status"
+              [value]="project.status"
+              (change)="updateProject($index, 'status', valueOf($event))"
+            >
+              <option value="alpha">alpha</option>
+              <option value="beta">beta</option>
+              <option value="stable">stable</option>
+              <option value="planned">planned</option>
+            </select>
+            <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <hlm-checkbox
+                [checked]="project.display"
+                (checkedChange)="updateProject($index, 'display', $event)"
+              />
+              Show
+            </label>
+            <button hlmBtn variant="ghost" size="sm" (click)="removeProject($index)">Remove</button>
+          </div>
+          <input
+            hlmInput
+            placeholder="Start date (YYYY-MM-DD)"
+            [value]="project.startDate"
+            (input)="updateProject($index, 'startDate', valueOf($event))"
+          />
+          <textarea
+            hlmInput
+            rows="2"
+            placeholder="Description"
+            [value]="project.description"
+            (input)="updateProject($index, 'description', valueOf($event))"
+          ></textarea>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold">Personnel</h3>
+      <button hlmBtn variant="outline" size="sm" (click)="addPersonnel()">Add person</button>
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      @for (person of draft()?.personnel; track $index) {
+        <div hlmCard class="flex flex-col gap-3 p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              hlmInput
+              class="min-w-40 flex-1"
+              placeholder="Name"
+              [value]="person.name"
+              (input)="updatePersonnel($index, 'name', valueOf($event))"
+            />
+            <input
+              hlmInput
+              class="w-24"
+              type="number"
+              placeholder="Order"
+              [value]="person.order"
+              (input)="updatePersonnel($index, 'order', numberOf($event))"
+            />
+            <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <hlm-checkbox
+                [checked]="person.display"
+                (checkedChange)="updatePersonnel($index, 'display', $event)"
+              />
+              Show
+            </label>
+            <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <hlm-checkbox
+                [checked]="person.retired"
+                (checkedChange)="updatePersonnel($index, 'retired', $event)"
+              />
+              Retired
+            </label>
+            <button hlmBtn variant="ghost" size="sm" (click)="removePersonnel($index)">
+              Remove
+            </button>
+          </div>
+          <input
+            hlmInput
+            placeholder="Title"
+            [value]="person.title"
+            (input)="updatePersonnel($index, 'title', valueOf($event))"
+          />
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-muted-foreground">Period</span>
+            <input
+              hlmInput
+              type="month"
+              class="w-40"
+              aria-label="Period start month"
+              [value]="person.startDate"
+              (input)="updatePersonnel($index, 'startDate', valueOf($event))"
+            />
+            <span class="text-xs text-muted-foreground">to</span>
+            <input
+              hlmInput
+              type="month"
+              class="w-40"
+              aria-label="Period end month (leave empty for Present)"
+              [value]="person.endDate"
+              (input)="updatePersonnel($index, 'endDate', valueOf($event))"
+            />
+          </div>
+          <input
+            hlmInput
+            placeholder="Avatar image URL"
+            [value]="person.avatar"
+            (input)="updatePersonnel($index, 'avatar', valueOf($event))"
+          />
+          <textarea
+            hlmInput
+            rows="2"
+            placeholder="Description"
+            [value]="person.description"
+            (input)="updatePersonnel($index, 'description', valueOf($event))"
+          ></textarea>
+          <div class="flex flex-col gap-2">
+            <div class="text-xs font-medium text-muted-foreground">Socials</div>
+            @for (social of person.socials; track socialIndex; let socialIndex = $index) {
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  hlmInput
+                  class="min-w-24"
+                  placeholder="Name"
+                  [value]="social.name"
+                  (input)="updateSocial($index, socialIndex, 'name', valueOf($event))"
+                />
+                <input
+                  hlmInput
+                  class="flex-1"
+                  placeholder="https://…"
+                  [value]="social.link"
+                  (input)="updateSocial($index, socialIndex, 'link', valueOf($event))"
+                />
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="sm"
+                  (click)="removeSocial($index, socialIndex)"
+                >
+                  Remove
+                </button>
+              </div>
+            }
+            <button hlmBtn variant="outline" size="sm" (click)="addSocial($index)">
+              Add social
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold">Tech Stack &amp; Open Source</h3>
+      <button hlmBtn variant="outline" size="sm" (click)="addTechStack()">Add tech stack</button>
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      @for (stack of draft()?.techStacks; track $index) {
+        <div hlmCard class="flex flex-col gap-3 p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              hlmInput
+              class="min-w-40 flex-1"
+              placeholder="Name"
+              [value]="stack.name"
+              (input)="updateTechStack($index, 'name', valueOf($event))"
+            />
+            <button hlmBtn variant="ghost" size="sm" (click)="removeTechStack($index)">
+              Remove
+            </button>
+          </div>
+          <input
+            hlmInput
+            placeholder="Icon image URL"
+            [value]="stack.iconUrl"
+            (input)="updateTechStack($index, 'iconUrl', valueOf($event))"
+          />
+          <input
+            hlmInput
+            placeholder="URL"
+            [value]="stack.url"
+            (input)="updateTechStack($index, 'url', valueOf($event))"
+          />
+          <textarea
+            hlmInput
+            rows="2"
+            placeholder="Description"
+            [value]="stack.description"
+            (input)="updateTechStack($index, 'description', valueOf($event))"
+          ></textarea>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold">Other Community Projects</h3>
+      <button hlmBtn variant="outline" size="sm" (click)="addCommunityProject()">
+        Add community project
+      </button>
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      @for (project of draft()?.communityProjects; track $index) {
+        <div hlmCard class="flex flex-col gap-3 p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              hlmInput
+              class="min-w-40 flex-1"
+              placeholder="Name"
+              [value]="project.name"
+              (input)="updateCommunityProject($index, 'name', valueOf($event))"
+            />
+            <button hlmBtn variant="ghost" size="sm" (click)="removeCommunityProject($index)">
+              Remove
+            </button>
+          </div>
+          <input
+            hlmInput
+            placeholder="Icon image URL"
+            [value]="project.iconUrl"
+            (input)="updateCommunityProject($index, 'iconUrl', valueOf($event))"
+          />
+          <input
+            hlmInput
+            placeholder="URL"
+            [value]="project.url"
+            (input)="updateCommunityProject($index, 'url', valueOf($event))"
+          />
+          <textarea
+            hlmInput
+            rows="2"
+            placeholder="Description"
+            [value]="project.description"
+            (input)="updateCommunityProject($index, 'description', valueOf($event))"
+          ></textarea>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div
+    class="bg-background/95 sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-2 rounded-b-lg border-t px-4 py-3 backdrop-blur"
+  >
+    <button hlmBtn variant="ghost" [disabled]="saving()" (click)="dismissed.emit()">Cancel</button>
+    <button hlmBtn [disabled]="saving()" (click)="submit()">
+      {{ saving() ? "Saving…" : "Save" }}
+    </button>
+  </div>
+</section>
