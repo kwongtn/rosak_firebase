@@ -189,6 +189,10 @@ export class AboutPage implements OnDestroy {
     el.focus({ preventScroll: true });
   }
 
+  protected onSearch(event: Event): void {
+    this.searchTerm.set((event.target as HTMLInputElement).value);
+  }
+
   protected clearSearch(): void {
     this.searchTerm.set("");
   }

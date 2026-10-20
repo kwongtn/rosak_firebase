@@ -46,7 +46,7 @@
             aria-label="Search projects, personnel, tech stack"
             placeholder="Search projects, personnel, tech stack…"
             [value]="searchTerm()"
-            (input)="searchTerm.set($any($event.target).value)"
+            (input)="onSearch($event)"
           />
           @if (searchTerm()) {
             <button hlmBtn variant="ghost" size="sm" (click)="clearSearch()">Clear</button>
