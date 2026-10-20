@@ -13,6 +13,24 @@
 
 ---
 
+## [2026-10-20] about/editor: a nested `@for` reuses the INNER `$index`, so an edit lands on the wrong person
+
+**Problem**: In the admin editor, editing or removing one person's social changed a different person's social, or was lost. The nested socials `@for` passed its own `$index` (the social's position) to `updateSocial` / `removeSocial` as the person index.
+**Root Cause**: Inside the inner `@for`, `$index` is the nearest loop's index, which is the socials list. The outer personnel loop's index was never captured. The bug is invisible for the first person, because both indexes are `0`.
+**Fix**: `8269470`. The outer loop aliases `let personIndex = $index`, and the social handlers take `personIndex` plus the social's own index. Two specs (a second person's social edited and removed) failed before the fix.
+**Prevention**: When a nested `@for` body needs the outer index, alias it on the outer loop (`let personIndex = $index`). Test an item that is not first; index `0` hides a swapped index.
+
+---
+
+## [2026-10-20] about: demoting `h1` to `h2` without re-sizing left the headings visually flat
+
+**Problem**: After the accessibility pass turned the section titles into `h2`s, every heading on `/about` still had `text-2xl font-bold`, so the page had no visible hierarchy. The intro paragraph was `text-sm` across the full width.
+**Root Cause**: The change edited the tag (for the document outline) and left the size classes already on the element, so the visual scale was never updated with the tag.
+**Fix**: `e235183`. Section `h2`s are `text-lg font-semibold`, the page `h1` keeps `text-2xl font-bold`, and the intro is `text-base max-w-prose`.
+**Prevention**: When you change a heading's tag, check its size against the app's convention: `h1` `text-2xl font-bold`, section `h2` `text-lg font-semibold` (`text-base` inside a card). Compare with the other pages before merging.
+
+---
+
 ## [2026-10-20] about: legacy Firestore rows broke the admin save, and a stale comment named the wrong sort order
 
 **Problem**: Two save bugs on legacy `public/about` rows. A personnel social without a `name` made `sanitizeDraft` throw on `.trim()` of undefined, which surfaced as a "Save failed" toast. A personnel row without `display` was hidden on the public page, but the first admin save made it visible. Separately, the `filterAndSortProjects` comment said newest-first while the code and spec sorted oldest-first.
@@ -1179,6 +1197,8 @@ Historical fixes with no live action; kept so the ground isn't re-covered. Full 
 - **2026-08-24** — `console`/`profile`: the duplicated bulk-action pattern was extracted to `useBulkActions` (`873202f`, inferred).
 - **2026-09-22** — `AGENTS.md`: it documented a `postGraphQL()` helper that never existed; it now names `inject(GraphQLClient).request(query, variables, headers)` for writes.
 - **2026-10-20** — `about`: legacy rows threw on save (missing social name) or flipped to visible on the first save (missing `display`); `draftFromDoc` now normalizes them (`e8075ac`).
+- **2026-10-20** — `about/editor`: a nested `@for` passed the inner `$index` as the person index, so editing a social changed the wrong person; the outer index is now aliased (`8269470`).
+- **2026-10-20** — `about`: `h2` section headings kept the `h1`'s `text-2xl font-bold`, so the page had no visible hierarchy; now `text-lg font-semibold` (`e235183`).
 
 ---
 
