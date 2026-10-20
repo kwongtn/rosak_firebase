@@ -1,5 +1,6 @@
 import {
   CUSTOM_ELEMENTS_SCHEMA,
+  ErrorHandler,
   type WritableSignal,
   provideZonelessChangeDetection,
   signal,
@@ -8,7 +9,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../core/auth/auth.service";
-import { GraphQLClient } from "../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../core/graphql/graphql-client";
 import { SpottingActivityHeatmap } from "../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -52,10 +53,12 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 describe("ProfilePage", () => {
   let fixture: ComponentFixture<ProfilePage>;
   let requestMock: ReturnType<typeof vi.fn>;
+  let handleErrorMock: ReturnType<typeof vi.fn>;
   let signedInUid: WritableSignal<{ uid: string } | null>;
 
   beforeEach(async () => {
     requestMock = vi.fn();
+    handleErrorMock = vi.fn();
     signedInUid = signal<{ uid: string } | null>({ uid: "me" });
 
     await TestBed.configureTestingModule({
@@ -71,6 +74,7 @@ describe("ProfilePage", () => {
           },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
+        { provide: ErrorHandler, useValue: { handleError: handleErrorMock } },
       ],
     })
       // Shell, ad and feature children pull in live services; the page's own load logic is under test.
@@ -177,5 +181,82 @@ describe("ProfilePage", () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(cardNickname()).toBe("Bob");
+  });
+
+  describe("when the load fails", () => {
+    function banner(): HTMLElement | null {
+      return fixture.nativeElement.querySelector("app-retry-banner");
+    }
+
+    it("shows the retry banner instead of an empty profile", async () => {
+      requestMock.mockRejectedValueOnce(new GraphQLRequestError([{ message: "boom" }]));
+
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(banner()).not.toBeNull();
+      });
+
+      expect(banner()?.textContent).toContain("Couldn't load this profile.");
+      expect(cardNickname()).toBeUndefined();
+      // GraphQLClient already toasts and reports a GraphQLRequestError; the page must not double-report.
+      expect(handleErrorMock).not.toHaveBeenCalled();
+    });
+
+    it("reports an unexpected failure to the ErrorHandler and still shows the banner", async () => {
+      const failure = new Error("Network down");
+      requestMock.mockRejectedValueOnce(failure);
+
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(banner()).not.toBeNull();
+      });
+
+      expect(handleErrorMock).toHaveBeenCalledWith(failure);
+    });
+
+    it("Try Now re-runs the load and recovers", async () => {
+      requestMock
+        .mockRejectedValueOnce(new GraphQLRequestError([{ message: "boom" }]))
+        .mockResolvedValueOnce(publicResponse("Alice"));
+
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(banner()).not.toBeNull();
+      });
+
+      (banner()?.querySelector("button") as HTMLButtonElement).click();
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(cardNickname()).toBe("Alice");
+      });
+      expect(banner()).toBeNull();
+      expect(requestMock).toHaveBeenCalledTimes(2);
+      expect(requestMock.mock.calls[1][1]).toMatchObject({ id: "alice" });
+    });
+
+    it("clears the error when the page moves to another profile", async () => {
+      requestMock
+        .mockRejectedValueOnce(new GraphQLRequestError([{ message: "boom" }]))
+        .mockResolvedValueOnce(publicResponse("Bob"));
+
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(banner()).not.toBeNull();
+      });
+
+      fixture.componentRef.setInput("id", "bob");
+      fixture.detectChanges();
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(cardNickname()).toBe("Bob");
+      });
+      expect(banner()).toBeNull();
+    });
   });
 });

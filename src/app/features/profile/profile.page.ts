@@ -1,8 +1,21 @@
-import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
-import { GraphQLClient } from "../../core/graphql/graphql-client";
+import {
+  Component,
+  ErrorHandler,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from "@angular/core";
+import { GraphQLClient, GraphQLRequestError } from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { AuthService } from "../../core/auth/auth.service";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
+import {
+  RetryBannerComponent,
+  RetryableResource,
+} from "../../ui/retry-banner/retry-banner.component";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
@@ -37,6 +50,7 @@ import {
   selector: "app-profile",
   imports: [
     HlmSkeleton,
+    RetryBannerComponent,
     AdSlotComponent,
     AppNavComponent,
     AppFooterComponent,
@@ -54,6 +68,8 @@ import {
             <div hlmSkeleton class="h-24 w-full"></div>
             <div hlmSkeleton class="h-72 w-full"></div>
           </div>
+        } @else if (_isError()) {
+          <app-retry-banner [resource]="retryResource" message="Couldn't load this profile." />
         } @else if (isOwnProfile()) {
           @if (_isLoading()) {
             <div class="flex flex-col gap-3">
@@ -129,6 +145,7 @@ export class ProfilePage {
   readonly id = input.required<string>();
 
   private readonly graphql = inject(GraphQLClient);
+  private readonly errorHandler = inject(ErrorHandler);
   protected readonly auth = inject(AuthService);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
@@ -142,6 +159,13 @@ export class ProfilePage {
 
   protected readonly _isLoading = signal(true);
   protected readonly _user = signal<PublicUserData | undefined>(undefined);
+  protected readonly _isError = signal(false);
+
+  /** Banner adapter: a manual retry re-runs the load for whatever the page is showing now. */
+  protected readonly retryResource: RetryableResource = {
+    retryCountdownSec: () => null,
+    retryNow: () => void this.load(this.id(), this.isOwnProfile()),
+  };
 
   /** Bumped by every `load()`. A response whose number is no longer current belongs to a profile
    * (or a session) the page has since moved on from, and must not overwrite what is showing. */
@@ -167,6 +191,7 @@ export class ProfilePage {
   private async load(id: string, isOwn: boolean): Promise<void> {
     const seq = ++this._loadSeq;
     this._isLoading.set(true);
+    this._isError.set(false);
     try {
       const idToken = await this.auth.idToken();
       const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
@@ -193,9 +218,15 @@ export class ProfilePage {
       if (seq === this._loadSeq) {
         this._user.set(user);
       }
-    } catch {
+    } catch (err) {
       if (seq === this._loadSeq) {
         this._user.set(undefined);
+        this._isError.set(true);
+      }
+      // A GraphQLRequestError is already toasted and reported by GraphQLClient. Anything else (a
+      // transport failure, a bug in this method) is unexpected and must reach Sentry.
+      if (!(err instanceof GraphQLRequestError)) {
+        this.errorHandler.handleError(err);
       }
     } finally {
       if (seq === this._loadSeq) {
