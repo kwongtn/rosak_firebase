@@ -46,13 +46,12 @@ Directory map:
   - `MyLinksComponent.isOwnProfile`: `input.required<boolean>()`, passed as `true`. A constructor
     `effect` calls `loadMore()` (untracked) when it becomes true.
   - `ProfilePage` internal state: `isAuthReady`, `isOwnProfile` (`auth.user()?.uid === id()`),
-    `_isLoading`, `_user` (`PublicUserData | undefined`).
+    `_isLoading`, `_isError`, `_user` (`PublicUserData | undefined`), `retryResource`.
 - **Outputs / Events:**
   - `UserCardComponent.nicknameSaved` (`output<string>`) and `privacySaved` (`output<boolean>`).
     `ProfilePage.onNicknameSaved` and `onPrivacySaved` merge the value into `_user`, so no re-fetch is needed.
-  - No component throws to its parent. Failures surface through `ToastService` or an inline
-    error or empty state. One exception: `ProfilePage.load()` catches silently, setting `_user` to
-    `undefined` with no toast (see Known Gaps).
+  - No component throws to its parent. Failures surface through `ToastService`, the shared retry
+    banner (`ProfilePage`) or an inline error or empty state.
 - **GraphQL** (`data/profile.queries.ts` unless noted):
   - `GET_USER_DATA_QUERY`: owner only. `user { nickname, spottingsCount, mediaCount, spottingDataPublic,
 spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, vars
@@ -89,6 +88,9 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
     returns a token. Required by `deleteEvent`, since the server enforces `IsRecaptchaChallengePassed`.
   - `ui/toast/toast.service.ts`: `ToastService.success/error/info(title, description?)`, a thin
     wrapper over `@spartan-ng/brain/sonner`.
+  - `ui/retry-banner/retry-banner.component.ts`: `RetryBannerComponent` (`app-retry-banner`), fed by
+    `ProfilePage` through a structural `RetryableResource` adapter (no countdown, `retryNow` re-runs
+    the load).
   - `ui/*` (Helm layer): `HlmButton`, `HlmSkeleton`, `HlmCardImports`, `HlmSheet`/`HlmSheetHeader`/
     `HlmSheetBody`, `HlmInput`, `HlmCheckbox`. Presentational only.
   - `src/app/domain-ui/`: `vehicle-status-badge` and `spotting-type-badge` (enum-keyed badges);
@@ -106,14 +108,23 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
 - **SSR safety:** nothing reads `window` or `document` outside `afterNextRender` or browser-gated code.
   `AuthService` and `RecaptchaService` are platform-guarded themselves.
 - **`ProfilePage`:** renders the loading state until `auth.whenReady` resolves (`isAuthReady`). An
-  `effect()` calls `load()` once auth is ready. The synchronous part of `load()` calls
-  `auth.idToken()`, which reads the auth user signal, so a login or logout re-runs `load()`. `id` and
-  `isOwnProfile` are read **after** the `await`, so they are not tracked. `load()` picks
-  `GET_USER_DATA_QUERY` for the owner and `GET_PUBLIC_USER_QUERY` for everyone else. It makes one
-  imperative request, with no polling. `onPrivacySaved` and `onNicknameSaved` update `_user` in place.
+  `effect()` then calls `load(id, isOwn)` untracked, after reading `id()` and `auth.user()` itself.
+  Those two reads are the effect's only dependencies, so `/profile/A` -> `/profile/B` (the page stays
+  mounted, `withComponentInputBinding` only updates `id`) and a login, logout or account switch each
+  re-load. `load()` reads no signal after its first `await`. It picks `GET_USER_DATA_QUERY` for the
+  owner and `GET_PUBLIC_USER_QUERY` for everyone else, with one imperative request and no polling.
+  `onPrivacySaved` and `onNicknameSaved` update `_user` in place.
+  - **Stale responses:** every `load()` bumps `_loadSeq`, and a response (or failure) whose number is
+    no longer current is dropped. Without it a slow A can land after B and show the wrong user.
+  - **Failure:** `_isError` swaps the page body for `app-retry-banner` ("Couldn't load this
+    profile.", Try Now re-runs the load for the current id), and `_user` is cleared. A
+    `GraphQLRequestError` is already toasted and reported by `GraphQLClient`, so the page adds
+    nothing. Any other error goes to the injected `ErrorHandler` (Sentry) as well. A `publicUser` of
+    `null` is not an error: it shows "User not found or profile unavailable."
 - **`UserCardComponent`:**
   - `_savedNickname` shadows `user().nickname` after a successful save. The input is never mutated.
-  - `_favouriteVehicle` is `favouriteVehicles[0]`; `_favouriteVehicleLines` joins its line codes.
+  - `_favouriteVehicle` is `favouriteVehicles?.[0]`, so an empty, `null` or `undefined` list renders
+    no Favourite Train card. `_favouriteVehicleLines` joins its line codes.
   - **Privacy** (own profile only): `openPrivacySheet()` opens an `hlm-sheet` with a toggle
     (`id="privacy-toggle"`, disabled while `_isSavingPrivacy`). Enabling asks `window.confirm`, and
     declining reverts the draft. Disabling is instant with no confirmation. Both persist through
@@ -255,17 +266,6 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
 - **Contract:** `spotting_data_public` defaults to `false` (strictly opt-in). Always public: nickname,
   counts, heatmap, `withMostEntries*`, favourite vehicles. Opt-in only: the historical spottings list with
   full details. Email is never exposed in any query.
-
-## ⚠️ Known Gaps
-
-- **Profile id changes are not reloaded.** `load()` reads `id()` after an `await`, so the `effect` does not
-  track it. Angular's `withComponentInputBinding` updates `id` when only the param changes, so navigating
-  from one profile to another while the component stays mounted may keep showing the previous profile
-  until remount. This is from reading the code, not from a browser run.
-- **Silent load failure.** `ProfilePage.load()` catches every error and shows the empty or unavailable
-  state with no toast. Other components in this feature toast.
-- **`_favouriteVehicle`** indexes `favouriteVehicles[0]` with no null check on the array. The type is
-  non-null, so the backend must keep returning a list.
 
 ## 💡 Potential Feature Opportunities
 

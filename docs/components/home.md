@@ -504,9 +504,20 @@ typed URL as one-shot prefill (its form adds title + asset tags). Local state: `
 - The input is `type="text"` + `inputmode="url"`; `normalizeFeedUrl` scheme-qualifies at submit time
   (native `type="url"` silently rejected schemeless input before the handler ran).
 - Duplicate response: stores `duplicateOfId`, shows `duplicate-indicator` whose "View it in the feed"
-  link is `#feed-link-<id>` (⚠️ no feed row renders that id — a dead anchor; see Feature Opportunities)
-  and records the backend's auto-upvote via `store.setUserVote`. A fresh submit toasts success; either
-  outcome resets the form and emits `submitted`.
+  link is `#feed-link-<id>` and records the backend's auto-upvote via `store.setUserVote`. A fresh
+  submit toasts success; either outcome resets the form and emits `submitted`.
+  - **The id contract.** `feedLinkDomId(id)` (`data/home-feed.util.ts`) builds `feed-link-<id>` for
+    both ends: the link's `href` and the `app-link-thread` host on each feed ROOT row (Today rows
+    always; Last Week rows through `HomePage.lastWeekDomId`, which yields to a root Today already
+    renders, since the two windows can overlap between 00:00 and 03:00 and an id must be unique).
+    Sublinks inside a conversation carry no id.
+  - **The click scrolls from code.** `viewDuplicate` calls `preventDefault`, then `scrollIntoView`
+    (`block: "center"`, `auto` under `prefers-reduced-motion`) on the matching element. A bare `#id`
+    resolves against `<base href="/">`, so on `/?sort=name` the native jump reloads the page. The
+    `href` stays, so the destination shows on hover and the e2e `href` assertion still holds.
+  - **Limit: no visible row, no scroll.** A duplicate inside a collapsed conversation, in the
+    inactive Last Week panel (`hidden`), on an unloaded page or older than both windows has no row
+    to scroll to, and the click is a no-op. The indicator does not switch the tab or expand a thread.
 - **Validation is submit-gated; blur stays quiet.** The "Enter a URL" note, destructive border and
   `aria-invalid` follow `submitAttempted` (set first in `submit()`, cleared by `_reset()`), not the
   field's `touched()` (`FormField` marks touched on blur, which cannot tell "typed and left" from
@@ -1293,6 +1304,7 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
   `feed-count`, `feed-load-more`, `feed-tab-today`, `feed-tab-lastweek` (panel DOM ids
   `feed-panel-today`, `feed-panel-lastweek`), `last-week-panel`, `last-week-count`,
   `last-week-day-group`, `last-week-skeleton`, `last-week-empty`, `last-week-load-more`.
+  Feed root rows also carry the DOM id `feed-link-<id>` (an id, not a testid; see Link submit box).
 - **Hero:** `home-hero`, `hero-stats`, `hero-stat-lines-normal`, `hero-stat-needs-attention`,
   `hero-stat-reports-now`, `hero-stat-links-today`, `hero-disruption-callout`, `hero-actions`,
   `hero-report-delay`, `hero-spot-train`, `hero-share-link`, `hero-live-map`, `hero-status-line`,
@@ -1510,10 +1522,11 @@ accessible name and `focus-visible` ring from their primitives.
 
 ## 💡 Potential Feature Opportunities
 
-- **A per-link deep link.** The duplicate indicator links to `#feed-link-<id>`, but **no feed row
-  renders `id="feed-link-<id>"`** — the anchor is dead today (`e2e/home.spec.ts` asserts only the
-  `href`). Render the id on the thread/row wrapper, then add a route/fragment that scrolls to and
-  highlights one row, so a shared link can point at a single report (a Rider-surface idea).
+- **A per-link deep link.** Feed root rows carry `id="feed-link-<id>"`, but only the duplicate
+  indicator's click uses it (`e2e/home.spec.ts` asserts only the `href`); nothing reads a
+  `#feed-link-<id>` fragment on arrival. Add a fragment handler that scrolls to and highlights one
+  row, activating the Last Week tab and expanding a collapsed conversation when the target is hidden,
+  so a shared link can point at a single report (a Rider-surface idea).
 - **Extend the `userVote` overlay past the first page.** `loadVoteOverlay()` reads only the first page
   of Today (8) and Last Week (20), so a logged-in user's own vote on an appended page renders `0` until
   they vote again. Ready now: re-run the authenticated read with the appended cursors, or batch the
