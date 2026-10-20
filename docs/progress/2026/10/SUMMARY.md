@@ -8,8 +8,8 @@
 - **Refactors and DX** (Oct 7): seven god-file splits (pure, byte-stable DOM); shared `injectIsBrowser()`; `npm run verify`; e2e job in CI.
 - **About page** (Oct 7–8, 20): community projects, retired personnel, admin editor extracted into a lazy component.
 - **Spotting report form** (Oct 4–6): vehicle picker ordering, inline vehicle status, mobile merged activity bar.
-- **Docs** (Oct 21): docs squash — component docs, MISTAKES.md and progress summaries trimmed to current state.
-- Suite at **155 files / 2148 tests** (Oct 20). The Oct 19 homepage UX and performance pass is uncommitted in its log.
+- **Docs and fixes** (Oct 21): docs squash — component docs, MISTAKES.md and progress summaries trimmed to current state; profile id-change reload, retry banner and user-card null guard; home `feed-link-<id>` anchors.
+- Suite at **158 files / 2169 tests** (Oct 21). The Oct 19 homepage UX and performance pass is uncommitted in its log.
 
 ---
 
@@ -57,6 +57,7 @@
 | [Oct 20](./20.md) | Spotting "Most Recently Spotted" breaks ties on `lastSpottedAt`; comparator returns 0 only on a full tie                                                                                                                                                                                               |
 | [Oct 20](./20.md) | About hardening: legacy Firestore rows no longer break the editor; one `h1`, meta tags, empty and no-results states, double-submit guard, sticky save bar; `AboutEditorComponent` lazy-loaded; social-edit bug fixed (`8269470`); `app-avatar` (`5a7219e`); layout polish (`e235183`)                  |
 | [Oct 21](./21.md) | Docs squash (`408e01f`): component docs, MISTAKES.md (1547→546 lines), AGENTS/README/COMPONENTS and progress summaries trimmed to current state; stale refs fixed                                                                                                                                      |
+| [Oct 21](./21.md) | **profile**: reload on `:id` change with a stale-response guard (`299ce29`); retry banner on failed load (`cd0c04c`); user-card `favouriteVehicles` null guard (`8d4b133`). **home**: feed rows render `feed-link-<id>` so the duplicate indicator scrolls to them (`a33b266`)                         |
 
 ---
 
@@ -74,6 +75,7 @@ Last suite result on each logged close-out day:
 | Oct 7  | 145 / 1983 (`npm run verify`)  |
 | Oct 8  | 146 / 2000                     |
 | Oct 20 | 155 / 2148 (`ng build` exit 0) |
+| Oct 21 | 158 / 2169 (`ng build` clean)  |
 
 Oct 4 ran on the pre-Oct 3 base (108 / 1283). Oct 19 logs no test count.
 

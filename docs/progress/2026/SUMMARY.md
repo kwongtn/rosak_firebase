@@ -28,7 +28,7 @@
 - **console** links tree on `/console/links`: nest, reorder, accordion, Approve retires the row, Unhide and Visibility filter (Oct 1–2, 8).
 - Seven god-file splits, shared `injectIsBrowser()`, `npm run verify` and an e2e job in CI (Oct 7).
 - About page: community projects, retired personnel, extracted admin editor (Oct 7–8, 20).
-- Suite at 155 files / 2148 tests (Oct 20). Docs squash to current state (Oct 21).
+- Docs squash to current state; profile reload/error-state/null-guard fixes and home `feed-link-<id>` anchors (Oct 21). Suite at 158 files / 2169 tests.
 
 ---
 
