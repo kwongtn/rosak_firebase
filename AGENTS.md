@@ -94,8 +94,8 @@ third-party GTFS-realtime feeds for the tracker.
   backend change lands first — never stub or fake a response shape.
 - **Migrations ship with their model change**, in the same commit. Never hand-edit an applied
   migration; never `--fake` without saying so explicitly.
-- `tach.yml` enforces dependency boundaries between Django apps — check it before adding a cross-app
-  import.
+- No tach config is checked in; `../rosak_backend/docs/APPS.md` documents the cross-app import graph
+  — check it before adding a cross-app import.
 - Long-running or scheduled work goes to a **Celery task** (`rosak.celery_app`), never inline in a
   request or GraphQL resolver.
 - Ruff is the formatter and linter (via pre-commit). Database is Postgres/PostGIS.
