@@ -323,4 +323,77 @@ describe("AboutPage", () => {
     expect(payload.projects.find((p) => p.name === "Legacy Project")?.display).toBe(false);
     expect(payload.personnel.find((p) => p.name === "Legacy Person")?.display).toBe(false);
   });
+
+  it("steps section headings down from the page title and keeps the intro to a readable measure", () => {
+    createPage();
+    pushSnapshot(FULL_DOC);
+
+    expect(root.querySelector("h1")?.classList.contains("text-2xl")).toBe(true);
+    for (const id of ["projects", "team", "tech-stack", "community"]) {
+      const heading = root.querySelector(`h2#${id}`);
+      expect(heading?.classList.contains("text-lg"), id).toBe(true);
+      expect(heading?.classList.contains("text-2xl"), id).toBe(false);
+    }
+    const intro = [...root.querySelectorAll("p")].find((p) =>
+      (p.textContent ?? "").includes("We build transit tools."),
+    );
+    expect(intro?.classList.contains("max-w-prose")).toBe(true);
+  });
+
+  it("shows when a live project started, and nothing for a planned one", () => {
+    createPage();
+    pushSnapshot({
+      ...FULL_DOC,
+      projects: [
+        ...FULL_DOC.projects,
+        {
+          name: "Future Thing",
+          description: "Someday",
+          startDate: "2027-01",
+          display: true,
+          status: "planned",
+        },
+      ],
+    });
+
+    const text = root.textContent ?? "";
+    expect(text).toContain("Started Jan 2024");
+    expect(text).toContain("Started May 2023");
+    expect(text).not.toContain("Started Jan 2027");
+    expect(text).not.toContain("Started Jan 2022"); // the hidden project
+  });
+
+  it("falls back to initials for a person without an avatar", () => {
+    createPage();
+    pushSnapshot(FULL_DOC);
+
+    expect(root.querySelector('[data-testid="avatar-initials"]')?.textContent?.trim()).toBe("AL");
+    expect(root.querySelector("app-avatar img")).toBeNull();
+  });
+
+  it("marks every new-tab link with the visual arrow as well as the sr-only cue", () => {
+    createPage();
+    pushSnapshot({
+      ...FULL_DOC,
+      personnel: [
+        {
+          ...FULL_DOC.personnel[0],
+          socials: [{ name: "GitHub", link: "https://github.com/ann", type: "github" }],
+        },
+      ],
+    });
+
+    const links = [
+      'a[href^="https://github.com/kwongtn"]',
+      'a[href="https://github.com/ann"]',
+      'a[href="https://angular.dev"]',
+      'a[href="https://example.com/map"]',
+    ];
+    for (const selector of links) {
+      const link = root.querySelector(selector);
+      expect(link, selector).not.toBeNull();
+      expect(link?.querySelector("app-external-link-icon"), selector).not.toBeNull();
+      expect(link?.textContent, selector).toContain("(opens in new tab)");
+    }
+  });
 });

@@ -14,22 +14,25 @@ import { injectIsBrowser } from "../../core/composables/is-browser";
 import { environment } from "../../../environments/environment";
 import { AuthService } from "../../core/auth/auth.service";
 import { resolveAdSlot } from "../../core/ads/ads.config";
+import { AvatarComponent } from "../../ui/avatar/avatar";
 import { HlmBadge } from "../../ui/badge/badge";
 import { HlmButton } from "../../ui/button/button";
 import { HlmCardImports } from "../../ui/card/card";
+import { ExternalLinkIconComponent } from "../../ui/external-link-icon/external-link-icon";
 import { HlmInput } from "../../ui/input/input";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { ToastService } from "../../ui/toast/toast.service";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
-import { Personnel, PublicAboutDocument } from "./data/about.model";
+import { Personnel, Project, PublicAboutDocument } from "./data/about.model";
 import {
   filterAndSortProjects,
   filterCommunityProjects,
   filterPersonnel,
   filterTechStacks,
   formatPersonPeriod,
+  formatProjectStart,
 } from "./data/about-edit.util";
 import { AboutEditorComponent } from "./editor/about-editor.component";
 
@@ -58,6 +61,8 @@ const STATUS_VARIANT: Record<string, "warning" | "info" | "success" | "neutral">
   selector: "app-about",
   imports: [
     AboutEditorComponent,
+    AvatarComponent,
+    ExternalLinkIconComponent,
     HlmBadge,
     HlmButton,
     HlmInput,
@@ -131,6 +136,11 @@ export class AboutPage implements OnDestroy {
     ].filter((link) => link.show),
   );
   protected statusVariant = (status: string) => STATUS_VARIANT[status] ?? "neutral";
+
+  /** "Started Jan 2024", or "" for a planned project or one with no valid start date. */
+  protected projectStart(project: Project): string {
+    return formatProjectStart(project);
+  }
 
   /** "Jan 2024 - Present · 2 years 3 months", or "" when no valid start date. */
   protected personPeriod(person: Personnel): string {

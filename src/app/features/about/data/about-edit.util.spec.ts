@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Personnel, PublicAboutDocument } from "./about.model";
+import { Personnel, Project, PublicAboutDocument } from "./about.model";
 import {
   draftFromDoc,
   emptyCommunityProject,
@@ -14,6 +14,7 @@ import {
   formatElapsed,
   formatPeriod,
   formatPersonPeriod,
+  formatProjectStart,
   sanitizeDraft,
 } from "./about-edit.util";
 
@@ -252,6 +253,25 @@ describe("formatPeriod", () => {
 
   it("leniently accepts a day-precision start", () => {
     expect(formatPeriod("2024-01-15", "")).toBe("Jan 2024 - Present");
+  });
+});
+
+describe("formatProjectStart", () => {
+  it("renders a month-precision start for a live project", () => {
+    expect(formatProjectStart({ startDate: "2024-01-15", status: "beta" })).toBe(
+      "Started Jan 2024",
+    );
+    expect(formatProjectStart({ startDate: "2023-05", status: "stable" })).toBe("Started May 2023");
+  });
+
+  it("is empty for a planned project, even with a date", () => {
+    expect(formatProjectStart({ startDate: "2027-01", status: "planned" })).toBe("");
+  });
+
+  it("is empty when the start date is missing or unparseable", () => {
+    expect(formatProjectStart({ startDate: "", status: "alpha" })).toBe("");
+    expect(formatProjectStart({ startDate: "soon", status: "alpha" })).toBe("");
+    expect(formatProjectStart({ status: "alpha" } as unknown as Project)).toBe("");
   });
 });
 

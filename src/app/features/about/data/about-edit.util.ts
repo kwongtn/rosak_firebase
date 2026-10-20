@@ -204,14 +204,26 @@ function parseMonth(value: string): Date | undefined {
   return new Date(year, month - 1, 1);
 }
 
+function monthLabel(date: Date): string {
+  return `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 /** "Jan 2024 - Present" / "Feb 2020 - Nov 2022", or "" when the start is missing/unparseable. */
 export function formatPeriod(startDate: string, endDate: string): string {
   const start = parseMonth(startDate);
   if (!start) return "";
-  const startLabel = `${MONTH_NAMES[start.getMonth()]} ${start.getFullYear()}`;
   const end = parseMonth(endDate);
-  const endLabel = end ? `${MONTH_NAMES[end.getMonth()]} ${end.getFullYear()}` : "Present";
-  return `${startLabel} - ${endLabel}`;
+  return `${monthLabel(start)} - ${end ? monthLabel(end) : "Present"}`;
+}
+
+/**
+ * "Started Jan 2024" for a project card, or "" when there is nothing to say: no usable start date,
+ * or a `planned` project (its date, if any, is a target rather than a start).
+ */
+export function formatProjectStart(project: Pick<Project, "startDate" | "status">): string {
+  if (project.status === "planned") return "";
+  const start = parseMonth(project.startDate);
+  return start ? `Started ${monthLabel(start)}` : "";
 }
 
 /** Humanized whole-month tenure, e.g. "2 years 3 months"; negative spans clamp to "Less than a month". */
