@@ -85,6 +85,15 @@ export const OFFICIAL_NOTICES_VARS = Object.freeze({
 } as const);
 
 /**
+ * The DOM id a rendered feed row carries, which is the target of the duplicate indicator's "View it
+ * in the feed" link (`#feed-link-<id>`). One function for both ends, so the link and the row cannot
+ * drift apart again (they did: the link shipped with no row carrying the id).
+ */
+export function feedLinkDomId(linkId: string): string {
+  return `feed-link-${linkId}`;
+}
+
+/**
  * Merge helper for a refetched first page + already-appended continuation pages, de-duplicated by
  * `node.id` and keeping the FIRST occurrence (i.e. the backend's own order: first page first).
  *

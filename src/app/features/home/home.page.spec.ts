@@ -702,6 +702,30 @@ describe("HomePage", () => {
     expect(fixture.nativeElement.querySelectorAll("app-link-card").length).toBe(10);
   });
 
+  it("gives each Today row the id the duplicate indicator links to", () => {
+    const todayPanel = fixture.nativeElement.querySelector("#feed-panel-today") as HTMLElement;
+
+    for (const id of ["a", "b"]) {
+      const row = todayPanel.querySelector(`#feed-link-${id}`);
+      expect(row?.tagName.toLowerCase()).toBe("app-link-thread");
+      expect(row?.textContent).toContain(`Feed link ${id}`);
+    }
+  });
+
+  it("gives each Last Week row the same id, and never repeats an id Today already renders", () => {
+    store.lastWeekDayGroups.set([
+      { key: "2026-09-30", label: "Yesterday", links: [makeFeedLink("w"), makeFeedLink("a")] },
+    ]);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const lastWeekPanel = root.querySelector('[data-testid="last-week-panel"]') as HTMLElement;
+    expect(lastWeekPanel.querySelector("#feed-link-w")).not.toBeNull();
+    // "a" is in both panels (the 03:00 service-day rollover overlap); Today owns the id.
+    expect(lastWeekPanel.querySelector("#feed-link-a")).toBeNull();
+    expect(root.querySelectorAll("#feed-link-a").length).toBe(1);
+  });
+
   it("splits the network board and the feed into two columns from lg, board first", () => {
     const root = fixture.nativeElement as HTMLElement;
     const panels = root.querySelector<HTMLElement>('[data-testid="home-panels"]');

@@ -1,6 +1,6 @@
 import { type WritableSignal, provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
@@ -9,6 +9,7 @@ import type { FeedLink } from "../data/home-feed-items";
 import { SUBMIT_FEED_LINK_MUTATION, SubmitFeedLinkData } from "../data/home-feed-mutations.queries";
 import { HomeStore } from "../data/home.store";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
+import { feedLinkDomId } from "../data/home-feed.util";
 import { LinkSubmitBoxComponent } from "./link-submit-box.component";
 
 interface LinkSubmitModel {
@@ -205,6 +206,78 @@ describe("LinkSubmitBoxComponent", () => {
     );
     expect(storeMock.setUserVote).toHaveBeenCalledWith("42", 1);
     expect(toastMocks.success).not.toHaveBeenCalled();
+  });
+
+  describe("the duplicate indicator's link", () => {
+    let target: HTMLElement | null = null;
+
+    afterEach(() => {
+      target?.remove();
+      target = null;
+      vi.unstubAllGlobals();
+    });
+
+    async function showDuplicateIndicator(): Promise<HTMLAnchorElement> {
+      requestMock.mockResolvedValue(
+        submitResponse({ isDuplicate: true, duplicateOfId: 42, userVote: 1 }),
+      );
+      const component = asTestable(fixture);
+      component.model.set({ url: "https://example.com/story" });
+      await component.submit();
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector(
+        '[data-testid="duplicate-indicator"] a',
+      ) as HTMLAnchorElement;
+    }
+
+    /** A stand-in for the feed row that carries the duplicate's id. */
+    function addFeedRow(): ReturnType<typeof vi.fn> {
+      const scrollIntoView = vi.fn();
+      target = document.createElement("div");
+      target.id = feedLinkDomId("42");
+      target.scrollIntoView = scrollIntoView;
+      document.body.appendChild(target);
+      vi.stubGlobal("matchMedia", () => ({ matches: false }));
+      return scrollIntoView;
+    }
+
+    it("points at the id a feed row renders", async () => {
+      const link = await showDuplicateIndicator();
+
+      expect(link.getAttribute("href")).toBe(`#${feedLinkDomId("42")}`);
+    });
+
+    it("scrolls the row into view instead of following the hash", async () => {
+      const scrollIntoView = addFeedRow();
+      const link = await showDuplicateIndicator();
+
+      const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+      link.dispatchEvent(click);
+
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+      // A bare #id would resolve against <base href="/"> and reload the page on /?sort=name.
+      expect(click.defaultPrevented).toBe(true);
+    });
+
+    it("skips the animation for readers who prefer reduced motion", async () => {
+      const scrollIntoView = addFeedRow();
+      vi.stubGlobal("matchMedia", () => ({ matches: true }));
+      const link = await showDuplicateIndicator();
+
+      link.click();
+
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "center" });
+    });
+
+    it("does nothing, and does not navigate, when no row carries the id", async () => {
+      vi.stubGlobal("matchMedia", () => ({ matches: false }));
+      const link = await showDuplicateIndicator();
+
+      const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+      link.dispatchEvent(click);
+
+      expect(click.defaultPrevented).toBe(true);
+    });
   });
 
   it("normalizes a schemeless url to https before sending", async () => {

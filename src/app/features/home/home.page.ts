@@ -31,6 +31,7 @@ import { LinkSheetService } from "../insiden/data/link-sheet.service";
 import { LinkThreadComponent } from "../insiden/link-thread/link-thread.component";
 import { LinkSheetComponent } from "../insiden/link-sheet/link-sheet.component";
 import { LinePulse } from "./data/home-board.queries";
+import { feedLinkDomId } from "./data/home-feed.util";
 import { HomeStore } from "./data/home.store";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
 import { LinkSubmitBoxComponent } from "./feed/link-submit-box.component";
@@ -314,6 +315,7 @@ type FeedTab = (typeof FEED_TABS)[number];
                   }
                   @for (link of store.feedLinks(); track link.id) {
                     <app-link-thread
+                      [attr.id]="feedLinkDomId(link.id)"
                       [link]="link"
                       [userVote]="store.userVoteFor(link.id)"
                       [voteValues]="store.userVotes()"
@@ -380,6 +382,7 @@ type FeedTab = (typeof FEED_TABS)[number];
                     }
                     @for (link of group.links; track link.id) {
                       <app-link-thread
+                        [attr.id]="lastWeekDomId(link.id)"
                         [link]="link"
                         [userVote]="store.userVoteFor(link.id)"
                         [voteValues]="store.userVotes()"
@@ -554,6 +557,23 @@ export class HomePage implements OnDestroy {
     retryCountdownSec: () => null,
     retryNow: () => this.store.reloadAll(),
   };
+
+  /** DOM id for a Today row, the scroll target of the submit box's duplicate indicator. */
+  protected readonly feedLinkDomId = feedLinkDomId;
+
+  private readonly _todayLinkIds = computed(
+    () => new Set(this.store.feedLinks().map((link) => link.id)),
+  );
+
+  /**
+   * DOM id for a Last Week row. Today and Last Week can briefly list the same root (the Today window
+   * rolls over at 03:00, Last Week at midnight), and an id must be unique on the page, so Today owns
+   * the id and Last Week yields to it. A duplicate in a collapsed conversation, on the inactive tab
+   * or not loaded yet has no visible row to scroll to; the indicator's click is then a no-op.
+   */
+  protected lastWeekDomId(linkId: string): string | null {
+    return this._todayLinkIds().has(linkId) ? null : feedLinkDomId(linkId);
+  }
 
   /** The click-driven replacement for the infinite-scroll sentinel: shown only while another
    * page exists and nothing is in flight. */

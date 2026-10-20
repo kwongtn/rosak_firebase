@@ -8,6 +8,7 @@ import {
   OFFICIAL_NOTICES_PAGE_SIZE,
   OFFICIAL_NOTICES_VARS,
   dedupeEdges,
+  feedLinkDomId,
   maxFeedTotalCount,
   mergeFeedPageInfo,
   recordSubtreeVotes,
@@ -117,6 +118,12 @@ describe("home-feed.util: resolveUserVote", () => {
   it("falls back to the anonymous feed value, then to zero", () => {
     expect(resolveUserVote({}, [feedLink("a", 5)], "a")).toBe(5);
     expect(resolveUserVote({}, [feedLink("a", 5)], "missing")).toBe(0);
+  });
+});
+
+describe("home-feed.util: feedLinkDomId", () => {
+  it("names the row the duplicate indicator's #feed-link-<id> link targets", () => {
+    expect(feedLinkDomId("42")).toBe("feed-link-42");
   });
 });
 

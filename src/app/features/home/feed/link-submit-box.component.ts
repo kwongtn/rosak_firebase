@@ -1,3 +1,4 @@
+import { DOCUMENT } from "@angular/common";
 import { Component, inject, output, signal } from "@angular/core";
 import { form as createForm, FormField, required, schema, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
@@ -11,6 +12,7 @@ import {
   SubmitFeedLinkData,
   SubmitFeedLinkVars,
 } from "../data/home-feed-mutations.queries";
+import { feedLinkDomId } from "../data/home-feed.util";
 import { HomeStore } from "../data/home.store";
 import { normalizeFeedUrl } from "./feed-url.util";
 
@@ -125,7 +127,10 @@ const linkSubmitSchema = schema<LinkSubmitModel>((f) => {
           role="status"
         >
           Already submitted — your upvote was added
-          <a class="underline underline-offset-2" [href]="'#feed-link-' + duplicateId"
+          <a
+            class="underline underline-offset-2"
+            [href]="'#' + feedLinkDomId(duplicateId)"
+            (click)="viewDuplicate($event, duplicateId)"
             >View it in the feed</a
           >
         </p>
@@ -139,6 +144,9 @@ export class LinkSubmitBoxComponent {
   private readonly toast = inject(ToastService);
   private readonly store = inject(HomeStore);
   private readonly linkSheet = inject(LinkSheetService);
+  private readonly document = inject(DOCUMENT);
+
+  protected readonly feedLinkDomId = feedLinkDomId;
 
   protected readonly model = signal<LinkSubmitModel>({ url: "" });
   protected readonly linkForm = createForm(this.model, linkSubmitSchema);
@@ -157,6 +165,21 @@ export class LinkSubmitBoxComponent {
 
   /** Emitted after a successful submit (fresh or duplicate) so the host can reload the store. */
   readonly submitted = output<void>();
+
+  /**
+   * Scrolls to the duplicate's feed row. A bare `#id` href resolves against `<base href="/">`, so
+   * on `/?sort=name` the native jump would reload the page instead. A duplicate with no visible
+   * row (inside a collapsed conversation, on the inactive Last Week tab, not loaded yet) is a no-op.
+   */
+  protected viewDuplicate(event: Event, linkId: string): void {
+    event.preventDefault();
+    const reduceMotion = this.document.defaultView?.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    this.document
+      .getElementById(feedLinkDomId(linkId))
+      ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+  }
 
   /** Opens the shared link sheet in create mode, prefilling it with whatever is already in the
    * quick box (trimmed; empty → blank). The sheet consumes the prefill once. */
