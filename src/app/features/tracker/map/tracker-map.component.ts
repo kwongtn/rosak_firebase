@@ -50,6 +50,9 @@ export class TrackerMapComponent implements OnDestroy {
 
   private scene: Scene | undefined;
   private lineLayer: ILayer | undefined;
+  /** The document's overflow before init() locked scrolling, put back on teardown so the map
+   * does not fight HlmSheet's own lock of the same property. */
+  private savedOverflow = "";
 
   private readonly rtControllers = new Map<string, RtMarkerLayerController>();
   private seenRtKeys = new Set<string>();
@@ -62,6 +65,7 @@ export class TrackerMapComponent implements OnDestroy {
   }
 
   private init(): void {
+    this.savedOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
 
     this.scene = new Scene({
@@ -250,12 +254,15 @@ export class TrackerMapComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    document.documentElement.style.overflow = "auto";
+    document.documentElement.style.overflow = this.savedOverflow;
     for (const controller of this.rtControllers.values()) {
       controller.tearDown();
     }
     for (const entry of this.stopsLayers.values()) {
       entry.stopEffect();
     }
+    // Disposes the Mapbox map, WebGL context and render loop; the layers go with it.
+    this.scene?.destroy();
+    this.scene = undefined;
   }
 }
