@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from "@angular/core";
 
@@ -385,11 +386,15 @@ export class LineOverviewPage {
         // first-line redirect, which fires before any content renders and works fine).
         // Deferring to the client means a direct hit on a stale link renders blank during
         // SSR and redirects immediately on hydration instead of hanging indefinitely.
-        const fallback = this.linesStore.firstLineId();
-        this.toast.error("Line not found", "Showing the first available line instead.");
-        if (fallback) {
-          this.router.navigate(["/spotting", fallback], { replaceUrl: true });
-        }
+        // untracked: toast.error() reads, then rewrites, the toast list. Tracked, that write
+        // re-runs this effect, which raises another toast, forever — the tab freezes solid.
+        untracked(() => {
+          const fallback = this.linesStore.firstLineId();
+          this.toast.error("Line not found", "Showing the first available line instead.");
+          if (fallback) {
+            this.router.navigate(["/spotting", fallback], { replaceUrl: true });
+          }
+        });
       }
     });
   }
