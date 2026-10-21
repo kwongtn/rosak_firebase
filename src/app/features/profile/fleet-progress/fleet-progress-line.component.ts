@@ -19,8 +19,8 @@ import { vehiclePagePath } from "../data/vehicle-link.util";
  * state. The request stays configured after the first open, so collapsing and re-opening a row
  * shows the list it already has instead of fetching again.
  *
- * The bar is a `progressbar` in the unit the reader counts in (vehicles, not percent), with the
- * same sentence as its value text. The visible "N of M" is not the only place the number lives.
+ * The bar is a `progressbar` in the unit the reader counts in (vehicles, not percent), and its value
+ * text says the same thing as the visible "N of M", so a sighted reader and a screen reader get one fact.
  */
 @Component({
   selector: "app-fleet-progress-line",

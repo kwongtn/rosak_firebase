@@ -74,7 +74,9 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles(coun
     `favouriteVehicles` list is the whole set of distinct vehicles the user has logged (1000 is far above the
     roughly 600 vehicles in the system), most-spotted first, so `[0]` is still the favourite train. Each
     entry is `{ vehicle { id, identificationNo, lines { id, code, totalVehicleCount } }, count }`, where
-    `totalVehicleCount` is the fleet-progress denominator.
+    `totalVehicleCount` is the fleet-progress denominator. It is `Line.totalVehicleCount` (one count per
+    vehicle assigned to that line) rather than `vehicleTypes.vehicleTotalCount`, which counts every vehicle
+    of a type across all lines and would overstate a line whose vehicles are shared.
   - `GET_PUBLIC_USER_QUERY`: non-owners. `publicUser(id: $id)` with the same stats, plus `spottings`
     (the history list, `null` when private). Its `favouriteVehicles` keeps the **default count of one**
     and selects `lines { id code }` only. See Public Profiles & Privacy for why that must not grow.
@@ -377,8 +379,11 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles(coun
   `totalVehicleCount` on `SpottingLinesStore`'s query) would let `buildFleetProgress()` add a 0-of-N row per
   untouched line.
 - **A spotted-vehicle aggregate:** `favouriteVehicles(count: 1000)` ships every spotted vehicle to compute a
-  few counts. A backend `spottedVehicleCount` per line would drop that payload, and a
-  `spottingDataPublic` guard on `favouriteVehicles` would allow a public version of the card.
+  few counts, and `Vehicle.lines` resolves per vehicle there. On the dev stack the most active local spotter
+  (406 distinct vehicles) pays about 1.3 s extra for `lines { id code }` (about 0.1 s without it), and the
+  own profile waits for it. Prefetching the lines in the resolver, or a backend `spottedVehicleCount` per
+  line, would remove that cost, and a `spottingDataPublic` guard on `favouriteVehicles` would allow a public
+  version of the card.
 - **Cancel or background an export:** the heaviest spotters (tens of thousands of rows) wait through many
   pages with only a "Preparing N rows…" line. An abort button, or a server-built export, would help them.
 - **New aggregate stat cards** (e.g. spotting streak, most-visited station): the frontend pattern is
