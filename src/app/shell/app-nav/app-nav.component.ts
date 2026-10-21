@@ -12,10 +12,8 @@ import {
 } from "@angular/core";
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from "@angular/router";
 import { filter, map } from "rxjs";
-import * as Sentry from "@sentry/angular";
 import { AuthService } from "../../core/auth/auth.service";
 import { ImageUploadService } from "../../core/upload/image-upload.service";
-import { ThemeService } from "../../core/theme/theme.service";
 import { CONSOLE_LINKS } from "../nav-config";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { ToastService } from "../../ui/toast/toast.service";
@@ -288,7 +286,6 @@ export class AppNavComponent {
   protected readonly auth = inject(AuthService);
   protected readonly uploads = inject(ImageUploadService);
   private readonly toast = inject(ToastService);
-  private readonly theme = inject(ThemeService);
   protected readonly GENERIC_TITLE = GENERIC_TITLE;
   protected readonly navLinks = NAV_LINKS;
   protected readonly consoleLinks = CONSOLE_LINKS;
@@ -446,15 +443,6 @@ export class AppNavComponent {
       onScroll();
       window.addEventListener("scroll", onScroll, { passive: true });
       this.destroyRef.onDestroy(() => window.removeEventListener("scroll", onScroll));
-    });
-
-    // Keeps the feedback form's own light/dark styling in lockstep with this app's theme —
-    // `resolvedTheme` (not the raw "system" mode) is what to feed it: it's already the
-    // concrete light/dark this app is actually painting right now, tracking the OS
-    // preference live when the user's chosen mode *is* "system" rather than needing Sentry's
-    // widget to separately re-derive that from scratch.
-    effect(() => {
-      Sentry.getFeedback()?.setTheme(this.theme.resolvedTheme());
     });
   }
 }

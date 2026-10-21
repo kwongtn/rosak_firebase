@@ -24,10 +24,8 @@ Sentry.init({
     // Adds surrounding source lines to stack traces once source maps are uploaded at build
     // time — a no-op cost otherwise, so there's no reason to leave it out ahead of that.
     Sentry.contextLinesIntegration(),
-    // User Feedback widget. autoInject:false — this app supplies its own trigger (app-nav's
-    // "Report a bug" button, wired via `Sentry.getFeedback()?.attachTo(...)`) instead of
-    // Sentry's own floating default button, so the app controls where/how it's surfaced.
-    Sentry.feedbackIntegration({ autoInject: false, colorScheme: "system" }),
+    // No User Feedback widget here: FeedbackService (core/sentry) adds it the first time someone
+    // opens "Report a bug", so its ~60 KB stays out of the first-load bundle.
   ],
   // A lower rate in production than in dev (where full visibility while testing costs nothing)
   // — 20% is enough to spot real regressions in aggregate without paying for a full-volume

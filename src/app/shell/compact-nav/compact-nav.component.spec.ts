@@ -1,8 +1,9 @@
-import { Component } from "@angular/core";
+import { Component, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { Router, provideRouter } from "@angular/router";
 import { describe, expect, it, vi } from "vitest";
 
+import { AuthService } from "../../core/auth/auth.service";
 import { CompactNavComponent } from "./compact-nav.component";
 
 // ThemeService reads window.matchMedia in its constructor; the test DOM doesn't provide it.
@@ -26,7 +27,13 @@ async function renderNav(currentModulePath: string): Promise<HTMLElement> {
   await TestBed.resetTestingModule()
     .configureTestingModule({
       imports: [CompactNavComponent],
-      providers: [provideRouter([{ path: "**", component: TestOutlet }])],
+      providers: [
+        provideRouter([{ path: "**", component: TestOutlet }]),
+        // Logged-out stub rather than the real AuthService: the unit-test builder shares one module
+        // registry across spec files, so the real one can come back already bound to another spec's
+        // mocked firebase/app (about.page.spec) and throw from getAuth() depending on file order.
+        { provide: AuthService, useValue: { isLoggedIn: signal(false), isAdmin: signal(false) } },
+      ],
     })
     .compileComponents();
 

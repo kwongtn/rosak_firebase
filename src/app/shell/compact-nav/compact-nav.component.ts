@@ -1,8 +1,7 @@
-import { Component, computed, effect, inject, input, signal } from "@angular/core";
+import { Component, computed, inject, input, signal } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
-import * as Sentry from "@sentry/angular";
 import { AuthService } from "../../core/auth/auth.service";
-import { ThemeService } from "../../core/theme/theme.service";
+import { FeedbackService } from "../../core/sentry/feedback.service";
 import { CONSOLE_LINKS, MODULE_NAV_LINKS, type ModuleNavLink } from "../nav-config";
 import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.component";
 
@@ -142,16 +141,16 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
           </div>
         }
 
-        <!-- Same createForm()-based Sentry feedback widget as the global <app-nav> (see
-             its own doc comment for why this uses a plain (click) binding rather than
-             attachTo()) — the compact pill duplicates it here rather than sharing, since it keeps
-             its own nav instead of <app-nav>. -->
+        <!-- Same Sentry feedback widget as the global <app-nav>, through the shared
+             FeedbackService (see the icon tray's template comment for why this is a plain
+             (click) binding rather than attachTo()) — the compact pill has its own button
+             because it keeps its own nav instead of <app-nav>. -->
         <button
           type="button"
           class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label="Report a bug"
           title="Report a bug"
-          (click)="onReportBug()"
+          (click)="feedback.openForm()"
         >
           <svg
             viewBox="0 0 24 24"
@@ -226,7 +225,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
   `,
 })
 export class CompactNavComponent {
-  private readonly theme = inject(ThemeService);
+  protected readonly feedback = inject(FeedbackService);
   protected readonly auth = inject(AuthService);
   protected readonly consoleLinks = CONSOLE_LINKS;
 
@@ -250,26 +249,6 @@ export class CompactNavComponent {
    * inline in the expanded list without needing a separate open/close state). */
   protected readonly consoleMenuOpen = signal(false);
   private consoleHoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
-
-  /** Created once, on first use, then reused on every later click — same pattern as
-   * AppNavComponent.onReportBug(), see its doc comment for why createForm() over attachTo(). */
-  private feedbackDialog: Awaited<
-    ReturnType<Exclude<ReturnType<typeof Sentry.getFeedback>, undefined>["createForm"]>
-  > | null = null;
-
-  constructor() {
-    effect(() => {
-      Sentry.getFeedback()?.setTheme(this.theme.resolvedTheme());
-    });
-  }
-
-  protected async onReportBug(): Promise<void> {
-    if (!this.feedbackDialog) {
-      this.feedbackDialog = (await Sentry.getFeedback()?.createForm()) ?? null;
-    }
-    this.feedbackDialog?.appendToDom();
-    this.feedbackDialog?.open();
-  }
 
   protected onConsoleMenuEnter(): void {
     clearTimeout(this.consoleHoverCloseTimeout);

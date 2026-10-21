@@ -3,3 +3,11 @@
 declare module "@sentry/replay?lazy" {
   export { replayIntegration } from "@sentry/replay";
 }
+
+declare module "@sentry/feedback?lazy" {
+  export {
+    buildFeedbackIntegration,
+    feedbackModalIntegration,
+    feedbackScreenshotIntegration,
+  } from "@sentry/feedback";
+}

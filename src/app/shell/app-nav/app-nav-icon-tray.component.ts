@@ -7,8 +7,8 @@ import {
   output,
   signal,
 } from "@angular/core";
-import * as Sentry from "@sentry/angular";
 import { AuthService } from "../../core/auth/auth.service";
+import { FeedbackService } from "../../core/sentry/feedback.service";
 import { ImageUploadService } from "../../core/upload/image-upload.service";
 import { NewVersionService } from "../../core/version/new-version.service";
 import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.component";
@@ -112,10 +112,11 @@ let hasShownAvatarHintThisPageLoad = false;
         }
       </button>
     }
-    <!-- Sentry's own User Feedback widget, opened via createForm() below rather than
-                 its default auto-injected floating button — this way it's just another icon
-                 in the row, styled and positioned like everything else here instead of a
-                 foreign-looking widget bolted onto the corner of the viewport. A plain Angular
+    <!-- Sentry's own User Feedback widget, opened via createForm() (FeedbackService, which
+                 also lazy-loads it) rather than its default auto-injected floating button — this
+                 way it's just another icon in the row, styled and positioned like everything
+                 else here instead of a foreign-looking widget bolted onto the corner of the
+                 viewport. A plain Angular
                  (click) binding here, not Sentry's own attachTo(el) helper: attachTo grabs a
                  specific DOM node once (originally via a viewChild ref, captured inside
                  afterNextRender) and attaches its listener directly to it — but that node can
@@ -130,7 +131,7 @@ let hasShownAvatarHintThisPageLoad = false;
       class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       aria-label="Report a bug"
       title="Report a bug"
-      (click)="onReportBug()"
+      (click)="feedback.openForm()"
     >
       <svg
         viewBox="0 0 24 24"
@@ -223,6 +224,7 @@ export class AppNavIconTrayComponent {
   protected readonly uploads = inject(ImageUploadService);
   protected readonly newVersion = inject(NewVersionService);
   protected readonly iconHoverGroup = inject(NavIconHoverGroupService);
+  protected readonly feedback = inject(FeedbackService);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Emitted when a logged-in avatar click should open the account sheet (owned by `<app-nav>`). */
@@ -287,11 +289,6 @@ export class AppNavIconTrayComponent {
    * without that visual weight. */
   protected readonly avatarButtonClass = computed(() => avatarButtonClassFor(this.expanded()));
 
-  /** Created once, on first use, then reused on every later click — see onReportBug(). */
-  private feedbackDialog: Awaited<
-    ReturnType<Exclude<ReturnType<typeof Sentry.getFeedback>, undefined>["createForm"]>
-  > | null = null;
-
   constructor() {
     afterNextRender(() => {
       this.auth.whenReady.then(() => {
@@ -320,16 +317,5 @@ export class AppNavIconTrayComponent {
     } else {
       this.auth.login();
     }
-  }
-
-  /** Builds the feedback form once (createForm(), not attachTo() — see the template's own doc
-   * comment for why) and reuses the same dialog on every later click rather than creating a
-   * fresh one each time. */
-  protected async onReportBug(): Promise<void> {
-    if (!this.feedbackDialog) {
-      this.feedbackDialog = (await Sentry.getFeedback()?.createForm()) ?? null;
-    }
-    this.feedbackDialog?.appendToDom();
-    this.feedbackDialog?.open();
   }
 }
