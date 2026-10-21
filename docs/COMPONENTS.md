@@ -304,9 +304,10 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
    Not yet adopted: gdpr (item deep-links), about (section anchors), spotting filters, console
    (shareable filter views), insiden (per-incident expand state), tracker (map/layer views).
    Elsewhere only path params are bound.
-2. **Client-side export.** `core/export/csv.util.ts` (`toCsv` is pure and always emits a header
-   row; `downloadText` is the browser-gated Blob + anchor download, spelled `downloadCsv` /
-   `downloadIcs`), `core/export/json.util.ts` (`downloadJson`) and `core/export/ics.util.ts`
+2. **Client-side export.** `core/export/csv.util.ts` (`toCsv` is pure, always emits a header row
+   and does not defuse spreadsheet formulas: a cell of user-written text goes through its exported
+   `neutralizeSpreadsheetFormula`; `downloadText` is the browser-gated Blob + anchor download,
+   spelled `downloadCsv` / `downloadIcs`), `core/export/json.util.ts` (`downloadJson`) and `core/export/ics.util.ts`
    (`buildIcs`: RFC 5545 escaping, 75-octet folding, KL `TZID` times, pure) exist. Consumers: home's
    Pro lines widget (CSV), profile's spotting history (CSV and JSON, paged from the API) and insiden
    ("Add to calendar" and "Export month", `.csv`/`.ics`); tracker's info panel keeps a private
