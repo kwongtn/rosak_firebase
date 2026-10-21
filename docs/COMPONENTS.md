@@ -248,12 +248,17 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
 - **insiden** (`features/insiden/` — page + form + card + calendar + the shared link components
   `link-card`/`link-list`/`link-sheet`/`link-thread` + vote; [doc](components/insiden.md)) —
   Community incident reporting: month calendar + day-scoped list + ongoing/long-running pinning;
-  create/edit incidents through the approval lifecycle, chronology status/votes/deletion requests,
+  line/severity/"My lines" filters over the loaded month (URL-synced); "Add to calendar" (`.ics`)
+  per incident and "Export month" (`.csv`/`.ics`); a lazily read "Last 12 months" chart; create/edit
+  incidents through the approval lifecycle, chronology status/votes/deletion requests,
   per-incident links with infinite scroll, in-page photo viewer.
   - Deps: `graphqlResource`, `GraphQLClient`, `AuthService`, `ImageUploadService`,
     `MediaViewerComponent` (from gallery), `PhotoPickerComponent` (from spotting), `klDateKey`
-    (`core/time`), `ngx-markdown`, `InfiniteScrollDirective`.
-  - Extend: `insiden.queries.ts` (single flat-query seam); `SEVERITY_*`/`CHRONOLOGY_DOT` lookup
+    (`core/time`), `ngx-markdown`, `InfiniteScrollDirective`, `PreferencesService` (pinned lines),
+    `core/url-state`, `core/export/{csv,ics}.util.ts`, the methodology registry.
+  - Extend: `insiden.queries.ts` (single flat-query seam); `incident-filter.util.ts` (a new filter
+    axis), `incident-export.util.ts` (CSV columns / event fields), `core/export/ics.util.ts`,
+    `insiden-history.queries.ts` + `incident-monthly.util.ts` (the "Last 12 months" read); `SEVERITY_*`/`CHRONOLOGY_DOT` lookup
     tables; `RetryableResource` structural interface; pure utils (`canEditIncident`,
     `incidentLinkLine`, `incidentToForm`, `chronologyStatusLabel`, `linkDisplayInstant`,
     `isoToOccurredAtInput`/`occurredAtInputToIso`, `link-thread-selection` helpers);
@@ -294,18 +299,20 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
 
 1. **URL-state sync (signal ↔ query param).** Shared helper exists:
    `core/url-state/query-param.util.ts` (pure read helpers, one browser-gated merge/replace write;
-   defaults are never written to the URL). Adopted by home (`?view=`/`?sort=`/`?line=`/`?q=`);
-   spotting's line-overview encodes `sort`/`dir` inline. Not yet adopted: gdpr
-   (item deep-links), about (section anchors), spotting filters, console (shareable filter views),
-   insiden (per-incident expand state), tracker (map/layer views). Elsewhere only path params are
-   bound.
+   defaults are never written to the URL). Adopted by home (`?view=`/`?sort=`/`?line=`/`?q=`) and
+   insiden (`?lines=`/`?severity=`/`?mine=`); spotting's line-overview encodes `sort`/`dir` inline.
+   Not yet adopted: gdpr (item deep-links), about (section anchors), spotting filters, console
+   (shareable filter views), insiden (per-incident expand state), tracker (map/layer views).
+   Elsewhere only path params are bound.
 2. **Client-side export.** `core/export/csv.util.ts` (`toCsv` is pure and always emits a header
-   row; `downloadCsv` is browser-gated) and `core/export/json.util.ts` (`downloadJson`) exist. Consumers:
-   home's Pro lines widget (CSV) and profile's spotting history (CSV and JSON, paged from the API;
-   tracker's info panel keeps a private `toCsv`). Still wanted, with data already client-side and
-   no backend change: console (filtered queue), insiden (`.ics`), gallery (per-year zip). No `.ics`/zip
-   helper yet. `downloadJson` copies `downloadCsv`'s blob-and-anchor steps; merge them into one
-   `downloadText` when a third format arrives.
+   row; `downloadText` is the browser-gated Blob + anchor download, spelled `downloadCsv` /
+   `downloadIcs`), `core/export/json.util.ts` (`downloadJson`) and `core/export/ics.util.ts`
+   (`buildIcs`: RFC 5545 escaping, 75-octet folding, KL `TZID` times, pure) exist. Consumers: home's
+   Pro lines widget (CSV), profile's spotting history (CSV and JSON, paged from the API) and insiden
+   ("Add to calendar" and "Export month", `.csv`/`.ics`); tracker's info panel keeps a private
+   `toCsv`. Still wanted, with data already client-side and no backend change: console (filtered
+   queue), gallery (per-year zip). No zip helper yet. `downloadJson` still copies the blob-and-anchor
+   steps that `downloadText` now holds once for CSV and iCalendar; point it at `downloadText`.
 3. **User preferences / persistence.** `core/preferences/preferences.service.ts`
    (`PreferencesService`, localStorage key `rosak:preferences:v1`) holds home's pinned lines, view
    mode, density, etc.; home is the only consumer. Still missing: tracker saved layer presets,
