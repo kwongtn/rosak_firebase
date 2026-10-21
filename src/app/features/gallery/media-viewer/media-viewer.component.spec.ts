@@ -95,6 +95,21 @@ describe("MediaViewerComponent", () => {
     expect(closed).toBe(1);
   });
 
+  it("closes once on a click on Close, and on a click on the backdrop, but not on one in the photo area", async () => {
+    const viewer = await open(photo("a"));
+    let closed = 0;
+    fixture.componentInstance.close.subscribe(() => closed++);
+
+    viewer.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click();
+    expect(closed).toBe(1); // not twice: the click must not also reach the host's own handler
+
+    viewer.click();
+    expect(closed).toBe(2);
+
+    viewer.querySelector<HTMLElement>('[data-testid="media-viewer-stage"]')!.click();
+    expect(closed).toBe(2);
+  });
+
   it("moves focus to the Close button on open", async () => {
     const opener = document.createElement("button");
     document.body.appendChild(opener);

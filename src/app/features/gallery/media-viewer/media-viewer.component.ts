@@ -91,7 +91,7 @@ const ZOOMED_SCALE = 1.01;
           cdkFocusInitial
           class="text-white/80 hover:text-white inline-flex size-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           aria-label="Close"
-          (click)="close.emit()"
+          (click)="$event.stopPropagation(); close.emit()"
         >
           <svg
             viewBox="0 0 24 24"
