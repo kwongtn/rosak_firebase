@@ -40,8 +40,9 @@ const DROPPED = new Uint8Array(0);
  * Anything else, and any file with no GPS to remove, comes back unchanged (the very same Uint8Array
  * when one was passed in, so callers can test `result === input`). The server strips JPEG only too
  * (rosak_backend common/exif.py), so this is the only control for TIFF and PNG. GIF has no Exif
- * block. WebP and HEIC are not handled anywhere: the photo picker rejects them by type and by magic
- * bytes (ACCEPTED_TYPES), keep it that way until this function handles them first.
+ * block. WebP, HEIC and the rest are not handled anywhere: the photo picker accepts every image, and
+ * these are uploaded as they are, GPS included. That is the owner's choice; add a format here to
+ * clean it.
  *
  * Never throws.
  *

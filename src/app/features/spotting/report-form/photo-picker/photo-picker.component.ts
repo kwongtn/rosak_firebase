@@ -4,23 +4,6 @@ import { ImageCompressionService } from "../../../../core/upload/image-compressi
 import { ImageFile } from "../../../../core/upload/image-file";
 
 const MAX_BYTES = 9e6;
-// Only formats stripGps cleans before upload (GIF has no Exif). HEIC and WebP are not stripped on
-// the client or the server, so do not add them here without extending stripGps first.
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/tiff"];
-const SNIFF_BYTES = 12;
-
-/** file.type comes from the file name, so a HEIC renamed photo.jpg reads as image/jpeg: the leading
- * bytes must also match an accepted format. WebP is not accepted, so it has no signature here. */
-function hasAcceptedSignature(head: Uint8Array): boolean {
-  const startsWith = (...bytes: number[]) => bytes.every((byte, i) => head[i] === byte);
-  return (
-    startsWith(0xff, 0xd8, 0xff) || // JPEG
-    startsWith(0x89, 0x50, 0x4e, 0x47) || // PNG
-    startsWith(0x47, 0x49, 0x46, 0x38) || // GIF8
-    startsWith(0x49, 0x49, 0x2a, 0x00) || // TIFF, little-endian
-    startsWith(0x4d, 0x4d, 0x00, 0x2a) // TIFF, big-endian
-  );
-}
 
 /** Attach-photos widget for the report form, ported from @ui/spotting/form-upload. */
 @Component({
@@ -85,11 +68,9 @@ export class PhotoPickerComponent {
     input.value = "";
 
     for (const file of picked) {
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        continue;
-      }
-      const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
-      if (!hasAcceptedSignature(head)) {
+      // Some desktop browsers give HEIC/HEIF no MIME type; the dialog is already filtered by
+      // accept="image/*".
+      if (file.type && !file.type.startsWith("image/")) {
         continue;
       }
       const entry: ImageFile = {
@@ -106,6 +87,11 @@ export class PhotoPickerComponent {
           const compressed = await this.compression.resizeToSize(file, MAX_BYTES);
           this.files.update((list) =>
             list.map((f) => (f === entry ? { ...f, file: compressed, isCompressed: true } : f)),
+          );
+        } catch {
+          // The browser cannot decode this format (e.g. HEIC): upload the original as it is.
+          this.files.update((list) =>
+            list.map((f) => (f === entry ? { ...f, toCompress: false } : f)),
           );
         } finally {
           this._compressingCount.update((n) => n - 1);

@@ -190,9 +190,8 @@ export class ImageUploadService {
    * The one place every photo passes before it leaves the device, whoever queued it and whether it
    * was compressed, untouched or resumed from IndexedDB. stripGps removes the Exif GPS from a JPEG,
    * TIFF or PNG; XMP GPS in a TIFF or PNG and PNG "Raw profile type exif" chunks are not cleaned.
-   * Other formats are sent as they are and the server does not strip them either (it handles JPEG
-   * only): the picker takes only JPEG, PNG, GIF and TIFF, by type and by magic bytes
-   * (ACCEPTED_TYPES), and GIF has no Exif; HEIC and WebP never get here.
+   * Other formats (HEIC, WebP, AVIF, ...) are sent as they are, GPS included, by the owner's choice;
+   * the server does not strip them either (it handles JPEG only). GIF has no Exif.
    * The cleaned copy replaces the queued file, so a retry can never fall back to the original, and
    * `gpsChecked` makes sure only the first attempt reads the bytes.
    */
