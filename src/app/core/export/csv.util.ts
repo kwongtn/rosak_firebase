@@ -18,6 +18,11 @@
  * cell — and a CSV of hourly status buckets read one hour off is a plausible-looking lie, which is
  * the worst failure this file can have. A keyed row degrades instead: a missing key exports as an
  * empty cell, in the right column.
+ *
+ * 🔴 **`toCsv` does not defuse spreadsheet formulas, and cannot: it does not know which cells are
+ * user-written text.** A caller that exports text a rider or a community member typed (an incident
+ * title, a name) must pass that cell through {@link neutralizeSpreadsheetFormula} itself. It is
+ * opt-in per cell because applying it to every cell would also prefix a legitimate negative number.
  */
 
 /** What a single CSV cell may hold. `null`/`undefined` are the two spellings of "no value" and both
@@ -26,6 +31,19 @@ export type CsvCell = string | number | null | undefined;
 
 /** One data row, keyed by the column it belongs to (see the file doc for why it is not positional). */
 export type CsvRow = Readonly<Record<string, CsvCell>>;
+
+/**
+ * `text` as a cell value that a spreadsheet will not run as a formula.
+ *
+ * An export opens in Excel or Sheets, and a cell starting with `=`, `+`, `-` or `@` (after any
+ * leading whitespace), or with a tab or carriage return, is executed as a formula (`=HYPERLINK(...)`,
+ * DDE). A leading apostrophe makes it inert text, the mitigation OWASP recommends, at the cost of one
+ * visible character on the rare value that starts that way. Apply it to user-written TEXT only (see
+ * the file doc), never to a number.
+ */
+export function neutralizeSpreadsheetFormula(text: string): string {
+  return /^\s*[=+\-@]|^[\t\r]/.test(text) ? `'${text}` : text;
+}
 
 /**
  * RFC 4180's line terminator.

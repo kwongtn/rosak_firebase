@@ -1,4 +1,4 @@
-import { toCsv, type CsvRow } from "../../../core/export/csv.util";
+import { neutralizeSpreadsheetFormula, toCsv, type CsvRow } from "../../../core/export/csv.util";
 import { buildIcs, type IcsEvent, type IcsEventStatus } from "../../../core/export/ics.util";
 import type { CalendarIncident } from "./insiden.queries";
 
@@ -41,19 +41,6 @@ export function incidentPageUrl(incident: Pick<CalendarIncident, "startDatetime"
 /** The approval state in its GraphQL spelling (the API sends either casing); empty when unknown. */
 function statusLabel(status: string | undefined): string {
   return status?.toUpperCase() ?? "";
-}
-
-/**
- * A cell that a spreadsheet will not run as a formula.
- *
- * Titles are community-written, and an export opens in Excel or Sheets: a cell starting with `=`,
- * `+`, `-` or `@` (after any leading whitespace), or with a tab or carriage return, is executed as
- * a formula (`=HYPERLINK(...)`, DDE). A leading apostrophe makes it inert text — the mitigation
- * OWASP recommends — at the cost of one visible character on the rare title that starts that way.
- * `toCsv` does not do this itself: it serialises, it does not know which cells are user text.
- */
-export function neutralizeSpreadsheetFormula(text: string): string {
-  return /^\s*[=+\-@]|^[\t\r]/.test(text) ? `'${text}` : text;
 }
 
 /** One incident as a CSV row, keyed by {@link INCIDENT_CSV_COLUMNS}. */

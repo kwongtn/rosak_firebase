@@ -10,7 +10,6 @@ import {
   incidentsToCsv,
   incidentsToIcs,
   monthExportFilename,
-  neutralizeSpreadsheetFormula,
 } from "./incident-export.util";
 import type { CalendarIncident } from "./insiden.queries";
 
@@ -125,28 +124,9 @@ describe("incident-export.util: CSV", () => {
   });
 });
 
-describe("incident-export.util: neutralizeSpreadsheetFormula", () => {
-  it.each([
-    ['=HYPERLINK("http://evil.test","click")'],
-    ["+1+1"],
-    ["-2+3"],
-    ["@SUM(A1:A9)"],
-    ["  =1+1"],
-    ["\t=1+1"],
-    ["\r=1+1"],
-  ])("defuses a cell that would run as a formula: %j", (text) => {
-    expect(neutralizeSpreadsheetFormula(text)).toBe(`'${text}`);
-  });
-
-  it("leaves an ordinary title untouched", () => {
-    expect(neutralizeSpreadsheetFormula("Signal failure")).toBe("Signal failure");
-    expect(neutralizeSpreadsheetFormula("")).toBe("");
-    // A trigger character in the MIDDLE is inert.
-    expect(neutralizeSpreadsheetFormula("Delay - KJL = slow @ 8am")).toBe(
-      "Delay - KJL = slow @ 8am",
-    );
-  });
-
+describe("incident-export.util: formula neutralisation", () => {
+  // The rule itself (`neutralizeSpreadsheetFormula`) is specified in core/export/csv.util.spec.ts;
+  // this pins that the incident rows apply it to the cells a community member wrote.
   it("is applied to every user-written cell of an exported row", () => {
     const row = incidentToCsvRow(
       makeIncident({

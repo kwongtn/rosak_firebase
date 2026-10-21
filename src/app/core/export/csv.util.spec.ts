@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { downloadCsv, downloadIcs, downloadText, toCsv } from "./csv.util";
+import {
+  downloadCsv,
+  downloadIcs,
+  downloadText,
+  neutralizeSpreadsheetFormula,
+  toCsv,
+} from "./csv.util";
 
 /**
  * The exact bytes a spreadsheet receives, with every line break spelled out.
@@ -99,6 +105,44 @@ describe("csv.util: toCsv", () => {
 
   it("keeps a negative number's sign intact (no quoting, no abs)", () => {
     expect(toCsv(["delta"], [{ delta: -12 }])).toBe("delta\r\n-12\r\n");
+  });
+});
+
+describe("csv.util: neutralizeSpreadsheetFormula", () => {
+  it.each([
+    ['=HYPERLINK("http://evil.test","click")'],
+    ["+1+1"],
+    ["-2+3"],
+    ["@SUM(A1:A9)"],
+    ["  =1+1"],
+    ["\t=1+1"],
+    ["\r=1+1"],
+  ])("defuses text that a spreadsheet would run as a formula: %j", (text) => {
+    expect(neutralizeSpreadsheetFormula(text)).toBe(`'${text}`);
+  });
+
+  it("leaves ordinary text untouched", () => {
+    expect(neutralizeSpreadsheetFormula("Signal failure")).toBe("Signal failure");
+    expect(neutralizeSpreadsheetFormula("")).toBe("");
+    // A trigger character in the MIDDLE of a value is inert.
+    expect(neutralizeSpreadsheetFormula("Delay - KJL = slow @ 8am")).toBe(
+      "Delay - KJL = slow @ 8am",
+    );
+  });
+
+  it("survives toCsv as one quoted-if-needed cell, so the apostrophe is the only change", () => {
+    const csv = toCsv(["title"], [{ title: neutralizeSpreadsheetFormula('=SUM(1,2) "x"') }]);
+
+    expect(visibleRows(csv)).toEqual(["title", `"'=SUM(1,2) ""x"""`, ""]);
+  });
+
+  it("is opt-in: toCsv alone does not rewrite a cell, so a negative number stays a number", () => {
+    expect(visibleRows(toCsv(["delta"], [{ delta: -5 }, { delta: "-5" }]))).toEqual([
+      "delta",
+      "-5",
+      "-5",
+      "",
+    ]);
   });
 });
 
