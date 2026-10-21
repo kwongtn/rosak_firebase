@@ -190,8 +190,9 @@ export class ImageUploadService {
    * The one place every photo passes before it leaves the device, whoever queued it and whether it
    * was compressed, untouched or resumed from IndexedDB, so GPS never leaves the phone. A JPEG,
    * TIFF or PNG loses its GPS losslessly (see stripGps). Other formats are sent as they are and the
-   * server does not strip them either (it handles JPEG only): the picker accepts nothing but JPEG,
-   * PNG, GIF and TIFF (ACCEPTED_TYPES), and GIF has no Exif; HEIC and WebP never get here.
+   * server does not strip them either (it handles JPEG only): the picker takes only JPEG, PNG, GIF
+   * and TIFF, by type and by magic bytes (ACCEPTED_TYPES), and GIF has no Exif; HEIC and WebP never
+   * get here.
    * The cleaned copy replaces the queued file, so a retry can never fall back to the original, and
    * `gpsChecked` makes sure only the first attempt reads the bytes.
    */
