@@ -487,9 +487,9 @@ ordering rule = one pure function + spec.
   Official chip follows `isAutomated` (only `FEED_QUERY` selects it, so other hosts show no chip);
   nothing here knows `MAX_THREAD_DEPTH`.
 - **`feed-day-groups.util.ts`** (`groupFeedLinksByDay`): **local**-calendar buckets (the backend's naive
-  Asia/Kuala_Lumpur timestamps; unlike insiden's UTC `link-day-group.util`), keyed on
-  `occurredAt ?? created` so a day header never names a different day than the card's timestamp; an
-  unparsable date goes into a headerless `""` group.
+  Asia/Kuala_Lumpur timestamps; unlike insiden's `link-day-group.util`, which buckets on the Kuala Lumpur
+  day via `klDateKey` and naive slicing), keyed on `occurredAt ?? created` so a day header never names
+  a different day than the card's timestamp; an unparsable date goes into a headerless `""` group.
 
 ### Link submit box (`feed/link-submit-box.component.ts`)
 
