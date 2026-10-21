@@ -95,6 +95,11 @@ export class NewVersionService {
       // Resource-load failures arrive as plain Events targeting the element — the signal is
       // the failing script's URL, not any message. Real JS exceptions keep their message.
       const scriptSrc = event.target instanceof HTMLScriptElement ? event.target.src : "";
+      // Only our own chunks 404 after a deploy: a blocked third-party script (ad blocker,
+      // tracking protection) is not a new version, so it must not raise the prompt.
+      if (scriptSrc && new URL(scriptSrc, location.href).origin !== location.origin) {
+        return;
+      }
       const message = scriptSrc || (event instanceof ErrorEvent ? event.message : "");
       if (message && isChunkLoadError(message)) {
         this.promptReloadForNewVersion();
