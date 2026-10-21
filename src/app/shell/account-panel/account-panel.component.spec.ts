@@ -52,11 +52,16 @@ describe("AccountPanelComponent", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Reflect.deleteProperty(navigator, "clipboard");
   });
 
+  function findByTestId<T extends HTMLElement = HTMLElement>(testId: string): T | null {
+    return (fixture.nativeElement as HTMLElement).querySelector<T>(`[data-testid="${testId}"]`);
+  }
+
   function byTestId<T extends HTMLElement = HTMLElement>(testId: string): T {
-    const el = (fixture.nativeElement as HTMLElement).querySelector<T>(`[data-testid="${testId}"]`);
+    const el = findByTestId<T>(testId);
     if (!el) {
       throw new Error(`[data-testid="${testId}"] is not rendered`);
     }
@@ -90,5 +95,45 @@ describe("AccountPanelComponent", () => {
 
     expect(toast.error).toHaveBeenCalledWith("Couldn't copy code", "Document is not focused.");
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("keeps the live region mounted so the code is announced when it arrives", async () => {
+    const region = byTestId("account-code");
+    expect(region.getAttribute("role")).toBe("status");
+    expect(region.getAttribute("aria-live")).toBe("polite");
+    expect(region.textContent?.trim()).toBe("");
+
+    await requestCode();
+
+    // Same node, new text: the region was already in the DOM when the code was written into it.
+    expect(byTestId("account-code")).toBe(region);
+    expect(region.textContent?.trim()).toBe("123456");
+  });
+
+  it("keeps the ticking countdown outside the live region", async () => {
+    await requestCode();
+
+    expect(byTestId("account-code").contains(byTestId("account-code-countdown"))).toBe(false);
+  });
+
+  it("disables Request code while a code is live and re-enables it once the code expires", async () => {
+    // Only the countdown interval is faked: settle() still waits on a real macrotask.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const request = byTestId<HTMLButtonElement>("account-request-code");
+    expect(request.disabled).toBe(false);
+
+    await requestCode();
+    expect(request.disabled).toBe(true);
+
+    vi.advanceTimersByTime(59_000);
+    fixture.detectChanges();
+    expect(request.disabled).toBe(true);
+    expect(byTestId("account-code-countdown").textContent).toContain("Expires in 1s");
+
+    vi.advanceTimersByTime(1_000);
+    fixture.detectChanges();
+    expect(request.disabled).toBe(false);
+    expect(byTestId("account-code").textContent?.trim()).toBe("");
+    expect(findByTestId("account-code-countdown")).toBeNull();
   });
 });

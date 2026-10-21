@@ -91,37 +91,42 @@ const TELEGRAM_LINKING_WIKI_URL =
           </h3>
         </div>
         <div hlmCardContent>
-          @if (code() === null) {
-            <button
-              hlmBtn
-              size="sm"
-              data-testid="account-request-code"
-              [disabled]="isRequesting()"
-              (click)="requestCode()"
+          <button
+            hlmBtn
+            size="sm"
+            data-testid="account-request-code"
+            [disabled]="isRequesting() || code() !== null"
+            (click)="requestCode()"
+          >
+            {{ isRequesting() ? "Requesting…" : "Request code" }}
+          </button>
+          <!-- Mounted up front: screen readers skip a live region inserted together with its content.
+               The countdown ticks every second, so it stays outside the region. -->
+          <div class="flex items-center gap-2" [class.mt-2]="code() !== null">
+            <span
+              class="text-3xl font-bold tracking-widest tabular-nums"
+              role="status"
+              aria-live="polite"
+              data-testid="account-code"
+              >{{ code() }}</span
             >
-              {{ isRequesting() ? "Requesting…" : "Request code" }}
-            </button>
-          } @else {
-            <div class="flex flex-col gap-1 py-1">
-              <div class="flex items-center gap-2">
-                <span
-                  class="text-3xl font-bold tracking-widest tabular-nums"
-                  data-testid="account-code"
-                  >{{ code() }}</span
-                >
-                <button
-                  hlmBtn
-                  variant="outline"
-                  size="sm"
-                  aria-label="Copy code"
-                  data-testid="account-code-copy"
-                  (click)="copyCode()"
-                >
-                  Copy
-                </button>
-              </div>
-              <span class="text-muted-foreground text-xs">Expires in {{ countdown() }}s</span>
-            </div>
+            @if (code() !== null) {
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                aria-label="Copy code"
+                data-testid="account-code-copy"
+                (click)="copyCode()"
+              >
+                Copy
+              </button>
+            }
+          </div>
+          @if (code() !== null) {
+            <p class="text-muted-foreground mt-1 text-xs" data-testid="account-code-countdown">
+              Expires in {{ countdown() }}s
+            </p>
           }
         </div>
       </div>
