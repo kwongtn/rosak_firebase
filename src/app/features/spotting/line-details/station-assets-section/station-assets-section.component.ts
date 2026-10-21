@@ -3,6 +3,7 @@ import { injectIsBrowser } from "../../../../core/composables/is-browser";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
 import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
+import { AssetStatusBadge } from "../../../../domain-ui/asset-status-badge/asset-status-badge";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
@@ -20,19 +21,19 @@ const ASSET_TYPE_LABEL: Record<AssetType, string> = {
 };
 
 /**
- * Read-only listing of each station's tracked assets (lifts, escalators) on this line — the
- * first piece of a larger "volunteers report station asset breakages" feature the backend
- * already has a real (if currently empty and status-blind) model for: `operation.models.Asset`
- * is a genuine Django model with a `status` field (under maintenance / in operation) and full
- * history tracking, but the GraphQL type doesn't expose `status` yet and there's no mutation for
- * reporting it — see the query's own doc comment in spotting.queries.ts. This section is
- * deliberately scoped to what's real *today* (what assets exist, per station) rather than
- * building UI against fields/mutations that don't exist on the backend yet; adding status
- * display and a report-a-breakage mutation is real follow-up work, not something to fake here.
+ * Read-only listing of each station's tracked assets (lifts, escalators) on this line, with each
+ * asset's status (`asset-status-badge`: "In service" / "Out of service"). That status is
+ * maintained in the backend from operator information, not from live rider reports, and the
+ * section says so — a rider relying on a lift must know the badge can lag behind a breakdown.
+ *
+ * This is the first half of a "volunteers report station asset breakages" feature. The second
+ * half (a report mutation, and a rule that turns reports into a status) does not exist on the
+ * backend, and is deliberately not faked here: see docs/components/spotting.md. The status
+ * itself is a real field (`Asset.status`, selected in spotting.queries.ts).
  */
 @Component({
   selector: "app-station-assets-section",
-  imports: [HlmBadge, HlmSkeleton, RetryBannerComponent],
+  imports: [AssetStatusBadge, HlmBadge, HlmSkeleton, RetryBannerComponent],
   template: `
     <div class="flex flex-col gap-3">
       <!-- bg-background sticky, matching every other section header on this page (the title
@@ -72,10 +73,14 @@ const ASSET_TYPE_LABEL: Record<AssetType, string> = {
             </svg>
           </button>
         </h2>
-        <p class="text-muted-foreground text-xs">
-          Lifts &amp; escalators — status tracking coming soon
-        </p>
+        <p class="text-muted-foreground text-xs">Lifts &amp; escalators</p>
       </div>
+      <!-- Outside the sticky header on purpose: a sentence here would make the pinned bar taller
+           on a phone, and it is only worth reading once, not while scrolling. -->
+      <p class="text-muted-foreground text-xs" data-testid="asset-status-note">
+        Each asset's status is maintained from operator information, not live rider reports, so it
+        can lag behind a breakdown.
+      </p>
       @if (resource.isLoading()) {
         <div hlmSkeleton class="h-32 w-full"></div>
       } @else if (resource.hasError()) {
@@ -92,13 +97,14 @@ const ASSET_TYPE_LABEL: Record<AssetType, string> = {
               } @else {
                 <div class="flex flex-col gap-1.5">
                   @for (asset of station.assets; track asset.id) {
-                    <div class="flex items-center gap-2 text-xs">
+                    <div class="flex items-center gap-2 text-xs" data-testid="station-asset">
                       <span hlmBadge variant="outline">{{
                         ASSET_TYPE_LABEL[asset.assetType]
                       }}</span>
                       <span class="text-muted-foreground truncate">
                         {{ asset.shortDescription || asset.officialid || "—" }}
                       </span>
+                      <asset-status-badge class="ml-auto shrink-0" [status]="asset.status" />
                     </div>
                   }
                 </div>
