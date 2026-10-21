@@ -116,6 +116,47 @@
           Affected
         </h3>
 
+        @if (fillChips().length > 0 || fillUnmatched().length > 0) {
+          <div class="flex flex-col gap-1.5" data-testid="fill-summary">
+            @if (fillChips().length > 0) {
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-muted-foreground text-xs">Filled from link</span>
+                @for (chip of fillChips(); track chip.kind + chip.id) {
+                  <span hlmBadge variant="secondary" data-testid="fill-chip">
+                    {{ chip.label }}
+                    <button
+                      type="button"
+                      class="hover:bg-foreground/10 focus-visible:ring-ring/50 inline-flex rounded-full p-0.5 outline-none focus-visible:ring-2"
+                      [attr.aria-label]="'Remove ' + chip.label"
+                      (click)="dismissFillChip(chip)"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="size-3"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M18 6 6 18M6 6l12 12"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                }
+              </div>
+            }
+            @if (fillUnmatched().length > 0) {
+              <p class="text-muted-foreground text-xs" data-testid="fill-unmatched">
+                Couldn't match: {{ fillUnmatched().join(", ") }}
+              </p>
+            }
+          </div>
+        }
+
         @if (referenceResource.hasError()) {
           <app-error-box
             title="Couldn't load reference data"
@@ -352,7 +393,7 @@
                         <circle cx="12" cy="12" r="9" class="opacity-25" />
                         <path d="M12 3a9 9 0 0 1 9 9" stroke-linecap="round" />
                       </svg>
-                      Extracting…
+                      Filling…
                     } @else {
                       <svg
                         viewBox="0 0 24 24"
@@ -368,7 +409,7 @@
                           stroke-linejoin="round"
                         />
                       </svg>
-                      Extract
+                      Fill from link
                     }
                   </button>
                 </div>

@@ -29,12 +29,17 @@ import { IncidentFormComponent } from "./incident-form.component";
 interface ComponentUnderTest {
   model: WritableSignal<IncidentFormModel>;
   chronologies: WritableSignal<ChronologyDraft[]>;
+  selectedLineIds: WritableSignal<string[]>;
+  selectedStationIds: WritableSignal<string[]>;
+  referenceResource: { reload(): void };
   isSubmitting: WritableSignal<boolean>;
   submit(): Promise<void>;
   clear(): void;
   undoAll(): void;
   hydrate(incident: CalendarIncident): void;
   extractChronology(key: number): Promise<void>;
+  replaceWithExtraction(key: number): void;
+  undoExtraction(key: number): void;
   isExtracting(key: number): boolean;
   hasLateResult(key: number): boolean;
 }
@@ -484,7 +489,7 @@ describe("IncidentFormComponent", () => {
       fixture.detectChanges();
     }
 
-    /** The five controls Extract locks while it runs: indicator, datetime, URL, content, button. */
+    /** The five controls Fill from link locks while it runs: indicator, datetime, URL, content, button. */
     function rowControls(): Array<
       HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement
     > {
@@ -493,9 +498,9 @@ describe("IncidentFormComponent", () => {
       );
       if (!row) throw new Error("chronology row not rendered");
       const extractButton = Array.from(row.querySelectorAll("button")).find((button) =>
-        /Extract/.test(button.textContent ?? ""),
+        /Fill from link|Filling/.test(button.textContent ?? ""),
       );
-      if (!extractButton) throw new Error("Extract button not rendered");
+      if (!extractButton) throw new Error("Fill from link button not rendered");
       return [
         ...row.querySelectorAll<HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement>(
           "select, input[type='datetime-local'], input[type='url'], textarea",
@@ -582,6 +587,305 @@ describe("IncidentFormComponent", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe("Fill from link", () => {
+    const REFERENCE = {
+      lines: [
+        { id: "4", code: "LRT KJL", displayName: "LRT Kelana Jaya Line", vehicleTypes: [] },
+        { id: "1", code: "MRL", displayName: "KL Monorail Line", vehicleTypes: [] },
+      ],
+      stations: [
+        { id: "10", displayName: "KL Sentral", lines: [{ id: "4", code: "LRT KJL" }] },
+        { id: "11", displayName: "Pasar Seni", lines: [{ id: "4", code: "LRT KJL" }] },
+      ],
+      calendarIncidentCategories: [],
+    };
+
+    const FILLED: ExtractedIncidentData = {
+      title: "Signal fault at KL Sentral",
+      datetime: "2026-08-01T09:30:00+08:00",
+      content: "Trains held at KL Sentral",
+      source_url: "https://x.com/a/1",
+      indicator: "disruption",
+      severity: "major",
+      affected_lines: ["LRT KJL", "Bogus Line"],
+      affected_stations: ["kl sentral", "Nowhere"],
+    };
+
+    const host = () => fixture.nativeElement as HTMLElement;
+
+    const chipTexts = () =>
+      Array.from(host().querySelectorAll('[data-testid="fill-chip"]')).map((chip) =>
+        chip.textContent?.trim(),
+      );
+
+    const unmatchedText = () =>
+      host().querySelector('[data-testid="fill-unmatched"]')?.textContent?.trim() ?? null;
+
+    /** Swaps the empty reference data the suite starts with for lines and stations to match against. */
+    async function loadReference(): Promise<void> {
+      asTestable(fixture).referenceResource.reload();
+      fixture.detectChanges();
+      httpMock.expectOne((request) => request.method === "POST").flush({ data: REFERENCE });
+      await fixture.whenStable();
+    }
+
+    /** Opens the sheet (the body only renders once open) on one row holding just a source URL. */
+    async function openWithRow(row: Partial<ChronologyDraft> = {}): Promise<ComponentUnderTest> {
+      sheet.open();
+      const component = asTestable(fixture);
+      component.chronologies.set([
+        { ...emptyChronology(0), sourceUrl: "https://x.com/a/1", ...row },
+      ]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return component;
+    }
+
+    async function fillFromLink(
+      component: ComponentUnderTest,
+      data: ExtractedIncidentData = FILLED,
+    ): Promise<void> {
+      extractMock.mockResolvedValueOnce({ requestId: "r1", data });
+      await component.extractChronology(0);
+      fixture.detectChanges();
+    }
+
+    it("fills the empty title, severity, lines and stations and says so", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component);
+
+      expect(component.model().title).toBe("Signal fault at KL Sentral");
+      expect(component.model().severity).toBe("MAJOR");
+      expect(component.selectedLineIds()).toEqual(["4"]);
+      expect(component.selectedStationIds()).toEqual(["10"]);
+      expect(toastMocks.success).toHaveBeenCalledWith(
+        "Filled from link",
+        "Filled in title, severity, 1 line, 1 station. Review before you submit.",
+      );
+    });
+
+    it("shows the matched lines and stations as chips and lists the rest as unmatched", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component);
+
+      expect(chipTexts()).toEqual(["LRT KJL", "KL Sentral"]);
+      expect(unmatchedText()).toBe("Couldn't match: Bogus Line, Nowhere");
+    });
+
+    it("takes the row's datetime, content and a blank row's indicator", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component);
+
+      expect(component.chronologies()[0]).toMatchObject({
+        indicator: "RED",
+        content: "Trains held at KL Sentral",
+        datetime: isoToDateTimeLocal("2026-08-01T09:30:00+08:00"),
+      });
+    });
+
+    it("never overwrites a typed title, a chosen severity or already selected lines and stations", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      component.model.update((m) => ({ ...m, title: "My own title", severity: "MINOR" }));
+      component.selectedLineIds.set(["1"]);
+      component.selectedStationIds.set(["11"]);
+
+      await fillFromLink(component);
+
+      expect(component.model().title).toBe("My own title");
+      expect(component.model().severity).toBe("MINOR");
+      expect(component.selectedLineIds()).toEqual(["1"]);
+      expect(component.selectedStationIds()).toEqual(["11"]);
+      expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
+      expect(toastMocks.success).not.toHaveBeenCalled();
+    });
+
+    it("keeps an indicator the rider picked and the indicator of a row that already has text", async () => {
+      await loadReference();
+      const picked = await openWithRow({ indicator: "BLUE" });
+      await fillFromLink(picked);
+      expect(picked.chronologies()[0].indicator).toBe("BLUE");
+
+      const typed = await openWithRow({ content: "typed by hand" });
+      await fillFromLink(typed);
+      expect(typed.chronologies()[0].indicator).toBe("GREEN");
+    });
+
+    it("unselects a line or station when its chip is dismissed, leaving the other chips", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      await fillFromLink(component);
+
+      const dismiss = (label: string) => {
+        const remove = host().querySelector<HTMLButtonElement>(
+          `button[aria-label="Remove ${label}"]`,
+        );
+        if (!remove) throw new Error(`remove button for ${label} not rendered`);
+        remove.click();
+        fixture.detectChanges();
+      };
+
+      dismiss("LRT KJL");
+      expect(component.selectedLineIds()).toEqual([]);
+      expect(component.selectedStationIds()).toEqual(["10"]);
+      expect(chipTexts()).toEqual(["KL Sentral"]);
+
+      dismiss("KL Sentral");
+      expect(component.selectedStationIds()).toEqual([]);
+      expect(chipTexts()).toEqual([]);
+      // The names that matched nothing stay listed: only the rider can place them.
+      expect(unmatchedText()).toBe("Couldn't match: Bogus Line, Nowhere");
+    });
+
+    it("drops a chip when its line is unselected some other way", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      await fillFromLink(component);
+
+      component.selectedStationIds.set([]);
+      fixture.detectChanges();
+
+      expect(chipTexts()).toEqual(["LRT KJL"]);
+    });
+
+    it("reports names that match nothing even when no chip could be made", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component, {
+        ...FILLED,
+        affected_lines: ["Kelana Jaya"],
+        affected_stations: [],
+      });
+
+      expect(component.selectedLineIds()).toEqual([]);
+      expect(chipTexts()).toEqual([]);
+      expect(unmatchedText()).toBe("Couldn't match: Kelana Jaya");
+    });
+
+    it("clears the chips and the unmatched note with the form", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      await fillFromLink(component);
+      expect(host().querySelector('[data-testid="fill-summary"]')).not.toBeNull();
+
+      component.clear();
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
+    });
+
+    it("drops an extracted time more than a day in the future but still applies the content", async () => {
+      const component = await openWithRow();
+      const threeDaysAhead = new Date(Date.now() + 3 * 86_400_000).toISOString();
+
+      await fillFromLink(component, { ...FILLED, datetime: threeDaysAhead });
+
+      expect(component.chronologies()[0].datetime).toBe("");
+      expect(component.chronologies()[0].content).toBe("Trains held at KL Sentral");
+    });
+
+    it("drops an extracted time before the incident's start date", async () => {
+      const component = await openWithRow();
+      component.model.update((m) => ({ ...m, startDatetime: "2026-08-10T08:00" }));
+
+      await fillFromLink(component, { ...FILLED, datetime: "2026-08-01T09:30:00+08:00" });
+
+      expect(component.chronologies()[0].datetime).toBe("");
+    });
+
+    it("keeps an extracted time on or after the incident's start date", async () => {
+      const component = await openWithRow();
+      component.model.update((m) => ({ ...m, startDatetime: "2026-08-01T08:00" }));
+
+      await fillFromLink(component, { ...FILLED, datetime: "2026-08-01T09:30:00+08:00" });
+
+      expect(component.chronologies()[0].datetime).toBe(
+        isoToDateTimeLocal("2026-08-01T09:30:00+08:00"),
+      );
+    });
+
+    it("fills nothing and unlocks the row when the extraction fails", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      extractMock.mockRejectedValueOnce(new Error("Data extraction failed (502)"));
+
+      await component.extractChronology(0);
+      fixture.detectChanges();
+
+      expect(component.isExtracting(0)).toBe(false);
+      expect(component.model().title).toBe("");
+      expect(component.chronologies()[0].content).toBe("");
+      expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
+      expect(toastMocks.success).not.toHaveBeenCalled();
+    });
+
+    it("fills nothing when the extraction comes back empty", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component, {
+        title: null,
+        datetime: null,
+        content: null,
+        source_url: "https://x.com/a/1",
+        indicator: "other",
+        severity: null,
+        affected_lines: [],
+        affected_stations: [],
+      });
+
+      expect(component.model()).toEqual(emptyIncidentFormModel());
+      expect(component.selectedLineIds()).toEqual([]);
+      expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
+      expect(toastMocks.success).not.toHaveBeenCalled();
+    });
+
+    it("applies a late result through Replace, and Undo puts the row back as it was", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      let resolve!: (value: unknown) => void;
+      extractMock.mockReturnValueOnce(new Promise((done) => (resolve = done)));
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const request = component.extractChronology(0);
+        await vi.advanceTimersByTimeAsync(15_000);
+        resolve({ requestId: "r1", data: FILLED });
+        await request;
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(component.hasLateResult(0)).toBe(true);
+      expect(component.model().title).toBe("");
+
+      component.replaceWithExtraction(0);
+      fixture.detectChanges();
+
+      expect(component.model().title).toBe("Signal fault at KL Sentral");
+      expect(component.selectedLineIds()).toEqual(["4"]);
+      expect(component.chronologies()[0]).toMatchObject({
+        indicator: "RED",
+        content: "Trains held at KL Sentral",
+      });
+
+      component.undoExtraction(0);
+      fixture.detectChanges();
+
+      expect(component.chronologies()[0]).toMatchObject({
+        indicator: "GREEN",
+        content: "",
+        datetime: "",
+      });
     });
   });
 });

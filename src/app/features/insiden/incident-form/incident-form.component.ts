@@ -11,6 +11,7 @@ import {
   AssetMultiSelectComponent,
   type AssetMultiSelectOption,
 } from "../asset-multi-select/asset-multi-select.component";
+import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
@@ -48,7 +49,16 @@ import {
   toggleCollapsed,
   type ChronologyDraft,
 } from "./chronology-list.util";
-import { applyExtractionToChronology } from "./extract-data.util";
+import {
+  applyExtractionToChronology,
+  describeFormFill,
+  incidentDayStart,
+  planFormFill,
+  plausibleDatetime,
+  proposeIndicator,
+  type FormFillReference,
+  type ReferenceMatchOption,
+} from "./extract-data.util";
 import { incidentToForm } from "./incident-to-form.util";
 import { emptyIncidentFormModel, incidentFormSchema } from "./incident-form.schema";
 import { ExtractedIncidentData } from "../data/incident-ai.service";
@@ -65,9 +75,31 @@ const EXTRACT_TIMEOUT_MS = 15_000;
 interface ChronologyExtractState {
   extracting: boolean;
   lateResult: ExtractedIncidentData | null;
-  preReplaceSnapshot: { datetime: string; content: string } | null;
+  preReplaceSnapshot: { datetime: string; content: string; indicator: ChronologyIndicator } | null;
   replaced: boolean;
 }
+
+/** A line or station a "Fill from link" put into the Affected fields, shown as a dismissible chip. */
+interface FillChip {
+  kind: "line" | "station";
+  id: string;
+  label: string;
+}
+
+/** What the last fill left behind for the chips and the "Couldn't match" note. */
+interface FillNotes {
+  lines: ReferenceMatchOption[];
+  stations: ReferenceMatchOption[];
+  unmatchedLines: string[];
+  unmatchedStations: string[];
+}
+
+const NO_FILL_NOTES: FillNotes = {
+  lines: [],
+  stations: [],
+  unmatchedLines: [],
+  unmatchedStations: [],
+};
 
 /**
  * "Report an Incident" sheet — right-side sidebar hosting the calendar-incident form.
@@ -102,6 +134,7 @@ interface ChronologyExtractState {
     AssetMultiSelectComponent,
     FormField,
     ErrorBoxComponent,
+    HlmBadge,
     HlmButton,
     HlmCheckbox,
     HlmInput,
@@ -258,6 +291,58 @@ export class IncidentFormComponent {
     })),
   );
 
+  /** The loaded lines and stations as the extraction matcher wants them; `null` until the reference
+   * read has succeeded, so a fill that runs before then skips matching rather than reporting
+   * every name as unmatched. */
+  private readonly _fillReference = computed<FormFillReference | null>(() => {
+    const data = this.referenceResource.data();
+    if (!data) {
+      return null;
+    }
+    return {
+      lines: data.lines.map((line) => ({
+        id: line.id,
+        label: line.code,
+        names: [line.code, line.displayName],
+      })),
+      stations: data.stations.map((station) => ({
+        id: station.id,
+        label: station.displayName,
+        names: [station.displayName],
+      })),
+    };
+  });
+
+  private readonly _fillNotes = signal<FillNotes>(NO_FILL_NOTES);
+
+  /** Chips for the lines and stations "Fill from link" selected. They follow the live selection, so
+   * removing the line or station in the list below drops its chip too. */
+  protected readonly fillChips = computed<FillChip[]>(() => {
+    const { lines, stations } = this._fillNotes();
+    const selectedLines = this.selectedLineIds();
+    const selectedStations = this.selectedStationIds();
+    return [
+      ...lines
+        .filter((line) => selectedLines.includes(line.id))
+        .map((line) => ({ kind: "line" as const, id: line.id, label: line.label })),
+      ...stations
+        .filter((station) => selectedStations.includes(station.id))
+        .map((station) => ({ kind: "station" as const, id: station.id, label: station.label })),
+    ];
+  });
+
+  /** Names the extraction mentioned that match no loaded line or station. */
+  protected readonly fillUnmatched = computed(() => {
+    const { unmatchedLines, unmatchedStations } = this._fillNotes();
+    return [...unmatchedLines, ...unmatchedStations];
+  });
+
+  protected dismissFillChip(chip: FillChip): void {
+    (chip.kind === "line" ? this.selectedLineIds : this.selectedStationIds).update((ids) =>
+      ids.filter((id) => id !== chip.id),
+    );
+  }
+
   protected onCategoryChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.selectedCategoryId.set(value || null);
@@ -326,6 +411,7 @@ export class IncidentFormComponent {
     this.selectedVehicleIds.set(mapped.selectedVehicleIds);
     this.selectedStationIds.set(mapped.selectedStationIds);
     this.selectedCategoryId.set(mapped.selectedCategoryIds[0] ?? null);
+    this._fillNotes.set(NO_FILL_NOTES);
     this.extractStates.set(new Map());
     this.isSummarizing.set(false);
     this.incidentForm().reset();
@@ -468,7 +554,11 @@ export class IncidentFormComponent {
       const next = new Map(map);
       next.set(key, {
         ...state,
-        preReplaceSnapshot: { datetime: row.datetime, content: row.content },
+        preReplaceSnapshot: {
+          datetime: row.datetime,
+          content: row.content,
+          indicator: row.indicator,
+        },
         replaced: true,
       });
       return next;
@@ -504,10 +594,67 @@ export class IncidentFormComponent {
     });
   }
 
+  /** "Fill from link" for one extraction. The row takes the datetime (when plausible), the content
+   * and, for a blank row, the indicator; the form's own title, severity, lines and stations are
+   * filled only where still empty. Nothing the rider typed is overwritten, except the row's
+   * datetime and content, which an extraction has always replaced. */
   private applyExtraction(key: number, data: ExtractedIncidentData): void {
+    const checked = {
+      ...data,
+      datetime: plausibleDatetime(data.datetime, {
+        now: new Date(),
+        notBefore: incidentDayStart(this.model().startDatetime),
+      }),
+    };
     this.chronologies.update((list) =>
-      list.map((c) => (c.key === key ? applyExtractionToChronology(c, data) : c)),
+      list.map((c) =>
+        c.key === key
+          ? { ...applyExtractionToChronology(c, checked), indicator: proposeIndicator(c, data) }
+          : c,
+      ),
     );
+    this.fillFormFields(data);
+  }
+
+  private fillFormFields(data: ExtractedIncidentData): void {
+    const { title, severity } = this.model();
+    const fill = planFormFill(
+      {
+        title,
+        severity,
+        lineIds: this.selectedLineIds(),
+        stationIds: this.selectedStationIds(),
+      },
+      data,
+      this._fillReference(),
+    );
+    if (fill.title !== null || fill.severity !== null) {
+      this.model.update((m) => ({
+        ...m,
+        title: fill.title ?? m.title,
+        severity: fill.severity ?? m.severity,
+      }));
+    }
+    if (fill.lines.matched.length > 0) {
+      this.selectedLineIds.set(fill.lines.matched.map((line) => line.id));
+    }
+    if (fill.stations.matched.length > 0) {
+      this.selectedStationIds.set(fill.stations.matched.map((station) => station.id));
+    }
+    // A field the extraction said nothing about (or that was already filled) keeps its earlier note.
+    const hasLines = fill.lines.matched.length + fill.lines.unmatched.length > 0;
+    const hasStations = fill.stations.matched.length + fill.stations.unmatched.length > 0;
+    this._fillNotes.update((notes) => ({
+      lines: hasLines ? fill.lines.matched : notes.lines,
+      unmatchedLines: hasLines ? fill.lines.unmatched : notes.unmatchedLines,
+      stations: hasStations ? fill.stations.matched : notes.stations,
+      unmatchedStations: hasStations ? fill.stations.unmatched : notes.unmatchedStations,
+    }));
+    // The title, severity and chips sit far above the chronology row the rider just pressed.
+    const filled = describeFormFill(fill);
+    if (filled) {
+      this.toast.success("Filled from link", `Filled in ${filled}. Review before you submit.`);
+    }
   }
 
   protected toggleChronologyCollapsed(key: number): void {
@@ -710,6 +857,7 @@ export class IncidentFormComponent {
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
     this.selectedCategoryId.set(null);
+    this._fillNotes.set(NO_FILL_NOTES);
     this.sheet.editTarget.set(null);
     this.incidentForm().reset();
   }
