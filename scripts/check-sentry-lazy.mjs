@@ -14,8 +14,9 @@ const PATTERNS = [
   new RegExp(`\\bSentry\\.(?:${NAMES})\\b`),
   new RegExp(`import\\s*\\{[^}]*\\b(?:${NAMES})\\b[^}]*\\}\\s*from\\s*["']@sentry/`),
   /from\s+["']@sentry\/(?:replay|feedback|replay-canvas|browser)["']/,
-  // A static value import of a wrapper pulls its ?lazy copy into the importing chunk.
-  /^\s*(?:import|export)\s+(?!type\b)[^;]*?\bfrom\s+["'][^"']*core\/sentry\/(?:replay|feedback)-integration(?:\.ts)?["']/m,
+  // A static value import of a wrapper pulls its ?lazy copy into the importing chunk. No path
+  // prefix: siblings in core/sentry import it as "./feedback-integration".
+  /^\s*(?:import|export)\s+(?!type\b)[^;]*?\bfrom\s+["'][^"']*(?:replay|feedback)-integration(?:\.ts)?["']/m,
 ];
 const COMMENT = /^\s*(\/\/|\/\*|\*)/;
 const LAZY_ONLY =
