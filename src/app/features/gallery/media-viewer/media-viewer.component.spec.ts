@@ -54,6 +54,21 @@ describe("MediaViewerComponent", () => {
     );
   });
 
+  it("shows the photo with no 'Uploaded by' row when the backend hides the uploader", async () => {
+    const viewer = await open({ ...photo("a"), uploader: null });
+
+    expect(viewer.querySelector("img")!.getAttribute("alt")).toBe("Photo, 12 May 2024");
+    expect(viewer.textContent).not.toContain("Uploaded by");
+    expect(viewer.textContent).toContain("Uploaded on");
+  });
+
+  it("names the uploader in the details when there is one", async () => {
+    const viewer = await open(photo("a"));
+
+    expect(viewer.textContent).toContain("Uploaded by");
+    expect(viewer.textContent).toContain("spotter123");
+  });
+
   it("closes on Escape", async () => {
     await open(photo("a"));
     let closed = 0;

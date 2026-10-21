@@ -45,7 +45,9 @@ export interface MediaNode {
   width: number;
   height: number;
   file: { url: string } | null;
-  uploader: { nickname: string };
+  /** Null when the photo is attached to an anonymous spotting and the viewer is neither the
+   * uploader nor an admin: the photo still shows, just without a name. */
+  uploader: { nickname: string } | null;
 }
 
 export interface MediasFeedQueryData {

@@ -65,10 +65,10 @@ import { mediaLabel } from "../data/media-label.util";
           class="flex w-full flex-col gap-4 p-4 text-white lg:w-72 lg:shrink-0 lg:overflow-y-auto"
         >
           <h3 class="text-xs font-semibold tracking-wide text-white/50 uppercase">Details</h3>
-          @if (media().uploader.nickname) {
+          @if (media().uploader?.nickname) {
             <div>
               <p class="text-xs text-white/50">Uploaded by</p>
-              <p class="text-sm">{{ media().uploader.nickname }}</p>
+              <p class="text-sm">{{ media().uploader?.nickname }}</p>
             </div>
           }
           <div>

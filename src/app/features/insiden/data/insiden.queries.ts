@@ -209,8 +209,9 @@ export interface CalendarIncidentMedia {
   file: { url: string };
   width: number;
   height: number;
-  /** Public uploader identity (UserScalar.nickname); nullable on old rows that predate
-   * uploader linkage — the viewer map falls back to an empty nickname. */
+  /** Public uploader identity (UserScalar.nickname). Null on old rows that predate uploader
+   * linkage, and on a photo attached to an anonymous spotting for everyone but the uploader and
+   * admins; the viewer then shows the photo without a name. */
   uploader?: { nickname: string } | null;
 }
 

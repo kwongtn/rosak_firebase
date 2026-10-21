@@ -14,6 +14,10 @@ describe("mediaLabel", () => {
     );
   });
 
+  it("leaves the uploader out when the backend hides it (null)", () => {
+    expect(mediaLabel({ createdDate: "2024-05-12", uploader: null })).toBe("Photo, 12 May 2024");
+  });
+
   it("leaves the date out when there is none, as for incident photos", () => {
     expect(mediaLabel({ createdDate: "", uploader: { nickname: "spotter123" } })).toBe(
       "Photo by spotter123",

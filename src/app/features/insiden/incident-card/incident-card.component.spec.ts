@@ -844,6 +844,26 @@ describe("IncidentCardComponent photo preview & inline add", () => {
     expect(fixture.nativeElement.querySelector("app-media-viewer")).toBeNull();
   });
 
+  it("opens the viewer for a photo whose uploader the backend hides, with no uploader row", () => {
+    fixture.componentRef.setInput(
+      "incident",
+      makeIncident({
+        medias: [{ ...makePhoto("m1", "https://cdn.example.com/m1.jpg"), uploader: null }],
+      }),
+    );
+    fixture.detectChanges();
+    expandPhotos();
+
+    thumbnails()[0].click();
+    fixture.detectChanges();
+
+    const viewer = fixture.nativeElement.querySelector("app-media-viewer") as HTMLElement | null;
+    expect(viewer?.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/m1.jpg",
+    );
+    expect(viewer?.textContent).not.toContain("Uploaded by");
+  });
+
   it("keeps Add Photo as an inline cell inside the same grid flow, not a separate section", () => {
     fixture.componentRef.setInput(
       "incident",

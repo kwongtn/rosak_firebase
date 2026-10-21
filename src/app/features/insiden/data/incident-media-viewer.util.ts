@@ -9,7 +9,8 @@ import type { CalendarIncidentMedia } from "./insiden.queries";
  * The backend `MediaScalar` (what `CalendarIncidentScalar.medias` returns) has no
  * created-date field — that exists only on the gallery's own `MediaType`, so the
  * viewer's "Uploaded on" row renders empty for incident photos. Everything the
- * viewer can actually show (image + uploader nickname) is passed through.
+ * viewer can actually show (image + uploader nickname, when the backend names one) is passed
+ * through.
  */
 export function incidentMediaToViewerNode(media: CalendarIncidentMedia): MediaNode {
   return {
@@ -20,6 +21,6 @@ export function incidentMediaToViewerNode(media: CalendarIncidentMedia): MediaNo
     width: media.width,
     height: media.height,
     file: media.file,
-    uploader: { nickname: media.uploader?.nickname ?? "" },
+    uploader: media.uploader ?? null,
   };
 }

@@ -25,10 +25,9 @@ describe("incidentMediaToViewerNode", () => {
     expect(node.uploader).toEqual({ nickname: "spotter123" });
   });
 
-  it("falls back to an empty nickname for legacy rows without an uploader", () => {
-    const node = incidentMediaToViewerNode(makeMedia({ uploader: null }));
-
-    expect(node.uploader).toEqual({ nickname: "" });
+  it("passes a null uploader through (legacy rows, or a photo on an anonymous spotting)", () => {
+    expect(incidentMediaToViewerNode(makeMedia({ uploader: null })).uploader).toBeNull();
+    expect(incidentMediaToViewerNode(makeMedia({ uploader: undefined })).uploader).toBeNull();
   });
 
   it("leaves createdDate empty because the backend MediaScalar exposes no date field", () => {
