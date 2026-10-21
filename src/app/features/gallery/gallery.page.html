@@ -85,6 +85,34 @@
   <app-footer />
 </div>
 
+<!-- A year jump pages through the feed until the year turns up, which can take a while: say so,
+     wherever the visitor has scrolled to. The status region is always in the DOM so that the
+     text is announced when it appears. -->
+<div role="status" class="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center">
+  @if (isJumping()) {
+    <span
+      class="bg-background text-foreground flex items-center gap-2 rounded-full border px-4 py-2 text-sm shadow-md"
+      data-testid="gallery-jump-loading"
+    >
+      <svg
+        class="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
+        <path
+          d="M22 12a10 10 0 0 0-10-10"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </svg>
+      Loading {{ jumpTargetYear() }}…
+    </span>
+  }
+</div>
+
 @if (selectedMedia(); as media) {
   <app-media-viewer [media]="media" (close)="onCloseMedia()" />
 }

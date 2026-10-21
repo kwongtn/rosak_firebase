@@ -387,3 +387,36 @@ describe("GalleryPage share metadata", () => {
     expect(tag('property="og:image:alt"')).toBeUndefined();
   });
 });
+
+describe("GalleryPage year jump progress", () => {
+  const OLD_PHOTO: MediaNode = { ...PHOTO, id: "m0", createdDate: "2023-03-01" };
+
+  afterEach(() => {
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it("shows a loading indicator naming the year while the jump pages through the feed", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    Element.prototype.scrollIntoView = vi.fn(); // jsdom has none
+    const fixture = createPage("browser");
+    const root = fixture.nativeElement as HTMLElement;
+    const indicator = () => root.querySelector('[data-testid="gallery-jump-loading"]');
+    answerYearCounts();
+    feedRequest().flush(feedOf([PHOTO], true));
+    await settle(fixture);
+    // The status region is always there, so the text is announced when it appears.
+    expect(root.querySelector('[role="status"]')).not.toBeNull();
+    expect(indicator()).toBeNull();
+
+    const jump = fixture.componentInstance.jumpToYear(2023);
+    const nextPage = feedRequest();
+    expect(nextPage.request.body.variables).toEqual({ first: 100, after: "c1" });
+    fixture.detectChanges();
+    expect(indicator()?.textContent?.trim()).toBe("Loading 2023…");
+
+    nextPage.flush(feedOf([OLD_PHOTO]));
+    await jump;
+    fixture.detectChanges();
+    expect(indicator()).toBeNull();
+  });
+});
