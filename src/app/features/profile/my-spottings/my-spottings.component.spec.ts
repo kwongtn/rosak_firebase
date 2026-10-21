@@ -46,6 +46,28 @@ function makeUser(spottings: MyEvent[] | null): PublicUserData {
   };
 }
 
+/** `count` distinct events with ids `from`, `from + 1`, ... (strings, as the API sends them). */
+function makeEvents(count: number, from = 1): MyEvent[] {
+  return Array.from({ length: count }, (_, i) => makeEvent(String(from + i)));
+}
+
+/** A request the test resolves by hand, so an export can be left paused between two pages. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+/** A Blob's text, through FileReader because the test DOM's Blob has no `text()` on every runner. */
+function blobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
 describe("MySpottingsComponent", () => {
   let fixture: ComponentFixture<MySpottingsComponent>;
   let requestMock: ReturnType<typeof vi.fn>;
@@ -166,6 +188,226 @@ describe("MySpottingsComponent", () => {
       });
 
       expect(vehicleLinks()[0].getAttribute("href")).toBe("/spotting/2/vehicle/29");
+    });
+  });
+
+  describe("export", () => {
+    /** What the browser was asked to download, in order. */
+    let downloads: { filename: string; blob: Blob }[];
+
+    beforeEach(() => {
+      downloads = [];
+      let lastBlob: Blob | undefined;
+      // jsdom has no object URLs. They are defined on the real `URL` (not a replacement object, which
+      // would break `new URL()` for everything else in the page) and removed again below.
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        writable: true,
+        value: vi.fn((blob: Blob) => {
+          lastBlob = blob;
+          return "blob:fake";
+        }),
+      });
+      Object.defineProperty(URL, "revokeObjectURL", {
+        configurable: true,
+        writable: true,
+        value: vi.fn(),
+      });
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        downloads.push({ filename: this.getAttribute("download") ?? "", blob: lastBlob as Blob });
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    });
+
+    const byTestId = (id: string): HTMLButtonElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        `[data-testid="${id}"]`,
+      );
+
+    /** Renders the owner's history with `firstPage` as the list's first page, and waits for it. */
+    async function renderOwner(firstPage: MyEvent[]): Promise<void> {
+      requestMock.mockResolvedValueOnce({ events: firstPage });
+      await render(makeUser(null), true);
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(byTestId("export-csv")).not.toBeNull();
+      });
+    }
+
+    it("offers CSV and JSON to the owner, once there is a history to export", async () => {
+      await renderOwner(makeEvents(3));
+
+      expect(byTestId("export-csv")?.textContent?.trim()).toBe("Export CSV");
+      expect(byTestId("export-json")?.textContent?.trim()).toBe("Export JSON");
+    });
+
+    it("offers nothing on an empty history", async () => {
+      requestMock.mockResolvedValueOnce({ events: [] });
+
+      await render(makeUser(null), true);
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+          "No spottings logged yet.",
+        );
+      });
+
+      expect(byTestId("export-csv")).toBeNull();
+      expect(byTestId("export-json")).toBeNull();
+    });
+
+    it("never offers it on someone else's profile", async () => {
+      await render(makeUser([makeEvent("1")]), false);
+
+      expect(byTestId("export-csv")).toBeNull();
+      expect(byTestId("export-json")).toBeNull();
+    });
+
+    it("exports a history that fits the loaded page without asking for more", async () => {
+      await renderOwner(makeEvents(3));
+
+      byTestId("export-csv")?.click();
+
+      await vi.waitFor(() => expect(downloads).toHaveLength(1));
+      expect(requestMock).toHaveBeenCalledTimes(1);
+      expect(downloads[0].filename).toBe("mlptf-my-spottings.csv");
+      const lines = (await blobText(downloads[0].blob)).split("\r\n");
+      expect(lines[0]).toBe(
+        "date,vehicle,line,type,status,notes,run number,origin,destination,media count",
+      );
+      expect(lines[1]).toBe("2026-09-18,105,MRT KGL,AT_STATION,IN_SERVICE,,,,,0");
+      expect(lines).toHaveLength(5);
+      expect(toast.success).toHaveBeenCalledWith("Exported 3 spottings");
+    });
+
+    it("pages on past the loaded pages until a short page, showing its progress", async () => {
+      await renderOwner(makeEvents(30));
+      const last = deferred<{ events: MyEvent[] }>();
+      requestMock
+        .mockResolvedValueOnce({ events: makeEvents(200, 31) })
+        .mockReturnValueOnce(last.promise);
+
+      byTestId("export-csv")?.click();
+
+      // Paused on the last page: 30 loaded plus the 200 just fetched.
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain("Preparing 230 rows…");
+      });
+      expect(byTestId("export-csv")?.disabled).toBe(true);
+      expect(byTestId("export-json")?.disabled).toBe(true);
+      expect(requestMock.mock.calls.map(([, vars]) => vars)).toEqual([
+        { limit: 30, offset: 0 },
+        { limit: 200, offset: 30 },
+        { limit: 200, offset: 230 },
+      ]);
+      expect(downloads).toHaveLength(0);
+
+      last.resolve({ events: makeEvents(50, 231) });
+      await vi.waitFor(() => expect(downloads).toHaveLength(1));
+      fixture.detectChanges();
+
+      const lines = (await blobText(downloads[0].blob)).split("\r\n");
+      expect(lines).toHaveLength(1 + 280 + 1);
+      expect(byTestId("export-progress")).toBeNull();
+      expect(byTestId("export-csv")?.disabled).toBe(false);
+      expect(toast.success).toHaveBeenCalledWith("Exported 280 spottings");
+      // The export gathers into its own array, so the list still shows only what it loaded.
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll("li")).toHaveLength(30);
+    });
+
+    it("downloads the same rows as JSON, keyed by the CSV column names", async () => {
+      await renderOwner([
+        makeEvent("1", {
+          notes: "Platform 2, late",
+          runNumber: "R12",
+          mediaCount: 2,
+          originStation: { displayName: "Ampang" },
+        }),
+        makeEvent("2"),
+      ]);
+
+      byTestId("export-json")?.click();
+
+      await vi.waitFor(() => expect(downloads).toHaveLength(1));
+      expect(downloads[0].filename).toBe("mlptf-my-spottings.json");
+      expect(downloads[0].blob.type).toBe("application/json;charset=utf-8;");
+      expect(JSON.parse(await blobText(downloads[0].blob))).toEqual([
+        {
+          date: "2026-09-18",
+          vehicle: "105",
+          line: "MRT KGL",
+          type: "AT_STATION",
+          status: "IN_SERVICE",
+          notes: "Platform 2, late",
+          "run number": "R12",
+          origin: "Ampang",
+          destination: null,
+          "media count": 2,
+        },
+        {
+          date: "2026-09-18",
+          vehicle: "105",
+          line: "MRT KGL",
+          type: "AT_STATION",
+          status: "IN_SERVICE",
+          notes: null,
+          "run number": null,
+          origin: null,
+          destination: null,
+          "media count": 0,
+        },
+      ]);
+    });
+
+    it("lists a spotting repeated across two pages once", async () => {
+      await renderOwner(makeEvents(30));
+      // A spotting logged elsewhere meanwhile shifts the history, so event 30 comes round again.
+      requestMock.mockResolvedValueOnce({ events: [...makeEvents(1, 30), ...makeEvents(1, 31)] });
+
+      byTestId("export-csv")?.click();
+
+      await vi.waitFor(() => expect(downloads).toHaveLength(1));
+      expect(toast.success).toHaveBeenCalledWith("Exported 31 spottings");
+    });
+
+    it("downloads nothing and says so when a page fails, then lets the owner try again", async () => {
+      await renderOwner(makeEvents(30));
+      requestMock.mockRejectedValueOnce(new Error("Network down"));
+
+      byTestId("export-csv")?.click();
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Couldn't export spottings", "Network down"),
+      );
+      fixture.detectChanges();
+      expect(downloads).toHaveLength(0);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(byTestId("export-progress")).toBeNull();
+      expect(byTestId("export-csv")?.disabled).toBe(false);
+    });
+
+    it("stops paging and downloads nothing when the page is left mid-export", async () => {
+      await renderOwner(makeEvents(30));
+      const second = deferred<{ events: MyEvent[] }>();
+      requestMock.mockReturnValueOnce(second.promise);
+
+      byTestId("export-csv")?.click();
+      await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(2));
+      fixture.destroy();
+      second.resolve({ events: makeEvents(200, 31) });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(downloads).toHaveLength(0);
+      expect(requestMock).toHaveBeenCalledTimes(2);
+      expect(toast.success).not.toHaveBeenCalled();
     });
   });
 });

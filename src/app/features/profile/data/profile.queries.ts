@@ -259,6 +259,12 @@ export const GET_MY_EVENTS_QUERY = /* GraphQL */ `
       runNumber
       mediaCount
       isMine
+      originStation {
+        displayName
+      }
+      destinationStation {
+        displayName
+      }
       vehicle {
         id
         status
@@ -290,6 +296,9 @@ export interface MyEvent {
   runNumber: string | null;
   mediaCount: number;
   isMine: boolean;
+  /** Selected by `GET_MY_EVENTS_QUERY` only (the export reads them); a public profile's list omits them. */
+  originStation?: { displayName: string } | null;
+  destinationStation?: { displayName: string } | null;
   vehicle: {
     id: string;
     status: VehicleStatus;

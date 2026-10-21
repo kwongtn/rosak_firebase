@@ -9,9 +9,11 @@ import {
   signal,
   untracked,
 } from "@angular/core";
-import { DatePipe } from "@angular/common";
+import { DatePipe, DecimalPipe } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
+import { downloadCsv, toCsv } from "../../../core/export/csv.util";
+import { downloadJson } from "../../../core/export/json.util";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
@@ -33,9 +35,23 @@ import {
   PublicUserData,
 } from "../data/profile.queries";
 import { vehicleLinesLabel } from "../../../core/util/lines-label.util";
+import {
+  MY_SPOTTINGS_EXPORT_BASENAME,
+  MY_SPOTTINGS_EXPORT_COLUMNS,
+  buildSpottingExportRows,
+} from "../data/my-spottings-export.util";
 import { firstLineVehiclePath } from "../data/vehicle-link.util";
 
 const PAGE_SIZE = 30;
+
+/**
+ * The page size while an export pages through the whole history. The list's own page is 30 rows
+ * because that is what fits a screen; an export reads thousands for the heaviest spotters, and each
+ * request carries a fixed cost (about 12 ms a row at 30 against about 5 ms at 200 on the dev stack).
+ * Not larger: the backend rejects a very large page (5000 rows failed with "target lists can have at
+ * most 1664 entries").
+ */
+const EXPORT_PAGE_SIZE = 200;
 
 interface EventDayGroup {
   date: string;
@@ -61,6 +77,7 @@ interface EventDayGroup {
   selector: "app-my-spottings",
   imports: [
     DatePipe,
+    DecimalPipe,
     RouterLink,
     HlmButton,
     ...HlmCardImports,
@@ -72,7 +89,48 @@ interface EventDayGroup {
   ],
   template: `
     <div hlmCard>
-      <div hlmCardHeader><h2 hlmCardTitle>Historical Spottings</h2></div>
+      <div hlmCardHeader>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 hlmCardTitle>Historical Spottings</h2>
+          @if (isOwnProfile() && _events().length > 0) {
+            <div
+              class="flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Export your spottings"
+            >
+              @if (_exportRows(); as rows) {
+                <span
+                  class="text-muted-foreground text-xs tabular-nums"
+                  role="status"
+                  data-testid="export-progress"
+                >
+                  Preparing {{ rows | number }} rows…
+                </span>
+              }
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                data-testid="export-csv"
+                [disabled]="_exportDisabled()"
+                (click)="exportHistory('csv')"
+              >
+                Export CSV
+              </button>
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                data-testid="export-json"
+                [disabled]="_exportDisabled()"
+                (click)="exportHistory('json')"
+              >
+                Export JSON
+              </button>
+            </div>
+          }
+        </div>
+      </div>
       <div hlmCardContent>
         @if (showPrivacyMessage()) {
           <div
@@ -254,6 +312,13 @@ export class MySpottingsComponent {
    * resolves null and an unauthenticated `onlyMine` query would just fail. */
   private readonly isBrowser = injectIsBrowser();
 
+  /** Rows gathered so far while an export pages through the history; `null` while none is running. */
+  protected readonly _exportRows = signal<number | null>(null);
+  /** An export runs one at a time, and not beside the list's own first page. */
+  protected readonly _exportDisabled = computed(
+    () => this._exportRows() !== null || this._isLoading(),
+  );
+
   protected readonly _events = computed<MyEvent[]>(() =>
     this.isOwnProfile() ? this._ownEvents() : this.spottingsData(),
   );
@@ -308,20 +373,15 @@ export class MySpottingsComponent {
     }
     this._isLoading.set(true);
     try {
-      const idToken = await this.auth.idToken();
-      if (this.isDestroyed) {
-        return;
-      }
-      const data = await this.graphql.request<GetMyEventsData, GetMyEventsVars>(
-        GET_MY_EVENTS_QUERY,
-        { limit: PAGE_SIZE, offset: untracked(() => this._ownEvents().length) },
-        idToken ? { "firebase-auth-key": idToken } : {},
+      const events = await this.fetchEventsPage(
+        untracked(() => this._ownEvents().length),
+        PAGE_SIZE,
       );
-      if (this.isDestroyed) {
+      if (events === null) {
         return;
       }
-      this._hasMore.set(data.events.length === PAGE_SIZE);
-      this._ownEvents.update((list) => [...list, ...data.events]);
+      this._hasMore.set(events.length === PAGE_SIZE);
+      this._ownEvents.update((list) => [...list, ...events]);
     } catch (err) {
       this.toast.error(
         "Couldn't load spottings",
@@ -330,6 +390,84 @@ export class MySpottingsComponent {
     } finally {
       this._isLoading.set(false);
     }
+  }
+
+  /**
+   * One page of the caller's own history, newest first, from `offset`. `null` means the component
+   * was destroyed on the way, so the caller must not write the page anywhere (and no request is made
+   * if it happened while the token was being fetched).
+   */
+  private async fetchEventsPage(offset: number, limit: number): Promise<MyEvent[] | null> {
+    const idToken = await this.auth.idToken();
+    if (this.isDestroyed) {
+      return null;
+    }
+    const data = await this.graphql.request<GetMyEventsData, GetMyEventsVars>(
+      GET_MY_EVENTS_QUERY,
+      { limit, offset },
+      idToken ? { "firebase-auth-key": idToken } : {},
+    );
+    return this.isDestroyed ? null : data.events;
+  }
+
+  /**
+   * Downloads the caller's whole history. `_ownEvents` is only the pages the list has loaded, so a
+   * naive export would silently stop where "Load more" did: this continues from there, page after
+   * page, until one comes back short.
+   *
+   * It gathers into its own array rather than `_ownEvents`: appending thousands of rows would make
+   * the list render all of them, which is the cost the paging exists to avoid. A failure is shown in
+   * a toast and nothing is downloaded, because a file holding only the first pages would look
+   * complete and not be.
+   */
+  protected async exportHistory(format: "csv" | "json"): Promise<void> {
+    if (!this.isBrowser || !this.isOwnProfile() || this._exportRows() !== null) {
+      return;
+    }
+    this._exportRows.set(this._ownEvents().length);
+    try {
+      const events = await this.fetchWholeHistory();
+      if (events === null) {
+        return;
+      }
+      const rows = buildSpottingExportRows(events);
+      if (format === "csv") {
+        downloadCsv(
+          `${MY_SPOTTINGS_EXPORT_BASENAME}.csv`,
+          toCsv(MY_SPOTTINGS_EXPORT_COLUMNS, rows),
+          this.isBrowser,
+        );
+      } else {
+        downloadJson(`${MY_SPOTTINGS_EXPORT_BASENAME}.json`, rows, this.isBrowser);
+      }
+      this.toast.success(`Exported ${rows.length} spottings`);
+    } catch (err) {
+      this.toast.error(
+        "Couldn't export spottings",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+    } finally {
+      this._exportRows.set(null);
+    }
+  }
+
+  /**
+   * The pages already loaded plus every page after them, ending at the first short one, or `null`
+   * if the component is destroyed first.
+   */
+  private async fetchWholeHistory(): Promise<MyEvent[] | null> {
+    const events = [...this._ownEvents()];
+    let more = this._hasMore();
+    while (more) {
+      const page = await this.fetchEventsPage(events.length, EXPORT_PAGE_SIZE);
+      if (page === null) {
+        return null;
+      }
+      events.push(...page);
+      this._exportRows.set(events.length);
+      more = page.length === EXPORT_PAGE_SIZE;
+    }
+    return events;
   }
 
   protected _canDelete(event: MyEvent): boolean {
