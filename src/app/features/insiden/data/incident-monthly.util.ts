@@ -10,10 +10,6 @@ import type { MonthlyHistoryIncident } from "./insiden-history.queries";
 /** How many months the section covers, ending at (and including) the month the calendar shows. */
 export const HISTORY_MONTHS = 12;
 
-/** The shortest visible bar for a month that HAS incidents, so a count of 1 is still a bar. Same
- * floor, and the same reasoning, as the home line-status chart. */
-export const MIN_BAR_PERCENT = 6;
-
 const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
 const LONG_LABEL = new Intl.DateTimeFormat("en-US", {
@@ -147,7 +143,8 @@ export interface MonthlyBar {
   major: number;
   minor: number;
   total: number;
-  /** The whole bar's height, as a percentage of the busiest month (floored at the minimum). */
+  /** The whole bar's height, as a percentage of the busiest month: exactly total over the busiest
+   * total, with no floor (see {@link toMonthlyBars}). */
   heightPct: number;
   /** The major / minor segments' heights; they sum to exactly `heightPct`. */
   majorPct: number;
@@ -160,16 +157,18 @@ export interface MonthlyBar {
  * The bars for `rows`, scaled to the busiest month.
  *
  * Scaled to the busiest month IN THE WINDOW rather than to a fixed constant, as the home chart does:
- * the chart is a self-relative picture of the shape of the year. Each bar's height is the month's
- * total over the busiest total (floored so a single incident is still visible) and the two segments
- * split that height by their share, so they always sum to the bar — even when the floor lifts it.
+ * the chart is a self-relative picture of the shape of the year. Each bar's height is exactly the
+ * month's total over the busiest total and the two segments split that height by their share, so
+ * they always sum to the bar. There is NO minimum height here: a floor in percent made one incident
+ * in a busy window taller than the y axis says it is. A sliver too thin to see is the view's to widen
+ * (a 2 px minimum on each drawn segment), a pixel-level courtesy rather than a change to the number.
  * An empty month is a zero-height bar, never a sliver.
  */
 export function toMonthlyBars(rows: readonly MonthlySeverityRow[]): MonthlyBar[] {
   const max = rows.reduce((highest, row) => Math.max(highest, row.major + row.minor), 0);
   return rows.map((row, index) => {
     const total = row.major + row.minor;
-    const heightPct = max === 0 || total === 0 ? 0 : Math.max((total / max) * 100, MIN_BAR_PERCENT);
+    const heightPct = max === 0 || total === 0 ? 0 : (total / max) * 100;
     const label = monthLongLabel(row.monthKey);
     const isJanuary = row.monthKey.endsWith("-01");
     return {
@@ -191,6 +190,18 @@ export function toMonthlyBars(rows: readonly MonthlySeverityRow[]): MonthlyBar[]
   });
 }
 
+/**
+ * The y axis labels, top to bottom: the busiest month's count, its half, and zero.
+ *
+ * The half is there only when it is a WHOLE number. Gridlines sit at the top, the middle and the
+ * bottom of the plot, so an odd maximum (3) has no whole count in the middle, and labelling that line
+ * with a rounded one (2) would claim a value the line does not mark. Without it the middle gridline
+ * is drawn and left unlabelled, and a maximum of 1 is just `[1, 0]`.
+ */
+export function yAxisTicks(max: number): number[] {
+  return max >= 2 && max % 2 === 0 ? [max, max / 2, 0] : [max, 0];
+}
+
 /** The busiest month (earliest wins a tie, so the same data always names the same month), or `null`
  * when every month is empty. */
 export function busiestMonth(rows: readonly MonthlySeverityRow[]): MonthlySeverityRow | null {
@@ -205,9 +216,9 @@ export function busiestMonth(rows: readonly MonthlySeverityRow[]): MonthlySeveri
 }
 
 /**
- * One sentence carrying what a sighted reader takes from the bars, for the chart's `role="img"`:
- * the window, the totals and the peak. Individual bars are `aria-hidden` and the table below the
- * chart is the per-month fallback.
+ * One sentence carrying what a sighted reader takes from the bars, for the chart group's accessible
+ * name: the window, the totals and the peak. Each bar is its own button named by its month, and the
+ * table below the chart is the per-month fallback.
  */
 export function monthlyHistorySummary(rows: readonly MonthlySeverityRow[]): string {
   const first = rows[0];

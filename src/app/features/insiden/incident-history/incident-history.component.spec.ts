@@ -332,6 +332,39 @@ describe("IncidentHistoryComponent", () => {
       expect(labels).toEqual(["2", "1", "0"]);
     });
 
+    it("leaves the middle of the y axis unlabelled when the busiest count is odd", async () => {
+      // 3 incidents in one month: the middle gridline sits at 1.5, which no label may claim.
+      const fixture = await openAndAnswer("2026-03", {
+        startYearIncidents: [],
+        endYearIncidents: [
+          incident("a", "2026-03-01T08:00:00", "MAJOR"),
+          incident("b", "2026-03-02T08:00:00", "MINOR"),
+          incident("c", "2026-03-03T08:00:00", "MINOR"),
+        ],
+      });
+      const labels = [...byTestId(fixture, "incident-history-axis").querySelectorAll("span")].map(
+        (label) => label.textContent?.trim(),
+      );
+
+      expect(labels).toEqual(["3", "0"]);
+    });
+
+    it("draws a bar exactly as tall as its share of the busiest month, with no floor", async () => {
+      // 1 against 40: 2.5 % of the plot. A percentage floor would have drawn it as 6 %, taller than
+      // the y axis says it is; only the pixel minimum on the segment keeps it visible.
+      const many = Array.from({ length: 40 }, (_, index) =>
+        incident(`m${index}`, "2026-03-05T08:00:00", "MINOR"),
+      );
+      const fixture = await openAndAnswer("2026-03", {
+        startYearIncidents: [],
+        endYearIncidents: [...many, incident("one", "2026-02-05T08:00:00", "MAJOR")],
+      });
+      const february = bars(fixture).find((bar) => bar.dataset["month"] === "2026-02");
+
+      expect(segmentHeights(february, "major")).toBeCloseTo(2.5);
+      expect(february?.querySelector("[data-severity]")?.className).toContain("min-h-[2px]");
+    });
+
     it("names the window beside the legend", async () => {
       const fixture = await openAndAnswer();
 
@@ -364,7 +397,9 @@ describe("IncidentHistoryComponent", () => {
       const fixture = await openAndAnswer();
       const april = bars(fixture).find((bar) => bar.dataset["month"] === "2025-04");
 
-      expect(byTestId(fixture, "incident-history-readout").textContent).toContain("Hover or tap");
+      expect(byTestId(fixture, "incident-history-readout").textContent).toContain(
+        "Hover, tap or focus",
+      );
       april?.dispatchEvent(new Event("mouseenter"));
       fixture.detectChanges();
       const readout = byTestId(fixture, "incident-history-readout").textContent ?? "";
@@ -375,12 +410,29 @@ describe("IncidentHistoryComponent", () => {
 
       byTestId(fixture, "incident-history-chart").dispatchEvent(new Event("mouseleave"));
       fixture.detectChanges();
-      expect(byTestId(fixture, "incident-history-readout").textContent).toContain("Hover or tap");
+      expect(byTestId(fixture, "incident-history-readout").textContent).toContain(
+        "Hover, tap or focus",
+      );
 
       const december = bars(fixture).find((bar) => bar.dataset["month"] === "2025-12");
       december?.click();
       fixture.detectChanges();
       expect(byTestId(fixture, "incident-history-readout").textContent).toContain("December 2025");
+    });
+
+    it("shows a bar's detail in the readout when it takes keyboard focus, and clears it on leaving", async () => {
+      const fixture = await openAndAnswer();
+      const april = bars(fixture).find((bar) => bar.dataset["month"] === "2025-04");
+
+      april?.focus();
+      fixture.detectChanges();
+      expect(byTestId(fixture, "incident-history-readout").textContent).toContain("April 2025");
+
+      byTestId(fixture, "incident-history-chart").dispatchEvent(new Event("focusout"));
+      fixture.detectChanges();
+      expect(byTestId(fixture, "incident-history-readout").textContent).toContain(
+        "Hover, tap or focus",
+      );
     });
 
     it("clears the readout when the window changes, rather than naming a bar that is gone", async () => {
@@ -394,22 +446,36 @@ describe("IncidentHistoryComponent", () => {
       await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(byTestId(fixture, "incident-history-readout").textContent).toContain("Hover or tap");
+      expect(byTestId(fixture, "incident-history-readout").textContent).toContain(
+        "Hover, tap or focus",
+      );
     });
   });
 
   describe("accessibility", () => {
-    it("gives the bars one role=img sentence and hides each bar from assistive tech", async () => {
+    it("names the chart with one summary sentence, as a group so its bars stay reachable", async () => {
       const fixture = await openAndAnswer();
       const chart = byTestId(fixture, "incident-history-chart");
 
-      expect(chart.getAttribute("role")).toBe("img");
+      // Not role="img": that would make every bar inside it presentational.
+      expect(chart.getAttribute("role")).toBe("group");
       expect(chart.getAttribute("aria-label")).toBe(
         "Incidents started per month, April 2025 to March 2026: 2 major and 2 minor. Busiest month: April 2025 with 2 incidents",
       );
+    });
+
+    it("makes every bar a button named by its month, total and split", async () => {
+      const fixture = await openAndAnswer();
+
       for (const bar of bars(fixture)) {
-        expect(bar.getAttribute("aria-hidden")).toBe("true");
+        expect(bar.tagName).toBe("BUTTON");
+        expect(bar.getAttribute("type")).toBe("button");
+        expect(bar.getAttribute("aria-hidden")).toBeNull();
+        expect(bar.getAttribute("aria-label")).toBe(bar.getAttribute("title"));
       }
+      expect(bars(fixture)[0]?.getAttribute("aria-label")).toBe(
+        "April 2025 · 2 incidents · Major 1, Minor 1",
+      );
     });
 
     it("offers the same numbers as a table: month, major, minor", async () => {

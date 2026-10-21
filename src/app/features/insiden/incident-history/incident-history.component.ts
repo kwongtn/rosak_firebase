@@ -13,6 +13,7 @@ import {
   monthLongLabel,
   monthlyHistorySummary,
   toMonthlyBars,
+  yAxisTicks,
   type MonthlyBar,
 } from "../data/incident-monthly.util";
 import {
@@ -59,8 +60,11 @@ function yearFilter(year: number): YearFilter {
  * What is counted is the `incidents.monthly-by-severity` registry entry; why the read is
  * `calendarIncidents` and not `calendarIncidentsBySeverityCount` is in `insiden-history.queries.ts`.
  *
- * Accessibility: the bars are one `role="img"` carrying a summary sentence (the window, the totals
- * and the peak), each bar `aria-hidden`; the table below is the per-month fallback.
+ * Accessibility: the chart is a `role="group"` named by a summary sentence (the window, the totals
+ * and the peak) and every bar is a focusable button named by its own month, total and split, which
+ * also drives the readout line, so a keyboard or a screen reader reaches each number the pointer can.
+ * (`role="img"` would have made the buttons inside it presentational.) The table below is the
+ * per-month fallback.
  */
 @Component({
   selector: "app-incident-history",
@@ -162,7 +166,7 @@ function yearFilter(year: number): YearFilter {
                   </span>
                 } @else {
                   <span class="text-muted-foreground">
-                    Hover or tap a bar for that month's incidents.
+                    Hover, tap or focus a bar for that month's incidents.
                   </span>
                 }
               </div>
@@ -173,17 +177,18 @@ function yearFilter(year: number): YearFilter {
                   aria-hidden="true"
                   data-testid="incident-history-axis"
                 >
-                  <span>{{ maxCount() }}</span>
-                  <span>{{ halfCount() }}</span>
-                  <span>0</span>
+                  @for (tick of axisTicks(); track $index) {
+                    <span>{{ tick }}</span>
+                  }
                 </div>
                 <div class="min-w-0 flex-1">
                   <div
                     class="relative flex h-24 items-end gap-1"
-                    role="img"
+                    role="group"
                     data-testid="incident-history-chart"
                     [attr.aria-label]="summary()"
                     (mouseleave)="hovered.set(null)"
+                    (focusout)="hovered.set(null)"
                   >
                     <div
                       class="pointer-events-none absolute inset-0 flex flex-col justify-between"
@@ -194,30 +199,35 @@ function yearFilter(year: number): YearFilter {
                       }
                     </div>
                     @for (bar of bars(); track bar.monthKey) {
-                      <div
-                        class="relative flex h-full min-w-0 flex-1 flex-col-reverse rounded-[1px]"
-                        aria-hidden="true"
+                      <button
+                        type="button"
+                        class="focus-visible:ring-ring/50 relative flex h-full min-w-0 flex-1 cursor-pointer flex-col-reverse rounded-[1px] outline-none focus-visible:ring-[3px]"
                         data-testid="incident-history-bar"
                         [attr.data-month]="bar.monthKey"
+                        [attr.aria-label]="bar.title"
                         [title]="bar.title"
                         (mouseenter)="hovered.set(bar)"
+                        (focus)="hovered.set(bar)"
                         (click)="hovered.set(bar)"
                       >
+                        <!-- Spans, not divs: a button holds phrasing content. The 2px minimum keeps a
+                             single incident in a busy window visible without changing its height
+                             anywhere the axis could contradict it. -->
                         @if (bar.major > 0) {
-                          <div
-                            class="bg-destructive w-full"
+                          <span
+                            class="bg-destructive block min-h-[2px] w-full"
                             data-severity="major"
                             [style.height.%]="bar.majorPct"
-                          ></div>
+                          ></span>
                         }
                         @if (bar.minor > 0) {
-                          <div
-                            class="w-full bg-amber-500 last:rounded-t-[2px]"
+                          <span
+                            class="block min-h-[2px] w-full bg-amber-500 last:rounded-t-[2px]"
                             data-severity="minor"
                             [style.height.%]="bar.minorPct"
-                          ></div>
+                          ></span>
                         }
-                      </div>
+                      </button>
                     }
                   </div>
                   <div class="mt-1 flex gap-1" aria-hidden="true">
@@ -373,10 +383,9 @@ export class IncidentHistoryComponent {
   protected readonly hasData = computed(() => this.bars().some((bar) => bar.total > 0));
   protected readonly summary = computed(() => monthlyHistorySummary(this.history().rows));
 
-  protected readonly maxCount = computed(() =>
-    this.bars().reduce((highest, bar) => Math.max(highest, bar.total), 0),
+  protected readonly axisTicks = computed(() =>
+    yAxisTicks(this.bars().reduce((highest, bar) => Math.max(highest, bar.total), 0)),
   );
-  protected readonly halfCount = computed(() => Math.ceil(this.maxCount() / 2));
 
   /** "November 2025 – October 2026". */
   protected readonly rangeLabel = computed(() => {

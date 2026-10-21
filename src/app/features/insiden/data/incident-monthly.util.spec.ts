@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   HISTORY_MONTHS,
-  MIN_BAR_PERCENT,
   bucketIncidentsByMonth,
   busiestMonth,
   historyYearSpan,
@@ -11,6 +10,7 @@ import {
   monthShortLabel,
   monthlyHistorySummary,
   toMonthlyBars,
+  yAxisTicks,
 } from "./incident-monthly.util";
 import type { MonthlyHistoryIncident } from "./insiden-history.queries";
 
@@ -248,14 +248,27 @@ describe("incident-monthly.util: toMonthlyBars", () => {
     expect(bar?.minorPct).toBe(0);
   });
 
-  it("floors a tiny month so a single incident is still visible, with segments summing to the bar", () => {
+  it("never lifts a small month above its share: one incident against a hundred is one percent", () => {
+    // A percentage floor would have drawn this at 6 %, taller than the y axis says it is. A sliver
+    // too thin to see is the view's to widen in pixels, not the number's.
     const bar = toMonthlyBars([
       { monthKey: "2026-01", major: 50, minor: 50 },
       { monthKey: "2026-02", major: 1, minor: 0 },
     ])[1];
 
-    expect(bar?.heightPct).toBe(MIN_BAR_PERCENT);
-    expect((bar?.majorPct ?? 0) + (bar?.minorPct ?? 0)).toBeCloseTo(MIN_BAR_PERCENT);
+    expect(bar?.heightPct).toBeCloseTo(1);
+    expect(bar?.majorPct).toBeCloseTo(1);
+    expect(bar?.minorPct).toBe(0);
+  });
+
+  it("keeps the segments summing to exactly the bar", () => {
+    const bar = toMonthlyBars([
+      { monthKey: "2026-01", major: 7, minor: 5 },
+      { monthKey: "2026-02", major: 1, minor: 2 },
+    ])[1];
+
+    expect((bar?.majorPct ?? 0) + (bar?.minorPct ?? 0)).toBeCloseTo(bar?.heightPct ?? -1);
+    expect(bar?.heightPct).toBeCloseTo(25);
   });
 
   it("draws every bar at zero when nothing happened at all", () => {
@@ -287,6 +300,24 @@ describe("incident-monthly.util: toMonthlyBars", () => {
     // 2025-10 .. 2026-03
     expect(bars.map((bar) => bar.yearTick)).toEqual(["2025", null, null, "2026", null, null]);
     expect(bars.map((bar) => bar.tick)).toEqual(["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]);
+  });
+});
+
+describe("incident-monthly.util: yAxisTicks", () => {
+  it("labels the top, the middle and zero when the busiest count has a whole half", () => {
+    expect(yAxisTicks(2)).toEqual([2, 1, 0]);
+    expect(yAxisTicks(8)).toEqual([8, 4, 0]);
+    expect(yAxisTicks(40)).toEqual([40, 20, 0]);
+  });
+
+  it("leaves the middle unlabelled for an odd count rather than rounding it into a lie", () => {
+    // The middle gridline of a count of 3 is at 1.5; "2" would claim a value that line is not at.
+    expect(yAxisTicks(3)).toEqual([3, 0]);
+    expect(yAxisTicks(7)).toEqual([7, 0]);
+  });
+
+  it("is just the count and zero for a single incident", () => {
+    expect(yAxisTicks(1)).toEqual([1, 0]);
   });
 });
 
