@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input } from "@angular/core";
+import { Component, computed, effect, inject, input, untracked } from "@angular/core";
 
 import { Router, RouterLink } from "@angular/router";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
@@ -278,11 +278,15 @@ export class VehicleDetailPage {
       if (this._isNotFound() && this.isBrowser) {
         // Browser-only — see the identical guard/comment in line-overview.page.ts's own
         // not-found effect: this same navigate() during SSR hangs the render entirely.
-        this.toast.error(
-          "Vehicle not found",
-          "It may have been removed, or the link is out of date.",
-        );
-        this.router.navigate(["/spotting", this.lineId()], { replaceUrl: true });
+        // untracked: toast.error() reads, then rewrites, the toast list. Tracked, that write
+        // re-runs this effect, which raises another toast, forever — the tab froze solid.
+        untracked(() => {
+          this.toast.error(
+            "Vehicle not found",
+            "It may have been removed, or the link is out of date.",
+          );
+          this.router.navigate(["/spotting", this.lineId()], { replaceUrl: true });
+        });
       }
     });
   }

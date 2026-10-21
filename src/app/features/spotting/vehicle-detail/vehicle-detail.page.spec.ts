@@ -6,6 +6,7 @@ import {
 } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { Router, provideRouter } from "@angular/router";
+import { toastState } from "@spartan-ng/brain/sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
@@ -78,16 +79,20 @@ describe("VehicleDetailPage", () => {
   let navigate: ReturnType<typeof vi.spyOn>;
   const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
-  async function render(platform: "browser" | "server" = "browser"): Promise<void> {
+  /** `realToast` swaps the ToastService stub for the real one, for the one behaviour a stub
+   * cannot show: raising a toast reads and rewrites the shared toast list. */
+  async function render(
+    options: { platform?: "browser" | "server"; realToast?: boolean } = {},
+  ): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [VehicleDetailPage],
       providers: [
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: PLATFORM_ID, useValue: platform },
+        { provide: PLATFORM_ID, useValue: options.platform ?? "browser" },
         { provide: SpottingLinesStore, useValue: { lineById: () => LINE } },
-        { provide: ToastService, useValue: toast },
+        ...(options.realToast ? [] : [{ provide: ToastService, useValue: toast }]),
         { provide: ImageUploadService, useValue: { pendingCount: signal(0) } },
       ],
     }).compileComponents();
@@ -130,6 +135,7 @@ describe("VehicleDetailPage", () => {
     httpMock.match(() => true);
     httpMock.verify();
     vi.clearAllMocks();
+    toastState.reset();
   });
 
   it("sends the header, activity, timeline and history queries together, before any response", async () => {
@@ -212,7 +218,7 @@ describe("VehicleDetailPage", () => {
   });
 
   it("does not request the line roster on the server", async () => {
-    await render("server");
+    await render({ platform: "server" });
 
     const operations = httpMock
       .match(() => true)
@@ -233,6 +239,17 @@ describe("VehicleDetailPage", () => {
     expect(root().querySelector("app-incident-timeline")).toBeNull();
     expect(root().querySelector("app-spotting-history")).toBeNull();
     expect(root().querySelector("div.gap-4 > [hlmskeleton].w-48")).toBeNull();
+  });
+
+  it("raises the not-found toast once, instead of re-running its own effect forever", async () => {
+    await render({ realToast: true });
+
+    take("VehicleHeader")[0].flush({ data: { vehicles: [] } });
+    await settle();
+    await settle();
+
+    expect(toastState.toasts()).toHaveLength(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
   });
 
   it("shows the retry banner, with no timeline or history, when the header query fails", async () => {
