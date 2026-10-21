@@ -82,7 +82,7 @@ describe("VehicleDetailPage", () => {
   /** `realToast` swaps the ToastService stub for the real one, for the one behaviour a stub
    * cannot show: raising a toast reads and rewrites the shared toast list. */
   async function render(
-    options: { platform?: "browser" | "server"; realToast?: boolean } = {},
+    options: { platform?: "browser" | "server"; realToast?: boolean; vehicleId?: string } = {},
   ): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [VehicleDetailPage],
@@ -101,7 +101,7 @@ describe("VehicleDetailPage", () => {
     navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
     fixture = TestBed.createComponent(VehicleDetailPage);
     fixture.componentRef.setInput("lineId", "4");
-    fixture.componentRef.setInput("vehicleId", "103");
+    fixture.componentRef.setInput("vehicleId", options.vehicleId ?? "103");
     tick();
   }
 
@@ -250,6 +250,31 @@ describe("VehicleDetailPage", () => {
 
     expect(toastState.toasts()).toHaveLength(1);
     expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a non-numeric id as not found, with no request the backend would reject", async () => {
+    await render({ vehicleId: "abc" });
+    await settle();
+
+    const operations = httpMock
+      .match(() => true)
+      .map((r) => OPERATION.exec(r.request.body.query)?.[1]);
+    for (const operation of [
+      "VehicleHeader",
+      "VehicleSpottingHistory",
+      "VehicleEvents",
+      "VehicleIncidentsByVehicle",
+    ]) {
+      expect(operations).not.toContain(operation);
+    }
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith("Vehicle not found", expect.any(String));
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith(["/spotting", "4"], { replaceUrl: true });
+    expect(root().textContent).not.toContain("Couldn't load this vehicle.");
+    expect(root().querySelector("app-incident-timeline")).toBeNull();
+    expect(root().querySelector("app-spotting-history")).toBeNull();
+    expect(root().querySelector("div.gap-4 > [hlmskeleton].w-48")).toBeNull();
   });
 
   it("shows the retry banner, with no timeline or history, when the header query fails", async () => {

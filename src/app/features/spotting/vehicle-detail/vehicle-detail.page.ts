@@ -182,21 +182,27 @@ export class VehicleDetailPage {
     () => this.linesStore.lineById(this.lineId())?.code ?? this.lineId(),
   );
 
+  /** The backend rejects a non-numeric id with a GraphQL error, which would read as a failed load
+   * (retry banner, error toast, Sentry event) rather than "no such vehicle". Such an id is not
+   * found without asking. */
+  private readonly _hasNumericId = computed(() => /^\d+$/.test(this.vehicleId()));
+
   protected readonly vehicleResource = graphqlResource<
     VehicleHeaderQueryData,
     VehicleHeaderQueryVars
-  >(() => ({
-    query: VEHICLE_HEADER_QUERY,
-    variables: { vehicleId: this.vehicleId() },
-  }));
+  >(() =>
+    this._hasNumericId()
+      ? { query: VEHICLE_HEADER_QUERY, variables: { vehicleId: this.vehicleId() } }
+      : undefined,
+  );
 
   protected readonly _vehicle = computed(() => this.vehicleResource.data()?.vehicles[0]);
 
-  /** The backend answered and has no such vehicle. `data()` is `undefined` while a request is in
-   * flight (including the moment `vehicleId()` changes) and `hasError()` covers a failed one, so
-   * neither reads as "not found". */
+  /** The id cannot be a vehicle, or the backend answered and has none. `data()` is `undefined`
+   * while a request is in flight (including the moment `vehicleId()` changes) and `hasError()`
+   * covers a failed one, so neither reads as "not found". */
   protected readonly _isNotFound = computed(
-    () => this.vehicleResource.data()?.vehicles.length === 0,
+    () => !this._hasNumericId() || this.vehicleResource.data()?.vehicles.length === 0,
   );
 
   protected readonly _showDetails = computed(
@@ -239,10 +245,11 @@ export class VehicleDetailPage {
   private readonly spottingHistoryResource = graphqlResource<
     VehicleSpottingHistoryQueryData,
     VehicleSpottingHistoryQueryVars
-  >(() => ({
-    query: VEHICLE_SPOTTING_HISTORY_QUERY,
-    variables: { vehicleId: this.vehicleId() },
-  }));
+  >(() =>
+    this._hasNumericId()
+      ? { query: VEHICLE_SPOTTING_HISTORY_QUERY, variables: { vehicleId: this.vehicleId() } }
+      : undefined,
+  );
 
   private readonly _rawSpottings = computed(
     () => this.spottingHistoryResource.data()?.vehicles[0]?.spottings ?? [],
