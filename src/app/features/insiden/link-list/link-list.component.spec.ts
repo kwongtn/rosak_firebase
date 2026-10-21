@@ -27,12 +27,13 @@ function makeLink(id: string, occurredAt: string): PublicSocialMediaLink {
   };
 }
 
-// Run under both TZ=Asia/Kuala_Lumpur and TZ=UTC: the headers must read the same in the SSR
-// server's zone and in a Malaysian browser, which is what hydration needs.
+// The headers must read the same in the SSR server's zone and in a Malaysian browser, which is what
+// hydration needs. CI runs in UTC, so the zone is pinned to Kuala Lumpur, where the bug bites.
 describe("LinkListComponent day headers", () => {
   let fixture: ComponentFixture<LinkListComponent>;
 
   beforeEach(async () => {
+    vi.stubEnv("TZ", "Asia/Kuala_Lumpur");
     // 03:30 MYT on 21 Oct, while UTC is still on the 20th.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-20T19:30:00Z"));
@@ -51,7 +52,10 @@ describe("LinkListComponent day headers", () => {
     fixture = TestBed.createComponent(LinkListComponent);
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
 
   function headers(): string[] {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll("h2")).map(
