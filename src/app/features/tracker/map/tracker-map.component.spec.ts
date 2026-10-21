@@ -8,7 +8,16 @@ import { GtfsRealtimeService } from "../data/gtfs-realtime.service";
 import { GtfsStaticService } from "../data/gtfs-static.service";
 import { LayerSelectionService } from "../data/layer-selection.service";
 
-const l7 = vi.hoisted(() => ({ sceneDestroy: vi.fn() }));
+const l7 = vi.hoisted(() => {
+  const loseContext = vi.fn();
+  // Stands in for L7's renderer canvas: getContext hands back the one gl whose
+  // WEBGL_lose_context extension the component must trigger.
+  const canvas = {
+    getContext: (type: string) =>
+      type === "webgl2" ? { getExtension: () => ({ loseContext }) } : null,
+  };
+  return { sceneDestroy: vi.fn(), loseContext, canvas };
+});
 
 vi.mock("@sentry/angular", () => ({
   captureException: vi.fn(),
@@ -22,6 +31,9 @@ vi.mock("@antv/l7", () => ({
   PointLayer: class {},
   Scene: class {
     destroy = l7.sceneDestroy;
+    getServiceContainer() {
+      return { rendererService: { getCanvas: () => l7.canvas } };
+    }
     addImage() {}
     setMapStyle() {}
     addLayer() {}
@@ -33,6 +45,7 @@ describe("TrackerMapComponent", () => {
   beforeEach(() => {
     vi.mocked(Sentry.captureException).mockClear();
     l7.sceneDestroy.mockClear();
+    l7.loseContext.mockClear();
     TestBed.configureTestingModule({
       providers: [
         {
@@ -58,7 +71,7 @@ describe("TrackerMapComponent", () => {
     expect(Sentry.captureException).toHaveBeenCalled();
   });
 
-  it("destroys the L7 scene and restores the overflow it locked when destroyed", () => {
+  it("destroys the L7 scene, loses its renderer's WebGL context and restores the overflow it locked", () => {
     document.documentElement.style.overflow = "scroll";
     const fixture = TestBed.createComponent(TrackerMapComponent);
     fixture.detectChanges();
@@ -67,6 +80,8 @@ describe("TrackerMapComponent", () => {
     fixture.destroy();
 
     expect(l7.sceneDestroy).toHaveBeenCalledTimes(1);
+    // L7's own renderer teardown never releases the context; the component must.
+    expect(l7.loseContext).toHaveBeenCalledTimes(1);
     expect(document.documentElement.style.overflow).toBe("scroll");
   });
 });

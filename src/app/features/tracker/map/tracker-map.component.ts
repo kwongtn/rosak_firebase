@@ -261,8 +261,13 @@ export class TrackerMapComponent implements OnDestroy {
     for (const entry of this.stopsLayers.values()) {
       entry.stopEffect();
     }
-    // Disposes the Mapbox map, WebGL context and render loop; the layers go with it.
+    // Disposes the Mapbox map (which loses its own WebGL context), the render loop and the layers.
+    // L7's renderer never releases its context, so the canvas is read first and its context is
+    // lost by hand: a detached canvas keeps the context alive until a GC that may never come.
+    const canvas = this.scene?.getServiceContainer().rendererService.getCanvas();
     this.scene?.destroy();
     this.scene = undefined;
+    const gl = canvas?.getContext("webgl2") ?? canvas?.getContext("webgl");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
   }
 }
