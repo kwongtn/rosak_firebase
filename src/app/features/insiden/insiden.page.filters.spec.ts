@@ -180,9 +180,7 @@ describe("InsidenPage incident filters", () => {
   }
 
   async function chooseSeverity(value: string): Promise<void> {
-    const select = byTestId("filter-severity") as HTMLSelectElement;
-    select.value = value;
-    select.dispatchEvent(new Event("change"));
+    byTestId(`filter-severity-${value}`).click();
     await settle();
   }
 
@@ -299,11 +297,22 @@ describe("InsidenPage incident filters", () => {
       expect(pinnedIds()).toEqual([]);
     });
 
-    it("reads ?severity= on load and reflects it in the select", async () => {
+    it("reads ?severity= on load and shows that chip as pressed", async () => {
       await boot("/?severity=minor");
 
       expect(dayIds()).toEqual(["b", "c"]);
-      expect((byTestId("filter-severity") as HTMLSelectElement).value).toBe("minor");
+      expect(pressed("filter-severity-minor")).toBe(true);
+      expect(pressed("filter-severity-major")).toBe(false);
+      expect(pressed("filter-severity-all")).toBe(false);
+    });
+
+    it("presses All by default and offers no native select (the report form owns the first one)", async () => {
+      await boot();
+
+      expect(pressed("filter-severity-all")).toBe(true);
+      expect(root().querySelector("select")).toBeNull();
+      expect(byTestId("filter-severity").getAttribute("role")).toBe("group");
+      expect(byTestId("filter-severity").getAttribute("aria-label")).toBe("Severity");
     });
 
     it("combines with a line filter", async () => {
@@ -312,7 +321,7 @@ describe("InsidenPage incident filters", () => {
       expect(dayIds()).toEqual(["b"]);
     });
 
-    it("returns to all and drops the param when All is chosen again", async () => {
+    it("returns to all and drops the param when All is pressed", async () => {
       await boot("/?severity=major");
 
       await chooseSeverity("all");

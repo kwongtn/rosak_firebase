@@ -12,7 +12,6 @@ import { writeQueryParams } from "../../core/url-state/query-param.util";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
 import { HlmBadge } from "../../ui/badge/badge";
-import { HlmNativeSelect } from "../../ui/select/native-select";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
@@ -68,7 +67,6 @@ import { LinksSectionComponent } from "./links-section/links-section.component";
     DatePipe,
     HlmButton,
     HlmBadge,
-    HlmNativeSelect,
     HlmSkeleton,
     RetryBannerComponent,
     AdSlotComponent,
@@ -185,6 +183,14 @@ export class InsidenPage {
   protected readonly severityValue = computed(
     () => this.filterCriteria().severity?.toLowerCase() ?? "all",
   );
+  /** The severity chips, in order. Chips rather than a `<select>`: they match the line chips beside
+   * them, and a page-level `<select>` would be the first one in the DOM, ahead of the report
+   * form's (`page.locator("select").first()` in the e2e suite targets the form's). */
+  protected readonly severityOptions = [
+    { value: "all", label: "All" },
+    { value: "major", label: "Major" },
+    { value: "minor", label: "Minor" },
+  ] as const;
 
   /** Everything the month's read returned, before any filter. The line chips come from THIS, so
    * narrowing to one line never removes the other lines' chips. */

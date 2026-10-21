@@ -73,50 +73,59 @@
           aria-label="Filter incidents"
           data-testid="incident-filters"
         >
-          <div class="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              hlmBadge
-              [variant]="mineActive() ? 'default' : 'outline'"
-              class="cursor-pointer px-3 py-1.5 text-sm"
-              data-testid="filter-mine"
-              [attr.aria-pressed]="mineActive()"
-              (click)="toggleMine()"
-            >
-              My lines
-              @if (pinnedCount() > 0) {
-                ({{ pinnedCount() }})
-              }
-            </button>
-            @for (line of lineOptions(); track line.id) {
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Lines">
               <button
                 type="button"
                 hlmBadge
-                [variant]="selectedLineIds().has(line.id) ? 'default' : 'outline'"
+                [variant]="mineActive() ? 'default' : 'outline'"
                 class="cursor-pointer px-3 py-1.5 text-sm"
-                [attr.data-testid]="'filter-line-' + line.id"
-                [attr.aria-pressed]="selectedLineIds().has(line.id)"
-                [attr.aria-label]="line.code + ', ' + line.displayName"
-                [title]="line.displayName"
-                (click)="toggleLine(line.id)"
+                data-testid="filter-mine"
+                [attr.aria-pressed]="mineActive()"
+                (click)="toggleMine()"
               >
-                {{ line.code }}
+                My lines
+                @if (pinnedCount() > 0) {
+                  ({{ pinnedCount() }})
+                }
               </button>
-            }
-            <label class="text-muted-foreground ml-auto flex items-center gap-1.5 text-xs">
-              Severity
-              <select
-                hlmSelect
-                #severitySelect
-                class="w-auto"
-                data-testid="filter-severity"
-                (change)="setSeverity(severitySelect.value)"
-              >
-                <option value="all" [selected]="severityValue() === 'all'">All</option>
-                <option value="major" [selected]="severityValue() === 'major'">Major</option>
-                <option value="minor" [selected]="severityValue() === 'minor'">Minor</option>
-              </select>
-            </label>
+              @for (line of lineOptions(); track line.id) {
+                <button
+                  type="button"
+                  hlmBadge
+                  [variant]="selectedLineIds().has(line.id) ? 'default' : 'outline'"
+                  class="cursor-pointer px-3 py-1.5 text-sm"
+                  [attr.data-testid]="'filter-line-' + line.id"
+                  [attr.aria-pressed]="selectedLineIds().has(line.id)"
+                  [attr.aria-label]="line.code + ', ' + line.displayName"
+                  [title]="line.displayName"
+                  (click)="toggleLine(line.id)"
+                >
+                  {{ line.code }}
+                </button>
+              }
+            </div>
+            <div
+              class="ml-auto flex flex-wrap items-center gap-1.5"
+              role="group"
+              aria-label="Severity"
+              data-testid="filter-severity"
+            >
+              <span class="text-muted-foreground text-xs" aria-hidden="true">Severity</span>
+              @for (option of severityOptions; track option.value) {
+                <button
+                  type="button"
+                  hlmBadge
+                  [variant]="severityValue() === option.value ? 'default' : 'outline'"
+                  class="cursor-pointer px-3 py-1.5 text-sm"
+                  [attr.data-testid]="'filter-severity-' + option.value"
+                  [attr.aria-pressed]="severityValue() === option.value"
+                  (click)="setSeverity(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
             @if (filterActive()) {
               <button
                 hlmBtn
