@@ -382,7 +382,8 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
    steps that `downloadText` now holds once for CSV and iCalendar; point it at `downloadText`.
 3. **User preferences / persistence.** `core/preferences/preferences.service.ts`
    (`PreferencesService`, localStorage key `rosak:preferences:v1`) holds home's pinned lines, view
-   mode, density, etc.; home is the only consumer. Still missing: tracker saved layer presets,
+   mode, density, etc.; home is the only writer, and insiden's "My lines" filter reads the
+   pinned lines. Still missing: tracker saved layer presets,
    spotting report-form drafts, profile settings. The only other persistence is the upload queue's
    IndexedDB.
 4. **"Select rows, then act" bulk actions (console + profile).** **Status: split (2026-10-01)** —
