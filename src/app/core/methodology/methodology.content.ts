@@ -631,11 +631,13 @@ export const METRIC_DOCS: MetricDoc[] = [
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
   },
-  /* ---- `/insiden`'s "Last 12 months" chart. 🔴 The rule is "counted ONCE, in the month the incident
-     STARTED": a three-day outage is one bar in one month, not a bar in each month it touched. It is
-     what lets a month's bar reconcile with that month's CSV export (rows with status LIVE). The
-     section is `episodes` only because it is the one the incident route owns — these are incident
-     RECORDS, not the "episodes" INCIDENT_EPISODES.md will define. ---- */
+  /* ---- `/insiden`'s "Last 12 months" chart and "Export month" files. 🔴 The rule is "counted ONCE,
+     in the month the incident STARTED", and only APPROVED (live) incidents: a three-day outage is one
+     bar in one month, not a bar in each month it touched. It is what lets a month's bar reconcile
+     with that month's export, which writes the same set. STOPGAP HOME: the section is `episodes` only
+     because it is the one the incident route owns — these are incident RECORDS, not the "episodes"
+     INCIDENT_EPISODES.md will define. Move both entries when that spec gives incident records a
+     section of their own. ---- */
   {
     id: "incidents.monthly-by-severity",
     sectionId: "episodes",
@@ -644,6 +646,18 @@ export const METRIC_DOCS: MetricDoc[] = [
       "How many community-reported incidents started in each calendar month, split into Major and Minor severity, for the 12 months ending at the month selected on the calendar. An incident is counted once, in the month it started, however long it lasted: one that began on 30 June and ran into July is a June incident only. Only approved (live) incidents are counted — drafts, reports still waiting for approval and rejected ones are left out — and incidents of other severity are not drawn. A month with no bar had no approved incident start in it; that is the absence of a report, not proof that service was good.",
     summary:
       "Approved incidents counted once, in the month they started, split into Major and Minor. Drafts, pending and rejected reports are left out.",
+    ownerRoute: "/insiden",
+    sourceSpec: "INCIDENT_EPISODES.md",
+    lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,
+  },
+  {
+    id: "incidents.month-export",
+    sectionId: "episodes",
+    title: "Export month",
+    definition:
+      "What the two Export month files hold: the approved (live) incidents that started in the month shown on the calendar, narrowed by any line or severity filter you have switched on. An incident is in the file of the month it started in, however long it lasted: one that began on 30 June and ran into July is in June's file only, which is also how the Last 12 months chart counts it. Drafts, reports still waiting for approval and rejected ones are never exported, even though the page lists them behind its Pending Approval toggle, so the number on the button is the number of rows in the file. Only the incidents the page has loaded for that month are considered, and a filtered file carries its filter in its name (insiden-2026-10-kjl-major.csv) because a spreadsheet has nowhere else to say it.",
+    summary:
+      "Approved incidents that started in the month shown, narrowed by your filters. Drafts, pending and rejected reports are never exported.",
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
     lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,

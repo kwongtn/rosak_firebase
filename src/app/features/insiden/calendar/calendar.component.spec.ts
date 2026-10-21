@@ -1,14 +1,16 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { IncidentCalendarComponent } from "./calendar.component";
 
 describe("IncidentCalendarComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [IncidentCalendarComponent],
-      providers: [provideZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection(), provideRouter([])],
     }).compileComponents();
   });
 
@@ -136,6 +138,27 @@ describe("IncidentCalendarComponent", () => {
       expect(formats).toEqual(["csv", "ics"]);
       // Exporting is not a navigation: it must not move the selected day.
       expect(days).toEqual([]);
+    });
+
+    it("explains what the files hold, from the methodology registry", () => {
+      const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+
+      const trigger = root(fixture).querySelector<HTMLButtonElement>(
+        'button[aria-label="What is Export month?"]',
+      );
+      expect(trigger).not.toBeNull();
+      trigger?.click();
+      fixture.detectChanges();
+
+      const panel = root(fixture).querySelector<HTMLElement>(
+        '[data-testid="calendar-export-popover"]',
+      );
+      expect(panel?.textContent).toContain(metricTooltip("incidents.month-export"));
+      // The rule a rider cannot see in the buttons: approved only, started in the month.
+      expect(panel?.textContent).toContain(
+        "Drafts, pending and rejected reports are never exported",
+      );
+      expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#episodes");
     });
 
     it("emits nothing from a disabled button", () => {

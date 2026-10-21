@@ -1,7 +1,9 @@
 import { Component, OnDestroy, computed, input, linkedSignal, output, signal } from "@angular/core";
+import { metricDoc, metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { klDateKey } from "../../../core/time/kl-date";
 import { HlmButton } from "../../../ui/button/button";
 import { ComboboxItem, HlmCombobox } from "../../../ui/combobox/combobox";
+import { InfoPopover, type InfoPopoverLink } from "../../../ui/info-popover/info-popover";
 import { CalendarIncident, CalendarIncidentSeverity } from "../data/insiden.queries";
 import { dateKeyOf, incidentCoversDate } from "../data/calendar-date.util";
 
@@ -56,7 +58,7 @@ interface DayCell {
  */
 @Component({
   selector: "app-incident-calendar",
-  imports: [HlmButton, HlmCombobox],
+  imports: [HlmButton, HlmCombobox, InfoPopover],
   template: `
     <div class="flex flex-col gap-3">
       <div class="flex items-center justify-between">
@@ -137,8 +139,16 @@ interface DayCell {
         aria-label="Export month"
         data-testid="calendar-export"
       >
-        <span class="text-muted-foreground text-xs" data-testid="calendar-export-count">
-          Export month ({{ exportCount() }})
+        <span class="flex items-center gap-1">
+          <span class="text-muted-foreground text-xs" data-testid="calendar-export-count">
+            Export month ({{ exportCount() }})
+          </span>
+          <app-info-popover
+            [label]="_exportTitle"
+            [content]="_exportDefinition"
+            [link]="_exportLink"
+            testId="calendar-export-popover"
+          />
         </span>
         <div class="flex items-center gap-1.5">
           <button
@@ -207,6 +217,15 @@ export class IncidentCalendarComponent implements OnDestroy {
   readonly exportMonth = output<"csv" | "ics">();
 
   protected readonly weekdayLabels = WEEKDAY_LABELS;
+  /** What the "Export month" files hold, from the methodology registry: the rule (approved only,
+   * started in the month, after the filters) is not visible in the buttons themselves. */
+  protected readonly _exportTitle = metricDoc("incidents.month-export").title;
+  protected readonly _exportDefinition = metricTooltip("incidents.month-export");
+  protected readonly _exportLink: InfoPopoverLink = {
+    text: "How this is counted",
+    routerLink: "/methodology",
+    fragment: "episodes",
+  };
   protected readonly JUMP_RING_CIRCUMFERENCE = 2 * Math.PI * 9;
 
   /** Tracks `selectedDate()`'s own month by default — so a direct link to a past/future date
