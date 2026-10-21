@@ -58,8 +58,14 @@
 
 ## 🔌 Interface & Data Flow
 
-- **Route:** `""` in `src/app/app.routes.ts` — `loadComponent: HomePage` with
-  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService]`.
+- **Route:** `""` in `src/app/app.routes.ts` (`pathMatch: "full"`, the title) lazy-loads
+  `home.routes.ts`, whose one `""` child is `component: HomePage` with
+  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService]`. The page, the store and its
+  queries are ONE lazy chunk, so nothing under `features/home/` is in the initial bundle. A static
+  import of any of them from the initial graph (`main.ts`, `app.config.ts`, `app.routes.ts` and what
+  they import) pulls the store, the methodology registry and Firebase Auth into `main`.
+  `pathMatch: "full"` is load-bearing: an empty path prefixes every URL, so without it the router
+  fetches the home chunk on every first navigation. `src/app/app.routes.spec.ts` pins both.
   - 🔴 **The route injector — and so `HomeStore` — OUTLIVES a visit.** The router retains it while
     `HomePage` is recreated on every navigation to `""`, so a return to `/` gets the SAME store.
     Lifecycle edges are asymmetric: `HomePage.ngOnDestroy` → `store.stop()` (pauses the beat); the next

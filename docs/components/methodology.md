@@ -27,6 +27,12 @@ Three files under `src/app/core/methodology/`:
 - `methodology-render.util.ts`: `renderMethodologyCopy()`, `methodologyTokenValues()`, `metricDoc(id)`,
   `metricTooltip(id)`, `section(id)`.
 
+**Loading.** No file in the initial graph imports the registry, so it ships as a shared lazy chunk
+(about 20 kB, nearly all of it section and `MetricDoc` prose) fetched by the first page that reads
+it: home, `/methodology` and every page with a metric popover. A static import from `main.ts`,
+`app.config.ts`, `app.routes.ts` or anything they import moves it into `main` (see
+`docs/COMPONENTS.md` → Initial bundle).
+
 **Two readers.** `/methodology` renders `MetricDoc.definition` through `renderMethodologyCopy()`.
 Every `InfoPopover` on a metric renders `metricTooltip(id)`: the optional `summary` (tooltip-sized),
 falling back to `definition`. A summary is only ever a shorter phrasing of the definition beside it

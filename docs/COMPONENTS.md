@@ -149,6 +149,70 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 - **gallery** and **not-found** are the purely read/decorative leaves — gallery reads the GraphQL
   backend read-only; not-found only calls cosmetic third-party image APIs.
 
+## Initial bundle
+
+`angular.json`'s production budget fails the build when the **initial total** passes 1 MB: `main`,
+every chunk it imports statically, and `styles.css` (Angular counts 1 kB as 1000 bytes). The 500 kB
+warning always fires and is accepted. Never raise the error budget; move the import instead. To see
+what is initial, run `npx ng build --stats-json` and walk `dist/web/browser-stats.json` (an esbuild
+metafile) from `main-*.js` through its `import-statement` imports. The list below sums the
+metafile's per-input `bytesInOutput`, which overstates the emitted size by about a fifth; "Last
+measured" quotes the file sizes the build prints.
+
+**Eager, and why** (2026-10-22):
+
+- The framework, about 517 kB: Angular core, common, platform-browser, router and service worker,
+  rxjs and Spartan Brain (the toaster), behind `App`, `app.config.ts` and its app initializers.
+- Sentry's base SDK, about 200 kB (`@sentry/core` 112 kB, `@sentry/browser` 43 kB,
+  `@sentry/browser-utils` 39 kB, `@sentry/angular` 6 kB): `main.ts` calls `Sentry.init()` before
+  bootstrap and `AppErrorHandler` wraps `Sentry.createErrorHandler()`. Replay and feedback are lazy
+  (`core/sentry/`).
+- `marked` 53 kB and `ngx-markdown` 16 kB: the root `provideMarkdown()` in `app.config.ts`, though
+  only `IncidentCardComponent` renders markdown (on `/insiden`, the spotting line page's insiden
+  tab and `/console/insiden/pending`).
+- `@angular/forms` 48 kB and `ng-recaptcha-2` 4 kB: the root ng-recaptcha-2 providers in
+  `app.config.ts`, though only `ConsolePage` (`/console/spotting`) injects `ReCaptchaV3Service`.
+- Firebase app, analytics, installations and their helpers, about 57 kB: the `AnalyticsService` app
+  initializer.
+- About 21 kB of app code: the services the app initializers start (new-version check, scroll
+  memory, analytics), the route strategies, the toaster, the nav progress bar, theme, network
+  state and the environment.
+
+Everything else is lazy, the front page included (`features/home/home.routes.ts`, see
+[home](components/home.md) → Route). So are the shell (the pages import it), `AuthService` with
+Firebase Auth (a shared chunk of about 91 kB), `GraphQLClient`, `PreferencesService` and the
+methodology registry. A static import of any of them from `main.ts`, `app.config.ts`,
+`app.routes.ts` or anything they import moves it into `main`.
+
+**Last measured** (`npx ng build`, 2026-10-22, after the home route's providers moved out of
+`app.routes.ts`):
+
+- `Initial total | 997.74 kB | 260.00 kB` became `Initial total | 841.90 kB | 223.48 kB`.
+- `main` went from 393.21 kB to 237.37 kB. The other initial files did not change: Angular core,
+  common, platform-browser and rxjs 276.42 kB, router and Spartan Brain 133.45 kB, `@sentry/core`
+  91.76 kB, `styles` 100.88 kB and a 2.02 kB shared chunk.
+- Lazy: the front page's chunk is 174.80 kB (page, store and queries; the page alone was 142.53 kB),
+  and four shared chunks are new: `@firebase/auth` 91.08 kB, the methodology registry 20.45 kB,
+  `PreferencesService` 4.43 kB and `GraphQLClient` 3.02 kB. The `@ng-icons/core` chunk grew from
+  8.23 kB to 10.60 kB, and every other lazy chunk by 0.05 to 0.12 kB of import lines.
+- A cold load of `/` fetches the same code in more files (headless Chromium against the local API,
+  idle prefetches included: 42 files and 1,452,540 bytes before, 46 files and 1,450,760 bytes
+  after). `/insiden` fetches 36 kB less (1,422,438 bytes before, 1,386,281 after). The SSR HTML of
+  `/` and `/insiden` is the same.
+
+**Next candidates**, smallest risk first:
+
+1. Markdown: `provideMarkdown()` without options provides only `MarkdownService`, so listing it in
+   `IncidentCardComponent`'s `providers` (one cheap service per card) moves about 69 kB out of
+   `main`.
+2. reCAPTCHA: provide `RECAPTCHA_V3_SITE_KEY`, `ReCaptchaV3Service` and `RecaptchaLoaderService`
+   on the console's `spotting` route. That moves about 52 kB, `@angular/forms` included (nothing
+   else eager imports it).
+3. Analytics: start `AnalyticsService` at idle with its `page_view` queued, about 57 kB.
+4. Sentry: the largest, about 200 kB, and the riskiest. Deferring `Sentry.init()` needs a buffer
+   that keeps errors thrown before it loads and flushes them into Sentry, an `ErrorHandler` that
+   works before and after, and `scripts/check-sentry-lazy.mjs` kept green.
+
 ## Component Catalog
 
 All features are Angular presentation layers under `src/app/features/<name>/`. "Deps" are key
