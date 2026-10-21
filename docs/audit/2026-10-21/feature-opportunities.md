@@ -38,6 +38,8 @@ home-incidents.queries.ts:56  export const HOME_RECENT_INCIDENT_VARS = Object.fr
 
 **medium** · effort S · feature · features · already documented
 
+**Status, feature pass 2026-10-22:** Done (`6de8ffb`, `71ebf78`, `165a106`, `75f8014`, `cddd5c5`, `0957fe5`, `d376289`, `b9f8123`, `80cbea7`, `b8727a6`, `60d31ac`). /insiden has line and severity filters and a "My lines" toggle seeded from the pinned lines, all kept in the URL. Each incident has "Add to calendar" (`.ics`), and the calendar header has "Export month" (`.csv` or `.ics`, approved incidents only). **Open:** the station filter, and a subscribable `.ics` feed, which needs a backend endpoint.
+
 **Where:** `src/app/features/insiden/insiden.page.ts:92`, `src/app/features/insiden/insiden.page.ts:124`, `docs/components/insiden.md:161`, `docs/components/insiden.md:162`, `docs/COMPONENTS.md:202`, `src/app/core/preferences/preferences.service.ts:34`
 
 **Problem.** Every incident already carries lines, vehicles and stations (175 of the 280 local incidents are tagged with stations), but /insiden shows all of them for the selected month, so a commuter who only cares about their own line must scan every card. Pinned lines already exist in PreferencesService but are not used outside the home board. Incidents also cannot be taken out of the page: there is no calendar export or CSV, although core/export/csv.util.ts exists, and journalists and researchers have no simple way to get the data.
@@ -70,6 +72,8 @@ insiden.md:162  Calendar export (iCal/.ics): ready ...
 
 **medium** · effort M · feature · features
 
+**Status, feature pass 2026-10-22:** Done (`07f3977`, `0e510dc`, `468b8ad`, `5d303af`, `1038cf0`). The own profile has a Fleet progress card with one progress bar per line (distinct vehicles spotted out of the line's total) and a lazily read list of the unspotted vehicles, each linking to its vehicle page. The card reads `favouriteVehicles(count: 1000)` in its own request after the first paint, on the own profile only, so the public query is unchanged. **Open:** lines with no spotted vehicle are not listed, and the backend cuts the list at the count without saying so (the card reports a list that reaches it).
+
 **Where:** `src/app/features/profile/data/profile.queries.ts:37`, `src/app/features/profile/user-card/user-card.component.ts:231`, `../rosak_backend/common/schema/scalars.py:85`, `src/app/features/spotting/data/spotting.queries.ts:51`
 
 **Problem.** The strongest retention hook for train spotters is a collection ('I have seen 41 of 68 KJ trainsets, which ones am I missing?'). The backend already returns, per user, the distinct vehicles they have reported with counts, and Line.vehicles / Line.totalVehicleCount / vehicleTypes.vehicleTotalCount give the fleet denominator. The frontend asks for only the top one vehicle, so the data that would power a progress view is never requested. A related risk is worth knowing before building it: profile.md states favouriteVehicles are always public, so asking for a large count on a public profile would expose the whole set of vehicles a user has spotted even when they have opted out of spottingDataPublic.
@@ -98,6 +102,8 @@ profile.queries.ts:37  favouriteVehicles {  (no count argument, so only the top 
 #### F210 · Make the app installable (web manifest, icons, theme colour) and add a minimal service worker
 
 **medium** · effort M · feature · features
+
+**Status, feature pass 2026-10-22:** Done (`507886e`, `9214c3f`, `3add1d8`, `2dd0c2a`, `95f970e`). `public/manifest.webmanifest`, install icons and theme colours make the app installable, and a service worker precaches the hashed JS and CSS and the CSR shell in production builds. No GraphQL data group was added, because ngsw caches only GET and HEAD and every app read is a POST. **Open:** last-known data offline (see F295).
 
 **Where:** `src/index.html:2`, `public/`, `angular.json:22`, `package.json`, `src/app/core/version/new-version.service.ts:14`
 
@@ -170,6 +176,8 @@ Live schema: Mutation.updateUser exists (profile nickname and privacy only); no 
 #### F213 · Turn the unused incident aggregates into a reliability history, and add a date to the status-history queries
 
 **medium** · effort M · feature · features
+
+**Status, feature pass 2026-10-22:** Partial (`dca6a37`, `9ba407d`, `6cc2843`, `ee468be`, `5ae999d`). Slice 1 is done: /insiden has a "Last 12 months" section, collapsed until it is opened, with Major and Minor bars per month and a table fallback. It counts approved incidents on the client from `calendarIncidents`, because `calendarIncidentsBySeverityCount(groupBy: MONTH)` is a running total that resets each January, and a backend fix is in progress. **Open:** slice 2, the "Typical week" strip per line (in progress).
 
 **Where:** `src/app/features/home/data/home-history.queries.ts:15`, `src/app/features/home/data/home-history.queries.ts:48`, `src/app/features/insiden/data/insiden.queries.ts:27`, `docs/components/home.md:1551`
 
@@ -265,6 +273,8 @@ rg for firebase/messaging, getMessaging and PushManager in src/ finds nothing; r
 
 **medium** · effort L · feature · ux-home
 
+**Status, feature pass 2026-10-22:** Partial (`9b06ad2`, `d40f3b7`, `5738111`, `7d6ad87`, `3add1d8`). Step 1 is done: an `OnlineService` and a "You're offline" strip, polling that pauses offline and refreshes on reconnect, and a failed chunk that says "You're offline" instead of blaming a deploy (it asks `/version.json` first, so only a different build lights the update button). The manifest and service worker from F210 cover the install part of step 2, and an offline navigation opens the cached app shell. **Open:** the last-known data cache of step 2, so the board still has nothing to show offline, because ngsw cannot cache the POST reads.
+
 **Where:** `src/app/core/version/new-version.service.ts:131`, `src/app/core/polling/polling-source.ts`, `src/index.html:4`, `.omo/evidence/audit-2026-10-21/interactions/offline__insiden-offline-3s.png`
 
 **Problem.** The audience rides trains with patchy signal (tunnels, underground stations). Today a failed lazy route silently stays on the old page, blames a deployment, and offers a reload that will fail offline too. There is no offline indicator, no retry-on-reconnect and nothing cached to show. Chunk and data failures are not distinguishable to the user from real outages.
@@ -312,6 +322,8 @@ report-form.component.ts:228  navigator.geolocation.getCurrentPosition(  (the on
 
 **low** · effort S · feature · features · already documented
 
+**Status, feature pass 2026-10-22:** Done (`2defcf9`, `6ed1ff3`, `27c55b4`). The owner has "Export CSV" and "Export JSON" on the spotting history. The export pages past the loaded rows in 200-row pages, shows "Preparing N rows…" and downloads nothing if a page fails, and delete and export cannot run at the same time. **Open:** an abort button for a very long export, and a delete made in another tab in the middle of an export can still skip a row (offset paging).
+
 **Where:** `docs/components/profile.md:276`, `src/app/features/profile/my-spottings/my-spottings.component.ts:230`, `src/app/features/profile/data/profile.queries.ts:196`, `docs/COMPONENTS.md:202`
 
 **Problem.** Enthusiasts keep spotting logs for years and will not trust a community site with them unless they can take the data out; this is also a GDPR data-portability expectation for a site that has a /gdpr page. The CSV helper and the owner-only event list already exist, but nothing connects them. Note that _ownEvents is paged (PAGE_SIZE with Load more), so a naive export would silently cover only the pages already loaded.
@@ -334,6 +346,8 @@ profile.md:276  Export historical spottings (CSV or JSON): `_ownEvents` already 
 #### F348 · Telegram bot linking: add copy and open-in-Telegram actions, a live region for the code, and a per-request cooldown
 
 **low** · effort S · feature · gap-2 · partially confirmed
+
+**Status, feature pass 2026-10-22:** Done (`efd8c12`, `9f83fff`, `52b7a0f`, `8afa4ed`, `f0c562c`) in the scope the verifier narrowed it to. The Telegram link code has a Copy button and sits in a `role="status"` region that announces it digit by digit. Request code is disabled while a request is in flight and while a code is live, and focus moves to Copy when the code arrives. **Open:** the "Open in Telegram" deep link and the "Linked as" status, which are outside the narrowed scope. The disabled button is a UI guard only.
 
 **Where:** `src/app/shell/account-panel/account-panel.component.ts:92`, `src/app/shell/account-panel/account-panel.component.ts:98`, `src/app/shell/account-panel/account-panel.component.ts:164`
 
@@ -545,6 +559,8 @@ rg setLineFilter: only pro/pro-feed-widget.component.ts:227 and pro/pro-dashboar
 
 **low** · effort M · feature · insiden-data
 
+**Status, feature pass 2026-10-22:** Done (`2f075fa`, `8759fb1`, `8bc1d00`, `95fbc33`, `de86c4d`, `fe8db5e`, `19b1ac5`). The incident form's button is now "Fill from link": it fills the title, severity, lines and stations where they are empty and shows matched lines and stations as dismissible chips. The Gemini prompt carries the Kuala Lumpur date and time, the title is cut to the 64-character column, and an extracted time is refused when it is more than a day ahead or earlier than the Start date (or, with Start empty, 31 days ago). **Open:** Start is not filled from the extracted time, and the console review panel still applies only the datetime and content.
+
 **Where:** `src/app/features/insiden/incident-form/extract-data.util.ts:24`, `src/app/features/insiden/data/incident-ai.service.ts:25`, `functions/src/api.ts:105`
 
 **Problem.** The model is paid to produce title, indicator, severity, affected_lines and affected_stations, and the response is parsed and validated, but applyExtractionToChronology discards everything except datetime and content. Riders still have to choose severity, the lines and the stations by hand on a phone. The prompt also gives Gemini neither today's date nor the Malaysia time zone, so relative phrases ('yesterday 3pm') or year-less dates can be guessed wrongly, and the client does not sanity-check the returned datetime.
@@ -594,6 +610,8 @@ The card root is `<div hlmCard class="gap-3 p-4">` with no id, and the only deep
 
 **low** · effort M · feature · profile-about-misc · partially confirmed
 
+**Status, feature pass 2026-10-22:** Done (`1b31f81`, `1960685`, `54e74b6`, `1ac5d01`). The favourite train and every history row link to the vehicle page, the owner has a "Copy profile link" button, and the tab is titled "<nickname> | MLPTF" once a profile loads.
+
 **Where:** `src/app/features/profile/user-card/user-card.component.ts:134-144`, `src/app/features/profile/my-spottings/my-spottings.component.ts:107-115`, `src/app/features/spotting/spotting.routes.ts:41`
 
 **Problem.** Spotters care about the specific unit. Today a rider cannot jump from their favourite train or a history row to that vehicle's history, and a public profile cannot be shared meaningfully (the same static title, client-only render, no copy-link action).
@@ -615,6 +633,8 @@ The favourite train card renders `{{ fav.vehicle.identificationNo }}` as plain t
 #### F575 · Add previous/next, swipe, and a copy/share link to the photo viewer
 
 **low** · effort M · feature · tracker-gallery · severity adjusted from medium · already documented
+
+**Status, feature pass 2026-10-22:** Done (`280e620`, `907501c`, `26dcb5c`, `326c7d4`, `dee273d`, `562785f`). The photo viewer steps between photos with the arrow keys, a touch swipe and Previous and Next buttons (the URL is replaced, so Back returns to the grid), and a Share button uses the system share sheet on touch devices and copies the link elsewhere. **Open:** announcing a photo change to screen readers and preloading the neighbours. The feed drops repeated photos on the client, but the `medias` order still needs a tie-break in the backend.
 
 **Where:** `src/app/features/gallery/media-viewer/media-viewer.component.ts:62`, `src/app/features/gallery/gallery.page.ts:148`, `src/app/features/gallery/gallery.page.html:85`
 
