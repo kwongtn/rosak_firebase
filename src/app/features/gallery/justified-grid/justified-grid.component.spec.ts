@@ -118,6 +118,18 @@ describe("JustifiedGridComponent", () => {
     expect(clicked).toEqual([second]);
   });
 
+  it("names each thumbnail button after its uploader and upload date", () => {
+    const root = render([photo("a", 400, 300, "spotter123"), photo("b", 300, 400, "")]);
+
+    const buttons = Array.from(root.querySelectorAll("button"));
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Photo by spotter123, 12 May 2024",
+      "Photo, 12 May 2024",
+    ]);
+    // The button carries the name, so the picture inside it stays decorative.
+    expect(images(root).every((img) => img.getAttribute("alt") === "")).toBe(true);
+  });
+
   it("lazy-loads every photo unless told which ones sit at the top of the page", () => {
     const root = render([photo("a", 400, 300), photo("b", 400, 300)]);
 

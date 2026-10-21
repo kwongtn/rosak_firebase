@@ -1,6 +1,7 @@
 import { Component, computed, input, output } from "@angular/core";
 import { MediaNode } from "../data/gallery.queries";
 import { getImgurThumbnail } from "../data/imgur.util";
+import { mediaLabel } from "../data/media-label.util";
 
 export const TARGET_ROW_HEIGHT = 220;
 const GAP = 6;
@@ -31,6 +32,7 @@ const FALLBACK_ASPECT = 4 / 3;
           <button
             type="button"
             class="bg-muted absolute inset-0 block overflow-hidden rounded-lg"
+            [attr.aria-label]="tile.label"
             (click)="imageClick.emit(tile.item)"
           >
             <img
@@ -62,6 +64,7 @@ export class JustifiedGridComponent {
     this.items().map((item) => ({
       item,
       aspect: item.width > 0 && item.height > 0 ? item.width / item.height : FALLBACK_ASPECT,
+      label: mediaLabel(item),
     })),
   );
 

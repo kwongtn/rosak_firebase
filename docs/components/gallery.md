@@ -34,9 +34,10 @@ Child components:
 - `graphqlResource()` (same file): `httpResource` wrapper with exponential-backoff retry. Used only for `MEDIA_YEAR_COUNTS_QUERY`, and only in the browser.
 - `ToastService` (`ui/toast/toast.service.ts`, wraps `@spartan-ng/brain/sonner`): load-failure, "still loading" and "not found" feedback.
 - `HlmButton` (the "Load more" button), `HlmSkeleton` (initial-load rows), `AppNavComponent` / `AppFooterComponent` (`shell/`).
-- `Router` (URL sync for the open media). Angular's `DatePipe` (viewer date).
+- `Router` (URL sync for the open media). Angular's `DatePipe` (viewer date) and `formatDate` (`mediaLabel`).
+- `CdkTrapFocus` (`@angular/cdk/a11y`): the viewer's focus trap, the same primitive `HlmSheet` uses.
 - `injectIsBrowser()` (`core/composables/is-browser.ts`) gates browser-only work: the year-count request, DOM scroll, and the `document.body` scroll lock.
-- Pure, framework-agnostic utility, independently unit-testable: `data/imgur.util.ts` (`getImgurThumbnail`, the Imgur URL-suffix thumbnail trick).
+- Pure, framework-agnostic utilities, each independently unit-testable: `data/imgur.util.ts` (`getImgurThumbnail`, the Imgur URL-suffix thumbnail trick) and `data/media-label.util.ts` (`mediaLabel`, the photo's accessible name).
 
 ## ⚙️ Internal State & Logic
 
@@ -45,8 +46,9 @@ Child components:
 - **Pagination model:** `edges` only ever grows (append-only cursor accumulation). There is no server-side year filter. `jumpToYear()` and `openMediaById()` both go through a shared `loadUntil()` loop. It pages forward at `JUMP_PAGE_SIZE = 100`, throttled by `JUMP_REQUEST_DELAY_MS = 200`, and capped at `MAX_JUMP_PAGES = 100`, until the target year or id appears or the feed is exhausted.
 - **URL ↔ state sync:** an `effect()` in the constructor watches `mediaIdParam` and opens or closes `selectedMedia` to match. UI-driven open and close set the signal directly, for instant feedback, then navigate separately. The effect's own already-open check turns the resulting route callback into a no-op.
 - **`JustifiedGridComponent`** is stateless and measures nothing, so the server renders exactly what the browser does and the first page of photos is in the SSR HTML. One `flex flex-wrap` container (6 px gap); each tile's `flex-basis` is `aspect × TARGET_ROW_HEIGHT` px and its `flex-grow` is `aspect × 100`, so the browser fits as many tiles per row as the width allows and stretches the row to the full width at one shared height. A tile is a `div` holding a `padding-bottom: 100 / aspect %` box (it reserves the tile's height before the image arrives) and an absolutely positioned button with the `object-cover` image. A trailing spacer with `flex-grow: 1000000` keeps the last, incomplete row at the target height. `aspect` is `width / height`, or 4:3 when either is missing. The first `eagerCount` images use `loading="eager"` (the very first also `fetchpriority="high"`) and the rest `loading="lazy"`.
-- **`MediaViewerComponent`** has no state beyond its inputs. It sets `document.body.style.overflow` (a scroll lock) in its constructor and clears it in `ngOnDestroy`. It listens for Escape with `(document:keydown.escape)`.
+- **`MediaViewerComponent`** has no state beyond its inputs. It sets `document.body.style.overflow` (a scroll lock) in its constructor and clears it in `ngOnDestroy`. It listens for Escape with `(document:keydown.escape)`. It is a modal dialog: the host has `role="dialog"`, `aria-modal="true"` and `aria-label="Photo viewer"`, and a `cdkTrapFocus` wrapper with auto-capture moves focus to the Close button on open, keeps Tab inside, and restores focus to the element that had it before (the thumbnail that opened it) when the viewer is destroyed. The image `alt` is `mediaLabel(media)`.
 - **`GalleryYearSliderComponent`** is stateless: inputs in, template out.
+- **Names and motion:** each thumbnail button gets `aria-label="Photo by {nickname}, {d MMM y}"` from `mediaLabel()`, which drops whichever part is blank (many photos have no nickname, and incident photos have no date). The thumbnail `<img>` stays `alt=""`. `jumpToYear()` scrolls with `behavior: "auto"` when `prefers-reduced-motion: reduce` matches, and `"smooth"` otherwise.
 
 ## 🧩 Extension Points & Hooks
 
@@ -66,6 +68,6 @@ Child components:
 
 ## 💡 Potential AI Feature Opportunities
 
-- **Auto-generated alt text.** Every `<img>` in the grid and viewer renders `alt=""`. An image-captioning model at ingestion could fill meaningful alt text and searchable metadata, which would also make the feed searchable.
+- **Auto-generated alt text.** Photos are named only by who uploaded them and when (`mediaLabel()`); nothing describes what they show. An image-captioning model at ingestion could fill meaningful alt text and searchable metadata, which would also make the feed searchable.
 - **Semantic search.** The year slider offers only coarse year-bucket navigation over `created`-ordered results, with no server-side filter. A vector index over photo content or uploader/date metadata could support natural-language or visual-similarity search without waiting on the `MediaFilter` argument.
 - **Content moderation and duplicate detection.** Ingestion is bot-driven (Discord/Telegram) with no human upload gate, and this page is public and unauthenticated. An AI pass (NSFW, spam, duplicate-image detection) could run before photos reach it.

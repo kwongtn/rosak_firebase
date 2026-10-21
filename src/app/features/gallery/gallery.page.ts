@@ -219,9 +219,10 @@ export class GalleryPage {
     }
     if (this.isBrowser) {
       queueMicrotask(() => {
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         document
           .getElementById(`gallery-year-${year}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       });
     }
   }
