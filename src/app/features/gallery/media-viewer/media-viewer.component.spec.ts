@@ -25,6 +25,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.style.overflow = "";
   // jsdom has neither; a test that wants one defines it (see stubNavigator).
   Reflect.deleteProperty(navigator, "share");
@@ -33,6 +34,13 @@ afterEach(() => {
 
 function stubNavigator(name: "share" | "clipboard", value: unknown): void {
   Object.defineProperty(navigator, name, { configurable: true, value });
+}
+
+/** jsdom has no `matchMedia`. The viewer asks it one thing: is the primary pointer coarse (a finger)? */
+function stubPointer(kind: "coarse" | "fine"): void {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(pointer: coarse)" && kind === "coarse",
+  }));
 }
 
 describe("MediaViewerComponent", () => {
@@ -462,6 +470,9 @@ describe("MediaViewerComponent sharing", () => {
   const SHARED_URL = `${window.location.origin}/gallery/a`;
   let fixture: ComponentFixture<MediaViewerComponent>;
 
+  // A phone, unless a test says otherwise: that is where the share sheet is used.
+  beforeEach(() => stubPointer("coarse"));
+
   async function openShareable(
     platform: "browser" | "server" = "browser",
     sharePath: string | null = "/gallery/a",
@@ -505,7 +516,7 @@ describe("MediaViewerComponent sharing", () => {
     );
   });
 
-  it("gives the link and the photo's name to the system share sheet when the browser has one", async () => {
+  it("gives the link and the photo's name to the system share sheet on a phone whose browser has one", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     const writeText = vi.fn();
     stubNavigator("share", share);
@@ -558,6 +569,37 @@ describe("MediaViewerComponent sharing", () => {
     expect(toast.handleError).toHaveBeenCalledExactlyOnceWith(failure);
     expect(writeText).toHaveBeenCalledExactlyOnceWith(SHARED_URL);
     expect(toast.success).toHaveBeenCalledWith("Link copied", expect.any(String));
+  });
+
+  it("copies the link, not the share sheet, on a desktop browser that has one", async () => {
+    stubPointer("fine");
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubNavigator("share", share);
+    stubNavigator("clipboard", { writeText });
+    const viewer = await openShareable();
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(share).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(SHARED_URL);
+    expect(toast.success).toHaveBeenCalledExactlyOnceWith("Link copied", expect.any(String));
+  });
+
+  it("takes a browser that cannot say what its pointer is for a desktop", async () => {
+    vi.stubGlobal("matchMedia", undefined);
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubNavigator("share", share);
+    stubNavigator("clipboard", { writeText });
+    const viewer = await openShareable();
+    spies();
+
+    await clickShare(viewer);
+
+    expect(share).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(SHARED_URL);
   });
 
   it("copies the link and says so when the browser has no share sheet", async () => {

@@ -756,6 +756,11 @@ describe("GalleryPage photo viewer navigation", () => {
   });
 
   describe("sharing", () => {
+    // The share sheet is what a phone gets: a coarse primary pointer (a desktop copies the link).
+    beforeEach(() => {
+      vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(pointer: coarse)" }));
+    });
+
     it("shares the open photo's own page, and follows the viewer as it steps", async () => {
       vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
       const share = vi.fn().mockResolvedValue(undefined);

@@ -237,15 +237,17 @@ export class MediaViewerComponent implements OnDestroy {
     this.swipeStart = null;
   }
 
-  /** The system share sheet where the browser has one, else the link goes to the clipboard. Runs
-   * from a click, so `navigator.share` is called inside the user gesture it requires. */
+  /** The system share sheet on a phone or tablet whose browser has one, else the link goes to the
+   * clipboard. Desktop Chrome, Edge and Safari have a share dialog too, but it is a clunky way to
+   * pass a link on there. Runs from a click, so `navigator.share` is called inside the user gesture
+   * it requires. */
   protected async share(): Promise<void> {
     const path = this.sharePath();
     if (!this.isBrowser || !path) {
       return;
     }
     const url = `${window.location.origin}${path}`;
-    if (typeof navigator.share === "function") {
+    if (this.isTouchDevice() && typeof navigator.share === "function") {
       try {
         await navigator.share({ url, title: this.label() });
         return;
@@ -266,6 +268,14 @@ export class MediaViewerComponent implements OnDestroy {
       // No clipboard (an insecure page) or permission refused: tell the visitor, the link is not on it.
       this.toast.error("Couldn't copy link");
     }
+  }
+
+  /** A coarse primary pointer is a finger: a phone or tablet. A browser with no `matchMedia`
+   * counts as a desktop, and so does a touch laptop, whose primary pointer is its trackpad. */
+  private isTouchDevice(): boolean {
+    return (
+      typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches
+    );
   }
 
   ngOnDestroy(): void {
