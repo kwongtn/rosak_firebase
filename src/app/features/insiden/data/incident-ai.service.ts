@@ -21,7 +21,9 @@ interface SummarizeResult {
 }
 
 /** Shape of the extraction data returned by the extractIncidentData endpoint —
- * matches the parser in functions/src/utils/extractionParser.ts. */
+ * matches the parser in functions/src/utils/extractionParser.ts. `indicator`, `severity` and the
+ * affected names are the model's words, not the form's enums or ids: the incident form translates
+ * them in incident-form/extract-data.util.ts. */
 export interface ExtractedIncidentData {
   title: string | null;
   datetime: string | null;
