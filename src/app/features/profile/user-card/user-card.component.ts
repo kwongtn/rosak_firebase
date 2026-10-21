@@ -12,6 +12,7 @@ import {
 import { DecimalPipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterLink } from "@angular/router";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { HlmButton } from "../../../ui/button/button";
@@ -163,7 +164,7 @@ import { firstLineVehiclePath } from "../data/vehicle-link.util";
       </div>
 
       @if (isOwnProfile()) {
-        <div class="mt-4">
+        <div class="mt-4 flex flex-wrap items-center gap-2">
           <button hlmBtn variant="outline" size="sm" (click)="openPrivacySheet()">
             <svg class="mr-2 size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -174,6 +175,29 @@ import { firstLineVehiclePath } from "../data/vehicle-link.util";
               />
             </svg>
             Privacy Settings
+          </button>
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            data-testid="copy-profile-link"
+            (click)="copyProfileLink()"
+          >
+            <svg
+              class="mr-2 size-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"
+              />
+            </svg>
+            Copy profile link
           </button>
         </div>
       }
@@ -235,6 +259,7 @@ export class UserCardComponent {
   protected readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly isEditing = signal(false);
   protected readonly isSaving = signal(false);
@@ -321,6 +346,38 @@ export class UserCardComponent {
       this.toast.error("Save failed", err instanceof Error ? err.message : "Unknown error");
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  /**
+   * Copies this profile's public URL (`/profile/<uid>`, the route anyone can open). Where the
+   * browser has no clipboard (an insecure context) or refuses the write, nothing was copied, so the
+   * URL goes in the toast for the owner to copy by hand.
+   */
+  protected async copyProfileLink(): Promise<void> {
+    const uid = this.auth.user()?.uid;
+    if (!this.isBrowser || !uid) {
+      return;
+    }
+    const url = `${window.location.origin}/profile/${encodeURIComponent(uid)}`;
+    if (await this.writeToClipboard(url)) {
+      this.toast.success("Profile link copied", "Anyone with it can open your public profile.");
+    } else {
+      this.toast.info("Copy your profile link", url);
+    }
+  }
+
+  /** Whether the text reached the clipboard: false when there is none, or the write is refused. */
+  private async writeToClipboard(text: string): Promise<boolean> {
+    if (!navigator.clipboard) {
+      return false;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Permission denied or the document lost focus. The caller shows the text instead.
+      return false;
     }
   }
 

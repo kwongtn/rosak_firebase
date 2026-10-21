@@ -11,6 +11,7 @@ import { UserCardComponent } from "./user-card.component";
 
 /** The signed-in Firebase user. On someone else's profile this is the viewer, not the owner. */
 const VIEWER = {
+  uid: "viewer-uid-1",
   displayName: "Viewer Vee",
   email: "viewer@example.com",
   emailVerified: true,
@@ -34,6 +35,11 @@ function makeUser(favouriteVehicles: UserData["favouriteVehicles"], nickname = "
 describe("UserCardComponent", () => {
   let fixture: ComponentFixture<UserCardComponent>;
   let viewer: WritableSignal<typeof VIEWER | null>;
+  let toast: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+    info: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     // The card reads matchMedia in afterNextRender (and the sheet's CDK breakpoint observer listens
@@ -53,6 +59,7 @@ describe("UserCardComponent", () => {
     );
 
     viewer = signal<typeof VIEWER | null>(null);
+    toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [UserCardComponent],
       providers: [
@@ -63,7 +70,7 @@ describe("UserCardComponent", () => {
           provide: GraphQLClient,
           useValue: { request: vi.fn().mockResolvedValue({ myVotesCast: 0 }) },
         },
-        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+        { provide: ToastService, useValue: toast },
       ],
     }).compileComponents();
   });
@@ -202,5 +209,76 @@ describe("UserCardComponent", () => {
     expect(text).toContain(VIEWER.email);
     expect(text).toContain(VIEWER.phoneNumber);
     expect(fixture.nativeElement.querySelector("img")?.getAttribute("src")).toBe(VIEWER.photoURL);
+  });
+
+  describe("copy profile link", () => {
+    function copyButton(): HTMLButtonElement | null {
+      return fixture.nativeElement.querySelector('[data-testid="copy-profile-link"]');
+    }
+
+    function profileUrl(): string {
+      return `${window.location.origin}/profile/${VIEWER.uid}`;
+    }
+
+    /** jsdom has no clipboard, so each spec installs the one it wants (or none). */
+    function setClipboard(clipboard: unknown): void {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard });
+    }
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, "clipboard");
+    });
+
+    it("is offered to the owner only", async () => {
+      viewer.set(VIEWER);
+
+      await render([], { isOwnProfile: true });
+      expect(copyButton()?.textContent?.trim()).toBe("Copy profile link");
+      fixture.destroy();
+
+      await render([], { isOwnProfile: false });
+      expect(copyButton()).toBeNull();
+    });
+
+    it("copies the public profile URL and says so", async () => {
+      viewer.set(VIEWER);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      setClipboard({ writeText });
+      await render([], { isOwnProfile: true });
+
+      copyButton()?.click();
+
+      await vi.waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+      expect(writeText).toHaveBeenCalledWith(profileUrl());
+      expect(toast.success.mock.calls[0][0]).toBe("Profile link copied");
+      expect(toast.info).not.toHaveBeenCalled();
+    });
+
+    it("shows the URL in the toast when the browser has no clipboard", async () => {
+      viewer.set(VIEWER);
+      await render([], { isOwnProfile: true });
+
+      copyButton()?.click();
+
+      await vi.waitFor(() =>
+        expect(toast.info).toHaveBeenCalledWith("Copy your profile link", profileUrl()),
+      );
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("shows the URL in the toast when the browser refuses the write", async () => {
+      viewer.set(VIEWER);
+      setClipboard({
+        writeText: vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError")),
+      });
+      await render([], { isOwnProfile: true });
+
+      copyButton()?.click();
+
+      await vi.waitFor(() =>
+        expect(toast.info).toHaveBeenCalledWith("Copy your profile link", profileUrl()),
+      );
+      expect(toast.success).not.toHaveBeenCalled();
+    });
   });
 });

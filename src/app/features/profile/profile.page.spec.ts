@@ -60,6 +60,8 @@ describe("ProfilePage", () => {
     requestMock = vi.fn();
     handleErrorMock = vi.fn();
     signedInUid = signal<{ uid: string } | null>({ uid: "me" });
+    // What the router's title strategy leaves behind for this route.
+    document.title = "MLPTF | Profile";
 
     await TestBed.configureTestingModule({
       imports: [ProfilePage],
@@ -257,6 +259,93 @@ describe("ProfilePage", () => {
         expect(cardNickname()).toBe("Bob");
       });
       expect(banner()).toBeNull();
+    });
+  });
+
+  describe("document title", () => {
+    it("names the tab after the spotter once the profile loads", async () => {
+      requestMock.mockResolvedValue(publicResponse("Alice"));
+
+      await mount("alice");
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("Alice | MLPTF");
+      });
+    });
+
+    it("keeps the route title for a profile with no nickname", async () => {
+      requestMock.mockResolvedValue(publicResponse("  "));
+
+      await mount("alice");
+      await vi.waitFor(() => expect(cardNickname()).toBe("  "));
+
+      expect(document.title).toBe("MLPTF | Profile");
+    });
+
+    it("goes back to the route title while the next profile loads, then names that one", async () => {
+      requestMock.mockResolvedValueOnce(publicResponse("Alice"));
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("Alice | MLPTF");
+      });
+
+      const bob = deferred<GetPublicUserData>();
+      requestMock.mockReturnValueOnce(bob.promise);
+      fixture.componentRef.setInput("id", "bob");
+      fixture.detectChanges();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("MLPTF | Profile");
+      });
+
+      bob.resolve(publicResponse("Bob"));
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("Bob | MLPTF");
+      });
+    });
+
+    it("follows a nickname edit", async () => {
+      requestMock.mockResolvedValue({ user: makeUser("Me") } satisfies GetUserDataData);
+      await mount("me");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("Me | MLPTF");
+      });
+
+      (
+        fixture.componentInstance as unknown as { onNicknameSaved(nickname: string): void }
+      ).onNicknameSaved("Mee");
+      fixture.detectChanges();
+
+      expect(document.title).toBe("Mee | MLPTF");
+    });
+
+    it("keeps the route title when the load fails", async () => {
+      requestMock.mockRejectedValueOnce(new GraphQLRequestError([{ message: "boom" }]));
+
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector("app-retry-banner")).not.toBeNull();
+      });
+
+      expect(document.title).toBe("MLPTF | Profile");
+    });
+
+    it("puts the route title back when the page is left", async () => {
+      requestMock.mockResolvedValue(publicResponse("Alice"));
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("Alice | MLPTF");
+      });
+
+      fixture.destroy();
+
+      expect(document.title).toBe("MLPTF | Profile");
     });
   });
 });

@@ -8,6 +8,7 @@ import {
   signal,
   untracked,
 } from "@angular/core";
+import { Title } from "@angular/platform-browser";
 import { GraphQLClient, GraphQLRequestError } from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { AuthService } from "../../core/auth/auth.service";
@@ -33,6 +34,9 @@ import {
   UserData,
   PublicUserData,
 } from "./data/profile.queries";
+
+/** The route's own title (`app.routes.ts`), put back whenever no profile is showing. */
+const PROFILE_FALLBACK_TITLE = "MLPTF | Profile";
 
 /**
  * /profile/:id — a user's profile, keyed by their Firebase uid. Anyone can open this route for
@@ -146,6 +150,7 @@ export class ProfilePage {
 
   private readonly graphql = inject(GraphQLClient);
   private readonly errorHandler = inject(ErrorHandler);
+  private readonly title = inject(Title);
   protected readonly auth = inject(AuthService);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");
@@ -185,6 +190,19 @@ export class ProfilePage {
       const id = this.id();
       const isOwn = this.auth.user()?.uid === id;
       untracked(() => void this.load(id, isOwn));
+    });
+
+    // Names the tab, history and bookmarks after the spotter once their profile has loaded. A
+    // profile with no nickname keeps the route's title. While another profile loads, `_user` still
+    // holds the previous one, so `_isLoading` gates this too, and the cleanup puts the route title
+    // back whenever the profile it named is gone.
+    effect((onCleanup) => {
+      const nickname = this._user()?.nickname?.trim();
+      if (!nickname || this._isLoading()) {
+        return;
+      }
+      this.title.setTitle(`${nickname} | MLPTF`);
+      onCleanup(() => this.title.setTitle(PROFILE_FALLBACK_TITLE));
     });
   }
 
