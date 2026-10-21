@@ -1,6 +1,7 @@
 import { Component, OnDestroy, computed, inject, output, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
 import { ToastService } from "../../ui/toast/toast.service";
 import { HlmButton } from "../../ui/button/button";
@@ -91,12 +92,34 @@ const TELEGRAM_LINKING_WIKI_URL =
         </div>
         <div hlmCardContent>
           @if (code() === null) {
-            <button hlmBtn size="sm" [disabled]="isRequesting()" (click)="requestCode()">
+            <button
+              hlmBtn
+              size="sm"
+              data-testid="account-request-code"
+              [disabled]="isRequesting()"
+              (click)="requestCode()"
+            >
               {{ isRequesting() ? "Requesting…" : "Request code" }}
             </button>
           } @else {
-            <div class="flex flex-col items-center gap-1 py-1">
-              <span class="text-3xl font-bold tracking-widest tabular-nums">{{ code() }}</span>
+            <div class="flex flex-col gap-1 py-1">
+              <div class="flex items-center gap-2">
+                <span
+                  class="text-3xl font-bold tracking-widest tabular-nums"
+                  data-testid="account-code"
+                  >{{ code() }}</span
+                >
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  aria-label="Copy code"
+                  data-testid="account-code-copy"
+                  (click)="copyCode()"
+                >
+                  Copy
+                </button>
+              </div>
               <span class="text-muted-foreground text-xs">Expires in {{ countdown() }}s</span>
             </div>
           }
@@ -122,6 +145,7 @@ export class AccountPanelComponent implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly wikiUrl = TELEGRAM_LINKING_WIKI_URL;
 
@@ -159,6 +183,20 @@ export class AccountPanelComponent implements OnDestroy {
     } finally {
       this.isRequesting.set(false);
     }
+  }
+
+  protected async copyCode(): Promise<void> {
+    const code = this.code();
+    if (!this.isBrowser || code === null) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(String(code));
+    } catch (err) {
+      this.toast.error("Couldn't copy code", err instanceof Error ? err.message : "Unknown error");
+      return;
+    }
+    this.toast.success("Code copied", "Paste it into the Telegram bot.");
   }
 
   private startCountdown(): void {
