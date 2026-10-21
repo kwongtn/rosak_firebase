@@ -1,18 +1,20 @@
 import { Component, computed, effect, inject, input, output, signal } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { AuthService } from "../../../core/auth/auth.service";
+import { klDateKey } from "../../../core/time/kl-date";
 import { LinkCardComponent } from "../link-card/link-card.component";
 import { canEditLink } from "../data/can-edit.link.util";
 import { LinkCardItem } from "../data/link-card-item";
-import { groupLinksByDay, linkDateKey } from "../data/link-day-group.util";
+import { groupLinksByDay } from "../data/link-day-group.util";
 import { LinkSheetService } from "../data/link-sheet.service";
 import { PublicSocialMediaLink } from "../data/social-links.queries";
 
 /**
  * The shared, host-agnostic link list (Task unify): approved links first (day-grouped via
- * `groupLinksByDay` — the single date-grouping mechanism, UTC so SSR and the viewer's tz agree),
- * then a collapsed-by-default "Pending (N)" collapsible. Edit pencils are author-or-admin gated
- * (canEditLink + LinkSheetService.openEdit) and the edit sheet closes through the shared service.
+ * `groupLinksByDay` — the single date-grouping mechanism, bucketed on the Asia/Kuala_Lumpur day so
+ * SSR and every viewer's zone agree), then a collapsed-by-default "Pending (N)" collapsible. Edit
+ * pencils are author-or-admin gated (canEditLink + LinkSheetService.openEdit) and the edit sheet
+ * closes through the shared service.
  *
  * Data lifecycle stays with the host: this component takes an ordered `links` array and emits
  * `sheetClosed` on the sheet's open→closed edge so the host can reload its own resource (and, for
@@ -35,7 +37,7 @@ import { PublicSocialMediaLink } from "../data/social-links.queries";
               </h2>
             } @else if (group.key) {
               <h2 class="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-                {{ group.key | date: "MMMM d, y" : "UTC" }}
+                {{ group.key + "T00:00:00Z" | date: "MMMM d, y" : "UTC" }}
               </h2>
             }
             <div class="flex flex-col gap-2">
@@ -125,12 +127,11 @@ export class LinkListComponent {
     this.links().filter((link) => link.status === "PENDING_APPROVAL"),
   );
 
-  /** Approved links bucketed by UTC day (the backend's `occurredAt DESC, id DESC` order is
-   * preserved within each day; the bucket key is the same displayed instant — see
-   * `groupLinksByDay`). */
-  protected readonly approvedGroups = computed(() =>
-    groupLinksByDay(this.approved(), linkDateKey(new Date().toISOString())),
-  );
+  /** Approved links bucketed by Asia/Kuala_Lumpur day (the backend's `occurredAt DESC, id DESC`
+   * order is preserved within each day; the bucket key is the same displayed instant — see
+   * `groupLinksByDay`). The header renders the key as a UTC-midnight date: a bare date-only string
+   * would be read as LOCAL midnight by DatePipe and then shifted a day by its "UTC" zone. */
+  protected readonly approvedGroups = computed(() => groupLinksByDay(this.approved(), klDateKey()));
 
   /** Collapsed by default — pending links stay out of the way until explicitly requested. */
   protected readonly pendingExpanded = signal(false);

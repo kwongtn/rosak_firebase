@@ -5,6 +5,7 @@ import { By } from "@angular/platform-browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
+import { klDateKey } from "../../../core/time/kl-date";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LinkCardComponent } from "../link-card/link-card.component";
 import {
@@ -266,9 +267,9 @@ describe("LinksSectionComponent pagination", () => {
   });
 
   it("heads the day group with the event time, not the submission time", async () => {
-    // Today (UTC) as the event instant against a 2020 submission: grouping on `created` would
-    // render a 2020 header instead of "Today".
-    const todayUtc = new Date().toISOString().slice(0, 10);
+    // Today (Kuala Lumpur, the frame of the backend's naive wall times) as the event instant
+    // against a 2020 submission: grouping on `created` would render a 2020 header instead of "Today".
+    const todayMyt = klDateKey();
     httpMock
       .expectOne((r) => r.method === "POST")
       .flush({
@@ -276,7 +277,7 @@ describe("LinksSectionComponent pagination", () => {
           [
             makeLink("a", "LIVE", {
               created: "2020-01-01T00:00:00Z",
-              occurredAt: `${todayUtc}T08:00:00Z`,
+              occurredAt: `${todayMyt}T08:00:00`,
             }),
           ],
           false,

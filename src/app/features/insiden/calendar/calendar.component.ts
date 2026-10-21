@@ -1,4 +1,5 @@
 import { Component, OnDestroy, computed, input, linkedSignal, output, signal } from "@angular/core";
+import { klDateKey } from "../../../core/time/kl-date";
 import { HlmButton } from "../../../ui/button/button";
 import { ComboboxItem, HlmCombobox } from "../../../ui/combobox/combobox";
 import { CalendarIncident, CalendarIncidentSeverity } from "../data/insiden.queries";
@@ -261,7 +262,7 @@ export class IncidentCalendarComponent implements OnDestroy {
    * than it helps). */
   protected readonly weeks = computed<DayCell[]>(() => {
     const month = this.viewedMonth().getUTCMonth();
-    const todayKey = dateKeyOf(new Date());
+    const todayKey = klDateKey();
     const counts = this._countsByDate();
 
     const cells: DayCell[] = [];
@@ -351,8 +352,9 @@ export class IncidentCalendarComponent implements OnDestroy {
   }
 
   protected goToday(): void {
-    this.viewedMonth.set(startOfMonth(new Date()));
-    this.daySelected.emit(dateKeyOf(new Date()));
+    const today = klDateKey();
+    this.viewedMonth.set(startOfMonth(dateFromKey(today)));
+    this.daySelected.emit(today);
   }
 
   /** Moves the grid to `monthStart` and re-selects a day in it, so the day-scoped incident list

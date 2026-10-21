@@ -3,6 +3,7 @@ import { DatePipe } from "@angular/common";
 import { Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
 import { graphqlResource } from "../../core/graphql/graphql-client";
+import { klDateKey } from "../../core/time/kl-date";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
 import { HlmBadge } from "../../ui/badge/badge";
@@ -22,7 +23,7 @@ import {
   INSIDEN_INCIDENTS_QUERY,
   InsidenIncidentsQueryData,
 } from "./data/insiden.queries";
-import { calendarMonthRange, dateKeyOf, incidentCoversDate } from "./data/calendar-date.util";
+import { calendarMonthRange, incidentCoversDate } from "./data/calendar-date.util";
 import { isPendingIncidentStatus } from "./data/incident-status.util";
 import { LinksSectionComponent } from "./links-section/links-section.component";
 
@@ -84,7 +85,9 @@ export class InsidenPage {
     this.expandedDetailsCount() === 0 ? resolveAdSlot("insidenFeed") : undefined,
   );
 
-  protected readonly selectedDate = computed(() => this.dateParam() ?? dateKeyOf(new Date()));
+  /** The bare route defaults to today on the Kuala Lumpur clock (not UTC), the frame the incident
+   * filter's naive wall dates are in. */
+  protected readonly selectedDate = computed(() => this.dateParam() ?? klDateKey());
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
 
   private readonly selectedMonth = computed(() => this.selectedDate().slice(0, 7));

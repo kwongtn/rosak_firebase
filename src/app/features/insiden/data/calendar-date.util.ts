@@ -10,6 +10,9 @@ export function calendarMonthRange(monthKey: string): { start: string; end: stri
   };
 }
 
+/** UTC `YYYY-MM-DD` of a `Date` used purely as a calendar-math tool (grid cursors, month padding).
+ * Never feed it `new Date()` for "today": that is the UTC day, which is yesterday for the first
+ * eight hours of every Kuala Lumpur day. Use `klDateKey()` for the current day. */
 export function dateKeyOf(date: Date): string {
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");

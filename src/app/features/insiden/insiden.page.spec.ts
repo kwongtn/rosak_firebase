@@ -2,10 +2,11 @@ import { provideHttpClient } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../core/auth/auth.service";
+import { klDateKey } from "../../core/time/kl-date";
 import { INSIDEN_INCIDENTS_QUERY } from "./data/insiden.queries";
-import { calendarMonthRange, dateKeyOf } from "./data/calendar-date.util";
+import { calendarMonthRange } from "./data/calendar-date.util";
 import { IncidentSheetService } from "./data/incident-sheet.service";
 import { InsidenPage } from "./insiden.page";
 
@@ -22,7 +23,10 @@ describe("InsidenPage date-window requests", () => {
     }).overrideComponent(InsidenPage, { set: { template: "", imports: [] } });
   });
 
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
+  afterEach(() => {
+    vi.useRealTimers();
+    TestBed.inject(HttpTestingController).verify();
+  });
 
   function expectWindow(start: string, end: string): void {
     const request = TestBed.inject(HttpTestingController).expectOne(
@@ -38,10 +42,24 @@ describe("InsidenPage date-window requests", () => {
 
   it("requests the current month's padded window on the bare route", () => {
     const fixture = TestBed.createComponent(InsidenPage);
-    const range = calendarMonthRange(dateKeyOf(new Date()).slice(0, 7));
+    const range = calendarMonthRange(klDateKey().slice(0, 7));
     fixture.detectChanges();
     TestBed.tick();
     expectWindow(range.start, range.end);
+  });
+
+  it("defaults the bare route to the Kuala Lumpur day, not the UTC day", () => {
+    // 01:00 MYT on 1 Oct: UTC is still 30 Sep, so a UTC "today" would open (and fetch) September.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-30T17:00:00Z"));
+    const fixture = TestBed.createComponent(InsidenPage);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(
+      (fixture.componentInstance as unknown as { selectedDate(): string }).selectedDate(),
+    ).toBe("2026-10-01");
+    expectWindow("2026-09-17", "2026-11-14");
   });
 
   it("loads a deep-linked month, reuses it for day selection, and reloads across months", () => {

@@ -1,3 +1,5 @@
+import { klDateKey } from "../../../core/time/kl-date";
+
 /**
  * The instant every surface DISPLAYS for a link: `occurredAt` ("when did this happen"),
  * falling back to `created` ("when was it reported"). One rule, so a day header can never
@@ -22,38 +24,42 @@ export function linkDisplayInstant(link: { created: string; occurredAt?: string 
   return link.occurredAt ?? link.created;
 }
 
-/** UTC calendar-day key (YYYY-MM-DD) of an ISO instant; "" when unparseable.
- * UTC, not local: SSR renders on the server (UTC in App Hosting) while the browser is in
- * the viewer's timezone — local-day grouping would differ between the two and break
- * hydration. Matches the incident calendar's UTC day anchor.
+/** A time part that ends in `Z` or `±hh[:mm]` — a real instant rather than a wall-clock string.
+ * Tested on the slice after the date so the date's own `-dd` can never read as an offset. */
+const HAS_OFFSET = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
+
+/** Asia/Kuala_Lumpur calendar-day key (YYYY-MM-DD) of a link timestamp; "" when unparseable.
+ * The backend sends NAIVE Kuala Lumpur wall times ("2026-09-28T15:46:46", `USE_TZ = False`), whose
+ * first ten characters already ARE the Malaysian day — so those are sliced, never run through
+ * `new Date()` + UTC getters, which read them in the viewer's zone (UTC on the SSR server, +8 in a
+ * Malaysian browser) and moved the day between SSR and hydration. A string that does carry an
+ * offset is a true instant and is shifted to Kuala Lumpur (fixed UTC+8) first. Either way the key
+ * is the same in every zone, which is what keeps SSR and the browser in agreement.
  *
- * WHICH instant gets bucketed changed (`created` → `linkDisplayInstant(link)`); the UTC frame
- * above deliberately did NOT change with it. The hydration argument for UTC holds for either
- * field, and moving the frame would relocate every existing viewer's day headers for a
- * consistency gain the field swap already provides on its own. */
+ * WHICH instant gets bucketed is `linkDisplayInstant(link)` (the event time); the frame is
+ * independent of that choice. */
 export function linkDateKey(instantIso: string): string {
-  const date = new Date(instantIso);
-  if (Number.isNaN(date.getTime())) {
+  const ms = Date.parse(instantIso);
+  if (Number.isNaN(ms)) {
     return "";
   }
-  const pad2 = (n: number) => String(n).padStart(2, "0");
-  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+  return HAS_OFFSET.test(instantIso.slice(10)) ? klDateKey(ms) : instantIso.slice(0, 10);
 }
 
-/** "Today"/"Yesterday" label for a day key, or "" for any older day (the template then
- * formats the key itself via DatePipe with the UTC zone). `todayKey` is the caller's
- * `linkDateKey()` of now; "yesterday" is derived from it purely arithmetically. */
+/** "Today"/"Yesterday" label for a day key, or "" for any older day (the template then formats
+ * the key as a UTC-midnight date). `todayKey` is the caller's `klDateKey()`; "yesterday" is
+ * derived from it purely arithmetically on the date-only value. */
 export function linkDayLabel(dateKey: string, todayKey: string): "Today" | "Yesterday" | "" {
   if (dateKey === todayKey) {
     return "Today";
   }
   const yesterday = new Date(`${todayKey}T12:00:00Z`);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  return dateKey === linkDateKey(yesterday.toISOString()) ? "Yesterday" : "";
+  return dateKey === yesterday.toISOString().slice(0, 10) ? "Yesterday" : "";
 }
 
 interface LinkDayGroup<T> {
-  /** UTC YYYY-MM-DD ("" for unparseable dates — rendered headerless). */
+  /** Asia/Kuala_Lumpur YYYY-MM-DD ("" for unparseable dates — rendered headerless). */
   key: string;
   label: "Today" | "Yesterday" | "";
   items: T[];
