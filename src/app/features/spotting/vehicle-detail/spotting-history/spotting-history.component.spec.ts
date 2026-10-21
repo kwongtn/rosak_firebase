@@ -167,6 +167,18 @@ describe("SpottingHistoryComponent", () => {
       const tagged = rows().map((row) => row.querySelector('[data-testid="history-yours"]'));
       expect(tagged.map((tag) => (tag ? textOf(tag) : null))).toEqual(["Yours", null, "Yours"]);
     });
+
+    it("sits on the details line, so it cannot push the status badge off the date line", async () => {
+      await render([makeEvent("mine", { isMine: true })]);
+
+      const row = rows()[0];
+      const tag = row.querySelector('[data-testid="history-yours"]');
+      const details = row.querySelector('[data-testid="history-details"]');
+      expect(tag).not.toBeNull();
+      expect(details?.contains(tag)).toBe(true);
+      // Nothing else was logged, so the tag is all that line holds.
+      expect(textOf(details)).toBe("Yours");
+    });
   });
 
   it("keeps every detail on its own row, so a bare row stays as it was", async () => {
@@ -182,9 +194,14 @@ describe("SpottingHistoryComponent", () => {
     ]);
 
     const [full, bare] = rows();
-    expect(textOf(full.querySelector('[data-testid="history-details"]'))).toBe(
-      "Run 7 Wheels Flat 2 photos",
-    );
+    // One flex item each (the layout's gap separates them, there is no whitespace text node).
+    const details = full.querySelector('[data-testid="history-details"]');
+    expect([...(details?.children ?? [])].map(textOf)).toEqual([
+      "Yours",
+      "Run 7",
+      "Wheels Flat",
+      "2 photos",
+    ]);
     expect(textOf(full)).toContain("Seen near KLCC");
     expect(bare.querySelector('[data-testid="history-details"]')).toBeNull();
     expect(bare.querySelector('[data-testid="history-yours"]')).toBeNull();

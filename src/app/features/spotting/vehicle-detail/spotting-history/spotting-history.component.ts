@@ -34,9 +34,11 @@ interface EventGroup {
  *
  * Every row also shows what the spotter logged beyond the basics, so contributing it is visibly
  * rewarded: run number, wheel condition, a photo count and a "Yours" tag on the viewer's own
- * entries. The photo count is a plain chip, not a link: `medias` has no filter by spotting, so
- * there is nothing to deep-link to. Month headings are h3 because the card around the list
- * carries the page's h2 (an h4 there skips a level, which axe reports as heading-order).
+ * entries. They share a second line under the date/type/status line, because the tag next to the
+ * date pushed the status badge onto a line of its own at phone width. The photo count is a plain
+ * chip, not a link: `medias` has no filter by spotting, so there is nothing to deep-link to.
+ * Month headings are h3 because the card around the list carries the page's h2 (an h4 there skips
+ * a level, which axe reports as heading-order).
  */
 @Component({
   selector: "app-spotting-history",
@@ -72,9 +74,6 @@ interface EventGroup {
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex flex-wrap items-center gap-2">
                       <span class="text-sm font-medium">{{ event.spottingDate | date }}</span>
-                      @if (event.isMine) {
-                        <span hlmBadge variant="secondary" data-testid="history-yours">Yours</span>
-                      }
                       <spotting-type-badge [type]="event.type" />
                       @if (event.originStation) {
                         <span class="text-muted-foreground text-xs">
@@ -87,11 +86,16 @@ interface EventGroup {
                     </div>
                     <vehicle-status-badge [status]="event.status" />
                   </div>
-                  @if (event.runNumber || event.wheelStatus || event.mediaCount > 0) {
+                  @if (
+                    event.isMine || event.runNumber || event.wheelStatus || event.mediaCount > 0
+                  ) {
                     <div
                       class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
                       data-testid="history-details"
                     >
+                      @if (event.isMine) {
+                        <span hlmBadge variant="secondary" data-testid="history-yours">Yours</span>
+                      }
                       @if (event.runNumber) {
                         <span data-testid="history-run-number">Run {{ event.runNumber }}</span>
                       }
