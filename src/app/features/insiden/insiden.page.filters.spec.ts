@@ -19,6 +19,7 @@ import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { ToastService } from "../../ui/toast/toast.service";
 import { IncidentCalendarComponent } from "./calendar/calendar.component";
 import { INSIDEN_INCIDENTS_QUERY, type CalendarIncident } from "./data/insiden.queries";
+import { INSIDEN_MONTHLY_HISTORY_QUERY } from "./data/insiden-history.queries";
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
 import { InsidenPage } from "./insiden.page";
 import { LinksSectionComponent } from "./links-section/links-section.component";
@@ -582,6 +583,71 @@ describe("InsidenPage incident filters", () => {
 
       expect(calendarExportCount()).toBe(0);
       expect(downloads).toEqual([]);
+    });
+  });
+
+  describe("Last 12 months section", () => {
+    const isHistoryRead = (request: { body?: { query?: string } | null }): boolean =>
+      request.body?.query === INSIDEN_MONTHLY_HISTORY_QUERY;
+
+    const historyToggle = (): HTMLElement => byTestId("incident-history-toggle");
+
+    it("is mounted on the incidents tab, collapsed, with no read of its own", async () => {
+      await boot();
+
+      expect(root().querySelector('[data-testid="incident-history"]')).not.toBeNull();
+      expect(historyToggle().getAttribute("aria-expanded")).toBe("false");
+      expect(httpMock.match(isHistoryRead)).toHaveLength(0);
+    });
+
+    it("reads the 12 months ending at the selected month once it is opened", async () => {
+      await boot();
+
+      historyToggle().click();
+      fixture.detectChanges();
+
+      // 5 October 2026 -> November 2025 .. October 2026 -> calendar years 2025 and 2026.
+      const request = httpMock.expectOne(isHistoryRead);
+      expect(request.request.body.variables).toEqual({
+        startYear: { date: { year: { exact: 2025 } } },
+        endYear: { date: { year: { exact: 2026 } } },
+      });
+      request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      await settle();
+    });
+
+    it("follows the month when the route moves to another year pair", async () => {
+      await boot();
+      historyToggle().click();
+      fixture.detectChanges();
+      httpMock
+        .expectOne(isHistoryRead)
+        .flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      await settle();
+
+      fixture.componentRef.setInput("date", "2027-01-10");
+      fixture.detectChanges();
+      TestBed.tick();
+      httpMock
+        .expectOne((request) => request.body?.query === INSIDEN_INCIDENTS_QUERY)
+        .flush({ data: { calendarIncidents: [] } });
+      const history = httpMock.expectOne(isHistoryRead);
+
+      expect(history.request.body.variables).toEqual({
+        startYear: { date: { year: { exact: 2026 } } },
+        endYear: { date: { year: { exact: 2027 } } },
+      });
+      history.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      await settle();
+    });
+
+    it("is not rendered on the Submitted Links tab", async () => {
+      await boot();
+      const tabs = [...root().querySelectorAll<HTMLButtonElement>("nav button")];
+      tabs.find((tab) => tab.textContent?.includes("Submitted Links"))?.click();
+      fixture.detectChanges();
+
+      expect(root().querySelector('[data-testid="incident-history"]')).toBeNull();
     });
   });
 });

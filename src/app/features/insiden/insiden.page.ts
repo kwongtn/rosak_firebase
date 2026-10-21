@@ -21,6 +21,7 @@ import { AppFooterComponent } from "../../shell/app-footer/app-footer.component"
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
 import { IncidentCalendarComponent } from "./calendar/calendar.component";
 import { IncidentFormComponent } from "./incident-form/incident-form.component";
+import { IncidentHistoryComponent } from "./incident-history/incident-history.component";
 import { LinkSheetComponent } from "./link-sheet/link-sheet.component";
 import { IncidentSheetService } from "./data/incident-sheet.service";
 import { LinkSheetService } from "./data/link-sheet.service";
@@ -76,6 +77,7 @@ import { LinksSectionComponent } from "./links-section/links-section.component";
     IncidentCardComponent,
     IncidentCalendarComponent,
     IncidentFormComponent,
+    IncidentHistoryComponent,
     LinkSheetComponent,
     LinksSectionComponent,
   ],

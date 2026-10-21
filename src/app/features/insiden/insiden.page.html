@@ -273,6 +273,11 @@
           </div>
         </div>
       }
+
+      <!-- Collapsed until opened: its read does not exist until then (see IncidentHistoryComponent),
+           so a page view that never opens it costs no request and nothing in the SSR payload. The
+           window is derived from the route-driven month, identical on the server and the client. -->
+      <app-incident-history [endMonth]="selectedMonth()" />
     } @else {
       <app-links-section />
     }
