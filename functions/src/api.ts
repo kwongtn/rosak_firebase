@@ -25,6 +25,7 @@ import cors from "cors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getPageContentFetcher, type FetcherStrategy } from "./utils/pageContentFetcher";
 import { asStringOrNull, parseExtraction, type ExtractedIncident } from "./utils/extractionParser";
+import { buildExtractionPrompt } from "./utils/extractionPrompt";
 import { EXTRACT_RESPONSE_SCHEMA, SUMMARIZE_RESPONSE_SCHEMA } from "./utils/geminiSchemas";
 import { formatHourKey } from "./utils/hourKey";
 
@@ -100,30 +101,6 @@ function getGenAI(): GoogleGenerativeAI {
 
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function buildPrompt(url: string, content: string): string {
-  return `
-You are extracting incident data from a public transportation news article.
-
-Source URL: ${url}
-Content:
-${content}
-
-Extract the following information in JSON format:
-{
-  "title": "Brief incident title",
-  "datetime": "ISO 8601 timestamp when incident occurred (null if not mentioned)",
-  "content": "Detailed description of what happened",
-  "source_url": "${url}",
-  "indicator": "delay|disruption|accident|maintenance|other",
-  "severity": "minor|moderate|major|critical",
-  "affected_lines": ["line names if mentioned"],
-  "affected_stations": ["station names if mentioned"]
-}
-
-If information is not available, use null.
-`;
 }
 
 function buildSummarizePrompt(chronologies: unknown[]): string {
@@ -275,7 +252,7 @@ export async function handleExtract(body: Record<string, unknown>): Promise<{
   });
 
   try {
-    const result = await model.generateContent(buildPrompt(url, pageContent));
+    const result = await model.generateContent(buildExtractionPrompt(url, pageContent, new Date()));
     return {
       requestId,
       data: parseExtraction(result.response.text(), url),
