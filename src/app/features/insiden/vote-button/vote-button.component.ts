@@ -71,6 +71,7 @@ import {
   imports: [HlmButton],
   template: `
     <div class="group/vote flex items-center gap-0.5" [attr.aria-label]="ariaLabel()">
+      <!-- hover:* keeps the voted colour over the ghost variant's hover:text-foreground -->
       <button
         hlmBtn
         variant="ghost"
@@ -79,6 +80,7 @@ import {
         aria-label="Upvote"
         [attr.aria-pressed]="state().userVote === 1"
         [class.text-green-600]="state().userVote === 1"
+        [class.hover:text-green-600]="state().userVote === 1"
         [disabled]="!auth.isLoggedIn() || isVoting()"
         (click)="onVoteClick(1)"
       >
@@ -112,6 +114,7 @@ import {
         aria-label="Downvote"
         [attr.aria-pressed]="state().userVote === -1"
         [class.text-red-600]="state().userVote === -1"
+        [class.hover:text-red-600]="state().userVote === -1"
         [disabled]="!auth.isLoggedIn() || isVoting()"
         (click)="onVoteClick(-1)"
       >
