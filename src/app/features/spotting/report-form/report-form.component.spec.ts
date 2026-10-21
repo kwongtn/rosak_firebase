@@ -418,6 +418,23 @@ describe("ReportFormComponent", () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain("Location captured");
   });
 
+  it("announces the capture through the helper's live region, which survives the text swap", async () => {
+    // With no toast, the screen-reader cue is the helper text itself: it must be one persistent
+    // role="status" element, or the swap from "Waiting" to "captured" is inserted silently.
+    const component = fixture.componentInstance as unknown as ComponentUnderTest;
+    component.model.update((m) => ({ ...m, type: "LOCATION" }));
+    await settle();
+    const root = fixture.nativeElement as HTMLElement;
+    const region = root.querySelector('p[role="status"]');
+    expect(region?.textContent).toContain("Waiting for location access");
+
+    component.capturedLocation.set(CAPTURED_COORDS);
+    await settle();
+
+    expect(root.querySelector('p[role="status"]')).toBe(region);
+    expect(region?.textContent).toContain("Location captured (±12m).");
+  });
+
   describe("when created lazily by the sheet", () => {
     async function createLate(): Promise<ComponentFixture<ReportFormComponent>> {
       const late = TestBed.createComponent(ReportFormComponent);

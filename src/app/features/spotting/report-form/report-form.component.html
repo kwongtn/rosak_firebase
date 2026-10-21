@@ -161,14 +161,16 @@
   }
 
   @if (model().type === "LOCATION") {
-    @if (capturedLocation(); as loc) {
-      <p class="text-muted-foreground text-xs">
+    <!-- One persistent live region: a screen reader announces text that changes inside an element
+         that already exists, not a branch's freshly inserted <p>. -->
+    <p role="status" class="text-muted-foreground text-xs">
+      @if (capturedLocation(); as loc) {
         Location captured (±{{ loc.accuracy }}m). The spotted position is shown publicly with your
         report. If you tick "Submit anonymously", only you and admins can see it.
-      </p>
-    } @else {
-      <p class="text-muted-foreground text-xs">Waiting for location access…</p>
-    }
+      } @else {
+        Waiting for location access…
+      }
+    </p>
   }
 
   <div class="flex flex-col gap-1.5 text-sm">
