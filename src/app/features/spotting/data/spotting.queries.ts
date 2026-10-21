@@ -324,8 +324,9 @@ export interface VehicleIncident {
  * the live backend that a *bounded* range resolves quickly (well under a second), unlike the
  * `freeRange: true`/no-date-bound shape flagged elsewhere in this file, which computes a
  * zero-filled cross-product of every day since the line's first-ever event and genuinely hangs.
- * `addZero: true` fills in the zero-count cells so the grid has no holes for a vehicle that
- * simply wasn't spotted on a given day.
+ * `addZero: false` returns only the (vehicle, day) pairs that actually have spottings: the grid
+ * reads a missing key as 0 (`spottingCountFor`), so zero rows are pure payload — a real line-4
+ * window was ~10.7k rows / ~690 KB zero-filled against ~230 rows / ~15 KB without.
  * ---------------------------------------------------------------------- */
 
 export const LINE_SPOTTING_GRID_QUERY = /* GraphQL */ `
@@ -338,7 +339,7 @@ export const LINE_SPOTTING_GRID_QUERY = /* GraphQL */ `
         dateGroup: DAY
         typeGroup: false
         freeRange: false
-        addZero: true
+        addZero: false
       ) {
         dateKey
         count

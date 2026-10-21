@@ -80,8 +80,11 @@ function bodyScroll(root: HTMLElement): HTMLElement {
 
 describe("VehicleSpottingGridComponent", () => {
   let httpMock: HttpTestingController;
+  /** Query text of every `LineSpottingGrid` request `render()` flushed. */
+  let gridQueries: string[];
 
   beforeEach(() => {
+    gridQueries = [];
     vi.stubGlobal("requestAnimationFrame", (_callback: FrameRequestCallback) => 0);
   });
 
@@ -110,7 +113,8 @@ describe("VehicleSpottingGridComponent", () => {
       .match(
         (request) => request.method === "POST" && request.body.query.includes("LineSpottingGrid"),
       )
-      .forEach((request) =>
+      .forEach((request) => {
+        gridQueries.push(request.request.body.query);
         request.flush({
           data: {
             lines: [
@@ -120,13 +124,20 @@ describe("VehicleSpottingGridComponent", () => {
               },
             ],
           },
-        }),
-      );
+        });
+      });
 
     await fixture.whenStable();
     fixture.detectChanges();
     return fixture;
   }
+
+  it("asks the backend for non-zero rows only: the grid reads a missing key as 0", async () => {
+    await render(true);
+
+    expect(gridQueries).toHaveLength(1);
+    expect(gridQueries[0]).toContain("addZero: false");
+  });
 
   describe("mobile layout (<768px)", () => {
     let fixture: ComponentFixture<VehicleSpottingGridComponent>;
