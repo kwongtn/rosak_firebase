@@ -592,6 +592,14 @@ export class PendingIncidentsComponent {
         });
         return;
       }
+      // Answered inside the cap (data or null): release the row. Only the timeout, late-result and
+      // catch paths cleared `extracting` before, so a normal extraction left the whole row locked.
+      this.setExtractState(key, {
+        extracting: false,
+        lateResult: null,
+        preReplaceSnapshot: null,
+        replaced: false,
+      });
       if (result) {
         this.applyExtraction(key, result.data);
       }

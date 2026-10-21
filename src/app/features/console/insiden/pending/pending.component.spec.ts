@@ -23,7 +23,10 @@ import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.comp
 import { type IncidentFormModel } from "../../../insiden/incident-form/incident-form.schema";
 import { type ChronologyDraft } from "../../../insiden/incident-form/chronology-list.util";
 import { isoToDateTimeLocal } from "../../../insiden/incident-form/extract-data.util";
-import { IncidentAiService } from "../../../insiden/data/incident-ai.service";
+import {
+  IncidentAiService,
+  type ExtractedIncidentData,
+} from "../../../insiden/data/incident-ai.service";
 import { PendingIncidentsComponent } from "./pending.component";
 /* The real app-nav/footer pull in browser-only services (ThemeService needs
  * matchMedia); the shell chrome is irrelevant to these specs, so swap in
@@ -87,6 +90,8 @@ interface ComponentUnderTest {
   approveFromPanel(): Promise<void>;
   rejectFromPanel(): void;
   savePanelEdit(): Promise<void>;
+  extractStates(): ReadonlyMap<number, { extracting: boolean; lateResult: unknown }>;
+  extractChronology(key: number): Promise<void>;
   pendingDeletionChronologies(): PendingIncidentChronology[];
   deletingChronologyId: WritableSignal<string | null>;
   approveChronologyDeletion(chronology: PendingIncidentChronology): Promise<void>;
@@ -99,10 +104,12 @@ function asTestable(fixture: ComponentFixture<PendingIncidentsComponent>): Compo
 
 describe("PendingIncidentsComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
+  let extractMock: ReturnType<typeof vi.fn>;
   let fixture: ComponentFixture<PendingIncidentsComponent>;
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
+    extractMock = vi.fn();
     requestMock = vi.fn().mockImplementation((query: string) => {
       if (query.includes("pendingCalendarIncidents")) {
         return Promise.resolve({ pendingCalendarIncidents: [] });
@@ -128,8 +135,8 @@ describe("PendingIncidentsComponent", () => {
           provide: ToastService,
           useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
         },
-        // No extract/summarize test here — the real service pulls in firebase/app+auth.
-        { provide: IncidentAiService, useValue: {} },
+        // The real service pulls in firebase/app+auth, so extraction is mocked.
+        { provide: IncidentAiService, useValue: { extract: extractMock } },
       ],
     }).compileComponents();
 
@@ -635,5 +642,124 @@ describe("PendingIncidentsComponent", () => {
 
     expect(component.pendingDeletionChronologies().map((c) => c.id)).toEqual(["chr-1"]);
     expect(component.rows()).toHaveLength(1);
+  });
+
+  describe("Extract Data", () => {
+    const EXTRACTED: ExtractedIncidentData = {
+      title: "Halt at KL Sentral",
+      datetime: "2026-08-01T09:30:00+08:00",
+      content: "Trains held at KL Sentral",
+      source_url: "https://x.com/halt",
+      indicator: "disruption",
+      severity: "major",
+      affected_lines: [],
+      affected_stations: [],
+    };
+
+    /** Opens the panel on a row whose only chronology entry has a source URL; returns its key. */
+    async function openPanel(component: ComponentUnderTest): Promise<number> {
+      component.openDetail(
+        makeRow({
+          chronologies: [
+            {
+              order: 0,
+              indicator: "RED",
+              datetime: "2026-08-01T08:30:00Z",
+              content: "typed by hand",
+              sourceUrl: "https://x.com/halt",
+            },
+          ],
+        }),
+      );
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return component.chronologies()[0].key;
+    }
+
+    /** The five controls Extract locks while it runs: indicator, datetime, URL, content, button. */
+    function editorControls(): Array<
+      HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement
+    > {
+      const editor = (fixture.nativeElement as HTMLElement).querySelector(
+        "section[app-pending-chronology-editor]",
+      );
+      if (!editor) throw new Error("chronology editor not rendered");
+      const extractButton = Array.from(editor.querySelectorAll("button")).find((button) =>
+        /Extract/.test(button.textContent ?? ""),
+      );
+      if (!extractButton) throw new Error("Extract button not rendered");
+      return [
+        ...editor.querySelectorAll<HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement>(
+          "select, input[type='datetime-local'], input[type='url'], textarea",
+        ),
+        extractButton,
+      ];
+    }
+
+    it("locks the row while extracting, then unlocks it and applies the result", async () => {
+      const component = asTestable(fixture);
+      const key = await openPanel(component);
+      let resolveExtract!: (value: unknown) => void;
+      extractMock.mockReturnValueOnce(new Promise((done) => (resolveExtract = done)));
+
+      const request = component.extractChronology(key);
+      fixture.detectChanges();
+      expect(component.extractStates().get(key)?.extracting).toBe(true);
+      expect(editorControls().map((control) => control.disabled)).toEqual([
+        true,
+        true,
+        true,
+        true,
+        true,
+      ]);
+
+      resolveExtract({ requestId: "r1", data: EXTRACTED });
+      await request;
+      fixture.detectChanges();
+
+      // The reported bug: nothing cleared `extracting` on this path, so the row stayed locked.
+      expect(component.extractStates().get(key)?.extracting).toBe(false);
+      expect(component.chronologies()[0].content).toBe(EXTRACTED.content);
+      expect(editorControls().map((control) => control.disabled)).toEqual([
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
+      expect(extractMock).toHaveBeenCalledWith("https://x.com/halt", expect.any(String));
+    });
+
+    it("unlocks the row and keeps what was typed when the extraction returns nothing", async () => {
+      const component = asTestable(fixture);
+      const key = await openPanel(component);
+      extractMock.mockResolvedValueOnce(null);
+
+      await component.extractChronology(key);
+      fixture.detectChanges();
+
+      expect(component.extractStates().get(key)?.extracting).toBe(false);
+      expect(component.chronologies()[0].content).toBe("typed by hand");
+      expect(editorControls().every((control) => !control.disabled)).toBe(true);
+    });
+
+    it("keeps a result that misses the 15s cap as a late result instead of applying it", async () => {
+      const component = asTestable(fixture);
+      const key = await openPanel(component);
+      let resolveExtract!: (value: unknown) => void;
+      extractMock.mockReturnValueOnce(new Promise((done) => (resolveExtract = done)));
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+      const request = component.extractChronology(key);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(component.extractStates().get(key)?.extracting).toBe(false);
+
+      resolveExtract({ requestId: "r1", data: EXTRACTED });
+      await request;
+
+      expect(component.extractStates().get(key)?.lateResult).toEqual(EXTRACTED);
+      expect(component.chronologies()[0].content).toBe("typed by hand");
+    });
   });
 });

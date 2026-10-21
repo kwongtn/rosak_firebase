@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
+import { IncidentAiService, type ExtractedIncidentData } from "../data/incident-ai.service";
 import { IncidentSheetService } from "../data/incident-sheet.service";
 import type { CalendarIncident } from "../data/insiden.queries";
 import {
@@ -33,6 +34,9 @@ interface ComponentUnderTest {
   clear(): void;
   undoAll(): void;
   hydrate(incident: CalendarIncident): void;
+  extractChronology(key: number): Promise<void>;
+  isExtracting(key: number): boolean;
+  hasLateResult(key: number): boolean;
 }
 
 function asTestable(fixture: ComponentFixture<IncidentFormComponent>): ComponentUnderTest {
@@ -94,6 +98,7 @@ function incidentFixture(overrides: Partial<CalendarIncident> = {}): CalendarInc
 
 describe("IncidentFormComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
+  let extractMock: ReturnType<typeof vi.fn>;
   let toastMocks: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let authMocks: { isLoggedIn: ReturnType<typeof vi.fn>; isAdmin: ReturnType<typeof vi.fn> };
   let sheet: InstanceType<typeof IncidentSheetService>;
@@ -102,6 +107,7 @@ describe("IncidentFormComponent", () => {
 
   beforeEach(async () => {
     requestMock = vi.fn().mockResolvedValue({ createCalendarIncident: { ok: true, id: 42 } });
+    extractMock = vi.fn();
     toastMocks = { success: vi.fn(), error: vi.fn() };
     authMocks = { isLoggedIn: vi.fn(() => true), isAdmin: vi.fn(() => false) };
 
@@ -116,6 +122,7 @@ describe("IncidentFormComponent", () => {
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },
+        { provide: IncidentAiService, useValue: { extract: extractMock } },
       ],
     }).compileComponents();
 
@@ -452,5 +459,129 @@ describe("IncidentFormComponent", () => {
     component.undoAll();
 
     expect(component.model()).toEqual(emptyIncidentFormModel());
+  });
+
+  describe("Extract Data", () => {
+    const EXTRACTED: ExtractedIncidentData = {
+      title: "Signal fault",
+      datetime: "2026-08-01T09:30:00+08:00",
+      content: "Trains held at KL Sentral",
+      source_url: "https://x.com/a/1",
+      indicator: "disruption",
+      severity: "major",
+      affected_lines: [],
+      affected_stations: [],
+    };
+
+    /** The sheet only renders its body once it has been opened, so open it before reading the DOM. */
+    async function seedRow(): Promise<void> {
+      sheet.open();
+      asTestable(fixture).chronologies.set([
+        { ...emptyChronology(0), sourceUrl: "https://x.com/a/1", content: "typed by hand" },
+      ]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    /** The five controls Extract locks while it runs: indicator, datetime, URL, content, button. */
+    function rowControls(): Array<
+      HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement
+    > {
+      const row = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="chronology-row"]',
+      );
+      if (!row) throw new Error("chronology row not rendered");
+      const extractButton = Array.from(row.querySelectorAll("button")).find((button) =>
+        /Extract/.test(button.textContent ?? ""),
+      );
+      if (!extractButton) throw new Error("Extract button not rendered");
+      return [
+        ...row.querySelectorAll<HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement>(
+          "select, input[type='datetime-local'], input[type='url'], textarea",
+        ),
+        extractButton,
+      ];
+    }
+
+    function deferredExtraction(): { resolve: (value: unknown) => void } {
+      let resolve!: (value: unknown) => void;
+      extractMock.mockReturnValueOnce(new Promise((done) => (resolve = done)));
+      return { resolve };
+    }
+
+    it("locks the row while extracting, then unlocks it and applies the result", async () => {
+      const component = asTestable(fixture);
+      await seedRow();
+      const extraction = deferredExtraction();
+
+      const request = component.extractChronology(0);
+      fixture.detectChanges();
+      expect(component.isExtracting(0)).toBe(true);
+      expect(rowControls().map((control) => control.disabled)).toEqual([
+        true,
+        true,
+        true,
+        true,
+        true,
+      ]);
+
+      extraction.resolve({ requestId: "r1", data: EXTRACTED });
+      await request;
+      fixture.detectChanges();
+
+      // The reported bug: the flag was never cleared on this path, so the spinner stayed and the
+      // rider could neither correct the extracted text nor extract again.
+      expect(component.isExtracting(0)).toBe(false);
+      expect(component.chronologies()[0].content).toBe(EXTRACTED.content);
+      expect(rowControls().map((control) => control.disabled)).toEqual([
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
+      expect(extractMock).toHaveBeenCalledWith("https://x.com/a/1", expect.any(String));
+    });
+
+    it("unlocks the row and keeps what was typed when the extraction returns nothing", async () => {
+      const component = asTestable(fixture);
+      await seedRow();
+      extractMock.mockResolvedValueOnce(null);
+
+      await component.extractChronology(0);
+      fixture.detectChanges();
+
+      expect(component.isExtracting(0)).toBe(false);
+      expect(component.chronologies()[0].content).toBe("typed by hand");
+      expect(rowControls().every((control) => !control.disabled)).toBe(true);
+    });
+
+    it("keeps a result that misses the 15s cap for the Replace box instead of applying it", async () => {
+      const component = asTestable(fixture);
+      await seedRow();
+      const extraction = deferredExtraction();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const request = component.extractChronology(0);
+        await vi.advanceTimersByTimeAsync(15_000);
+
+        // The timeout releases the row on its own and tells the rider to fill it in by hand.
+        expect(component.isExtracting(0)).toBe(false);
+        expect(toastMocks.error).toHaveBeenCalledWith(
+          "Data extraction failed",
+          "Please fill in manually.",
+        );
+
+        extraction.resolve({ requestId: "r1", data: EXTRACTED });
+        await request;
+
+        expect(component.hasLateResult(0)).toBe(true);
+        expect(component.isExtracting(0)).toBe(false);
+        expect(component.chronologies()[0].content).toBe("typed by hand");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
