@@ -1081,6 +1081,54 @@ describe("HomeStore", () => {
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x"]);
   });
 
+  it("marks the page stale only while every failed read still holds its last good payload", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], false, null) });
+    await afterVariablesChange();
+    expect(store.isStale()).toBe(false);
+
+    store.reloadFirstPages();
+    await afterVariablesChange();
+    linesRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    feedRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await afterVariablesChange();
+    expect(store.hasError()).toBe(true);
+    expect(store.isStale()).toBe(true);
+  });
+
+  it("is not stale when a read failed before it ever had data", async () => {
+    const store = createStore();
+    linesRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], false, null) });
+    await afterVariablesChange();
+
+    expect(store.hasError()).toBe(true);
+    expect(store.isStale()).toBe(false);
+  });
+
+  it("keeps the Last Week count through a failed refresh of a section that loaded", async () => {
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    store.requestLastWeek();
+    await afterVariablesChange();
+    lastWeekRequest().flush({ data: feedData([makeFeedLink("w1")], false, null) });
+    await afterVariablesChange();
+    expect(store.lastWeekCount()).toBe(1);
+
+    store.reloadFirstPages();
+    await afterVariablesChange();
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await afterVariablesChange();
+
+    expect(store.hasError()).toBe(true);
+    expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1"]);
+    expect(store.lastWeekCount()).toBe(1);
+  });
+
   it("coalesces concurrent loadMoreLastWeek calls into one request", async () => {
     const store = createStore();
     flushInitial([], feedData([], false, null), feedData([makeFeedLink("w1")], true, "cursor-w"));

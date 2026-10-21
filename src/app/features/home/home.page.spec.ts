@@ -214,6 +214,7 @@ interface StoreMock {
   isLoadingMoreLastWeek: WritableSignal<boolean>;
   isRefreshing: WritableSignal<boolean>;
   hasError: WritableSignal<boolean>;
+  isStale: WritableSignal<boolean>;
   linesRefreshTick: WritableSignal<number>;
   highlightedLineId: WritableSignal<string | null>;
   highlightLine: ReturnType<typeof vi.fn>;
@@ -318,6 +319,7 @@ describe("HomePage", () => {
       isLoadingMoreLastWeek: signal(false),
       isRefreshing: signal(false),
       hasError: signal(false),
+      isStale: signal(false),
       linesRefreshTick: signal(0),
       highlightedLineId: signal<string | null>(null),
       // The two service-day history reads, owned by the store but OPTED IN by the widgets that draw
@@ -591,6 +593,20 @@ describe("HomePage", () => {
     banner.componentInstance.resource().retryNow();
 
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the reader the old board is still showing when the refresh failed", () => {
+    store.hasError.set(true);
+    fixture.detectChanges();
+    const banner = fixture.debugElement.query(By.directive(RetryBannerComponent));
+    expect(banner.nativeElement.textContent).toContain("Couldn't load the front page.");
+
+    store.isStale.set(true);
+    fixture.detectChanges();
+
+    expect(banner.nativeElement.textContent).toContain(
+      "Couldn't refresh. Showing the last loaded data.",
+    );
   });
 
   it("feeds the status sheet the line targeted by the sheet service and reloads on submit", () => {

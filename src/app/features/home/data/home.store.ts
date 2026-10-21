@@ -831,13 +831,13 @@ export class HomeStore {
 
   /**
    * The Last Week tab's count, or `null` while it is not yet known — before the tab is requested,
-   * while its first page is pending, and after a failure. The tab renders `null` as "–", so a
-   * section that has not loaded is never labelled "0" as if it were empty.
+   * while its first page is pending, and after a failed FIRST read. The tab renders `null` as "–",
+   * so a section that has not loaded is never labelled "0" as if it were empty. A failed refresh of
+   * a section that did load keeps its count: `data()` retains the last good payload, so the rows
+   * stay visible and the count must match them.
    */
   readonly lastWeekCount = computed<number | null>(() =>
-    this._lastWeekRequested() &&
-    !this.lastWeekResource.hasError() &&
-    this.lastWeekResource.data() !== undefined
+    this._lastWeekRequested() && this.lastWeekResource.data() !== undefined
       ? this.lastWeekTotalCount()
       : null,
   );
@@ -884,6 +884,19 @@ export class HomeStore {
     // working page with the retry banner. Each history widget hides itself on its own
     // `networkHistoryFailed` / `linesHistoryFailed` instead. `home.store.spec.ts` fails a history
     // read and asserts this stays false.
+  );
+
+  /**
+   * True when `hasError` is up but every failed page resource still holds its last good payload, so
+   * the page keeps showing the old board and the retry banner can say so instead of claiming
+   * nothing loaded.
+   */
+  readonly isStale = computed(
+    () =>
+      this.hasError() &&
+      [this.linesResource, this.feedResource, this.lastWeekResource].every(
+        (resource) => !resource.hasError() || resource.data() !== undefined,
+      ),
   );
 
   /** Per-user vote overlay, keyed by link id. Populated only for logged-in callers. */

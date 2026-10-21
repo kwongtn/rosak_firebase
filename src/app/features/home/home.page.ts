@@ -141,7 +141,7 @@ type FeedTab = (typeof FEED_TABS)[number];
       </a>
 
       @if (store.hasError()) {
-        <app-retry-banner [resource]="errorResource" message="Couldn't load the front page." />
+        <app-retry-banner [resource]="errorResource" [message]="bannerMessage()" />
       }
 
       <!-- Full width above the two-column split, not inside it: the headline and the tiles describe
@@ -578,6 +578,13 @@ export class HomePage implements OnDestroy {
     retryCountdownSec: () => null,
     retryNow: () => this.store.reloadAll(),
   };
+
+  /** A failed refresh keeps the last good board on screen (see `HomeStore.isStale`), so say so. */
+  protected readonly bannerMessage = computed(() =>
+    this.store.isStale()
+      ? "Couldn't refresh. Showing the last loaded data."
+      : "Couldn't load the front page.",
+  );
 
   /** DOM id for a Today row, the scroll target of the submit box's duplicate indicator. */
   protected readonly feedLinkDomId = feedLinkDomId;
