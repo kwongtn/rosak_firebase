@@ -157,4 +157,28 @@ describe("AccountPanelComponent", () => {
     expect(byTestId("account-code").textContent?.trim()).toBe("");
     expect(findByTestId("account-code-countdown")).toBeNull();
   });
+
+  it("moves keyboard focus onto Copy when the code arrives, since Request code is disabled", async () => {
+    byTestId<HTMLButtonElement>("account-request-code").focus();
+
+    await requestCode();
+
+    expect(document.activeElement).toBe(byTestId("account-code-copy"));
+  });
+
+  it("leaves focus alone when the rider moved it elsewhere during the request", async () => {
+    const elsewhere = document.createElement("button");
+    document.body.append(elsewhere);
+    try {
+      byTestId<HTMLButtonElement>("account-request-code").click();
+      elsewhere.focus();
+      await settle();
+      fixture.detectChanges();
+
+      expect(findByTestId("account-code-copy")).not.toBeNull();
+      expect(document.activeElement).toBe(elsewhere);
+    } finally {
+      elsewhere.remove();
+    }
+  });
 });

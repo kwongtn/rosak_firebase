@@ -1,4 +1,15 @@
-import { Component, OnDestroy, computed, inject, output, signal } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  Injector,
+  OnDestroy,
+  afterNextRender,
+  computed,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
 import { injectIsBrowser } from "../../core/composables/is-browser";
@@ -115,6 +126,7 @@ const TELEGRAM_LINKING_WIKI_URL =
             </span>
             @if (code() !== null) {
               <button
+                #copyButton
                 hlmBtn
                 variant="outline"
                 size="sm"
@@ -154,6 +166,8 @@ export class AccountPanelComponent implements OnDestroy {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
   private readonly isBrowser = injectIsBrowser();
+  private readonly injector = inject(Injector);
+  private readonly copyButton = viewChild<ElementRef<HTMLButtonElement>>("copyButton");
 
   protected readonly wikiUrl = TELEGRAM_LINKING_WIKI_URL;
 
@@ -176,6 +190,10 @@ export class AccountPanelComponent implements OnDestroy {
 
   protected async requestCode(): Promise<void> {
     this.isRequesting.set(true);
+    // Request code is disabled while a request is in flight and while a code is live, which drops
+    // keyboard focus to <body>. Once the code renders, move focus onto Copy, unless the rider has
+    // moved it elsewhere in the meantime.
+    const focusBefore = this.isBrowser ? document.activeElement : null;
     try {
       const idToken = await this.auth.idToken();
       const data = await this.graphql.request<RequestVerificationCodeData>(
@@ -185,6 +203,15 @@ export class AccountPanelComponent implements OnDestroy {
       );
       this.code.set(data.requestVerificationCode.code);
       this.startCountdown();
+      afterNextRender(
+        () => {
+          const active = document.activeElement;
+          if (active === focusBefore || active === document.body) {
+            this.copyButton()?.nativeElement.focus();
+          }
+        },
+        { injector: this.injector },
+      );
     } catch (err) {
       this.toast.error(
         "Couldn't request a code",
