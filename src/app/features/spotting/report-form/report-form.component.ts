@@ -248,11 +248,8 @@ export class ReportFormComponent {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        // No toast: the helper text under the type field already says who sees the position.
         this.capturedLocation.set(position.coords);
-        this.toast.info(
-          "Location accessed",
-          "Take note that we will not know your location until you submit the form.",
-        );
       },
       (error) => {
         this.toast.error("Couldn't get your location", error.message);

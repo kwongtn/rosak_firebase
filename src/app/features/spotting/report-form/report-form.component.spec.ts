@@ -386,11 +386,36 @@ describe("ReportFormComponent", () => {
       const text = ((fixture.nativeElement as HTMLElement).textContent ?? "").replace(/\s+/g, " ");
       expect(text).toContain("Location captured (±12m).");
       expect(text).toContain("The spotted position is shown publicly with your report.");
-      expect(text).toContain(
-        'If you tick "Submit anonymously", only you and moderators can see it.',
-      );
+      expect(text).toContain('If you tick "Submit anonymously", only you and admins can see it.');
       expect(text).not.toContain("We won't know your exact location");
     });
+  });
+
+  it("shows no toast when the location arrives; the helper text already says who can see it", async () => {
+    // The old toast ("we will not know your location until you submit") implied the position stays
+    // private, which F043 objected to, and it fired before the rider saw the helper text.
+    const toast = TestBed.inject(ToastService);
+    const component = fixture.componentInstance as unknown as ComponentUnderTest & {
+      onTypeChanged(): void;
+    };
+    component.model.update((m) => ({ ...m, type: "LOCATION" }));
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (ok: (p: GeolocationPosition) => void) =>
+          ok({ coords: CAPTURED_COORDS } as GeolocationPosition),
+      },
+    });
+    try {
+      component.onTypeChanged();
+      await settle();
+    } finally {
+      delete (navigator as { geolocation?: unknown }).geolocation;
+    }
+
+    expect(component.capturedLocation()).toBe(CAPTURED_COORDS);
+    expect(toast.info).not.toHaveBeenCalled();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain("Location captured");
   });
 
   describe("when created lazily by the sheet", () => {
