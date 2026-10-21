@@ -376,6 +376,20 @@ describe("ProfilePage", () => {
       expect(document.title).toBe("MLPTF | Profile");
     });
 
+    it("puts back whatever title the router set, not a copy of it", async () => {
+      document.title = "MLPTF | Spotter profile";
+      requestMock.mockResolvedValue(publicResponse("Alice"));
+      await mount("alice");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(document.title).toBe("Alice | MLPTF");
+      });
+
+      fixture.destroy();
+
+      expect(document.title).toBe("MLPTF | Spotter profile");
+    });
+
     it("puts the route title back when the page is left", async () => {
       requestMock.mockResolvedValue(publicResponse("Alice"));
       await mount("alice");

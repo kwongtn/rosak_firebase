@@ -36,9 +36,6 @@ import {
   PublicUserData,
 } from "./data/profile.queries";
 
-/** The route's own title (`app.routes.ts`), put back whenever no profile is showing. */
-const PROFILE_FALLBACK_TITLE = "MLPTF | Profile";
-
 /**
  * /profile/:id — a user's profile, keyed by their Firebase uid. Anyone can open this route for
  * any id, but it only ever renders real data when `:id` is the signed-in caller's own uid.
@@ -206,8 +203,11 @@ export class ProfilePage {
       if (!nickname || this._isLoading()) {
         return;
       }
+      // Read each time, not copied from app.routes.ts: the title the router left for this route is
+      // what goes back, so a renamed route title cannot leave a stale string behind.
+      const routeTitle = this.title.getTitle();
       this.title.setTitle(`${nickname} | MLPTF`);
-      onCleanup(() => this.title.setTitle(PROFILE_FALLBACK_TITLE));
+      onCleanup(() => this.title.setTitle(routeTitle));
     });
   }
 
