@@ -20,6 +20,7 @@ import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.compone
 import { ToastService } from "../../ui/toast/toast.service";
 import { LinkSheetService } from "../insiden/data/link-sheet.service";
 import { LinkCardComponent } from "../insiden/link-card/link-card.component";
+import { LinkFormComponent } from "../insiden/link-form/link-form.component";
 import { LinkThreadComponent } from "../insiden/link-thread/link-thread.component";
 import { ReportSheetService } from "../spotting/data/report-sheet.service";
 import { SpottingLinesStore } from "../spotting/data/spotting-lines.store";
@@ -412,27 +413,72 @@ describe("HomePage", () => {
     fixture = TestBed.createComponent(HomePage);
     fixture.detectChanges();
 
-    // The sheets' projected forms are created with the page (Angular builds projected content
-    // eagerly; HlmSheet only gates the panel's own DOM), so their reads are already in flight
-    // here even though both sheets are closed. A pending httpResource keeps the app unstable, so
-    // tick + flush them before awaiting stability.
+    // Both sheets are mounted closed and their forms wait behind `@defer` until the sheet first opens,
+    // so the page itself starts no reference read and there is nothing to flush before awaiting
+    // stability. (The forms used to be created with the page — Angular builds projected content
+    // eagerly — and their two fleet-wide reads ran during SSR.) `afterEach`'s `verify()` keeps every
+    // spec honest about it.
     TestBed.tick();
-    httpMock
-      .match((r) => r.method === "POST" && r.body.query.includes("LinesAndVehicles"))
-      .forEach((request) => request.flush({ data: { lines: [] } }));
-    httpMock
-      .match((r) => r.method === "POST" && r.body.query.includes("InsidenReferenceData"))
-      .forEach((request) =>
-        request.flush({
-          data: { lines: [], stations: [], calendarIncidentCategories: [] },
-        }),
-      );
     await fixture.whenStable();
   });
 
   afterEach(() => {
+    // A spec that opens a sheet without awaiting it may leave the deferred form's read in flight
+    // (whether the form renders synchronously depends on whether an earlier spec already loaded its
+    // chunk). Answer those so `verify()` only fails for reads nobody asked for.
+    httpMock.match(isFleetRead).forEach((request) => request.flush({ data: { lines: [] } }));
+    httpMock
+      .match(isReferenceRead)
+      .forEach((request) =>
+        request.flush({ data: { lines: [], stations: [], calendarIncidentCategories: [] } }),
+      );
     httpMock.verify();
   });
+
+  const isFleetRead = (request: { method: string; body?: { query?: string } }): boolean =>
+    request.method === "POST" && (request.body?.query ?? "").includes("LinesAndVehicles");
+  const isReferenceRead = (request: { method: string; body?: { query?: string } }): boolean =>
+    request.method === "POST" && (request.body?.query ?? "").includes("InsidenReferenceData");
+
+  /** A footer button of the spotting entry sheet, found by its visible label. */
+  function spottingFooterButton(label: string): HTMLButtonElement {
+    const sheetEl = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="spotting-entry-sheet"]',
+    );
+    const match = [
+      ...(sheetEl?.querySelectorAll<HTMLButtonElement>("[hlmSheetFooter] button") ?? []),
+    ].find((button) => (button.textContent ?? "").replace(/\s+/g, " ").trim() === label);
+    if (!match) throw new Error(`spotting sheet footer button "${label}" not rendered`);
+    return match;
+  }
+
+  /**
+   * Opening a sheet resolves its `@defer` block, and the form it renders then starts a fleet-wide
+   * read that keeps the app unstable until answered — so `whenStable()` cannot come first. Poll for
+   * the read (it only exists once the form does), answer it, and let the answer land. Change
+   * detection after the open is left to the scheduler on purpose, as in the browser: a manual
+   * `detectChanges()` here would hide a footer that never refreshes once the form appears.
+   */
+  async function settleOpenedSheet(read: "report" | "link" = "report"): Promise<void> {
+    const isRead = read === "report" ? isFleetRead : isReferenceRead;
+    const reads = await vi.waitFor(
+      () => {
+        const found = httpMock.match(isRead);
+        if (found.length === 0) throw new Error("the deferred form has not started its read yet");
+        return found;
+      },
+      { timeout: 3000 },
+    );
+    for (const request of reads) {
+      request.flush({
+        data:
+          read === "report"
+            ? { lines: [] }
+            : { lines: [], stations: [], calendarIncidentCategories: [] },
+      });
+    }
+    await fixture.whenStable();
+  }
 
   it("renders the network board first, then the submit box and the feed cards", () => {
     const root = fixture.nativeElement as HTMLElement;
@@ -597,10 +643,8 @@ describe("HomePage", () => {
   it("rings the reported line from a SPOTTING submit, whose payload carries it", async () => {
     const reportSheet = TestBed.inject(ReportSheetService);
     reportSheet.openFor("a");
-    // HlmSheet mounts no panel DOM until it has been open once, and that flag is set in its own
-    // effect — so opening the sheet needs a tick before the projected form exists to query.
-    await fixture.whenStable();
-    fixture.detectChanges();
+    // The form does not exist until the sheet opens, and then only once its `@defer` block resolves.
+    await settleOpenedSheet();
     const form = fixture.debugElement.query(By.directive(ReportFormComponent));
     expect(form).not.toBeNull();
 
@@ -1098,8 +1142,7 @@ describe("HomePage", () => {
 
     const reportSheet = TestBed.inject(ReportSheetService);
     reportSheet.openFor("a");
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await settleOpenedSheet();
 
     const form = fixture.debugElement.query(By.directive(ReportFormComponent));
     expect(form).not.toBeNull();
@@ -1110,6 +1153,61 @@ describe("HomePage", () => {
 
     expect(reportSheet.isOpen()).toBe(false);
     expect(store.reloadAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("mounts no spotting or link form, and starts no reference read, until a sheet opens", () => {
+    // 🔴 Home is the hottest page. Both closed sheets used to carry their form, and the forms'
+    // fleet-wide reads (every line and vehicle, twice) ran during SSR and rode in TransferState on
+    // every load — about 127 KB of a 141 KB state for sheets most readers never open.
+    const root = fixture.nativeElement as HTMLElement;
+    expect(httpMock.match(isFleetRead)).toHaveLength(0);
+    expect(httpMock.match(isReferenceRead)).toHaveLength(0);
+    expect(fixture.debugElement.query(By.directive(ReportFormComponent))).toBeNull();
+    expect(fixture.debugElement.query(By.directive(LinkFormComponent))).toBeNull();
+    // The sheets themselves stay mounted (the triggers need them); only their forms wait.
+    expect(root.querySelector('[data-testid="spotting-entry-sheet"]')).not.toBeNull();
+    expect(root.querySelector("app-link-sheet")).not.toBeNull();
+  });
+
+  it("creates the spotting form when its sheet opens, and the footer buttons then drive it", async () => {
+    const reportSheet = TestBed.inject(ReportSheetService);
+    reportSheet.open();
+    await settleOpenedSheet();
+
+    const form = fixture.debugElement.query(By.directive(ReportFormComponent));
+    expect(form).not.toBeNull();
+    const submit = vi.spyOn(form.componentInstance as ReportFormComponent, "submit");
+    submit.mockResolvedValue(undefined);
+    const clear = vi.spyOn(form.componentInstance as ReportFormComponent, "clear");
+
+    // The footer refreshed by itself once the block rendered the form.
+    expect(spottingFooterButton("Submit").disabled).toBe(false);
+    spottingFooterButton("Submit").click();
+    spottingFooterButton("Clear form").click();
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the spotting form a line chosen before the form existed, once", async () => {
+    // The chooser's "spot" flow seeds the line and opens the sheet in one go; the form is created
+    // only after that, so the service has to hold the seed until the form's first effect takes it.
+    const reportSheet = TestBed.inject(ReportSheetService);
+    reportSheet.openFor("a");
+    await settleOpenedSheet();
+
+    const form = fixture.debugElement.query(By.directive(ReportFormComponent));
+    expect(
+      (form.componentInstance as unknown as { model(): { lineId: string } }).model().lineId,
+    ).toBe("a");
+    expect(reportSheet.lineId()).toBeNull();
+  });
+
+  it("creates the shared link form when the link sheet opens", async () => {
+    TestBed.inject(LinkSheetService).open();
+    await settleOpenedSheet("link");
+
+    expect(fixture.debugElement.query(By.directive(LinkFormComponent))).not.toBeNull();
   });
 
   /* ---- the Today / Last Week tab set (replaces the collapsed Last Week disclosure) ------------- */

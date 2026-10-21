@@ -493,15 +493,23 @@ type FeedTab = (typeof FEED_TABS)[number];
         <h2 class="text-base font-semibold">Add a Spotting Entry</h2>
       </div>
       <div hlmSheetBody>
-        <app-report-form #reportFormRef (submitted)="onSpottingSubmitted($event)" />
+        <!-- 🔴 The form exists only once the sheet has been opened. A form mounted with the page runs
+             its fleet-wide LinesAndVehicles read during SSR and ships the answer in TransferState on
+             every home load, for a sheet most readers never open. @defer never renders on the
+             server; prefetching on idle keeps the first open quick. Being inside the block, the form
+             is no longer reachable by a template reference from the footer: reportFormRef() is
+             undefined until the block resolves, so the footer reads it null-safely. -->
+        @defer (when reportSheet.isOpen(); prefetch on idle) {
+          <app-report-form #reportForm (submitted)="onSpottingSubmitted($event)" />
+        }
       </div>
       <div hlmSheetFooter>
         <button
           hlmBtn
           variant="ghost"
           size="sm"
-          [disabled]="reportFormRef.isSubmitting()"
-          (click)="reportFormRef.clear()"
+          [disabled]="reportFormRef()?.isSubmitting()"
+          (click)="reportFormRef()?.clear()"
         >
           Clear form
         </button>
@@ -510,13 +518,17 @@ type FeedTab = (typeof FEED_TABS)[number];
           <button
             hlmBtn
             data-testid="submit-spotting-entry"
-            [disabled]="reportFormRef.isSubmitting() || reportFormRef.isPhotosCompressing()"
-            (click)="reportFormRef.submit()"
+            [disabled]="
+              !reportFormRef() ||
+              reportFormRef()?.isSubmitting() ||
+              reportFormRef()?.isPhotosCompressing()
+            "
+            (click)="reportFormRef()?.submit()"
           >
             {{
-              reportFormRef.isSubmitting()
+              reportFormRef()?.isSubmitting()
                 ? "Submitting…"
-                : reportFormRef.isPhotosCompressing()
+                : reportFormRef()?.isPhotosCompressing()
                   ? "Processing photos…"
                   : "Submit"
             }}
@@ -535,6 +547,12 @@ export class HomePage implements OnDestroy {
   protected readonly viewMode = inject(HomeViewModeService);
   private readonly lineStatusSheet = inject(LineStatusSheetService);
   protected readonly reportSheet = inject(ReportSheetService);
+
+  /** The spotting form inside the sheet's `@defer` block — `undefined` until the sheet is first
+   *  opened, so the footer must guard every read. A string locator on purpose:
+   *  `viewChild(ReportFormComponent)` would reference the class as a value, keep its import static
+   *  and so leave the form in this chunk. */
+  protected readonly reportFormRef = viewChild<ReportFormComponent>("reportForm");
   private readonly auth = inject(AuthService);
 
   /** The one submission surface the hero CTA and the mobile bar both open. */

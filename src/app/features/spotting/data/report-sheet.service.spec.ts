@@ -32,4 +32,15 @@ describe("ReportSheetService", () => {
 
     expect(service.isOpen()).toBe(false);
   });
+
+  it("setOpen(false) drops a seed no form consumed, so it cannot seed the next open", () => {
+    // The form is created lazily on the first open, so a sheet closed before then leaves its seed
+    // unconsumed — and the form created afterwards would pre-select an unrelated line.
+    service.openFor("4");
+    service.setOpen(false);
+
+    expect(service.lineId()).toBeNull();
+    service.open();
+    expect(service.lineId()).toBeNull();
+  });
 });

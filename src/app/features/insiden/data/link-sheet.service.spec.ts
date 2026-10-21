@@ -54,6 +54,21 @@ describe("LinkSheetService prefill", () => {
     expect(service.prefillUrl()).toBeNull();
   });
 
+  it("drops the edit target and incident context on close() and setOpen(false)", () => {
+    // The form clears these on the close edge, but the form is created lazily on the first open: a
+    // sheet closed before then has no form to do it, and a form created afterwards would hydrate the
+    // abandoned edit into its next create-mode open.
+    const service = new LinkSheetService();
+
+    service.openEdit({ id: "1", url: "https://x.com/1", title: "t", lines: [] });
+    service.close();
+    expect(service.editTarget()).toBeNull();
+
+    service.open({ incidentId: "7", incidentTitle: "KL Sentral flood" });
+    service.setOpen(false);
+    expect(service.context()).toBeNull();
+  });
+
   it("still sets the incident context on open()", () => {
     const service = new LinkSheetService();
 

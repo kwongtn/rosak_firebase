@@ -26,11 +26,17 @@ import { LinkSheetService } from "../data/link-sheet.service";
     >
       <div hlmSheetHeader>
         <h2 class="text-base font-semibold">
-          {{ linkFormRef()?.isEditing() ? "Edit link" : "Submit a link" }}
+          {{ linkSheet.editTarget() ? "Edit link" : "Submit a link" }}
         </h2>
       </div>
       <div hlmSheetBody>
-        <app-link-form [defaultLineIds]="defaultLineIds()" />
+        <!-- The form (and the fleet-wide reference read it starts) exists only once the sheet has
+             been opened: closed sheets are mounted on Home, /insiden and every line's Situasi tab,
+             and a form mounted with them would run that read during SSR and serialise it into
+             every page's TransferState. Prefetching on idle keeps the first open quick. -->
+        @defer (when linkSheet.isOpen(); prefetch on idle) {
+          <app-link-form #linkForm [defaultLineIds]="defaultLineIds()" />
+        }
       </div>
       <div hlmSheetFooter>
         <button
@@ -47,15 +53,11 @@ import { LinkSheetService } from "../data/link-sheet.service";
           <button
             hlmBtn
             data-testid="submit-link"
-            [disabled]="linkFormRef()?.isSubmitting() ?? false"
+            [disabled]="!linkFormRef() || linkFormRef()?.isSubmitting()"
             (click)="linkFormRef()?.submit()"
           >
             {{
-              linkFormRef()?.isSubmitting()
-                ? "Saving…"
-                : linkFormRef()?.isEditing()
-                  ? "Save"
-                  : "Submit"
+              linkFormRef()?.isSubmitting() ? "Saving…" : linkSheet.editTarget() ? "Save" : "Submit"
             }}
           </button>
         </div>
@@ -69,5 +71,8 @@ export class LinkSheetComponent {
   readonly defaultLineIds = input<string[]>([]);
 
   protected readonly linkSheet = inject(LinkSheetService);
-  protected readonly linkFormRef = viewChild(LinkFormComponent);
+  /** `undefined` until the sheet is first opened and its `@defer` block resolves. A string locator on
+   * purpose: `viewChild(LinkFormComponent)` would reference the class as a value, keep its import
+   * static and so ship the form in every host's chunk instead of loading it on idle. */
+  protected readonly linkFormRef = viewChild<LinkFormComponent>("linkForm");
 }

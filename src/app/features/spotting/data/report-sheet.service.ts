@@ -11,7 +11,8 @@ import { Injectable, signal } from "@angular/core";
 export class ReportSheetService {
   readonly isOpen = signal(false);
 
-  /** Line the sheet should pre-select — `null` means "no seed" (start blank). */
+  /** Line the sheet should pre-select — `null` means "no seed" (start blank). The form consumes it
+   * on the open edge; closing the sheet drops it if no form ever did (see `setOpen`). */
   readonly lineId = signal<string | null>(null);
 
   open(): void {
@@ -25,6 +26,12 @@ export class ReportSheetService {
   }
 
   setOpen(value: boolean): void {
+    if (!value) {
+      // The form is created lazily on the first open, so a sheet closed before then leaves its seed
+      // unconsumed, and the form created afterwards would pre-select an unrelated line. Same rule as
+      // LinkSheetService's prefill: a seed dies with the open it was for.
+      this.lineId.set(null);
+    }
     this.isOpen.set(value);
   }
 }

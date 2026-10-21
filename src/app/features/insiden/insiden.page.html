@@ -193,6 +193,11 @@
   <app-footer />
 </div>
 
-<app-incident-form />
+<!-- Mounted only once the sheet has been opened: the form's reference read (every line, vehicle and
+     station) would otherwise run during SSR and ship in TransferState for a sheet most readers never
+     open. The form owns its HlmSheet, so the whole sheet is created on first open. -->
+@defer (when incidentSheet.isOpen(); prefetch on idle) {
+  <app-incident-form />
+}
 
 <app-link-sheet />

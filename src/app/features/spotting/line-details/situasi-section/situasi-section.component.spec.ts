@@ -95,14 +95,10 @@ describe("SituasiSectionComponent vote overlay", () => {
     fixture = TestBed.createComponent(SituasiSectionComponent);
     fixture.componentRef.setInput("lineId", "L1");
     fixture.detectChanges();
+    // The hosted link sheet stays closed, and its form (with the reference read it starts) waits
+    // behind `@defer` until it opens — so only the section's own links read is in flight, and
+    // `afterEach`'s `verify()` fails if a closed sheet starts another.
     TestBed.tick();
-    // The hosted link sheet's form loads the reference (line/station/category) options even while
-    // the sheet is closed — flush it alongside the section's own links read.
-    httpMock
-      .match((r) => r.method === "POST" && r.body.query.includes("InsidenReferenceData"))
-      .forEach((request) =>
-        request.flush({ data: { lines: [], stations: [], calendarIncidentCategories: [] } }),
-      );
   });
 
   afterEach(() => {

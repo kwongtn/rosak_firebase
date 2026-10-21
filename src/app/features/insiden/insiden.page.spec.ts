@@ -11,8 +11,11 @@ import { IncidentSheetService } from "./data/incident-sheet.service";
 import { InsidenPage } from "./insiden.page";
 
 describe("InsidenPage date-window requests", () => {
-  beforeEach(() => {
-    TestBed.configureTestingModule({
+  beforeEach(async () => {
+    // `compileComponents()` is required now that the page's template holds a `@defer` block (the
+    // incident form waits for its sheet to open): TestBed cannot compile such a component
+    // synchronously, even though the override below swaps the template out.
+    await TestBed.configureTestingModule({
       imports: [InsidenPage],
       providers: [
         provideHttpClient(),
@@ -20,7 +23,9 @@ describe("InsidenPage date-window requests", () => {
         provideRouter([]),
         { provide: AuthService, useValue: {} },
       ],
-    }).overrideComponent(InsidenPage, { set: { template: "", imports: [] } });
+    })
+      .overrideComponent(InsidenPage, { set: { template: "", imports: [] } })
+      .compileComponents();
   });
 
   afterEach(() => {

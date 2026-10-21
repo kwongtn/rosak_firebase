@@ -103,13 +103,17 @@ export class LinkSheetService {
   }
 
   close() {
-    this.prefillUrl.set(null);
-    this.isOpen.set(false);
+    this.setOpen(false);
   }
 
   setOpen(open: boolean) {
     if (!open) {
+      // Everything an open carried dies with it. The form clears the edit target and context itself
+      // on the close edge, but it is created lazily on the first open: a sheet closed before then has
+      // no form to do it, and a form created afterwards would hydrate the abandoned edit.
       this.prefillUrl.set(null);
+      this.context.set(null);
+      this.editTarget.set(null);
     }
     this.isOpen.set(open);
   }
