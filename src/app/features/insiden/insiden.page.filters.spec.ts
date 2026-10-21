@@ -650,6 +650,27 @@ describe("InsidenPage incident filters", () => {
       await settle();
     });
 
+    it("does not read the history again when the route moves within the same pair of years", async () => {
+      await boot();
+      historyToggle().click();
+      fixture.detectChanges();
+      httpMock
+        .expectOne(isHistoryRead)
+        .flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      await settle();
+
+      // October 2026 -> March 2026: the incidents window changes (a new month), the history's does not.
+      fixture.componentRef.setInput("date", "2026-03-10");
+      fixture.detectChanges();
+      TestBed.tick();
+      httpMock
+        .expectOne((request) => request.body?.query === INSIDEN_INCIDENTS_QUERY)
+        .flush({ data: { calendarIncidents: [] } });
+      await settle();
+
+      expect(httpMock.match(isHistoryRead)).toHaveLength(0);
+    });
+
     it("is not rendered on the Submitted Links tab", async () => {
       await boot();
       const tabs = [...root().querySelectorAll<HTMLButtonElement>("nav button")];

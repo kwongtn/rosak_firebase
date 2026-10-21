@@ -56,8 +56,8 @@ function yearFilter(year: number): YearFilter {
  * starts after a click, in the browser, so the rule is not load-bearing yet; it is kept so that
  * opening the section by default stays safe.
  *
- * What the numbers mean — and why they are not read from `calendarIncidentsBySeverityCount` — is in
- * `insiden-history.queries.ts` and the `incidents.monthly-by-severity` registry entry.
+ * What is counted is the `incidents.monthly-by-severity` registry entry; why the read is
+ * `calendarIncidents` and not `calendarIncidentsBySeverityCount` is in `insiden-history.queries.ts`.
  *
  * Accessibility: the bars are one `role="img"` carrying a summary sentence (the window, the totals
  * and the peak), each bar `aria-hidden`; the table below is the per-month fallback.
@@ -247,7 +247,7 @@ function yearFilter(year: number): YearFilter {
                 >
                   View as table
                 </summary>
-                <div hlmTableContainer>
+                <div hlmTableContainer class="max-w-md">
                   <table hlmTable data-testid="incident-history-table">
                     <caption class="sr-only">
                       Approved incidents started per month, by severity
@@ -255,8 +255,8 @@ function yearFilter(year: number): YearFilter {
                     <thead hlmTHead>
                       <tr hlmTr>
                         <th hlmTh scope="col">Month</th>
-                        <th hlmTh scope="col" class="text-end">Major</th>
-                        <th hlmTh scope="col" class="text-end">Minor</th>
+                        <th hlmTh scope="col" class="!text-end">Major</th>
+                        <th hlmTh scope="col" class="!text-end">Minor</th>
                       </tr>
                     </thead>
                     <tbody hlmTBody>
@@ -304,6 +304,18 @@ export class IncidentHistoryComponent {
 
   protected readonly monthKeys = computed(() => monthKeysEndingAt(this.endMonth()));
 
+  /**
+   * The calendar years the window spans, compared BY VALUE. `monthKeys()` is a fresh array for every
+   * month, so a request derived from it would re-read for a month that needs no new data: the two
+   * year reads cover every month of the pair, and `httpResource` treats any new request object as a
+   * new request even when its contents are equal. With value equality the request function only
+   * re-runs when the pair of years changes, so paging through a year re-buckets what is already
+   * loaded.
+   */
+  private readonly yearSpan = computed(() => historyYearSpan(this.monthKeys()), {
+    equal: (a, b) => a?.startYear === b?.startYear && a?.endYear === b?.endYear,
+  });
+
   protected readonly resource = graphqlResource<
     InsidenMonthlyHistoryData,
     InsidenMonthlyHistoryVars
@@ -311,7 +323,7 @@ export class IncidentHistoryComponent {
     if (!this.expanded()) {
       return undefined;
     }
-    const span = historyYearSpan(this.monthKeys());
+    const span = this.yearSpan();
     if (span === null) {
       return undefined;
     }

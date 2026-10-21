@@ -203,6 +203,27 @@ describe("IncidentHistoryComponent", () => {
       request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
     });
 
+    it("does not read again for another month in the same pair of calendar years: it re-buckets", async () => {
+      // 2026-03 and 2026-06 both span 2025 and 2026, so the two year reads already hold every month
+      // of both windows. `httpResource` re-reads on any NEW request object, so this pins that the
+      // request function only re-runs when the pair of years changes.
+      const fixture = await openAndAnswer("2026-03");
+      expect(bars(fixture)[0]?.dataset["month"]).toBe("2025-04");
+
+      fixture.componentRef.setInput("endMonth", "2026-06");
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(httpMock.match(isHistoryRead)).toHaveLength(0);
+      expect(bars(fixture)[0]?.dataset["month"]).toBe("2025-07");
+      expect(bars(fixture)[11]?.dataset["month"]).toBe("2026-06");
+      // The loaded incidents are re-counted for the new window, not discarded: March 2026 is still
+      // in it and still carries its major incident.
+      const march = bars(fixture).find((bar) => bar.dataset["month"] === "2026-03");
+      expect(march?.getAttribute("title")).toBe("March 2026 · 1 incident · Major 1, Minor 0");
+    });
+
     it("asks nothing for a malformed month, and says what to do instead", () => {
       const fixture = mount("foo");
       open(fixture);
@@ -341,9 +362,11 @@ describe("IncidentHistoryComponent", () => {
       bars(fixture)[0]?.dispatchEvent(new Event("mouseenter"));
       fixture.detectChanges();
 
+      // Same pair of calendar years, so no new read: the bars are re-counted from what is loaded.
       fixture.componentRef.setInput("endMonth", "2026-04");
       fixture.detectChanges();
-      await answer(fixture, marchWindowData());
+      await fixture.whenStable();
+      fixture.detectChanges();
 
       expect(byTestId(fixture, "incident-history-readout").textContent).toContain("Hover or tap");
     });
