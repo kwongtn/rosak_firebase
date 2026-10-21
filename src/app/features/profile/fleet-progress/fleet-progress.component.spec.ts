@@ -145,6 +145,14 @@ describe("FleetProgressComponent", () => {
       expect(root().textContent?.trim()).toBe("");
     });
 
+    it("takes no box of its own, so an absent card leaves no gap in the page's flex column", async () => {
+      requestMock.mockResolvedValue(answer([]));
+
+      await render();
+
+      expect(root().classList.contains("contents")).toBe(true);
+    });
+
     it("renders one row per line, by line code, with its own count", async () => {
       requestMock.mockResolvedValue(
         answer([spotted("1", [KJL]), spotted("2", [KJL, AGL]), spotted("3", [AGL])]),

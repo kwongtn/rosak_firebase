@@ -50,6 +50,9 @@ import { FleetProgressLineComponent } from "./fleet-progress-line.component";
     RetryBannerComponent,
     FleetProgressLineComponent,
   ],
+  // The card is often absent (no spotted vehicle on any line). A box-less host takes no flex slot in
+  // the page's `gap-6` column, so an absent card does not leave a double gap behind.
+  host: { class: "contents" },
   template: `
     @if (_isLoading()) {
       <div

@@ -235,7 +235,9 @@ Directory map:
     (no countdown, Try Now re-reads), and the rest of the profile is untouched. A `GraphQLRequestError` is
     already toasted and reported by `GraphQLClient`, so only other errors go to the `ErrorHandler`.
     `ProfilePage` creates the card inside its loaded branch, so a profile reload (a retry, an account
-    switch) creates it again and it re-reads. A nickname or privacy save does not.
+    switch) creates it again and it re-reads. A nickname or privacy save does not. The host is
+    `display: contents`, so an absent card (no spotted vehicle on any line) takes no slot in the page's
+    `gap-6` column and leaves no double gap.
   - **The cap is loud.** The backend slices `favouriteVehicles` at the count and says nothing, so a list
     that reaches `FLEET_FAVOURITES_COUNT` may be short of the user's real set. The card still shows what it
     has and reports the condition to the `ErrorHandler` (Sentry). Keep the constant above the number of
