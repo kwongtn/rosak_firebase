@@ -1,4 +1,5 @@
 import {
+  AssetStatus,
   IncidentSeverity,
   LineStatus,
   SpottingType,
@@ -419,9 +420,10 @@ export interface LineSpottingBoundsQueryData {
 
 /* ---------------------------------------------------------------------- *
  * Line.stations[].assets — station-level infrastructure (lifts, escalators…), for the
- * /spotting/:lineId/details "Station Assets" section. Read-only today: the backend model has a
- * `status` field (under/in maintenance) but doesn't expose it over GraphQL yet, and there's no
- * mutation for volunteers to report/update it — this only lists what assets exist per station.
+ * /spotting/:lineId/details "Station Assets" section. Read-only: `status` (IN_OPERATION /
+ * UNDER_MAINTENANCE) is entered in the backend, and there is no mutation for volunteers to report
+ * or change it. Never select `Asset.stations` here: it fails at runtime (the model's FK is
+ * singular, the schema field is a list).
  * ---------------------------------------------------------------------- */
 
 export const LINE_STATION_ASSETS_QUERY = /* GraphQL */ `
@@ -434,6 +436,7 @@ export const LINE_STATION_ASSETS_QUERY = /* GraphQL */ `
         assets {
           id
           assetType
+          status
           officialid
           shortDescription
         }
@@ -451,6 +454,7 @@ export type AssetType = "ESCALATOR" | "LIFT";
 interface StationAsset {
   id: string;
   assetType: AssetType;
+  status: AssetStatus;
   officialid: string | null;
   shortDescription: string | null;
 }

@@ -20,6 +20,9 @@ export type VehicleStatus =
 /** spotting.enums.SpottingVehicleStatus — the narrower set a user can report. */
 export type SpottingVehicleStatus = "IN_SERVICE" | "NOT_IN_SERVICE" | "DECOMMISSIONED" | "TESTING";
 
+/** operation.enums.AssetStatus — whether a station asset (lift, escalator) is working. */
+export type AssetStatus = "IN_OPERATION" | "UNDER_MAINTENANCE";
+
 /** spotting.enums.SpottingWheelStatus */
 export type WheelStatus = "FRESH" | "NEAR_PERFECT" | "FLAT" | "WORN_OUT" | "WORRYING";
 
