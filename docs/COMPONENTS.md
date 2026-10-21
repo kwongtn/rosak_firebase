@@ -73,13 +73,18 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   `NewVersionService`. `PollingSource` (`core/polling/`) reads `navigator.onLine` itself, the way it
   reads `document.hidden`: offline pauses the beat, and the `online` event refreshes at once (not
   while hidden, never for a "Never" beat).
-- `core/version/`: `NewVersionService` polls `/version.json` (`cache: "no-store"` plus an
-  `ngsw-bypass` header, so neither the HTTP cache nor the service worker answers it) and prompts for
-  a reload on a failed same-origin chunk only. `promptReloadForNewVersion()` (also called by
-  `AppErrorHandler` for router chunk errors) checks `OnlineService` first: offline it toasts "You're
-  offline. This page needs a connection." on every failed attempt and leaves `hasNewVersion` false,
-  so the update button (whose click clears Cache Storage, the worker's precache included, and
-  reloads) stays dark.
+- `core/version/`: `NewVersionService` polls `/version.json` every 10 minutes while online
+  (`cache: "no-store"` plus an `ngsw-bypass` header, so neither the HTTP cache nor the service worker
+  answers it) and prompts for a reload on a failed same-origin chunk only.
+  `promptReloadForNewVersion()` (also called by `AppErrorHandler` for router chunk errors) checks
+  `OnlineService` first: offline it toasts "You're offline. This page needs a connection." on every
+  failed attempt. Online it asks `/version.json` (5 s timeout) before blaming a deploy, because in a
+  tunnel `navigator.onLine` stays `true` on a link that carries nothing. No answer gives the same
+  offline toast, this build's hash gives "This page couldn't load. Check your connection and try
+  again.", and only a different hash sets `hasNewVersion` and lights the update button. That
+  button's click (`reloadForNewVersion()`) clears Cache Storage, the worker's precache included,
+  and reloads. Offline it does neither and toasts "You're offline. Reconnect to load the new
+  version." instead.
 - **Installable app and service worker** (no `core/` module):
   - `public/manifest.webmanifest`: "MLPTF", `display: standalone`, `start_url: "/"`, background and
     theme `#fafcff` (the light `--background`). Icons in `public/icons/`: 192 and 512 PNG, a
@@ -92,15 +97,28 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
     `registrationStrategy: "registerWhenStable:30000"`, never on the server. Only `angular.json`'s
     production configuration sets `"serviceWorker": "ngsw-config.json"`, so `ng serve` and the e2e
     dev build have no worker.
-  - `ngsw-config.json`: group `app` prefetches `/*.css` and `/*.js` (all hashed; about 1.7 MB gzip
-    today, more than half of it the tracker chunk), group `media` caches images lazily. No HTML is
-    ever served from cache: `navigationUrls` is `[]` and `navigationRequestStrategy` is
-    `freshness`, so SSR answers every navigation (the build rewrites `index` to `/index.csr.html`,
-    which is not cached either). There is no data group: GraphQL reads are POSTs and ngsw caches
-    only GET and HEAD, so the board has no offline data yet. `src/app/ngsw-config.spec.ts` runs the
-    real ngsw generator over a fake build output to pin these rules.
-  - Offline, in-app navigation to a lazy route works from the precache. A full reload offline shows
-    a blank page (the worker answers 504), not the browser's own offline page.
+  - `ngsw-config.json`: group `app` prefetches `/*.css`, `/*.js` (all hashed; about 1.7 MB gzip
+    today, more than half of it the tracker chunk) and `/index.csr.html`, the CSR shell. Group
+    `media` caches images lazily. `navigationRequestStrategy` is `freshness` with the default
+    `navigationUrls`, so every navigation goes to the network first and SSR answers it. Only when
+    that request fails does the worker serve the cached CSR shell. The SSR HTML itself is never
+    cached. `index` must stay `/index.csr.html`: `ng build` overwrites it with the CSR shell's name
+    whatever the config says, so a static offline page cannot be the fallback. There is no data
+    group: GraphQL reads are POSTs and ngsw caches only GET and HEAD, so the board has no offline
+    data yet. `src/app/ngsw-config.spec.ts` runs the real ngsw generator over a fake build output
+    to pin these rules.
+  - Offline, in-app navigation to a lazy route works from the precache. A full reload or a cold
+    open offline (the home-screen icon included) boots the app from the CSR shell, the path
+    `RenderMode.Client` routes already take: the nav and the offline strip render, reads show their
+    error states, and the `online` event refreshes the board on reconnect. Until the worker has
+    installed and finished its prefetch (a first visit: up to 30 s, then the download), an offline
+    reload still gets the browser's own error page.
+  - `src/server.ts` serves `browser/` with a one-year `max-age`, except the files
+    `staticCacheControl()` (`src/server-cache-control.ts`) lists: the worker files, `ngsw.json`,
+    the web app manifest, `icons/`, `index.csr.html` and `version.json` get `no-cache`, since
+    their names survive a deploy.
+  - `@angular/service-worker` declares the exact `@angular/core` version as a peer dependency: bump
+    it together with the other `@angular/*` packages.
   - **To disable it:** remove `"serviceWorker"` from `angular.json` and `provideServiceWorker` from
     `app.config.ts`, then deploy. An installed worker that gets a 404 for `/ngsw.json` (the app's
     not-found page) deletes its caches and unregisters itself. `enabled: false` alone is not
