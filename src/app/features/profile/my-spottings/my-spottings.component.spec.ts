@@ -443,6 +443,62 @@ describe("MySpottingsComponent", () => {
       expect(byTestId("export-csv")?.disabled).toBe(false);
     });
 
+    describe("beside a delete", () => {
+      /** Events logged just now, which are inside the 3-day window so each has a delete button. */
+      const recentEvents = (count: number): MyEvent[] =>
+        makeEvents(count).map((event) => ({ ...event, created: new Date().toISOString() }));
+
+      const deleteButtons = (): HTMLButtonElement[] => [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '[data-testid="delete-spotting"]',
+        ),
+      ];
+
+      it("keeps delete off while the export pages, so a removed row cannot shift a later page", async () => {
+        await renderOwner(recentEvents(30));
+        expect(deleteButtons()).toHaveLength(30);
+        expect(deleteButtons().every((button) => !button.disabled)).toBe(true);
+        const last = deferred<{ events: MyEvent[] }>();
+        requestMock.mockReturnValueOnce(last.promise);
+
+        byTestId("export-csv")?.click();
+        await vi.waitFor(() => {
+          fixture.detectChanges();
+          expect(byTestId("export-progress")).not.toBeNull();
+        });
+
+        expect(deleteButtons().every((button) => button.disabled)).toBe(true);
+        expect(deleteButtons()[0].title).toBe("Wait for the export to finish");
+
+        last.resolve({ events: [] });
+        await vi.waitFor(() => expect(downloads).toHaveLength(1));
+        fixture.detectChanges();
+        expect(deleteButtons().every((button) => !button.disabled)).toBe(true);
+        expect(deleteButtons()[0].title).toBe("Delete");
+      });
+
+      it("keeps export off while a delete is in flight, for the same reason", async () => {
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        await renderOwner(recentEvents(3));
+        const removal = deferred<{ deleteEvent: { ok: boolean } }>();
+        requestMock.mockReturnValueOnce(removal.promise);
+
+        deleteButtons()[0].click();
+        await vi.waitFor(() => {
+          fixture.detectChanges();
+          expect(byTestId("export-csv")?.disabled).toBe(true);
+        });
+        expect(byTestId("export-json")?.disabled).toBe(true);
+
+        removal.resolve({ deleteEvent: { ok: true } });
+        await vi.waitFor(() => {
+          fixture.detectChanges();
+          expect(byTestId("export-csv")?.disabled).toBe(false);
+        });
+        expect(byTestId("export-json")?.disabled).toBe(false);
+      });
+    });
+
     it("stops paging and downloads nothing when the page is left mid-export", async () => {
       await renderOwner(makeEvents(30));
       const second = deferred<{ events: MyEvent[] }>();

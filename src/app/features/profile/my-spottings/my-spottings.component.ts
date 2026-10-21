@@ -226,9 +226,12 @@ interface EventDayGroup {
                               hlmBtn
                               size="icon-sm"
                               variant="ghost"
-                              [disabled]="_deletingId() === event.id"
+                              data-testid="delete-spotting"
+                              [disabled]="_deletingId() === event.id || _exportRows() !== null"
+                              [title]="
+                                _exportRows() !== null ? 'Wait for the export to finish' : 'Delete'
+                              "
                               (click)="deleteEvent(event.id)"
-                              title="Delete"
                             >
                               🗑
                             </button>
@@ -314,9 +317,14 @@ export class MySpottingsComponent {
 
   /** Rows gathered so far while an export pages through the history; `null` while none is running. */
   protected readonly _exportRows = signal<number | null>(null);
-  /** An export runs one at a time, and not beside the list's own first page. */
+  /**
+   * An export runs one at a time, not beside the list's own first page, and not while a delete is in
+   * flight: the export pages by offset, so a row removed mid-way would shift every later page up and
+   * the file would silently miss a spotting. The delete buttons are disabled for the same reason
+   * while an export runs.
+   */
   protected readonly _exportDisabled = computed(
-    () => this._exportRows() !== null || this._isLoading(),
+    () => this._exportRows() !== null || this._isLoading() || this._deletingId() !== null,
   );
 
   protected readonly _events = computed<MyEvent[]>(() =>
