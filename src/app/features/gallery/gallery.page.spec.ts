@@ -1,5 +1,9 @@
 import { provideHttpClient } from "@angular/common/http";
-import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+  TestRequest,
+} from "@angular/common/http/testing";
 import { CUSTOM_ELEMENTS_SCHEMA, PLATFORM_ID } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { Meta, Title } from "@angular/platform-browser";
@@ -258,7 +262,7 @@ describe("GalleryPage deep link", () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
-  it("falls back to /gallery with an error toast when the request fails", async () => {
+  it("falls back to /gallery with one toast when the backend answers with a GraphQL error", async () => {
     const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
     const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
     const fixture = createPage("browser", "broken");
@@ -268,11 +272,56 @@ describe("GalleryPage deep link", () => {
     feedRequest().flush({ data: NO_MEDIAS });
     await settle(fixture);
 
-    expect(toast).toHaveBeenCalledWith("Couldn't load that photo", "boom");
-    expect(toast).not.toHaveBeenCalledWith("Couldn't find that photo", expect.anything());
+    // GraphQLClient has already toasted it; the page must not add a second one.
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith("GraphQL Error", "boom");
     expect(navigate).toHaveBeenCalledWith(["/gallery"], { replaceUrl: true });
     expect(viewerOf(fixture)).toBeNull();
   });
+
+  it("falls back to /gallery with an error toast when the request itself fails", async () => {
+    const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
+    const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+    const fixture = createPage("browser", "broken");
+    answerYearCounts();
+
+    mediaByIdRequest().flush("down", { status: 503, statusText: "Service Unavailable" });
+    feedRequest().flush({ data: NO_MEDIAS });
+    await settle(fixture);
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith("Couldn't load that photo", expect.any(String));
+    expect(navigate).toHaveBeenCalledWith(["/gallery"], { replaceUrl: true });
+    expect(viewerOf(fixture)).toBeNull();
+  });
+
+  it.each([
+    ["a 5xx", (req: TestRequest) => req.flush("down", { status: 502, statusText: "Bad Gateway" })],
+    ["a timeout", (req: TestRequest) => req.error(new ProgressEvent("timeout"))],
+    [
+      "a GraphQL error",
+      (req: TestRequest) => req.flush({ data: null, errors: [{ message: "boom" }] }),
+    ],
+  ])(
+    "keeps the link and renders the gallery without the viewer when the server hits %s",
+    async (_name, fail) => {
+      const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
+      const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = createPage("server", "m1");
+
+      fail(mediaByIdRequest());
+      feedRequest().flush(feedOf([PHOTO]));
+      await settle(fixture);
+
+      // Not "no such photo": no redirect to /gallery (the browser asks again on hydration).
+      expect(navigate).not.toHaveBeenCalled();
+      expect(toast).not.toHaveBeenCalled();
+      expect(viewerOf(fixture)).toBeNull();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector("app-justified-grid"),
+      ).not.toBeNull();
+    },
+  );
 
   it("opens a photo the feed already holds without asking for it again", async () => {
     const fixture = createPage("browser");

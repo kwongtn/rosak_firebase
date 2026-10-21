@@ -12,7 +12,11 @@ import {
 import { Meta, Title } from "@angular/platform-browser";
 import { Router } from "@angular/router";
 import { injectIsBrowser } from "../../core/composables/is-browser";
-import { GraphQLClient, graphqlResource } from "../../core/graphql/graphql-client";
+import {
+  GraphQLClient,
+  GraphQLRequestError,
+  graphqlResource,
+} from "../../core/graphql/graphql-client";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { ToastService } from "../../ui/toast/toast.service";
 import { HlmButton } from "../../ui/button/button";
@@ -301,7 +305,9 @@ export class GalleryPage {
   /** Opens a shared /gallery/:mediaId link: the one photo is fetched by id and the viewer opens
    * the moment it arrives — on the server too, so the HTML of the link already holds the viewer —
    * while the feed loads on its own. A photo the feed already holds (Back/Forward) opens without
-   * a request. A missing photo or a failed request falls back to /gallery. */
+   * a request. Only a missing photo (null) always falls back to /gallery. A failed request does
+   * too in the browser, but on the server it keeps the link: the gallery renders without the
+   * viewer and the browser asks again on hydration. */
   private async openMediaById(id: string): Promise<void> {
     if (this.selectedMedia()?.id === id) {
       return;
@@ -312,15 +318,15 @@ export class GalleryPage {
       return;
     }
     let media: MediaNode | null = null;
-    let failure: string | undefined;
+    let failure: { error: unknown } | undefined;
     try {
       const data = await this.graphql.request<MediaByIdQueryData, MediaByIdQueryVars>(
         MEDIA_BY_ID_QUERY,
         { id },
       );
       media = data.media;
-    } catch (err) {
-      failure = err instanceof Error ? err.message : "Unknown error";
+    } catch (error) {
+      failure = { error };
     }
     if (this.mediaIdParam() !== id) {
       return; // the visitor moved on while it loaded
@@ -329,16 +335,23 @@ export class GalleryPage {
       this.selectedMedia.set(media);
       return;
     }
+    if (failure && !this.isBrowser) {
+      return;
+    }
     // On the server nobody sees a toast (the redirect below answers the request) and it would only
     // pile up in the shared toast state, so — like GraphQLClient — toast in the browser only.
     if (this.isBrowser) {
-      if (failure === undefined) {
+      if (!failure) {
         this.toast.error(
           "Couldn't find that photo",
           "It may have been removed, or the link is out of date.",
         );
-      } else {
-        this.toast.error("Couldn't load that photo", failure);
+      } else if (!(failure.error instanceof GraphQLRequestError)) {
+        // (GraphQLClient has already toasted a GraphQLRequestError.)
+        this.toast.error(
+          "Couldn't load that photo",
+          failure.error instanceof Error ? failure.error.message : "Unknown error",
+        );
       }
     }
     this.router.navigate(["/gallery"], { replaceUrl: true });
