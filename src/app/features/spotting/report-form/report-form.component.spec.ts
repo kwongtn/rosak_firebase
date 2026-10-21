@@ -2,7 +2,7 @@ import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular
 import { HttpErrorResponse } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
@@ -16,7 +16,20 @@ import type { ReportFormModel } from "./report-form.schema";
 
 interface ComponentUnderTest {
   model: WritableSignal<ReportFormModel>;
+  capturedLocation: WritableSignal<GeolocationCoordinates | null>;
 }
+
+/** What `navigator.geolocation` hands back: every field the browser reports, including the ones
+ * the form must not send on. */
+const CAPTURED_COORDS = {
+  accuracy: 12,
+  latitude: 3.1579,
+  longitude: 101.7116,
+  altitude: 55,
+  altitudeAccuracy: 4,
+  heading: 90,
+  speed: 3,
+} as GeolocationCoordinates;
 
 const SEEDED_LINE: Line = {
   id: "4",
@@ -325,6 +338,59 @@ describe("ReportFormComponent", () => {
     await settle();
     expect(root.querySelectorAll("vehicle-status-badge").length).toBe(0);
     expect(root.textContent).not.toContain("may not normally be spottable");
+  });
+
+  describe("LOCATION spotting", () => {
+    async function openLocationReport(): Promise<ComponentUnderTest> {
+      storeLines.set([SEEDED_LINE]);
+      sheet.openFor("4");
+      await settle();
+
+      const component = fixture.componentInstance as unknown as ComponentUnderTest;
+      // v1 is OUT_OF_SERVICE in the seeded fleet, so the sanity-test gate must be ticked too.
+      component.model.update((m) => ({
+        ...m,
+        vehicleId: "v1",
+        sanityTest: true,
+        type: "LOCATION",
+      }));
+      component.capturedLocation.set(CAPTURED_COORDS);
+      await settle();
+      return component;
+    }
+
+    it("submits only accuracy, latitude and longitude of the captured position", async () => {
+      await openLocationReport();
+      (
+        TestBed.inject(AuthService) as unknown as { isLoggedIn: WritableSignal<boolean> }
+      ).isLoggedIn.set(true);
+      const request = (TestBed.inject(GraphQLClient) as unknown as { request: Mock }).request;
+      request.mockResolvedValue({ addEvent: { id: "e1" } });
+
+      await fixture.componentInstance.submit();
+
+      expect(request).toHaveBeenCalledTimes(1);
+      const { data } = request.mock.calls[0][1] as { data: { location: object } };
+      // Omitted keys are the backend's UNSET; altitude, altitudeAccuracy, speed and heading must
+      // not be present at all (not even as null).
+      expect(data.location).toStrictEqual({
+        accuracy: 12,
+        latitude: 3.1579,
+        longitude: 101.7116,
+      });
+    });
+
+    it("says the spotted position is public unless Submit anonymously is ticked", async () => {
+      await openLocationReport();
+
+      const text = ((fixture.nativeElement as HTMLElement).textContent ?? "").replace(/\s+/g, " ");
+      expect(text).toContain("Location captured (±12m).");
+      expect(text).toContain("The spotted position is shown publicly with your report.");
+      expect(text).toContain(
+        'If you tick "Submit anonymously", only you and moderators can see it.',
+      );
+      expect(text).not.toContain("We won't know your exact location");
+    });
   });
 
   it("keeps field label text inert while preserving accessible names", async () => {

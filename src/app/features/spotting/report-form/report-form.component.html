@@ -163,8 +163,8 @@
   @if (model().type === "LOCATION") {
     @if (capturedLocation(); as loc) {
       <p class="text-muted-foreground text-xs">
-        Location captured (±{{ loc.accuracy }}m). We won't know your exact location until you
-        submit.
+        Location captured (±{{ loc.accuracy }}m). The spotted position is shown publicly with your
+        report. If you tick "Submit anonymously", only you and moderators can see it.
       </p>
     } @else {
       <p class="text-muted-foreground text-xs">Waiting for location access…</p>

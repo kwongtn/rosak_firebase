@@ -297,12 +297,8 @@ export class ReportFormComponent {
                 m.type === "LOCATION" && location
                   ? {
                       accuracy: location.accuracy,
-                      altitudeAccuracy: location.altitudeAccuracy,
-                      heading: location.heading,
-                      speed: location.speed,
                       latitude: location.latitude,
                       longitude: location.longitude,
-                      altitude: location.altitude,
                     }
                   : null,
               isAnonymous: m.isAnonymous,

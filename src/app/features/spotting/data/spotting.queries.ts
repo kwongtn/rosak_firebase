@@ -180,6 +180,8 @@ interface StationLine {
 
 /* ---------------------------------------------------------------------- *
  * events — paginated per-vehicle spotting history.
+ * No `location { ... }` selection on purpose: no template renders it, and the backend only shows an
+ * anonymous report's position to its reporter and admins, so this list never needs to ask for it.
  * ---------------------------------------------------------------------- */
 
 export const VEHICLE_EVENTS_QUERY = /* GraphQL */ `
@@ -198,14 +200,6 @@ export const VEHICLE_EVENTS_QUERY = /* GraphQL */ `
       mediaCount
       isMine
       wheelStatus
-      location {
-        accuracy
-        altitudeAccuracy
-        heading
-        speed
-        location
-        altitude
-      }
       originStation {
         id
         displayName
@@ -238,14 +232,6 @@ export interface SpottingEvent {
   mediaCount: number;
   isMine: boolean;
   wheelStatus: WheelStatus | null;
-  location: {
-    accuracy: number | null;
-    altitudeAccuracy: number | null;
-    heading: number | null;
-    speed: number | null;
-    location: [number, number] | null;
-    altitude: number | null;
-  } | null;
   originStation: { id: string; displayName: string } | null;
   destinationStation: { id: string; displayName: string } | null;
 }
@@ -458,14 +444,12 @@ export const ADD_SPOTTING_EVENT_MUTATION = /* GraphQL */ `
   }
 `;
 
+/** Only what a LOCATION report needs. The backend also accepts altitude, altitudeAccuracy, speed and
+ * heading (all optional); they stay unset because nothing reads them. */
 interface WebLocationInput {
   accuracy?: number;
-  altitudeAccuracy?: number | null;
-  heading?: number | null;
-  speed?: number | null;
   latitude?: number;
   longitude?: number;
-  altitude?: number | null;
 }
 
 interface AddSpottingEventInput {
