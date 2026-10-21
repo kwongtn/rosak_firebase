@@ -150,7 +150,8 @@ export class GalleryPage {
   protected readonly yearGroups = computed<YearGroup[]>(() => {
     const groups: YearGroup[] = [];
     for (const edge of this.edges()) {
-      const year = new Date(edge.node.createdDate).getFullYear();
+      // createdDate is YYYY-MM-DD; the labels format it in local time, so don't Date-parse (UTC).
+      const year = Number(edge.node.createdDate.slice(0, 4));
       const last = groups.at(-1);
       if (last?.year === year) {
         last.items.push(edge.node);

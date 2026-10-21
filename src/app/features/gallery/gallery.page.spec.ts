@@ -513,3 +513,36 @@ describe("GalleryPage year jump progress", () => {
     expect((scrollIntoView.mock.contexts[0] as Element).id).toBe("gallery-year-2023");
   });
 });
+
+describe("GalleryPage year grouping", () => {
+  // The type-check has no Node types; the runner is Node, where assigning TZ moves the local zone.
+  const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } })
+    .process.env;
+  const originalTz = env["TZ"];
+
+  afterEach(() => {
+    if (originalTz === undefined) {
+      delete env["TZ"];
+    } else {
+      env["TZ"] = originalTz;
+    }
+  });
+
+  it("groups a photo by the year in its date, whatever the time zone", async () => {
+    // A UTC-parsed "2024-01-01" is still 31 Dec 2023 anywhere west of Greenwich.
+    env["TZ"] = "America/New_York";
+    const fixture = createPage("browser");
+    answerYearCounts();
+    feedRequest().flush(
+      feedOf([
+        { ...PHOTO, id: "a", createdDate: "2024-01-01" },
+        { ...PHOTO, id: "b", createdDate: "2023-12-31" },
+      ]),
+    );
+    await settle(fixture);
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector("#gallery-year-2024")).not.toBeNull();
+    expect(root.querySelector("#gallery-year-2023")).not.toBeNull();
+  });
+});
