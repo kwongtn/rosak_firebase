@@ -568,12 +568,10 @@ export class HomeStore {
    * "everything" so the reader is not misled about what the other rows were.
    */
   readonly recentIncidents = computed<HomeIncidentItem[]>(() => {
-    // 🔴 **The failure flag is read BEFORE `data()`, and that order is load-bearing.** A
-    // `graphqlResource`'s `data()` THROWS while the resource is in an error state rather than
-    // returning undefined, so a computed that reached for the payload on a failed read would take the
-    // page down from inside a `computed` — the exact opposite of "hide the widget". Returning early on
-    // the flag is what makes this signal TOTAL, which is why the widget's own visibility check is a
-    // belt-and-braces second gate rather than the only one.
+    // 🔴 **The failure flag wins over the payload, on purpose.** `data()` is total and keeps the last
+    // good answer through a failed refresh, but a supporting widget that cannot refresh hides ITSELF
+    // rather than draw old rows as current — the same rule the sparkline documents for the history
+    // reads. The widget's own visibility check is a belt-and-braces second gate.
     if (this.incidentsFailed()) {
       return [];
     }
@@ -627,9 +625,9 @@ export class HomeStore {
   /**
    * The official posts in the newest public page, newest first.
    *
-   * 🔴 **The failure flag is read BEFORE `data()`, and that order is load-bearing** — exactly as in
-   * {@link recentIncidents}: `data()` THROWS while the resource is in an error state, so reaching for
-   * the payload on a failed read would take the page down from inside a `computed`.
+   * 🔴 **The failure flag wins over the payload, on purpose** — exactly as in
+   * {@link recentIncidents}: `data()` keeps the last good answer through a failed refresh, but a
+   * failed archive hides ITSELF instead of showing old notices as current.
    *
    * 🔴 **The `isAutomated` filter is CLIENT-SIDE, on purpose.** `FEED_QUERY` already selects
    * `isAutomated` on every node (it is what draws the feed card's "Official" chip), so filtering the
@@ -821,8 +819,8 @@ export class HomeStore {
    * has not failed. The panel's skeleton signal: it covers the beat between selecting the tab and
    * the answer landing, which `isLoadingLastWeek` cannot (that one is false for an unrequested read).
    *
-   * `hasError` is checked BEFORE `data()`, for the same reason as `recentIncidents`: the payload
-   * read throws while the resource is in an error state.
+   * `hasError` is part of the test because a FAILED first read leaves `data()` undefined for good,
+   * which would otherwise read as pending forever: a skeleton over a section that will not answer.
    */
   readonly lastWeekPending = computed(
     () =>

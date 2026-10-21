@@ -1,6 +1,6 @@
 import { provideHttpClient } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
-import { provideZonelessChangeDetection } from "@angular/core";
+import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,6 +40,28 @@ describe("graphql-client", () => {
     return httpMock.expectOne(
       (request) => request.method === "POST" && request.body.query === query,
     );
+  }
+
+  function expectRequestFor(lineId: string) {
+    return httpMock.expectOne(
+      (request) => request.method === "POST" && request.body.variables?.lineId === lineId,
+    );
+  }
+
+  const serverError = { status: 500, statusText: "Server Error" };
+
+  /** Resolves a first request, then fails the refresh of it, and lets the resource settle. */
+  async function loadThenFailRefresh(resource: ReturnType<typeof createResource>) {
+    TestBed.tick();
+    expectRequest().flush({ data: { lines: [{ id: "1" }] } });
+    await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "1" }] }));
+    TestBed.tick();
+
+    resource.reload();
+    TestBed.tick();
+    expectRequest().flush({ message: "boom" }, serverError);
+    await vi.waitFor(() => expect(resource.transportError()).toBeDefined());
+    TestBed.tick();
   }
 
   it("retains the previous data reference when a refresh is deeply equal", async () => {
@@ -160,5 +182,143 @@ describe("graphql-client", () => {
     expectRequest().flush({ data: { lines: [{ id: "1" }] } });
     await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "1" }] }));
     expect(resource.hasError()).toBe(false);
+  });
+
+  describe("error states", () => {
+    // Angular's `httpResource().value()` THROWS while the request is in its error state, so a
+    // plain computed over it threw inside every consumer on every failed poll.
+    it("poll fails after success: data() does not throw and still returns the previous payload", async () => {
+      const resource = createResource();
+      await loadThenFailRefresh(resource);
+
+      expect(resource.hasError()).toBe(true);
+      expect(() => resource.data()).not.toThrow();
+      expect(resource.data()).toEqual({ lines: [{ id: "1" }] });
+    });
+
+    it("errors() does not throw in the error state", async () => {
+      const resource = createResource();
+      TestBed.tick();
+      expectRequest().flush({ message: "boom" }, serverError);
+      await vi.waitFor(() => expect(resource.transportError()).toBeDefined());
+      TestBed.tick();
+
+      expect(() => resource.errors()).not.toThrow();
+      expect(resource.errors()).toBeUndefined();
+      // Nothing was ever loaded, so there is nothing to keep either.
+      expect(() => resource.data()).not.toThrow();
+      expect(resource.data()).toBeUndefined();
+      expect(resource.hasError()).toBe(true);
+    });
+
+    it("variables change then failure: data() is undefined", async () => {
+      // Several pages rely on `data()` going undefined when their request changes, so the kept
+      // payload belongs to ONE request and must never be shown under another's variables.
+      const lineId = signal("A");
+      const resource = TestBed.runInInjectionContext(() =>
+        graphqlResource<LinesData>(() => ({ query, variables: { lineId: lineId() } })),
+      );
+      TestBed.tick();
+      expectRequestFor("A").flush({ data: { lines: [{ id: "A" }] } });
+      await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "A" }] }));
+      TestBed.tick();
+
+      lineId.set("B");
+      TestBed.tick();
+      expect(resource.data()).toBeUndefined();
+
+      expectRequestFor("B").flush({ message: "boom" }, serverError);
+      await vi.waitFor(() => expect(resource.transportError()).toBeDefined());
+      TestBed.tick();
+
+      expect(() => resource.data()).not.toThrow();
+      expect(resource.data()).toBeUndefined();
+      expect(resource.hasError()).toBe(true);
+    });
+
+    it("drops the kept payload when the request is switched off", async () => {
+      const enabled = signal(true);
+      const resource = TestBed.runInInjectionContext(() =>
+        graphqlResource<LinesData>(() => (enabled() ? { query } : undefined)),
+      );
+      TestBed.tick();
+      expectRequest().flush({ data: { lines: [{ id: "1" }] } });
+      await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "1" }] }));
+      TestBed.tick();
+
+      enabled.set(false);
+      TestBed.tick();
+
+      expect(resource.data()).toBeUndefined();
+    });
+
+    it("keys the kept payload on the request's content, not on the variables object's identity", async () => {
+      // A recomputed-but-equal variables object re-issues the read (the underlying resource sees a
+      // new request), yet it is still the SAME request, so the old answer stays up while it flies.
+      const variables = signal({ lineId: "A" });
+      const resource = TestBed.runInInjectionContext(() =>
+        graphqlResource<LinesData>(() => ({ query, variables: variables() })),
+      );
+      TestBed.tick();
+      expectRequestFor("A").flush({ data: { lines: [{ id: "A" }] } });
+      await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "A" }] }));
+      TestBed.tick();
+
+      variables.set({ lineId: "A" });
+      TestBed.tick();
+
+      expect(resource.isFetching()).toBe(true);
+      expect(resource.data()).toEqual({ lines: [{ id: "A" }] });
+      expectRequestFor("A").flush({ data: { lines: [{ id: "A2" }] } });
+      await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "A2" }] }));
+    });
+
+    it("keeps the previous payload while a retry after the failure is in flight", async () => {
+      const resource = createResource();
+      await loadThenFailRefresh(resource);
+
+      resource.retryNow();
+      TestBed.tick();
+
+      // The underlying resource has no value at all here (reloading after an error).
+      expect(resource.isFetching()).toBe(true);
+      expect(() => resource.data()).not.toThrow();
+      expect(resource.data()).toEqual({ lines: [{ id: "1" }] });
+      expect(resource.hasError()).toBe(true);
+
+      expectRequest().flush({ data: { lines: [{ id: "1" }] } });
+      await vi.waitFor(() => expect(resource.hasError()).toBe(false));
+    });
+
+    it("recovers: new data replaces old after a successful retry", async () => {
+      const resource = createResource();
+      await loadThenFailRefresh(resource);
+
+      resource.retryNow();
+      TestBed.tick();
+      expectRequest().flush({ data: { lines: [{ id: "2" }] } });
+
+      await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "2" }] }));
+      TestBed.tick();
+      expect(resource.hasError()).toBe(false);
+      expect(resource.retryCountdownSec()).toBeNull();
+    });
+
+    it("keeps the previous payload when a refresh answers with GraphQL errors and no data", async () => {
+      const resource = createResource();
+      TestBed.tick();
+      expectRequest().flush({ data: { lines: [{ id: "1" }] } });
+      await vi.waitFor(() => expect(resource.data()).toEqual({ lines: [{ id: "1" }] }));
+      TestBed.tick();
+
+      resource.reload();
+      TestBed.tick();
+      expectRequest().flush({ errors: [{ message: "boom" }] });
+      await vi.waitFor(() => expect(resource.errors()).toEqual([{ message: "boom" }]));
+      TestBed.tick();
+
+      expect(resource.hasError()).toBe(true);
+      expect(resource.data()).toEqual({ lines: [{ id: "1" }] });
+    });
   });
 });

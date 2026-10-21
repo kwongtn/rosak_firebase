@@ -231,8 +231,9 @@ The single source of truth for page data.
   - **Isolation.** None feeds `hasError`, `isLoading`, `isLoadingLastWeek` or `isRefreshing` — those
     drive the retry banner, board skeleton and "Updating" label, so folding a decorative widget in would
     replace a working page with one banner. A failed read hides ITS widget only.
-  - 🔴 **Projections read the failure flag BEFORE `data()`**: a `graphqlResource`'s `data()` THROWS in an
-    error state, which would take the page down from inside a `computed`. Widgets gate on the flag first
+  - 🔴 **The failure flag wins over the payload**: `graphqlResource().data()` never throws and keeps the
+    last good answer through a failed refresh of the same request, so it is the flag (not `data()`) that
+    makes a failed read hide ITS widget instead of drawing old rows as current. Widgets gate on the flag
     too.
   - **History:** `networkHistoryResource` (`NETWORK_STATUS_HISTORY_QUERY`, vars `{}`) and
     `linesHistoryResource` (`LINES_STATUS_HISTORY_QUERY`, vars `{ lineIds }`, capped at

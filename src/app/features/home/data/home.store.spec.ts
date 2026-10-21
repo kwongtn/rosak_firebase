@@ -1060,6 +1060,27 @@ describe("HomeStore", () => {
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x"]);
   });
 
+  it("keeps the last lines and feed through a failed poll beat, beside hasError", async () => {
+    // The outage case: a rider sitting on the front page while the API goes down. Every failed
+    // 30-second beat used to throw out of `lines()` and `feedLinks()` and the board was replaced by
+    // its empty state; now the last good board stays and `hasError` raises the retry banner beside it.
+    const store = createStore();
+    linesRequest().flush({ data: { lines: [makeLine("a")] } });
+    feedRequest().flush({ data: feedData([makeFeedLink("x")], false, null) });
+    await afterVariablesChange();
+    expect(store.lines().map((l) => l.id)).toEqual(["a"]);
+
+    store.reloadFirstPages();
+    await afterVariablesChange();
+    linesRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    feedRequest().flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await afterVariablesChange();
+
+    expect(store.hasError()).toBe(true);
+    expect(store.lines().map((l) => l.id)).toEqual(["a"]);
+    expect(store.feedLinks().map((l) => l.id)).toEqual(["x"]);
+  });
+
   it("coalesces concurrent loadMoreLastWeek calls into one request", async () => {
     const store = createStore();
     flushInitial([], feedData([], false, null), feedData([makeFeedLink("w1")], true, "cursor-w"));
@@ -2556,8 +2577,7 @@ describe("HomeStore: the official-notices archive read", () => {
     await Promise.resolve();
 
     expect(store.officialNoticesFailed()).toBe(true);
-    // 🔴 Reading the payload would THROW (`data()` errors rather than returning undefined), so the
-    // projection returning `[]` here is what keeps a failed read from taking the page down.
+    // 🔴 A failed read draws NOTHING: the projection answers `[]` (the failure flag wins over the payload).
     expect(store.officialNotices()).toEqual([]);
     expect(store.officialNoticesLoading()).toBe(false);
     // The four page-level flags, individually and explicitly — the store's documented asymmetry and

@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   Injectable,
+  linkedSignal,
   signal,
   DestroyRef,
   PLATFORM_ID,
@@ -65,6 +66,15 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  * re-run. Keep the two apart — `isLoading` is the skeleton gate, `isFetching` is the in-flight
  * state.
  *
+ * `data()` and `errors()` are TOTAL: a failed request never makes them throw.
+ * `httpResource().value()` throws while the request is in its error state, so both read
+ * `hasValue()` first and answer `undefined` when there is no value. `data()` also keeps the LAST
+ * GOOD payload through a failed or retrying refresh of the SAME request (same query and variables),
+ * so a failed poll leaves the old data on screen beside the retry banner instead of blanking it. As
+ * soon as the request changes (other variables or query, or `requestFn` returns `undefined`) the
+ * kept payload is dropped and `data()` is `undefined` until the new request succeeds: one request's
+ * answer must never be shown under another's variables.
+ *
  * By default, a refresh whose GraphQL response is structurally equal to the current response
  * retains the previous object reference. That keeps computed signals, effects, and DOM bindings
  * from churning while route keep-alive pages revalidate silently in the background (see
@@ -100,8 +110,36 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
     };
   }, resourceOptions);
 
-  const errors = computed(() => raw.value()?.errors);
-  const data = computed(() => raw.value()?.data);
+  // `raw.value()` throws in the error state (and an error state is exactly when a consumer reads
+  // these), so both go through `hasValue()` first and just say "nothing" instead.
+  const errors = computed(() => (raw.hasValue() ? raw.value()?.errors : undefined));
+  const latestData = computed(() => (raw.hasValue() ? raw.value()?.data : undefined));
+
+  // The request being answered, as a comparable string; `undefined` while none is configured.
+  const requestKey = computed(() => {
+    const req = requestFn();
+    return req && JSON.stringify([req.query, req.variables ?? {}]);
+  });
+
+  // The last payload that answered the CURRENT request. A new payload replaces it; no payload (HTTP
+  // failure, a retry in flight, or a GraphQL `errors` answer without data) keeps it only while the
+  // key is unchanged, otherwise it is dropped. A linkedSignal rather than an effect, so the memory
+  // is part of the graph; the settle effect below reads `data()` on every success, which keeps it
+  // current.
+  const lastGood = linkedSignal<
+    { key: string | undefined; payload: TData | undefined },
+    { key: string | undefined; payload: TData } | undefined
+  >({
+    source: () => ({ key: requestKey(), payload: latestData() }),
+    computation: ({ key, payload }, previous) => {
+      if (payload != null) {
+        return { key, payload };
+      }
+      const last = previous?.value;
+      return last?.key === key ? last : undefined;
+    },
+  });
+  const data = computed(() => lastGood()?.payload);
   const hasGraphQLErrors = computed(() => (errors()?.length ?? 0) > 0);
   const rawHasError = computed(() => raw.error() !== undefined || hasGraphQLErrors());
 
