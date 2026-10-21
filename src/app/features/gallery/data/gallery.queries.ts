@@ -57,9 +57,10 @@ export interface MediasFeedQueryData {
 
 /* ---------------------------------------------------------------------- *
  * mediasGroupByPeriod(type: YEAR) — used ONLY for the year-slider's tick labels and per-year
- * counts (a cheap, coarse-grained call: one row per year, `medias` sub-field intentionally not
- * requested so the backend's per-bucket media aggregation doesn't get serialized into the
- * response). Never used to actually load images — that's `medias`, above.
+ * counts (a GROUP BY aggregate, kept off the SSR path — see GalleryPage.yearCountsResource:
+ * one row per year, `medias` sub-field intentionally not requested so the backend's per-bucket
+ * media aggregation doesn't get serialized into the response). Never used to actually load
+ * images — that's `medias`, above.
  * ---------------------------------------------------------------------- */
 
 export const MEDIA_YEAR_COUNTS_QUERY = /* GraphQL */ `

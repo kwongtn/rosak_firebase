@@ -11,7 +11,7 @@
 
 - **Input:** `mediaIdParam = input<string | undefined>(undefined, { alias: "mediaId" })`. `undefined` means the viewer is closed. A value opens, or deep-links to, that media.
 - **Output:** none (routed page). Navigates with `Router.navigate(["/gallery", id])` / `["/gallery"]` to keep the URL in sync.
-- **Computed:** `yearGroups: YearGroup[]` (`{ year, items: MediaNode[] }[]`, derived from loaded `edges`). `yearCounts` is sorted descending, from the separate cheap query.
+- **Computed:** `yearGroups: YearGroup[]` (`{ year, items: MediaNode[] }[]`, derived from loaded `edges`). `yearCounts` is sorted descending, from the separate year-count aggregate. That aggregate is requested in the browser only (see `MEDIA_YEAR_COUNTS_QUERY` below), so it is empty in the server HTML.
 
 Child components:
 
@@ -26,12 +26,12 @@ Child components:
 **GraphQL** (`data/gallery.queries.ts`; read-only, no mutations):
 
 - `MEDIAS_QUERY` (`MediasFeed`): `medias(first, after, order: { created: DESC })` → `{ totalCount, pageInfo { hasNextPage, endCursor }, edges [{ cursor, node: MediaNode }] }`. `MediaNode = { id, createdDate, width, height, file: { url } | null, uploader: { nickname } }`.
-- `MEDIA_YEAR_COUNTS_QUERY` (`MediaYearCounts`): metadata-only `mediasGroupByPeriod(type: YEAR) { year count }`. It feeds only the year slider. It never loads images and never sub-selects `medias`.
+- `MEDIA_YEAR_COUNTS_QUERY` (`MediaYearCounts`): metadata-only `mediasGroupByPeriod(type: YEAR) { year count }`, a GROUP BY aggregate kept off the SSR path. `GalleryPage` requests it in the browser only (its `graphqlResource()` request function returns `undefined` on the server), because SSR holds the response until an `httpResource` settles and the counts feed nothing but the year slider. The slider fills in after hydration and reserves its height meanwhile (`GalleryYearSliderComponent` is `invisible` with a `min-height` while empty). It never loads images and never sub-selects `medias`.
 
 **Dependencies:**
 
 - `GraphQLClient.request()` (`core/graphql/graphql-client.ts`): one-shot paginated `medias` calls. The page drives its own accumulation, so the calls are not resource-bound.
-- `graphqlResource()` (same file): `httpResource` wrapper with exponential-backoff retry. Used only for `MEDIA_YEAR_COUNTS_QUERY`.
+- `graphqlResource()` (same file): `httpResource` wrapper with exponential-backoff retry. Used only for `MEDIA_YEAR_COUNTS_QUERY`, and only in the browser.
 - `ToastService` (`ui/toast/toast.service.ts`, wraps `@spartan-ng/brain/sonner`): load-failure, "still loading" and "not found" feedback.
 - `HlmButton` (the "Load more" button), `HlmSkeleton` (initial-load rows), `AppNavComponent` / `AppFooterComponent` (`shell/`).
 - `Router` (URL sync for the open media). Angular's `DatePipe` (viewer date).
@@ -53,7 +53,7 @@ Child components:
 
 - **`JustifiedGridComponent` and `MediaViewerComponent`** are input/output driven and reusable for any `MediaNode[]` or `MediaNode`, without touching `GalleryPage`.
 - **`computeJustifiedRows()` and `getImgurThumbnail()`** are generic (`JustifiedItem`, `JustifiedCell<T>`, `JustifiedRow<T>`) and have no Angular or gallery coupling.
-- **`graphqlResource()`** is a shared primitive (auto-retry, SSR TransferState). The gallery uses only `data`, with no manual `retryNow()`.
+- **`graphqlResource()`** is a shared primitive (auto-retry, SSR TransferState). The gallery uses only `data`, with no manual `retryNow()`, and requests it in the browser only.
 - **`pathWithOptionalParamMatcher`** (`core/routing/optional-param-matcher.ts`) is the reusable convention that keeps `/gallery` and `/gallery/:mediaId` as one component instance. `/insiden` uses it too (`date` param).
 - No `ng-content` slots, decorators or interceptors. Extension is by composition (new child components and inputs).
 

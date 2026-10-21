@@ -101,9 +101,12 @@ export class GalleryPage {
   protected readonly isJumping = signal(false);
   protected readonly jumpTargetYear = signal<number | null>(null);
 
-  private readonly yearCountsResource = graphqlResource<MediaYearCountsQueryData>(() => ({
-    query: MEDIA_YEAR_COUNTS_QUERY,
-  }));
+  /** Browser-only: SSR holds the response until an httpResource settles, and these counts feed
+   * nothing but the year slider — the server HTML must not wait on an aggregate for it. The
+   * slider fills in once the browser's own request lands (it reserves its space meanwhile). */
+  private readonly yearCountsResource = graphqlResource<MediaYearCountsQueryData>(() =>
+    this.isBrowser ? { query: MEDIA_YEAR_COUNTS_QUERY } : undefined,
+  );
   protected readonly yearCounts = computed(() =>
     [...(this.yearCountsResource.data()?.mediasGroupByPeriod ?? [])].sort(
       (a, b) => b.year - a.year,
