@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { provideZonelessChangeDetection, signal, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,9 +8,18 @@ import { ToastService } from "../../../ui/toast/toast.service";
 import type { UserData } from "../data/profile.queries";
 import { UserCardComponent } from "./user-card.component";
 
-function makeUser(favouriteVehicles: UserData["favouriteVehicles"]): UserData {
+/** The signed-in Firebase user. On someone else's profile this is the viewer, not the owner. */
+const VIEWER = {
+  displayName: "Viewer Vee",
+  email: "viewer@example.com",
+  emailVerified: true,
+  phoneNumber: "+60123456789",
+  photoURL: "https://example.com/viewer.png",
+};
+
+function makeUser(favouriteVehicles: UserData["favouriteVehicles"], nickname = "Alice"): UserData {
   return {
-    nickname: "Alice",
+    nickname,
     spottingsCount: 3,
     mediaCount: 1,
     spottingTrends: [],
@@ -21,8 +30,9 @@ function makeUser(favouriteVehicles: UserData["favouriteVehicles"]): UserData {
   };
 }
 
-describe("UserCardComponent favourite train", () => {
+describe("UserCardComponent", () => {
   let fixture: ComponentFixture<UserCardComponent>;
+  let viewer: WritableSignal<typeof VIEWER | null>;
 
   beforeEach(async () => {
     // The card reads matchMedia in afterNextRender (and the sheet's CDK breakpoint observer listens
@@ -41,12 +51,16 @@ describe("UserCardComponent favourite train", () => {
       })),
     );
 
+    viewer = signal<typeof VIEWER | null>(null);
     await TestBed.configureTestingModule({
       imports: [UserCardComponent],
       providers: [
         provideZonelessChangeDetection(),
-        { provide: AuthService, useValue: { user: signal(null), idToken: vi.fn() } },
-        { provide: GraphQLClient, useValue: { request: vi.fn() } },
+        { provide: AuthService, useValue: { user: viewer, idToken: vi.fn() } },
+        {
+          provide: GraphQLClient,
+          useValue: { request: vi.fn().mockResolvedValue({ myVotesCast: 0 }) },
+        },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     }).compileComponents();
@@ -57,14 +71,25 @@ describe("UserCardComponent favourite train", () => {
     vi.unstubAllGlobals();
   });
 
-  async function render(favouriteVehicles: UserData["favouriteVehicles"]): Promise<string> {
+  async function render(
+    favouriteVehicles: UserData["favouriteVehicles"],
+    {
+      isOwnProfile = false,
+      nickname = "Alice",
+    }: { isOwnProfile?: boolean; nickname?: string } = {},
+  ): Promise<string> {
     fixture = TestBed.createComponent(UserCardComponent);
-    fixture.componentRef.setInput("user", makeUser(favouriteVehicles));
+    fixture.componentRef.setInput("user", makeUser(favouriteVehicles, nickname));
     // A non-owner view skips the votes-cast request, which is not under test here.
-    fixture.componentRef.setInput("isOwnProfile", false);
+    fixture.componentRef.setInput("isOwnProfile", isOwnProfile);
     fixture.detectChanges();
     await fixture.whenStable();
     return fixture.nativeElement.textContent ?? "";
+  }
+
+  /** The identity heading, the card's only h1. */
+  function heading(): string {
+    return fixture.nativeElement.querySelector("h1")?.textContent?.trim() ?? "";
   }
 
   it("shows the most-spotted train with its line codes", async () => {
@@ -89,5 +114,36 @@ describe("UserCardComponent favourite train", () => {
 
     expect(text).toContain("Total Spottings");
     expect(text).not.toContain("Favourite Train");
+  });
+
+  it("shows the owner's nickname, not the viewer's identity, on someone else's profile", async () => {
+    viewer.set(VIEWER);
+
+    const text = await render([]);
+
+    expect(heading()).toBe("Alice");
+    expect(text).not.toContain(VIEWER.displayName);
+    expect(text).not.toContain(VIEWER.email);
+    expect(text).not.toContain(VIEWER.phoneNumber);
+    expect(fixture.nativeElement.querySelector("img")).toBeNull();
+  });
+
+  it("falls back to 'Anonymous spotter' on someone else's profile with no nickname", async () => {
+    viewer.set(VIEWER);
+
+    await render([], { nickname: "" });
+
+    expect(heading()).toBe("Anonymous spotter");
+  });
+
+  it("shows the viewer's own name, photo, email and phone on their own profile", async () => {
+    viewer.set(VIEWER);
+
+    const text = await render([], { isOwnProfile: true });
+
+    expect(heading()).toBe(VIEWER.displayName);
+    expect(text).toContain(VIEWER.email);
+    expect(text).toContain(VIEWER.phoneNumber);
+    expect(fixture.nativeElement.querySelector("img")?.getAttribute("src")).toBe(VIEWER.photoURL);
   });
 });

@@ -51,20 +51,24 @@ import {
   template: `
     <div class="flex flex-col gap-6">
       <div class="flex items-center gap-4">
-        @if (auth.user()?.photoURL; as photo) {
-          <img [src]="photo" alt="" class="size-16 rounded-full" />
+        @if (isOwnProfile()) {
+          @if (auth.user()?.photoURL; as photo) {
+            <img [src]="photo" alt="" class="size-16 rounded-full" />
+          }
+          <div>
+            <h1 class="text-xl font-semibold">{{ auth.user()?.displayName || "Anonymous" }}</h1>
+            <p class="text-muted-foreground text-sm">
+              @if (auth.user()?.emailVerified && auth.user()?.email) {
+                {{ auth.user()?.email }}
+              }
+              @if (auth.user()?.phoneNumber) {
+                ({{ auth.user()?.phoneNumber }})
+              }
+            </p>
+          </div>
+        } @else {
+          <h1 class="text-xl font-semibold">{{ user().nickname || "Anonymous spotter" }}</h1>
         }
-        <div>
-          <h1 class="text-xl font-semibold">{{ auth.user()?.displayName || "Anonymous" }}</h1>
-          <p class="text-muted-foreground text-sm">
-            @if (auth.user()?.emailVerified && auth.user()?.email) {
-              {{ auth.user()?.email }}
-            }
-            @if (auth.user()?.phoneNumber) {
-              ({{ auth.user()?.phoneNumber }})
-            }
-          </p>
-        </div>
       </div>
 
       <div hlmCard class="max-w-sm">
