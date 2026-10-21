@@ -351,7 +351,7 @@ describe("GalleryPage deep link", () => {
       (req: TestRequest) => req.flush({ data: null, errors: [{ message: "boom" }] }),
     ],
   ])(
-    "keeps the link and renders the gallery without the viewer when the server hits %s",
+    "renders the gallery without the viewer and does not navigate when the server hits %s",
     async (_name, fail) => {
       const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
       const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
@@ -361,7 +361,9 @@ describe("GalleryPage deep link", () => {
       feedRequest().flush(feedOf([PHOTO]));
       await settle(fixture);
 
-      // Not "no such photo": no redirect to /gallery (the browser asks again on hydration).
+      // Not "no such photo": no redirect to /gallery. After a 5xx or timeout the browser asks
+      // again on hydration; a GraphQL errors answer is an HTTP 200 the transfer cache replays, so
+      // the browser then fails the same way.
       expect(navigate).not.toHaveBeenCalled();
       expect(toast).not.toHaveBeenCalled();
       expect(viewerOf(fixture)).toBeNull();

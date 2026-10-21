@@ -314,7 +314,9 @@ export class GalleryPage {
    * while the feed loads on its own. A photo the feed already holds (Back/Forward) opens without
    * a request. Only a missing photo (null) always falls back to /gallery. A failed request does
    * too in the browser, but on the server it keeps the link: the gallery renders without the
-   * viewer and the browser asks again on hydration. */
+   * viewer. The browser asks again on hydration only after a 5xx or timeout. A GraphQL `errors`
+   * answer is an HTTP 200 that the transfer cache replays, so the browser fails the same way (the
+   * GraphQLClient toast, then a fall back to /gallery). */
   private async openMediaById(id: string): Promise<void> {
     if (this.selectedMedia()?.id === id) {
       return;
