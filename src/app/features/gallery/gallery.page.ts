@@ -4,6 +4,7 @@ import {
   computed,
   DestroyRef,
   effect,
+  ErrorHandler,
   inject,
   Injector,
   input,
@@ -112,6 +113,7 @@ export class GalleryPage {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly errorHandler = inject(ErrorHandler);
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
 
@@ -314,8 +316,9 @@ export class GalleryPage {
    * while the feed loads on its own. A photo the feed already holds (Back/Forward) opens without
    * a request. Only a missing photo (null) always falls back to /gallery. A failed request does
    * too in the browser, but on the server it keeps the link: the gallery renders without the
-   * viewer. The browser asks again on hydration only after a 5xx or timeout. A GraphQL `errors`
-   * answer is an HTTP 200 that the transfer cache replays, so the browser fails the same way (the
+   * viewer and the failure goes to the ErrorHandler (GraphQLClient only reports in the browser).
+   * The browser asks again on hydration only after a 5xx or timeout. A GraphQL `errors` answer is
+   * an HTTP 200 that the transfer cache replays, so the browser fails the same way (the
    * GraphQLClient toast, then a fall back to /gallery). */
   private async openMediaById(id: string): Promise<void> {
     if (this.selectedMedia()?.id === id) {
@@ -345,6 +348,7 @@ export class GalleryPage {
       return;
     }
     if (failure && !this.isBrowser) {
+      this.errorHandler.handleError(failure.error);
       return;
     }
     // On the server nobody sees a toast (the redirect below answers the request) and it would only

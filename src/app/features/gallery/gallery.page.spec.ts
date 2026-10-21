@@ -4,7 +4,7 @@ import {
   provideHttpClientTesting,
   TestRequest,
 } from "@angular/common/http/testing";
-import { CUSTOM_ELEMENTS_SCHEMA, PLATFORM_ID } from "@angular/core";
+import { CUSTOM_ELEMENTS_SCHEMA, ErrorHandler, PLATFORM_ID } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { Meta, Title } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
@@ -245,6 +245,11 @@ function mediaByIdRequest() {
   );
 }
 
+/** The Sentry-backed handler in the app; a spy here so a reported error does not rethrow. */
+function spyErrorHandler() {
+  return vi.spyOn(TestBed.inject(ErrorHandler), "handleError").mockImplementation(() => {});
+}
+
 function feedRequest() {
   return TestBed.inject(HttpTestingController).expectOne((req) => req.body.query === MEDIAS_QUERY);
 }
@@ -301,6 +306,7 @@ describe("GalleryPage deep link", () => {
     const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
     const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
     const fixture = createPage("server", "gone");
+    const handleError = spyErrorHandler();
 
     mediaByIdRequest().flush({ data: { media: null } });
     feedRequest().flush({ data: NO_MEDIAS });
@@ -308,6 +314,7 @@ describe("GalleryPage deep link", () => {
 
     expect(navigate).toHaveBeenCalledWith(["/gallery"], { replaceUrl: true });
     expect(toast).not.toHaveBeenCalled();
+    expect(handleError).not.toHaveBeenCalled(); // a missing photo is not an error
   });
 
   it("falls back to /gallery with one toast when the backend answers with a GraphQL error", async () => {
@@ -355,11 +362,12 @@ describe("GalleryPage deep link", () => {
       (req: TestRequest) => req.flush({ data: null, errors: [{ message: "boom" }] }),
     ],
   ])(
-    "renders the gallery without the viewer and does not navigate when the server hits %s",
+    "renders the gallery without the viewer, reports the failure and does not navigate when the server hits %s",
     async (_name, fail) => {
       const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
       const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
       const fixture = createPage("server", "m1");
+      const handleError = spyErrorHandler();
 
       fail(mediaByIdRequest());
       feedRequest().flush(feedOf([PHOTO]));
@@ -367,7 +375,9 @@ describe("GalleryPage deep link", () => {
 
       // Not "no such photo": no redirect to /gallery. After a 5xx or timeout the browser asks
       // again on hydration; a GraphQL errors answer is an HTTP 200 the transfer cache replays, so
-      // the browser then fails the same way.
+      // the browser then fails the same way. GraphQLClient only reports in the browser, so the
+      // page must hand the server-side failure to the ErrorHandler itself.
+      expect(handleError).toHaveBeenCalledTimes(1);
       expect(navigate).not.toHaveBeenCalled();
       expect(toast).not.toHaveBeenCalled();
       expect(viewerOf(fixture)).toBeNull();
