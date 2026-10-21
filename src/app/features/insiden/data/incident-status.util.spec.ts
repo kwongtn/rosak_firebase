@@ -1,4 +1,4 @@
-import { isPendingIncidentStatus } from "./incident-status.util";
+import { isLiveIncidentStatus, isPendingIncidentStatus } from "./incident-status.util";
 
 describe("isPendingIncidentStatus", () => {
   it("returns true for the GraphQL enum casing", () => {
@@ -21,5 +21,24 @@ describe("isPendingIncidentStatus", () => {
   it("returns false when status is missing or blank (graceful fallback)", () => {
     expect(isPendingIncidentStatus(undefined)).toBe(false);
     expect(isPendingIncidentStatus("")).toBe(false);
+  });
+});
+
+describe("isLiveIncidentStatus", () => {
+  it("is true for live in either casing", () => {
+    expect(isLiveIncidentStatus("LIVE")).toBe(true);
+    expect(isLiveIncidentStatus("live")).toBe(true);
+  });
+
+  it("is false for every other lifecycle state", () => {
+    expect(isLiveIncidentStatus("DRAFT")).toBe(false);
+    expect(isLiveIncidentStatus("PENDING_APPROVAL")).toBe(false);
+    expect(isLiveIncidentStatus("rejected")).toBe(false);
+  });
+
+  it("is false when the status is missing, unlike isPendingIncidentStatus's graceful fallback", () => {
+    expect(isLiveIncidentStatus(undefined)).toBe(false);
+    expect(isLiveIncidentStatus(null)).toBe(false);
+    expect(isLiveIncidentStatus("")).toBe(false);
   });
 });

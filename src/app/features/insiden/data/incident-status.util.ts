@@ -9,3 +9,15 @@ export function isPendingIncidentStatus(status: string | undefined): boolean {
   const normalized = status?.toUpperCase();
   return normalized !== undefined && PENDING_STATUSES.has(normalized);
 }
+
+/**
+ * True only for an approved incident: `LIVE` in either casing.
+ *
+ * Deliberately NOT the complement of {@link isPendingIncidentStatus}. That helper degrades a missing
+ * status to "not pending" so a card still renders against an older backend; a COUNT that said
+ * "approved" about a row nobody approved (a draft, a rejected report, a payload with no status at
+ * all) would be a claim with no evidence behind it, so here a missing status is not live.
+ */
+export function isLiveIncidentStatus(status: string | null | undefined): boolean {
+  return status?.toUpperCase() === "LIVE";
+}

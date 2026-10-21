@@ -159,6 +159,14 @@ const REVIEWED_AT_OPERATOR_AND_TABLE = "2026-10-19";
 const REVIEWED_AT_FLEET_PROGRESS = "2026-10-21";
 
 /**
+ * Bumped when `/insiden` gained its "Last 12 months" chart (2026-10-22). It publishes ONE new rule
+ * to the `episodes` section: incidents are counted per month by their START month, approved (LIVE)
+ * ones only. A constant of its own for the reason every one above has one — sharing a date with an
+ * earlier review would let a later bump on either silently claim the other.
+ */
+const REVIEWED_AT_INCIDENT_HISTORY = "2026-10-22";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -190,7 +198,8 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     body: "What counts as one disruption episode is owned by INCIDENT_EPISODES.md; this section renders once that rule ships.",
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
-    lastReviewed: REVIEWED_AT_SHIP,
+    // Bumped for `/insiden`'s "Last 12 months" chart: the section now carries its first metric.
+    lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,
     inProgress: true,
   },
   {
@@ -621,5 +630,22 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
+  },
+  /* ---- `/insiden`'s "Last 12 months" chart. 🔴 The rule is "counted ONCE, in the month the incident
+     STARTED": a three-day outage is one bar in one month, not a bar in each month it touched. It is
+     what lets a month's bar reconcile with that month's CSV export (rows with status LIVE). The
+     section is `episodes` only because it is the one the incident route owns — these are incident
+     RECORDS, not the "episodes" INCIDENT_EPISODES.md will define. ---- */
+  {
+    id: "incidents.monthly-by-severity",
+    sectionId: "episodes",
+    title: "Incidents per month by severity",
+    definition:
+      "How many community-reported incidents started in each calendar month, split into Major and Minor severity, for the 12 months ending at the month selected on the calendar. An incident is counted once, in the month it started, however long it lasted: one that began on 30 June and ran into July is a June incident only. Only approved (live) incidents are counted — drafts, reports still waiting for approval and rejected ones are left out — and incidents of other severity are not drawn. A month with no bar had no approved incident start in it; that is the absence of a report, not proof that service was good.",
+    summary:
+      "Approved incidents counted once, in the month they started, split into Major and Minor. Drafts, pending and rejected reports are left out.",
+    ownerRoute: "/insiden",
+    sourceSpec: "INCIDENT_EPISODES.md",
+    lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,
   },
 ];
