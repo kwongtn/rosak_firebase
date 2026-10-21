@@ -1,6 +1,7 @@
 import { type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideZonelessChangeDetection } from "@angular/core";
+import { HttpErrorResponse } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -191,6 +192,25 @@ describe("IncidentFormComponent", () => {
     await expect(component.submit()).rejects.toThrow("backend down");
 
     expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(sheet.isOpen()).toBe(true);
+    expect(component.isSubmitting()).toBe(false);
+  });
+
+  it("toasts and rethrows when the create fails for a non-GraphQL reason (offline, 5xx)", async () => {
+    // Only a GraphQLRequestError is toasted (by GraphQLClient). A dropped tunnel or a 502 reaches
+    // the catch as an HttpErrorResponse and used to leave a re-enabled button and no message.
+    const outage = new HttpErrorResponse({ status: 502, statusText: "Bad Gateway" });
+    requestMock.mockRejectedValueOnce(outage);
+    sheet.open();
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    await expect(component.submit()).rejects.toBe(outage);
+
+    expect(toastMocks.error).toHaveBeenCalledExactlyOnceWith(
+      "Couldn't submit",
+      "Check your connection and try again.",
+    );
     expect(sheet.isOpen()).toBe(true);
     expect(component.isSubmitting()).toBe(false);
   });

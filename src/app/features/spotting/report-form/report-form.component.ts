@@ -5,6 +5,7 @@ import {
   GraphQLClient,
   GraphQLRequestError,
 } from "../../../core/graphql/graphql-client";
+import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
 import { SpottingType, VehicleStatus, WheelStatus } from "../../../core/graphql/types";
 import { AuthService } from "../../../core/auth/auth.service";
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
@@ -333,6 +334,7 @@ export class ReportFormComponent {
       if (err instanceof GraphQLRequestError) {
         return;
       }
+      toastSubmitFailure(this.toast);
       throw err;
     } finally {
       this.isSubmitting.set(false);

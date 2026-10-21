@@ -1,10 +1,11 @@
 import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular/core";
+import { HttpErrorResponse } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { ReportSheetService } from "../data/report-sheet.service";
@@ -182,6 +183,49 @@ describe("ReportFormComponent", () => {
     expect(model().lineId ?? "").toBe("");
     // The vehicle picker is gated on a selected line, so it goes away with it.
     expect(root.textContent).not.toContain("Vehicle");
+  });
+
+  describe("when the submit request fails", () => {
+    /** A valid, logged-in draft: line 4 and its vehicle v1 (out of service, so sanity-checked). */
+    async function readyToSubmit(): Promise<ComponentUnderTest & { submit(): Promise<void> }> {
+      (TestBed.inject(AuthService).isLoggedIn as unknown as WritableSignal<boolean>).set(true);
+      storeLines.set([SEEDED_LINE]);
+      sheet.openFor("4");
+      await settle();
+      const component = fixture.componentInstance as unknown as ComponentUnderTest & {
+        submit(): Promise<void>;
+      };
+      component.model.update((m) => ({ ...m, vehicleId: "v1", sanityTest: true }));
+      await settle();
+      return component;
+    }
+
+    it("toasts and rethrows when the failure is not a GraphQL error (offline, 5xx)", async () => {
+      // Only a GraphQLRequestError is toasted (by GraphQLClient). A dropped tunnel or a 502 reaches
+      // the catch as an HttpErrorResponse and used to leave a re-enabled button and no message.
+      const component = await readyToSubmit();
+      const outage = new HttpErrorResponse({ status: 502, statusText: "Bad Gateway" });
+      vi.mocked(TestBed.inject(GraphQLClient).request).mockRejectedValueOnce(outage);
+
+      await expect(component.submit()).rejects.toBe(outage);
+
+      expect(TestBed.inject(ToastService).error).toHaveBeenCalledExactlyOnceWith(
+        "Couldn't submit",
+        "Check your connection and try again.",
+      );
+    });
+
+    it("adds no toast of its own for a GraphQL error, which GraphQLClient already showed", async () => {
+      const component = await readyToSubmit();
+      vi.mocked(TestBed.inject(GraphQLClient).request).mockRejectedValueOnce(
+        new GraphQLRequestError([{ message: "Vehicle not found" }]),
+      );
+
+      await component.submit();
+
+      expect(TestBed.inject(GraphQLClient).request).toHaveBeenCalledTimes(1);
+      expect(TestBed.inject(ToastService).error).not.toHaveBeenCalled();
+    });
   });
 
   it("renders the station placeholder as a usable (non-disabled) option", async () => {

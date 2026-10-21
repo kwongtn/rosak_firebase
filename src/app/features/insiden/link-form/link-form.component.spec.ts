@@ -1,11 +1,12 @@
 import { type WritableSignal } from "@angular/core";
 import { provideZonelessChangeDetection } from "@angular/core";
+import { HttpErrorResponse } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { SUBMIT_SOCIAL_MEDIA_LINK_MUTATION } from "../data/insiden.queries";
 import { LinkSheetService } from "../data/link-sheet.service";
@@ -296,6 +297,38 @@ describe("LinkFormComponent", () => {
       "An admin will review the changes.",
     );
     expect(sheet.editTarget()).toBeNull();
+  });
+
+  it("toasts and rethrows when the submit fails for a non-GraphQL reason (offline, 5xx)", async () => {
+    // Only a GraphQLRequestError is toasted (by GraphQLClient). A dropped tunnel or a 502 reaches
+    // the catch as an HttpErrorResponse and used to leave a re-enabled button and no message.
+    const outage = new HttpErrorResponse({ status: 502, statusText: "Bad Gateway" });
+    requestMock.mockRejectedValueOnce(outage);
+    sheet.open();
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    await expect(component.submit()).rejects.toBe(outage);
+
+    expect(toastMocks.error).toHaveBeenCalledExactlyOnceWith(
+      "Couldn't submit",
+      "Check your connection and try again.",
+    );
+    expect(sheet.isOpen()).toBe(true);
+    expect(component.isSubmitting()).toBe(false);
+  });
+
+  it("adds no toast of its own for a GraphQL rejection, which GraphQLClient already showed", async () => {
+    requestMock.mockRejectedValueOnce(new GraphQLRequestError([{ message: "Duplicate link" }]));
+    sheet.open();
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    await component.submit();
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(toastMocks.error).not.toHaveBeenCalled();
+    expect(sheet.isOpen()).toBe(true);
   });
 
   it("resets the edit target on clear so a stale link cannot be re-saved", () => {

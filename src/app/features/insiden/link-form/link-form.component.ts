@@ -6,6 +6,7 @@ import {
   GraphQLClient,
   GraphQLRequestError,
 } from "../../../core/graphql/graphql-client";
+import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
 import { HlmButton } from "../../../ui/button/button";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
@@ -522,6 +523,7 @@ export class LinkFormComponent {
       if (err instanceof GraphQLRequestError) {
         return;
       }
+      toastSubmitFailure(this.toast);
       throw err;
     } finally {
       this.isSubmitting.set(false);

@@ -6,6 +6,7 @@ import {
   GraphQLClient,
   GraphQLRequestError,
 } from "../../../core/graphql/graphql-client";
+import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
 import {
   AssetMultiSelectComponent,
   type AssetMultiSelectOption,
@@ -686,6 +687,7 @@ export class IncidentFormComponent {
         this.toast.error("Couldn't save changes", err.message);
         return;
       }
+      toastSubmitFailure(this.toast);
       throw err;
     } finally {
       this.isSubmitting.set(false);
