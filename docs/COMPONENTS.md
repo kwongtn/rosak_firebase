@@ -60,8 +60,9 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   fails the build if first-load code names replay or feedback.
 - `core/upload/`: `ImageUploadService.triggerUpload` is the only place an image leaves the device.
   Right before the `FormData` is built, `withoutGps()` runs `stripGps` (lossless Exif GPS removal for
-  JPEG, TIFF and PNG) once per queued file. `PhotoPickerComponent` accepts JPEG, PNG, GIF and TIFF by
-  type and by magic bytes.
+  JPEG, TIFF and PNG) once per queued file. `PhotoPickerComponent` accepts every image (`image/*` or an
+  empty type); formats `stripGps` cannot clean (HEIC, WebP, AVIF, ...) upload as they are, GPS
+  included, by the owner's choice.
 - `core/time/kl-date.ts`: `klDateKey(now?)`, the Asia/Kuala_Lumpur `YYYY-MM-DD` (fixed UTC+8, the
   same in every zone), is the one "today" for `/insiden`, its calendar and the link list.
 - `core/version/`: `NewVersionService` prompts for a reload on a failed same-origin chunk only.
