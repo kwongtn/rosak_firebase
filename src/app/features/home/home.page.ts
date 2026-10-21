@@ -69,12 +69,12 @@ type FeedTab = (typeof FEED_TABS)[number];
  * store beat plus Report, Spot a train and Live map, which is what keeps every intent reachable on a phone.
  *
  * Route-scoped: HomeStore and LineStatusSheetService are provided by the `""` route in
- * app.routes.ts. The router retains that route injector while the page component is recreated on
- * every visit, so the STORE outlives a visit: the constructor calls `start()` (resuming a paused
- * beat and revalidating on re-entry) and `ngOnDestroy` calls `stop()` (the beat must not keep
- * polling while the reader is elsewhere). Data fetching, loading/empty states, the vote overlay,
- * the board's line partition and the refresh countdown's confirmation all live in the store and the
- * control; this page only composes.
+ * home.routes.ts (lazy). The router retains that route injector while the page component is
+ * recreated on every visit, so the STORE outlives a visit: the constructor calls `start()`
+ * (resuming a paused beat and revalidating on re-entry) and `ngOnDestroy` calls `stop()` (the beat
+ * must not keep polling while the reader is elsewhere). Data fetching, loading/empty states, the
+ * vote overlay, the board's line partition and the refresh countdown's confirmation all live in the
+ * store and the control; this page only composes.
  *
  * Every feed row renders through `app-link-thread` — the collapsible conversation wrapper — not
  * `app-link-card` directly, in BOTH the today feed and the Last Week day groups (the two

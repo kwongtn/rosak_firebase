@@ -1,26 +1,17 @@
 import { Routes } from "@angular/router";
 import { pathWithOptionalParamMatcher } from "./core/routing/optional-param-matcher";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
-import { HomeStore } from "./features/home/data/home.store";
-import { HomeViewModeService } from "./features/home/data/home-view-mode.service";
-import { LineStatusSheetService } from "./features/home/data/line-status-sheet.service";
 
 export const routes: Routes = [
   {
-    // Route-scoped providers, not root singletons: the polling beat and the status sheet's
-    // state are created with the page and paused with it (HomePage calls stop()). The route's
-    // injector outlives the recreated page component, so HomeStore.start() resumes the beat and
-    // revalidates on re-entry rather than assuming a fresh store.
-    // The shared line list used by the report form now comes from the root-provided
-    // SpottingLinesStore.
-    //
-    // HomeViewModeService is route-scoped for the same reason, and for one more: it reads
-    // ActivatedRoute, and ONE answer to "which view is this page in" has to be shared by the page
-    // (which picks between two entirely different layouts) and the board (which owns the toggle).
+    // The front page and its route-scoped providers (HomeStore & co., see home.routes.ts) load
+    // lazily, so none of it is in the initial bundle. `pathMatch: "full"` is mandatory: an
+    // empty path is a prefix of every URL, so without it the router would fetch this chunk on
+    // every first navigation (/tracker, /spotting, ...) just to look for a matching child.
     path: "",
+    pathMatch: "full",
     title: "MLPTF | Live Network Board",
-    loadComponent: () => import("./features/home/home.page").then((m) => m.HomePage),
-    providers: [HomeStore, HomeViewModeService, LineStatusSheetService],
+    loadChildren: () => import("./features/home/home.routes").then((m) => m.HOME_ROUTES),
   },
   {
     path: "spotting",
