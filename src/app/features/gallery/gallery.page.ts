@@ -197,6 +197,12 @@ export class GalleryPage {
   /** A boolean, not the neighbour: the effect that fetches the next page reads this, and must not
    * run again for a page that failed or came back empty (see the constructor). */
   private readonly _atFeedEnd = computed(() => this._openIndex() >= 0 && !this.nextMedia());
+  /** The open photo's own route, built by the router so it is the very path the address bar shows.
+   * Identical on the server and in the browser, so the viewer's Share button hydrates. */
+  protected readonly sharePath = computed(() => {
+    const id = this.selectedMedia()?.id;
+    return id ? this.router.serializeUrl(this.router.createUrlTree(["/gallery", id])) : null;
+  });
 
   constructor() {
     this.loadMore();

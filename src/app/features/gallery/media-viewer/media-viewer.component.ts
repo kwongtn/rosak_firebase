@@ -1,7 +1,8 @@
 import { CdkTrapFocus } from "@angular/cdk/a11y";
 import { DatePipe } from "@angular/common";
-import { Component, OnDestroy, computed, input, output } from "@angular/core";
+import { Component, ErrorHandler, OnDestroy, computed, inject, input, output } from "@angular/core";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
+import { ToastService } from "../../../ui/toast/toast.service";
 import { MediaNode } from "../data/gallery.queries";
 import { mediaLabel } from "../data/media-label.util";
 
@@ -24,7 +25,7 @@ const SWIPE_MIN_PX = 50;
  * either end, or when it has no list, as the incident card does) and moves on when `navigate`
  * emits one of them. ArrowLeft / ArrowRight, a touch swipe and the two buttons all end there. The
  * buttons stay in the DOM, `aria-disabled`, at either end: a disabled button that has focus
- * drops it, and that would let focus out of the trap.
+ * drops it, and that would let focus out of the trap. A `sharePath` adds a Share button.
  */
 @Component({
   selector: "app-media-viewer",
@@ -42,9 +43,37 @@ const SWIPE_MIN_PX = 50;
   },
   template: `
     <div cdkTrapFocus [cdkTrapFocusAutoCapture]="true" class="flex min-h-0 flex-1 flex-col">
-      <div class="flex items-center justify-end p-3">
+      <div class="flex items-center justify-end gap-1 p-3">
+        @if (sharePath()) {
+          <!-- stopPropagation: the host closes the viewer on any click that reaches it. -->
+          <button
+            type="button"
+            class="text-white/80 hover:text-white inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            data-testid="media-viewer-share"
+            (click)="$event.stopPropagation(); share()"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              class="size-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+            </svg>
+            Share
+          </button>
+        }
+        <!-- cdkFocusInitial: focus lands here on open, ahead of Share, which comes first in the DOM. -->
         <button
           type="button"
+          cdkFocusInitial
           class="text-white/80 hover:text-white inline-flex size-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           aria-label="Close"
           (click)="close.emit()"
@@ -150,11 +179,16 @@ export class MediaViewerComponent implements OnDestroy {
   /** The photos either side of `media` in the host's list; null at an end, or with no list. */
   readonly prev = input<MediaNode | null>(null);
   readonly next = input<MediaNode | null>(null);
+  /** The router path of this photo's own page (`/gallery/:mediaId`). Set, it adds a Share button.
+   * A path, not a URL: the server renders the button too, and only the browser knows the origin. */
+  readonly sharePath = input<string | null>(null);
   readonly close = output<void>();
   /** The photo the visitor asked for: always the current `prev` or `next`. */
   readonly navigate = output<MediaNode>();
 
   private readonly isBrowser = injectIsBrowser();
+  private readonly toast = inject(ToastService);
+  private readonly errorHandler = inject(ErrorHandler);
   protected readonly label = computed(() => mediaLabel(this.media()));
   private swipeStart: { x: number; y: number } | null = null;
 
@@ -201,6 +235,37 @@ export class MediaViewerComponent implements OnDestroy {
 
   protected onPointerCancel(): void {
     this.swipeStart = null;
+  }
+
+  /** The system share sheet where the browser has one, else the link goes to the clipboard. Runs
+   * from a click, so `navigator.share` is called inside the user gesture it requires. */
+  protected async share(): Promise<void> {
+    const path = this.sharePath();
+    if (!this.isBrowser || !path) {
+      return;
+    }
+    const url = `${window.location.origin}${path}`;
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ url, title: this.label() });
+        return;
+      } catch (error) {
+        // Closing the share sheet rejects with AbortError: the visitor changed their mind.
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        // Anything else (blocked, refused data) is a real failure: report it, and still hand the
+        // visitor the link by copying it.
+        this.errorHandler.handleError(error);
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      this.toast.success("Link copied", "The link to this photo is on your clipboard.");
+    } catch {
+      // No clipboard (an insecure page) or permission refused: tell the visitor, the link is not on it.
+      this.toast.error("Couldn't copy link");
+    }
   }
 
   ngOnDestroy(): void {

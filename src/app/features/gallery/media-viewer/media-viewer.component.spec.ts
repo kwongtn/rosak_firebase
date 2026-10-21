@@ -1,6 +1,7 @@
-import { Component, signal } from "@angular/core";
+import { Component, ErrorHandler, PLATFORM_ID, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastService } from "../../../ui/toast/toast.service";
 import { MediaNode } from "../data/gallery.queries";
 import { JustifiedGridComponent } from "../justified-grid/justified-grid.component";
 import { MediaViewerComponent } from "./media-viewer.component";
@@ -25,7 +26,14 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   document.body.style.overflow = "";
+  // jsdom has neither; a test that wants one defines it (see stubNavigator).
+  Reflect.deleteProperty(navigator, "share");
+  Reflect.deleteProperty(navigator, "clipboard");
 });
+
+function stubNavigator(name: "share" | "clipboard", value: unknown): void {
+  Object.defineProperty(navigator, name, { configurable: true, value });
+}
 
 describe("MediaViewerComponent", () => {
   let fixture: ComponentFixture<MediaViewerComponent>;
@@ -406,5 +414,199 @@ describe("MediaViewerComponent navigation", () => {
       expect(classes.contains("touch-pan-y")).toBe(true);
       expect(classes.contains("touch-pinch-zoom")).toBe(true);
     });
+  });
+
+  describe("focus trap", () => {
+    it("still opens on the Close button when Share and the arrows come with it", async () => {
+      fixture = TestBed.createComponent(MediaViewerComponent);
+      fixture.componentRef.setInput("media", b);
+      fixture.componentRef.setInput("prev", a);
+      fixture.componentRef.setInput("next", c);
+      fixture.componentRef.setInput("sharePath", "/gallery/b");
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const viewer = fixture.nativeElement as HTMLElement;
+
+      expect(control(viewer, "share")).not.toBeNull();
+      expect(document.activeElement).toBe(viewer.querySelector('button[aria-label="Close"]'));
+    });
+
+    it("keeps Tab inside across the added buttons: Share is first, Next last", async () => {
+      fixture = TestBed.createComponent(MediaViewerComponent);
+      fixture.componentRef.setInput("media", b);
+      fixture.componentRef.setInput("prev", a);
+      fixture.componentRef.setInput("next", c);
+      fixture.componentRef.setInput("sharePath", "/gallery/b");
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const viewer = fixture.nativeElement as HTMLElement;
+      const [start, end] = Array.from(
+        viewer.querySelectorAll<HTMLElement>(".cdk-focus-trap-anchor"),
+      );
+      const outside = document.createElement("button");
+      document.body.appendChild(outside);
+
+      // Shift+Tab off the first button, then Tab off the last one.
+      outside.focus();
+      start.focus();
+      expect(document.activeElement).toBe(control(viewer, "next"));
+      outside.focus();
+      end.focus();
+      expect(document.activeElement).toBe(control(viewer, "share"));
+      outside.remove();
+    });
+  });
+});
+
+describe("MediaViewerComponent sharing", () => {
+  const SHARED_URL = `${window.location.origin}/gallery/a`;
+  let fixture: ComponentFixture<MediaViewerComponent>;
+
+  async function openShareable(
+    platform: "browser" | "server" = "browser",
+    sharePath: string | null = "/gallery/a",
+  ): Promise<HTMLElement> {
+    TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: platform }] });
+    fixture = TestBed.createComponent(MediaViewerComponent);
+    fixture.componentRef.setInput("media", photo("a"));
+    fixture.componentRef.setInput("sharePath", sharePath);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  /** Clicks Share and lets the async handler run to its end. */
+  async function clickShare(viewer: HTMLElement): Promise<void> {
+    viewer.querySelector<HTMLButtonElement>('[data-testid="media-viewer-share"]')!.click();
+    await new Promise((resolve) => setTimeout(resolve));
+  }
+
+  function spies() {
+    return {
+      success: vi.spyOn(ToastService.prototype, "success").mockImplementation(() => {}),
+      error: vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {}),
+      handleError: vi
+        .spyOn(TestBed.inject(ErrorHandler), "handleError")
+        .mockImplementation(() => {}),
+    };
+  }
+
+  it("has no Share button unless it is given a path to share", async () => {
+    const viewer = await openShareable("browser", null);
+
+    expect(viewer.querySelector('[data-testid="media-viewer-share"]')).toBeNull();
+  });
+
+  it("renders the Share button on the server too, so hydration finds the same DOM", async () => {
+    const viewer = await openShareable("server");
+
+    expect(viewer.querySelector('[data-testid="media-viewer-share"]')?.textContent).toContain(
+      "Share",
+    );
+  });
+
+  it("gives the link and the photo's name to the system share sheet when the browser has one", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn();
+    stubNavigator("share", share);
+    stubNavigator("clipboard", { writeText });
+    const viewer = await openShareable();
+    const toast = spies();
+    let closed = 0;
+    fixture.componentInstance.close.subscribe(() => closed++);
+
+    await clickShare(viewer);
+
+    expect(share).toHaveBeenCalledExactlyOnceWith({
+      url: SHARED_URL,
+      title: "Photo by spotter123, 12 May 2024",
+    });
+    expect(writeText).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    // The host closes the viewer on any click that reaches it, and Share is not a way out.
+    expect(closed).toBe(0);
+  });
+
+  it("says nothing when the visitor dismisses the share sheet", async () => {
+    stubNavigator(
+      "share",
+      vi.fn().mockRejectedValue(new DOMException("Share canceled", "AbortError")),
+    );
+    const writeText = vi.fn();
+    stubNavigator("clipboard", { writeText });
+    const viewer = await openShareable();
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.handleError).not.toHaveBeenCalled();
+  });
+
+  it("reports any other share failure and still copies the link", async () => {
+    const failure = new DOMException("Not allowed", "NotAllowedError");
+    stubNavigator("share", vi.fn().mockRejectedValue(failure));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubNavigator("clipboard", { writeText });
+    const viewer = await openShareable();
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(toast.handleError).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(SHARED_URL);
+    expect(toast.success).toHaveBeenCalledWith("Link copied", expect.any(String));
+  });
+
+  it("copies the link and says so when the browser has no share sheet", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubNavigator("clipboard", { writeText });
+    const viewer = await openShareable();
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(SHARED_URL);
+    expect(toast.success).toHaveBeenCalledExactlyOnceWith("Link copied", expect.any(String));
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.handleError).not.toHaveBeenCalled();
+  });
+
+  it("tells the visitor the link was not copied when the clipboard refuses it", async () => {
+    stubNavigator("clipboard", {
+      writeText: vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError")),
+    });
+    const viewer = await openShareable();
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith("Couldn't copy link");
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("tells the visitor too when the page has no clipboard at all (not a secure context)", async () => {
+    const viewer = await openShareable();
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith("Couldn't copy link");
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on the server", async () => {
+    const share = vi.fn();
+    stubNavigator("share", share);
+    const viewer = await openShareable("server");
+    const toast = spies();
+
+    await clickShare(viewer);
+
+    expect(share).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

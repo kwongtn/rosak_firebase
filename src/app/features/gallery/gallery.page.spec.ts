@@ -515,6 +515,10 @@ describe("GalleryPage photo viewer navigation", () => {
   const P2 = photoOf("p2", "bravo");
   const P3 = photoOf("p3", "charlie");
 
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "share");
+  });
+
   function control(fixture: ComponentFixture<GalleryPage>, name: string): HTMLButtonElement {
     return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       `[data-testid="media-viewer-${name}"]`,
@@ -749,6 +753,55 @@ describe("GalleryPage photo viewer navigation", () => {
       noFeedRequest();
       expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
     });
+  });
+
+  describe("sharing", () => {
+    it("shares the open photo's own page, and follows the viewer as it steps", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const share = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "share", { configurable: true, value: share });
+      const fixture = await openFromFeed([P1, P2, P3], "p2");
+
+      control(fixture, "share").click();
+      await click(fixture, "next");
+      control(fixture, "share").click();
+
+      expect(share.mock.calls).toEqual([
+        [{ url: `${window.location.origin}/gallery/p2`, title: "Photo by bravo, 12 May 2024" }],
+        [{ url: `${window.location.origin}/gallery/p3`, title: "Photo by charlie, 12 May 2024" }],
+      ]);
+    });
+
+    it("escapes an id the way the address bar does, so the link opens the same photo", async () => {
+      const share = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "share", { configurable: true, value: share });
+      const relayId = "TWVkaWE6MQ==/+";
+      const fixture = await openFromFeed([photoOf(relayId, "alpha")], relayId);
+
+      control(fixture, "share").click();
+
+      const { url } = share.mock.calls[0][0] as { url: string };
+      expect(new URL(url).origin).toBe(window.location.origin);
+      const segments = new URL(url).pathname.split("/");
+      expect(segments.slice(0, 2)).toEqual(["", "gallery"]);
+      expect(segments).toHaveLength(3);
+      expect(decodeURIComponent(segments[2])).toBe(relayId);
+    });
+
+    it.each(["server", "browser"] as const)(
+      "has the Share button in the viewer a shared link opens on the %s",
+      async (platform) => {
+        const fixture = createPage(platform, "p1");
+        if (platform === "browser") {
+          answerYearCounts();
+        }
+        mediaByIdRequest().flush({ data: { media: P1 } });
+        feedRequest().flush({ data: NO_MEDIAS });
+        await settle(fixture);
+
+        expect(control(fixture, "share")).not.toBeNull();
+      },
+    );
   });
 });
 
