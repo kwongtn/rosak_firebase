@@ -71,6 +71,8 @@ const MAX_JUMP_PAGES = 100;
  * site-wide share image from src/index.html, which an open photo overrides. */
 const DEFAULT_TITLE = "MLPTF | Gallery";
 const DEFAULT_SHARE_IMAGE = "https://community.mlptf.org.my/share-card.png";
+const DEFAULT_IMAGE_ALT =
+  "MLPTF: community-run Malaysian public transport spotting, tracking and incident log.";
 
 interface YearGroup {
   year: number;
@@ -203,7 +205,6 @@ export class GalleryPage {
       property: "og:description",
       content: `${label}. A community spotting photo on the MLPTF gallery.`,
     });
-    this.meta.updateTag({ name: "twitter:card", content: "summary_large_image" });
     // A photo without a file keeps the site-wide share image.
     if (media.file) {
       this.meta.updateTag({
@@ -214,13 +215,14 @@ export class GalleryPage {
     }
   }
 
-  /** index.html carries no og:title, og:description or og:image:alt, so closing removes them. */
+  /** index.html carries og:image and og:image:alt but no og:title or og:description, so closing
+   * puts the first two back and removes the last two. */
   private restoreDefaultMeta(): void {
     this.title.setTitle(DEFAULT_TITLE);
     this.meta.updateTag({ property: "og:image", content: DEFAULT_SHARE_IMAGE });
     this.meta.removeTag('property="og:title"');
     this.meta.removeTag('property="og:description"');
-    this.meta.removeTag('property="og:image:alt"');
+    this.meta.updateTag({ property: "og:image:alt", content: DEFAULT_IMAGE_ALT });
   }
 
   protected onOpenMedia(media: MediaNode): void {

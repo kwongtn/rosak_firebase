@@ -22,6 +22,19 @@ import {
 } from "./data/gallery.queries";
 import { GalleryPage } from "./gallery.page";
 
+/** The site-wide share tags src/index.html carries, which an open photo overrides and closing the
+ * viewer must put back. There is deliberately no og:title or og:description. */
+const DEFAULT_IMAGE = "https://community.mlptf.org.my/share-card.png";
+const DEFAULT_IMAGE_ALT =
+  "MLPTF: community-run Malaysian public transport spotting, tracking and incident log.";
+const INDEX_HTML_TAGS: Record<string, string>[] = [
+  { property: "og:site_name", content: "MLPTF" },
+  { property: "og:type", content: "website" },
+  { property: "og:image", content: DEFAULT_IMAGE },
+  { property: "og:image:alt", content: DEFAULT_IMAGE_ALT },
+  { name: "twitter:card", content: "summary_large_image" },
+];
+
 const NO_MEDIAS: MediasFeedQueryData = {
   medias: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null }, edges: [] },
 };
@@ -54,11 +67,19 @@ function create(platform: "browser" | "server"): ComponentFixture<GalleryPage> {
 
 beforeEach(() => {
   // The head is shared by every test in the file; a photo's share tags must not leak into the next.
+  // Start each test from what index.html serves, so a tag the page wrongly deletes shows up.
   document.head
     .querySelectorAll('meta[property^="og:"], meta[name="twitter:card"]')
     .forEach((tag) => {
       tag.remove();
     });
+  for (const attrs of INDEX_HTML_TAGS) {
+    const tag = document.createElement("meta");
+    for (const [name, value] of Object.entries(attrs)) {
+      tag.setAttribute(name, value);
+    }
+    document.head.appendChild(tag);
+  }
   document.title = "";
 });
 
@@ -355,8 +376,6 @@ describe("GalleryPage deep link", () => {
 });
 
 describe("GalleryPage share metadata", () => {
-  const DEFAULT_IMAGE = "https://community.mlptf.org.my/share-card.png";
-
   function tag(selector: string): string | undefined {
     return TestBed.inject(Meta).getTag(selector)?.content;
   }
@@ -403,7 +422,7 @@ describe("GalleryPage share metadata", () => {
     expect(tag('name="twitter:card"')).toBe("summary_large_image");
     expect(tag('property="og:title"')).toBeUndefined();
     expect(tag('property="og:description"')).toBeUndefined();
-    expect(tag('property="og:image:alt"')).toBeUndefined();
+    expect(tag('property="og:image:alt"')).toBe(DEFAULT_IMAGE_ALT);
   });
 
   it("puts the defaults back when the page is left with the viewer open", async () => {
@@ -413,7 +432,9 @@ describe("GalleryPage share metadata", () => {
 
     expect(TestBed.inject(Title).getTitle()).toBe("MLPTF | Gallery");
     expect(tag('property="og:image"')).toBe(DEFAULT_IMAGE);
+    expect(tag('property="og:image:alt"')).toBe(DEFAULT_IMAGE_ALT);
     expect(tag('property="og:title"')).toBeUndefined();
+    expect(tag('property="og:description"')).toBeUndefined();
   });
 
   it("switches the tags to the next photo", async () => {
@@ -433,8 +454,8 @@ describe("GalleryPage share metadata", () => {
     await openPhoto("server", { ...PHOTO, file: null });
 
     expect(tag('property="og:title"')).toBe("MLPTF | Photo by spotter123, 12 May 2024");
-    expect(tag('property="og:image"')).toBeUndefined();
-    expect(tag('property="og:image:alt"')).toBeUndefined();
+    expect(tag('property="og:image"')).toBe(DEFAULT_IMAGE);
+    expect(tag('property="og:image:alt"')).toBe(DEFAULT_IMAGE_ALT);
   });
 });
 
