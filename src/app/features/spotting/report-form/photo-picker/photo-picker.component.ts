@@ -4,6 +4,8 @@ import { ImageCompressionService } from "../../../../core/upload/image-compressi
 import { ImageFile } from "../../../../core/upload/image-file";
 
 const MAX_BYTES = 9e6;
+// Only formats stripGps cleans before upload (GIF has no Exif). HEIC and WebP are not stripped on
+// the client or the server, so do not add them here without extending stripGps first.
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/tiff"];
 
 /** Attach-photos widget for the report form, ported from @ui/spotting/form-upload. */

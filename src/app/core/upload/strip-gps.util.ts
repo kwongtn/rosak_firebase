@@ -9,14 +9,17 @@ const TYPE_IFD = 13;
  * UNDEFINED, SSHORT, SLONG, SRATIONAL, FLOAT, DOUBLE, IFD); index 0 is not a type. */
 const TYPE_SIZE = [0, 1, 1, 2, 4, 8, 1, 1, 2, 4, 8, 4, 8, 4];
 const XMP_SIGNATURE = "http://ns.adobe.com/xap/1.0/\0";
+const PNG_SIGNATURE = "\x89PNG\r\n\x1a\n";
 const DROPPED = new Uint8Array(0);
 
 /**
- * Lossless GPS removal for JPEG bytes (audit F044, client half): a photo must not carry the place
- * it was taken when it leaves the device. Nothing is re-encoded and only the segments that hold a
- * location change. The capture time (DateTime, DateTimeOriginal) and the camera Make/Model stay on
- * purpose: the backend sets incident-photo timestamps from the first and moderators read the second.
+ * Lossless GPS removal for JPEG, TIFF and PNG bytes (audit F044, client half): a photo must not
+ * carry the place it was taken when it leaves the device. Nothing is re-encoded and only the
+ * parts that hold a location change. The capture time (DateTime, DateTimeOriginal) and the camera
+ * Make/Model stay on purpose: the backend sets incident-photo timestamps from the first and
+ * moderators read the second.
  *
+ * JPEG:
  * - Exif APP1: the GPSInfo entry (0x8825) is removed from IFD0, the entries after it shift up and
  *   the next-IFD pointer follows the new last entry. The GPS IFD and every out-of-line value it
  *   points to (the RATIONAL latitude and longitude) are zero-filled. The Exif IFD, the IFD1
@@ -24,22 +27,42 @@ const DROPPED = new Uint8Array(0);
  * - XMP APP1 with any GPS property (exif:GPSLatitude, exif:GPSLongitude, ...): dropped entirely.
  *   Simple and safe; the backend only reads Exif, so nothing it needs lives in XMP.
  * - Every other segment, and everything from SOS on, stays byte for byte.
- * - Input that is not a JPEG, or has no GPS, comes back unchanged (the very same Uint8Array when
- *   one was passed in, so callers can test `result === input`). PNG, WebP, HEIC, GIF and TIFF are
- *   left as they are on purpose: the server strips those.
- * - Never throws. An Exif segment that cannot be parsed safely (bad header, an offset or length
- *   outside the segment, an unknown field type) is dropped entirely: privacy beats the timestamp.
+ * - An Exif segment that cannot be parsed safely (bad header, an offset or length outside the
+ *   segment, an unknown field type) is dropped entirely: privacy beats the timestamp.
+ *
+ * TIFF (starts "II*\0" or "MM\0*"): the whole file is one TIFF block, so the same Exif routine runs
+ * over all of it, offsets counted from byte 0. There is no segment to drop, so a TIFF it cannot
+ * parse safely gets its IFD0 pointer zeroed: no reader finds a directory and the file stops opening.
+ *
+ * PNG: an eXIf chunk whose TIFF block has a GPSInfo entry, is cut off or cannot be parsed safely is
+ * dropped whole, capture time included. Every other chunk stays byte for byte, so their CRCs stay valid.
+ *
+ * Anything else, and any file with no GPS to remove, comes back unchanged (the very same Uint8Array
+ * when one was passed in, so callers can test `result === input`). The server strips JPEG only too
+ * (rosak_backend common/exif.py), so this is the only control for TIFF and PNG. GIF has no Exif
+ * block. WebP and HEIC are not handled anywhere: the photo picker does not accept them
+ * (ACCEPTED_TYPES), keep it that way until this function handles them first.
+ *
+ * Never throws.
  *
  * shortcut: ExtendedXMP chunks and anything appended after EOI (MPF secondary images, a
- * motion-photo video) are not inspected, upgrade if a camera is ever seen putting GPS there.
+ * motion-photo video) in a JPEG, a TIFF's later pages, SubIFDs and XMP/IPTC tags, a PNG's XMP iTXt
+ * and "Raw profile type exif" text chunks, a GIF's XMP extension and BigTIFF are not inspected,
+ * upgrade if a camera or editor is ever seen putting GPS there.
  */
 export function stripGps(input: Uint8Array<ArrayBuffer> | ArrayBuffer): Uint8Array<ArrayBuffer> {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  if (startsWith(bytes, "II*\0") || startsWith(bytes, "MM\0*")) {
+    return stripTiffFile(bytes);
+  }
+  if (startsWith(bytes, PNG_SIGNATURE)) {
+    return stripPng(bytes);
+  }
   if (bytes[0] !== 0xff || bytes[1] !== 0xd8) {
     return bytes;
   }
 
-  const edits: { start: number; end: number; replacement: Uint8Array<ArrayBuffer> }[] = [];
+  const edits: Edit[] = [];
   let pos = 2;
   while (pos + 1 < bytes.length) {
     if (bytes[pos] !== 0xff) {
@@ -73,6 +96,17 @@ export function stripGps(input: Uint8Array<ArrayBuffer> | ArrayBuffer): Uint8Arr
     pos = end;
   }
 
+  return applyEdits(bytes, edits);
+}
+
+interface Edit {
+  start: number;
+  end: number;
+  replacement: Uint8Array<ArrayBuffer>;
+}
+
+/** `bytes` with each edit's range swapped for its replacement; `bytes` itself when there are none. */
+function applyEdits(bytes: Uint8Array<ArrayBuffer>, edits: Edit[]): Uint8Array<ArrayBuffer> {
   if (edits.length === 0) {
     return bytes;
   }
@@ -90,6 +124,38 @@ export function stripGps(input: Uint8Array<ArrayBuffer> | ArrayBuffer): Uint8Arr
     at += part.length;
   }
   return out;
+}
+
+/** A TIFF file is one TIFF block; see the stripGps doc for the fail-closed choice. */
+function stripTiffFile(bytes: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
+  const copy = bytes.slice();
+  const result = stripTiffGps(copy);
+  if (result === "unchanged") {
+    return bytes;
+  }
+  if (result === "unsafe") {
+    copy.fill(0, 4, 8); // the IFD0 pointer
+  }
+  return copy;
+}
+
+/** Drops each eXIf chunk that has GPS, is cut off or cannot be parsed safely; see the stripGps doc. */
+function stripPng(bytes: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+  const edits: Edit[] = [];
+  // A chunk is length (4), type (4), data, CRC (4).
+  let pos = PNG_SIGNATURE.length;
+  while (pos + 12 <= bytes.length) {
+    const end = pos + 12 + view.getUint32(pos);
+    if (
+      startsWith(bytes.subarray(pos + 4, pos + 8), "eXIf") &&
+      (end > bytes.length || stripTiffGps(bytes.slice(pos + 8, end - 4)) !== "unchanged")
+    ) {
+      edits.push({ start: pos, end: Math.min(end, bytes.length), replacement: DROPPED });
+    }
+    pos = end;
+  }
+  return applyEdits(bytes, edits);
 }
 
 type TiffResult = "unchanged" | "stripped" | "unsafe";

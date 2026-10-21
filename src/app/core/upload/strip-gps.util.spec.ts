@@ -57,12 +57,12 @@ interface Fixture {
 }
 
 /**
- * Hand-built JPEG: SOI, JFIF APP0, an Exif APP1 and a tiny scan. IFD0 holds Make, Orientation,
- * DateTime, the Exif IFD pointer (DateTimeOriginal), GPSInfo and one entry after it so the shift
- * is exercised; the GPS IFD holds both refs and the two 3-RATIONAL coordinates; IFD1 carries a
- * thumbnail so the relocated next-IFD pointer has something to find.
+ * Hand-built TIFF block (the payload of a JPEG Exif APP1, a PNG eXIf chunk, or a whole TIFF file).
+ * IFD0 holds Make, Orientation, DateTime, the Exif IFD pointer (DateTimeOriginal), GPSInfo and one
+ * entry after it so the shift is exercised; the GPS IFD holds both refs and the two 3-RATIONAL
+ * coordinates; IFD1 carries a thumbnail so the relocated next-IFD pointer has something to find.
  */
-function buildJpeg(little: boolean): Fixture {
+function buildTiff(little: boolean): { tiff: number[]; at: Fixture["at"] } {
   const u16 = (value: number) => (little ? be16(value).reverse() : be16(value));
   const u32 = (value: number) => {
     const bytes = [value >>> 24, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff];
@@ -132,15 +132,8 @@ function buildJpeg(little: boolean): Fixture {
   // Guards the offsets above: a slip here would make every assertion below meaningless.
   expect(tiff.length).toBe(thumbnail + THUMBNAIL.length);
 
-  const app0Start = 2;
-  const app1Start = app0Start + JFIF.length;
-  const app1 = segment(0xe1, [...ascii("Exif\0\0"), ...tiff]);
   return {
-    bytes: jpeg(JFIF, app1),
-    little,
-    app1Start,
-    app1End: app1Start + app1.length,
-    tiffStart: app1Start + 10,
+    tiff,
     at: {
       ifd0,
       make,
@@ -153,6 +146,22 @@ function buildJpeg(little: boolean): Fixture {
       ifd1,
       thumbnail,
     },
+  };
+}
+
+/** Hand-built JPEG: SOI, JFIF APP0, an Exif APP1 holding `buildTiff` and a tiny scan. */
+function buildJpeg(little: boolean): Fixture {
+  const { tiff, at } = buildTiff(little);
+  const app0Start = 2;
+  const app1Start = app0Start + JFIF.length;
+  const app1 = segment(0xe1, [...ascii("Exif\0\0"), ...tiff]);
+  return {
+    bytes: jpeg(JFIF, app1),
+    little,
+    app1Start,
+    app1End: app1Start + app1.length,
+    tiffStart: app1Start + 10,
+    at,
   };
 }
 
@@ -510,5 +519,209 @@ describe("stripGps", () => {
 
       expect(stripGps(input)).toBe(input);
     });
+  });
+});
+
+const PIXELS = [0x11, 0x22, 0x33, 0x44];
+
+describe.each([
+  { order: "little-endian (II*\\0)", little: true },
+  { order: "big-endian (MM\\0*)", little: false },
+])("stripGps on a $order TIFF file", ({ little }) => {
+  const { tiff, at } = buildTiff(little);
+  const bytes = new Uint8Array([...tiff, ...PIXELS]);
+  const fixture: Fixture = { bytes, little, app1Start: 0, app1End: 0, tiffStart: 0, at };
+  const original = bytes.slice();
+  const stripped = stripGps(bytes);
+  const coordinates = [at.latitude, at.longitude].map((offset) =>
+    original.slice(offset, offset + 24),
+  );
+
+  it("starts from a fixture that really carries GPS", () => {
+    expect(readIfd(fixture, original, at.ifd0).entries.map((e) => e.tag)).toContain(0x8825);
+    for (const block of coordinates) {
+      expect(indexOfBytes(original, block)).toBeGreaterThan(-1);
+    }
+  });
+
+  it("removes GPSInfo from IFD0 and zero-fills the GPS IFD and its coordinates", () => {
+    const after = readIfd(fixture, stripped, at.ifd0);
+
+    expect(after.entries.map((e) => e.tag)).toEqual([0x010f, 0x0112, 0x0132, 0x8769, 0xc4a5]);
+    expect(after.next).toBe(at.ifd1);
+    expect(stripped.subarray(at.gpsIfd, at.longitude + 24).every((byte) => byte === 0)).toBe(true);
+    for (const block of coordinates) {
+      expect(indexOfBytes(stripped, block)).toBe(-1);
+    }
+  });
+
+  it("keeps Make, DateTime, the thumbnail and the data after the directories", () => {
+    const text = String.fromCharCode(...stripped);
+
+    expect(text).toContain("Canon");
+    expect(text).toContain("2026:10:21 08:30:00");
+    expect(text).toContain("2026:10:21 08:29:58");
+    expect(stripped.length).toBe(original.length);
+    expect(Array.from(stripped.subarray(at.thumbnail))).toEqual(
+      Array.from(original.subarray(at.thumbnail)),
+    );
+  });
+
+  it("does not modify its input, and returns the same object once there is no GPS left", () => {
+    expect(Array.from(bytes)).toEqual(Array.from(original));
+    expect(stripped).not.toBe(bytes);
+    expect(stripGps(stripped)).toBe(stripped);
+  });
+});
+
+describe("stripGps on a TIFF file it cannot parse safely", () => {
+  it("zeroes the IFD0 pointer and changes nothing else", () => {
+    const { tiff, at } = buildTiff(true);
+    const bytes = new Uint8Array([...tiff, ...PIXELS]);
+    // GPSInfo (the 5th IFD0 entry) now points outside the file.
+    bytes.set([0xfe, 0xff, 0, 0], at.ifd0 + 2 + 4 * ENTRY_SIZE + 8);
+    const original = bytes.slice();
+
+    const stripped = stripGps(bytes);
+
+    expect(Array.from(stripped.subarray(0, 4))).toEqual(ascii("II*\0"));
+    expect(Array.from(stripped.subarray(4, 8))).toEqual([0, 0, 0, 0]);
+    expect(Array.from(stripped.subarray(8))).toEqual(Array.from(original.subarray(8)));
+    expect(Array.from(bytes)).toEqual(Array.from(original));
+  });
+
+  it("does the same for an IFD0 outside the file and for a header with nothing after it", () => {
+    const outside = new Uint8Array([...ascii("MM"), 0, 42, 0xff, 0xff, 0xff, 0xff]);
+    const header = new Uint8Array(ascii("II*\0"));
+
+    expect(Array.from(stripGps(outside))).toEqual([...ascii("MM"), 0, 42, 0, 0, 0, 0]);
+    expect(Array.from(stripGps(header))).toEqual(ascii("II*\0"));
+  });
+
+  it("never throws on corrupted bytes", () => {
+    const { tiff } = buildTiff(true);
+    let seed = 48271;
+    const random = (limit: number) => {
+      seed = (seed * 48271) % 2147483647;
+      return seed % limit;
+    };
+
+    for (let run = 0; run < 500; run += 1) {
+      const corrupted = new Uint8Array(tiff);
+      for (let flips = 0; flips <= run % 4; flips += 1) {
+        corrupted[4 + random(corrupted.length - 4)] = random(256);
+      }
+      expect(() => stripGps(corrupted), `run ${run}`).not.toThrow();
+    }
+  });
+
+  it("leaves BigTIFF, which it does not read, as it is", () => {
+    const bigTiff = new Uint8Array([...ascii("II"), 43, 0, 8, 0, 0, 0, 0, 0]);
+
+    expect(stripGps(bigTiff)).toBe(bigTiff);
+  });
+});
+
+describe("stripGps on PNG", () => {
+  const be32 = (value: number): number[] => [
+    value >>> 24,
+    (value >>> 16) & 0xff,
+    (value >>> 8) & 0xff,
+    value & 0xff,
+  ];
+  /** The CRC is a placeholder: the code under test never reads it and must not change it. */
+  const chunk = (type: string, data: number[], crc = 0xc0ffee00): number[] => [
+    ...be32(data.length),
+    ...ascii(type),
+    ...data,
+    ...be32(crc),
+  ];
+  const SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const IHDR = chunk("IHDR", [0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0], 0x11111111);
+  const IDAT = chunk("IDAT", PIXELS, 0x22222222);
+  const IEND = chunk("IEND", [], 0x33333333);
+  const png = (...middle: number[][]): Uint8Array<ArrayBuffer> =>
+    new Uint8Array([...SIGNATURE, ...IHDR, ...middle.flat(), ...IDAT, ...IEND]);
+  /** One IFD0 with Make "Canon" and nothing else. */
+  const NO_GPS_TIFF = [
+    ...[...ascii("MM"), 0, 42, 0, 0, 0, 8],
+    ...[0, 1, 0x01, 0x0f, 0, 2, 0, 0, 0, 6, 0, 0, 0, 26],
+    ...[0, 0, 0, 0],
+    ...MAKE,
+  ];
+
+  it.each([true, false])(
+    "drops an eXIf chunk with GPS and keeps every other chunk byte for byte (little-endian: %s)",
+    (little) => {
+      const { tiff } = buildTiff(little);
+      const input = png(chunk("eXIf", tiff, 0x44444444), chunk("tEXt", ascii("Title\0Train")));
+      const original = input.slice();
+
+      const output = stripGps(input);
+
+      expect(Array.from(output)).toEqual(Array.from(png(chunk("tEXt", ascii("Title\0Train")))));
+      expect(Array.from(input)).toEqual(Array.from(original));
+    },
+  );
+
+  it("keeps an eXIf chunk without GPS, as the same object", () => {
+    const input = png(chunk("eXIf", NO_GPS_TIFF));
+
+    expect(stripGps(input)).toBe(input);
+  });
+
+  it("drops only the eXIf chunk that has GPS when there are two", () => {
+    const { tiff } = buildTiff(true);
+    const keep = chunk("eXIf", NO_GPS_TIFF, 0x55555555);
+
+    expect(Array.from(stripGps(png(keep, chunk("eXIf", tiff))))).toEqual(Array.from(png(keep)));
+  });
+
+  it.each([
+    ["not a TIFF block", chunk("eXIf", ascii("not a tiff block at all"))],
+    ["empty", chunk("eXIf", [])],
+    [
+      "a GPSInfo offset outside the chunk",
+      chunk("eXIf", [
+        ...[...ascii("MM"), 0, 42, 0, 0, 0, 8],
+        ...[0, 1, 0x88, 0x25, 0, 4, 0, 0, 0, 1, 0, 0, 0xff, 0xfe],
+        ...[0, 0, 0, 0],
+      ]),
+    ],
+  ])("drops an eXIf chunk that is %s", (_, exif) => {
+    expect(Array.from(stripGps(png(exif)))).toEqual(Array.from(png()));
+  });
+
+  it("drops an eXIf chunk cut off by the end of the file", () => {
+    const { tiff } = buildTiff(true);
+    const cut = png(chunk("eXIf", tiff)).slice(0, SIGNATURE.length + IHDR.length + 8 + 40);
+
+    expect(Array.from(stripGps(cut))).toEqual([...SIGNATURE, ...IHDR]);
+  });
+
+  it("returns a PNG with no eXIf chunk as the same object", () => {
+    const input = png(chunk("tEXt", ascii("Title\0Train")));
+
+    expect(stripGps(input)).toBe(input);
+  });
+
+  it("drops the GPS chunk of an intact file and never throws on corrupted bytes", () => {
+    const { tiff, at } = buildTiff(true);
+    const input = png(chunk("eXIf", tiff));
+    const latitude = new Uint8Array(tiff).slice(at.latitude, at.latitude + 24);
+    let seed = 48271;
+    const random = (limit: number) => {
+      seed = (seed * 48271) % 2147483647;
+      return seed % limit;
+    };
+
+    expect(indexOfBytes(stripGps(input), latitude)).toBe(-1);
+    for (let run = 0; run < 500; run += 1) {
+      const corrupted = input.slice();
+      for (let flips = 0; flips <= run % 4; flips += 1) {
+        corrupted[random(corrupted.length)] = random(256);
+      }
+      expect(() => stripGps(corrupted), `run ${run}`).not.toThrow();
+    }
   });
 });

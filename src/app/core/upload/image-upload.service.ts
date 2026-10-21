@@ -185,10 +185,12 @@ export class ImageUploadService {
 
   /**
    * The one place every photo passes before it leaves the device, whoever queued it and whether it
-   * was compressed, untouched or resumed from IndexedDB, so GPS never leaves the phone. A JPEG
-   * loses its GPS losslessly (see stripGps); PNG, WebP, HEIC and the like are sent as they are,
-   * the server strips those. The cleaned copy replaces the queued file, so a retry does not redo
-   * the work and can never fall back to the original.
+   * was compressed, untouched or resumed from IndexedDB, so GPS never leaves the phone. A JPEG,
+   * TIFF or PNG loses its GPS losslessly (see stripGps). Other formats are sent as they are and the
+   * server does not strip them either (it handles JPEG only): the picker accepts nothing but JPEG,
+   * PNG, GIF and TIFF (ACCEPTED_TYPES), and GIF has no Exif; HEIC and WebP never get here.
+   * The cleaned copy replaces the queued file, so a retry does not redo the work and can never fall
+   * back to the original.
    */
   private async withoutGps(item: PendingUpload): Promise<File> {
     const original = item.file.file;
