@@ -421,6 +421,95 @@ describe("MediaViewerComponent navigation", () => {
       const classes = control(viewer, "stage").classList;
       expect(classes.contains("touch-pan-y")).toBe(true);
       expect(classes.contains("touch-pinch-zoom")).toBe(true);
+      expect(classes.contains("touch-pan-x")).toBe(false);
+    });
+
+    describe("on a page the visitor has pinch-zoomed", () => {
+      const panning = (viewer: HTMLElement) =>
+        control(viewer, "stage").classList.contains("touch-pan-x");
+
+      /** jsdom has no `visualViewport`. `zoomTo` moves the scale and fires the `resize` that a
+       * real pinch zoom does. */
+      function stubVisualViewport(scale = 1) {
+        const viewport = Object.assign(new EventTarget(), { scale });
+        vi.stubGlobal("visualViewport", viewport);
+        return {
+          viewport,
+          zoomTo(next: number): void {
+            viewport.scale = next;
+            viewport.dispatchEvent(new Event("resize"));
+          },
+        };
+      }
+
+      it("is no swipe: the drag pans the photo, so the browser gets sideways panning back", async () => {
+        const zoom = stubVisualViewport();
+        const viewer = await openBetween(a, c);
+        expect(panning(viewer)).toBe(false);
+
+        zoom.zoomTo(2.5);
+        fixture.detectChanges();
+
+        expect(panning(viewer)).toBe(true);
+        swipe(viewer, -80);
+        swipe(viewer, 80);
+        expect(went).toEqual([]);
+      });
+
+      it("swipes again once the visitor zooms back out", async () => {
+        const zoom = stubVisualViewport();
+        const viewer = await openBetween(a, c);
+        zoom.zoomTo(2.5);
+        fixture.detectChanges();
+
+        zoom.zoomTo(1);
+        fixture.detectChanges();
+
+        expect(panning(viewer)).toBe(false);
+        swipe(viewer, -80);
+        expect(went).toEqual([c]);
+      });
+
+      it("knows when the viewer opens on a page that is already zoomed", async () => {
+        stubVisualViewport(2);
+        const viewer = await openBetween(a, c);
+
+        expect(panning(viewer)).toBe(true);
+        swipe(viewer, -80);
+        expect(went).toEqual([]);
+      });
+
+      it("does not take a rounding error above 1 for a zoom", async () => {
+        const zoom = stubVisualViewport(1.0000001);
+        const viewer = await openBetween(a, c);
+        expect(panning(viewer)).toBe(false);
+        zoom.zoomTo(1.005);
+        fixture.detectChanges();
+
+        expect(panning(viewer)).toBe(false);
+        swipe(viewer, -80);
+        expect(went).toEqual([c]);
+      });
+
+      it("stops listening for zoom once it is gone", async () => {
+        const zoom = stubVisualViewport();
+        const add = vi.spyOn(zoom.viewport, "addEventListener");
+        const remove = vi.spyOn(zoom.viewport, "removeEventListener");
+        await openBetween(a, c);
+        expect(add).toHaveBeenCalledExactlyOnceWith("resize", expect.any(Function));
+
+        fixture.destroy();
+
+        expect(remove).toHaveBeenCalledExactlyOnceWith("resize", add.mock.calls[0][1]);
+      });
+
+      it("swipes as usual in a browser with no visualViewport", async () => {
+        const viewer = await openBetween(a, c);
+
+        swipe(viewer, -80);
+
+        expect(went).toEqual([c]);
+      });
     });
   });
 

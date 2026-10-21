@@ -1,6 +1,16 @@
 import { CdkTrapFocus } from "@angular/cdk/a11y";
 import { DatePipe } from "@angular/common";
-import { Component, ErrorHandler, OnDestroy, computed, inject, input, output } from "@angular/core";
+import {
+  Component,
+  DestroyRef,
+  ErrorHandler,
+  OnDestroy,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from "@angular/core";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { MediaNode } from "../data/gallery.queries";
@@ -9,6 +19,9 @@ import { mediaLabel } from "../data/media-label.util";
 /** A swipe has to travel at least this far sideways, and further sideways than up or down: a tap,
  * or a vertical scroll that wobbles, must not flip the photo. */
 const SWIPE_MIN_PX = 50;
+/** `visualViewport.scale` is 1 at rest and above it once the visitor has pinch-zoomed the page. The
+ * margin keeps a rounding error from reading as a zoom, which would switch swiping off for good. */
+const ZOOMED_SCALE = 1.01;
 
 /**
  * Full-screen photo viewer opened from the justified grid — the old app just opened the raw
@@ -25,7 +38,9 @@ const SWIPE_MIN_PX = 50;
  * either end, or when it has no list, as the incident card does) and moves on when `navigate`
  * emits one of them. ArrowLeft / ArrowRight, a touch swipe and the two buttons all end there. The
  * buttons stay in the DOM, `aria-disabled`, at either end: a disabled button that has focus
- * drops it, and that would let focus out of the trap. A `sharePath` adds a Share button.
+ * drops it, and that would let focus out of the trap. A swipe stands aside while the page is
+ * pinch-zoomed: spotters zoom in to read a vehicle number, and then a sideways drag has to pan the
+ * photo. A `sharePath` adds a Share button.
  */
 @Component({
   selector: "app-media-viewer",
@@ -96,9 +111,11 @@ const SWIPE_MIN_PX = 50;
         (click)="$event.stopPropagation()"
       >
         <!-- touch-pan-y: the browser keeps vertical scrolling and pinch zoom and leaves sideways
-             drags to the swipe handlers (it would otherwise cancel the pointer mid-swipe). -->
+             drags to the swipe handlers (it would otherwise cancel the pointer mid-swipe). Zoomed
+             in, a sideways drag must pan the photo, so touch-pan-x is added and swipes stop. -->
         <div
           class="relative flex flex-1 touch-pan-y touch-pinch-zoom items-center justify-center p-3 lg:min-h-0"
+          [class.touch-pan-x]="zoomed()"
           data-testid="media-viewer-stage"
           (pointerdown)="onPointerDown($event)"
           (pointerup)="onPointerUp($event)"
@@ -189,13 +206,30 @@ export class MediaViewerComponent implements OnDestroy {
   private readonly isBrowser = injectIsBrowser();
   private readonly toast = inject(ToastService);
   private readonly errorHandler = inject(ErrorHandler);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly label = computed(() => mediaLabel(this.media()));
+  /** The page is pinch-zoomed. Browser only: nothing zooms on the server. */
+  protected readonly zoomed = signal(false);
   private swipeStart: { x: number; y: number } | null = null;
 
   constructor() {
     if (this.isBrowser) {
       document.body.style.overflow = "hidden";
+      this.followPinchZoom();
     }
+  }
+
+  /** `visualViewport` fires `resize` when the visitor pinch-zooms, and the page has no other
+   * event for it. The page may already be zoomed when the viewer opens. */
+  private followPinchZoom(): void {
+    const viewport = window.visualViewport;
+    if (!viewport) {
+      return;
+    }
+    const sync = () => this.zoomed.set(viewport.scale > ZOOMED_SCALE);
+    sync();
+    viewport.addEventListener("resize", sync);
+    this.destroyRef.onDestroy(() => viewport.removeEventListener("resize", sync));
   }
 
   protected onEscape(): void {
@@ -211,10 +245,10 @@ export class MediaViewerComponent implements OnDestroy {
 
   // Touch and pen only: a mouse has the buttons and the arrow keys, and a mouse drag would fight
   // text selection and the browser's own image drag. Only a lone primary pointer can swipe, so a
-  // second finger (a pinch) calls it off.
+  // second finger (a pinch) calls it off, and so does a zoomed page, where the drag pans.
   protected onPointerDown(event: PointerEvent): void {
     this.swipeStart =
-      event.isPrimary && event.pointerType !== "mouse"
+      event.isPrimary && event.pointerType !== "mouse" && !this.zoomed()
         ? { x: event.clientX, y: event.clientY }
         : null;
   }
