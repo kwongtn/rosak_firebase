@@ -59,6 +59,18 @@ function nameKey(value: string | null | undefined): string {
   return tidy(value ?? "").toLowerCase();
 }
 
+// What a model adds or drops around a name the reference data spells differently: the operator
+// ("LRT Kelana Jaya Line" against "Kelana Jaya Line") and the kind ("Bukit Nanas Station" against
+// "Bukit Nanas"). The prefixes are the ones the line codes and names carry.
+const OPERATOR_PREFIX = /^(?:lrt|mrt|brt|ktmb?)\s+/;
+const KIND_SUFFIX = /\s+(?:line|station)$/;
+
+/** `nameKey` without the operator prefix and the "line" or "station" suffix. Never empty for a
+ * non-empty key: both patterns need a word left behind. */
+function looseNameKey(value: string): string {
+  return nameKey(value).replace(KIND_SUFFIX, "").replace(OPERATOR_PREFIX, "");
+}
+
 /** `title` tidied and cut to `max` characters, at a word boundary when one falls in the back half.
  * The model is asked for at most 60 but nothing enforces it, and the backend column holds 64. There
  * is no ellipsis: the rider edits the title anyway and "..." would spend the limit. Counting UTF-16
@@ -166,21 +178,36 @@ export interface ReferenceMatches {
   unmatched: string[];
 }
 
-/** Matches extracted names to options by exact, case-insensitive name. Deliberately not fuzzy: a
- * wrong line or station tagged on a public incident is worse than one the rider adds by hand, and
- * every name left over is returned in `unmatched` so none is silently lost.
- * shortcut: the first option wins when two share a name; the reference data has no such pair
- * today, so revisit only if a duplicate ever appears. */
+/** Matches extracted names to options by name, ignoring case and spacing. An exact name always wins;
+ * failing that, a name still matches when it differs only by the operator prefix or the
+ * "line"/"station" suffix (see `looseNameKey`). Nothing fuzzier than that: a wrong line or station
+ * tagged on a public incident is worse than one the rider adds by hand. A loose key that two
+ * different options answer to is ambiguous and matches neither. Every name left over is returned
+ * in `unmatched`, so none is silently lost.
+ * shortcut: when two options share an exact name the first wins; the reference data has no such
+ * pair today, so revisit only if a duplicate ever appears. */
 export function matchReferenceNames(
   names: readonly unknown[] | null | undefined,
   options: readonly ReferenceMatchOption[],
 ): ReferenceMatches {
-  const optionByName = new Map<string, ReferenceMatchOption>();
+  const exactByName = new Map<string, ReferenceMatchOption>();
+  // null marks a loose key that two different options answer to.
+  const looseByName = new Map<string, ReferenceMatchOption | null>();
   for (const option of options) {
     for (const name of option.names) {
       const key = nameKey(name);
-      if (key && !optionByName.has(key)) {
-        optionByName.set(key, option);
+      if (!key) {
+        continue;
+      }
+      if (!exactByName.has(key)) {
+        exactByName.set(key, option);
+      }
+      const looseKey = looseNameKey(name);
+      const seen = looseByName.get(looseKey);
+      if (seen === undefined) {
+        looseByName.set(looseKey, option);
+      } else if (seen !== null && seen.id !== option.id) {
+        looseByName.set(looseKey, null);
       }
     }
   }
@@ -196,7 +223,7 @@ export function matchReferenceNames(
     if (!key) {
       continue;
     }
-    const option = optionByName.get(key);
+    const option = exactByName.get(key) ?? looseByName.get(looseNameKey(name));
     if (option) {
       matched.set(option.id, option);
     } else if (!unmatched.has(key)) {

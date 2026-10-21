@@ -105,6 +105,7 @@ const STATIONS: ReferenceMatchOption[] = [
   { id: "10", label: "KL Sentral", names: ["KL Sentral"] },
   { id: "11", label: "Pasar Seni", names: ["Pasar Seni"] },
   { id: "12", label: "Sentul (KTM)", names: ["Sentul (KTM)"] },
+  { id: "13", label: "Bukit Nanas", names: ["Bukit Nanas"] },
 ];
 
 describe("mapExtractedIndicator", () => {
@@ -291,10 +292,77 @@ describe("matchReferenceNames", () => {
     expect(result.unmatched).toEqual(["Kelana Jaya Line", "Bukit Bintang"]);
   });
 
-  it("is exact, not fuzzy: a partial name is unmatched", () => {
-    const result = matchReferenceNames(["Sentul", "Kelana Jaya"], [...LINES, ...STATIONS]);
+  it("is not fuzzy: a partial name or one with extra words is unmatched", () => {
+    const result = matchReferenceNames(
+      ["Sentul", "Kelana Jaya Extension", "Kelana", "Pasar"],
+      [...LINES, ...STATIONS],
+    );
     expect(result.matched).toEqual([]);
-    expect(result.unmatched).toEqual(["Sentul", "Kelana Jaya"]);
+    expect(result.unmatched).toEqual(["Sentul", "Kelana Jaya Extension", "Kelana", "Pasar"]);
+  });
+
+  describe("operator prefix and line/station suffix", () => {
+    it("matches a line the model names without its operator prefix or with a 'Line' suffix", () => {
+      const result = matchReferenceNames(
+        ["Kelana Jaya Line", "LRT Kelana Jaya", "kelana jaya", "Ampang Line", "KL Monorail"],
+        LINES,
+      );
+      expect(result.matched.map((o) => o.id)).toEqual(["4", "5", "1"]);
+      expect(result.unmatched).toEqual([]);
+    });
+
+    it("matches a line by its code with a 'Line' suffix and no operator", () => {
+      expect(matchReferenceNames(["KJL Line", "agl"], LINES).matched.map((o) => o.id)).toEqual([
+        "4",
+        "5",
+      ]);
+    });
+
+    it("matches a station the model calls a 'Station' or prefixes with the operator", () => {
+      const result = matchReferenceNames(
+        ["Bukit Nanas Station", "LRT Pasar Seni", "MRT KL Sentral Station"],
+        STATIONS,
+      );
+      expect(result.matched.map((o) => o.id)).toEqual(["13", "11", "10"]);
+      expect(result.unmatched).toEqual([]);
+    });
+
+    it("lets an exact name win over a loose one", () => {
+      const options: ReferenceMatchOption[] = [
+        { id: "a", label: "Ampang", names: ["Ampang"] },
+        { id: "b", label: "AGL", names: ["LRT Ampang Line"] },
+      ];
+      expect(matchReferenceNames(["Ampang"], options).matched.map((o) => o.id)).toEqual(["a"]);
+      expect(matchReferenceNames(["LRT Ampang Line"], options).matched.map((o) => o.id)).toEqual([
+        "b",
+      ]);
+    });
+
+    it("does not guess when two options share a loose name, and reports it unmatched", () => {
+      const options: ReferenceMatchOption[] = [
+        { id: "a", label: "Ampang", names: ["Ampang"] },
+        { id: "b", label: "AGL", names: ["LRT Ampang Line"] },
+        { id: "x", label: "LRT Foo", names: ["LRT Foo Line"] },
+        { id: "y", label: "MRT Foo", names: ["MRT Foo Line"] },
+      ];
+      const result = matchReferenceNames(["Ampang Line", "Foo Line", "MRT Foo Line"], options);
+      expect(result.matched.map((o) => o.id)).toEqual(["y"]);
+      expect(result.unmatched).toEqual(["Ampang Line", "Foo Line"]);
+    });
+
+    it("does not let a bare operator or a bare 'line' match anything", () => {
+      const result = matchReferenceNames(
+        ["LRT", "Line", "LRT Line", "Station"],
+        [...LINES, ...STATIONS],
+      );
+      expect(result.matched).toEqual([]);
+      expect(result.unmatched).toEqual(["LRT", "Line", "LRT Line", "Station"]);
+    });
+
+    it("only strips the prefix and suffix, never a word in the middle", () => {
+      expect(matchReferenceNames(["Kelana LRT Jaya"], LINES).matched).toEqual([]);
+      expect(matchReferenceNames(["Pasar Line Seni"], STATIONS).matched).toEqual([]);
+    });
   });
 
   it("returns each option once, however many names point at it, and keeps mention order", () => {

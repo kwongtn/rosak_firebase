@@ -792,6 +792,22 @@ describe("IncidentFormComponent", () => {
       expect(chipTexts()).toEqual(["LRT KJL"]);
     });
 
+    it("matches a line or station the model names without its operator prefix or 'Station' suffix", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component, {
+        ...FILLED,
+        affected_lines: ["Kelana Jaya Line"],
+        affected_stations: ["Pasar Seni Station"],
+      });
+
+      expect(component.selectedLineIds()).toEqual(["4"]);
+      expect(component.selectedStationIds()).toEqual(["11"]);
+      expect(chipTexts()).toEqual(["LRT KJL", "Pasar Seni"]);
+      expect(unmatchedText()).toBeNull();
+    });
+
     it("cuts a title longer than the backend allows, so the form can still be submitted", async () => {
       await loadReference();
       const component = await openWithRow();
@@ -814,13 +830,13 @@ describe("IncidentFormComponent", () => {
 
       await fillFromLink(component, {
         ...FILLED,
-        affected_lines: ["Kelana Jaya"],
+        affected_lines: ["Kelana Jaya Extension"],
         affected_stations: [],
       });
 
       expect(component.selectedLineIds()).toEqual([]);
       expect(chipTexts()).toEqual([]);
-      expect(unmatchedText()).toBe("Couldn't match: Kelana Jaya");
+      expect(unmatchedText()).toBe("Couldn't match: Kelana Jaya Extension");
     });
 
     it("clears the chips and the unmatched note with the form", async () => {
