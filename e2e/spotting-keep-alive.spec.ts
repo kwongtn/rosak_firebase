@@ -95,6 +95,9 @@ const STUBS: Record<string, unknown> = {
   LineSpottingBounds: {
     lines: [{ id: "1", vehicleSpottingTrends: [{ dateKey: dayKey(1) }] }],
   },
+  // The vehicle page's header and status board come from this single-vehicle query; the
+  // VehicleTypesByLine roster above only feeds its vehicle-switcher combobox.
+  VehicleHeader: { vehicles: [vehicle("v1", "101")] },
   VehicleSpottingHistory: { vehicles: [{ spottings: [] }] },
   VehicleIncidentsByVehicle: { vehicleIncidents: [] },
   // The vehicle page's imperative history list owns this separate query. It is deliberately
