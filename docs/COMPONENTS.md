@@ -225,8 +225,8 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
     `isOwnProfile` input picks the own branch (signed-in identity, edit, privacy, votes) or the
     public branch (the owner's nickname, no controls). `data/fleet-progress.util.ts` and
     `data/my-spottings-export.util.ts` are the pure seams for the collection view and the export columns.
-    `favouriteVehicles` beyond its default count is requested on the own profile only (the resolver
-    ignores `spottingDataPublic`).
+    `favouriteVehicles` beyond its default count is requested on the own profile only, in the Fleet
+    progress card's own non-blocking request (the resolver ignores `spottingDataPublic`).
 - **console** (`features/console/` — admin-only; spotting page + `insiden/pending` incident queue +
   `insiden/links` link triage at `/console/links`; [doc](components/console.md)) — Admin moderation
   queues: crowd-submitted spotting events (filter, paginate, bulk mark-as-read), pending incidents
