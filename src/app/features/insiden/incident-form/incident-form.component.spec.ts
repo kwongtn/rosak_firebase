@@ -785,6 +785,18 @@ describe("IncidentFormComponent", () => {
       expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
     });
 
+    it("forgets the unmatched note when another incident is loaded for editing", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      await fillFromLink(component);
+      expect(unmatchedText()).not.toBeNull();
+
+      component.hydrate(incidentFixture());
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
+    });
+
     it("drops an extracted time more than a day in the future but still applies the content", async () => {
       const component = await openWithRow();
       const threeDaysAhead = new Date(Date.now() + 3 * 86_400_000).toISOString();
