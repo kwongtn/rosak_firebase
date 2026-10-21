@@ -25,6 +25,9 @@ import {
 import { MediaViewerComponent } from "./media-viewer/media-viewer.component";
 
 const PAGE_SIZE = 24;
+/** The first photos are the page's LCP candidates, so they load eagerly (the very first at high
+ * priority); everything after them stays lazy. */
+const EAGER_IMAGE_COUNT = 4;
 /** Relative widths for the initial-load skeleton, echoing the justified grid's own mix of
  * landscape/portrait/wide tiles (each row's numbers are flex-grow weights, not real aspect
  * ratios) so the loading state previews the real layout's character instead of a uniform grid —
@@ -82,6 +85,7 @@ export class GalleryPage {
 
   protected readonly skeletonRows = SKELETON_ROWS;
   protected readonly skeletonRowHeight = TARGET_ROW_HEIGHT;
+  protected readonly eagerImageCount = EAGER_IMAGE_COUNT;
   protected readonly selectedMedia = signal<MediaNode | null>(null);
 
   protected readonly footerEndSlotId = resolveAdSlot("footerEnd");

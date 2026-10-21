@@ -17,11 +17,11 @@ Child components:
 
 | Component (file)                                                                                         | Inputs                                                                                           | Outputs                 |
 | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------- |
-| `JustifiedGridComponent` (`justified-grid/justified-grid.component.ts`, `app-justified-grid`)            | `items` (required `MediaNode[]`)                                                                 | `imageClick: MediaNode` |
+| `JustifiedGridComponent` (`justified-grid/justified-grid.component.ts`, `app-justified-grid`)            | `items` (required `MediaNode[]`), `eagerCount` (default `0`)                                     | `imageClick: MediaNode` |
 | `MediaViewerComponent` (`media-viewer/media-viewer.component.ts`, `app-media-viewer`)                    | `media` (required `MediaNode`)                                                                   | `close: void`           |
 | `GalleryYearSliderComponent` (`year-slider/gallery-year-slider.component.ts`, `app-gallery-year-slider`) | `years` (required `MediaYearCount[]`), `activeYear` (default `null`), `isBusy` (default `false`) | `yearSelected: number`  |
 
-`TARGET_ROW_HEIGHT = 220` is exported from `JustifiedGridComponent` and reused by `gallery.page.ts` to size loading skeletons.
+`TARGET_ROW_HEIGHT = 220` is exported from `JustifiedGridComponent`, which scales every tile's `flex-basis` by it, and reused by `gallery.page.ts` to size loading skeletons. `GalleryPage` passes `eagerCount = 4` (`EAGER_IMAGE_COUNT`) to the first year's grid only.
 
 **GraphQL** (`data/gallery.queries.ts`; read-only, no mutations):
 
@@ -35,9 +35,8 @@ Child components:
 - `ToastService` (`ui/toast/toast.service.ts`, wraps `@spartan-ng/brain/sonner`): load-failure, "still loading" and "not found" feedback.
 - `HlmButton` (the "Load more" button), `HlmSkeleton` (initial-load rows), `AppNavComponent` / `AppFooterComponent` (`shell/`).
 - `Router` (URL sync for the open media). Angular's `DatePipe` (viewer date).
-- `injectIsBrowser()` (`core/composables/is-browser.ts`) gates browser-only work: DOM scroll, `ResizeObserver`, and the `document.body` scroll lock.
-- Native `ResizeObserver` (`JustifiedGridComponent`).
-- Pure, framework-agnostic utilities, each independently unit-testable: `data/imgur.util.ts` (`getImgurThumbnail`, the Imgur URL-suffix thumbnail trick) and `data/justified-layout.util.ts` (`computeJustifiedRows`, Flickr-style row packing).
+- `injectIsBrowser()` (`core/composables/is-browser.ts`) gates browser-only work: the year-count request, DOM scroll, and the `document.body` scroll lock.
+- Pure, framework-agnostic utility, independently unit-testable: `data/imgur.util.ts` (`getImgurThumbnail`, the Imgur URL-suffix thumbnail trick).
 
 ## ⚙️ Internal State & Logic
 
@@ -45,14 +44,14 @@ Child components:
 - **Concurrency:** a single `inFlightLoad: Promise<boolean>` field (a plain field, not a signal) de-duplicates concurrent `loadMore(pageSize = PAGE_SIZE)` calls, where `PAGE_SIZE = 24`. The constructor's initial load and a same-tick `openMediaById()` (a deep link) can race. `loadMore()` returns whether the load succeeded, so loops can stop instead of hammering a failing request.
 - **Pagination model:** `edges` only ever grows (append-only cursor accumulation). There is no server-side year filter. `jumpToYear()` and `openMediaById()` both go through a shared `loadUntil()` loop. It pages forward at `JUMP_PAGE_SIZE = 100`, throttled by `JUMP_REQUEST_DELAY_MS = 200`, and capped at `MAX_JUMP_PAGES = 100`, until the target year or id appears or the feed is exhausted.
 - **URL ↔ state sync:** an `effect()` in the constructor watches `mediaIdParam` and opens or closes `selectedMedia` to match. UI-driven open and close set the signal directly, for instant feedback, then navigate separately. The effect's own already-open check turns the resulting route callback into a no-op.
-- **`JustifiedGridComponent`** tracks `containerWidth` as a signal fed by a `ResizeObserver` (set up in `afterNextRender`). It recomputes rows via `computeJustifiedRows()` whenever `items()` or the width changes. No state persists beyond the current input and viewport.
+- **`JustifiedGridComponent`** is stateless and measures nothing, so the server renders exactly what the browser does and the first page of photos is in the SSR HTML. One `flex flex-wrap` container (6 px gap); each tile's `flex-basis` is `aspect × TARGET_ROW_HEIGHT` px and its `flex-grow` is `aspect × 100`, so the browser fits as many tiles per row as the width allows and stretches the row to the full width at one shared height. A tile is a `div` holding a `padding-bottom: 100 / aspect %` box (it reserves the tile's height before the image arrives) and an absolutely positioned button with the `object-cover` image. A trailing spacer with `flex-grow: 1000000` keeps the last, incomplete row at the target height. `aspect` is `width / height`, or 4:3 when either is missing. The first `eagerCount` images use `loading="eager"` (the very first also `fetchpriority="high"`) and the rest `loading="lazy"`.
 - **`MediaViewerComponent`** has no state beyond its inputs. It sets `document.body.style.overflow` (a scroll lock) in its constructor and clears it in `ngOnDestroy`. It listens for Escape with `(document:keydown.escape)`.
 - **`GalleryYearSliderComponent`** is stateless: inputs in, template out.
 
 ## 🧩 Extension Points & Hooks
 
 - **`JustifiedGridComponent` and `MediaViewerComponent`** are input/output driven and reusable for any `MediaNode[]` or `MediaNode`, without touching `GalleryPage`.
-- **`computeJustifiedRows()` and `getImgurThumbnail()`** are generic (`JustifiedItem`, `JustifiedCell<T>`, `JustifiedRow<T>`) and have no Angular or gallery coupling.
+- **`getImgurThumbnail()`** is generic and has no Angular or gallery coupling.
 - **`graphqlResource()`** is a shared primitive (auto-retry, SSR TransferState). The gallery uses only `data`, with no manual `retryNow()`, and requests it in the browser only.
 - **`pathWithOptionalParamMatcher`** (`core/routing/optional-param-matcher.ts`) is the reusable convention that keeps `/gallery` and `/gallery/:mediaId` as one component instance. `/insiden` uses it too (`date` param).
 - No `ng-content` slots, decorators or interceptors. Extension is by composition (new child components and inputs).

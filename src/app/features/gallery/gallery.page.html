@@ -21,7 +21,11 @@
           @for (group of yearGroups(); track group.year) {
             <section [id]="'gallery-year-' + group.year" class="flex flex-col gap-3">
               <h2 class="text-lg font-semibold">{{ group.year }}</h2>
-              <app-justified-grid [items]="group.items" (imageClick)="onOpenMedia($event)" />
+              <app-justified-grid
+                [items]="group.items"
+                [eagerCount]="$first ? eagerImageCount : 0"
+                (imageClick)="onOpenMedia($event)"
+              />
             </section>
             @if ($index === 0) {
               <!-- Density cap: below lg this unit + footerEnd = the page's full 2-unit cap;
