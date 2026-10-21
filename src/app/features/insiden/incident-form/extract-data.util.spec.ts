@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { emptyChronology } from "./chronology-list.util";
 import {
   applyExtractionToChronology,
+  clampTitle,
   describeFormFill,
   incidentDayStart,
   isoToDateTimeLocal,
@@ -204,6 +205,63 @@ describe("incidentDayStart", () => {
   });
 });
 
+describe("clampTitle", () => {
+  const long =
+    "Signal fault disrupts LRT Kelana Jaya Line services between KL Sentral and Pasar Seni";
+
+  it("leaves a title that fits as it is, apart from tidying whitespace", () => {
+    expect(clampTitle("Signal fault at KL Sentral")).toBe("Signal fault at KL Sentral");
+    expect(clampTitle("  Flood \n at Sentul ")).toBe("Flood at Sentul");
+  });
+
+  it("keeps exactly 64 characters and cuts at 65", () => {
+    const sixtyFour = `${"a".repeat(40)} ${"b".repeat(23)}`;
+    expect(sixtyFour).toHaveLength(64);
+    expect(clampTitle(sixtyFour)).toBe(sixtyFour);
+    // One character more and the last word no longer fits.
+    expect(clampTitle(`${"a".repeat(40)} ${"b".repeat(24)}`)).toBe("a".repeat(40));
+  });
+
+  it("cuts a long title at a word boundary, within the backend column", () => {
+    expect(long.length).toBeGreaterThan(64);
+    const clamped = clampTitle(long);
+    expect(clamped.length).toBeLessThanOrEqual(64);
+    expect(long.startsWith(clamped)).toBe(true);
+    // The next character of the original is a space: no word was cut in half.
+    expect(long[clamped.length]).toBe(" ");
+    expect(clamped).toBe("Signal fault disrupts LRT Kelana Jaya Line services between KL");
+  });
+
+  it("keeps the whole word when the cut lands exactly on a word boundary", () => {
+    const text = `${"a".repeat(31)} ${"b".repeat(32)} tail`;
+    expect(text[64]).toBe(" ");
+    expect(clampTitle(text)).toBe(`${"a".repeat(31)} ${"b".repeat(32)}`);
+  });
+
+  it("cuts hard when there is no word boundary in the back half", () => {
+    expect(clampTitle("a".repeat(70))).toBe("a".repeat(64));
+    // The only space is in the front half, so the word that follows is cut rather than dropped.
+    expect(clampTitle(`ab ${"c".repeat(70)}`)).toBe(`ab ${"c".repeat(61)}`);
+  });
+
+  it("drops a separator left dangling by the cut", () => {
+    expect(clampTitle(`${"x".repeat(40)}, ${"y".repeat(40)}`)).toBe("x".repeat(40));
+    expect(clampTitle(`${"x".repeat(40)} - ${"y".repeat(40)}`)).toBe("x".repeat(40));
+  });
+
+  it("never leaves half an emoji behind", () => {
+    const clamped = clampTitle(`${"a".repeat(63)}\u{1F600}b`);
+    expect(clamped).toBe("a".repeat(63));
+    expect(clamped).not.toMatch(/[\uD800-\uDBFF]$/);
+  });
+
+  it("is empty for blank input or input that is only separators", () => {
+    expect(clampTitle("")).toBe("");
+    expect(clampTitle("   ")).toBe("");
+    expect(clampTitle("-".repeat(80))).toBe("");
+  });
+});
+
 describe("matchReferenceNames", () => {
   it("matches a line by code or by display name, ignoring case", () => {
     const result = matchReferenceNames(["lrt kjl", "LRT KELANA JAYA LINE"], LINES);
@@ -324,6 +382,15 @@ describe("planFormFill", () => {
     expect(fill.stations).toEqual({ matched: [], unmatched: [] });
     expect(fill.title).toBe("LRT delay");
     expect(fill.severity).toBe("MAJOR");
+  });
+
+  it("cuts a title longer than the backend column and fills nothing unusable", () => {
+    const longTitle =
+      "Signal fault disrupts LRT Kelana Jaya Line services between KL Sentral and Pasar Seni";
+    const fill = planFormFill(empty, { ...data, title: longTitle }, reference);
+    expect(fill.title).toBe("Signal fault disrupts LRT Kelana Jaya Line services between KL");
+    expect(fill.title?.length).toBeLessThanOrEqual(64);
+    expect(planFormFill(empty, { ...data, title: "-".repeat(90) }, reference).title).toBeNull();
   });
 
   it("proposes nothing for an empty extraction", () => {

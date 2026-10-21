@@ -4,6 +4,7 @@ import {
   type ChronologyDraft,
   type ChronologyIndicator,
 } from "./chronology-list.util";
+import { INCIDENT_TITLE_MAX_LENGTH } from "./incident-form.schema";
 
 /** Converts an ISO 8601 datetime to the `YYYY-MM-DDTHH:MM` value a
  * datetime-local input expects, in the user's local timezone. Empty string
@@ -56,6 +57,23 @@ function tidy(value: string): string {
  * likes. */
 function nameKey(value: string | null | undefined): string {
   return tidy(value ?? "").toLowerCase();
+}
+
+/** `title` tidied and cut to `max` characters, at a word boundary when one falls in the back half.
+ * The model is asked for at most 60 but nothing enforces it, and the backend column holds 64. There
+ * is no ellipsis: the rider edits the title anyway and "..." would spend the limit. Counting UTF-16
+ * units never undercounts the database's characters, so a title that fits here fits there. */
+export function clampTitle(title: string, max = INCIDENT_TITLE_MAX_LENGTH): string {
+  const text = tidy(title);
+  if (text.length <= max) {
+    return text;
+  }
+  // One character of look-ahead, so a cut that lands exactly on a word boundary keeps the whole word.
+  const ahead = text.slice(0, max + 1);
+  const space = ahead.lastIndexOf(" ");
+  const cut = space > max / 2 ? ahead.slice(0, space) : text.slice(0, max);
+  // Neither half an emoji (a lone high surrogate breaks the UTF-8 encode) nor a dangling separator.
+  return cut.replace(/[\uD800-\uDBFF]$/, "").replace(/[\s,;:\-\u2013\u2014]+$/, "");
 }
 
 // A Map, not an object literal: an object would answer "constructor" for a model that says so.
@@ -217,14 +235,15 @@ function noMatches(): ReferenceMatches {
 
 /** Decides what an extraction may put into the form's title, severity, lines and stations. A field
  * that already holds something is left alone (the proposal for it is empty), so a rider's own
- * input is never overwritten. `reference` is `null` while lines and stations have not loaded;
- * their names are then neither matched nor reported as unmatched, since nothing was compared. */
+ * input is never overwritten. The title is cut to the backend's length (`clampTitle`). `reference`
+ * is `null` while lines and stations have not loaded; their names are then neither matched nor
+ * reported as unmatched, since nothing was compared. */
 export function planFormFill(
   current: FormFillCurrent,
   data: ExtractedIncidentData,
   reference: FormFillReference | null,
 ): FormFill {
-  const title = typeof data.title === "string" ? tidy(data.title) : "";
+  const title = typeof data.title === "string" ? clampTitle(data.title) : "";
   return {
     title: title && !current.title.trim() ? title : null,
     severity: current.severity ? null : mapExtractedSeverity(data.severity),

@@ -1,5 +1,9 @@
-import { required, schema, validateTree } from "@angular/forms/signals";
+import { maxLength, required, schema, validateTree } from "@angular/forms/signals";
 import type { CalendarIncidentSeverity } from "../data/insiden.queries";
+
+/** The backend's `CalendarIncident.title` is `CharField(max_length=64)` and its input type has no
+ * length check of its own, so a longer title would only fail at the database. */
+export const INCIDENT_TITLE_MAX_LENGTH = 64;
 
 export interface IncidentFormModel {
   title: string;
@@ -28,6 +32,9 @@ export function emptyIncidentFormModel(): IncidentFormModel {
 
 export const incidentFormSchema = schema<IncidentFormModel>((f) => {
   required(f.title, { message: "Enter a title" });
+  maxLength(f.title, INCIDENT_TITLE_MAX_LENGTH, {
+    message: `Keep the title to ${INCIDENT_TITLE_MAX_LENGTH} characters or fewer`,
+  });
   required(f.brief, { message: "Enter a short summary" });
   required(f.startDatetime, { message: "Select a start date and time" });
   required(f.severity, { message: "Select a severity" });

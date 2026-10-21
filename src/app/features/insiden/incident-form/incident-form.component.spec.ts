@@ -23,7 +23,11 @@ import {
   type ChronologyDraft,
 } from "./chronology-list.util";
 import { isoToDateTimeLocal } from "./extract-data.util";
-import { emptyIncidentFormModel, type IncidentFormModel } from "./incident-form.schema";
+import {
+  emptyIncidentFormModel,
+  INCIDENT_TITLE_MAX_LENGTH,
+  type IncidentFormModel,
+} from "./incident-form.schema";
 import { IncidentFormComponent } from "./incident-form.component";
 
 interface ComponentUnderTest {
@@ -163,6 +167,36 @@ describe("IncidentFormComponent", () => {
 
     expect(requestMock).not.toHaveBeenCalled();
     expect(component.isSubmitting()).toBe(false);
+  });
+
+  describe("title length", () => {
+    it("refuses a title longer than the backend column and says why", async () => {
+      sheet.open();
+      const component = asTestable(fixture);
+      component.model.set({
+        ...filledModel(),
+        title: "a".repeat(INCIDENT_TITLE_MAX_LENGTH + 1),
+      });
+      fixture.detectChanges();
+
+      await component.submit();
+      fixture.detectChanges();
+
+      expect(requestMock).not.toHaveBeenCalled();
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+        `Keep the title to ${INCIDENT_TITLE_MAX_LENGTH} characters or fewer`,
+      );
+    });
+
+    it("accepts a title of exactly the limit", async () => {
+      sheet.open();
+      const component = asTestable(fixture);
+      component.model.set({ ...filledModel(), title: "a".repeat(INCIDENT_TITLE_MAX_LENGTH) });
+
+      await component.submit();
+
+      expect(requestMock.mock.calls[0][0]).toBe(CREATE_CALENDAR_INCIDENT_MUTATION);
+    });
   });
 
   it("submits a valid draft and chains submitCalendarIncident for non-admins", async () => {
@@ -756,6 +790,22 @@ describe("IncidentFormComponent", () => {
       fixture.detectChanges();
 
       expect(chipTexts()).toEqual(["LRT KJL"]);
+    });
+
+    it("cuts a title longer than the backend allows, so the form can still be submitted", async () => {
+      await loadReference();
+      const component = await openWithRow();
+
+      await fillFromLink(component, {
+        ...FILLED,
+        title:
+          "Signal fault disrupts LRT Kelana Jaya Line services between KL Sentral and Pasar Seni",
+      });
+
+      expect(component.model().title).toBe(
+        "Signal fault disrupts LRT Kelana Jaya Line services between KL",
+      );
+      expect(component.model().title.length).toBeLessThanOrEqual(INCIDENT_TITLE_MAX_LENGTH);
     });
 
     it("reports names that match nothing even when no chip could be made", async () => {
