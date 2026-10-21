@@ -172,7 +172,7 @@ const YEARS_COLUMN_ESTIMATE_PX = 90;
       >
         <div
           tabindex="0"
-          class="aspect-square rounded-sm outline-none"
+          class="aspect-square rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           [class]="day.inYear ? cellClass(day.count) : 'bg-transparent'"
           (focus)="onHoverStart(day, $event)"
           (blur)="hoveredDate.set(null)"

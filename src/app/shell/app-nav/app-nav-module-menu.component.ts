@@ -21,7 +21,7 @@ import { type NavLink } from "./app-nav.util";
   template: `
     <button
       type="button"
-      class="hover:text-foreground flex min-w-0 items-center gap-1 text-lg font-semibold outline-none"
+      class="hover:text-foreground flex min-w-0 items-center gap-1 text-lg font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       [class.animate-nav-reveal]="reveal()"
       [attr.aria-expanded]="open()"
       (click)="triggerClick.emit()"
@@ -109,7 +109,7 @@ import { type NavLink } from "./app-nav.util";
           <h2 class="text-base font-semibold">Go to</h2>
           <button
             type="button"
-            class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+            class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-label="Close"
             title="Close"
             (click)="openChange.emit(false)"

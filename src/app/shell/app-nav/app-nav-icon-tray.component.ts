@@ -86,7 +86,7 @@ let hasShownAvatarHintThisPageLoad = false;
                      to it, and there's no reason this one should be the exception. -->
       <button
         type="button"
-        class="border-primary/40 text-primary hover:bg-primary/10 animate-breathe flex h-8 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl border outline-none transition-[width,padding] duration-500"
+        class="border-primary/40 text-primary hover:bg-primary/10 animate-breathe flex h-8 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl border outline-none focus-visible:ring-3 focus-visible:ring-ring/50 transition-[width,padding] duration-500"
         [class]="newVersionButtonClass()"
         aria-label="A new version of this site is available — click to reload"
         title="A new version of this site is available — click to reload"
@@ -127,7 +127,7 @@ let hasShownAvatarHintThisPageLoad = false;
                  correctly (re)attached to whichever node is actually live. -->
     <button
       type="button"
-      class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+      class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       aria-label="Report a bug"
       title="Report a bug"
       (click)="onReportBug()"
@@ -167,7 +167,7 @@ let hasShownAvatarHintThisPageLoad = false;
                  theme-toggle.component.ts. -->
     <button
       type="button"
-      class="text-muted-foreground hover:ring-ring/50 flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-1.5 outline-none transition-[padding,background-color,border-color,color] duration-300 hover:ring-2"
+      class="text-muted-foreground hover:ring-ring/50 flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-1.5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 transition-[padding,background-color,border-color,color] duration-300 hover:ring-2"
       [class]="avatarButtonClass()"
       [attr.aria-label]="auth.isLoggedIn() ? 'Account' : 'Log in'"
       [title]="auth.isLoggedIn() ? 'Account' : 'Log in'"

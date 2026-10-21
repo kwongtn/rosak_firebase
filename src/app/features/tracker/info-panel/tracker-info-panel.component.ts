@@ -101,7 +101,7 @@ function highlightJson(json: string): string {
         <div class="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center rounded-full outline-none"
+            class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             [attr.aria-label]="fullscreen() ? 'Exit full screen' : 'Full screen'"
             [title]="fullscreen() ? 'Exit full screen' : 'Full screen'"
             (click)="fullscreen.set(!fullscreen())"
@@ -140,7 +140,7 @@ function highlightJson(json: string): string {
           </button>
           <button
             type="button"
-            class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+            class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-label="Close"
             title="Close"
             (click)="openChange.emit(false)"

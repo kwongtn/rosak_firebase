@@ -148,7 +148,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
              its own nav instead of <app-nav>. -->
         <button
           type="button"
-          class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-full outline-none"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label="Report a bug"
           title="Report a bug"
           (click)="onReportBug()"

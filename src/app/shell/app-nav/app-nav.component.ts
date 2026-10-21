@@ -260,7 +260,7 @@ let hasRevealedNavLinksThisPageLoad = false;
         <h2 class="text-base font-semibold">Account</h2>
         <button
           type="button"
-          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label="Close"
           title="Close"
           (click)="accountPanelOpen.set(false)"
