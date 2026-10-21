@@ -6,10 +6,10 @@ import {
   writeResponseToNodeResponse,
 } from "@angular/ssr/node";
 import express from "express";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { environment } from "./environments/environment";
 import { sentrySharedOptions } from "./sentry-options";
-import { homeCacheControl } from "./server-cache-control";
+import { homeCacheControl, staticCacheControl } from "./server-cache-control";
 
 // As early as possible, before anything below it that could throw — this is the SSR-side
 // counterpart to main.ts's browser Sentry.init(), sharing the same dsn/release/environment
@@ -78,13 +78,21 @@ app.get("/api/gtfs-proxy", async (req, res) => {
 });
 
 /**
- * Serve static files from /browser
+ * Serve static files from /browser with a one-year max-age (the chunks are content-hashed), except
+ * the files `staticCacheControl` lists, such as the service worker and the web app manifest: their
+ * names survive a deploy, so they are revalidated instead.
  */
 app.use(
   express.static(browserDistFolder, {
     maxAge: "1y",
     index: false,
     redirect: false,
+    setHeaders: (res, filePath) => {
+      const cacheControl = staticCacheControl(relative(browserDistFolder, filePath));
+      if (cacheControl) {
+        res.setHeader("Cache-Control", cacheControl);
+      }
+    },
   }),
 );
 

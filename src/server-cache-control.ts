@@ -24,3 +24,22 @@ export function homeCacheControl(
   }
   return HOME_CACHE_CONTROL;
 }
+
+/**
+ * The files in `browser/` that keep their name across deploys while their content changes: the
+ * service worker and its manifest, the web app manifest and its icons, the CSR shell and
+ * `/version.json`. Hashed chunks are not in this list.
+ */
+const UNHASHED_STATIC_FILE =
+  /^(?:ngsw\.json|ngsw-worker\.js|safety-worker\.js|worker-basic\.min\.js|manifest\.webmanifest|index\.csr\.html|version\.json|icons\/[^/]+)$/;
+
+/**
+ * The `Cache-Control` value for a static file served from `browser/` (`relativePath` is relative to
+ * that folder), or `null` to keep express.static's one-year `max-age`.
+ *
+ * The files above get `no-cache`: browsers and the CDN may store them but must revalidate
+ * (a cheap 304) before each use, so a deploy reaches them at once.
+ */
+export function staticCacheControl(relativePath: string): string | null {
+  return UNHASHED_STATIC_FILE.test(relativePath) ? "no-cache" : null;
+}

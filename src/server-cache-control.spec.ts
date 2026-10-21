@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOME_CACHE_CONTROL, homeCacheControl } from "./server-cache-control";
+import { HOME_CACHE_CONTROL, homeCacheControl, staticCacheControl } from "./server-cache-control";
 
 describe("homeCacheControl", () => {
   it("stamps the home policy on a 200 GET of /", () => {
@@ -35,4 +35,32 @@ describe("homeCacheControl", () => {
       expect(homeCacheControl("GET", path, 200, null)).toBeNull();
     },
   );
+});
+
+describe("staticCacheControl", () => {
+  it.each([
+    ["ngsw.json"],
+    ["ngsw-worker.js"],
+    ["safety-worker.js"],
+    ["worker-basic.min.js"],
+    ["manifest.webmanifest"],
+    ["icons/icon-192.png"],
+    ["icons/apple-touch-icon.png"],
+    ["index.csr.html"],
+    ["version.json"],
+  ])("revalidates %s, whose name survives a deploy", (path) => {
+    expect(staticCacheControl(path)).toBe("no-cache");
+  });
+
+  it.each([["main-NMF5H2WK.js"], ["chunk-D4-DL31Z2.js"], ["styles-XBTPHFWG.css"], ["media/x.png"]])(
+    "leaves the one-year max-age on %s",
+    (path) => {
+      expect(staticCacheControl(path)).toBeNull();
+    },
+  );
+
+  it("matches whole paths only", () => {
+    expect(staticCacheControl("chunk-ngsw.json")).toBeNull();
+    expect(staticCacheControl("icons/nested/icon.png")).toBeNull();
+  });
 });
