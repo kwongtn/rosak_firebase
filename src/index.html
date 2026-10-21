@@ -2,11 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>TranSPOT</title>
+    <title>MLPTF</title>
     <meta
       name="description"
       content="Community-run Malaysian public transport spotting, tracking and incident log."
     />
+    <!-- Site-wide share defaults only. og:title and og:description are deliberately absent: link
+       previews then fall back to each route's own server-rendered title and description. -->
+    <meta property="og:site_name" content="MLPTF" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://community.mlptf.org.my/share-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="MLPTF: community-run Malaysian public transport spotting, tracking and incident log."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
