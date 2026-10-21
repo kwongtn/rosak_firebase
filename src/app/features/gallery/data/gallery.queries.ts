@@ -1,9 +1,10 @@
 /* ---------------------------------------------------------------------- *
  * medias — the paginated, orderable connection (Relay cursor pagination).
- * Deliberately NOT `mediasGroupByPeriod` (what the old app used): that field has no pagination
- * argument at all — the resolver loads and returns every media row that has ever existed on
- * every call, which is exactly the "load everything at once" behavior this rewrite is meant to
- * avoid. See archive/frontend-map/gallery.md's rewrite notes for the full backend gap writeup.
+ * Deliberately NOT `mediasGroupByPeriod` (what the old app used) for the photos: that field has
+ * no pagination argument at all — selecting its `medias` sub-field returns every media row that
+ * has ever existed in one call, which is exactly the "load everything at once" behavior this
+ * rewrite is meant to avoid. See archive/frontend-map/gallery.md's rewrite notes for the full
+ * backend gap writeup.
  * ---------------------------------------------------------------------- */
 
 export const MEDIAS_QUERY = /* GraphQL */ `

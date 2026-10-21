@@ -2,7 +2,7 @@
 
 ## 📌 Purpose & Scope
 
-- **Core Responsibility:** The public, read-only `/gallery` page. It shows a chronological, year-grouped, newest-first feed of community spotting photos (`Media` records), with a "jump to year" slider and a full-screen viewer opened by a `:mediaId` route param. Pages load on demand through the backend's Relay-style `medias` connection. The connection is used instead of `mediasGroupByPeriod`, which has no pagination argument and loads every row on each call.
+- **Core Responsibility:** The public, read-only `/gallery` page. It shows a chronological, year-grouped, newest-first feed of community spotting photos (`Media` records), with a "jump to year" slider and a full-screen viewer opened by a `:mediaId` route param. Pages load on demand through the backend's Relay-style `medias` connection. The connection is used instead of `mediasGroupByPeriod` for the photos themselves: that field has no pagination argument, so selecting its `medias` sub-field returns every row of each bucket in one call.
 - **Domain/Layer:** Angular Presentation (standalone, lazy-routed page, three presentational children, pure utilities). No backend code lives here. It consumes an existing GraphQL API read-only.
 
 ## 🔌 Interface & Data Flow
