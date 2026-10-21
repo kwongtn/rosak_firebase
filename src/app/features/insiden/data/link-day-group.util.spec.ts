@@ -8,10 +8,10 @@ import {
   linkDisplayInstant,
 } from "./link-day-group.util";
 
-// CI runs in UTC, where the F007 bugs (a naive wall time read in the viewer's zone, a date-only key
-// shifted by the "UTC" pipe) are invisible. Pin the zone they were found in, so a revert fails in CI.
-beforeEach(() => vi.stubEnv("TZ", "Asia/Kuala_Lumpur"));
-afterEach(() => vi.unstubAllEnvs());
+// The F007 bugs (a naive wall time read in the viewer's zone, a date-only key shifted by the "UTC"
+// pipe) show in one zone or the other, so the zone-sensitive specs run in both: UTC is the SSR
+// server's zone, Kuala Lumpur the browser's.
+const ZONES = ["UTC", "Asia/Kuala_Lumpur"];
 
 describe("linkDisplayInstant", () => {
   it("prefers the event time and falls back to the submission time", () => {
@@ -29,9 +29,11 @@ describe("linkDisplayInstant", () => {
   });
 });
 
-describe("linkDateKey", () => {
+describe.each(ZONES)("linkDateKey in %s", (tz) => {
+  beforeEach(() => vi.stubEnv("TZ", tz));
+  afterEach(() => vi.unstubAllEnvs());
+
   // The key must not depend on where the code runs, or SSR (UTC) and a Malaysian browser disagree.
-  // The zone is pinned to Kuala Lumpur above, so these run in the zone where the bug actually bites.
 
   it("keys a naive Kuala Lumpur wall time by its own date", () => {
     // The backend sends naive MYT (`USE_TZ = False`). 03:00 MYT is still the previous day in UTC,
@@ -95,7 +97,10 @@ describe("linkDayLabel", () => {
   });
 });
 
-describe("groupLinksByDay", () => {
+describe.each(ZONES)("groupLinksByDay in %s", (tz) => {
+  beforeEach(() => vi.stubEnv("TZ", tz));
+  afterEach(() => vi.unstubAllEnvs());
+
   it("collapses consecutive same-day links into one group, preserving order", () => {
     const links = [
       { id: "a", created: "2026-08-01T10:00:00" },

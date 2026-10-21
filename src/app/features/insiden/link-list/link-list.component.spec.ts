@@ -27,13 +27,13 @@ function makeLink(id: string, occurredAt: string): PublicSocialMediaLink {
   };
 }
 
-// The headers must read the same in the SSR server's zone and in a Malaysian browser, which is what
-// hydration needs. CI runs in UTC, so the zone is pinned to Kuala Lumpur, where the bug bites.
-describe("LinkListComponent day headers", () => {
+// The headers must read the same in the SSR server's zone (UTC) and in a Malaysian browser, which is
+// what hydration needs. Both zones run, since a bug can show in only one of them.
+describe.each(["UTC", "Asia/Kuala_Lumpur"])("LinkListComponent day headers in %s", (tz) => {
   let fixture: ComponentFixture<LinkListComponent>;
 
   beforeEach(async () => {
-    vi.stubEnv("TZ", "Asia/Kuala_Lumpur");
+    vi.stubEnv("TZ", tz);
     // 03:30 MYT on 21 Oct, while UTC is still on the 20th.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-20T19:30:00Z"));
