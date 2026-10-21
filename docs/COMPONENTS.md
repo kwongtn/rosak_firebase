@@ -73,11 +73,40 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   `NewVersionService`. `PollingSource` (`core/polling/`) reads `navigator.onLine` itself, the way it
   reads `document.hidden`: offline pauses the beat, and the `online` event refreshes at once (not
   while hidden, never for a "Never" beat).
-- `core/version/`: `NewVersionService` polls `/version.json` (`cache: "no-store"`) and prompts for a
-  reload on a failed same-origin chunk only. `promptReloadForNewVersion()` (also called by
+- `core/version/`: `NewVersionService` polls `/version.json` (`cache: "no-store"` plus an
+  `ngsw-bypass` header, so neither the HTTP cache nor the service worker answers it) and prompts for
+  a reload on a failed same-origin chunk only. `promptReloadForNewVersion()` (also called by
   `AppErrorHandler` for router chunk errors) checks `OnlineService` first: offline it toasts "You're
   offline. This page needs a connection." on every failed attempt and leaves `hasNewVersion` false,
-  so the update button (whose click clears caches and reloads) stays dark.
+  so the update button (whose click clears Cache Storage, the worker's precache included, and
+  reloads) stays dark.
+- **Installable app and service worker** (no `core/` module):
+  - `public/manifest.webmanifest`: "MLPTF", `display: standalone`, `start_url: "/"`, background and
+    theme `#fafcff` (the light `--background`). Icons in `public/icons/`: 192 and 512 PNG, a
+    maskable 512 and an opaque 180 `apple-touch-icon.png` (iOS paints transparency black). They
+    were rasterised once from `favicons/default.svg` and are not regenerated like `favicon.svg`, so
+    re-rasterise them by hand if the logo changes. `src/index.html` links the manifest and the touch
+    icon and sets two `theme-color` metas (`#fafcff` light, `#080e16` dark). They follow the OS
+    scheme, not an in-app `ThemeService` override.
+  - `app.config.ts` registers `ngsw-worker.js` with `provideServiceWorker`: `enabled: !isDevMode()`,
+    `registrationStrategy: "registerWhenStable:30000"`, never on the server. Only `angular.json`'s
+    production configuration sets `"serviceWorker": "ngsw-config.json"`, so `ng serve` and the e2e
+    dev build have no worker.
+  - `ngsw-config.json`: group `app` prefetches `/*.css` and `/*.js` (all hashed; about 1.7 MB gzip
+    today, more than half of it the tracker chunk), group `media` caches images lazily. No HTML is
+    ever served from cache: `navigationUrls` is `[]` and `navigationRequestStrategy` is
+    `freshness`, so SSR answers every navigation (the build rewrites `index` to `/index.csr.html`,
+    which is not cached either). There is no data group: GraphQL reads are POSTs and ngsw caches
+    only GET and HEAD, so the board has no offline data yet. `src/app/ngsw-config.spec.ts` runs the
+    real ngsw generator over a fake build output to pin these rules.
+  - Offline, in-app navigation to a lazy route works from the precache. A full reload offline shows
+    a blank page (the worker answers 504), not the browser's own offline page.
+  - **To disable it:** remove `"serviceWorker"` from `angular.json` and `provideServiceWorker` from
+    `app.config.ts`, then deploy. An installed worker that gets a 404 for `/ngsw.json` (the app's
+    not-found page) deletes its caches and unregisters itself. `enabled: false` alone is not
+    enough: it stops new registrations but leaves installed workers running. In an emergency,
+    serve the emitted `safety-worker.js` as `ngsw-worker.js`: it unregisters itself and clears the
+    caches.
 - **Sheet hosts** (home, `/insiden`, `/spotting`, every Situasi tab) mount the form of a closed sheet
   behind `@defer (when <sheet>.isOpen(); prefetch on idle)`, so its reads stay out of SSR and
   TransferState. Footers reach the form through a string-locator `viewChild`, null-safe.
