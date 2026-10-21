@@ -112,9 +112,16 @@
       </section>
 
       <section class="border-border flex flex-col gap-3 rounded-lg border p-3">
-        <h3 class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+        <h3
+          #affectedHeading
+          tabindex="-1"
+          class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+          data-testid="affected-heading"
+        >
           Affected
         </h3>
+
+        <p class="sr-only" role="status" data-testid="fill-status">{{ fillAnnouncement() }}</p>
 
         @if (fillChips().length > 0 || fillUnmatched().length > 0) {
           <div class="flex flex-col gap-1.5" data-testid="fill-summary">

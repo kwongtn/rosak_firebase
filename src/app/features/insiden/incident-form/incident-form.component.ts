@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from "@angular/core";
+import { Component, computed, effect, ElementRef, inject, signal, viewChild } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import {
@@ -339,10 +339,39 @@ export class IncidentFormComponent {
     return [...unmatchedLines, ...unmatchedStations];
   });
 
+  /** The same facts as the chips and the note, as one sentence in an always-present live region:
+   * a region inserted already holding text is not reliably announced, and the toast only says how
+   * many lines and stations were filled, not which. */
+  protected readonly fillAnnouncement = computed(() => {
+    const labels = this.fillChips().map((chip) => chip.label);
+    const unmatched = this.fillUnmatched();
+    return [
+      labels.length > 0 ? `Filled from link: ${labels.join(", ")}.` : "",
+      unmatched.length > 0 ? `Couldn't match: ${unmatched.join(", ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+  });
+
+  private readonly affectedHeading = viewChild<ElementRef<HTMLElement>>("affectedHeading");
+
   protected dismissFillChip(chip: FillChip): void {
+    // The focused button leaves the DOM with its chip, which would drop focus to the page. Park it
+    // on the section heading instead: the next Tab reaches the next chip.
+    this.affectedHeading()?.nativeElement.focus();
     (chip.kind === "line" ? this.selectedLineIds : this.selectedStationIds).update((ids) =>
       ids.filter((id) => id !== chip.id),
     );
+    // Also forget it, so selecting the same line by hand later does not bring back a "Filled from
+    // link" chip for a choice the rider made themselves.
+    this._fillNotes.update((notes) => ({
+      ...notes,
+      lines: chip.kind === "line" ? notes.lines.filter((line) => line.id !== chip.id) : notes.lines,
+      stations:
+        chip.kind === "station"
+          ? notes.stations.filter((station) => station.id !== chip.id)
+          : notes.stations,
+    }));
   }
 
   protected onCategoryChange(event: Event): void {

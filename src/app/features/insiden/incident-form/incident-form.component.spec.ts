@@ -670,6 +670,18 @@ describe("IncidentFormComponent", () => {
     const unmatchedText = () =>
       host().querySelector('[data-testid="fill-unmatched"]')?.textContent?.trim() ?? null;
 
+    const statusText = () =>
+      host().querySelector('[data-testid="fill-status"]')?.textContent?.trim() ?? null;
+
+    function dismiss(label: string): void {
+      const remove = host().querySelector<HTMLButtonElement>(
+        `button[aria-label="Remove ${label}"]`,
+      );
+      if (!remove) throw new Error(`remove button for ${label} not rendered`);
+      remove.click();
+      fixture.detectChanges();
+    }
+
     /** Swaps the empty reference data the suite starts with for lines and stations to match against. */
     async function loadReference(): Promise<void> {
       asTestable(fixture).referenceResource.reload();
@@ -772,15 +784,6 @@ describe("IncidentFormComponent", () => {
       const component = await openWithRow();
       await fillFromLink(component);
 
-      const dismiss = (label: string) => {
-        const remove = host().querySelector<HTMLButtonElement>(
-          `button[aria-label="Remove ${label}"]`,
-        );
-        if (!remove) throw new Error(`remove button for ${label} not rendered`);
-        remove.click();
-        fixture.detectChanges();
-      };
-
       dismiss("LRT KJL");
       expect(component.selectedLineIds()).toEqual([]);
       expect(component.selectedStationIds()).toEqual(["10"]);
@@ -802,6 +805,48 @@ describe("IncidentFormComponent", () => {
       fixture.detectChanges();
 
       expect(chipTexts()).toEqual(["LRT KJL"]);
+    });
+
+    it("does not bring a dismissed chip back when the same line is selected by hand", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      await fillFromLink(component);
+
+      dismiss("LRT KJL");
+      component.selectedLineIds.set(["4"]);
+      fixture.detectChanges();
+
+      expect(chipTexts()).toEqual(["KL Sentral"]);
+    });
+
+    it("moves focus to the Affected heading when a chip is dismissed, rather than losing it", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      await fillFromLink(component);
+      const remove = host().querySelector<HTMLButtonElement>('button[aria-label="Remove LRT KJL"]');
+      remove?.focus();
+      expect(document.activeElement).toBe(remove);
+
+      dismiss("LRT KJL");
+
+      expect(document.activeElement).toBe(host().querySelector('[data-testid="affected-heading"]'));
+    });
+
+    it("keeps a status region, present from the start, in step with the chips and the note", async () => {
+      await loadReference();
+      const component = await openWithRow();
+      // Empty but already in the page: a region inserted already holding text is not reliably announced.
+      expect(statusText()).toBe("");
+
+      await fillFromLink(component);
+      expect(statusText()).toBe(
+        "Filled from link: LRT KJL, KL Sentral. Couldn't match: Bogus Line, Nowhere.",
+      );
+
+      dismiss("LRT KJL");
+      expect(statusText()).toBe(
+        "Filled from link: KL Sentral. Couldn't match: Bogus Line, Nowhere.",
+      );
     });
 
     it("matches a line or station the model names without its operator prefix or 'Station' suffix", async () => {
