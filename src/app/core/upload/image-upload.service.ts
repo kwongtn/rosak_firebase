@@ -9,6 +9,7 @@ import { environment } from "../../../environments/environment";
 import { AuthService } from "../auth/auth.service";
 import { ImageFile } from "./image-file";
 import { deletePendingUpload, loadAllPendingUploads, savePendingUpload } from "./upload-queue-db";
+import { stripGps } from "./strip-gps.util";
 import * as Sentry from "@sentry/angular";
 
 export type PendingUploadType = "SPOTTING_EVENT" | "INCIDENT_CALENDAR_INCIDENT";
@@ -150,10 +151,10 @@ export class ImageUploadService {
         const body = new FormData();
         body.append("related_id", relatedId.toString());
         body.append("upload_type", type);
-        body.append("image", file.file);
 
         const idToken = await this.auth.idToken();
         try {
+          body.append("image", await this.withoutGps(item));
           await firstValueFrom(
             this.http.post(`${environment.backendUrl}upload/`, body, {
               headers: idToken ? { "Firebase-Auth-Key": idToken } : {},
@@ -180,6 +181,28 @@ export class ImageUploadService {
       clearInterval(this.uploadInterval);
       this.uploadInterval = undefined;
     }
+  }
+
+  /**
+   * The one place every photo passes before it leaves the device, whoever queued it and whether it
+   * was compressed, untouched or resumed from IndexedDB, so GPS never leaves the phone. A JPEG
+   * loses its GPS losslessly (see stripGps); PNG, WebP, HEIC and the like are sent as they are,
+   * the server strips those. The cleaned copy replaces the queued file, so a retry does not redo
+   * the work and can never fall back to the original.
+   */
+  private async withoutGps(item: PendingUpload): Promise<File> {
+    const original = item.file.file;
+    const bytes = new Uint8Array(await original.arrayBuffer());
+    const stripped = stripGps(bytes);
+    if (stripped === bytes) {
+      return original;
+    }
+    const clean = new File([stripped], original.name, {
+      type: original.type,
+      lastModified: original.lastModified,
+    });
+    item.file = { ...item.file, file: clean };
+    return clean;
   }
 
   private refreshCounts(): void {

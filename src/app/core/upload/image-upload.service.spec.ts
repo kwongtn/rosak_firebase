@@ -1,9 +1,10 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { PLATFORM_ID } from "@angular/core";
-import { of } from "rxjs";
+import { of, throwError } from "rxjs";
 import { ImageUploadService, UPLOAD_ERROR_REPORTER } from "./image-upload.service";
 import { AuthService } from "../auth/auth.service";
+import { savePendingUpload } from "./upload-queue-db";
 
 /**
  * jsdom has no IndexedDB, so the real `deletePendingUpload` rejects when its
@@ -94,6 +95,29 @@ function installIndexedDbMock(): void {
   };
 }
 
+/**
+ * A little-endian Exif JPEG: IFD0 {Make "Canon", GPSInfo} and a GPS IFD {GPSLatitudeRef,
+ * GPSLatitude} whose 24 coordinate bytes are all 0xab, so a surviving coordinate is easy to spot.
+ */
+function jpegWithGps(): Uint8Array<ArrayBuffer> {
+  const ascii = (text: string) => Array.from(text, (ch) => ch.charCodeAt(0));
+  const tiff = [
+    ...[0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00], // "II", 42, IFD0 at 8
+    ...[0x02, 0x00], // IFD0: 2 entries
+    ...[0x0f, 0x01, 0x02, 0x00, 0x06, 0x00, 0x00, 0x00, 38, 0x00, 0x00, 0x00], // Make: 6 ASCII at 38
+    ...[0x25, 0x88, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 44, 0x00, 0x00, 0x00], // GPSInfo: GPS IFD at 44
+    ...[0x00, 0x00, 0x00, 0x00], // no IFD1
+    ...ascii("Canon\0"), // 38
+    ...[0x02, 0x00], // GPS IFD at 44: 2 entries
+    ...[0x01, 0x00, 0x02, 0x00, 0x02, 0x00, 0x00, 0x00, 0x4e, 0x00, 0x00, 0x00], // GPSLatitudeRef "N"
+    ...[0x02, 0x00, 0x05, 0x00, 0x03, 0x00, 0x00, 0x00, 74, 0x00, 0x00, 0x00], // GPSLatitude: 3 RATIONAL at 74
+    ...[0x00, 0x00, 0x00, 0x00],
+    ...new Array<number>(24).fill(0xab), // 74: the coordinates
+  ];
+  const app1 = [0xff, 0xe1, 0x00, 2 + 6 + tiff.length, ...ascii("Exif\0\0"), ...tiff];
+  return new Uint8Array([0xff, 0xd8, ...app1, 0xff, 0xda, 0x00, 0x02, 0x12, 0x34, 0xff, 0xd9]);
+}
+
 describe("ImageUploadService", () => {
   let reportError: ReturnType<typeof vi.fn>;
 
@@ -130,5 +154,90 @@ describe("ImageUploadService", () => {
     // triggerUpload() awaits the IndexedDB cleanup, so the failure report has
     // fired by the time it resolves — no polling needed.
     expect(reportError).toHaveBeenCalled();
+  });
+
+  describe("GPS stripping", () => {
+    const queue = (service: ImageUploadService, file: File): void => {
+      (service as unknown as { pendingUploads: unknown[] }).pendingUploads = [
+        {
+          type: "SPOTTING_EVENT",
+          relatedId: 1,
+          file: { file, toCompress: false, isCompressed: true },
+        },
+      ];
+    };
+    const trigger = (service: ImageUploadService): Promise<void> =>
+      (service as unknown as { triggerUpload: () => Promise<void> }).triggerUpload();
+    const sentImages = (): File[] =>
+      (TestBed.inject(HttpClient).post as ReturnType<typeof vi.fn>).mock.calls.map(
+        ([, body]) => (body as FormData).get("image") as File,
+      );
+
+    it("sends a JPEG without its GPS and keeps its name, type and lastModified", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      queue(
+        service,
+        new File([jpegWithGps()], "train.jpg", {
+          type: "image/jpeg",
+          lastModified: 1_700_000_000_000,
+        }),
+      );
+
+      await trigger(service);
+
+      const [sent] = sentImages();
+      const bytes = new Uint8Array(await sent.arrayBuffer());
+      expect(bytes.includes(0xab)).toBe(false);
+      expect(String.fromCharCode(...bytes)).toContain("Canon");
+      expect([sent.name, sent.type, sent.lastModified]).toEqual([
+        "train.jpg",
+        "image/jpeg",
+        1_700_000_000_000,
+      ]);
+    });
+
+    it("sends a file that is not a JPEG exactly as it is", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xe1])], "map.png", {
+        type: "image/png",
+      });
+      queue(service, png);
+
+      await trigger(service);
+
+      expect(sentImages()).toHaveLength(1);
+      expect(sentImages()[0]).toBe(png);
+    });
+
+    it("also cleans a photo resumed from the IndexedDB queue", async () => {
+      // Queued by an older build, so it was saved with its GPS and is only cleaned at send time.
+      await savePendingUpload({
+        relatedId: 7,
+        type: "SPOTTING_EVENT",
+        file: new File([jpegWithGps()], "old.jpg", { type: "image/jpeg" }),
+      });
+      const service = TestBed.inject(ImageUploadService);
+      await vi.waitFor(() => expect(service.pendingCount()).toBe(1));
+
+      await trigger(service);
+
+      const [sent] = sentImages();
+      expect(new Uint8Array(await sent.arrayBuffer()).includes(0xab)).toBe(false);
+    });
+
+    it("retries with the cleaned file, not the original", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      (TestBed.inject(HttpClient).post as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+        throwError(() => new Error("offline")),
+      );
+      queue(service, new File([jpegWithGps()], "train.jpg", { type: "image/jpeg" }));
+
+      await trigger(service);
+      await trigger(service);
+
+      const [first, second] = sentImages();
+      expect(second).toBe(first);
+      expect(new Uint8Array(await second.arrayBuffer()).includes(0xab)).toBe(false);
+    });
   });
 });

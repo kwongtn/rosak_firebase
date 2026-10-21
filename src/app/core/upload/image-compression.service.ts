@@ -16,7 +16,8 @@ export class ImageCompressionService {
     });
   }
 
-  /** Preserves the original JPEG's EXIF (APP1) segment, since canvas re-encoding drops it. */
+  /** Preserves the original JPEG's EXIF (APP1) segment, since canvas re-encoding drops it. Its GPS
+   * is removed later, when ImageUploadService sends the file (see stripGps). */
   private retrieveExif(blob: Blob): Promise<Blob> {
     const SOS = 0xffda;
     const APP1 = 0xffe1;
