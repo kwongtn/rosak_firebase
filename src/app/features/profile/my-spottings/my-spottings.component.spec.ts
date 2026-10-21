@@ -191,6 +191,47 @@ describe("MySpottingsComponent", () => {
     });
   });
 
+  describe("paging", () => {
+    function loadMoreButton(): HTMLButtonElement | undefined {
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Load more",
+      );
+    }
+
+    it("loads the next page of 30 from where the list stopped, and drops the button on a short page", async () => {
+      requestMock.mockResolvedValueOnce({ events: makeEvents(30) });
+      await render(makeUser(null), true);
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(loadMoreButton()).toBeDefined();
+      });
+
+      requestMock.mockResolvedValueOnce({ events: makeEvents(5, 31) });
+      loadMoreButton()?.click();
+
+      // The button reads "Loading…" while the page is in flight, so wait for the rows themselves.
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).querySelectorAll("li")).toHaveLength(35);
+      });
+      expect(loadMoreButton()).toBeUndefined();
+      expect(requestMock.mock.calls.map(([, vars]) => vars)).toEqual([
+        { limit: 30, offset: 0 },
+        { limit: 30, offset: 30 },
+      ]);
+    });
+
+    it("says so and keeps the list when a page fails", async () => {
+      requestMock.mockRejectedValueOnce(new Error("Network down"));
+
+      await render(makeUser(null), true);
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Couldn't load spottings", "Network down"),
+      );
+    });
+  });
+
   describe("export", () => {
     /** What the browser was asked to download, in order. */
     let downloads: { filename: string; blob: Blob }[];
