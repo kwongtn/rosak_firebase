@@ -66,7 +66,8 @@ export function is404Error(error: unknown): boolean {
  * when a lazy route's dynamic import 404s after a deploy, Angular's router catches the
  * rejected promise and forwards it to ErrorHandler — the `unhandledrejection` path in
  * NewVersionService never fires. Extracting the message and matching it with the same
- * `isChunkLoadError` heuristic surfaces the "update available" prompt consistently.
+ * `isChunkLoadError` heuristic surfaces the "update available" prompt consistently (or, while
+ * offline, NewVersionService's "You're offline" notice).
  */
 @Injectable()
 export class AppErrorHandler implements ErrorHandler {

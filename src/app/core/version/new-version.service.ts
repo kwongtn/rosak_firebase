@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, inject, signal } from "@angular/core";
 
 import * as Sentry from "@sentry/angular";
 import { injectIsBrowser } from "../composables/is-browser";
+import { OnlineService } from "../network/online.service";
 import { buildInfo } from "../../../build-info";
 import { ToastService } from "../../ui/toast/toast.service";
 import { isChunkLoadError } from "./chunk-load-error.util";
@@ -31,6 +32,7 @@ export class NewVersionService {
   private readonly isBrowser = injectIsBrowser();
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly online = inject(OnlineService);
 
   readonly hasNewVersion = signal(false);
 
@@ -131,8 +133,16 @@ export class NewVersionService {
    * Public so the AppErrorHandler can call it: a chunk 404 inside a lazy-loaded route reaches
    * Angular's router first, which forwards it to ErrorHandler — never surfacing as an
    * `unhandledrejection` (see listenForStaleChunkFailures). Both paths end up here.
+   *
+   * Offline, a failed chunk is no evidence of a deploy, and a reload would fail too: the toast
+   * says the page needs a connection instead, and the update button stays dark. Shown on every
+   * failed attempt, so a tap that goes nowhere always says why.
    */
   promptReloadForNewVersion(): void {
+    if (!this.online.isOnline()) {
+      this.toast.info("You're offline", "This page needs a connection.");
+      return;
+    }
     if (this.hasNewVersion()) {
       // Already surfaced — by the poll or an earlier chunk failure — so the button is lit and
       // a second toast would just nag.

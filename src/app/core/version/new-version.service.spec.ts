@@ -1,13 +1,15 @@
-import { provideZonelessChangeDetection } from "@angular/core";
+import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { OnlineService } from "../network/online.service";
 import { ToastService } from "../../ui/toast/toast.service";
 import { NewVersionService } from "./new-version.service";
 
 describe("NewVersionService stale-chunk detection", () => {
   let service: NewVersionService;
   let toast: { info: ReturnType<typeof vi.fn> };
+  const isOnline = signal(true);
 
   beforeEach(() => {
     // The constructor starts a /version.json poll and a 10-minute interval; a request that never
@@ -18,8 +20,13 @@ describe("NewVersionService stale-chunk detection", () => {
       vi.fn(() => new Promise<Response>(() => {})),
     );
     toast = { info: vi.fn() };
+    isOnline.set(true);
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), { provide: ToastService, useValue: toast }],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: ToastService, useValue: toast },
+        { provide: OnlineService, useValue: { isOnline } },
+      ],
     });
     service = TestBed.inject(NewVersionService);
   });
@@ -51,5 +58,52 @@ describe("NewVersionService stale-chunk detection", () => {
 
     expect(service.hasNewVersion()).toBe(true);
     expect(toast.info).toHaveBeenCalledTimes(1);
+  });
+
+  describe("while offline", () => {
+    it("says the page needs a connection instead of offering an update", () => {
+      isOnline.set(false);
+
+      failScript("/chunk-D4-DL31Z2.js");
+
+      expect(toast.info).toHaveBeenCalledExactlyOnceWith(
+        "You're offline",
+        "This page needs a connection.",
+      );
+      // The update button stays dark: its click is the only path that clears caches and reloads.
+      expect(service.hasNewVersion()).toBe(false);
+    });
+
+    it("answers the router's ErrorHandler path the same way", () => {
+      isOnline.set(false);
+
+      service.promptReloadForNewVersion();
+
+      expect(toast.info).toHaveBeenCalledExactlyOnceWith(
+        "You're offline",
+        "This page needs a connection.",
+      );
+      expect(service.hasNewVersion()).toBe(false);
+    });
+
+    it("tells the user on every failed attempt", () => {
+      isOnline.set(false);
+
+      failScript("/chunk-D4-DL31Z2.js");
+      failScript("/chunk-D4-DL31Z2.js");
+
+      expect(toast.info).toHaveBeenCalledTimes(2);
+    });
+
+    it("goes back to the update prompt once the connection returns", () => {
+      isOnline.set(false);
+      failScript("/chunk-D4-DL31Z2.js");
+
+      isOnline.set(true);
+      failScript("/chunk-D4-DL31Z2.js");
+
+      expect(service.hasNewVersion()).toBe(true);
+      expect(toast.info).toHaveBeenLastCalledWith("Update available", expect.any(String));
+    });
   });
 });
