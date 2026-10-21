@@ -329,7 +329,12 @@ export class IncidentHistoryComponent {
     }
     return {
       query: INSIDEN_MONTHLY_HISTORY_QUERY,
-      variables: { startYear: yearFilter(span.startYear), endYear: yearFilter(span.endYear) },
+      variables: {
+        startYear: yearFilter(span.startYear),
+        endYear: yearFilter(span.endYear),
+        // A window that ends in December sits inside one year; the second read would repeat the first.
+        sameYear: span.startYear === span.endYear,
+      },
     };
   });
 

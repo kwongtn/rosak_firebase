@@ -23,13 +23,17 @@ import type { CalendarIncidentSeverity } from "./insiden.queries";
  * and a `year` form that is not capped: `year: { exact: Y }` returns every incident overlapping
  * calendar year Y, which always includes each one that STARTED in Y. A 12-month window ends in year
  * Y and begins in Y or Y - 1, so these two aliases cover it; an incident spanning both comes back
- * twice and is de-duplicated by `id`. Status is not filterable server-side, so it is read and
+ * twice and is de-duplicated by `id`. A window that ends in December begins in January of the SAME
+ * year, and one read covers it: `$sameYear` makes the server skip the second alias instead of
+ * answering the identical question twice (the payload grows with every ongoing incident, which each
+ * year read returns whatever its age). Status is not filterable server-side, so it is read and
  * filtered on the client.
  */
 export const INSIDEN_MONTHLY_HISTORY_QUERY = /* GraphQL */ `
   query InsidenMonthlyHistory(
     $startYear: CalendarIncidentFilter
     $endYear: CalendarIncidentFilter
+    $sameYear: Boolean!
   ) {
     startYearIncidents: calendarIncidents(filters: $startYear) {
       id
@@ -37,7 +41,7 @@ export const INSIDEN_MONTHLY_HISTORY_QUERY = /* GraphQL */ `
       severity
       status
     }
-    endYearIncidents: calendarIncidents(filters: $endYear) {
+    endYearIncidents: calendarIncidents(filters: $endYear) @skip(if: $sameYear) {
       id
       startDatetime
       severity
@@ -58,7 +62,8 @@ export interface MonthlyHistoryIncident {
 
 export interface InsidenMonthlyHistoryData {
   startYearIncidents: MonthlyHistoryIncident[];
-  endYearIncidents: MonthlyHistoryIncident[];
+  /** Absent when the window sits inside one calendar year (`$sameYear`). */
+  endYearIncidents?: MonthlyHistoryIncident[];
 }
 
 /** `CalendarIncidentFilter` for "overlaps calendar year `exact`". */
@@ -69,4 +74,6 @@ export interface YearFilter {
 export interface InsidenMonthlyHistoryVars {
   startYear: YearFilter;
   endYear: YearFilter;
+  /** True when both years are the same one, so the second read is skipped server-side. */
+  sameYear: boolean;
 }

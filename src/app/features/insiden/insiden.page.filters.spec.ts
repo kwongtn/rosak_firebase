@@ -807,6 +807,7 @@ describe("InsidenPage incident filters", () => {
       expect(request.request.body.variables).toEqual({
         startYear: { date: { year: { exact: 2025 } } },
         endYear: { date: { year: { exact: 2026 } } },
+        sameYear: false,
       });
       request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
       await settle();
@@ -832,6 +833,7 @@ describe("InsidenPage incident filters", () => {
       expect(history.request.body.variables).toEqual({
         startYear: { date: { year: { exact: 2026 } } },
         endYear: { date: { year: { exact: 2027 } } },
+        sameYear: false,
       });
       history.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
       await settle();

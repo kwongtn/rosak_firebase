@@ -153,20 +153,43 @@ describe("IncidentHistoryComponent", () => {
       expect(request.request.body.variables).toEqual({
         startYear: { date: { year: { exact: 2025 } } },
         endYear: { date: { year: { exact: 2026 } } },
+        sameYear: false,
       });
       request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
     });
 
-    it("uses one year for both when the window ends in December", () => {
+    it("asks for one year once, not twice, when the window ends in December", () => {
       const fixture = mount("2026-12");
       open(fixture);
 
+      // January..December 2026 sits inside 2026: the second aliased read would repeat the first, so
+      // `$sameYear` has the server skip it (the payload grows with every ongoing incident).
       const request = httpMock.expectOne(isHistoryRead);
       expect(request.request.body.variables).toEqual({
         startYear: { date: { year: { exact: 2026 } } },
         endYear: { date: { year: { exact: 2026 } } },
+        sameYear: true,
       });
-      request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      expect(request.request.body.query).toContain("@skip(if: $sameYear)");
+      request.flush({ data: { startYearIncidents: [] } });
+    });
+
+    it("draws a December window from the one read the server answers", async () => {
+      const fixture = await openAndAnswer("2026-12", {
+        startYearIncidents: [
+          incident("a", "2026-01-10T08:00:00", "MAJOR"),
+          incident("b", "2026-12-02T08:00:00", "MINOR"),
+        ],
+      });
+
+      const byMonth = new Map(bars(fixture).map((bar) => [bar.dataset["month"], bar]));
+      expect(bars(fixture)).toHaveLength(12);
+      expect(byMonth.get("2026-01")?.getAttribute("title")).toBe(
+        "January 2026 · 1 incident · Major 1, Minor 0",
+      );
+      expect(byMonth.get("2026-12")?.getAttribute("title")).toBe(
+        "December 2026 · 1 incident · Major 0, Minor 1",
+      );
     });
 
     it("does not depend on the clock: the same endMonth sends the same body on any day", () => {
@@ -199,6 +222,7 @@ describe("IncidentHistoryComponent", () => {
       expect(request.request.body.variables).toEqual({
         startYear: { date: { year: { exact: 2024 } } },
         endYear: { date: { year: { exact: 2025 } } },
+        sameYear: false,
       });
       request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
     });
@@ -328,7 +352,9 @@ describe("IncidentHistoryComponent", () => {
 
     it("omits that note when there are none", async () => {
       const data = marchWindowData();
-      data.endYearIncidents = data.endYearIncidents.filter((entry) => entry.severity !== "OTHERS");
+      data.endYearIncidents = (data.endYearIncidents ?? []).filter(
+        (entry) => entry.severity !== "OTHERS",
+      );
       const fixture = await openAndAnswer("2026-03", data);
 
       expect(root(fixture).querySelector('[data-testid="incident-history-other"]')).toBeNull();
