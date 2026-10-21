@@ -34,6 +34,9 @@ interface PendingUpload {
   type: PendingUploadType;
   relatedId: number | string;
   file: ImageFile;
+  /** Set once the bytes have been checked for GPS (and cleaned if needed), so a retry does not
+   * read the whole file again. */
+  gpsChecked?: boolean;
 }
 
 /**
@@ -189,13 +192,17 @@ export class ImageUploadService {
    * TIFF or PNG loses its GPS losslessly (see stripGps). Other formats are sent as they are and the
    * server does not strip them either (it handles JPEG only): the picker accepts nothing but JPEG,
    * PNG, GIF and TIFF (ACCEPTED_TYPES), and GIF has no Exif; HEIC and WebP never get here.
-   * The cleaned copy replaces the queued file, so a retry does not redo the work and can never fall
-   * back to the original.
+   * The cleaned copy replaces the queued file, so a retry can never fall back to the original, and
+   * `gpsChecked` makes sure only the first attempt reads the bytes.
    */
   private async withoutGps(item: PendingUpload): Promise<File> {
+    if (item.gpsChecked) {
+      return item.file.file;
+    }
     const original = item.file.file;
     const bytes = new Uint8Array(await original.arrayBuffer());
     const stripped = stripGps(bytes);
+    item.gpsChecked = true;
     if (stripped === bytes) {
       return original;
     }

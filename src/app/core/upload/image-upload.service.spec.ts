@@ -239,5 +239,24 @@ describe("ImageUploadService", () => {
       expect(second).toBe(first);
       expect(new Uint8Array(await second.arrayBuffer()).includes(0xab)).toBe(false);
     });
+
+    it("reads a file without GPS once across retries", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      (TestBed.inject(HttpClient).post as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+        throwError(() => new Error("offline")),
+      );
+      const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "map.png", {
+        type: "image/png",
+      });
+      const read = vi.spyOn(png, "arrayBuffer");
+      queue(service, png);
+
+      await trigger(service);
+      await trigger(service);
+
+      expect(sentImages()).toHaveLength(2);
+      expect(sentImages()[1]).toBe(png);
+      expect(read).toHaveBeenCalledTimes(1);
+    });
   });
 });
