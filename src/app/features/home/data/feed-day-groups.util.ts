@@ -8,10 +8,10 @@ export interface FeedDayGroup {
   links: FeedLink[];
 }
 
-/** LOCAL calendar-day key (YYYY-MM-DD) of a parsed date. Local — not UTC like
- * `insiden/link-day-group.util` — because the home feed's timestamps are naive
- * Asia/Kuala_Lumpur datetimes (backend `USE_TZ=False`), so their local fields already carry the
- * MY calendar day. */
+/** LOCAL calendar-day key (YYYY-MM-DD) of a parsed date. Local — unlike
+ * `insiden/link-day-group.util`, which keys on the Kuala Lumpur day via klDateKey — because the
+ * home feed's timestamps are naive Asia/Kuala_Lumpur datetimes (backend `USE_TZ=False`), so their
+ * local fields already carry the MY calendar day. */
 function localDayKey(date: Date): string {
   const pad2 = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
