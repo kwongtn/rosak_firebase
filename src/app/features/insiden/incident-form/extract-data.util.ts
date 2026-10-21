@@ -124,8 +124,8 @@ export function mapExtractedSeverity(severity: string | null | undefined): Propo
   return SEVERITY_BY_WORD.get(nameKey(severity)) ?? null;
 }
 
-/** An extraction may only carry a time inside this window. `notBefore` is the start of the incident
- * date the form shows (see `incidentDayStart`); `null` while there is no such date. */
+/** An extraction may only carry a time inside this window (see `extractionWindow` for how the form
+ * builds it). `notBefore` is `null` for no lower bound. */
 export interface DatetimeWindow {
   now: Date;
   notBefore: Date | null;
@@ -161,6 +161,23 @@ export function incidentDayStart(startDatetime: string): Date | null {
   }
   const start = new Date(`${startDatetime.slice(0, 10)}T00:00`);
   return Number.isNaN(start.getTime()) ? null : start;
+}
+
+/** With no Start date to go by, a time older than this many days is treated as a wrong guess. */
+export const FALLBACK_LOOKBACK_DAYS = 31;
+
+/** The window an extracted time is checked against: from the start of the rider's Start date when
+ * there is one (their own statement of when the incident began), else the last
+ * `FALLBACK_LOOKBACK_DAYS` days. Start is empty on a new form and nothing makes a rider fill it
+ * before pressing "Fill from link"; without the fallback, a date written without a year that the
+ * model resolves to last year would pass. Setting Start first is how to report an older incident. */
+export function extractionWindow(now: Date, startDatetime: string): DatetimeWindow {
+  return {
+    now,
+    notBefore:
+      incidentDayStart(startDatetime) ??
+      new Date(now.getTime() - FALLBACK_LOOKBACK_DAYS * ONE_DAY_MS),
+  };
 }
 
 /** A line or station the form already loaded, as the matcher needs it. */
@@ -254,34 +271,47 @@ export interface FormFill {
   severity: ProposedSeverity | null;
   lines: ReferenceMatches;
   stations: ReferenceMatches;
+  /** The extraction named lines or stations this fill could have placed, but the reference data
+   * had not loaded, so nothing was compared and nothing is reported as unmatched. */
+  namesUnchecked: boolean;
 }
 
 function noMatches(): ReferenceMatches {
   return { matched: [], unmatched: [] };
 }
 
+function hasNames(names: unknown): boolean {
+  return Array.isArray(names) && names.some((name) => typeof name === "string" && name.trim());
+}
+
 /** Decides what an extraction may put into the form's title, severity, lines and stations. A field
  * that already holds something is left alone (the proposal for it is empty), so a rider's own
  * input is never overwritten. The title is cut to the backend's length (`clampTitle`). `reference`
  * is `null` while lines and stations have not loaded; their names are then neither matched nor
- * reported as unmatched, since nothing was compared. */
+ * reported as unmatched, since nothing was compared (see `FormFill.namesUnchecked`). */
 export function planFormFill(
   current: FormFillCurrent,
   data: ExtractedIncidentData,
   reference: FormFillReference | null,
 ): FormFill {
   const title = typeof data.title === "string" ? clampTitle(data.title) : "";
+  const placesLines = current.lineIds.length === 0;
+  const placesStations = current.stationIds.length === 0;
   return {
     title: title && !current.title.trim() ? title : null,
     severity: current.severity ? null : mapExtractedSeverity(data.severity),
     lines:
-      reference && current.lineIds.length === 0
+      reference && placesLines
         ? matchReferenceNames(data.affected_lines, reference.lines)
         : noMatches(),
     stations:
-      reference && current.stationIds.length === 0
+      reference && placesStations
         ? matchReferenceNames(data.affected_stations, reference.stations)
         : noMatches(),
+    namesUnchecked:
+      reference === null &&
+      ((placesLines && hasNames(data.affected_lines)) ||
+        (placesStations && hasNames(data.affected_stations))),
   };
 }
 
@@ -300,6 +330,19 @@ export function describeFormFill(fill: FormFill): string {
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+/** What the rider should know about a fill beyond what it put in: a time the model gave that
+ * `plausibleDatetime` refused, and names that were never compared. Each is one sentence. */
+export function describeFillNotes(fill: FormFill, timeRejected: boolean): string[] {
+  const notes: string[] = [];
+  if (timeRejected) {
+    notes.push("The time it found looks out of range, so the row's time was left as it was.");
+  }
+  if (fill.namesUnchecked) {
+    notes.push("Lines and stations were not matched because their list has not loaded.");
+  }
+  return notes;
 }
 
 /** The indicator a chronology row ends up with after an extraction. The indicator select has no

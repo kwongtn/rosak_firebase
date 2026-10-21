@@ -51,8 +51,10 @@ import {
 } from "./chronology-list.util";
 import {
   applyExtractionToChronology,
+  describeFillNotes,
   describeFormFill,
-  incidentDayStart,
+  extractionWindow,
+  isoToDateTimeLocal,
   planFormFill,
   plausibleDatetime,
   proposeIndicator,
@@ -599,13 +601,13 @@ export class IncidentFormComponent {
    * filled only where still empty. Nothing the rider typed is overwritten, except the row's
    * datetime and content, which an extraction has always replaced. */
   private applyExtraction(key: number, data: ExtractedIncidentData): void {
-    const checked = {
-      ...data,
-      datetime: plausibleDatetime(data.datetime, {
-        now: new Date(),
-        notBefore: incidentDayStart(this.model().startDatetime),
-      }),
-    };
+    const datetime = plausibleDatetime(
+      data.datetime,
+      extractionWindow(new Date(), this.model().startDatetime),
+    );
+    // A time the model gave and the window refused, as opposed to no time at all, is worth a word.
+    const timeRejected = datetime === null && isoToDateTimeLocal(data.datetime) !== "";
+    const checked = { ...data, datetime };
     this.chronologies.update((list) =>
       list.map((c) =>
         c.key === key
@@ -613,10 +615,10 @@ export class IncidentFormComponent {
           : c,
       ),
     );
-    this.fillFormFields(data);
+    this.fillFormFields(data, timeRejected);
   }
 
-  private fillFormFields(data: ExtractedIncidentData): void {
+  private fillFormFields(data: ExtractedIncidentData, timeRejected: boolean): void {
     const { title, severity } = this.model();
     const fill = planFormFill(
       {
@@ -652,8 +654,14 @@ export class IncidentFormComponent {
     }));
     // The title, severity and chips sit far above the chronology row the rider just pressed.
     const filled = describeFormFill(fill);
+    const notes = describeFillNotes(fill, timeRejected);
     if (filled) {
-      this.toast.success("Filled from link", `Filled in ${filled}. Review before you submit.`);
+      this.toast.success(
+        "Filled from link",
+        [`Filled in ${filled}.`, ...notes, "Review before you submit."].join(" "),
+      );
+    } else if (notes.length > 0) {
+      this.toast.info("Fill from link", notes.join(" "));
     }
   }
 

@@ -62,6 +62,14 @@ function filledModel(): IncidentFormModel {
   };
 }
 
+const DAY_MS = 86_400_000;
+
+/** An ISO time `hours` before now. The extraction window is relative to the clock, so a fixed
+ * date in a fixture would age out of it. */
+function hoursAgoIso(hours: number): string {
+  return new Date(Date.now() - hours * 3_600_000).toISOString();
+}
+
 function incidentFixture(overrides: Partial<CalendarIncident> = {}): CalendarIncident {
   return {
     id: "7",
@@ -108,7 +116,11 @@ function incidentFixture(overrides: Partial<CalendarIncident> = {}): CalendarInc
 describe("IncidentFormComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
   let extractMock: ReturnType<typeof vi.fn>;
-  let toastMocks: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  let toastMocks: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+    info: ReturnType<typeof vi.fn>;
+  };
   let authMocks: { isLoggedIn: ReturnType<typeof vi.fn>; isAdmin: ReturnType<typeof vi.fn> };
   let sheet: InstanceType<typeof IncidentSheetService>;
   let fixture: ComponentFixture<IncidentFormComponent>;
@@ -117,7 +129,7 @@ describe("IncidentFormComponent", () => {
   beforeEach(async () => {
     requestMock = vi.fn().mockResolvedValue({ createCalendarIncident: { ok: true, id: 42 } });
     extractMock = vi.fn();
-    toastMocks = { success: vi.fn(), error: vi.fn() };
+    toastMocks = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     authMocks = { isLoggedIn: vi.fn(() => true), isAdmin: vi.fn(() => false) };
 
     await TestBed.configureTestingModule({
@@ -503,7 +515,7 @@ describe("IncidentFormComponent", () => {
   describe("Extract Data", () => {
     const EXTRACTED: ExtractedIncidentData = {
       title: "Signal fault",
-      datetime: "2026-08-01T09:30:00+08:00",
+      datetime: hoursAgoIso(2),
       content: "Trains held at KL Sentral",
       source_url: "https://x.com/a/1",
       indicator: "disruption",
@@ -639,7 +651,7 @@ describe("IncidentFormComponent", () => {
 
     const FILLED: ExtractedIncidentData = {
       title: "Signal fault at KL Sentral",
-      datetime: "2026-08-01T09:30:00+08:00",
+      datetime: hoursAgoIso(2),
       content: "Trains held at KL Sentral",
       source_url: "https://x.com/a/1",
       indicator: "disruption",
@@ -723,7 +735,7 @@ describe("IncidentFormComponent", () => {
       expect(component.chronologies()[0]).toMatchObject({
         indicator: "RED",
         content: "Trains held at KL Sentral",
-        datetime: isoToDateTimeLocal("2026-08-01T09:30:00+08:00"),
+        datetime: isoToDateTimeLocal(FILLED.datetime),
       });
     });
 
@@ -824,6 +836,28 @@ describe("IncidentFormComponent", () => {
       expect(component.model().title.length).toBeLessThanOrEqual(INCIDENT_TITLE_MAX_LENGTH);
     });
 
+    it("says so, and selects nothing, when the lines and stations have not loaded", async () => {
+      // A fresh form whose reference read fails, so there are no lines or stations to compare with.
+      fixture = TestBed.createComponent(IncidentFormComponent);
+      fixture.detectChanges();
+      httpMock
+        .expectOne((request) => request.method === "POST")
+        .flush(null, { status: 500, statusText: "Server Error" });
+      await fixture.whenStable();
+      const component = await openWithRow();
+
+      await fillFromLink(component);
+
+      expect(component.model().title).toBe("Signal fault at KL Sentral");
+      expect(component.selectedLineIds()).toEqual([]);
+      expect(component.selectedStationIds()).toEqual([]);
+      expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
+      expect(toastMocks.success).toHaveBeenCalledWith(
+        "Filled from link",
+        "Filled in title, severity. Lines and stations were not matched because their list has not loaded. Review before you submit.",
+      );
+    });
+
     it("reports names that match nothing even when no chip could be made", async () => {
       await loadReference();
       const component = await openWithRow();
@@ -863,34 +897,105 @@ describe("IncidentFormComponent", () => {
       expect(host().querySelector('[data-testid="fill-summary"]')).toBeNull();
     });
 
-    it("drops an extracted time more than a day in the future but still applies the content", async () => {
-      const component = await openWithRow();
-      const threeDaysAhead = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    describe("the time it found", () => {
+      it("drops a time more than a day in the future, keeps the content and says so", async () => {
+        const component = await openWithRow();
+        const threeDaysAhead = new Date(Date.now() + 3 * DAY_MS).toISOString();
 
-      await fillFromLink(component, { ...FILLED, datetime: threeDaysAhead });
+        await fillFromLink(component, { ...FILLED, datetime: threeDaysAhead });
 
-      expect(component.chronologies()[0].datetime).toBe("");
-      expect(component.chronologies()[0].content).toBe("Trains held at KL Sentral");
-    });
+        expect(component.chronologies()[0].datetime).toBe("");
+        expect(component.chronologies()[0].content).toBe("Trains held at KL Sentral");
+        expect(toastMocks.success).toHaveBeenCalledWith(
+          "Filled from link",
+          expect.stringContaining("The time it found looks out of range"),
+        );
+      });
 
-    it("drops an extracted time before the incident's start date", async () => {
-      const component = await openWithRow();
-      component.model.update((m) => ({ ...m, startDatetime: "2026-08-10T08:00" }));
+      it("with no Start, drops a time from last year, the usual wrong guess for a date with no year", async () => {
+        const component = await openWithRow();
+        expect(component.model().startDatetime).toBe("");
+        const lastYear = new Date(Date.now() - 400 * DAY_MS).toISOString();
 
-      await fillFromLink(component, { ...FILLED, datetime: "2026-08-01T09:30:00+08:00" });
+        await fillFromLink(component, { ...FILLED, datetime: lastYear });
 
-      expect(component.chronologies()[0].datetime).toBe("");
-    });
+        expect(component.chronologies()[0].datetime).toBe("");
+        expect(component.chronologies()[0].content).toBe("Trains held at KL Sentral");
+      });
 
-    it("keeps an extracted time on or after the incident's start date", async () => {
-      const component = await openWithRow();
-      component.model.update((m) => ({ ...m, startDatetime: "2026-08-01T08:00" }));
+      it("with no Start, keeps a time from earlier this month without comment", async () => {
+        const component = await openWithRow();
+        const lastWeek = new Date(Date.now() - 7 * DAY_MS).toISOString();
 
-      await fillFromLink(component, { ...FILLED, datetime: "2026-08-01T09:30:00+08:00" });
+        await fillFromLink(component, { ...FILLED, datetime: lastWeek });
 
-      expect(component.chronologies()[0].datetime).toBe(
-        isoToDateTimeLocal("2026-08-01T09:30:00+08:00"),
-      );
+        expect(component.chronologies()[0].datetime).toBe(isoToDateTimeLocal(lastWeek));
+        expect(toastMocks.success).toHaveBeenCalledWith(
+          "Filled from link",
+          "Filled in title, severity. Review before you submit.",
+        );
+      });
+
+      it("drops a time before the incident's start date", async () => {
+        const component = await openWithRow();
+        component.model.update((m) => ({ ...m, startDatetime: "2026-08-10T08:00" }));
+
+        await fillFromLink(component, { ...FILLED, datetime: "2026-08-01T09:30:00Z" });
+
+        expect(component.chronologies()[0].datetime).toBe("");
+      });
+
+      it("keeps a time on or after the incident's start date", async () => {
+        const component = await openWithRow();
+        component.model.update((m) => ({ ...m, startDatetime: "2026-08-01T08:00" }));
+
+        await fillFromLink(component, { ...FILLED, datetime: "2026-08-02T12:00:00Z" });
+
+        expect(component.chronologies()[0].datetime).toBe(
+          isoToDateTimeLocal("2026-08-02T12:00:00Z"),
+        );
+      });
+
+      it("takes an older time once Start is set to that older date", async () => {
+        const component = await openWithRow();
+        component.model.update((m) => ({ ...m, startDatetime: "2026-06-01T08:00" }));
+        // Well outside the 31 days a Start-less form allows.
+        await fillFromLink(component, { ...FILLED, datetime: "2026-06-02T12:00:00Z" });
+
+        expect(component.chronologies()[0].datetime).toBe(
+          isoToDateTimeLocal("2026-06-02T12:00:00Z"),
+        );
+      });
+
+      it("does not mention the time when the extraction had none", async () => {
+        const component = await openWithRow();
+
+        await fillFromLink(component, { ...FILLED, datetime: null });
+
+        expect(toastMocks.success).toHaveBeenCalledWith(
+          "Filled from link",
+          "Filled in title, severity. Review before you submit.",
+        );
+      });
+
+      it("tells the rider when the time was the only thing the extraction offered that was refused", async () => {
+        await loadReference();
+        const component = await openWithRow();
+        component.model.update((m) => ({ ...m, title: "Mine", severity: "MINOR" }));
+        component.selectedLineIds.set(["1"]);
+        component.selectedStationIds.set(["11"]);
+
+        await fillFromLink(component, {
+          ...FILLED,
+          datetime: new Date(Date.now() + 3 * DAY_MS).toISOString(),
+        });
+
+        expect(toastMocks.success).not.toHaveBeenCalled();
+        expect(toastMocks.info).toHaveBeenCalledWith(
+          "Fill from link",
+          "The time it found looks out of range, so the row's time was left as it was.",
+        );
+      });
     });
 
     it("fills nothing and unlocks the row when the extraction fails", async () => {

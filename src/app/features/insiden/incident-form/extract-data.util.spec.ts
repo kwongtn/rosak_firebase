@@ -4,7 +4,10 @@ import { emptyChronology } from "./chronology-list.util";
 import {
   applyExtractionToChronology,
   clampTitle,
+  describeFillNotes,
   describeFormFill,
+  extractionWindow,
+  FALLBACK_LOOKBACK_DAYS,
   incidentDayStart,
   isoToDateTimeLocal,
   mapExtractedIndicator,
@@ -203,6 +206,45 @@ describe("incidentDayStart", () => {
     expect(incidentDayStart("")).toBeNull();
     expect(incidentDayStart("soon")).toBeNull();
     expect(incidentDayStart("2026-13-45T08:00")).toBeNull();
+  });
+});
+
+describe("extractionWindow", () => {
+  const now = new Date("2026-10-22T06:30:00Z");
+  const dayMs = 86_400_000;
+
+  it("starts at local midnight of the Start date when the rider has set one", () => {
+    expect(extractionWindow(now, "2026-08-01T08:00")).toEqual({
+      now,
+      notBefore: new Date(2026, 7, 1, 0, 0),
+    });
+  });
+
+  it("falls back to the last FALLBACK_LOOKBACK_DAYS days while Start is empty or malformed", () => {
+    const fallback = new Date(now.getTime() - FALLBACK_LOOKBACK_DAYS * dayMs);
+    expect(extractionWindow(now, "").notBefore).toEqual(fallback);
+    expect(extractionWindow(now, "soon").notBefore).toEqual(fallback);
+  });
+
+  it("rejects last year's guess for a date written without a year while Start is empty", () => {
+    const window = extractionWindow(now, "");
+    expect(plausibleDatetime("2025-10-03T09:00:00+08:00", window)).toBeNull();
+    expect(plausibleDatetime("2026-10-03T09:00:00+08:00", window)).toBe(
+      "2026-10-03T09:00:00+08:00",
+    );
+  });
+
+  it("keeps a time up to the lookback and drops one just past it", () => {
+    const window = extractionWindow(now, "");
+    const edge = now.getTime() - FALLBACK_LOOKBACK_DAYS * dayMs;
+    expect(plausibleDatetime(new Date(edge).toISOString(), window)).not.toBeNull();
+    expect(plausibleDatetime(new Date(edge - 1).toISOString(), window)).toBeNull();
+  });
+
+  it("opens up to an older incident once Start is set to it", () => {
+    const window = extractionWindow(now, "2026-06-01T08:00");
+    expect(plausibleDatetime("2026-06-02T12:00:00Z", window)).toBe("2026-06-02T12:00:00Z");
+    expect(plausibleDatetime("2026-05-30T00:00:00Z", window)).toBeNull();
   });
 });
 
@@ -452,6 +494,23 @@ describe("planFormFill", () => {
     expect(fill.severity).toBe("MAJOR");
   });
 
+  it("says the names were never compared when the reference data is not loaded", () => {
+    expect(planFormFill(empty, data, null).namesUnchecked).toBe(true);
+    expect(planFormFill(empty, data, reference).namesUnchecked).toBe(false);
+  });
+
+  it("has nothing unchecked when the extraction named no line or station, or none could be placed", () => {
+    const unnamed = { ...data, affected_lines: [], affected_stations: [] };
+    expect(planFormFill(empty, unnamed, null).namesUnchecked).toBe(false);
+    expect(
+      planFormFill(empty, { ...unnamed, affected_lines: ["", "  "] }, null).namesUnchecked,
+    ).toBe(false);
+    const placed = { ...empty, lineIds: ["4"], stationIds: ["10"] };
+    expect(planFormFill(placed, data, null).namesUnchecked).toBe(false);
+    // A line is still unplaced, so its names went unchecked.
+    expect(planFormFill({ ...placed, lineIds: [] }, data, null).namesUnchecked).toBe(true);
+  });
+
   it("cuts a title longer than the backend column and fills nothing unusable", () => {
     const longTitle =
       "Signal fault disrupts LRT Kelana Jaya Line services between KL Sentral and Pasar Seni";
@@ -472,6 +531,7 @@ describe("planFormFill", () => {
       severity: null,
       lines: { matched: [], unmatched: [] },
       stations: { matched: [], unmatched: [] },
+      namesUnchecked: false,
     });
   });
 });
@@ -502,6 +562,33 @@ describe("describeFormFill", () => {
       { lines: LINES, stations: STATIONS },
     );
     expect(describeFormFill(fill)).toBe("");
+  });
+});
+
+describe("describeFillNotes", () => {
+  const empty: FormFillCurrent = { title: "", severity: "", lineIds: [], stationIds: [] };
+  const reference = { lines: LINES, stations: STATIONS };
+  const named = { ...EXTRACTED, affected_lines: ["MRL"], affected_stations: [] as string[] };
+
+  it("has nothing to add for an ordinary fill", () => {
+    expect(describeFillNotes(planFormFill(empty, named, reference), false)).toEqual([]);
+  });
+
+  it("says when the time it found was refused", () => {
+    expect(describeFillNotes(planFormFill(empty, named, reference), true)).toEqual([
+      "The time it found looks out of range, so the row's time was left as it was.",
+    ]);
+  });
+
+  it("says when lines and stations were never compared", () => {
+    expect(describeFillNotes(planFormFill(empty, named, null), false)).toEqual([
+      "Lines and stations were not matched because their list has not loaded.",
+    ]);
+  });
+
+  it("gives both notes in that order", () => {
+    expect(describeFillNotes(planFormFill(empty, named, null), true)).toHaveLength(2);
+    expect(describeFillNotes(planFormFill(empty, named, null), true)[0]).toMatch(/out of range/);
   });
 });
 
