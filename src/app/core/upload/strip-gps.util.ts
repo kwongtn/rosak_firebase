@@ -13,8 +13,8 @@ const PNG_SIGNATURE = "\x89PNG\r\n\x1a\n";
 const DROPPED = new Uint8Array(0);
 
 /**
- * Lossless GPS removal for JPEG, TIFF and PNG bytes (audit F044, client half): a photo must not
- * carry the place it was taken when it leaves the device. Nothing is re-encoded and only the
+ * Lossless Exif GPS removal for JPEG, TIFF and PNG bytes (audit F044, client half): a photo must
+ * not carry the place it was taken when it leaves the device. Nothing is re-encoded and only the
  * parts that hold a location change. The capture time (DateTime, DateTimeOriginal) and the camera
  * Make/Model stay on purpose: the backend sets incident-photo timestamps from the first and
  * moderators read the second.
