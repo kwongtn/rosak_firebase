@@ -62,6 +62,7 @@ interface DayCell {
       <div class="flex items-center justify-between">
         <h2 class="flex items-baseline gap-1">
           <hlm-combobox
+            aria-label="Month"
             class="field-sizing-content min-w-8 !border-none !bg-transparent !py-0 !pl-0 text-lg font-semibold"
             [items]="monthItems()"
             [value]="displayedMonth()"
@@ -70,6 +71,7 @@ interface DayCell {
             emptyMessage="No matching months"
           />
           <hlm-combobox
+            aria-label="Year"
             class="field-sizing-content min-w-10 !border-none !bg-transparent !py-0 !pl-0 text-lg font-semibold"
             [items]="yearItems()"
             [value]="displayedYear()"

@@ -1,4 +1,14 @@
-import { Component, computed, effect, input, model, signal, TemplateRef } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  input,
+  model,
+  signal,
+  TemplateRef,
+} from "@angular/core";
 import { NgTemplateOutlet } from "@angular/common";
 import { HlmInput } from "../input/input";
 
@@ -11,11 +21,18 @@ export interface ComboboxItem<T, TMeta = unknown> {
   meta?: TMeta;
 }
 
+let nextComboboxId = 0;
+
 /**
  * A minimal searchable single-select, built directly (not on spartan-ng's Brain combobox,
  * whose generic multi-mode abstraction is more machinery than this app's one real use case —
  * the spotting-report vehicle picker — needs). Filters client-side over an already-fetched
  * item list; no virtualization, since the lists involved (a line's vehicle roster) are small.
+ *
+ * Follows the ARIA editable-combobox pattern with list autocomplete: the input is the
+ * `role="combobox"` and keeps DOM focus; the highlighted row is exposed through
+ * `aria-activedescendant`, not by moving focus. Escape closes an open list and stops there, but a
+ * closed combobox lets it through, so Escape inside a sheet still closes the sheet.
  */
 @Component({
   selector: "hlm-combobox",
@@ -25,9 +42,14 @@ export interface ComboboxItem<T, TMeta = unknown> {
     <input
       hlmInput
       type="text"
+      role="combobox"
+      aria-autocomplete="list"
       [class]="_inputClass()"
       [placeholder]="placeholder()"
       [attr.aria-label]="ariaLabel() ?? null"
+      [attr.aria-expanded]="_listVisible()"
+      [attr.aria-controls]="_listboxId"
+      [attr.aria-activedescendant]="_activeOptionId()"
       [value]="search()"
       (input)="_onInput($event)"
       (click)="_onClick($event)"
@@ -35,7 +57,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
       (keydown.arrowdown)="_moveHighlight(1); $event.preventDefault()"
       (keydown.arrowup)="_moveHighlight(-1); $event.preventDefault()"
       (keydown.enter)="_selectHighlighted(); $event.preventDefault()"
-      (keydown.escape)="_isOpen.set(false)"
+      (keydown.escape)="_onEscape($event)"
     />
     <!-- Purely decorative (pointer-events-none) — the same select-style affordance a native
              <select> shows, so this reads as "a dropdown" rather than a plain text field even
@@ -55,13 +77,19 @@ export interface ComboboxItem<T, TMeta = unknown> {
         <ng-container *ngTemplateOutlet="trailing" />
       </span>
     }
-    @if (_isOpen() && _filtered().length > 0) {
+    @if (_listVisible()) {
       <ul
+        role="listbox"
+        [id]="_listboxId"
+        [attr.aria-label]="ariaLabel() ?? null"
         class="bg-popover text-popover-foreground border-border absolute z-50 mt-1 max-h-64 w-max min-w-full overflow-x-clip overflow-y-auto rounded-lg border py-1 shadow-md"
         [class.max-w-full]="constrainWidth()"
       >
         @for (item of _filtered(); track item.value) {
           <li
+            role="option"
+            [id]="_optionId($index)"
+            [attr.aria-selected]="$index === _highlightIndex()"
             class="hover:bg-muted flex cursor-pointer items-center px-2.5 py-1.5 text-sm"
             [class.bg-muted]="$index === _highlightIndex()"
             (mousedown)="_select(item)"
@@ -81,6 +109,7 @@ export interface ComboboxItem<T, TMeta = unknown> {
         {{ emptyMessage() }}
       </div>
     }
+    <span class="sr-only" role="status">{{ _statusText() }}</span>
   `,
 })
 export class HlmCombobox<T> {
@@ -115,6 +144,11 @@ export class HlmCombobox<T> {
    * drops a field node whose model value becomes `undefined` while its control is rendered. */
   readonly emptyValue = input<T | undefined>(undefined);
 
+  private readonly _host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Unique per instance: the input's `aria-controls` / `aria-activedescendant` point at these ids. */
+  protected readonly _listboxId = `hlm-combobox-${nextComboboxId++}`;
+
   readonly search = signal("");
   protected readonly _isOpen = signal(false);
   protected readonly _highlightIndex = signal(0);
@@ -147,6 +181,24 @@ export class HlmCombobox<T> {
         (item.searchTerms ?? []).some((term) => term.toLowerCase().includes(query)),
     );
   });
+
+  /** The listbox is in the DOM: open with at least one match (the empty-state message is not a
+   * listbox, so it does not count as expanded). */
+  protected readonly _listVisible = computed(() => this._isOpen() && this._filtered().length > 0);
+
+  /** Polite live-region text: how many rows the open list offers; empty while closed. */
+  protected readonly _statusText = computed(() => {
+    if (!this._isOpen()) return "";
+    const count = this._filtered().length;
+    return count === 1 ? "1 result" : `${count} results`;
+  });
+
+  /** Id of the row the highlight sits on — what a screen reader should treat as the focused option. */
+  protected readonly _activeOptionId = computed(() =>
+    this._listVisible() && this._highlightIndex() < this._filtered().length
+      ? this._optionId(this._highlightIndex())
+      : null,
+  );
 
   /** The input always clears the chevron (pr-6); when trailing content is present it also
    * clears that content (pr-36 ≈ chevron + the widest status badge) so text never runs under it. */
@@ -214,6 +266,25 @@ export class HlmCombobox<T> {
       return;
     }
     this._highlightIndex.set((this._highlightIndex() + delta + count) % count);
+    // The row already exists here (the list was open), so it can be scrolled to before the next
+    // render; a just-opened list sits at index 0, which is already at the top.
+    this._host.nativeElement
+      .querySelector<HTMLElement>(`#${this._optionId(this._highlightIndex())}`)
+      // Optional call: jsdom has no scrollIntoView.
+      ?.scrollIntoView?.({ block: "nearest" });
+  }
+
+  protected _optionId(index: number): string {
+    return `${this._listboxId}-option-${index}`;
+  }
+
+  /** Only an open list consumes Escape. An open one must stop it: the enclosing sheet listens for
+   * Escape on `document`, so the keypress that dismissed the dropdown would also close the sheet
+   * and discard what the rider typed. A closed one lets it bubble, so Escape still closes the sheet. */
+  protected _onEscape(event: Event): void {
+    if (!this._isOpen()) return;
+    event.stopPropagation();
+    this._isOpen.set(false);
   }
 
   protected _selectHighlighted(): void {

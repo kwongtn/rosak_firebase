@@ -29,6 +29,15 @@ describe("IncidentCalendarComponent", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  it("names its month and year fields for assistive tech", () => {
+    const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+
+    const labels = Array.from(root(fixture).querySelectorAll("hlm-combobox input")).map((input) =>
+      input.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual(["Month", "Year"]);
+  });
+
   // The next two cases only differ between the two frames while UTC trails Malaysia (00:00-08:00
   // MYT), which is why the clock is frozen inside that window.
   it("rings the Kuala Lumpur day as today, not the UTC day", () => {
