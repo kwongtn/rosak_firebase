@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { provideMarkdown } from "ngx-markdown";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
@@ -1066,5 +1066,165 @@ describe("IncidentCardComponent history line", () => {
     await fixture.whenStable();
     expect(requestMock).toHaveBeenCalledTimes(1);
     expect(historyLine()).not.toBeNull();
+  });
+});
+
+describe("IncidentCardComponent add to calendar", () => {
+  /** The `download` attribute and Blob of every anchor click, in click order. */
+  const downloads: { filename: string; blob: Blob }[] = [];
+  const urlStatics = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown };
+  const originalStatics = {
+    create: urlStatics.createObjectURL,
+    revoke: urlStatics.revokeObjectURL,
+  };
+  let lastBlob: Blob;
+
+  /** jsdom's `Blob` has no `text()`, so read it through a `FileReader`. */
+  function readBlobText(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+  }
+
+  /** The logical lines of an iCalendar, folded lines rejoined. */
+  function icsLines(ics: string): string[] {
+    return ics
+      .replace(/\r\n[ \t]/g, "")
+      .split("\r\n")
+      .filter((line) => line !== "");
+  }
+
+  function mount(incident: CalendarIncident): ComponentFixture<IncidentCardComponent> {
+    const fixture = TestBed.createComponent(IncidentCardComponent);
+    fixture.componentRef.setInput("incident", incident);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function calendarButton(
+    fixture: ComponentFixture<IncidentCardComponent>,
+  ): HTMLButtonElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-testid="add-to-calendar"]',
+    );
+  }
+
+  beforeEach(async () => {
+    downloads.length = 0;
+    urlStatics.createObjectURL = vi.fn((blob: Blob) => {
+      lastBlob = blob;
+      return "blob:fake";
+    });
+    urlStatics.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: {
+      getAttribute(name: string): string | null;
+    }) {
+      downloads.push({ filename: this.getAttribute("download") ?? "", blob: lastBlob });
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [IncidentCardComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: AuthService,
+          useValue: { user: signal(null), isLoggedIn: signal(false), isAdmin: signal(false) },
+        },
+        { provide: GraphQLClient, useValue: { request: vi.fn().mockResolvedValue({}) } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    urlStatics.createObjectURL = originalStatics.create;
+    urlStatics.revokeObjectURL = originalStatics.revoke;
+    vi.restoreAllMocks();
+  });
+
+  it("offers the button to a logged-out reader, because adding to a calendar is read-only", () => {
+    const fixture = mount(makeIncident());
+
+    expect(calendarButton(fixture)).not.toBeNull();
+    expect(calendarButton(fixture)?.textContent).toContain("Add to calendar");
+  });
+
+  it("keeps the button on a host that hides the edit affordances (the console queue)", () => {
+    const fixture = TestBed.createComponent(IncidentCardComponent);
+    fixture.componentRef.setInput("incident", makeIncident());
+    fixture.componentRef.setInput("editActionEnabled", false);
+    fixture.detectChanges();
+
+    expect(calendarButton(fixture)).not.toBeNull();
+  });
+
+  it("downloads a single-event .ics named for the incident", async () => {
+    const fixture = mount(
+      makeIncident({
+        id: "42",
+        startDatetime: "2026-08-01T08:00:00",
+        endDatetime: "2026-08-01T10:00:00",
+      }),
+    );
+
+    calendarButton(fixture)?.click();
+
+    expect(downloads).toHaveLength(1);
+    expect(downloads[0]?.filename).toBe("insiden-incident-42.ics");
+    expect(downloads[0]?.blob.type).toBe("text/calendar;charset=utf-8");
+    const lines = icsLines(await readBlobText(downloads[0]?.blob as Blob));
+    expect(lines.filter((line) => line === "BEGIN:VEVENT")).toHaveLength(1);
+    expect(lines).toContain("UID:incident-42@community.mlptf.org.my");
+    expect(lines).toContain("DTSTART;TZID=Asia/Kuala_Lumpur:20260801T080000");
+    expect(lines).toContain("DTEND;TZID=Asia/Kuala_Lumpur:20260801T100000");
+    expect(lines).toContain("SUMMARY:LRT line down");
+    expect(lines).toContain("DESCRIPTION:Service suspended");
+    expect(lines).toContain("URL:https://community.mlptf.org.my/insiden/2026-08-01");
+    expect(lines).toContain("STATUS:CONFIRMED");
+  });
+
+  it("writes no end time for an ongoing incident", async () => {
+    const fixture = mount(
+      makeIncident({ startDatetime: "2026-08-01T08:00:00", endDatetime: null }),
+    );
+
+    calendarButton(fixture)?.click();
+
+    const ics = await readBlobText(downloads[0]?.blob as Blob);
+    expect(ics).not.toContain("DTEND");
+    expect(ics).toContain("DTSTART;TZID=Asia/Kuala_Lumpur:20260801T080000");
+  });
+
+  it("marks a report still awaiting approval as tentative", async () => {
+    const fixture = mount(
+      makeIncident({
+        startDatetime: "2026-08-01T08:00:00",
+        endDatetime: "2026-08-01T10:00:00",
+        status: "PENDING_APPROVAL",
+      }),
+    );
+
+    calendarButton(fixture)?.click();
+
+    expect(await readBlobText(downloads[0]?.blob as Blob)).toContain("STATUS:TENTATIVE");
+  });
+
+  it("escapes a title that would otherwise break the calendar", async () => {
+    const fixture = mount(
+      makeIncident({
+        startDatetime: "2026-08-01T08:00:00",
+        endDatetime: "2026-08-01T10:00:00",
+        title: "Kajang, Sri Petaling; delayed",
+      }),
+    );
+
+    calendarButton(fixture)?.click();
+
+    expect(icsLines(await readBlobText(downloads[0]?.blob as Blob))).toContain(
+      "SUMMARY:Kajang\\, Sri Petaling\\; delayed",
+    );
   });
 });

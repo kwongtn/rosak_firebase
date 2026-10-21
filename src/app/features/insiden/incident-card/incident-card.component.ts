@@ -14,6 +14,8 @@ import {
 } from "@angular/core";
 import { MarkdownComponent } from "ngx-markdown";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
+import { downloadIcs } from "../../../core/export/csv.util";
 import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmBadge, type BadgeVariants } from "../../../ui/badge/badge";
@@ -45,6 +47,7 @@ import { buildChronologyEntries, ChronologyEntry } from "../data/incident-chrono
 import { IncidentSheetService } from "../data/incident-sheet.service";
 import { LinkSheetService } from "../data/link-sheet.service";
 import { incidentLinkLine } from "../data/incident-link-line.util";
+import { incidentCalendarFilename, incidentsToIcs } from "../data/incident-export.util";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import {
@@ -134,6 +137,7 @@ export class IncidentCardComponent implements OnDestroy {
   private readonly linkSheet = inject(LinkSheetService);
   private readonly auth = inject(AuthService);
   private readonly graphql = inject(GraphQLClient);
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly detailsExpanded = signal(false);
   protected readonly photosExpanded = signal(false);
@@ -367,6 +371,16 @@ export class IncidentCardComponent implements OnDestroy {
       incidentId: this.incident().id,
       incidentTitle: this.incident().title,
     });
+  }
+
+  /** "Add to calendar": downloads this one incident as a single-event `.ics` the rider's calendar app
+   * opens. Read-only and available to everyone, so it is not gated on `editActionEnabled`. The event
+   * (stable UID, offset-free Kuala Lumpur times, no end while ongoing) is built by the pure
+   * `incident-export.util`; a malformed datetime throws there and reaches the Sentry-backed
+   * ErrorHandler rather than producing a calendar entry at the wrong hour. */
+  protected addToCalendar(): void {
+    const incident = this.incident();
+    downloadIcs(incidentCalendarFilename(incident), incidentsToIcs([incident]), this.isBrowser);
   }
 
   /** Open a photo thumbnail in the gallery's same-page preview (spec §H). */
