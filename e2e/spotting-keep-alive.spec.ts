@@ -17,7 +17,7 @@ const DESKTOP_VIEWPORT = { width: 1280, height: 900 };
 const SCROLL_TOLERANCE = 5;
 const OVERVIEW_URL = /\/spotting\/1(?:\?.*)?$/;
 const DETAILS_URL = /\/spotting\/1\/details(?:\?.*)?$/;
-const VEHICLE_URL = /\/spotting\/1\/vehicle\/v1(?:\?.*)?$/;
+const VEHICLE_URL = /\/spotting\/1\/vehicle\/1(?:\?.*)?$/;
 
 /** The grid's visible window is the current UTC month plus the two before it. */
 const NOW = new Date();
@@ -47,7 +47,7 @@ function vehicleRange(
   firstNumber: number,
 ): Array<Record<string, unknown>> {
   return Array.from({ length: count }, (_, i) =>
-    vehicle(`v${startIndex + i}`, String(firstNumber + i)),
+    vehicle(`${startIndex + i}`, String(firstNumber + i)),
   );
 }
 
@@ -86,8 +86,8 @@ const STUBS: Record<string, unknown> = {
       {
         id: "1",
         vehicleSpottingTrends: [
-          { dateKey: dayKey(10), count: 2, vehicle: { id: "v1" } },
-          { dateKey: dayKey(15), count: 1, vehicle: { id: "v2" } },
+          { dateKey: dayKey(10), count: 2, vehicle: { id: "1" } },
+          { dateKey: dayKey(15), count: 1, vehicle: { id: "2" } },
         ],
       },
     ],
@@ -97,7 +97,7 @@ const STUBS: Record<string, unknown> = {
   },
   // The vehicle page's header and status board come from this single-vehicle query; the
   // VehicleTypesByLine roster above only feeds its vehicle-switcher combobox.
-  VehicleHeader: { vehicles: [vehicle("v1", "101")] },
+  VehicleHeader: { vehicles: [vehicle("1", "101")] },
   VehicleSpottingHistory: { vehicles: [{ spottings: [] }] },
   VehicleIncidentsByVehicle: { vehicleIncidents: [] },
   // The vehicle page's imperative history list owns this separate query. It is deliberately
@@ -222,9 +222,9 @@ test.describe("spotting keep-alive navigation", () => {
     const routeState = await routeGraphQLToMockWithDelay(page, 3);
 
     await page.goto("/spotting/1");
-    const overviewLink = page.locator('a[href="/spotting/1/vehicle/v1"]:visible').first();
+    const overviewLink = page.locator('a[href="/spotting/1/vehicle/1"]:visible').first();
     await expect(overviewLink).toBeVisible();
-    await markVisibleElement(page, 'a[href="/spotting/1/vehicle/v1"]', "overview-v1");
+    await markVisibleElement(page, 'a[href="/spotting/1/vehicle/1"]', "overview-v1");
     await waitForVehicleTypesCalls(1);
 
     await setWindowScroll(page, 600);
@@ -269,9 +269,9 @@ test.describe("spotting keep-alive navigation", () => {
     await routeGraphQLToMockWithDelay(page);
 
     await page.goto("/spotting/1");
-    const overviewLink = page.locator('a[href="/spotting/1/vehicle/v1"]:visible').first();
+    const overviewLink = page.locator('a[href="/spotting/1/vehicle/1"]:visible').first();
     await expect(overviewLink).toBeVisible();
-    await markVisibleElement(page, 'a[href="/spotting/1/vehicle/v1"]', "overview-back-forward");
+    await markVisibleElement(page, 'a[href="/spotting/1/vehicle/1"]', "overview-back-forward");
     await waitForVehicleTypesCalls(1);
     await setWindowScroll(page, 600);
     await expectWindowScrollNear(page, 600);
@@ -309,7 +309,7 @@ test.describe("spotting keep-alive navigation", () => {
     await setWindowScroll(page, 400);
     await expectWindowScrollNear(page, 400);
 
-    await clickVisibleLink(page, 'a[href="/spotting/1/vehicle/v1"]');
+    await clickVisibleLink(page, 'a[href="/spotting/1/vehicle/1"]');
     await expect(page).toHaveURL(VEHICLE_URL);
     await expect(page.getByRole("heading", { name: "101", exact: true })).toBeVisible();
 
