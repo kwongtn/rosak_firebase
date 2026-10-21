@@ -258,5 +258,23 @@ describe("ImageUploadService", () => {
       expect(sentImages()[1]).toBe(png);
       expect(read).toHaveBeenCalledTimes(1);
     });
+
+    it("re-queues a file it cannot read instead of sending it raw or losing it", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      const file = new File([jpegWithGps()], "train.jpg", { type: "image/jpeg" });
+      const read = vi.spyOn(file, "arrayBuffer").mockRejectedValueOnce(new Error("read failed"));
+      queue(service, file);
+
+      await trigger(service);
+
+      expect(TestBed.inject(HttpClient).post).not.toHaveBeenCalled();
+      expect(service.pendingCount()).toBe(1);
+
+      await trigger(service);
+
+      expect(read).toHaveBeenCalledTimes(2);
+      const [sent] = sentImages();
+      expect(new Uint8Array(await sent.arrayBuffer()).includes(0xab)).toBe(false);
+    });
   });
 });
