@@ -97,6 +97,20 @@ describe("AccountPanelComponent", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
+  it("says the clipboard is unavailable instead of surfacing a TypeError", async () => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+    await requestCode();
+
+    byTestId<HTMLButtonElement>("account-code-copy").click();
+    await settle();
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Clipboard unavailable",
+      "Select the code and copy it by hand.",
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
   it("keeps the live region mounted so the code is announced when it arrives", async () => {
     const region = byTestId("account-code");
     expect(region.getAttribute("role")).toBe("status");

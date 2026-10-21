@@ -200,6 +200,11 @@ export class AccountPanelComponent implements OnDestroy {
     if (!this.isBrowser || code === null) {
       return;
     }
+    // navigator.clipboard is undefined in insecure contexts and some webviews.
+    if (!navigator.clipboard) {
+      this.toast.error("Clipboard unavailable", "Select the code and copy it by hand.");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(String(code));
     } catch (err) {
