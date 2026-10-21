@@ -1,4 +1,14 @@
-import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
+import {
+  afterNextRender,
+  Component,
+  computed,
+  effect,
+  inject,
+  Injector,
+  input,
+  signal,
+  untracked,
+} from "@angular/core";
 import { Meta, Title } from "@angular/platform-browser";
 import { Router } from "@angular/router";
 import { injectIsBrowser } from "../../core/composables/is-browser";
@@ -93,6 +103,7 @@ export class GalleryPage {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
 
@@ -273,12 +284,17 @@ export class GalleryPage {
       return;
     }
     if (this.isBrowser) {
-      queueMicrotask(() => {
-        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        document
-          .getElementById(`gallery-year-${year}`)
-          ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-      });
+      // The year's section is rendered by the next change detection (a macrotask away when
+      // zoneless), so scrolling any earlier finds nothing.
+      afterNextRender(
+        () => {
+          const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          document
+            .getElementById(`gallery-year-${year}`)
+            ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        },
+        { injector: this.injector },
+      );
     }
   }
 

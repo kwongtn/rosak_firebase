@@ -116,6 +116,7 @@ describe("GalleryPage year jump", () => {
     document.body.appendChild(target);
 
     await fixture.componentInstance.jumpToYear(2024);
+    TestBed.tick(); // the scroll waits for the next render
     target.remove();
     return scrollIntoView;
   }
@@ -418,5 +419,27 @@ describe("GalleryPage year jump progress", () => {
     await jump;
     fixture.detectChanges();
     expect(indicator()).toBeNull();
+  });
+
+  it("scrolls to a year that was not loaded when the jump started, once it has rendered", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView; // jsdom has none
+    const fixture = createPage("browser");
+    answerYearCounts();
+    feedRequest().flush(feedOf([PHOTO], true));
+    await settle(fixture);
+    expect(document.getElementById("gallery-year-2023")).toBeNull();
+
+    const jump = fixture.componentInstance.jumpToYear(2023);
+    feedRequest().flush(feedOf([OLD_PHOTO]));
+    await jump;
+    // The section only exists after the next render, so nothing may have scrolled yet.
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    expect((scrollIntoView.mock.contexts[0] as Element).id).toBe("gallery-year-2023");
   });
 });
