@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, output, signal } from "@angular/core";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { HlmButton } from "../../../ui/button/button";
 import { ToastService } from "../../../ui/toast/toast.service";
 import {
   DOWNVOTE_SOCIAL_MEDIA_LINK_MUTATION,
@@ -67,7 +68,7 @@ import {
  */
 @Component({
   selector: "app-vote-button",
-  imports: [],
+  imports: [HlmButton],
   template: `
     <div class="group/vote flex items-center gap-0.5" [attr.aria-label]="ariaLabel()">
       <button

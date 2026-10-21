@@ -151,6 +151,15 @@ describe("VoteButtonComponent", () => {
     }
   });
 
+  it("styles both vote buttons through HlmButton (data-slot=button)", () => {
+    // Without the HlmButton import the hlmBtn attribute is inert: no padding, no focus ring.
+    const buttons = fixture.nativeElement.querySelectorAll("button");
+    expect(buttons.length).toBe(2);
+    for (const button of buttons) {
+      expect(button.getAttribute("data-slot")).toBe("button");
+    }
+  });
+
   it("sends the upvoteChronology mutation with the chronology id when targetType is chronology", async () => {
     fixture.componentRef.setInput("targetType", "chronology");
     await fixture.whenStable();
