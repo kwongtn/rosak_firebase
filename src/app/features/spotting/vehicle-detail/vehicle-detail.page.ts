@@ -66,9 +66,9 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
   ],
   template: `
     <div class="flex flex-col gap-6">
-      @if (vehicleResource.hasError()) {
-        <app-retry-banner [resource]="vehicleResource" message="Couldn't load this vehicle." />
-      } @else if (_vehicle(); as vehicle) {
+      <!-- Outside the header chain: the switcher keeps its keyboard focus while the next
+           vehicle's header loads. It needs only the roster, never the header itself. -->
+      @if (vehicleItems().length > 0) {
         <nav class="flex items-center gap-1.5 text-sm">
           <a
             [routerLink]="['/spotting', lineId()]"
@@ -95,7 +95,11 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
             </span>
           </ng-template>
         </nav>
+      }
 
+      @if (vehicleResource.hasError()) {
+        <app-retry-banner [resource]="vehicleResource" message="Couldn't load this vehicle." />
+      } @else if (_vehicle(); as vehicle) {
         <div class="flex items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-3">
             <h1 class="text-xl font-semibold">{{ vehicle.identificationNo }}</h1>

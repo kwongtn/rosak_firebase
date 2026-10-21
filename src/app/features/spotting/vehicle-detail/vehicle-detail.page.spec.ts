@@ -277,6 +277,22 @@ describe("VehicleDetailPage", () => {
     expect(root().querySelector("div.gap-4 > [hlmskeleton].w-48")).toBeNull();
   });
 
+  it("keeps the same vehicle switcher, and so its focus, while the next vehicle loads", async () => {
+    await render();
+    take("VehicleHeader")[0].flush({ data: { vehicles: [HEADER_103] } });
+    take("VehicleTypesByLine")[0].flush({ data: ROSTER });
+    await settle();
+    const combobox = root().querySelector("hlm-combobox");
+    expect(combobox).not.toBeNull();
+
+    fixture.componentRef.setInput("vehicleId", "104");
+    tick();
+
+    expect(root().querySelector("h1")).toBeNull();
+    expect(root().querySelector("hlm-combobox")).toBe(combobox);
+    expect(root().contains(combobox)).toBe(true);
+  });
+
   it("shows the retry banner, with no timeline or history, when the header query fails", async () => {
     await render();
 
