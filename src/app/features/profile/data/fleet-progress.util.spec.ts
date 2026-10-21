@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { buildFleetProgress, unspottedVehicles } from "./fleet-progress.util";
-import type { FavouriteVehicle } from "./profile.queries";
+import type { FleetSpottedVehicle } from "./profile.queries";
 
-type FleetLine = FavouriteVehicle["vehicle"]["lines"][number];
+type FleetLine = FleetSpottedVehicle["vehicle"]["lines"][number];
 
 const KJL: FleetLine = { id: "4", code: "LRT KJL", totalVehicleCount: 116 };
 const AGL: FleetLine = { id: "5", code: "LRT AGL", totalVehicleCount: 50 };
 
-function spotted(id: string, lines: FleetLine[], count = 1): FavouriteVehicle {
-  return { vehicle: { id, identificationNo: `V${id}`, lines }, count };
+function spotted(id: string, lines: FleetLine[]): FleetSpottedVehicle {
+  return { vehicle: { id, lines } };
 }
 
 describe("buildFleetProgress", () => {
@@ -36,7 +36,7 @@ describe("buildFleetProgress", () => {
   });
 
   it("counts a repeated vehicle once", () => {
-    const rows = buildFleetProgress([spotted("1", [KJL], 5), spotted("1", [KJL], 2)]);
+    const rows = buildFleetProgress([spotted("1", [KJL]), spotted("1", [KJL])]);
 
     expect(rows[0].spotted).toBe(1);
     expect([...rows[0].spottedIds]).toEqual(["1"]);
@@ -80,7 +80,8 @@ describe("buildFleetProgress", () => {
   });
 
   it("reads a line with no fleet size as complete rather than dividing by zero", () => {
-    const unsized: FleetLine = { id: "7", code: "ERL" };
+    // The schema says `Int!`, but the response is untyped JSON, so a missing size must not become NaN.
+    const unsized = { id: "7", code: "ERL" } as FleetLine;
 
     const [row] = buildFleetProgress([spotted("1", [unsized])]);
 

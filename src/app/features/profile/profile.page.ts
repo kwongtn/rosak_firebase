@@ -92,8 +92,9 @@ const PROFILE_FALLBACK_TITLE = "MLPTF | Profile";
               [data]="user.spottingTrends"
               [totalAllTime]="user.spottingsCount"
             />
-            <!-- Own profile only: the public query carries one vehicle, not the whole set. -->
-            <app-fleet-progress [favouriteVehicles]="user.favouriteVehicles" />
+            <!-- Own profile only, and it loads itself: the whole spotted-vehicle list is slow, so
+                 this page's first read does not wait for it. A public profile has one vehicle. -->
+            <app-fleet-progress />
 
             <!-- Density cap: see profileBetweenCardsSlotId — footerEnd + this = 2 (max). -->
             <app-ad-slot

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FLEET_FAVOURITES_COUNT,
+  GET_FLEET_PROGRESS_QUERY,
   GET_MY_EVENTS_QUERY,
   GET_PUBLIC_USER_QUERY,
   GET_USER_DATA_QUERY,
@@ -23,17 +25,35 @@ describe("profile queries", () => {
       expect(query).not.toMatch(/favouriteVehicles\s*\(/);
     });
 
-    it("is requested in full on the owner's own query, with each line's fleet size", () => {
+    it("keeps the default count on the owner's blocking query too, so the first paint never waits for the whole list", () => {
+      // The whole list resolves Vehicle.lines once per vehicle (about 1.3 s for a 406-vehicle spotter),
+      // and the Fleet progress card that needs it sits below the fold, so it has its own request.
       const query = flat(GET_USER_DATA_QUERY);
 
-      expect(query).toContain("favouriteVehicles(count: 1000)");
-      expect(query).toMatch(/lines \{ id code totalVehicleCount \}/);
+      expect(query).toMatch(/favouriteVehicles \{/);
+      expect(query).not.toMatch(/favouriteVehicles\s*\(/);
+      expect(query).not.toContain("totalVehicleCount");
     });
 
-    it("selects the vehicle id and its lines' ids on both, which the vehicle links need", () => {
+    it("is requested in full by the fleet-progress read, with each line's fleet size", () => {
+      const query = flat(GET_FLEET_PROGRESS_QUERY);
+
+      expect(query).toContain(`favouriteVehicles(count: ${FLEET_FAVOURITES_COUNT})`);
+      expect(query).toMatch(/vehicle \{ id lines \{ id code totalVehicleCount \} \}/);
+    });
+
+    it("is read from the caller's own `user` in the fleet-progress read, never from publicUser", () => {
+      // 🔴 The count is only safe on the caller's own data: the resolver ignores spottingDataPublic.
+      const query = flat(GET_FLEET_PROGRESS_QUERY);
+
+      expect(query).toMatch(/\buser \{ favouriteVehicles/);
+      expect(query).not.toContain("publicUser");
+    });
+
+    it("selects the vehicle id and its lines' ids on both profile queries, which the vehicle links need", () => {
       for (const query of [GET_USER_DATA_QUERY, GET_PUBLIC_USER_QUERY]) {
         expect(flat(query)).toMatch(
-          /favouriteVehicles(\(count: 1000\))? \{ vehicle \{ id identificationNo lines \{ id code/,
+          /favouriteVehicles \{ vehicle \{ id identificationNo lines \{ id code \} \} count \}/,
         );
       }
     });

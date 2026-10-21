@@ -6,14 +6,10 @@ import { SpottingType, VehicleStatus } from "../../../core/graphql/types";
  * ---------------------------------------------------------------------- */
 
 /**
- * `favouriteVehicles(count: 1000)` is every distinct vehicle this user has logged (it feeds the
- * fleet-progress card), not just the top one. 1000 is far above the number of vehicles in the
- * system (about 600), so it is the whole set and not a top-N. The first entry is still the
- * favourite train. Each line also carries `totalVehicleCount`, the fleet size that is the progress
- * denominator.
- *
- * OWN PROFILE ONLY. The resolver ignores `spottingDataPublic`, so asking for more than the default
- * count in `GET_PUBLIC_USER_QUERY` would list every vehicle an opted-out user has spotted.
+ * The own profile's first read, the one the page waits on. Its `favouriteVehicles` keeps the default
+ * count of one: that is the favourite train, and nothing below the fold may make this request
+ * slower. The whole list the Fleet progress card needs is its own, non-blocking read
+ * ({@link GET_FLEET_PROGRESS_QUERY}).
  */
 export const GET_USER_DATA_QUERY = /* GraphQL */ `
   query GetUserData($typeGroup: Boolean, $freeRange: Boolean) {
@@ -44,17 +40,56 @@ export const GET_USER_DATA_QUERY = /* GraphQL */ `
         day
         count
       }
-      favouriteVehicles(count: 1000) {
+      favouriteVehicles {
         vehicle {
           id
           identificationNo
           lines {
             id
             code
-            totalVehicleCount
           }
         }
         count
+      }
+    }
+  }
+`;
+
+/* ---------------------------------------------------------------------- *
+ * user.favouriteVehicles(count: FLEET_FAVOURITES_COUNT) — every distinct vehicle the caller has
+ * logged, for the Fleet progress card. Its own request so the profile's first paint does not wait
+ * on it: `Vehicle.lines` resolves once per vehicle (about 1.3 s extra for a 406-vehicle spotter on
+ * the dev stack), and the card sits below the fold.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * How many favourite vehicles the fleet-progress read asks for. It must stay above the number of
+ * vehicles in the system (about 600), so the answer is the whole set and not a top-N: a count below
+ * the fleet would silently under-report progress, and nothing in the answer says it was cut. The
+ * card reports an answer that reaches this size to Sentry (see `FleetProgressComponent`).
+ */
+export const FLEET_FAVOURITES_COUNT = 1000;
+
+/**
+ * Each vehicle carries its lines with `totalVehicleCount`, the line's whole fleet and the progress
+ * denominator. Only the vehicle id and its lines are selected: the card groups by line, and the
+ * missing vehicles' numbers come from the line roster (`LINE_FLEET_QUERY`).
+ *
+ * OWN PROFILE ONLY. The resolver ignores `spottingDataPublic`, so asking for more than the default
+ * count in `GET_PUBLIC_USER_QUERY` would list every vehicle an opted-out user has spotted.
+ */
+export const GET_FLEET_PROGRESS_QUERY = /* GraphQL */ `
+  query GetFleetProgress {
+    user {
+      favouriteVehicles(count: ${FLEET_FAVOURITES_COUNT}) {
+        vehicle {
+          id
+          lines {
+            id
+            code
+            totalVehicleCount
+          }
+        }
       }
     }
   }
@@ -154,10 +189,22 @@ export interface FavouriteVehicle {
   vehicle: {
     id: string;
     identificationNo: string;
-    /** `totalVehicleCount` (the line's whole fleet) is selected by the owner query only. */
-    lines: { id: string; code: string; totalVehicleCount?: number }[];
+    lines: { id: string; code: string }[];
   };
   count: number;
+}
+
+/** One spotted vehicle as `GET_FLEET_PROGRESS_QUERY` returns it: only what the card groups by. */
+export interface FleetSpottedVehicle {
+  vehicle: {
+    id: string;
+    /** `totalVehicleCount` is the line's whole fleet, the progress denominator. */
+    lines: { id: string; code: string; totalVehicleCount: number }[];
+  };
+}
+
+export interface GetFleetProgressData {
+  user: { favouriteVehicles: FleetSpottedVehicle[] };
 }
 
 export interface UserData {

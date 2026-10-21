@@ -1,4 +1,4 @@
-import type { FavouriteVehicle, FleetVehicle } from "./profile.queries";
+import type { FleetSpottedVehicle, FleetVehicle } from "./profile.queries";
 
 /** One line's fleet progress: how much of its fleet the user has spotted. */
 export interface LineProgress {
@@ -28,10 +28,10 @@ export interface LineProgress {
  * rather than as a division by zero.
  */
 export function buildFleetProgress(
-  favourites: readonly FavouriteVehicle[] | null | undefined,
+  vehicles: readonly FleetSpottedVehicle[] | null | undefined,
 ): LineProgress[] {
   const byLine = new Map<string, { code: string; total: number; ids: Set<string> }>();
-  for (const { vehicle } of favourites ?? []) {
+  for (const { vehicle } of vehicles ?? []) {
     for (const line of vehicle.lines) {
       let entry = byLine.get(line.id);
       if (!entry) {

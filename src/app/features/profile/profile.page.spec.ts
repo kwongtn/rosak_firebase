@@ -141,22 +141,22 @@ describe("ProfilePage", () => {
   });
 
   describe("fleet progress", () => {
-    function fleetCard(): (HTMLElement & { favouriteVehicles?: unknown }) | null {
+    function fleetCard(): HTMLElement | null {
       return fixture.nativeElement.querySelector("app-fleet-progress");
     }
 
-    it("hands the owner's favourite vehicles to the fleet card on their own profile", async () => {
-      const favouriteVehicles = [
-        {
-          vehicle: {
-            id: "1",
-            identificationNo: "V1",
-            lines: [{ id: "4", code: "LRT KJL", totalVehicleCount: 116 }],
-          },
-          count: 3,
-        },
-      ];
-      requestMock.mockResolvedValue({ user: { ...makeUser("Me"), favouriteVehicles } });
+    it("mounts the fleet card on the owner's own profile, once the profile has loaded", async () => {
+      requestMock.mockResolvedValue({ user: makeUser("Me") } satisfies GetUserDataData);
+
+      await mount("me");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(fleetCard()).not.toBeNull();
+      });
+    });
+
+    it("leaves the card to read its own list, so the page's first read never waits for it", async () => {
+      requestMock.mockResolvedValue({ user: makeUser("Me") } satisfies GetUserDataData);
 
       await mount("me");
       await vi.waitFor(() => {
@@ -164,7 +164,9 @@ describe("ProfilePage", () => {
         expect(fleetCard()).not.toBeNull();
       });
 
-      expect(fleetCard()?.favouriteVehicles).toEqual(favouriteVehicles);
+      // One request, and it is the profile's own. The card (stubbed here) makes the fleet read itself.
+      expect(requestMock).toHaveBeenCalledTimes(1);
+      expect(requestMock.mock.calls[0][0]).toBe(GET_USER_DATA_QUERY);
     });
 
     it("never shows it on someone else's profile, whose query carries one vehicle only", async () => {

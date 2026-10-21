@@ -1,33 +1,67 @@
-import { Component, computed, input } from "@angular/core";
+import { Component, ErrorHandler, afterNextRender, computed, inject, signal } from "@angular/core";
 
+import { AuthService } from "../../../core/auth/auth.service";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { HlmCardImports } from "../../../ui/card/card";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
+import {
+  RetryBannerComponent,
+  RetryableResource,
+} from "../../../ui/retry-banner/retry-banner.component";
+import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { buildFleetProgress } from "../data/fleet-progress.util";
-import type { FavouriteVehicle } from "../data/profile.queries";
+import {
+  FLEET_FAVOURITES_COUNT,
+  FleetSpottedVehicle,
+  GET_FLEET_PROGRESS_QUERY,
+  GetFleetProgressData,
+} from "../data/profile.queries";
 import { FleetProgressLineComponent } from "./fleet-progress-line.component";
 
 /**
  * The own profile's "Fleet progress" card: for each line the user has spotted on, how many distinct
  * vehicles they have logged out of the line's whole fleet, and which ones are still missing.
  *
- * OWN PROFILE ONLY, and that is a privacy rule rather than a layout choice. The numbers come from
- * the owner query's full `favouriteVehicles` list. The public query keeps the default of one
- * vehicle, because the resolver ignores `spottingDataPublic` and a longer list would publish every
- * vehicle an opted-out user has spotted (see `GET_USER_DATA_QUERY`).
+ * It loads its own data, after the page has painted, and shows a skeleton until the answer lands.
+ * The whole list of spotted vehicles is the slow part of the profile (`Vehicle.lines` resolves once
+ * per vehicle on the backend), and the card sits below the fold, so the page's first read must not
+ * wait for it. A failure shows a retry banner for this card only and leaves the rest of the profile
+ * alone.
+ *
+ * OWN PROFILE ONLY, and that is a privacy rule rather than a layout choice. The read is the
+ * caller's own `user.favouriteVehicles` with a count far above the default. The public query keeps
+ * the default of one vehicle, because the resolver ignores `spottingDataPublic` and a longer list
+ * would publish every vehicle an opted-out user has spotted (see `GET_FLEET_PROGRESS_QUERY`).
  *
  * The card is absent until there is something to show: a user with no spotted vehicle on any line
  * has no rows, and an empty card would only be a heading over nothing. Lines the user has not
- * spotted on do not appear, because the profile payload knows no others.
+ * spotted on do not appear, because the answer knows no others.
  *
  * What the numbers mean (what counts as spotted, what the total includes) is the `fleet.progress`
  * methodology metric, surfaced from the card title.
  */
 @Component({
   selector: "app-fleet-progress",
-  imports: [...HlmCardImports, InfoPopover, FleetProgressLineComponent],
+  imports: [
+    ...HlmCardImports,
+    HlmSkeleton,
+    InfoPopover,
+    RetryBannerComponent,
+    FleetProgressLineComponent,
+  ],
   template: `
-    @if (_rows().length > 0) {
+    @if (_isLoading()) {
+      <div
+        hlmSkeleton
+        class="h-40 w-full"
+        role="status"
+        aria-label="Loading your fleet progress"
+        data-testid="fleet-progress-loading"
+      ></div>
+    } @else if (_isError()) {
+      <app-retry-banner [resource]="_retry" message="Couldn't load your fleet progress." />
+    } @else if (_rows().length > 0) {
       <div hlmCard data-testid="fleet-progress">
         <div hlmCardHeader>
           <h2 hlmCardTitle>
@@ -56,10 +90,21 @@ import { FleetProgressLineComponent } from "./fleet-progress-line.component";
   `,
 })
 export class FleetProgressComponent {
-  /** `UserData.favouriteVehicles` from the OWNER query (the one carrying each line's fleet size). */
-  readonly favouriteVehicles = input.required<readonly FavouriteVehicle[] | null | undefined>();
+  private readonly graphql = inject(GraphQLClient);
+  private readonly auth = inject(AuthService);
+  private readonly errorHandler = inject(ErrorHandler);
 
-  protected readonly _rows = computed(() => buildFleetProgress(this.favouriteVehicles()));
+  private readonly _vehicles = signal<readonly FleetSpottedVehicle[]>([]);
+  protected readonly _isLoading = signal(true);
+  protected readonly _isError = signal(false);
+
+  protected readonly _rows = computed(() => buildFleetProgress(this._vehicles()));
+
+  /** Banner adapter: nothing retries by itself, so there is no countdown, and Try Now re-reads. */
+  protected readonly _retry: RetryableResource = {
+    retryCountdownSec: () => null,
+    retryNow: () => void this.load(),
+  };
 
   protected readonly _definition = metricTooltip("fleet.progress");
   protected readonly _methodologyLink = {
@@ -67,4 +112,44 @@ export class FleetProgressComponent {
     routerLink: "/methodology",
     fragment: "sightings",
   };
+
+  constructor() {
+    // After the first render, in the browser only: the read needs the caller's Firebase token, which
+    // the server does not have, and the page has painted by then.
+    afterNextRender(() => void this.load());
+  }
+
+  private async load(): Promise<void> {
+    this._isLoading.set(true);
+    this._isError.set(false);
+    try {
+      const idToken = await this.auth.idToken();
+      const data = await this.graphql.request<GetFleetProgressData, Record<string, never>>(
+        GET_FLEET_PROGRESS_QUERY,
+        {},
+        idToken ? { "firebase-auth-key": idToken } : {},
+      );
+      const vehicles = data.user.favouriteVehicles;
+      if (vehicles.length >= FLEET_FAVOURITES_COUNT) {
+        // The backend cuts the list at the count and says nothing, so a list this long may be
+        // short of the user's real set. The card still shows what it has, but this must be loud.
+        this.errorHandler.handleError(
+          new Error(
+            `Fleet progress: favouriteVehicles returned ${vehicles.length} entries, the cap ` +
+              `(FLEET_FAVOURITES_COUNT = ${FLEET_FAVOURITES_COUNT}), so progress may be under-counted. Raise the cap.`,
+          ),
+        );
+      }
+      this._vehicles.set(vehicles);
+    } catch (err) {
+      this._isError.set(true);
+      // A GraphQLRequestError is already toasted and reported by GraphQLClient. Anything else (a
+      // transport failure, a bug in this method) is unexpected and must reach Sentry.
+      if (!(err instanceof GraphQLRequestError)) {
+        this.errorHandler.handleError(err);
+      }
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
 }
