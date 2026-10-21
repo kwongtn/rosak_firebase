@@ -500,7 +500,10 @@ type FeedTab = (typeof FEED_TABS)[number];
              is no longer reachable by a template reference from the footer: reportFormRef() is
              undefined until the block resolves, so the footer reads it null-safely. -->
         @defer (when reportSheet.isOpen(); prefetch on idle) {
-          <app-report-form #reportForm (submitted)="onSpottingSubmitted($event)" />
+          <!-- @if (true): the form is created in the block's own refresh, bound at once, not a tick late (NG0950). -->
+          @if (true) {
+            <app-report-form #reportForm (submitted)="onSpottingSubmitted($event)" />
+          }
         }
       </div>
       <div hlmSheetFooter>

@@ -35,7 +35,10 @@ import { LinkSheetService } from "../data/link-sheet.service";
              and a form mounted with them would run that read during SSR and serialise it into
              every page's TransferState. Prefetching on idle keeps the first open quick. -->
         @defer (when linkSheet.isOpen(); prefetch on idle) {
-          <app-link-form #linkForm [defaultLineIds]="defaultLineIds()" />
+          <!-- @if (true): the form is created in the block's own refresh, bound at once, not a tick late (NG0950). -->
+          @if (true) {
+            <app-link-form #linkForm [defaultLineIds]="defaultLineIds()" />
+          }
         }
       </div>
       <div hlmSheetFooter>

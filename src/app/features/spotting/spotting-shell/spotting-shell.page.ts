@@ -62,7 +62,10 @@ import { ReportSheetService } from "../data/report-sheet.service";
              /spotting page. @defer never renders on the server; prefetch keeps the first open
              quick. Inside the block the form is out of the footer's reach, hence reportFormRef(). -->
         @defer (when reportSheet.isOpen(); prefetch on idle) {
-          <app-report-form #reportForm (submitted)="reportSheet.setOpen(false)" />
+          <!-- @if (true): the form is created in the block's own refresh, bound at once, not a tick late (NG0950). -->
+          @if (true) {
+            <app-report-form #reportForm (submitted)="reportSheet.setOpen(false)" />
+          }
         }
       </div>
       <div hlmSheetFooter>
