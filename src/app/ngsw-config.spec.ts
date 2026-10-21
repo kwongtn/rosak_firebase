@@ -8,7 +8,7 @@ interface NgswManifest {
   index: string;
   assetGroups: { name: string; installMode: string; urls: string[] }[];
   dataGroups: unknown[];
-  navigationUrls: unknown[];
+  navigationUrls: { positive: boolean; regex: string }[];
   navigationRequestStrategy: string;
 }
 
@@ -40,13 +40,22 @@ async function generateManifest(): Promise<NgswManifest> {
   return manifest as NgswManifest;
 }
 
+/** The worker's own test (ngsw-worker.js `isNavigationRequest`) for a navigation's path. */
+function isNavigationUrl(manifest: NgswManifest, path: string): boolean {
+  const matches = (positive: boolean): boolean =>
+    manifest.navigationUrls
+      .filter((pattern) => pattern.positive === positive)
+      .some((pattern) => new RegExp(pattern.regex).test(path));
+  return matches(true) && !matches(false);
+}
+
 describe("ngsw-config.json", () => {
-  it("prefetches exactly the hashed JS and CSS", async () => {
+  it("prefetches the CSR shell and the hashed JS and CSS, without source maps", async () => {
     const { assetGroups } = await generateManifest();
 
     expect(assetGroups.find((group) => group.name === "app")).toMatchObject({
       installMode: "prefetch",
-      urls: ["/chunk-DEF456.js", "/main-ABC123.js", "/styles-GHI789.css"],
+      urls: ["/chunk-DEF456.js", "/index.csr.html", "/main-ABC123.js", "/styles-GHI789.css"],
     });
   });
 
@@ -59,20 +68,41 @@ describe("ngsw-config.json", () => {
     });
   });
 
-  it("never caches HTML, /version.json, the manifest or source maps", async () => {
+  it("caches no HTML but the CSR shell, and no /version.json, manifest or source maps", async () => {
     const { assetGroups, dataGroups } = await generateManifest();
     const cached = assetGroups.flatMap((group) => group.urls);
 
-    expect(cached.filter((url) => /\.(html|json|webmanifest|map|txt)$/.test(url))).toEqual([]);
+    expect(cached.filter((url) => /\.(html|json|webmanifest|map|txt)$/.test(url))).toEqual([
+      "/index.csr.html",
+    ]);
     // GraphQL reads are POSTs, which ngsw never caches, so a data group would only add work.
     expect(dataGroups).toEqual([]);
   });
 
-  it("sends every navigation to the network, so SSR answers each route", async () => {
+  it("asks the network first for every navigation, so SSR still answers each route", async () => {
     const manifest = await generateManifest();
 
-    expect(manifest.navigationUrls).toEqual([]);
     expect(manifest.navigationRequestStrategy).toBe("freshness");
-    expect(manifest.index).toBe("/index.html");
+    expect(
+      ["/", "/insiden/2026-10-21", "/spotting/1/vehicle/2"].map((path) =>
+        isNavigationUrl(manifest, path),
+      ),
+    ).toEqual([true, true, true]);
+    // Files and Firebase's /__/auth/ helper pages are never navigations to the app.
+    expect(
+      ["/main-ABC123.js", "/version.json", "/__/auth/handler"].map((path) =>
+        isNavigationUrl(manifest, path),
+      ),
+    ).toEqual([false, false, false]);
+  });
+
+  it("falls back to the precached CSR shell when a navigation cannot reach the network", async () => {
+    const manifest = await generateManifest();
+    const app = manifest.assetGroups.find((group) => group.name === "app");
+
+    // `ng build` sets the index to the CSR shell's name whatever ngsw-config.json says; the config
+    // names it too, so this spec and the built ngsw.json agree.
+    expect(manifest.index).toBe("/index.csr.html");
+    expect(app?.urls).toContain(manifest.index);
   });
 });

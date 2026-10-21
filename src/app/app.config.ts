@@ -179,8 +179,9 @@ export const appConfig: ApplicationConfig = {
     // extra dependency; trivial to add later if a real incident writeup needs one.
     provideMarkdown(),
     // Angular's service worker (ngsw-config.json; only the production build emits ngsw-worker.js):
-    // it precaches the hashed JS/CSS and never serves HTML from cache, so SSR still answers every
-    // navigation. Off under `ng serve` and in tests (dev mode); never registers on the server.
+    // it precaches the hashed JS/CSS and the CSR shell. Navigations try the network first, so SSR
+    // still answers every one online; the cached CSR shell is only the offline fallback. Off under
+    // `ng serve` and in tests (dev mode); never registers on the server.
     // Registers once the app is stable, or after 30s at the latest, so it never competes with
     // first load.
     provideServiceWorker("ngsw-worker.js", {

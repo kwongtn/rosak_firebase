@@ -1,14 +1,13 @@
 {
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
-  "index": "/index.html",
-  "navigationUrls": [],
+  "index": "/index.csr.html",
   "navigationRequestStrategy": "freshness",
   "assetGroups": [
     {
       "name": "app",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/*.css", "/*.js"]
+        "files": ["/index.csr.html", "/*.css", "/*.js"]
       }
     },
     {
