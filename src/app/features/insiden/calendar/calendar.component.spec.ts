@@ -70,4 +70,82 @@ describe("IncidentCalendarComponent", () => {
     );
     expect(month.value).toBe("October");
   });
+
+  describe("Export month", () => {
+    function exportButtons(fixture: ComponentFixture<IncidentCalendarComponent>): {
+      csv: HTMLButtonElement;
+      ics: HTMLButtonElement;
+    } {
+      const csv = root(fixture).querySelector<HTMLButtonElement>(
+        '[data-testid="export-month-csv"]',
+      );
+      const ics = root(fixture).querySelector<HTMLButtonElement>(
+        '[data-testid="export-month-ics"]',
+      );
+      if (!csv || !ics) throw new Error("export buttons not rendered");
+      return { csv, ics };
+    }
+
+    it("sits in the calendar header as a labelled group with both formats", () => {
+      const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+
+      const group = root(fixture).querySelector('[role="group"][aria-label="Export month"]');
+      expect(group).not.toBeNull();
+      const { csv, ics } = exportButtons(fixture);
+      expect(csv.textContent?.trim()).toBe(".csv");
+      expect(ics.textContent?.trim()).toBe(".ics");
+      expect(csv.getAttribute("aria-label")).toContain("CSV");
+      expect(ics.getAttribute("aria-label")).toContain("iCalendar");
+    });
+
+    it("shows how many incidents the export would hold", () => {
+      const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+      fixture.componentRef.setInput("exportCount", 7);
+      fixture.detectChanges();
+
+      expect(
+        root(fixture).querySelector('[data-testid="calendar-export-count"]')?.textContent?.trim(),
+      ).toBe("Export month (7)");
+    });
+
+    it("disables both buttons while there is nothing to export", () => {
+      const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+
+      const { csv, ics } = exportButtons(fixture);
+      expect(csv.disabled).toBe(true);
+      expect(ics.disabled).toBe(true);
+
+      fixture.componentRef.setInput("exportCount", 1);
+      fixture.detectChanges();
+      expect(exportButtons(fixture).csv.disabled).toBe(false);
+      expect(exportButtons(fixture).ics.disabled).toBe(false);
+    });
+
+    it("emits the chosen format and nothing else", () => {
+      const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+      fixture.componentRef.setInput("exportCount", 2);
+      fixture.detectChanges();
+      const formats: string[] = [];
+      const days: string[] = [];
+      fixture.componentInstance.exportMonth.subscribe((format) => formats.push(format));
+      fixture.componentInstance.daySelected.subscribe((dateKey) => days.push(dateKey));
+
+      exportButtons(fixture).csv.click();
+      exportButtons(fixture).ics.click();
+
+      expect(formats).toEqual(["csv", "ics"]);
+      // Exporting is not a navigation: it must not move the selected day.
+      expect(days).toEqual([]);
+    });
+
+    it("emits nothing from a disabled button", () => {
+      const fixture = render("2026-10-20T19:30:00Z", "2026-10-15");
+      const formats: string[] = [];
+      fixture.componentInstance.exportMonth.subscribe((format) => formats.push(format));
+
+      exportButtons(fixture).csv.click();
+
+      expect(formats).toEqual([]);
+    });
+  });
 });

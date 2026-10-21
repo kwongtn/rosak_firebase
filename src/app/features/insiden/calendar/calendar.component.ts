@@ -131,6 +131,41 @@ interface DayCell {
         </div>
       </div>
 
+      <div
+        class="flex items-center justify-between gap-2"
+        role="group"
+        aria-label="Export month"
+        data-testid="calendar-export"
+      >
+        <span class="text-muted-foreground text-xs" data-testid="calendar-export-count">
+          Export month ({{ exportCount() }})
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button
+            hlmBtn
+            variant="outline"
+            size="xs"
+            aria-label="Export this month's incidents as a CSV spreadsheet"
+            data-testid="export-month-csv"
+            [disabled]="exportCount() === 0"
+            (click)="exportMonth.emit('csv')"
+          >
+            .csv
+          </button>
+          <button
+            hlmBtn
+            variant="outline"
+            size="xs"
+            aria-label="Export this month's incidents as an iCalendar file"
+            data-testid="export-month-ics"
+            [disabled]="exportCount() === 0"
+            (click)="exportMonth.emit('ics')"
+          >
+            .ics
+          </button>
+        </div>
+      </div>
+
       <div class="grid grid-cols-7 gap-1">
         @for (label of weekdayLabels; track label) {
           <div class="text-muted-foreground py-1 text-center text-xs font-medium">{{ label }}</div>
@@ -164,6 +199,12 @@ export class IncidentCalendarComponent implements OnDestroy {
   readonly incidents = input.required<CalendarIncident[]>();
   readonly selectedDate = input.required<string>();
   readonly daySelected = output<string>();
+  /** How many incidents "Export month" would write. The page owns the data (it is the filtered
+   * month), so the calendar only shows the count and disables the buttons at 0. */
+  readonly exportCount = input(0);
+  /** The reader picked a format for "Export month". The page builds and downloads the file: this
+   * component stays presentational, like `daySelected`. */
+  readonly exportMonth = output<"csv" | "ics">();
 
   protected readonly weekdayLabels = WEEKDAY_LABELS;
   protected readonly JUMP_RING_CIRCUMFERENCE = 2 * Math.PI * 9;

@@ -458,4 +458,130 @@ describe("InsidenPage incident filters", () => {
       });
     });
   });
+
+  describe("Export month", () => {
+    /** The `download` attribute and Blob of every anchor click, in click order. */
+    const downloads: { filename: string; blob: Blob }[] = [];
+    const urlStatics = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown };
+    const originalStatics = {
+      create: urlStatics.createObjectURL,
+      revoke: urlStatics.revokeObjectURL,
+    };
+    let lastBlob: Blob;
+
+    /** Began in September and ran into October: loaded (the window pads the month) but not
+     * "started in October". */
+    const SPANNING = incident("s", "MINOR", [AG], "2026-09-28T08:00:00", "2026-10-06T08:00:00");
+
+    function readBlobText(blob: Blob): Promise<string> {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(blob);
+      });
+    }
+
+    function exportMonth(format: "csv" | "ics"): void {
+      (
+        fixture.componentInstance as unknown as { onExportMonth(format: "csv" | "ics"): void }
+      ).onExportMonth(format);
+    }
+
+    function calendarExportCount(): number {
+      return Reflect.get(root().querySelector("app-incident-calendar") as Element, "exportCount");
+    }
+
+    beforeEach(() => {
+      downloads.length = 0;
+      urlStatics.createObjectURL = vi.fn((blob: Blob) => {
+        lastBlob = blob;
+        return "blob:fake";
+      });
+      urlStatics.revokeObjectURL = vi.fn();
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: {
+        getAttribute(name: string): string | null;
+      }) {
+        downloads.push({ filename: this.getAttribute("download") ?? "", blob: lastBlob });
+      });
+    });
+
+    afterEach(() => {
+      urlStatics.createObjectURL = originalStatics.create;
+      urlStatics.revokeObjectURL = originalStatics.revoke;
+      vi.restoreAllMocks();
+    });
+
+    it("tells the calendar how many incidents started in the shown month", async () => {
+      await boot("/", [...INCIDENTS, SPANNING]);
+
+      // a, b, c, e and d started in October; the spanning one started in September.
+      expect(calendarExportCount()).toBe(5);
+    });
+
+    it("counts only what survives the filter", async () => {
+      await boot("/?lines=3", [...INCIDENTS, SPANNING]);
+
+      expect(calendarExportCount()).toBe(2);
+    });
+
+    it("writes the filtered month as a CSV, oldest first, named for the month", async () => {
+      await boot("/?lines=3", [...INCIDENTS, SPANNING]);
+
+      exportMonth("csv");
+
+      expect(downloads).toHaveLength(1);
+      expect(downloads[0]?.filename).toBe("insiden-2026-10.csv");
+      expect(downloads[0]?.blob.type).toBe("text/csv;charset=utf-8;");
+      const rows = (await readBlobText(downloads[0]?.blob as Blob))
+        .split("\r\n")
+        .filter((line) => line !== "");
+      expect(rows[0]).toBe("date,title,severity,lines,stations,status,url");
+      // a (08:00) and b (09:00), both on KJL: oldest first, nothing else.
+      expect(rows).toHaveLength(3);
+      expect(rows[1]).toBe(
+        "2026-10-05,Incident a,MAJOR,KJL,,LIVE,https://community.mlptf.org.my/insiden/2026-10-05",
+      );
+      expect(rows[2]).toContain("Incident b,MINOR,KJL; AG");
+    });
+
+    it("writes the same month as an iCalendar with one event per incident", async () => {
+      await boot("/?lines=3", [...INCIDENTS, SPANNING]);
+
+      exportMonth("ics");
+
+      expect(downloads).toHaveLength(1);
+      expect(downloads[0]?.filename).toBe("insiden-2026-10.ics");
+      expect(downloads[0]?.blob.type).toBe("text/calendar;charset=utf-8");
+      const ics = await readBlobText(downloads[0]?.blob as Blob);
+      expect(ics.match(/^BEGIN:VEVENT/gm)).toHaveLength(2);
+      expect(ics).toContain("UID:incident-a@community.mlptf.org.my");
+      expect(ics).toContain("UID:incident-b@community.mlptf.org.my");
+      expect(ics).not.toContain("UID:incident-c@");
+      expect(ics).toContain("DTSTART;TZID=Asia/Kuala_Lumpur:20261005T080000");
+    });
+
+    it("exports the whole month when no filter is active", async () => {
+      await boot("/", [...INCIDENTS, SPANNING]);
+
+      exportMonth("csv");
+
+      const rows = (await readBlobText(downloads[0]?.blob as Blob))
+        .split("\r\n")
+        .filter((line) => line !== "");
+      // Header + a, b, c, e (5 Oct) + d (20 Oct); the September starter is not in October's file.
+      expect(rows).toHaveLength(6);
+      expect(rows.join("\n")).not.toContain("Incident s");
+    });
+
+    it("downloads nothing when the filtered month is empty", async () => {
+      await boot("/?lines=10&severity=major", [...INCIDENTS, SPANNING]);
+
+      exportMonth("csv");
+      exportMonth("ics");
+
+      expect(calendarExportCount()).toBe(0);
+      expect(downloads).toEqual([]);
+    });
+  });
 });

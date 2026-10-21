@@ -4,6 +4,7 @@ import { DatePipe } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
 import { injectIsBrowser } from "../../core/composables/is-browser";
+import { downloadCsv, downloadIcs } from "../../core/export/csv.util";
 import { graphqlResource } from "../../core/graphql/graphql-client";
 import { PreferencesService } from "../../core/preferences/preferences.service";
 import { klDateKey } from "../../core/time/kl-date";
@@ -44,6 +45,12 @@ import {
   withMineToggled,
   type IncidentFilterUrlState,
 } from "./data/incident-filter.util";
+import {
+  incidentsStartingInMonth,
+  incidentsToCsv,
+  incidentsToIcs,
+  monthExportFilename,
+} from "./data/incident-export.util";
 import { isPendingIncidentStatus } from "./data/incident-status.util";
 import { LinksSectionComponent } from "./links-section/links-section.component";
 
@@ -191,6 +198,13 @@ export class InsidenPage {
     filterIncidents(this.loadedIncidents(), this.filterCriteria()),
   );
 
+  /** What "Export month" writes: the filtered incidents that STARTED in the month shown, oldest
+   * first (see `incidentsStartingInMonth` for why start-based). Pending reports are included and
+   * carry their `status`, so a consumer can filter on it. */
+  protected readonly exportIncidents = computed(() =>
+    incidentsStartingInMonth(this.allIncidents(), this.selectedMonth()),
+  );
+
   protected readonly lineOptions = computed(() =>
     incidentLineOptions(this.loadedIncidents(), this.preferences.pinnedLineIds()),
   );
@@ -253,6 +267,21 @@ export class InsidenPage {
   protected onDaySelected(dateKey: string): void {
     // `preserve` keeps `?lines=` / `?severity=` / `?mine=`: picking a day must not silently drop them.
     this.router.navigate(["/insiden", dateKey], { queryParamsHandling: "preserve" });
+  }
+
+  /** The calendar header's "Export month": builds the file from the filtered month and downloads it
+   * (a no-op on the server, and when there is nothing to write — the buttons are disabled then). */
+  protected onExportMonth(format: "csv" | "ics"): void {
+    const incidents = this.exportIncidents();
+    if (incidents.length === 0) {
+      return;
+    }
+    const filename = monthExportFilename(this.selectedMonth(), format);
+    if (format === "csv") {
+      downloadCsv(filename, incidentsToCsv(incidents), this.isBrowser);
+    } else {
+      downloadIcs(filename, incidentsToIcs(incidents), this.isBrowser);
+    }
   }
 
   protected toggleMine(): void {

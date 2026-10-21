@@ -158,7 +158,9 @@
             class="lg:w-96"
             [incidents]="allIncidents()"
             [selectedDate]="selectedDate()"
+            [exportCount]="exportIncidents().length"
             (daySelected)="onDaySelected($event)"
+            (exportMonth)="onExportMonth($event)"
           />
 
           <div class="flex flex-1 flex-col gap-6">
