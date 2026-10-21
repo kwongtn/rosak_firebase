@@ -112,6 +112,40 @@ export interface VehicleRow {
 }
 
 /* ---------------------------------------------------------------------- *
+ * vehicle — one vehicle's header + status-board fields, for /spotting/:lineId/vehicle/:vehicleId.
+ * The page used to download the whole line roster (VEHICLE_TYPES_QUERY, ~37 KB for line 4) and
+ * `.find()` one row; this asks for just that vehicle (~1 KB). `lastSpottedAt` is left out because
+ * only the roster's sort order reads it.
+ * ---------------------------------------------------------------------- */
+
+export const VEHICLE_HEADER_QUERY = /* GraphQL */ `
+  query VehicleHeader($vehicleId: ID!) {
+    vehicles(filters: { id: $vehicleId }) {
+      id
+      identificationNo
+      status
+      nickname
+      lastSpottingDate
+      inServiceSince
+      spottingCount
+      notes
+      incidentCount
+      wheelStatus
+    }
+  }
+`;
+
+export interface VehicleHeaderQueryVars {
+  vehicleId: string;
+}
+
+export type VehicleHeader = Omit<VehicleRow, "lastSpottedAt">;
+
+export interface VehicleHeaderQueryData {
+  vehicles: VehicleHeader[];
+}
+
+/* ---------------------------------------------------------------------- *
  * GetLinesAndVehicles — lightweight, unfiltered lines+vehicles for the
  * report-form's line/vehicle dropdowns (no status counts, no history).
  * ---------------------------------------------------------------------- */

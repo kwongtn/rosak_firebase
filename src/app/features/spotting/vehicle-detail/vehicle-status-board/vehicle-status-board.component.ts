@@ -1,7 +1,7 @@
 import { Component, input } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { HlmCardImports } from "../../../../ui/card/card";
-import { VehicleRow } from "../../data/spotting.queries";
+import { VehicleHeader } from "../../data/spotting.queries";
 import { humanizeSince } from "../../data/humanize-since.util";
 
 /**
@@ -51,7 +51,7 @@ import { humanizeSince } from "../../data/humanize-since.util";
   `,
 })
 export class VehicleStatusBoardComponent {
-  readonly vehicle = input.required<VehicleRow>();
+  readonly vehicle = input.required<VehicleHeader>();
 
   protected readonly _humanizeSince = humanizeSince;
 }

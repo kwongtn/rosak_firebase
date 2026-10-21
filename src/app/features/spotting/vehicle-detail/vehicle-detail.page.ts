@@ -22,8 +22,11 @@ import {
 import { SpottingLinesStore } from "../data/spotting-lines.store";
 import { isSpottingVehicleRoute } from "../data/spotting-route-patterns";
 import {
+  VEHICLE_HEADER_QUERY,
   VEHICLE_SPOTTING_HISTORY_QUERY,
   VEHICLE_TYPES_QUERY,
+  VehicleHeaderQueryData,
+  VehicleHeaderQueryVars,
   VehicleSpottingHistoryQueryData,
   VehicleSpottingHistoryQueryVars,
   VehicleTypesQueryData,
@@ -38,6 +41,11 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
  * /spotting/:lineId/vehicle/:vehicleId — a single vehicle's full status/history/incidents.
  * This is the shareable permalink the old design never had (inline-expand-only rows with no
  * URL of their own) — see the rewrite plan's routing rationale.
+ *
+ * Data flow: the header and status board come from one single-vehicle query, and the incident
+ * timeline, spotting history and activity heatmap need only `vehicleId()`, so all of them request
+ * in parallel. The line roster feeds only the vehicle-switcher combobox, so it loads in the
+ * browser after hydration, off the header's critical path and out of the SSR payload.
  */
 @Component({
   selector: "app-vehicle-detail",
@@ -57,15 +65,10 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
     ReportSpottingButtonComponent,
   ],
   template: `
-    @if (vehicleTypesResource.isLoading()) {
-      <div class="flex flex-col gap-4">
-        <div hlmSkeleton class="h-6 w-48"></div>
-        <div hlmSkeleton class="h-24 w-full"></div>
-      </div>
-    } @else if (vehicleTypesResource.hasError()) {
-      <app-retry-banner [resource]="vehicleTypesResource" message="Couldn't load this vehicle." />
-    } @else if (_vehicle(); as vehicle) {
-      <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-6">
+      @if (vehicleResource.hasError()) {
+        <app-retry-banner [resource]="vehicleResource" message="Couldn't load this vehicle." />
+      } @else if (_vehicle(); as vehicle) {
         <nav class="flex items-center gap-1.5 text-sm">
           <a
             [routerLink]="['/spotting', lineId()]"
@@ -78,6 +81,7 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
           <span class="text-muted-foreground">/</span>
           <hlm-combobox
             class="field-sizing-content !border-none !bg-transparent !py-0.5 !pl-0 !font-medium"
+            aria-label="Switch vehicle"
             [value]="vehicleId()"
             (valueChange)="onSwitchVehicle($event)"
             [items]="vehicleItems()"
@@ -125,7 +129,18 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
             />
           </div>
         </div>
+      } @else if (!_isNotFound()) {
+        <div class="flex flex-col gap-4">
+          <div hlmSkeleton class="h-6 w-48"></div>
+          <div hlmSkeleton class="h-24 w-full"></div>
+        </div>
+      }
 
+      <!-- These only need vehicleId(), so they live outside the header's @if: their queries start
+           with the header's, and their own loading placeholders show straight away. They stay
+           hidden when the header failed or the vehicle does not exist, where "No record" would
+           read as a fact about a vehicle we could not load. -->
+      @if (_showDetails()) {
         <div hlmCard>
           <div hlmCardHeader><h2 hlmCardTitle>Notable Incidents</h2></div>
           <div hlmCardContent>
@@ -146,8 +161,8 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
             <app-spotting-history [vehicleId]="vehicleId()" />
           </div>
         </div>
-      </div>
-    }
+      }
+    </div>
   `,
 })
 export class VehicleDetailPage {
@@ -167,13 +182,37 @@ export class VehicleDetailPage {
     () => this.linesStore.lineById(this.lineId())?.code ?? this.lineId(),
   );
 
-  protected readonly vehicleTypesResource = graphqlResource<
+  protected readonly vehicleResource = graphqlResource<
+    VehicleHeaderQueryData,
+    VehicleHeaderQueryVars
+  >(() => ({
+    query: VEHICLE_HEADER_QUERY,
+    variables: { vehicleId: this.vehicleId() },
+  }));
+
+  protected readonly _vehicle = computed(() => this.vehicleResource.data()?.vehicles[0]);
+
+  /** The backend answered and has no such vehicle. `data()` is `undefined` while a request is in
+   * flight (including the moment `vehicleId()` changes) and `hasError()` covers a failed one, so
+   * neither reads as "not found". */
+  protected readonly _isNotFound = computed(
+    () => this.vehicleResource.data()?.vehicles.length === 0,
+  );
+
+  protected readonly _showDetails = computed(
+    () => !this.vehicleResource.hasError() && !this._isNotFound(),
+  );
+
+  /** Only the vehicle-switcher combobox reads the line roster, so it loads in the browser only:
+   * SSR neither waits for it nor ships it in TransferState. */
+  private readonly vehicleTypesResource = graphqlResource<
     VehicleTypesQueryData,
     VehicleTypesQueryVars
-  >(() => ({
-    query: VEHICLE_TYPES_QUERY,
-    variables: { lineId: this.lineId() },
-  }));
+  >(() =>
+    this.isBrowser
+      ? { query: VEHICLE_TYPES_QUERY, variables: { lineId: this.lineId() } }
+      : undefined,
+  );
 
   private readonly _vehicleTypes = computed(
     () => this.vehicleTypesResource.data()?.vehicleTypes ?? [],
@@ -185,17 +224,17 @@ export class VehicleDetailPage {
     ),
   );
 
-  protected readonly _vehicle = computed(() =>
-    this._allVehiclesForLine().find((v) => v.id === this.vehicleId()),
-  );
-
-  protected readonly vehicleItems = computed<ComboboxItem<string>[]>(() =>
-    this._allVehiclesForLine().map((v) => ({
+  /** Until the browser-only roster arrives, the switcher offers just this vehicle, so it already
+   * shows the right label (on the server too). */
+  protected readonly vehicleItems = computed<ComboboxItem<string>[]>(() => {
+    const roster = this._allVehiclesForLine();
+    const current = this._vehicle();
+    return (roster.length > 0 ? roster : current ? [current] : []).map((v) => ({
       label: v.identificationNo,
       value: v.id,
       meta: { status: v.status },
-    })),
-  );
+    }));
+  });
 
   private readonly spottingHistoryResource = graphqlResource<
     VehicleSpottingHistoryQueryData,
@@ -226,18 +265,17 @@ export class VehicleDetailPage {
   constructor() {
     // Refresh retained page data after returning from outside the vehicle route.
     revalidateOnReturn(isSpottingVehicleRoute, () => {
+      this.vehicleResource.reload();
       this.vehicleTypesResource.reload();
       this.spottingHistoryResource.reload();
     });
 
     effect(() => {
-      // A fetch error isn't "this vehicle doesn't exist" — that's a fetch-level `hasError()`
-      // guard on the template's own retry banner to work out, not a reason to redirect
-      // someone away from a link that may well be perfectly valid.
-      if (this.vehicleTypesResource.isLoading() || this.vehicleTypesResource.hasError()) {
-        return;
-      }
-      if (!this._vehicle() && this.isBrowser) {
+      // Only an answered-and-empty query (`_isNotFound`) means "this vehicle doesn't exist". A fetch
+      // that is still in flight, or failed, isn't — the template's own retry banner covers the
+      // failure, and neither is a reason to redirect someone away from a link that may well be
+      // perfectly valid.
+      if (this._isNotFound() && this.isBrowser) {
         // Browser-only — see the identical guard/comment in line-overview.page.ts's own
         // not-found effect: this same navigate() during SSR hangs the render entirely.
         this.toast.error(
