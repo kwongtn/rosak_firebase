@@ -16,7 +16,7 @@ const l7 = vi.hoisted(() => {
     getContext: (type: string) =>
       type === "webgl2" ? { getExtension: () => ({ loseContext }) } : null,
   };
-  return { sceneDestroy: vi.fn(), loseContext, canvas };
+  return { sceneDestroy: vi.fn(), sceneStopAnimate: vi.fn(), loseContext, canvas };
 });
 
 vi.mock("@sentry/angular", () => ({
@@ -31,6 +31,7 @@ vi.mock("@antv/l7", () => ({
   PointLayer: class {},
   Scene: class {
     destroy = l7.sceneDestroy;
+    stopAnimate = l7.sceneStopAnimate;
     getServiceContainer() {
       return { rendererService: { getCanvas: () => l7.canvas } };
     }
@@ -45,6 +46,7 @@ describe("TrackerMapComponent", () => {
   beforeEach(() => {
     vi.mocked(Sentry.captureException).mockClear();
     l7.sceneDestroy.mockClear();
+    l7.sceneStopAnimate.mockClear();
     l7.loseContext.mockClear();
     TestBed.configureTestingModule({
       providers: [
@@ -83,5 +85,17 @@ describe("TrackerMapComponent", () => {
     // L7's own renderer teardown never releases the context; the component must.
     expect(l7.loseContext).toHaveBeenCalledTimes(1);
     expect(document.documentElement.style.overflow).toBe("scroll");
+  });
+
+  it("stops the L7 animation loop once, before destroying the scene", () => {
+    const fixture = TestBed.createComponent(TrackerMapComponent);
+    fixture.detectChanges();
+
+    fixture.destroy();
+
+    expect(l7.sceneStopAnimate).toHaveBeenCalledTimes(1);
+    expect(l7.sceneStopAnimate.mock.invocationCallOrder[0]).toBeLessThan(
+      l7.sceneDestroy.mock.invocationCallOrder[0],
+    );
   });
 });

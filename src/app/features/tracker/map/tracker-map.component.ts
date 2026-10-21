@@ -265,6 +265,8 @@ export class TrackerMapComponent implements OnDestroy {
     // L7's renderer never releases its context, so the canvas is read first and its context is
     // lost by hand: a detached canvas keeps the context alive until a GC that may never come.
     const canvas = this.scene?.getServiceContainer().rendererService.getCanvas();
+    // destroy() leaves the rail's animation loop (requestAnimationFrame) running: stop it first.
+    this.scene?.stopAnimate();
     this.scene?.destroy();
     this.scene = undefined;
     const gl = canvas?.getContext("webgl2") ?? canvas?.getContext("webgl");
