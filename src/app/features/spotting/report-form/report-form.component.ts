@@ -1,4 +1,14 @@
-import { Component, computed, effect, inject, output, signal, viewChild } from "@angular/core";
+import {
+  afterNextRender,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import {
   graphqlResource,
@@ -169,6 +179,16 @@ export class ReportFormComponent {
   private _wasSheetOpen = false;
 
   constructor() {
+    // The form is created lazily, so on a cold first open the sheet's focus trap has already
+    // captured focus (onto the footer's "Clear form") before this exists: move it in once rendered.
+    // On a warm open this re-focuses the control the trap chose, so it is harmless.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef);
+    afterNextRender(() => {
+      if (this.reportSheet.isOpen()) {
+        host.nativeElement.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
+      }
+    });
+
     // Changing the line discards the vehicle selection — same as the old app.
     effect(() => {
       const lineId = this.model().lineId;

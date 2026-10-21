@@ -1,4 +1,14 @@
-import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
+import {
+  afterNextRender,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  untracked,
+} from "@angular/core";
 import { form as createForm, FormField, required, schema, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import {
@@ -345,6 +355,16 @@ export class LinkFormComponent {
   private _prefillApplied = false;
 
   constructor() {
+    // The form is created lazily, so on a cold first open the sheet's focus trap has already
+    // captured focus (onto the footer's "Clear form") before this exists: move it in once rendered.
+    // On a warm open this re-focuses the control the trap chose, so it is harmless.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef);
+    afterNextRender(() => {
+      if (this.sheet.isOpen()) {
+        host.nativeElement.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
+      }
+    });
+
     effect(() => {
       const isOpen = this.sheet.isOpen();
       if (!isOpen && this._wasSheetOpen) {

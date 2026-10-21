@@ -1,7 +1,11 @@
 import { type WritableSignal } from "@angular/core";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { HttpErrorResponse } from "@angular/common/http";
-import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+  type TestRequest,
+} from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,6 +34,14 @@ interface ComponentUnderTest {
 function asTestable(fixture: ComponentFixture<LinkFormComponent>): ComponentUnderTest {
   return fixture.componentInstance as unknown as ComponentUnderTest;
 }
+
+const REFERENCE = {
+  data: {
+    lines: [],
+    stations: [],
+    calendarIncidentCategories: [{ id: "C1", name: "Just Reporting" }],
+  },
+};
 
 function filledModel(): LinkFormModel {
   return { url: "https://x.com/prasarana/status/1", title: "Service update", occurredAt: "" };
@@ -481,6 +493,47 @@ describe("LinkFormComponent", () => {
     await component.submit();
     const [, vars] = requestMock.mock.calls[0];
     expect(vars.input).not.toHaveProperty("occurredAt");
+  });
+
+  describe("when created lazily by the sheet", () => {
+    // The sheet creates this form only once it opens, so these build a second instance after the
+    // beforeEach one (whose reference read was already answered).
+    function createLate(): { late: ComponentFixture<LinkFormComponent>; read: TestRequest } {
+      const late = TestBed.createComponent(LinkFormComponent);
+      late.detectChanges();
+      return { late, read: httpMock.expectOne((r) => r.method === "POST") };
+    }
+
+    it("moves focus to its first control when created with the sheet already open", async () => {
+      // Cold first open: the sheet's focus trap captured focus before the deferred form existed
+      // (onto the footer), and nothing else would ever move it into the form.
+      const footer = document.body.appendChild(document.createElement("button"));
+      footer.focus();
+      sheet.open();
+
+      const { late, read } = createLate();
+      read.flush(REFERENCE);
+      await late.whenStable();
+
+      const first = (late.nativeElement as HTMLElement).querySelector(
+        "input,select,textarea,button",
+      );
+      expect(first).not.toBeNull();
+      expect(document.activeElement).toBe(first);
+      footer.remove();
+    });
+
+    it("leaves focus alone when created while the sheet is closed", async () => {
+      const outside = document.body.appendChild(document.createElement("button"));
+      outside.focus();
+
+      const { late, read } = createLate();
+      read.flush(REFERENCE);
+      await late.whenStable();
+
+      expect(document.activeElement).toBe(outside);
+      outside.remove();
+    });
   });
 
   function makeLink(overrides: Partial<ReturnType<typeof makeLinkBase>> = {}) {

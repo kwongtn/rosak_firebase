@@ -393,6 +393,45 @@ describe("ReportFormComponent", () => {
     });
   });
 
+  describe("when created lazily by the sheet", () => {
+    async function createLate(): Promise<ComponentFixture<ReportFormComponent>> {
+      const late = TestBed.createComponent(ReportFormComponent);
+      late.detectChanges();
+      httpMock
+        .expectOne((r) => r.method === "POST" && r.body.query.includes("LinesAndVehicles"))
+        .flush({ data: { lines: [SEEDED_FLEET_LINE] } });
+      await late.whenStable();
+      return late;
+    }
+
+    it("moves focus to its first control when created with the sheet already open", async () => {
+      // Cold first open: the sheet's focus trap captured focus before the deferred form existed
+      // (onto the footer), and nothing else would ever move it into the form.
+      const footer = document.body.appendChild(document.createElement("button"));
+      footer.focus();
+      sheet.open();
+
+      const late = await createLate();
+
+      const first = (late.nativeElement as HTMLElement).querySelector(
+        "input,select,textarea,button",
+      );
+      expect(first).not.toBeNull();
+      expect(document.activeElement).toBe(first);
+      footer.remove();
+    });
+
+    it("leaves focus alone when created while the sheet is closed", async () => {
+      const outside = document.body.appendChild(document.createElement("button"));
+      outside.focus();
+
+      await createLate();
+
+      expect(document.activeElement).toBe(outside);
+      outside.remove();
+    });
+  });
+
   it("keeps field label text inert while preserving accessible names", async () => {
     storeLines.set([SEEDED_LINE]);
     sheet.openFor("4");
