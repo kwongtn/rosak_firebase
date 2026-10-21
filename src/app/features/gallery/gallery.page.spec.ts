@@ -502,6 +502,256 @@ describe("GalleryPage share metadata", () => {
   });
 });
 
+describe("GalleryPage photo viewer navigation", () => {
+  function photoOf(id: string, nickname: string): MediaNode {
+    return {
+      ...PHOTO,
+      id,
+      uploader: { nickname },
+      file: { url: `https://i.imgur.com/${id}.jpg` },
+    };
+  }
+  const P1 = photoOf("p1", "alpha");
+  const P2 = photoOf("p2", "bravo");
+  const P3 = photoOf("p3", "charlie");
+
+  function control(fixture: ComponentFixture<GalleryPage>, name: string): HTMLButtonElement {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      `[data-testid="media-viewer-${name}"]`,
+    )!;
+  }
+
+  function shownImage(fixture: ComponentFixture<GalleryPage>): string | null | undefined {
+    return viewerOf(fixture)?.querySelector("img")?.getAttribute("src");
+  }
+
+  function tag(selector: string): string | undefined {
+    return TestBed.inject(Meta).getTag(selector)?.content;
+  }
+
+  function noFeedRequest(): void {
+    TestBed.inject(HttpTestingController).expectNone((req) => req.body.query === MEDIAS_QUERY);
+  }
+
+  /** The page with `nodes` loaded and the viewer open on one of them, the way Back/Forward onto
+   * /gallery/:id opens a photo the feed already holds. */
+  async function openFromFeed(
+    nodes: MediaNode[],
+    openId: string,
+    hasNextPage = false,
+    platform: "browser" | "server" = "browser",
+  ): Promise<ComponentFixture<GalleryPage>> {
+    const fixture = createPage(platform);
+    if (platform === "browser") {
+      answerYearCounts();
+    }
+    feedRequest().flush(feedOf(nodes, hasNextPage));
+    await settle(fixture);
+    fixture.componentRef.setInput("mediaId", openId);
+    await settle(fixture);
+    return fixture;
+  }
+
+  async function click(fixture: ComponentFixture<GalleryPage>, name: string): Promise<void> {
+    control(fixture, name).click();
+    await settle(fixture);
+  }
+
+  describe("stepping", () => {
+    it("opens the next and previous photo, replacing the URL so Back still returns to the grid", async () => {
+      const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2, P3], "p2");
+      expect(shownImage(fixture)).toBe(P2.file!.url);
+
+      await click(fixture, "next");
+      expect(shownImage(fixture)).toBe(P3.file!.url);
+      expect(navigate).toHaveBeenLastCalledWith(["/gallery", "p3"], { replaceUrl: true });
+
+      await click(fixture, "prev");
+      await click(fixture, "prev");
+      expect(shownImage(fixture)).toBe(P1.file!.url);
+      expect(navigate).toHaveBeenLastCalledWith(["/gallery", "p1"], { replaceUrl: true });
+      // Every step replaced; none pushed a history entry of its own.
+      expect(navigate).toHaveBeenCalledTimes(3);
+      expect(navigate.mock.calls.every(([, extras]) => extras?.replaceUrl === true)).toBe(true);
+    });
+
+    it("steps on the arrow keys too", async () => {
+      const navigate = vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2, P3], "p2");
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+      await settle(fixture);
+      expect(shownImage(fixture)).toBe(P3.file!.url);
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+      await settle(fixture);
+      expect(shownImage(fixture)).toBe(P2.file!.url);
+      expect(navigate).toHaveBeenLastCalledWith(["/gallery", "p2"], { replaceUrl: true });
+    });
+
+    it("gives the viewer no photo before the first or after the last one", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2], "p1");
+
+      expect(control(fixture, "prev").getAttribute("aria-disabled")).toBe("true");
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("false");
+
+      await click(fixture, "next");
+      expect(control(fixture, "prev").getAttribute("aria-disabled")).toBe("false");
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("puts the photo it steps to into the title and the share tags, as opening one does", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2, P3], "p2");
+      expect(TestBed.inject(Title).getTitle()).toBe("MLPTF | Photo by bravo, 12 May 2024");
+
+      await click(fixture, "next");
+
+      expect(TestBed.inject(Title).getTitle()).toBe("MLPTF | Photo by charlie, 12 May 2024");
+      expect(tag('property="og:title"')).toBe("MLPTF | Photo by charlie, 12 May 2024");
+      expect(tag('property="og:image"')).toBe("https://i.imgur.com/p3h.jpg");
+      expect(tag('property="og:image:alt"')).toBe("Photo by charlie, 12 May 2024");
+    });
+
+    it("puts the defaults back when the viewer is closed after stepping", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2, P3], "p2");
+      await click(fixture, "next");
+
+      fixture.componentRef.setInput("mediaId", undefined);
+      await settle(fixture);
+
+      expect(viewerOf(fixture)).toBeNull();
+      expect(TestBed.inject(Title).getTitle()).toBe("MLPTF | Gallery");
+      expect(tag('property="og:image"')).toBe(DEFAULT_IMAGE);
+      expect(tag('property="og:title"')).toBeUndefined();
+    });
+
+    it("steps past a repeat of the open photo, which the backend's untied order can put at a page boundary", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      // The next page started with the last photo of the one before it (as on the dev data).
+      const fixture = await openFromFeed([P1, P2, P2, P3], "p2");
+
+      await click(fixture, "next");
+      expect(shownImage(fixture)).toBe(P3.file!.url);
+      await click(fixture, "prev");
+      expect(shownImage(fixture)).toBe(P2.file!.url);
+      await click(fixture, "prev");
+      expect(shownImage(fixture)).toBe(P1.file!.url);
+    });
+
+    it("offers no neighbours for a shared photo the feed has not reached", async () => {
+      const fixture = createPage("browser", "p9");
+      answerYearCounts();
+      mediaByIdRequest().flush({ data: { media: photoOf("p9", "zulu") } });
+      feedRequest().flush(feedOf([P1, P2], true));
+      await settle(fixture);
+
+      expect(viewerOf(fixture)).not.toBeNull();
+      expect(control(fixture, "prev")).toBeNull();
+      expect(control(fixture, "next")).toBeNull();
+      // Not in the feed, so it is not at the feed's end either: no page is fetched for it.
+      noFeedRequest();
+    });
+  });
+
+  describe("at the end of what is loaded", () => {
+    it("fetches the next page and then offers its first photo", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2], "p2", true);
+
+      const more = feedRequest();
+      expect(more.request.body.variables).toEqual({ first: 24, after: "c2" });
+      // Nothing to go to until it lands.
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
+      more.flush(feedOf([P3]));
+      await settle(fixture);
+
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("false");
+      await click(fixture, "next");
+      expect(shownImage(fixture)).toBe(P3.file!.url);
+      noFeedRequest(); // that was the last page
+    });
+
+    it("counts a repeat of the open photo as the end: the photo is still the last one loaded", async () => {
+      const fixture = await openFromFeed([P1, P2, P2], "p2", true);
+
+      const more = feedRequest();
+      expect(more.request.body.variables).toEqual({ first: 24, after: "c3" });
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
+      more.flush(feedOf([P3]));
+      await settle(fixture);
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("false");
+    });
+
+    it("fetches it for a shared photo that turns out to be the last one the feed loaded", async () => {
+      const fixture = createPage("browser", "p2");
+      answerYearCounts();
+      mediaByIdRequest().flush({ data: { media: P2 } });
+      feedRequest().flush(feedOf([P1, P2], true));
+      await settle(fixture);
+
+      const more = feedRequest();
+      expect(more.request.body.variables).toEqual({ first: 24, after: "c2" });
+      more.flush(feedOf([P3]));
+      await settle(fixture);
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("false");
+    });
+
+    it("does not fetch when the feed has no more photos", async () => {
+      const fixture = await openFromFeed([P1, P2], "p2", false);
+
+      noFeedRequest();
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("does not fetch while the open photo has a next one", async () => {
+      await openFromFeed([P1, P2, P3], "p2", true);
+
+      noFeedRequest();
+    });
+
+    it("does not fetch on the server, where nobody can step", async () => {
+      await openFromFeed([P1, P2], "p2", true, "server");
+
+      noFeedRequest();
+    });
+
+    it("does not retry a failed page by itself, and tries again when the visitor next opens that photo", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
+      const fixture = await openFromFeed([P1, P2], "p2", true);
+
+      feedRequest().flush("down", { status: 503, statusText: "Service Unavailable" });
+      await settle(fixture);
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast.mock.calls[0][0]).toBe("Couldn't load photos");
+      // The failure leaves everything the effect reads as it was: it must not run again.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      noFeedRequest();
+
+      await click(fixture, "prev");
+      await click(fixture, "next");
+      feedRequest().flush(feedOf([P3]));
+      await settle(fixture);
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("false");
+    });
+
+    it("does not loop when the next page comes back empty yet claims there is more", async () => {
+      const fixture = await openFromFeed([P1, P2], "p2", true);
+
+      feedRequest().flush(feedOf([], true));
+      await settle(fixture);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      noFeedRequest();
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
+    });
+  });
+});
+
 describe("GalleryPage year jump progress", () => {
   const OLD_PHOTO: MediaNode = { ...PHOTO, id: "m0", createdDate: "2023-03-01" };
 

@@ -168,6 +168,36 @@ export class GalleryPage {
 
   private readonly _loadedYears = computed(() => new Set(this.yearGroups().map((g) => g.year)));
 
+  /** Where the open photo sits in the loaded feed; -1 when it is not there, as with a shared link
+   * to a photo the feed has not reached yet (then it has no neighbours to offer). */
+  private readonly _openIndex = computed(() => {
+    const id = this.selectedMedia()?.id;
+    return id ? this.edges().findIndex((e) => e.node.id === id) : -1;
+  });
+  /** The nearest loaded photo before (-1) or after (1) the open one that is a different photo.
+   * shortcut: skips only a repeat right beside the open photo. The backend's `medias` order has no
+   * tie-break, so a page can start with the last photo of the page before it (seen on the dev
+   * data), and Next must not land on the photo already open. It cannot catch a repeat further
+   * apart; a total order in rosak_backend is the real fix. */
+  private neighbourOf(direction: -1 | 1): MediaNode | null {
+    const edges = this.edges();
+    const index = this._openIndex();
+    if (index < 0) {
+      return null;
+    }
+    for (let i = index + direction; i >= 0 && i < edges.length; i += direction) {
+      if (edges[i].node.id !== edges[index].node.id) {
+        return edges[i].node;
+      }
+    }
+    return null;
+  }
+  protected readonly prevMedia = computed(() => this.neighbourOf(-1));
+  protected readonly nextMedia = computed(() => this.neighbourOf(1));
+  /** A boolean, not the neighbour: the effect that fetches the next page reads this, and must not
+   * run again for a page that failed or came back empty (see the constructor). */
+  private readonly _atFeedEnd = computed(() => this._openIndex() >= 0 && !this.nextMedia());
+
   constructor() {
     this.loadMore();
     // Keeps the open photo in sync with the URL both ways: a direct/shared link to
@@ -184,6 +214,15 @@ export class GalleryPage {
           this.selectedMedia.set(null);
         }
       });
+    });
+    // Stepping onto the last photo loaded fetches the next page, so the viewer's Next arrow does not
+    // hit a wall while the feed has more. It reads `_atFeedEnd`, a boolean: a page that fails or
+    // comes back empty leaves it as it was, so this does not run again and retry in a loop. The
+    // next photo the visitor opens tries once more. Browser only: nobody swipes on the server.
+    effect(() => {
+      if (this.isBrowser && this._atFeedEnd() && this.hasMore()) {
+        untracked(() => this.loadMore());
+      }
     });
     // Share metadata for the open photo, so the server HTML of a shared link previews as that
     // photo. The cleanup puts the defaults back when the photo changes, the viewer closes or the
@@ -233,6 +272,14 @@ export class GalleryPage {
   protected onOpenMedia(media: MediaNode): void {
     this.selectedMedia.set(media);
     this.router.navigate(["/gallery", media.id]);
+  }
+
+  /** Prev/next from the viewer. `replaceUrl`: stepping through photos must not stack history
+   * entries, or Back would walk them one by one instead of returning to the grid. The share
+   * metadata effect needs nothing here: it follows `selectedMedia`, exactly as on open. */
+  protected onStepMedia(media: MediaNode): void {
+    this.selectedMedia.set(media);
+    this.router.navigate(["/gallery", media.id], { replaceUrl: true });
   }
 
   protected onCloseMedia(): void {

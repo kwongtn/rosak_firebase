@@ -114,5 +114,11 @@
 </div>
 
 @if (selectedMedia(); as media) {
-  <app-media-viewer [media]="media" (close)="onCloseMedia()" />
+  <app-media-viewer
+    [media]="media"
+    [prev]="prevMedia()"
+    [next]="nextMedia()"
+    (close)="onCloseMedia()"
+    (navigate)="onStepMedia($event)"
+  />
 }
