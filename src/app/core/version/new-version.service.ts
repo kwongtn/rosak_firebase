@@ -52,7 +52,12 @@ export class NewVersionService {
       return;
     }
     try {
-      const response = await fetch("/version.json", { cache: "no-store" });
+      // `no-store` skips the HTTP cache; `ngsw-bypass` skips the service worker entirely, so the
+      // answer always comes from the server (ngsw-config.json caches no JSON either way).
+      const response = await fetch("/version.json", {
+        cache: "no-store",
+        headers: { "ngsw-bypass": "true" },
+      });
       if (!response.ok) {
         return;
       }
@@ -69,10 +74,10 @@ export class NewVersionService {
     }
   }
 
-  /** Clears whatever's cacheable (harmless if there's nothing to clear — this app has no
-   * service worker today, but this stays correct if one's ever added) and does a real
-   * navigation-level reload, not just a signal reset, since the whole point is to load the
-   * newly-deployed JS. */
+  /** Clears Cache Storage (the service worker's precache included: the worker re-fetches what it
+   * needs from the network, and it never caches HTML, so the reload is always served fresh) and
+   * does a real navigation-level reload, not just a signal reset, since the whole point is to
+   * load the newly-deployed JS. */
   async reloadForNewVersion(): Promise<void> {
     if (typeof caches !== "undefined") {
       const keys = await caches.keys();

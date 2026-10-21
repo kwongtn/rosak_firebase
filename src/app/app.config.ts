@@ -2,6 +2,7 @@ import {
   ApplicationConfig,
   ErrorHandler,
   Injectable,
+  isDevMode,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   inject,
@@ -16,6 +17,7 @@ import {
 import { HttpErrorResponse, provideHttpClient } from "@angular/common/http";
 import { RECAPTCHA_V3_SITE_KEY, ReCaptchaV3Service, RecaptchaLoaderService } from "ng-recaptcha-2";
 import { provideMarkdown } from "ngx-markdown";
+import { provideServiceWorker } from "@angular/service-worker";
 import * as Sentry from "@sentry/angular";
 
 import { routes } from "./app.routes";
@@ -176,5 +178,14 @@ export const appConfig: ApplicationConfig = {
     // deliberately left off — no incident content uses them today, and each pulls in a sizeable
     // extra dependency; trivial to add later if a real incident writeup needs one.
     provideMarkdown(),
+    // Angular's service worker (ngsw-config.json; only the production build emits ngsw-worker.js):
+    // it precaches the hashed JS/CSS and never serves HTML from cache, so SSR still answers every
+    // navigation. Off under `ng serve` and in tests (dev mode); never registers on the server.
+    // Registers once the app is stable, or after 30s at the latest, so it never competes with
+    // first load.
+    provideServiceWorker("ngsw-worker.js", {
+      enabled: !isDevMode(),
+      registrationStrategy: "registerWhenStable:30000",
+    }),
   ],
 };

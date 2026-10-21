@@ -46,6 +46,13 @@ describe("NewVersionService stale-chunk detection", () => {
     script.remove();
   }
 
+  it("asks the server itself for /version.json, past the HTTP cache and the service worker", () => {
+    expect(fetch).toHaveBeenCalledWith("/version.json", {
+      cache: "no-store",
+      headers: { "ngsw-bypass": "true" },
+    });
+  });
+
   it("does not prompt for a blocked cross-origin script such as adsbygoogle.js", () => {
     failScript("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1");
 
