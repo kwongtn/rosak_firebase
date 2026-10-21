@@ -44,9 +44,30 @@ Sentry.init({
 // left at Sentry's own default privacy settings (maskAllText / blockAllMedia both true):
 // this app's own pages carry a live GraphQL search combobox, a photo upload flow, and
 // profile-editing text, none of which should ever be legible in a replay by default.
-// Deferred until after bootstrap via addIntegration() so the replay bundle (and its
-// Sentry-internal dependencies) stay out of the critical initial-load path — the replay
-// integration is non-essential to first paint and only starts recording once the app is up.
+//
+// Every session needs the integration (replaysOnErrorSampleRate buffers a replay for error
+// sessions), but nothing needs it for first paint. Calling addIntegration() after bootstrap would
+// only delay when recording *starts*: any static reference to replayIntegration still makes the
+// bundler ship its ~155 KB with the first-load bundle. So it is reached only through a dynamic
+// import() of replay-integration.ts (which explains why that file is not a plain re-export) and
+// fetched once the browser is idle.
+const REPLAY_LOAD_DELAY_MS = 3000;
+
+async function addReplayIntegration(): Promise<void> {
+  const { replayIntegration } = await import("./app/core/sentry/replay-integration");
+  Sentry.addIntegration(replayIntegration());
+}
+
 bootstrapApplication(App, appConfig)
-  .then(() => Sentry.addIntegration(Sentry.replayIntegration()))
+  .then(() => {
+    // Not awaited or returned, so a failed chunk load stays an unhandled rejection that Sentry
+    // reports, rather than being logged and dropped by the catch below. The delay is
+    // requestIdleCallback's `timeout` (the longest a permanently busy page may postpone replay);
+    // the setTimeout branch is for Safari, which has no requestIdleCallback.
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(addReplayIntegration, { timeout: REPLAY_LOAD_DELAY_MS });
+    } else {
+      setTimeout(addReplayIntegration, REPLAY_LOAD_DELAY_MS);
+    }
+  })
   .catch((err) => console.error(err));
