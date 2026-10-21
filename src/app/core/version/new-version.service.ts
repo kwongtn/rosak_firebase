@@ -12,6 +12,9 @@ import { isSameCommit } from "./version.util";
  * frequent it reads as polling the server aggressively for what's a genuinely rare event. */
 const CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
+/** How long a failed chunk waits for `/version.json` before the connection counts as down. */
+const PROBE_TIMEOUT_MS = 5000;
+
 interface VersionManifest {
   hash: string;
 }
@@ -36,6 +39,9 @@ export class NewVersionService {
 
   readonly hasNewVersion = signal(false);
 
+  /** A failed chunk's `/version.json` probe is in flight (see promptReloadForNewVersion). */
+  private probing = false;
+
   constructor() {
     if (!this.isBrowser) {
       return;
@@ -51,18 +57,12 @@ export class NewVersionService {
       // on it (reloadForNewVersion navigates away from this page entirely).
       return;
     }
+    if (!this.online.isOnline()) {
+      // The request would only fail and add a Sentry event; the next interval asks again.
+      return;
+    }
     try {
-      // `no-store` skips the HTTP cache; `ngsw-bypass` skips the service worker entirely, so the
-      // answer always comes from the server (ngsw-config.json caches no JSON either way).
-      const response = await fetch("/version.json", {
-        cache: "no-store",
-        headers: { "ngsw-bypass": "true" },
-      });
-      if (!response.ok) {
-        return;
-      }
-      const manifest = (await response.json()) as VersionManifest;
-      if (manifest.hash && !isSameCommit(manifest.hash, buildInfo.hash)) {
+      if (await this.isNewVersionDeployed()) {
         this.hasNewVersion.set(true);
       }
     } catch (err: unknown) {
@@ -74,11 +74,35 @@ export class NewVersionService {
     }
   }
 
+  /** Whether the server's own `/version.json` names a different build from the one running here.
+   * `no-store` skips the HTTP cache and `ngsw-bypass` skips the service worker (ngsw-config.json
+   * caches no JSON either way). A non-OK answer or a missing hash counts as no. Rejects when the
+   * request fails. */
+  private async isNewVersionDeployed(signal?: AbortSignal): Promise<boolean> {
+    const response = await fetch("/version.json", {
+      cache: "no-store",
+      headers: { "ngsw-bypass": "true" },
+      signal,
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const manifest = (await response.json()) as VersionManifest;
+    return !!manifest.hash && !isSameCommit(manifest.hash, buildInfo.hash);
+  }
+
   /** Clears Cache Storage (the service worker's precache included: the worker re-fetches what it
-   * needs from the network, and it never caches HTML, so the reload is always served fresh) and
-   * does a real navigation-level reload, not just a signal reset, since the whole point is to
-   * load the newly-deployed JS. */
+   * needs, and navigations always try the network first, so the reload gets the new deploy's SSR
+   * HTML) and does a real navigation-level reload, not just a signal reset, since the whole point
+   * is to load the newly-deployed JS.
+   *
+   * Offline it only says so: with no connection the reload would fail, and the cleared caches
+   * would take the offline copy of the app with them. */
   async reloadForNewVersion(): Promise<void> {
+    if (!this.online.isOnline()) {
+      this.toast.info("You're offline", "Reconnect to load the new version.");
+      return;
+    }
     if (typeof caches !== "undefined") {
       const keys = await caches.keys();
       await Promise.all(keys.map((key) => caches.delete(key)));
@@ -139,18 +163,44 @@ export class NewVersionService {
    * Angular's router first, which forwards it to ErrorHandler — never surfacing as an
    * `unhandledrejection` (see listenForStaleChunkFailures). Both paths end up here.
    *
-   * Offline, a failed chunk is no evidence of a deploy, and a reload would fail too: the toast
-   * says the page needs a connection instead, and the update button stays dark. Shown on every
-   * failed attempt, so a tap that goes nowhere always says why.
+   * A failed chunk alone is no evidence of a deploy. Offline the toast says the page needs a
+   * connection, on every failed attempt, so a tap that goes nowhere always says why. Online it
+   * first asks `/version.json`: in a tunnel the connection often reports "up" but carries nothing,
+   * so only a different build there lights the update button.
    */
   promptReloadForNewVersion(): void {
     if (!this.online.isOnline()) {
       this.toast.info("You're offline", "This page needs a connection.");
       return;
     }
+    if (this.hasNewVersion() || this.probing) {
+      // Already surfaced (by the poll or an earlier chunk failure, so the button is lit), or the
+      // same failure arriving by its second path while its probe runs: another toast would nag.
+      return;
+    }
+    this.probing = true;
+    void this.confirmNewVersion().finally(() => {
+      this.probing = false;
+    });
+  }
+
+  private async confirmNewVersion(): Promise<void> {
+    let deployed: boolean;
+    try {
+      deployed = await this.isNewVersionDeployed(AbortSignal.timeout(PROBE_TIMEOUT_MS));
+    } catch {
+      // An expected failure, surfaced to the user rather than reported: the server cannot be
+      // reached, which is also why the chunk failed.
+      this.toast.info("You're offline", "This page needs a connection.");
+      return;
+    }
+    if (!deployed) {
+      // The server still runs this build, so the chunk failed for another reason.
+      this.toast.info("This page couldn't load", "Check your connection and try again.");
+      return;
+    }
     if (this.hasNewVersion()) {
-      // Already surfaced — by the poll or an earlier chunk failure — so the button is lit and
-      // a second toast would just nag.
+      // The poll found the deploy while the probe ran, and the button is already lit.
       return;
     }
     this.hasNewVersion.set(true);
