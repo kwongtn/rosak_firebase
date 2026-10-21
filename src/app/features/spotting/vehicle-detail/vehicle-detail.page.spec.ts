@@ -277,6 +277,22 @@ describe("VehicleDetailPage", () => {
     expect(root().querySelector("div.gap-4 > [hlmskeleton].w-48")).toBeNull();
   });
 
+  it("keeps the details hidden until the header lands, so nothing jumps and no ad is requested", async () => {
+    await render();
+    const timeline = (): Element | null => root().querySelector("app-incident-timeline");
+    expect(timeline()?.closest(".hidden")).not.toBeNull();
+    expect(root().querySelector("app-spotting-history")?.closest(".hidden")).not.toBeNull();
+
+    take("VehicleHeader")[0].flush({ data: { vehicles: [HEADER_103] } });
+    await settle();
+
+    expect(timeline()?.closest(".hidden")).toBeNull();
+
+    fixture.componentRef.setInput("vehicleId", "104");
+    tick();
+    expect(timeline()?.closest(".hidden")).not.toBeNull();
+  });
+
   it("keeps the same vehicle switcher, and so its focus, while the next vehicle loads", async () => {
     await render();
     take("VehicleHeader")[0].flush({ data: { vehicles: [HEADER_103] } });

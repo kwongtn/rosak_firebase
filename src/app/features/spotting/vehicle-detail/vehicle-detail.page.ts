@@ -141,28 +141,32 @@ import { ReportSpottingButtonComponent } from "../report-spotting-button/report-
       }
 
       <!-- These only need vehicleId(), so they live outside the header's @if: their queries start
-           with the header's, and their own loading placeholders show straight away. They stay
-           hidden when the header failed or the vehicle does not exist, where "No record" would
-           read as a fact about a vehicle we could not load. -->
+           with the header's. They are not rendered when the header failed or the vehicle does not
+           exist, where "No record" would read as a fact about a vehicle we could not load. They are
+           display:none until the header lands, so the cards appear in the same frame as it (no jump
+           when the header pushes them down) and the ad slot does not intersect, so no ad is
+           requested, while the page still shows only a skeleton. -->
       @if (_showDetails()) {
-        <div hlmCard>
-          <div hlmCardHeader><h2 hlmCardTitle>Notable Incidents</h2></div>
-          <div hlmCardContent>
-            <app-incident-timeline [vehicleId]="vehicleId()" />
+        <div class="flex flex-col gap-6" [class.hidden]="!_vehicle()">
+          <div hlmCard>
+            <div hlmCardHeader><h2 hlmCardTitle>Notable Incidents</h2></div>
+            <div hlmCardContent>
+              <app-incident-timeline [vehicleId]="vehicleId()" />
+            </div>
           </div>
-        </div>
 
-        <!-- Density cap: see vehicleDetailBetweenCardsSlotId — footerEnd + this = 2 (max). -->
-        <app-ad-slot
-          [slotId]="vehicleDetailBetweenCardsSlotId"
-          [minHeightPx]="250"
-          [label]="'Advertisement'"
-        />
+          <!-- Density cap: see vehicleDetailBetweenCardsSlotId — footerEnd + this = 2 (max). -->
+          <app-ad-slot
+            [slotId]="vehicleDetailBetweenCardsSlotId"
+            [minHeightPx]="250"
+            [label]="'Advertisement'"
+          />
 
-        <div hlmCard>
-          <div hlmCardHeader><h2 hlmCardTitle>Spotting History</h2></div>
-          <div hlmCardContent>
-            <app-spotting-history [vehicleId]="vehicleId()" />
+          <div hlmCard>
+            <div hlmCardHeader><h2 hlmCardTitle>Spotting History</h2></div>
+            <div hlmCardContent>
+              <app-spotting-history [vehicleId]="vehicleId()" />
+            </div>
           </div>
         </div>
       }
