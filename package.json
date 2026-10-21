@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "generate": "node scripts/generate-build-info.mjs && node scripts/generate-firebase-config.mjs && node scripts/generate-runtime-config.mjs && node scripts/generate-favicon.mjs",
+    "generate": "node scripts/generate-build-info.mjs && node scripts/generate-firebase-config.mjs && node scripts/generate-runtime-config.mjs && node scripts/generate-favicon.mjs && node scripts/check-sentry-lazy.mjs",
     "prestart": "npm run generate",
     "start": "ng serve",
     "prebuild": "npm run generate",
