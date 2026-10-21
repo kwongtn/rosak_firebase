@@ -47,6 +47,28 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 `core/graphql/types.ts`), and `src/app/shell/*` (page chrome: `AppNavComponent`,
 `AppFooterComponent`, account panel, compact nav).
 
+**Cross-cutting core** (`src/app/core/*`, no per-feature doc):
+
+- `core/graphql/`: `graphqlResource()` reads (`data()` and `errors()` never throw; `data()` keeps the
+  last good payload while the SAME request fails or retries, and a changed request clears it) and
+  `GraphQLClient.request` writes. `toastSubmitFailure(toast)` is what a form's submit `catch` calls
+  for any error the client did not already toast, before rethrowing to Sentry.
+- `core/sentry/`: Session Replay is a dynamic `import()` after bootstrap, at idle (`main.ts`). The
+  "Report a bug" widget loads on first use through `FeedbackService.openForm()` (browser only; one
+  shared in-flight open; the current theme is applied on every open). Both load `?lazy` private
+  copies of the Sentry packages, and `scripts/check-sentry-lazy.mjs` (end of `npm run generate`)
+  fails the build if first-load code names replay or feedback.
+- `core/upload/`: `ImageUploadService.triggerUpload` is the only place an image leaves the device.
+  Right before the `FormData` is built, `withoutGps()` runs `stripGps` (lossless Exif GPS removal for
+  JPEG, TIFF and PNG) once per queued file. `PhotoPickerComponent` accepts JPEG, PNG, GIF and TIFF by
+  type and by magic bytes.
+- `core/time/kl-date.ts`: `klDateKey(now?)`, the Asia/Kuala_Lumpur `YYYY-MM-DD` (fixed UTC+8, the
+  same in every zone), is the one "today" for `/insiden`, its calendar and the link list.
+- `core/version/`: `NewVersionService` prompts for a reload on a failed same-origin chunk only.
+- **Sheet hosts** (home, `/insiden`, `/spotting`, every Situasi tab) mount the form of a closed sheet
+  behind `@defer (when <sheet>.isOpen(); prefetch on idle)`, so its reads stay out of SSR and
+  TransferState. Footers reach the form through a string-locator `viewChild`, null-safe.
+
 **Content models coexist by design:**
 
 - **GraphQL-backed, dynamic:** home, spotting, profile, console, insiden — user/admin-generated
@@ -82,7 +104,7 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
     `app-link-thread`; spotting's `humanizeSince`.
   - Extend: the `home-*.queries.ts` GraphQL contract files (`pulseLinks.isAutomated` is what makes
     "official" mean anything); `HomeStore` (polling beat, cursor pagination, `userVote` overlay,
-    board derivations); pure utils (`passenger-status`, `network-summary`, `status-confidence`,
+    board derivations, `isStale`); pure utils (`passenger-status`, `network-summary`, `status-confidence`,
     `status-history-display`, `feed-url`, `feed-day-groups`, `feed-filter` — all `*.util.ts`);
     `LinkSheetService` prefill, `LineStatusSheetService.openFor(id, { presetStatus })`,
     `ReportChooserService` intent seam; `HOME_FEED_COLLAPSE_VARS` on every feed read;
@@ -90,10 +112,12 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
     `--animate-*` `@theme` tokens (all motion is inert under `prefers-reduced-motion`).
 - **gallery** (`features/gallery/` — page + 3 child components + pure utils;
   [doc](components/gallery.md)) — Paginated, year-grouped public photo feed with a full-screen
-  lightbox, driven by a Relay-style GraphQL connection.
-  - Deps: `graphqlResource`/`GraphQLClient`, `ToastService`, Hlm button/skeleton.
-  - Extend: reusable `JustifiedGridComponent`/`MediaViewerComponent` (pure input/output, no gallery
-    coupling); pure `getImgurThumbnail()`/`mediaLabel()`.
+  lightbox, driven by a Relay-style GraphQL connection. A shared `/gallery/:mediaId` link opens from
+  one `media(id)` fetch (on the server too) with per-photo share tags.
+  - Deps: `graphqlResource`/`GraphQLClient`, `ToastService`, `Title`/`Meta`, Hlm button/skeleton.
+  - Extend: reusable `JustifiedGridComponent` (CSS-only layout, so the server renders the photos)
+    and `MediaViewerComponent` (modal dialog; pure input/output, no gallery coupling); pure
+    `getImgurThumbnail()`/`mediaLabel()`.
 - **gdpr** (`features/gdpr/` — single page; [doc](components/gdpr.md)) — Read-only GDPR compliance
   checklist rendered from a hand-edited Firestore doc.
   - Deps: `firebase/firestore` (`public/gdpr`, direct SDK), `HlmBadge`/`HlmSkeleton`.
@@ -120,13 +144,15 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   - Deps: `graphqlResource`/`GraphQLClient`, `AuthService`, `ImageUploadService`/compression,
     `@angular/forms/signals`, domain-ui badges/heatmap.
   - Extend: `ReportSheetService` (cross-page sheet trigger seam); `report-form.schema.ts`
-    (declarative validation); `spotting.queries.ts` (single GraphQL contract seam).
+    (declarative validation); `spotting.queries.ts` (single GraphQL contract seam, including the
+    one-vehicle `VEHICLE_HEADER_QUERY` behind the vehicle page).
 - **profile** (`features/profile/` — page + `user-card`/`my-spottings`/`my-links`;
   [doc](components/profile.md)) — Signed-in user's dashboard: identity, editable nickname, spotting
   stats/heatmap, deletable spotting history, own submitted links with thread grouping.
   - Deps: `GraphQLClient`, `AuthService`, `RecaptchaService`, domain-ui heatmap/badges.
-  - Extend: `data/profile.queries.ts` (single seam for query/type changes); the `isOwnProfile`
-    branch is already wired as a placeholder for a future by-id public-profile backend field.
+  - Extend: `data/profile.queries.ts` (single seam for query/type changes); `UserCardComponent`'s
+    `isOwnProfile` input picks the own branch (signed-in identity, edit, privacy, votes) or the
+    public branch (the owner's nickname, no controls).
 - **console** (`features/console/` — admin-only; spotting page + `insiden/pending` incident queue +
   `insiden/links` link triage at `/console/links`; [doc](components/console.md)) — Admin moderation
   queues: crowd-submitted spotting events (filter, paginate, bulk mark-as-read), pending incidents
@@ -151,8 +177,8 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   create/edit incidents through the approval lifecycle, chronology status/votes/deletion requests,
   per-incident links with infinite scroll, in-page photo viewer.
   - Deps: `graphqlResource`, `GraphQLClient`, `AuthService`, `ImageUploadService`,
-    `MediaViewerComponent` (from gallery), `PhotoPickerComponent` (from spotting), `ngx-markdown`,
-    `InfiniteScrollDirective`.
+    `MediaViewerComponent` (from gallery), `PhotoPickerComponent` (from spotting), `klDateKey`
+    (`core/time`), `ngx-markdown`, `InfiniteScrollDirective`.
   - Extend: `insiden.queries.ts` (single flat-query seam); `SEVERITY_*`/`CHRONOLOGY_DOT` lookup
     tables; `RetryableResource` structural interface; pure utils (`canEditIncident`,
     `incidentLinkLine`, `incidentToForm`, `chronologyStatusLabel`, `linkDisplayInstant`,
@@ -178,7 +204,7 @@ service, LLM client, or embeddings store.
    `ImageUploadService`/`ImageCompressionService` is the single upload queue behind spotting and
    insiden photos (and, indirectly, gallery's bot-ingested media). A pre-/post-upload hook there
    yields alt-text, duplicate detection, and moderation for all three and for console's review
-   queue.
+   queue. `ImageUploadService.withoutGps()` is already one such pre-upload hook.
 3. **Shared "CMS AI editor" for gdpr + about.** Both are a single Firestore doc with the same
    `_data` + `computed()` shape (gdpr read-only, about with an in-page admin editor); one
    schema-aware drafting tool over `PublicGdprDocument`/`PublicAboutDocument` covers both with no

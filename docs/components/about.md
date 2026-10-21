@@ -30,7 +30,7 @@
     the page on every remote change. Its error callback sets `isError`.
   - Page meta: the constructor sets `description`, `og:title`, `og:description` and `og:type` via
     `Meta.updateTag`. Only JS-running crawlers see them. Link-preview scrapers (WhatsApp, Telegram)
-    read the static `index.html`, which has title `TranSPOT` and a description, but no og tags.
+    read the static `index.html`: title `MLPTF`, a description, and the site-wide `og:site_name`, `og:type`, `og:image` (`share-card.png`), `og:image:alt` and `twitter:card`, but no `og:title` / `og:description`.
   - Template signals: `isLoading`, `isError` (+ `retry()`), `data` (read-only projection of `_data`,
     passed to the editor as `initial`), `aboutProject`, `projects` (display-filtered, query-matched,
     sorted oldest-first by `startDate`), `personnel` (display-filtered, query-matched, sorted by

@@ -39,7 +39,7 @@
   - `MARK_AS_READ_MUTATION` (`MarkAsRead`) — `{ input: { eventIds } }` → `{ markAsRead: { ok } }`. On `ok`, rows are spliced out of `events`, the selection clears and a success toast fires. An exception fires an error toast.
   - No `@Output()`s; side effects are toasts or local signal mutation.
 - **Dependencies:**
-  - `GraphQLClient` (`core/graphql/graphql-client.ts`) — POST wrapper over `environment.backendGraphqlUrl`; throws `GraphQLRequestError` only when a response has no usable `data` (tolerates partial success).
+  - `GraphQLClient` (`core/graphql/graphql-client.ts`) — POST wrapper over `environment.backendGraphqlUrl`; throws `GraphQLRequestError` when a response carries a top-level `errors` array (even next to partial `data`) or has no `data` at all, and toasts and reports it to Sentry in the browser only.
   - `AuthService` — `idToken()` goes in the `firebase-auth-key` header of every console request.
   - `ReCaptchaV3Service` (`ng-recaptcha-2`, provided in `app.config.ts`) — `markAsRead` sends `g-recaptcha-response` because the backend enforces `IsRecaptchaChallengePassed` on it. `firstValueFrom` bridges the Observable into the async handler. (Profile's `deleteSpottingEntry` also sends a token, through the separate `core/recaptcha/recaptcha.service.ts`.)
   - `ToastService`, `RouterLink` (row vehicle → `/spotting/:lineId/vehicle/:vehicleId`), `AppNavComponent`/`AppFooterComponent` (`src/app/shell/*`), `VehicleStatusBadge`/`SpottingTypeBadge` (`src/app/domain-ui/*`), Helm UI kit (`src/app/ui/*`).
@@ -85,7 +85,7 @@
 
 - `PendingIncidentsComponent` (`insiden/pending/pending.component.*`, selector `app-console-pending-incidents`): lists `PENDING_APPROVAL` incidents (`pendingCalendarIncidents(search)`, oldest-first) with a debounced server-side text search (title/brief/details/chronology source URLs; `SEARCH_DEBOUNCE_MS`). The queue also carries `LIVE` incidents with a `PENDING_DELETION` chronology row (deletion requests: `APPROVE_/REJECT_CHRONOLOGY_DELETION_MUTATION`).
 - Row **Approve** is immediate; **Reject** needs a reason entered in a modal sheet. Both remove the row locally on success.
-- Row click opens a full editor (same field set as "Report an Incident", incl. the chronology editor with per-entry AI Extract — `EXTRACT_TIMEOUT_MS = 15_000` front-end cap over the 20 s function timeout — and Summarize). Save calls the `IsAdmin` `updateCalendarIncident`, which replaces the M2M sets and chronologies verbatim, so the payload is the complete form state; row and detail card are then patched locally.
+- Row click opens a full editor (same field set as "Report an Incident", incl. the chronology editor with per-entry AI Extract — `EXTRACT_TIMEOUT_MS = 15_000` front-end cap over the 20 s function timeout; an answer inside the cap (data or `null`) resets the row's extract state, so the row is editable again — and Summarize). Save calls the `IsAdmin` `updateCalendarIncident`, which replaces the M2M sets and chronologies verbatim, so the payload is the complete form state; row and detail card are then patched locally.
 - Hosts `app-incident-card` with `[editActionEnabled]="false"` (it has its own panel editing; see `insiden.md`).
 - Children: `tr[app-pending-row]` (row + Approve/Reject), `section[app-pending-chronology-editor]`, `section[app-pending-deletion-requests]`; pure `pending-incident.util.ts` (`severityBadgeVariant`, `severityLabelText`, `asCalendarIncident`, `isIncidentFormSaveable`, `buildUpdatedIncidentRow`, `ChronologyExtractState`).
 
@@ -139,7 +139,7 @@
     - The gate is the **minute** because that is the rendered precision (`MMM d, y HH:mm`): an exact-instant test would print two identical-looking lines when clocks differ only below the minute.
     - **Exact-string fast path first.** The backend's `USE_TZ = False` columns send naive wall time with no offset, and `Date.parse` resolves those in the viewer's zone; byte-identical strings are the answer whatever that parse did, and equal strings are how the backend spells "no event time stated" (most rows) — so those rows never depend on the host TZ.
     - **Truncation, not rounding:** `Math.floor(ms / 60_000)`, so `09:00:59` and `09:01:00` are different minutes.
-    - **Any unparseable side returns `false`** (except identical strings): `strictNullChecks` is off, and `NaN !== NaN` would report different instants as the same and print `Invalid Date`. `false` can only add a redundant line, never suppress a real one.
+    - **Any unparseable side returns `false`** (except identical strings): a stale payload or fixture can hand the comparison two unparseable values, and `NaN !== NaN` would report different instants as the same and print `Invalid Date`. `false` can only add a redundant line, never suppress a real one.
   - The Submitted cell keeps `whitespace-nowrap` (a wrapped `Aug 1, 2026 08:30` reads as two values).
   - **Long URLs/titles wrap, never clip:** URL anchor `break-all` (a URL is one unbroken token; clipped tails can't be judged), title `break-words`. Neither cell may gain `truncate` / `whitespace-nowrap` / `overflow-hidden`.
 - **Depth is drawn as rails plus a tint, not as padding:**

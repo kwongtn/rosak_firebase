@@ -29,8 +29,10 @@
   - `home.page.ts` — the routed page: skip link (first child of `main`), nav → rider layout (board left
     / feed right from `lg`; board above feed when stacked) **or** `app-pro-dashboard` → footer. Hosts
     `app-report-chooser` (first sheet), the line-status sheet, the spotting `ReportFormComponent` in an
-    `hlm-sheet`, the shared `app-link-sheet` and the mobile action bar. Starts/stops the store's
-    polling, adapts the store to the retry banner, sets the route's `<meta name="description">`.
+    `hlm-sheet` (created only once that sheet opens), the shared `app-link-sheet` and the mobile action
+    bar. Starts/stops the store's polling, adapts the store to the retry banner, sets the route's
+    `<meta name="description">`. Link previews take their image and site name from the static tags in
+    `index.html`.
   - `hero/` — `home-hero.component.ts` (`app-home-hero`), `network-sparkline.component.ts`
     (`app-network-sparkline`).
   - `line-pulse/` — `network-board`, `line-pulse-card`, `line-pulse-row`, `line-status-chart`,
@@ -57,7 +59,7 @@
 ## 🔌 Interface & Data Flow
 
 - **Route:** `""` in `src/app/app.routes.ts` — `loadComponent: HomePage` with
-  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService, SpottingLinesStore]`.
+  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService]`.
   - 🔴 **The route injector — and so `HomeStore` — OUTLIVES a visit.** The router retains it while
     `HomePage` is recreated on every navigation to `""`, so a return to `/` gets the SAME store.
     Lifecycle edges are asymmetric: `HomePage.ngOnDestroy` → `store.stop()` (pauses the beat); the next
@@ -65,14 +67,18 @@
     must be re-armed by the next `start` (see Polling).
   - `HomeViewModeService` is route-scoped like the store, and because it reads `ActivatedRoute`: the ONE
     answer to "which view is this page in" is shared by the page (layout) and the board (toggle).
-    `SpottingLinesStore` is the spotting feature's route-scoped line list, here because the spotting
-    report form is hosted on this page.
+    The report form's line list comes from the root-provided `SpottingLinesStore`.
   - **URL state:** `?view=` (`rider|pro`), `?sort=` (`severity|name`), `?op=` (operator/line-family
     chip; URL-only, the store follows via an effect), Pro-only `?line=` (feed line filter) and `?q=`
     (feed search). A default never appears in the URL. Mechanism: Network board → URL state.
 - **Hosted spotting sheet:** `<hlm-sheet data-testid="spotting-entry-sheet">` wraps
-  `<app-report-form #reportFormRef (submitted)="onSpottingSubmitted($event)" />` plus a
-  Clear/Cancel/Submit footer (`submit-spotting-entry`). `onSpottingSubmitted(lineId)` closes the sheet,
+  `<app-report-form #reportForm (submitted)="onSpottingSubmitted($event)" />` inside
+  `@defer (when reportSheet.isOpen(); prefetch on idle)` and `@if (true)`, plus a Clear/Cancel/Submit
+  footer (`submit-spotting-entry`). The form (and its fleet-wide `LinesAndVehicles` read) therefore
+  never exists on the server; `@if (true)` binds it in the block's own refresh (a cold open otherwise
+  throws NG0950). The footer reaches it through `reportFormRef = viewChild<ReportFormComponent>("reportForm")`,
+  a string locator (a class locator would keep the form's import static), null-safe, with Submit
+  disabled until the form exists. `onSpottingSubmitted(lineId)` closes the sheet,
   calls `store.reloadAll()` and rings that line. The seed comes from
   `ReportSheetService.openFor(lineId)` (root-provided), consumed by the form on its open edge — so the
   reported line rides on the `submitted` PAYLOAD (`output<string | null>()`, read before the form's own
@@ -138,8 +144,9 @@
       `-occurredAt, -id`, of day windows and of the keyset cursor. Naive local wall time, no offset
       (backend `USE_TZ = False`) — never re-format through UTC.
     - **Conversation fields** `parentId` / `isThreadRoot` / `sublinkCount` / nested `sublinks { … }` are
-      **required on `FeedLink`** (optional on the structural `LinkCardItem`): with
-      `strict`/`strictNullChecks` OFF an optional field here would be a hole the compiler cannot report.
+      **required on `FeedLink`** (optional on the structural `LinkCardItem`): as an
+      optional field a query document that forgets one would still type-check, and nothing compares the
+      hand-written query string with the type.
       The old names (`threadId` / `threadSize` / `threadLinks`) are gone server-side with no alias — a
       stale spelling is a hard "Unknown field" on the whole query. `isThreadRoot` is a root marker
       (`parentId == null`, also true of every ungrouped link), so it may not decide whether to draw an
@@ -185,7 +192,8 @@
     `null`). Enums mirrored: `LineStatus`, `PassengerStatus`, `SocialMediaLinkStatus`.
 - **Dependencies (shared, consumed):**
   - `graphqlResource()` (`core/graphql/graphql-client.ts`) — reactive reads (SSR TransferState + backoff
-    retry); its `isFetching` (raw in-flight, unlike pristine-only `isLoading`) backs
+    retry); `data()`/`errors()` never throw and `data()` keeps the last good payload while the same
+    request fails or retries; its `isFetching` (raw in-flight, unlike pristine-only `isLoading`) backs
     `HomeStore.isRefreshing`. `GraphQLClient.request(query, variables?, extraHeaders?)` — mutations and
     the authenticated overlay read.
   - `AuthService` (`isLoggedIn`, `login()`, `idToken()`, `whenReady`).
@@ -289,17 +297,21 @@ The single source of truth for page data.
   `feedPageInfo` (appended `hasNextPage`/`endCursor` wins, via `??` so an appended `false` beats a stale
   `true`); `feedTotalCount`; Last Week mirrors `lastWeekLinks` / `lastWeekPageInfo` /
   `lastWeekTotalCount`; `lastWeekDayGroups` (`groupFeedLinksByDay`, keyed on the **displayed** instant
-  `occurredAt ?? created`); `lastWeekCount` (`null` until the first Last Week page lands, so the tab
-  reads `Last Week (–)` and never a false `0`); `lastWeekPending` (requested, unanswered, not failed —
+  `occurredAt ?? created`); `lastWeekCount` (`null` until the first Last Week page lands or after a
+  failed FIRST read, so the tab reads `Last Week (–)` and never a false `0`; a failed refresh keeps the
+  count, since `data()` keeps the rows); `lastWeekPending` (requested, unanswered, not failed —
   drives `last-week-skeleton`, covering the beat between selecting the tab and the answer);
   `isLoadingLastWeek` (pristine fetch, false for an unrequested read — used by the refresh control's
   initial-load exclusion, not for the skeleton).
   - `feedTotalCount` / `lastWeekTotalCount` = `Math.max` of the live first-page total and the appended
     reading (`maxFeedTotalCount`): the beat refreshes page one while appended signals stay frozen, and a
     denominator below either source reads "Showing 40 of 12".
-  - `isLoading` = lines + Today feed (pristine). `hasError` ORs all three page resources. `isRefreshing`
-    ORs their **`isFetching`** (observable for every reload); its one consumer-side exclusion is the
-    pristine first fetch (`isLoading() || isLoadingLastWeek()`).
+  - `isLoading` = lines + Today feed (pristine). `hasError` ORs all three page resources. `isStale` is
+    `hasError` while every FAILED page resource still holds its last good payload (the old board is
+    still on screen); `HomePage.bannerMessage` then reads "Couldn't refresh. Showing the last loaded
+    data." instead of "Couldn't load the front page."
+  - `isRefreshing` ORs the three resources' **`isFetching`** (observable for every reload); its one
+    consumer-side exclusion is the pristine first fetch (`isLoading() || isLoadingLastWeek()`).
   - ⚠️ `edges` / `lastWeekEdges` de-duplicate by `edge.node.id` on merge, first wins:
     `reloadFirstPages()` refetches page one while appended pages stay, and an edit/delete between reads
     can shift a row into a position appended pages already cover; a duplicate id throws on
@@ -1512,9 +1524,10 @@ accessible name and `focus-visible` ring from their primitives.
 
 ### Deliberate deviations
 
-- **No `@defer`** for the below-the-fold Pro widgets. The repo has zero `@defer` precedent, and
-  `TestBed`'s `deferBlockBehavior` / `fixture.deferBlocks` would make every widget spec assert on a
-  manual flush instead of behaviour. Independent loading — the real requirement — is by construction:
+- **No `@defer`** for the below-the-fold Pro widgets. The page's only `@defer` blocks are the
+  sheet-hosted forms (to keep a closed sheet's reads off SSR), and `TestBed`'s `deferBlockBehavior` /
+  `fixture.deferBlocks` would make every widget spec assert on a manual flush instead of behaviour.
+  Independent loading — the real requirement — is by construction:
   each widget owns its resource and failure flag and opts its read in from its own constructor, so
   nothing is shared but the store.
 - **`NetworkBoardComponent` has two layout inputs** (`embedHeatStrip`, `foldQuiet`) despite taking no
@@ -1533,9 +1546,6 @@ accessible name and `focus-visible` ring from their primitives.
   they vote again. Ready now: re-run the authenticated read with the appended cursors, or batch the
   appended ids into one authenticated query when `loadMore()` / `loadMoreLastWeek()` resolves (not per
   beat — see the overlay cadence note).
-- **Share metadata.** Open-graph / Twitter card tags and a per-route share image are missing (`HomePage`
-  sets `title` and `<meta name="description">` via `Meta.updateTag`; `about.page.ts` already sets `og:*`
-  as a pattern).
 - **Cause and direction on the expanded line row.** Not in the GraphQL `Line` schema, so neither the
   expanded row nor the Pro table can say why a line is disrupted or which way it runs. Needs an additive
   backend field first.

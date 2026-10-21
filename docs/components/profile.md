@@ -122,6 +122,7 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
     nothing. Any other error goes to the injected `ErrorHandler` (Sentry) as well. A `publicUser` of
     `null` is not an error: it shows "User not found or profile unavailable."
 - **`UserCardComponent`:**
+  - **Identity header has two branches.** `isOwnProfile()` reads `auth.user()` (photo, `displayName` or "Anonymous", verified email, phone). A public profile shows only the owner's `user().nickname`, or "Anonymous spotter" when there is none, and never the viewer's identity.
   - `_savedNickname` shadows `user().nickname` after a successful save. The input is never mutated.
   - `_favouriteVehicle` is `favouriteVehicles?.[0]`, so an empty, `null` or `undefined` list renders
     no Favourite Train card. `_favouriteVehicleLines` joins its line codes.
@@ -258,7 +259,7 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
 
 - **Backend:** `publicUser(id: ID!)` looks up a profile by Firebase uid. Public stats (nickname, counts,
   heatmap, favourite vehicle, `withMostEntries*`) are always visible. `spottings` (the history list)
-  returns `null` for non-owners when `spotting_data_public` is false. The owner always sees their own history.
+  returns `null` for non-owners when `spotting_data_public` is false. The owner always sees their own history. For everyone but the owner and admins the backend leaves anonymous spottings out of that list and out of the counts, trends and favourites.
 - **Frontend:** `ProfilePage` uses `GET_PUBLIC_USER_QUERY` for non-owners and the owner query otherwise.
   `MySpottingsComponent` shows a privacy message when `user().spottings === null`. `UserCardComponent`
   hides the edit, privacy and votes controls for non-owners.
