@@ -5,6 +5,7 @@ import { Router, provideRouter } from "@angular/router";
 import { toastState } from "@spartan-ng/brain/sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ToastService } from "../../../ui/toast/toast.service";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
 import type { Line } from "../data/spotting.queries";
 import { LineOverviewPage } from "./line-overview.page";
@@ -15,6 +16,7 @@ describe("LineOverviewPage", () => {
   let fixture: ComponentFixture<LineOverviewPage>;
   let httpMock: HttpTestingController;
   let navigate: ReturnType<typeof vi.spyOn>;
+  let notFoundToast: ReturnType<typeof vi.spyOn>;
 
   /** The page's template is not under test, only its not-found effect; the real ToastService is
    * used because the bug is a toast reading then rewriting the shared toast list. */
@@ -42,6 +44,17 @@ describe("LineOverviewPage", () => {
 
     httpMock = TestBed.inject(HttpTestingController);
     navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+    // Without untracked() the effect re-raises this toast on every run, and render()'s tick loop
+    // then never returns, so no test timeout can fire. Let one raise through and throw on the next,
+    // before its toast write re-dirties the effect, so the lost wrap fails the test instead.
+    const toast = TestBed.inject(ToastService);
+    const raise = toast.error.bind(toast);
+    notFoundToast = vi.spyOn(toast, "error").mockImplementation((title, description) => {
+      if (notFoundToast.mock.calls.length > 1) {
+        throw new Error("The not-found toast was raised again: the effect is re-running itself.");
+      }
+      raise(title, description);
+    });
     fixture = TestBed.createComponent(LineOverviewPage);
     fixture.componentRef.setInput("lineId", lineId);
     for (let i = 0; i < 3; i++) {
@@ -67,6 +80,7 @@ describe("LineOverviewPage", () => {
   it("raises the not-found toast once, instead of re-running its own effect forever", async () => {
     await render("99999");
 
+    expect(notFoundToast).toHaveBeenCalledTimes(1);
     expect(toastState.toasts()).toHaveLength(1);
     expect(redirects()).toEqual([[["/spotting", "4"], { replaceUrl: true }]]);
   });
