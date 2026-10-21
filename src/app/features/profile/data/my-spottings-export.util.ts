@@ -6,7 +6,9 @@ export const MY_SPOTTINGS_EXPORT_BASENAME = "mlptf-my-spottings";
 
 /**
  * One exported spotting. The property names are the CSV header and the JSON keys alike, so the two
- * downloads carry the same rows. A "no value" is `null`, which is an empty CSV cell and a JSON null.
+ * downloads carry the same rows. They are camelCase, as the Pro dashboard's CSV header is: a JSON
+ * key with a space needs bracket access in every consumer. A "no value" is `null`, which is an empty
+ * CSV cell and a JSON null.
  *
  * `type` and `status` are the API's own enum values (`AT_STATION`, `IN_SERVICE`), not the labels the
  * page shows: an export is for reading elsewhere, and a stable code survives a relabel.
@@ -18,10 +20,10 @@ export type SpottingExportRow = {
   type: string;
   status: string;
   notes: string | null;
-  "run number": string | null;
+  runNumber: string | null;
   origin: string | null;
   destination: string | null;
-  "media count": number;
+  mediaCount: number;
 };
 
 /** The CSV header, in column order. Checked against {@link SpottingExportRow} by the compiler. */
@@ -32,10 +34,10 @@ export const MY_SPOTTINGS_EXPORT_COLUMNS = [
   "type",
   "status",
   "notes",
-  "run number",
+  "runNumber",
   "origin",
   "destination",
-  "media count",
+  "mediaCount",
 ] as const satisfies readonly (keyof SpottingExportRow)[];
 
 /**
@@ -63,9 +65,9 @@ export function buildSpottingExportRows(events: readonly MyEvent[]): SpottingExp
     type: event.type,
     status: event.status,
     notes: event.notes || null,
-    "run number": event.runNumber,
+    runNumber: event.runNumber,
     origin: event.originStation?.displayName ?? null,
     destination: event.destinationStation?.displayName ?? null,
-    "media count": event.mediaCount,
+    mediaCount: event.mediaCount,
   }));
 }

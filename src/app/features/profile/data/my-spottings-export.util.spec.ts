@@ -50,10 +50,10 @@ describe("buildSpottingExportRows", () => {
       type: "BETWEEN_STATIONS",
       status: "TESTING",
       notes: "Sentul Timur platform",
-      "run number": "R12",
+      runNumber: "R12",
       origin: "Ampang",
       destination: "Sentul Timur",
-      "media count": 2,
+      mediaCount: 2,
     });
   });
 
@@ -68,11 +68,17 @@ describe("buildSpottingExportRows", () => {
       "type",
       "status",
       "notes",
-      "run number",
+      "runNumber",
       "origin",
       "destination",
-      "media count",
+      "mediaCount",
     ]);
+  });
+
+  it("names every column as a camelCase identifier, so a JSON consumer can write row.runNumber", () => {
+    for (const column of MY_SPOTTINGS_EXPORT_COLUMNS) {
+      expect(column).toMatch(/^[a-z][A-Za-z]*$/);
+    }
   });
 
   it("joins every line a vehicle is on, the way the history shows them", () => {
@@ -98,7 +104,7 @@ describe("buildSpottingExportRows", () => {
     const [row] = buildSpottingExportRows([makeEvent("1", { notes: "" })]);
 
     expect(row.notes).toBeNull();
-    expect(row["run number"]).toBeNull();
+    expect(row.runNumber).toBeNull();
     expect(row.origin).toBeNull();
     expect(row.destination).toBeNull();
   });
@@ -117,7 +123,7 @@ describe("buildSpottingExportRows", () => {
   it("keeps a zero media count as 0, which is data and not an absence", () => {
     const [row] = buildSpottingExportRows([makeEvent("1", { mediaCount: 0 })]);
 
-    expect(row["media count"]).toBe(0);
+    expect(row.mediaCount).toBe(0);
   });
 
   it("keeps the order it was given", () => {
@@ -153,7 +159,7 @@ describe("buildSpottingExportRows", () => {
     );
 
     expect(csv.split("\r\n")).toEqual([
-      "date,vehicle,line,type,status,notes,run number,origin,destination,media count",
+      "date,vehicle,line,type,status,notes,runNumber,origin,destination,mediaCount",
       '2026-09-18,105,MRT KGL,AT_STATION,IN_SERVICE,"Platform 2, late",,,,0',
       "",
     ]);

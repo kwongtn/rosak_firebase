@@ -329,7 +329,7 @@ describe("MySpottingsComponent", () => {
       expect(downloads[0].filename).toBe("mlptf-my-spottings.csv");
       const lines = (await blobText(downloads[0].blob)).split("\r\n");
       expect(lines[0]).toBe(
-        "date,vehicle,line,type,status,notes,run number,origin,destination,media count",
+        "date,vehicle,line,type,status,notes,runNumber,origin,destination,mediaCount",
       );
       expect(lines[1]).toBe("2026-09-18,105,MRT KGL,AT_STATION,IN_SERVICE,,,,,0");
       expect(lines).toHaveLength(5);
@@ -396,10 +396,10 @@ describe("MySpottingsComponent", () => {
           type: "AT_STATION",
           status: "IN_SERVICE",
           notes: "Platform 2, late",
-          "run number": "R12",
+          runNumber: "R12",
           origin: "Ampang",
           destination: null,
-          "media count": 2,
+          mediaCount: 2,
         },
         {
           date: "2026-09-18",
@@ -408,10 +408,10 @@ describe("MySpottingsComponent", () => {
           type: "AT_STATION",
           status: "IN_SERVICE",
           notes: null,
-          "run number": null,
+          runNumber: null,
           origin: null,
           destination: null,
-          "media count": 0,
+          mediaCount: 0,
         },
       ]);
     });
