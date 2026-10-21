@@ -11,12 +11,187 @@
 
 ---
 
+## [2026-10-22] insiden/history: `calendarIncidentsBySeverityCount(groupBy: MONTH)` is a running total, not a per-month count (F213)
+
+**Problem**: The audit points the "Last 12 months" chart at `calendarIncidentsBySeverityCount(groupBy: MONTH)`, but its rows are not monthly counts. On the local data (280 incidents) the window 2024-01 to 2024-12 returned MAJOR 1, 8, 12, 18, 26, 30 for months whose true counts are 1, 7, 4, 6, 8, 4. A 2023 to 2026 window reported 10 MAJOR for January 2024, when one incident started. Drafts and pending reports are counted too.
+**Root Cause**: `get_calendar_incidents_by_severity_count` (`rosak_backend/incident/schema/resolvers.py`) filters each bucket with `start year <= Y AND start month <= M`. It compares the month number across years, so the result is a running total that resets each January. It has no status filter and no docstring, and its tests cover one month of open incidents.
+**Fix**: `dca6a37` counts LIVE incidents by start month on the client, from `calendarIncidents` (`bucketIncidentsByMonth`). A backend fix is in progress: compare the start (year, month) pair, count `LIVE` only, and add a multi-month test. The swap point afterwards is `insiden-history.queries.ts` plus `bucketIncidentsByMonth`.
+**Prevention**: Check any aggregate against a hand count of the raw rows before it goes in front of riders. A chart of plausible but wrong numbers is worse than no chart.
+
+## [2026-10-22] insiden/export: `calendarIncidents` returns every status, so a file export must hold approved incidents only (F078)
+
+**Problem**: The first "Export month" wrote every filtered incident that started in the month into a public CSV and `.ics` file. That included DRAFT, PENDING_APPROVAL and REJECTED reports, with REJECTED written as `STATUS:CANCELLED`. The button's count also disagreed with the 12-month chart, which counts LIVE incidents only.
+**Root Cause**: The root `calendarIncidents` field has no status gate, so every reader gets unvetted reports, and the draft revisions of LIVE incidents as well. The page frames them as "Pending Approval", but that framing does not travel with a file. The field stays ungated on purpose, because the insiden calendar shows drafts.
+**Fix**: `80cbea7`: `incidentsForMonthExport` keeps LIVE incidents that started in the shown month, so N, the file rows and the chart agree. `b8727a6` states the rule beside the button (`InfoPopover`, metric `incidents.month-export`). The backend now has an opt-in `status` input on `CalendarIncidentFilter` (`rosak_backend` `07c8289`). The export filters the incidents the page already holds with `isLiveIncidentStatus` and does not send the new input.
+**Prevention**: A file leaves the page without its context, so export only what the page presents as approved. Keep an export's count equal to the matching chart figure. A new reader of `calendarIncidents` that is not the pending-aware calendar sends `status: LIVE` or filters with `isLiveIncidentStatus`.
+
+## [2026-10-22] core/export: `toCsv` does not defuse spreadsheet formulas, and `buildIcs` refuses offset datetimes (F078)
+
+**Problem**: A CSV cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return runs as a formula when a spreadsheet opens the file. Incident titles, details and station names are written by the community. Separately, a spec fixture that gives an incident time a trailing `Z` makes `buildIcs` throw.
+**Root Cause**: `toCsv` quotes and serialises, and does nothing else. The first guard lived inside `incident-export.util.ts`, so the next feature to reuse `toCsv` for user text would have been injectable. `buildIcs` rejects any datetime with `Z` or an offset on purpose, because incident times are naive Kuala Lumpur wall time and a loud failure beats an event that moves by hours. Several older fixtures use `Z`.
+**Fix**: `b9f8123` exports `neutralizeSpreadsheetFormula` from `core/export/csv.util.ts`. It is opt-in per cell, has its own spec and leaves negative numbers alone, and the file doc of `toCsv` says why `toCsv` cannot do it itself. `6de8ffb` writes the calendar with Kuala Lumpur `TZID` times.
+**Prevention**: Pass every community-written cell through `neutralizeSpreadsheetFormula`, and never a number. The home Pro widget and the tracker's private `toCsv` write admin-managed names and numbers only, so they do not need it. Export specs use offset-free datetimes, like the real API.
+
+## [2026-10-22] core/graphql: `isLoading` is first-fetch-only and `data()` is dropped when the request changes
+
+**Problem**: On every month change `/insiden` emptied its line chips, and the count read "Showing 0 of 0" and was announced to screen readers. A review expected a skeleton swap. There was none, because `isLoading()` never turned true again.
+**Root Cause**: `graphqlResource().isLoading` is true for the first fetch only. `data()` keeps the last good payload for the SAME request and drops it when the query or variables change (see the 2026-10-21 `core/graphql` entry). Anything derived from `data()` therefore blinks to empty while the next request is in flight. Chips, counts and "nothing in this window" messages are examples.
+**Fix**: `60d31ac`: `lineOptions` is a `linkedSignal` that holds the previous chips while `isFetching()`. The counts and the unlisted-line note wait for `data() !== undefined`. The filter bar sits outside the loading branch.
+**Prevention**: UI that must stay put across a request change holds the last value itself (`linkedSignal`) and reads `isFetching()` for "a request is in flight". A count or an empty message is gated on `data() !== undefined`, not on `!isLoading()`. Known and unchanged: the incident lists of `/insiden` still show their empty message while a new month loads.
+
+## [2026-10-22] core/graphql: a new but equal request object re-reads
+
+**Problem**: The "Last 12 months" history re-read on every month change, although its two year reads already covered every month of the window.
+**Root Cause**: `httpResource`, and so `graphqlResource`, treats any new request object as a new request, even when its contents are equal. The request was derived from `monthKeys()`, which is a fresh array for each month.
+**Fix**: `6cc2843`: a `yearSpan` computed with a custom `equal` (start year and end year) feeds the request, so only a change of the year pair re-reads. Paging inside the pair re-buckets what is loaded. `ee468be`: a window that sits in one year skips the second year alias (`$sameYear` and `@skip`), so one read answers it.
+**Prevention**: Derive a resource request from a value-equal `computed` (pass `equal`), so only a real change re-reads. Watch the network panel while paging, not only the data.
+
+## [2026-10-22] insiden/history chart: `role="img"` hid the focusable bars, and a height floor and a rounded axis label misread the data (F213)
+
+**Problem**: The first chart put its bars inside `role="img"`, and their readout worked by mouse or tap only, so a keyboard user could not reach the numbers. A 6% minimum bar height drew a single incident taller than its axis value. The middle gridline was labelled with the rounded-up half, for example 2 when the busiest month had 3.
+**Root Cause**: `role="img"` makes its descendants presentational, so focusable children inside it are not exposed. The bars were `aria-hidden` divs with no `tabindex`. The floor and the rounding were presentation choices that changed what the chart says.
+**Fix**: `5ae999d`: the plot is `role="group"` named by the summary sentence, and every bar is a `<button>` named by its title that drives the readout on focus, hover and tap. The geometry is exact (a bar is its total over the busiest month), each segment has a CSS `min-h-[2px]`, and the middle label appears only when the busiest count is even.
+**Prevention**: A chart with interactive parts is a `role="group"` of named controls with a text or table alternative, never a `role="img"`. Keep the geometry equal to the data, and widen a sliver in the view. Label a gridline only with a value it marks.
+
+## [2026-10-22] a11y: a live region created together with its text is not announced
+
+**Problem**: A review found that the filter count on `/insiden` was created in the same render as its text, so a screen reader would not announce it. The same hazard applied to the Fill from link summary, which had no live region, and to the Telegram link code.
+**Root Cause**: A screen reader announces changes inside a live region it already knows. A `role="status"` or `aria-live` element inserted into the DOM already holding its text is not reliably announced. A live region's `aria-label` is not read on update either.
+**Fix**: `60d31ac`: the filter count sits in an always-present `aria-live` span. `19b1ac5`: an always-present `sr-only` `role="status"` line states the chips and the unmatched names. `9f83fff`, `52b7a0f`: the link code region stays mounted, and a visually hidden copy with spaced digits is the only thing it announces.
+**Prevention**: Render the status element on first paint and change only its text. Keep a ticking countdown outside it, or it re-announces every second. Put the words in the content of the region, not in its label.
+
+## [2026-10-22] a11y: removing or disabling the focused control drops focus to `body`
+
+**Problem**: "Clear filters" on `/insiden`, dismissing an extraction chip and a Request code button that disables itself each dropped keyboard focus to `body`. The gallery viewer's Previous and Next would have done the same at either end, and `body` is outside the `cdkTrapFocus`, so focus would have left the dialog.
+**Root Cause**: A focused element that is removed (`@if`) or given the `disabled` attribute loses focus, and the browser falls back to `body`.
+**Fix**: `60d31ac`: "Clear filters" hands focus to "My lines" before it removes itself. `19b1ac5`: dismissing a chip moves focus to the Affected heading (`tabindex="-1"`). `f0c562c`: focus moves to Copy when the link code arrives, but only if it is still on the Request button or `body`. `280e620`: Previous and Next use `aria-disabled` and a guarded click handler, never `disabled`.
+**Prevention**: Move focus to a successor before a control removes or disables itself. Use `aria-disabled` where focus must stay inside a trap. Not yet done: after a failed Request code, focus is not returned to the button.
+
+## [2026-10-22] pwa/ngsw: `ng build` overwrites the ngsw `index`, so a custom offline page cannot be the navigation fallback (F210, F295)
+
+**Problem**: The first service worker config used `navigationUrls: []`, so ngsw never treated a request as a navigation. Every offline full load then went through the worker's `safeFetch` and got a synthetic empty 504, which is a blank page. The installed app (`display: standalone`) opens white in a tunnel, with no browser chrome and no reload control, which is worse than the browser's own offline page. A review proposed a static `/offline.html` as the fix, and it cannot work.
+**Root Cause**: The application builder sets ngsw's `index` to the index HTML output name on every build (`config.index = indexHtml` in `@angular/build`'s service-worker step), and that name is `/index.csr.html` for an SSR build. A custom offline page cannot be the `index` without a custom worker. The Angular worker also answers every in-scope request, so one it cannot serve offline resolves with an empty 504 and does not reject.
+**Fix**: `3add1d8`: `ngsw-config.json` drops `navigationUrls: []`, keeps `navigationRequestStrategy: "freshness"`, sets `index` to `/index.csr.html` and prefetches it in group `app`. An online navigation goes to the network first, so SSR answers it and no SSR HTML is cached. A navigation that fails offline gets the cached CSR shell, which boots the app with the offline strip (the path that `RenderMode.Client` routes already take). `ngsw-config.spec.ts` pins the navigation patterns and that the index is the only cached HTML file.
+**Prevention**: Do not plan on a static offline page. ngsw never caches a POST (a `dataGroup` treats any other method as a mutation, evicts the URL and goes to the network), and every app read is a POST, so last-known board data needs GraphQL over GET or an app-level cache of the last payload. `provideServiceWorker({ enabled: false })` only stops new registrations. To retire an installed worker, make `ngsw.json` answer 404, or serve the emitted `safety-worker.js` as `ngsw-worker.js`. `/about`, `/tracker`, `/profile`, `/gdpr` and `/console` are `RenderMode.Client`, so to see an SSR response in a browser use `/` or `/insiden` (`ng-server-context="ssr"`).
+
+## [2026-10-22] core/version: a failed chunk and the update button blamed a deploy offline, and `navigator.onLine` is true on a dead link (F295)
+
+**Problem**: Offline, a failed lazy chunk raised the "Update available" prompt and blamed a deploy. Tapping the update button then deleted every Cache Storage entry, the new precache included, and reloaded into a blank page. On a link with no data where `navigator.onLine` stays true (common in tunnels), a failed chunk still blamed a deploy.
+**Root Cause**: `NewVersionService` took any failed chunk for a deploy, and `reloadForNewVersion()` had no offline guard. `navigator.onLine === false` is reliable, but `true` only says a network interface exists. Chromium's offline emulation, as Playwright's `context.setOffline` uses it, leaves `navigator.onLine` true in a document loaded while offline, where a real device starts at false.
+**Fix**: `5738111`, `7d6ad87`: offline, a failed chunk toasts "You're offline / This page needs a connection." and the update button toasts "Reconnect to load the new version." and returns before it touches Cache Storage. `checkOnce()` no longer polls `/version.json` offline. When `navigator.onLine` is true, a failed chunk first asks `/version.json` (`no-store`, `ngsw-bypass`, 5 s timeout). Only a different build lights the update button, the same build says "This page couldn't load", and a failed probe says "You're offline".
+**Prevention**: Never infer a deploy from a chunk failure alone, and gate anything destructive (cache wipes, reloads) on `OnlineService.isOnline()`. To test the offline strip in Chromium, re-send CDP `Network.emulateNetworkConditions { offline: true }` on the page, because the emulation alone leaves `navigator.onLine` true. Known and unchanged: on a lie-fi link the toast says "You're offline" while the strip stays hidden.
+
+## [2026-10-22] server: non-hashed static files shared the one-year `max-age` (F210)
+
+**Problem**: `express.static` served everything under `browser/` with `max-age=1y`. That included `ngsw-worker.js`, `ngsw.json`, `safety-worker.js`, the web app manifest and the icons, whose names survive a deploy. A browser or the CDN could keep a stale manifest, icon or worker list for a year.
+**Root Cause**: One cache policy covered the whole folder, which is safe only while every file name carries a content hash. Worker updates were saved by three other mechanisms: browsers bypass the HTTP cache for a worker script, ngsw cache-busts `ngsw.json`, and App Hosting purges its CDN on rollout.
+**Fix**: `2dd0c2a`: `staticCacheControl()` (`src/server-cache-control.ts`, wired as `setHeaders` in `src/server.ts`) sends `Cache-Control: no-cache` for the worker files, `ngsw.json`, `manifest.webmanifest`, `icons/*`, `index.csr.html` and `version.json`. Hashed chunks keep their year. The spec matches whole paths only.
+**Prevention**: Add every new non-hashed file in `public/` to `staticCacheControl()` and its spec.
+
+## [2026-10-22] tooling/worktrees: a worktree that symlinks `node_modules` breaks when a merged package adds a dependency
+
+**Problem**: After the platform package merged `@angular/service-worker`, `npm test` and `ng build` failed with TS2307 in every worktree whose `node_modules` is a symlink to the main checkout, staging included. The profile package's combined production build could not be run for that reason.
+**Root Cause**: The symlink shares one install, and merging a branch that changes `package.json` installs nothing there. Running `npm install` inside such a worktree replaces the symlink with a full install of about 763 MB and still leaves the shared tree without the package. Worktrees also share one `.angular/cache` through the symlink, so the test runner's banner can print another worktree's root.
+**Fix**: Not a code fix. Run `npm install` once in the main checkout after a package that changes `package.json` is merged, then run the suite and the build on the merged branch. Until then, `npm test -- --no-watch --exclude src/app/ngsw-config.spec.ts --exclude src/app/app.spec.ts` runs the rest.
+**Prevention**: A package that adds a dependency says so in its handoff, and the install happens before anything else is verified. A rebase onto packages merged after your last verification needs a fresh run of the tests and the build on the merged commit. Check the file count of a test run against your own tree.
+
+## [2026-10-22] profile/fleet: `favouriteVehicles(count)` is a silent cap, and a count beyond the default is private to the owner (F209)
+
+**Problem**: The Fleet progress card needs every vehicle the owner has spotted. `favouriteVehicles(count: N)` returns at most N and says nothing when it cuts, so any fixed N is a silent cap. Spotted counts and unspotted lists go wrong once the fleet outgrows it. Asking for a large count on the public query would also expose the whole set of vehicles a user spotted, even with `spottingDataPublic` off. And the 406-vehicle local spotter paid about 1.3 s (about 0.1 s without it) inside the one blocking profile query.
+**Root Cause**: `UserScalar.favourite_vehicles` slices the grouped list at `count` without a signal and never reads `spottingDataPublic`. `Vehicle.lines` resolves once per vehicle inside it, which is an N+1.
+**Fix**: `07f3977`, `5d303af`: the count is the named constant `FLEET_FAVOURITES_COUNT` (1000, above the roughly 600 vehicles in the system), and a list that reaches it is reported to the `ErrorHandler`. Only the own-profile card asks for it, in its own request after the first paint (skeleton, and a retry banner for that card only). `GET_USER_DATA_QUERY` keeps the default count for the favourite-train card. `e0f97b2`: a spec fails if the public query ever gains an argument.
+**Prevention**: Treat any fixed count passed to a backend list as a cap, keep it above the real size and check for hitting it. Never request more than the default `favouriteVehicles` count on a public query. A card below the fold does not ride in the blocking page query. The lasting fix is a backend prefetch of `Vehicle.lines`, or a per-line spotted count. `GET_FLEET_PROGRESS_QUERY` is hand-formatted, because Prettier does not format an embedded GraphQL template that has a `${}` inside a selection or argument.
+
+## [2026-10-22] profile/export: offset paging skips a row when the list changes mid-export, and the events query fails above about 1664 rows (F327)
+
+**Problem**: A whole-history export pages by offset. A spotting deleted while the export runs shifts every later page up by one, so a row is skipped and the file looks complete. A heavy spotter has tens of thousands of rows, so that window is long. A 5000-row page also failed outright.
+**Root Cause**: An offset page is stable only while the list does not change. The backend events query fails above about 1664 rows per page, with the Postgres error "target lists can have at most 1664 entries".
+**Fix**: `6ed1ff3`: delete and export exclude each other, so a removed row cannot shift later pages. `2defcf9`: the export reads 200-row pages and drops rows repeated across pages. A delete from another tab in the middle of an export can still skip a row, and there is no abort button.
+**Prevention**: Keep client page sizes in the low hundreds. Closing the remaining gap needs a stable cursor (for example `created < last created`) from the backend.
+
+## [2026-10-22] gallery/feed: the `medias` order has no tie-break, so paging repeats and skips rows
+
+**Problem**: Page 2 of the gallery feed can start with the last photo of page 1. The grid showed a duplicate tile and Next in the viewer landed on the open photo again. A row can also be skipped: on the dev data a walk of 24 rows at a time fetched 2,439 rows of which 2,438 were distinct. Row order also differs between queries with different limits.
+**Root Cause**: `MediaOrder` offers `created` and `modified` only, and the resolver adds no tie-break, so rows that tie come back in no fixed order. The positional `arrayconnection:N` cursors then page unreliably.
+**Fix**: Frontend only: `562785f`: `loadMore()` appends only photos that `edges()` does not hold and pages on from the last row the backend sent (its own `endCursor`), so the grid, the year groups and the viewer see each photo once. The backend fix, the primary key as a final sort key, is pending in `rosak_backend`.
+**Prevention**: Do not assume distinct neighbours when you step through or page a feed. Any de-duplication needs its own `endCursor`, because asking again after the last kept edge brings back a page of repeats for good. A row the backend skips cannot be recovered on the client.
+
+## [2026-10-22] gallery/viewer: `touch-pan-y` blocks panning a pinch-zoomed photo
+
+**Problem**: A spotter who pinch-zooms a photo to read a vehicle number could not pan it, and a one-finger sideways drag flipped to the next photo.
+**Root Cause**: `touch-pan-y` on the photo area switches off the browser's sideways panning, so a one-finger sideways drag on a zoomed page can only be read as a swipe. `touch-action` is fixed when a touch starts, so it cannot be changed from `pointerdown`.
+**Fix**: `326c7d4`: the viewer follows `visualViewport` (the `resize` event, read once on open, `ZOOMED_SCALE` 1.01). While zoomed, no swipe starts and the photo area adds `touch-pan-x`.
+**Prevention**: A swipe handler on a pinch-zoomable surface stands down while `visualViewport.scale > 1`, and the `touch-action` switches from a `visualViewport` resize event. Use a coarse primary pointer, `(pointer: coarse)`, as the "touch device" test, because a touch laptop reports its trackpad as fine (`26dcb5c`). jsdom has no `matchMedia` or `visualViewport`, so specs stub them. A browser check emulates zoom with CDP `Emulation.setPageScaleFactor`.
+
+## [2026-10-22] gallery/viewer: a new header control must stop the click, a load-more effect must not read its own signals, and focus starts on the first tabbable
+
+**Problem**: Clicking Close emitted `close` twice. A header control that does not stop the click closes the viewer. An effect that calls `loadMore()` and reads `isLoading()` or the edges array retries forever after a failed or empty page. With several tabbables, `cdkTrapFocus` starts on the first one in DOM order, so Share ahead of Close would have taken the initial focus.
+**Root Cause**: The host of `MediaViewerComponent` has `(click)="close.emit()"`, so a control outside the inner `stopPropagation` wrapper closes the viewer. An effect that reads the signals its own request changes re-runs when the request settles. `cdkTrapFocus` puts initial focus on the first tabbable in DOM order.
+**Fix**: `dee273d`: Close stops the click like Share does. `280e620`: the prefetch effect is keyed on a derived boolean and is browser-only, so a failed page is retried on the next open and not in a loop. `907501c`: `cdkFocusInitial` keeps focus starting on Close.
+**Prevention**: Every control outside the inner wrapper stops propagation itself. An effect that starts a fetch reads a boolean derived from what it needs, never the fetch's own loading, error or result signals, and the next user action retries. Mark the intended first control with `cdkFocusInitial`.
+
+## [2026-10-22] insiden/extraction: mapping a model's words onto form values (the GREEN default, loose names, prototype keys) (F549)
+
+**Problem**: Three hazards sat in the Fill from link mapping. First, the chronology indicator select has no empty option and `emptyChronology` defaults to GREEN, which means "resolved" everywhere else. A deliberate GREEN on a blank row is therefore indistinguishable from the default. Second, exact name matching missed most real phrasings: "Kelana Jaya Line" against "LRT Kelana Jaya Line", "Bukit Nanas Station" against "Bukit Nanas". A looser match could tag the wrong line on a public incident, which is worse than a missing one. Third, looking a model-supplied string up in a `Record` or an object literal returns prototype members for `constructor` or `toString`.
+**Root Cause**: A default value that is also a real value; names that differ by operator and kind words; plain objects that inherit from `Object.prototype`.
+**Fix**: `8759fb1`: a mapped colour is RED, BLUE or GRAY, never GREEN. `8bc1d00`: "still empty" means a blank row on the default colour, so only such a row takes the proposed indicator. `de86c4d`: names match exactly first, then despite a leading LRT, MRT, BRT, KTM or KTMB or a trailing "line" or "station". A looser name that two options share matches neither. That was checked against the 16 lines and 226 stations the local API serves, and no two collide. The vocabulary tables (`INDICATOR_BY_KIND`, `SEVERITY_BY_WORD`) are `Map`s.
+**Prevention**: Define "empty" explicitly when a field's default is also a valid value. Check a looser matching key for collisions against the real reference data, and treat a shared key as ambiguous. Use a `Map` for any lookup keyed by model output.
+
+## [2026-10-22] insiden/incident-form: `incidentFormSchema` and `applyExtractionToChronology` are shared with the console review panel
+
+**Problem**: A rule added to `incidentFormSchema` blocks `submit()` in the console pending panel with an inline message, while that panel's Save button stays enabled. Changing `applyExtractionToChronology` changes the admin flow as well.
+**Root Cause**: The panel (`console/insiden/pending/pending.component.ts`) shares the schema and calls `applyExtractionToChronology`. Its `isIncidentFormSaveable` mirror knows only the required rules.
+**Fix**: Partial. `95fbc33` added `maxLength(title, 64)` and did not touch the panel, so a title over 64 characters there blocks `submit()` while Save stays enabled. That gap is open: the title rule needs adding to `isIncidentFormSaveable`. New public-form behaviour lives in new functions beside `applyExtractionToChronology` (`planFormFill`, `extractionWindow`, `proposeIndicator`), and the panel still says "Extract" and applies only the datetime and content.
+**Prevention**: A rule added to the shared schema needs the same rule in `isIncidentFormSaveable`. Put new behaviour beside a shared helper, not in it. Keep pure extraction logic in `functions/src/utils/` with a spec, because `functions/src/api.ts` initialises `firebase-admin` at import time and nothing defined in it can be unit tested.
+
+## [2026-10-22] text: cutting a string at N UTF-16 units can leave a lone surrogate (F549)
+
+**Problem**: An extracted incident title cut at 64 characters could end with half an emoji, a lone high surrogate, which breaks the UTF-8 encode on the server. The cut could also leave a dangling separator.
+**Root Cause**: `String.prototype.slice` counts UTF-16 code units, so a hard cut can fall between the two halves of a surrogate pair. The model's title was also put in the form untruncated, because the prompt only asked for 60 characters and neither the response schema nor the form had a length rule.
+**Fix**: `95fbc33`: `clampTitle()` cuts at a word boundary with no ellipsis, and strips a lone high surrogate and a dangling separator. `INCIDENT_TITLE_MAX_LENGTH` is 64, the `CalendarIncident.title` column (the GraphQL input has no length check), and `incidentFormSchema` has `maxLength(title, 64)` with the message "Keep the title to 64 characters or fewer".
+**Prevention**: Strip a lone high surrogate after any hard cut of user or model text. Angular's `maxLength` validator counts UTF-16 units and the backend counts code points, which is conservative and safe.
+
+## [2026-10-22] specs: `PLATFORM_ID = "server"` does not stop `afterNextRender`, and `whenStable()` does not wait for mocked promises
+
+**Problem**: A spec that set `PLATFORM_ID` to `"server"` to prove "no request on the server" still ran `afterNextRender` callbacks. `await fixture.whenStable()` returned before a component's mocked `GraphQLClient` promise chain had resolved. It also never resolved while an `httpResource` request stayed unanswered, so the test hung until the 5 s timeout.
+**Root Cause**: Angular decides whether `afterNextRender` runs from the compile-time `ngServerMode` global, not from the token. `whenStable()` waits for Angular-tracked tasks only. A mocked promise is not tracked, and a pending `httpResource` request is.
+**Fix**: The profile and extraction specs flush a mocked read with `await new Promise((r) => setTimeout(r, 0))` or `vi.waitFor`. They flush a pending resource request before `whenStable()`. To simulate a failed first reference read, they use a fresh fixture whose first read fails, because `graphqlResource` keeps the last good payload when a later request fails.
+**Prevention**: Do not try to unit test "nothing runs on the server" through the `PLATFORM_ID` token. Guard the code with `isPlatformBrowser` and test the browser path. Wait for a mocked read with a macrotask flush or `vi.waitFor`, not with `whenStable()`.
+
+## [2026-10-22] specs: a clock-relative rule turns a fixed-date fixture into a time bomb (F549)
+
+**Problem**: Fill from link accepts an extracted time only inside a window that runs from the form's Start date, or from 31 days ago while Start is empty, to one day ahead. A spec that uses a literal date passes today and fails once the window moves past it.
+**Root Cause**: A rule measured from `Date.now()` ages every literal date in its fixtures into the refused range.
+**Fix**: `fe8db5e`: the component and util specs build their times from `Date.now()` or from a Start date, and never from a literal date.
+**Prevention**: Build a fixture time relative to the same clock the rule reads, or freeze that clock. Never write a literal date into the spec of a clock-relative rule.
+
+## [2026-10-22] e2e: the auth override fakes `AuthService` only, and the incident flow takes the first `<select>` on `/insiden`
+
+**Problem**: Under `loginAs`, `ProfilePage.isOwnProfile` is never true, and `IncidentAiService` reads the Firebase `currentUser` itself. Neither the own-profile branch nor Fill from link can be driven from Playwright. Separately, a page-level native `<select>` on `/insiden` becomes the first `select` in the DOM and breaks the incident e2e flow.
+**Root Cause**: `__e2eAuthOverride__` sets `isLoggedIn` and `isAdmin` but never `auth.user()`, and it does not fake `getAuth().currentUser`. The incident flow picks the report form's severity with `page.locator("select").first()`.
+**Fix**: The `/insiden` filter bar uses chips instead of a `<select>` (`d376289`). The own-profile branch and Fill from link are covered by unit specs only.
+**Prevention**: Driving the own-profile branch or any `currentUser` reader from e2e needs a fuller auth seam first. Do not add a native `<select>` to `/insiden` outside the report form. A combobox, as `docs/components/insiden.md` suggests for the open station filter, is not a `<select>`.
+
+## [2026-10-22] methodology: `lastReviewed` is compared with the runner's local date
+
+**Problem**: `methodology.content.spec` fails with "lastReviewed is in the future" on a UTC CI run when a section is stamped with the Kuala Lumpur date before 08:00 local time.
+**Root Cause**: The spec compares `lastReviewed` with the runner's local date, and at UTC+8 the local date is a day ahead of UTC from 00:00 to 08:00.
+**Fix**: The Fleet progress entry is stamped with the UTC date, `REVIEWED_AT_FLEET_PROGRESS` 2026-10-21, on purpose.
+**Prevention**: Stamp the UTC date when you bump a section's `lastReviewed`.
+
+## [2026-10-22] ui/layout: a host that renders nothing still takes a flex slot, and two `gap-*` utilities on one element fight
+
+**Problem**: The Fleet progress card renders nothing for a rider with no spotted vehicle, but it still left a double gap in the profile's `gap-6` column. Separately, a `gap-4` template class beside `hlmCardContent`'s `gap-3` host class left the winner to stylesheet order.
+**Root Cause**: A component's host element is a flex child even when its template is empty. Two utilities that set the same property on one element are not merged across a directive's host class and a template class.
+**Fix**: `1038cf0`: the host is `display: contents` (`host: { class: "contents" }`). `0e510dc` dropped the conflicting gap class.
+**Prevention**: Give a component that may render nothing `host: { class: "contents" }` when it sits in a gapped flex column. Never put two utilities that set the same property on one element.
+
 ## [2026-10-21] build/deps: Angular 22.2 counts eager shared chunks as initial — 984 kB against the 1 MB budget (F015/F072)
 
 **Problem**: Updating the Angular family to 22.2.3 for the SSR advisories (F015) pushed the production build past the 1 MB initial error budget (about 1.15 MB raw). Before the update the budget reported 388 kB while the real eager JS was about 1.05 MB (F072).
 **Root Cause**: `@angular/build` 22.2 counts eagerly loaded shared chunks as initial; older versions left them out, so the budget measured only the entry chunk.
 **Fix**: `698b61a` (lockfile only; all 12 `@angular/*` packages at 22.2.3, `angular.json` untouched). The build now passes at 984.76 kB raw (257 kB transfer) only because Session Replay and the feedback widget left the first load (F002). The 500 kB warning budget fires on every build; it is a warning, not an error.
-**Prevention**: About 15 kB of headroom remain. Read `npm run build`'s initial total after any dependency bump or eager import, and move heavy code behind `loadComponent`, `@defer` or a dynamic `import()` instead of raising the budget. Treat the 500 kB warning as the known baseline: a jump in its figure is the signal.
+**Prevention**: About 15 kB of headroom remained after the fix pass. On 2026-10-22 the service worker took the initial total to 993.98 kB (about 6 kB of headroom, Angular counting 1 kB as 1000 bytes), and the two eager incident `MetricDoc`s add about 2.5 kB raw, so a lazy methodology registry is the next saving. Read `npm run build`'s initial total after any dependency bump or eager import, and move heavy code behind `loadComponent`, `@defer` or a dynamic `import()` instead of raising the budget. Treat the 500 kB warning as the known baseline: a jump in its figure is the signal.
 
 ## [2026-10-21] repo/ts: TypeScript 6 defaults to `strict` — `AGENTS.md` said it was off (F073)
 
@@ -585,36 +760,33 @@ Historical fixes with no live action; kept so the ground isn't re-covered. Full 
 > item 4 here is the AI-gateway item of its AI list; its non-AI bulk-actions item 4 is tracked there
 > only). Dates are catalogue dates (2026-08-13 per-feature audits; 2026-08-24 fixes), compiled from
 > `docs/COMPONENTS.md` and `docs/components/*.md`. The helpers for 1–3 now exist (status as of
-> 2026-10-21); the per-feature bullets list only the features that have not adopted them.
+> 2026-10-22); the per-feature bullets list only the features that have not adopted them.
 
-### 1. Shared URL / query-param sync — `core/url-state/query-param.util.ts` — 7 features not yet adopted
+### 1. Shared URL / query-param sync — `core/url-state/query-param.util.ts` — 6 features not yet adopted
 
-The helper exists (`readEnumQueryParam`, `readTextQueryParam`, `queryParamForWrite`, `writeQueryParams`: pure read helpers, one browser-gated merge/replace write; a default is never written to the URL). It is adopted only by `home` (`?view=`/`?sort=`/`?line=`/`?q=`: `home-view-mode.service.ts`, `pro-dashboard.component.ts`, `network-board.component.ts`). Spotting's `line-overview.page.ts` still encodes `sort`/`dir` inline (and `line-details.page.ts` reads query params directly) rather than via the helper. There is no signal-binding wrapper (`syncSignalWithQueryParam` does not exist). Elsewhere only path params are bound.
+The helper exists (`readEnumQueryParam`, `readTextQueryParam`, `queryParamForWrite`, `writeQueryParams`: pure read helpers, one browser-gated merge/replace write; a default is never written to the URL). It is adopted by `home` (`?view=`/`?sort=`/`?line=`/`?q=`: `home-view-mode.service.ts`, `pro-dashboard.component.ts`, `network-board.component.ts`) and `insiden` (`?lines=`/`?severity=`/`?mine=`: `incident-filter.util.ts`, `insiden.page.ts`). Spotting's `line-overview.page.ts` still encodes `sort`/`dir` inline (and `line-details.page.ts` reads query params directly) rather than via the helper. There is no signal-binding wrapper (`syncSignalWithQueryParam` does not exist). Elsewhere only path params are bound.
 
 - **console** — shareable/saved moderation filter views (e.g. "unread depot spottings with notes"); `ConsolePage` does not inject `ActivatedRoute`; filter state lives only in local signals.
 - **gdpr** — deep-link to an individual checklist item; `group.title`/`child.title` are used as `@for` track keys but not rendered as element `id`s.
 - **about** — anchors for the three content sections (projects, personnel, tech stack); `AboutPage` takes no route params.
 - **spotting** — `VehicleSpottingGridComponent`'s `statusFilter`/`months` (owned by `line-details.page.ts`) are plain local signals; `months` is a computed date range, not a flat enum, so it needs custom encoding (e.g. ISO month key).
-- **insiden** — `detailsExpanded`/`photosExpanded` in `IncidentCardComponent` are local signals; day selection already round-trips (`/insiden/:dateKey`).
+- **insiden** — `detailsExpanded`/`photosExpanded` in `IncidentCardComponent` are local signals; day selection and the line, severity and "My lines" filters already round-trip (`/insiden/:dateKey`, `?lines=`, `?severity=`, `?mine=`).
 - **tracker** — shareable map view: `LayerSelectionService`'s applied (layer) signals plus viewport (center, zoom) are not synced.
-- **gallery** — the route already syncs `selectedMedia` to `/gallery/:mediaId`; only a copy-link button is missing in `MediaViewerComponent`.
 
 **Prevention**: handle encoding/decoding, default omission, browser-only writes, SSR safety; make query-param sync a required acceptance criterion for any new filterable view.
 
-### 2. Shared client-side export utility — `core/export/csv.util.ts` — 4 features not yet adopted
+### 2. Shared client-side export utility — `core/export/csv.util.ts` — 2 features not yet adopted
 
-`toCsv` (pure; always emits a header row, even for zero rows) and `downloadCsv` (browser-gated) exist. Their only consumer is home's Pro lines widget (`home/pro/pro-lines-widget.component.ts`); the tracker info panel still keeps a private `toCsv` (`tracker/info-panel/tracker-info-panel.component.ts`). No JSON, `.ics` or zip helper exists. Data is already resident client-side in every case — no backend/query changes needed.
+`toCsv` (pure; always emits a header row, even for zero rows; it does not defuse spreadsheet formulas, so community text goes through `neutralizeSpreadsheetFormula`), `downloadCsv`, `downloadText` and `downloadIcs` (browser-gated), `json.util.ts` (`downloadJson`) and `ics.util.ts` (`buildIcs`) exist. Their consumers are home's Pro lines widget (`home/pro/pro-lines-widget.component.ts`, CSV), profile's spotting history (CSV and JSON, paged from the API) and insiden ("Add to calendar" and "Export month"). The tracker info panel still keeps a private `toCsv` (`tracker/info-panel/tracker-info-panel.component.ts`). No zip helper exists. Data is already resident client-side in the remaining cases, so no backend or query change is needed.
 
 - **console** — export the filtered moderation queue (`events: Signal<ConsoleEvent[]>`).
-- **profile** — export spotting history (`_eventsSignal`).
-- **insiden** — `.ics` calendar feed; `CalendarIncident` already carries start/end datetime, title, brief.
 - **gallery** — bulk download of a year's photos as a zip; evaluate client-side fetch-and-zip vs. a backend batch-export endpoint by expected volume.
 
-**Prevention**: extend `core/export` (add `toJSON<T>()`, `toICS(events)`, a generic blob download) instead of a private per-feature helper, and move the tracker's `toCsv` onto it; add export as a standard capability for any data-table / media-grid; add "Add to calendar" for date-based lists.
+**Prevention**: reuse `core/export` instead of a private per-feature helper, move the tracker's `toCsv` onto it and point `downloadJson` at `downloadText`; add export as a standard capability for any data-table / media-grid; add "Add to calendar" for date-based lists.
 
 ### 3. Shared persistence — `core/preferences/preferences.service.ts` — 3 features not yet adopted
 
-`PreferencesService` exists (localStorage key `rosak:preferences:v1`; typed fields: pinned lines, view mode, recent/last-reported lines, Pro table layout/sort; hydrated in `afterNextRender`, see the 2026-10-03 entry). Home is its only consumer, and it is a typed home-shaped payload, not a generic `get`/`set`/`watch` API (`UserPreferenceService` does not exist). The only other persistence is the upload queue's upload-specific IndexedDB.
+`PreferencesService` exists (localStorage key `rosak:preferences:v1`; typed fields: pinned lines, view mode, recent/last-reported lines, Pro table layout/sort; hydrated in `afterNextRender`, see the 2026-10-03 entry). Home is its only writer (insiden's "My lines" filter reads the pinned lines), and it is a typed home-shaped payload, not a generic `get`/`set`/`watch` API (`UserPreferenceService` does not exist). The only other persistence is the upload queue's upload-specific IndexedDB.
 
 - **tracker** — save/favorite layer presets; the `LayerSelectionService` draft/applied/undo signal triplet is the seam (otherwise state resets to `layer-config.ts` defaults on reload).
 - **spotting** — persist report-form drafts (sessionStorage) so closing the sheet doesn't lose the in-progress report (an `effect()` currently calls `clear()` on close).
