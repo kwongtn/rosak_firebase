@@ -101,15 +101,18 @@ const TELEGRAM_LINKING_WIKI_URL =
             {{ isRequesting() ? "Requesting…" : "Request code" }}
           </button>
           <!-- Mounted up front: screen readers skip a live region inserted together with its content.
-               The countdown ticks every second, so it stays outside the region. -->
+               The countdown ticks every second, so it stays outside the region. The visible
+               digits are aria-hidden: only the spaced copy is announced. -->
           <div class="flex items-center gap-2" [class.mt-2]="code() !== null">
             <span
               class="text-3xl font-bold tracking-widest tabular-nums"
               role="status"
               aria-live="polite"
               data-testid="account-code"
-              >{{ code() }}</span
             >
+              <span aria-hidden="true">{{ code() }}</span>
+              <span class="sr-only" data-testid="account-code-spoken">{{ spokenCode() }}</span>
+            </span>
             @if (code() !== null) {
               <button
                 hlmBtn
@@ -161,6 +164,8 @@ export class AccountPanelComponent implements OnDestroy {
   protected readonly avatarErrored = signal(false);
 
   protected readonly code = signal<number | null>(null);
+  /** Spaced digits for the live region: read whole, "123456" can come out as one large number. */
+  protected readonly spokenCode = computed(() => [...String(this.code() ?? "")].join(" "));
   protected readonly isRequesting = signal(false);
   protected readonly countdown = signal(COUNTDOWN_SECONDS);
   private countdownInterval: ReturnType<typeof setInterval> | undefined;

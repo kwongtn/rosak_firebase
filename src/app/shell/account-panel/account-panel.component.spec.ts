@@ -107,7 +107,14 @@ describe("AccountPanelComponent", () => {
 
     // Same node, new text: the region was already in the DOM when the code was written into it.
     expect(byTestId("account-code")).toBe(region);
-    expect(region.textContent?.trim()).toBe("123456");
+    expect(byTestId("account-code-spoken").textContent).toBe("1 2 3 4 5 6");
+  });
+
+  it("hides the visible digits from assistive tech so only the spaced copy is announced", async () => {
+    await requestCode();
+
+    const visible = byTestId("account-code").querySelector<HTMLElement>('[aria-hidden="true"]');
+    expect(visible?.textContent).toBe("123456");
   });
 
   it("keeps the ticking countdown outside the live region", async () => {
