@@ -359,7 +359,9 @@ export class GalleryPage {
         // (GraphQLClient has already toasted a GraphQLRequestError.)
         this.toast.error(
           "Couldn't load that photo",
-          failure.error instanceof Error ? failure.error.message : "Unknown error",
+          failure.error instanceof Error
+            ? failure.error.message
+            : "Check your connection and try again.",
         );
       }
     }

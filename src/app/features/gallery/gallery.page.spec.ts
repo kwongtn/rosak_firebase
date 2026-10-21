@@ -338,7 +338,11 @@ describe("GalleryPage deep link", () => {
     await settle(fixture);
 
     expect(toast).toHaveBeenCalledTimes(1);
-    expect(toast).toHaveBeenCalledWith("Couldn't load that photo", expect.any(String));
+    // An HttpErrorResponse is not an Error, so it must not read "Unknown error".
+    expect(toast).toHaveBeenCalledWith(
+      "Couldn't load that photo",
+      "Check your connection and try again.",
+    );
     expect(navigate).toHaveBeenCalledWith(["/gallery"], { replaceUrl: true });
     expect(viewerOf(fixture)).toBeNull();
   });
