@@ -57,6 +57,38 @@ export interface MediasFeedQueryData {
 }
 
 /* ---------------------------------------------------------------------- *
+ * media(id) — one photo, for a shared /gallery/:mediaId link. `id` is the Relay global id the feed
+ * hands out (`MediaNode.id`), passed through verbatim; a raw database id is not accepted. `null`
+ * means there is no such photo (unknown, malformed or removed). Same selection as one `medias`
+ * node above, so `data.media` is a `MediaNode`.
+ * ---------------------------------------------------------------------- */
+
+export const MEDIA_BY_ID_QUERY = /* GraphQL */ `
+  query MediaById($id: ID!) {
+    media(id: $id) {
+      id
+      createdDate
+      width
+      height
+      file {
+        url
+      }
+      uploader {
+        nickname
+      }
+    }
+  }
+`;
+
+export interface MediaByIdQueryVars {
+  id: string;
+}
+
+export interface MediaByIdQueryData {
+  media: MediaNode | null;
+}
+
+/* ---------------------------------------------------------------------- *
  * mediasGroupByPeriod(type: YEAR) — used ONLY for the year-slider's tick labels and per-year
  * counts (a GROUP BY aggregate, kept off the SSR path — see GalleryPage.yearCountsResource:
  * one row per year, `medias` sub-field intentionally not requested so the backend's per-bucket

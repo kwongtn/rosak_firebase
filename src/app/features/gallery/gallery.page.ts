@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
+import { Meta, Title } from "@angular/platform-browser";
 import { Router } from "@angular/router";
 import { injectIsBrowser } from "../../core/composables/is-browser";
 import { GraphQLClient, graphqlResource } from "../../core/graphql/graphql-client";
@@ -10,13 +11,18 @@ import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import {
+  MEDIA_BY_ID_QUERY,
   MEDIA_YEAR_COUNTS_QUERY,
   MEDIAS_QUERY,
+  MediaByIdQueryData,
+  MediaByIdQueryVars,
   MediaNode,
   MediaYearCountsQueryData,
   MediasFeedQueryData,
   MediasFeedQueryVars,
 } from "./data/gallery.queries";
+import { getImgurThumbnail } from "./data/imgur.util";
+import { mediaLabel } from "./data/media-label.util";
 import { GalleryYearSliderComponent } from "./year-slider/gallery-year-slider.component";
 import {
   JustifiedGridComponent,
@@ -46,6 +52,11 @@ const SKELETON_ROWS: number[][] = [
 const JUMP_PAGE_SIZE = 100;
 const JUMP_REQUEST_DELAY_MS = 200;
 const MAX_JUMP_PAGES = 100;
+
+/** What /gallery carries when no photo is open: the route's title (app.routes.ts) and the
+ * site-wide share image from src/index.html, which an open photo overrides. */
+const DEFAULT_TITLE = "MLPTF | Gallery";
+const DEFAULT_SHARE_IMAGE = "https://community.mlptf.org.my/share-card.png";
 
 interface YearGroup {
   year: number;
@@ -82,6 +93,8 @@ export class GalleryPage {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly title = inject(Title);
+  private readonly meta = inject(Meta);
 
   protected readonly skeletonRows = SKELETON_ROWS;
   protected readonly skeletonRowHeight = TARGET_ROW_HEIGHT;
@@ -136,10 +149,10 @@ export class GalleryPage {
   constructor() {
     this.loadMore();
     // Keeps the open photo in sync with the URL both ways: a direct/shared link to
-    // /gallery/:mediaId opens it once loaded, and Back/Forward closes or reopens it to match.
-    // Opening/closing via the UI itself (onOpenMedia/onCloseMedia) sets `selectedMedia`
-    // directly for instant feedback and navigates separately — by the time that navigation
-    // lands here, `openMediaById`'s own already-open check makes this a no-op.
+    // /gallery/:mediaId fetches that one photo and opens it, and Back/Forward closes or reopens
+    // it to match. Opening/closing via the UI itself (onOpenMedia/onCloseMedia) sets
+    // `selectedMedia` directly for instant feedback and navigates separately — by the time that
+    // navigation lands here, `openMediaById`'s own already-open check makes this a no-op.
     effect(() => {
       const id = this.mediaIdParam();
       untracked(() => {
@@ -150,6 +163,49 @@ export class GalleryPage {
         }
       });
     });
+    // Share metadata for the open photo, so the server HTML of a shared link previews as that
+    // photo. The cleanup puts the defaults back when the photo changes, the viewer closes or the
+    // page is left. `mediaIdParam` is read only to re-run this once the router has landed the
+    // navigation: it resets the title to the route's on every NavigationEnd, which can come after
+    // the viewer opened from a click.
+    effect((onCleanup) => {
+      const media = this.selectedMedia();
+      this.mediaIdParam();
+      if (!media) {
+        return;
+      }
+      this.setPhotoMeta(media);
+      onCleanup(() => this.restoreDefaultMeta());
+    });
+  }
+
+  private setPhotoMeta(media: MediaNode): void {
+    const label = mediaLabel(media);
+    const title = `MLPTF | ${label}`;
+    this.title.setTitle(title);
+    this.meta.updateTag({ property: "og:title", content: title });
+    this.meta.updateTag({
+      property: "og:description",
+      content: `${label}. A community spotting photo on the MLPTF gallery.`,
+    });
+    this.meta.updateTag({ name: "twitter:card", content: "summary_large_image" });
+    // A photo without a file keeps the site-wide share image.
+    if (media.file) {
+      this.meta.updateTag({
+        property: "og:image",
+        content: getImgurThumbnail(media.file.url, "h"),
+      });
+      this.meta.updateTag({ property: "og:image:alt", content: label });
+    }
+  }
+
+  /** index.html carries no og:title, og:description or og:image:alt, so closing removes them. */
+  private restoreDefaultMeta(): void {
+    this.title.setTitle(DEFAULT_TITLE);
+    this.meta.updateTag({ property: "og:image", content: DEFAULT_SHARE_IMAGE });
+    this.meta.removeTag('property="og:title"');
+    this.meta.removeTag('property="og:description"');
+    this.meta.removeTag('property="og:image:alt"');
   }
 
   protected onOpenMedia(media: MediaNode): void {
@@ -164,13 +220,12 @@ export class GalleryPage {
 
   private inFlightLoad: Promise<boolean> | undefined;
 
-  /** Returns whether the load actually succeeded — callers that loop (jumpToYear,
-   * openMediaById) need to know so they can stop instead of hammering a failing request
-   * repeatedly. Concurrent calls share the same in-flight request rather than one bailing out
-   * with `false`: the constructor's own initial load and a same-tick `openMediaById` (from a
-   * deep link, via the constructor's effect) race by construction, and a bailed-out `false`
-   * read as a real failure — which then gave up and redirected away, discarding a perfectly
-   * valid id purely because it arrived a moment before the first page had loaded. */
+  /** Returns whether the load actually succeeded — callers that loop (jumpToYear) need to know
+   * so they can stop instead of hammering a failing request repeatedly. Concurrent calls share
+   * the same in-flight request rather than one bailing out with `false`: the constructor's own
+   * initial load and a year jump clicked before it lands race by construction, and a bailed-out
+   * `false` read as a real failure — which then gave up on a perfectly valid jump purely
+   * because it arrived a moment before the first page had loaded. */
   async loadMore(pageSize = PAGE_SIZE): Promise<boolean> {
     if (this.inFlightLoad) {
       return this.inFlightLoad;
@@ -227,33 +282,55 @@ export class GalleryPage {
     }
   }
 
-  /** Same shape of problem as jumpToYear — there's no single-media-by-id query on the backend
-   * either (only the paginated connection), so opening a deep link means paging through in
-   * `created` order until the target id turns up or we run out. */
+  /** Opens a shared /gallery/:mediaId link: the one photo is fetched by id and the viewer opens
+   * the moment it arrives — on the server too, so the HTML of the link already holds the viewer —
+   * while the feed loads on its own. A photo the feed already holds (Back/Forward) opens without
+   * a request. A missing photo or a failed request falls back to /gallery. */
   private async openMediaById(id: string): Promise<void> {
     if (this.selectedMedia()?.id === id) {
       return;
     }
-    const { found, stoppedOnError } = await this.loadUntil(() =>
-      this.edges().some((e) => e.node.id === id),
-    );
-    if (found) {
-      this.selectedMedia.set(this.edges().find((e) => e.node.id === id)!.node);
+    const loaded = this.edges().find((e) => e.node.id === id);
+    if (loaded) {
+      this.selectedMedia.set(loaded.node);
       return;
     }
-    if (!stoppedOnError) {
-      this.toast.error(
-        "Couldn't find that photo",
-        "It may have been removed, or the link is out of date.",
+    let media: MediaNode | null = null;
+    let failure: string | undefined;
+    try {
+      const data = await this.graphql.request<MediaByIdQueryData, MediaByIdQueryVars>(
+        MEDIA_BY_ID_QUERY,
+        { id },
       );
+      media = data.media;
+    } catch (err) {
+      failure = err instanceof Error ? err.message : "Unknown error";
+    }
+    if (this.mediaIdParam() !== id) {
+      return; // the visitor moved on while it loaded
+    }
+    if (media) {
+      this.selectedMedia.set(media);
+      return;
+    }
+    // On the server nobody sees a toast (the redirect below answers the request) and it would only
+    // pile up in the shared toast state, so — like GraphQLClient — toast in the browser only.
+    if (this.isBrowser) {
+      if (failure === undefined) {
+        this.toast.error(
+          "Couldn't find that photo",
+          "It may have been removed, or the link is out of date.",
+        );
+      } else {
+        this.toast.error("Couldn't load that photo", failure);
+      }
     }
     this.router.navigate(["/gallery"], { replaceUrl: true });
   }
 
   /** Pages through `medias` (in `created` order) until `isFound()` is satisfied or we run out —
-   * the shared loop behind jumpToYear and openMediaById, which only differ in what "found"
-   * means. `stoppedOnError` lets a caller skip its own "ran out" messaging when `loadMore` has
-   * already toasted the real reason. */
+   * the loop behind jumpToYear. `stoppedOnError` lets a caller skip its own "ran out" messaging
+   * when `loadMore` has already toasted the real reason. */
   private async loadUntil(
     isFound: () => boolean,
   ): Promise<{ found: boolean; stoppedOnError: boolean }> {
