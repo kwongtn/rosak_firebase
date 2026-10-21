@@ -144,7 +144,7 @@ Unauthenticated query against the local API: events(filters:{type:{exact:"LOCATI
 
 **medium** · effort M · security · spotting · partially confirmed · second check set severity high → medium
 
-**Status, fix pass 2026-10-21:** Partly fixed (`4e8adbe`, `46ade1f`, `05b9cc3`, `757276e`, `c6ba2f0`, backend `32835a3`, backend `45a3075`, backend `6d8ad08`). GPS is removed losslessly before upload (Exif in JPEG, TIFF and PNG; XMP packets with GPS are dropped from JPEG). The server strips it again from JPEG, and refuses HEIC. Capture time and make/model are kept. **Left:** Photos uploaded before the fix keep their GPS on Discord, Imgur and temp storage, and need a re-host backfill. XMP GPS inside TIFF and PNG, and non-JPEG files posted straight to the API, are not stripped.
+**Status, fix pass 2026-10-21:** Partly fixed (`4e8adbe`, `46ade1f`, `05b9cc3`, `757276e`, `c955733`, backend `32835a3`, backend `45a3075`, backend `ae696dd`, backend `ec2dc9a`). GPS is removed losslessly before upload (Exif in JPEG, TIFF and PNG; XMP packets with GPS are dropped from JPEG). The server strips it again from JPEG. Capture time and make/model are kept. Every image is accepted: HEIC, WebP and other formats that neither side can strip upload as they are, GPS included (product owner's choice). **Left:** Photos uploaded before the fix keep their GPS on Discord, Imgur and temp storage, and need a re-host backfill. XMP GPS inside TIFF and PNG, and non-JPEG files posted straight to the API, are not stripped.
 
 **Where:** `src/app/core/upload/image-compression.service.ts:19`, `src/app/core/upload/image-compression.service.ts:51`, `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:78`, `rosak_backend/common/views.py:73`
 

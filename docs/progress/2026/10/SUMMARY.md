@@ -9,8 +9,8 @@
 - **About page** (Oct 7–8, 20): community projects, retired personnel, admin editor extracted into a lazy component.
 - **Spotting report form** (Oct 4–6): vehicle picker ordering, inline vehicle status, mobile merged activity bar.
 - **Docs and fixes** (Oct 21): docs squash — component docs, MISTAKES.md and progress summaries trimmed to current state; profile id-change reload, retry banner and user-card null guard; home `feed-link-<id>` anchors.
-- **Audit fix pass** (Oct 21): the 24 Fix-first and Quick-win findings of the [2026-10-21 audit](../../../audit/2026-10-21.md) are fixed (F044 partly). Changes: focus rings, lazy Sentry Replay and feedback chunks, total `graphqlResource` `data()`/`errors()`, Kuala Lumpur day keys via `klDateKey()`, client Exif GPS strip, sheet forms created on open, a parallel vehicle page, a CSS-only gallery grid, `/gallery/:id` via `media(id)`, share tags and Angular 22.2.3. Anonymous spottings now hide their location, profile rows, counts and photo uploader from everyone but the owner and admins. Initial bundle: 984.97 kB against the 1 MB budget. The backend counterparts are logged in `rosak_backend`'s progress.
-- Suite at **178 files / 2428 tests** (Oct 21, audit pass). The Oct 19 homepage UX and performance pass is uncommitted in its log.
+- **Audit fix pass** (Oct 21): the 24 Fix-first and Quick-win findings of the [2026-10-21 audit](../../../audit/2026-10-21.md) are fixed (F044 partly). Changes: focus rings, lazy Sentry Replay and feedback chunks, total `graphqlResource` `data()`/`errors()`, Kuala Lumpur day keys via `klDateKey()`, client Exif GPS strip, sheet forms created on open, a parallel vehicle page, a CSS-only gallery grid, `/gallery/:id` via `media(id)`, share tags and Angular 22.2.3. Anonymous spottings now hide their location, profile rows, counts and photo uploader from everyone but the owner and admins. A same-day follow-up accepts every image: HEIC, WebP and other formats the GPS strip cannot clean upload as they are, by the owner's choice (`c955733`). Initial bundle: 984.97 kB against the 1 MB budget. The backend counterparts are logged in `rosak_backend`'s progress.
+- Suite at **178 files / 2432 tests** (Oct 21, after the accept-every-image follow-up). The Oct 19 homepage UX and performance pass is uncommitted in its log.
 
 ---
 
@@ -60,6 +60,7 @@
 | [Oct 21](./21.md) | Docs squash (`408e01f`): component docs, MISTAKES.md (1547→546 lines), AGENTS/README/COMPONENTS and progress summaries trimmed to current state; stale refs fixed                                                                                                                                                                                                                   |
 | [Oct 21](./21.md) | **profile**: reload on `:id` change with a stale-response guard (`299ce29`); retry banner on failed load (`cd0c04c`); user-card `favouriteVehicles` null guard (`8d4b133`). **home**: feed rows render `feed-link-<id>` so the duplicate indicator scrolls to them (`a33b266`)                                                                                                      |
 | [Oct 21](./21.md) | **Audit fix pass** (`365fa34`..`eb4895d`): F001, F002, F003, F007, F009, F010, F011, F012, F015, F016, F017, F018, F020, F022, F026, F030, F032, F033, F035, F043, F046, F047 and F049 fixed, F044 partly fixed, F072 fixed by the Angular update; three review rounds of follow-ups; MISTAKES entries and component docs updated; `AGENTS.md` now says TypeScript 6 `strict` is on |
+| [Oct 21](./21.md) | **spotting**: the photo picker accepts every image; HEIC, WebP and other formats `stripGps` cannot clean upload as they are, GPS included; a photo the browser cannot compress uploads as is instead of waiting forever (`c955733`, `08d16cb`). Backend stops refusing HEIC (`ae696dd`, `ec2dc9a`)                                                                                  |
 
 ---
 
@@ -79,6 +80,7 @@ Last suite result on each logged close-out day:
 | Oct 20              | 155 / 2148 (`ng build` exit 0) |
 | Oct 21              | 158 / 2169 (`ng build` clean)  |
 | Oct 21 (audit pass) | 178 / 2428 (e2e 17/17)         |
+| Oct 21 (all images) | 178 / 2432                     |
 
 Oct 4 ran on the pre-Oct 3 base (108 / 1283). Oct 19 logs no test count.
 

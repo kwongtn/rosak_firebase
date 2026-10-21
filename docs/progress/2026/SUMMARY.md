@@ -29,7 +29,7 @@
 - Seven god-file splits, shared `injectIsBrowser()`, `npm run verify` and an e2e job in CI (Oct 7).
 - About page: community projects, retired personnel, extracted admin editor (Oct 7–8, 20).
 - Docs squash to current state; profile reload/error-state/null-guard fixes and home `feed-link-<id>` anchors (Oct 21).
-- Audit fix pass (Oct 21): the 24 Fix-first and Quick-win findings of the 2026-10-21 audit are fixed (F044 partly). Changes: lazy Sentry chunks, sheet forms created on open, Kuala Lumpur day keys, a client Exif GPS strip, gallery `media(id)` deep links and share tags, Angular 22.2.3. Anonymous spottings now hide their location, profile rows, counts and photo uploader from everyone but the owner and admins. Suite at 178 files / 2428 tests.
+- Audit fix pass (Oct 21): the 24 Fix-first and Quick-win findings of the 2026-10-21 audit are fixed (F044 partly). Changes: lazy Sentry chunks, sheet forms created on open, Kuala Lumpur day keys, a client Exif GPS strip, gallery `media(id)` deep links and share tags, Angular 22.2.3. Anonymous spottings now hide their location, profile rows, counts and photo uploader from everyone but the owner and admins. A follow-up accepts every image: HEIC, WebP and other formats the GPS strip cannot clean upload as they are, by the owner's choice. Suite at 178 files / 2432 tests.
 
 ---
 
