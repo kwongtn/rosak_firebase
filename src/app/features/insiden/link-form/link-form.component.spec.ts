@@ -534,6 +534,24 @@ describe("LinkFormComponent", () => {
       expect(document.activeElement).toBe(outside);
       outside.remove();
     });
+
+    it("reports the reference read as loading until it answers, so Submit can wait for the defaults", async () => {
+      const { late, read } = createLate();
+      expect(late.componentInstance.isReferenceLoading()).toBe(true);
+
+      read.flush(REFERENCE);
+      await late.whenStable();
+
+      expect(late.componentInstance.isReferenceLoading()).toBe(false);
+    });
+
+    it("does not hold an edit back on the reference read, which it never needs", () => {
+      sheet.openEdit(makeLink());
+      const { late, read } = createLate();
+
+      expect(late.componentInstance.isReferenceLoading()).toBe(false);
+      read.flush(REFERENCE);
+    });
   });
 
   function makeLink(overrides: Partial<ReturnType<typeof makeLinkBase>> = {}) {

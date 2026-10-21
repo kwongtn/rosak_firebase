@@ -56,7 +56,9 @@ import { LinkSheetService } from "../data/link-sheet.service";
           <button
             hlmBtn
             data-testid="submit-link"
-            [disabled]="!linkFormRef() || linkFormRef()?.isSubmitting()"
+            [disabled]="
+              !linkFormRef() || linkFormRef()?.isSubmitting() || linkFormRef()?.isReferenceLoading()
+            "
             (click)="linkFormRef()?.submit()"
           >
             {{

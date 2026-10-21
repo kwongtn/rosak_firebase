@@ -139,6 +139,30 @@ describe("LinkSheetComponent", () => {
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
+  it("holds Submit back until the reference read lands, so no default line or category is dropped", async () => {
+    // The form is created on open and starts its read then; a Submit before the answer would file
+    // the link with no line and no category, silently.
+    sheet.open();
+    const reads = await vi.waitFor(
+      () => {
+        const found = httpMock.match(isReferenceRead);
+        if (found.length === 0) throw new Error("the deferred form has not started its read yet");
+        return found;
+      },
+      { timeout: 3000 },
+    );
+    fixture.detectChanges();
+
+    expect(mountedForm()).not.toBeNull();
+    expect(footerButton("Submit").disabled).toBe(true);
+
+    for (const read of reads) read.flush({ data: REFERENCE_DATA });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(footerButton("Submit").disabled).toBe(false);
+  });
+
   it("hands the form a URL prefilled before the form existed, once", async () => {
     // The home feed's "Advanced Input" opens the sheet with the typed URL; the form is not created
     // until the open, so the service must hold the value until the form's first effect takes it.

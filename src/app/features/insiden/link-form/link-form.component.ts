@@ -261,6 +261,13 @@ export class LinkFormComponent {
     query: INSIDEN_REFERENCE_QUERY,
   }));
 
+  /** True while the first reference read is in flight (a create-mode submit now would drop the
+   * default line and category, which only land with it). Edit mode hydrates from the edit target and
+   * never needs the read, so it is not held back. Public so the sheet's Submit can wait on it. */
+  readonly isReferenceLoading = computed(
+    () => !this.isEditing() && this.referenceResource.isLoading(),
+  );
+
   protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
     (this.referenceResource.data()?.lines ?? []).map((line) => ({
       id: line.id,
