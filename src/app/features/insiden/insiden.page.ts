@@ -46,7 +46,8 @@ import {
   type IncidentFilterUrlState,
 } from "./data/incident-filter.util";
 import {
-  incidentsStartingInMonth,
+  exportFilterTokens,
+  incidentsForMonthExport,
   incidentsToCsv,
   incidentsToIcs,
   monthExportFilename,
@@ -206,11 +207,12 @@ export class InsidenPage {
     filterIncidents(this.loadedIncidents(), this.filterCriteria()),
   );
 
-  /** What "Export month" writes: the filtered incidents that STARTED in the month shown, oldest
-   * first (see `incidentsStartingInMonth` for why start-based). Pending reports are included and
-   * carry their `status`, so a consumer can filter on it. */
+  /** What "Export month" writes: the filtered, APPROVED incidents that STARTED in the month shown,
+   * oldest first (see `incidentsForMonthExport` for why approved-only and why start-based). Unapproved
+   * reports stay on the page behind "Pending Approval" and never reach a file, so the button's count
+   * is the same number as the "Last 12 months" bar for the month (when no filter is on). */
   protected readonly exportIncidents = computed(() =>
-    incidentsStartingInMonth(this.allIncidents(), this.selectedMonth()),
+    incidentsForMonthExport(this.allIncidents(), this.selectedMonth()),
   );
 
   protected readonly lineOptions = computed(() =>
@@ -284,7 +286,12 @@ export class InsidenPage {
     if (incidents.length === 0) {
       return;
     }
-    const filename = monthExportFilename(this.selectedMonth(), format);
+    // A filtered file says so in its name: a CSV has nowhere else to.
+    const filename = monthExportFilename(
+      this.selectedMonth(),
+      format,
+      exportFilterTokens(this.filterCriteria(), this.lineOptions()),
+    );
     if (format === "csv") {
       downloadCsv(filename, incidentsToCsv(incidents), this.isBrowser);
     } else {

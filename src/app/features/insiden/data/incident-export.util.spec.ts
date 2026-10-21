@@ -2,15 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   INCIDENT_CSV_COLUMNS,
+  exportFilterTokens,
   incidentCalendarFilename,
   incidentPageUrl,
   incidentToCsvRow,
   incidentToIcsEvent,
+  incidentsForMonthExport,
   incidentsStartingInMonth,
   incidentsToCsv,
   incidentsToIcs,
   monthExportFilename,
 } from "./incident-export.util";
+import type { IncidentLineOption } from "./incident-filter.util";
 import type { CalendarIncident } from "./insiden.queries";
 
 const NOW = new Date("2026-10-21T03:15:30Z");
@@ -251,10 +254,88 @@ describe("incident-export.util: incidentsStartingInMonth", () => {
   });
 });
 
+describe("incident-export.util: incidentsForMonthExport", () => {
+  const live = makeIncident({ id: "1", startDatetime: "2026-10-03T09:00:00", status: "LIVE" });
+  const liveLower = makeIncident({ id: "2", startDatetime: "2026-10-04T09:00:00", status: "live" });
+  const draft = makeIncident({ id: "3", startDatetime: "2026-10-05T09:00:00", status: "DRAFT" });
+  const pending = makeIncident({
+    id: "4",
+    startDatetime: "2026-10-06T09:00:00",
+    status: "PENDING_APPROVAL",
+  });
+  const rejected = makeIncident({
+    id: "5",
+    startDatetime: "2026-10-07T09:00:00",
+    status: "REJECTED",
+  });
+  const noStatus = makeIncident({ id: "6", startDatetime: "2026-10-08T09:00:00" });
+  Reflect.deleteProperty(noStatus, "status");
+  const septemberLive = makeIncident({ id: "7", startDatetime: "2026-09-30T09:00:00" });
+
+  it("writes approved incidents only: no draft, pending or rejected report ever leaves the page", () => {
+    const result = incidentsForMonthExport(
+      [draft, live, pending, rejected, liveLower, noStatus],
+      "2026-10",
+    );
+
+    // Oldest first, `live` in either casing, nothing unapproved, and a payload with no status at all
+    // is not claimed to be approved.
+    expect(result.map((entry) => entry.id)).toEqual(["1", "2"]);
+  });
+
+  it("is the same set the Last 12 months bar counts for the month: approved, started in it", () => {
+    const result = incidentsForMonthExport([live, septemberLive, draft], "2026-10");
+
+    expect(result.map((entry) => entry.id)).toEqual(["1"]);
+  });
+
+  it("is empty when every incident of the month is unapproved", () => {
+    expect(incidentsForMonthExport([draft, pending, rejected], "2026-10")).toEqual([]);
+  });
+
+  it("leaves the all-status month selection alone", () => {
+    expect(incidentsStartingInMonth([draft, live], "2026-10")).toHaveLength(2);
+  });
+});
+
 describe("incident-export.util: filenames", () => {
+  const OPTIONS: IncidentLineOption[] = [
+    { id: "3", code: "KJL", displayName: "Kelana Jaya Line", pinned: false },
+    { id: "1", code: "AG", displayName: "Ampang Line", pinned: false },
+  ];
+
   it("names a month export by its month and format", () => {
     expect(monthExportFilename("2026-10", "csv")).toBe("insiden-2026-10.csv");
     expect(monthExportFilename("2026-10", "ics")).toBe("insiden-2026-10.ics");
+  });
+
+  it("names a filtered export after its filter, so it cannot pass for the whole month", () => {
+    expect(monthExportFilename("2026-10", "csv", ["KJL", "MAJOR"])).toBe(
+      "insiden-2026-10-kjl-major.csv",
+    );
+    expect(monthExportFilename("2026-10", "ics", ["AG"])).toBe("insiden-2026-10-ag.ics");
+  });
+
+  it("reduces a filter word to lower-case letters and digits and drops one that vanishes", () => {
+    expect(monthExportFilename("2026-10", "csv", ["../KJ L", "!!", "Major"])).toBe(
+      "insiden-2026-10-kjl-major.csv",
+    );
+    expect(monthExportFilename("2026-10", "csv", [])).toBe("insiden-2026-10.csv");
+  });
+
+  it("words a filter as its lines' codes, then the severity", () => {
+    expect(exportFilterTokens({ lineIds: ["3", "1"], severity: "MAJOR" }, OPTIONS)).toEqual([
+      "KJL",
+      "AG",
+      "MAJOR",
+    ]);
+    expect(exportFilterTokens({ lineIds: [], severity: "MINOR" }, OPTIONS)).toEqual(["MINOR"]);
+    expect(exportFilterTokens({ lineIds: ["3"], severity: null }, OPTIONS)).toEqual(["KJL"]);
+  });
+
+  it("falls back to line<id> for a selected line no chip names, and is empty for no filter", () => {
+    expect(exportFilterTokens({ lineIds: ["999"], severity: null }, OPTIONS)).toEqual(["line999"]);
+    expect(exportFilterTokens({ lineIds: [], severity: null }, OPTIONS)).toEqual([]);
   });
 
   it("names a single-incident calendar file by the incident id, reduced to safe characters", () => {

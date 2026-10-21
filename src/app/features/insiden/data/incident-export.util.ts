@@ -1,5 +1,7 @@
 import { neutralizeSpreadsheetFormula, toCsv, type CsvRow } from "../../../core/export/csv.util";
 import { buildIcs, type IcsEvent, type IcsEventStatus } from "../../../core/export/ics.util";
+import type { IncidentFilterCriteria, IncidentLineOption } from "./incident-filter.util";
+import { isLiveIncidentStatus } from "./incident-status.util";
 import type { CalendarIncident } from "./insiden.queries";
 
 /**
@@ -20,8 +22,9 @@ export const INSIDEN_SITE_ORIGIN = "https://community.mlptf.org.my";
 const UID_DOMAIN = "community.mlptf.org.my";
 
 /** The CSV header, in order. `date` is the START date (`YYYY-MM-DD`) and `status` is the approval
- * state the API reports (`LIVE`, `PENDING_APPROVAL`, `DRAFT`, `REJECTED`), so a consumer can filter
- * out reports nobody has approved. */
+ * state the API reports (`LIVE`, `PENDING_APPROVAL`, `DRAFT`, `REJECTED`). The page's month export
+ * only ever writes `LIVE` rows (see {@link incidentsForMonthExport}); the column stays so the schema
+ * does not change the day an option to include unapproved reports is added. */
 export const INCIDENT_CSV_COLUMNS = [
   "date",
   "title",
@@ -111,7 +114,8 @@ export function incidentsToIcs(incidents: readonly CalendarIncident[], now?: Dat
  * incident is exported once across consecutive months — it reconciles with the "Last 12 months"
  * chart, which counts by start month too. An incident that began last month and is still running is
  * in LAST month's file. Chronological rather than the page's newest-first: a spreadsheet or calendar
- * import reads forward in time.
+ * import reads forward in time. Any approval state: {@link incidentsForMonthExport} is the one that
+ * decides what may leave the page.
  */
 export function incidentsStartingInMonth(
   incidents: readonly CalendarIncident[],
@@ -126,9 +130,62 @@ export function incidentsStartingInMonth(
     );
 }
 
-/** `insiden-2026-10.csv` / `insiden-2026-10.ics`. */
-export function monthExportFilename(monthKey: string, extension: "csv" | "ics"): string {
-  return `insiden-${monthKey}.${extension}`;
+/**
+ * What "Export month" writes: the APPROVED incidents that started in `monthKey`, oldest first.
+ *
+ * `LIVE` only. `calendarIncidents` has no status filter, so a draft, a pending report and a rejected
+ * one all reach every reader, and the page tucks them behind its "Pending Approval" toggle as
+ * unvetted. A file leaves that framing behind: a rider forwarding an `.ics`, or a journalist quoting a
+ * CSV, would be passing on community text nobody approved as if it were the record. It is also the
+ * rule of the "Last 12 months" chart, so the count on the button, the rows in the file and the bar
+ * for the month are the same number.
+ */
+export function incidentsForMonthExport(
+  incidents: readonly CalendarIncident[],
+  monthKey: string,
+): CalendarIncident[] {
+  return incidentsStartingInMonth(
+    incidents.filter((incident) => isLiveIncidentStatus(incident.status)),
+    monthKey,
+  );
+}
+
+/**
+ * The words a filtered export adds to its filename: each selected line's code (`line<id>` for one no
+ * chip names), then the severity, in that order.
+ *
+ * Without them a file of one line's Major incidents is named exactly like the whole month's and,
+ * once it has left the page, reads as if it were. A CSV has nowhere to say which filter produced it,
+ * so the filename does.
+ */
+export function exportFilterTokens(
+  criteria: IncidentFilterCriteria,
+  lineOptions: readonly IncidentLineOption[],
+): string[] {
+  const codeById = new Map(lineOptions.map((option) => [option.id, option.code]));
+  return [
+    ...criteria.lineIds.map((id) => codeById.get(id) ?? `line${id}`),
+    ...(criteria.severity === null ? [] : [criteria.severity]),
+  ];
+}
+
+/**
+ * `insiden-2026-10.csv` / `insiden-2026-10.ics`, plus one `-<token>` per filter word for a filtered
+ * export: `insiden-2026-10-kjl-major.csv`. A token is reduced to lower-case letters and digits, so no
+ * line code or odd id can put a path separator or a space in a filename; one that reduces to nothing
+ * is dropped.
+ */
+export function monthExportFilename(
+  monthKey: string,
+  extension: "csv" | "ics",
+  filterTokens: readonly string[] = [],
+): string {
+  const suffix = filterTokens
+    .map((token) => token.toLowerCase().replace(/[^a-z0-9]/g, ""))
+    .filter((token) => token !== "")
+    .map((token) => `-${token}`)
+    .join("");
+  return `insiden-${monthKey}${suffix}.${extension}`;
 }
 
 /** `insiden-incident-42.ics`. The id is reduced to filename-safe characters. */

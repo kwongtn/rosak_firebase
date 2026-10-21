@@ -535,13 +535,14 @@ describe("InsidenPage incident filters", () => {
       expect(calendarExportCount()).toBe(2);
     });
 
-    it("writes the filtered month as a CSV, oldest first, named for the month", async () => {
+    it("writes the filtered month as a CSV, oldest first, named for the month and the filter", async () => {
       await boot("/?lines=3", [...INCIDENTS, SPANNING]);
 
       exportMonth("csv");
 
       expect(downloads).toHaveLength(1);
-      expect(downloads[0]?.filename).toBe("insiden-2026-10.csv");
+      // A filtered file says so: a CSV of one line's incidents must not pass for the whole month.
+      expect(downloads[0]?.filename).toBe("insiden-2026-10-kjl.csv");
       expect(downloads[0]?.blob.type).toBe("text/csv;charset=utf-8;");
       const rows = (await readBlobText(downloads[0]?.blob as Blob))
         .split("\r\n")
@@ -561,7 +562,7 @@ describe("InsidenPage incident filters", () => {
       exportMonth("ics");
 
       expect(downloads).toHaveLength(1);
-      expect(downloads[0]?.filename).toBe("insiden-2026-10.ics");
+      expect(downloads[0]?.filename).toBe("insiden-2026-10-kjl.ics");
       expect(downloads[0]?.blob.type).toBe("text/calendar;charset=utf-8");
       const ics = await readBlobText(downloads[0]?.blob as Blob);
       expect(ics.match(/^BEGIN:VEVENT/gm)).toHaveLength(2);
@@ -569,6 +570,82 @@ describe("InsidenPage incident filters", () => {
       expect(ics).toContain("UID:incident-b@community.mlptf.org.my");
       expect(ics).not.toContain("UID:incident-c@");
       expect(ics).toContain("DTSTART;TZID=Asia/Kuala_Lumpur:20261005T080000");
+    });
+
+    it("adds each filter word to the filename: lines in order, then the severity", async () => {
+      await boot("/?lines=3,1&severity=minor", [...INCIDENTS, SPANNING]);
+
+      exportMonth("csv");
+      exportMonth("ics");
+
+      expect(downloads.map((download) => download.filename)).toEqual([
+        "insiden-2026-10-kjl-ag-minor.csv",
+        "insiden-2026-10-kjl-ag-minor.ics",
+      ]);
+    });
+
+    it("names a severity-only filter by the severity alone", async () => {
+      await boot("/?severity=major", [...INCIDENTS, SPANNING]);
+
+      exportMonth("csv");
+
+      expect(downloads[0]?.filename).toBe("insiden-2026-10-major.csv");
+    });
+
+    it("names a selected line that no chip covers by its id", async () => {
+      // Line 99 has no incident in the window, so there is no chip and no code to name it by; the
+      // KJL incidents still export.
+      await boot("/?lines=3,99", [...INCIDENTS, SPANNING]);
+
+      exportMonth("csv");
+
+      expect(downloads[0]?.filename).toBe("insiden-2026-10-kjl-line99.csv");
+    });
+
+    it("leaves unapproved reports out of the count and out of both files", async () => {
+      const unapproved = (
+        id: string,
+        status: CalendarIncident["status"],
+        start: string,
+      ): CalendarIncident => ({
+        ...incident(id, "MAJOR", [KJL], start, null),
+        status,
+      });
+      await boot("/", [
+        ...INCIDENTS,
+        unapproved("x1", "DRAFT", "2026-10-06T08:00:00"),
+        unapproved("x2", "PENDING_APPROVAL", "2026-10-07T08:00:00"),
+        unapproved("x3", "REJECTED", "2026-10-08T08:00:00"),
+      ]);
+
+      // Five approved incidents started in October; the three reports nobody vetted are not counted.
+      expect(calendarExportCount()).toBe(5);
+      exportMonth("csv");
+      exportMonth("ics");
+
+      const csv = await readBlobText(downloads[0]?.blob as Blob);
+      const rows = csv.split("\r\n").filter((line) => line !== "");
+      expect(rows).toHaveLength(6);
+      expect(rows.every((row, index) => index === 0 || row.includes(",LIVE,"))).toBe(true);
+      expect(csv).not.toMatch(/Incident x\d/);
+      const ics = await readBlobText(downloads[1]?.blob as Blob);
+      expect(ics.match(/^BEGIN:VEVENT/gm)).toHaveLength(5);
+      expect(ics).not.toContain("incident-x");
+      expect(ics).not.toContain("STATUS:CANCELLED");
+      expect(ics).not.toContain("STATUS:TENTATIVE");
+    });
+
+    it("downloads nothing when only unapproved reports started in the month", async () => {
+      const draft: CalendarIncident = {
+        ...incident("x1", "MAJOR", [KJL], "2026-10-06T08:00:00", null),
+        status: "DRAFT",
+      };
+      await boot("/", [draft]);
+
+      exportMonth("csv");
+
+      expect(calendarExportCount()).toBe(0);
+      expect(downloads).toEqual([]);
     });
 
     it("exports the whole month when no filter is active", async () => {
