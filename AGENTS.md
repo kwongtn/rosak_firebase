@@ -72,17 +72,25 @@ third-party GTFS-realtime feeds for the tracker.
   `src/app/core/composables/is-browser.ts`; tear down Firestore `onSnapshot` subscriptions in
   `ngOnDestroy`.
 - **Lazy-load** new features via `loadChildren`/`loadComponent` in `src/app/app.routes.ts`. Error
-  budgets: 1 MB initial bundle, 8 kB per component stylesheet.
+  budgets: 1 MB initial bundle, 8 kB per component stylesheet. Angular 22.2 counts eager shared
+  chunks as initial: the initial total is about 985 kB (little headroom) and the 500 kB warning
+  always fires, so keep new eager imports out of `main`.
+- **Sentry Replay and the feedback widget are lazy chunks** (`core/sentry/`). Name
+  `Sentry.replayIntegration`, `feedbackIntegration`, `getReplay` or `getFeedback` only in
+  `core/sentry/{replay,feedback}-integration.ts`; `scripts/check-sentry-lazy.mjs` runs at the end of
+  `npm run generate` (so on start, build, test and e2e, and in CI) and fails otherwise.
 - **Never hand-edit** `src/build-info.ts`, `src/environments/*.generated.ts`,
   `public/favicon.{svg,ico}` — `scripts/*.mjs` regenerate them on every `prestart`/`prebuild`.
   Config changes belong in `apphosting.yaml` / `apphosting.staging.yaml`.
 
 **Typing & error handling**
 
-- **`strict`, `strictNullChecks`, and `strictTemplates` are all OFF** in `tsconfig.json`: the
-  compiler will not catch null/undefined — guard explicitly with `?.` / `??` / early returns.
-  Enforced: `noImplicitOverride`, `noImplicitReturns`, `noPropertyAccessFromIndexSignature`,
-  `noFallthroughCasesInSwitch`.
+- **`strict` is ON by default.** `tsconfig.json` sets no `strict` key, and TypeScript 6 defaults it
+  to true, so `strictNullChecks`, `noImplicitAny` and the rest of the family are enforced (checked:
+  `const a: string = null` fails `tsc`). Also enforced: `noImplicitOverride`, `noImplicitReturns`,
+  `noPropertyAccessFromIndexSignature`, `noFallthroughCasesInSwitch`. `strictTemplates` is not set
+  (Angular's default: off). GraphQL response types are hand-written mirrors of untyped query
+  strings, so still guard server data explicitly with `?.` / `??` / early returns.
 - **`any` is banned.** Use `unknown` plus narrowing, or a real type.
 - **Never swallow errors.** No empty `catch`, no catch-and-`console.log`. The global `ErrorHandler`
   is Sentry-backed — let unexpected errors reach it. Throw typed errors (e.g.
