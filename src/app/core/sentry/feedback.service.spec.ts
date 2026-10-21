@@ -68,6 +68,8 @@ describe("feedback.service: FeedbackService", () => {
 
     expect(load).toHaveBeenCalledOnce();
     expect(widget.createForm).toHaveBeenCalledOnce();
+    // Two open() calls would leave body.style.overflow locked after close (see openForm()).
+    expect(form.open).toHaveBeenCalledOnce();
   });
 
   it("retries the load on the next open after it failed, instead of replaying the failure", async () => {

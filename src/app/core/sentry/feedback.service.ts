@@ -41,8 +41,17 @@ export class FeedbackService {
    * icon tray's template comment for why). */
   private form: Promise<FeedbackForm | undefined> | undefined;
 
-  /** Loads the widget on first use, then shows its form. */
-  async openForm(): Promise<void> {
+  /** The open in flight, so overlapping taps share it. */
+  private opening: Promise<void> | undefined;
+
+  /** Loads the widget on first use, then shows its form. Taps while an open is in flight reuse it:
+   * Sentry's dialog stores `body.style.overflow` on every open(), so a second open() would save
+   * "hidden" as the original and leave the page scroll-locked after close. */
+  openForm(): Promise<void> {
+    return (this.opening ??= this.show().finally(() => (this.opening = undefined)));
+  }
+
+  private async show(): Promise<void> {
     const feedback = await this.load();
     // Re-applied on every open (which also covers the first one, right after the lazy load).
     // `resolvedTheme`, not the raw "system" mode: it is already the concrete light/dark this app is
