@@ -1,4 +1,4 @@
-import { Component, inject } from "@angular/core";
+import { Component, inject, viewChild } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
@@ -57,15 +57,21 @@ import { ReportSheetService } from "../data/report-sheet.service";
         <h2 class="text-base font-semibold">Add a Spotting Entry</h2>
       </div>
       <div hlmSheetBody>
-        <app-report-form #reportFormRef (submitted)="reportSheet.setOpen(false)" />
+        <!-- The form (and its fleet-wide LinesAndVehicles read) exists only once the sheet has been
+             opened: mounted with the shell it ran during SSR and rode in TransferState on every
+             /spotting page. @defer never renders on the server; prefetch keeps the first open
+             quick. Inside the block the form is out of the footer's reach, hence reportFormRef(). -->
+        @defer (when reportSheet.isOpen(); prefetch on idle) {
+          <app-report-form #reportForm (submitted)="reportSheet.setOpen(false)" />
+        }
       </div>
       <div hlmSheetFooter>
         <button
           hlmBtn
           variant="ghost"
           size="sm"
-          [disabled]="reportFormRef.isSubmitting()"
-          (click)="reportFormRef.clear()"
+          [disabled]="reportFormRef()?.isSubmitting()"
+          (click)="reportFormRef()?.clear()"
         >
           Clear form
         </button>
@@ -73,13 +79,17 @@ import { ReportSheetService } from "../data/report-sheet.service";
           <button hlmBtn variant="outline" (click)="reportSheet.setOpen(false)">Cancel</button>
           <button
             hlmBtn
-            [disabled]="reportFormRef.isSubmitting() || reportFormRef.isPhotosCompressing()"
-            (click)="reportFormRef.submit()"
+            [disabled]="
+              !reportFormRef() ||
+              reportFormRef()?.isSubmitting() ||
+              reportFormRef()?.isPhotosCompressing()
+            "
+            (click)="reportFormRef()?.submit()"
           >
             {{
-              reportFormRef.isSubmitting()
+              reportFormRef()?.isSubmitting()
                 ? "Submitting…"
-                : reportFormRef.isPhotosCompressing()
+                : reportFormRef()?.isPhotosCompressing()
                   ? "Processing photos…"
                   : "Submit"
             }}
@@ -94,4 +104,7 @@ export class SpottingShellPage {
   protected readonly footerEndRightSlotId = resolveAdSlot("footerEndRight");
 
   protected readonly reportSheet = inject(ReportSheetService);
+
+  /** The form inside the sheet's `@defer` block — `undefined` until the sheet is first opened. */
+  protected readonly reportFormRef = viewChild<ReportFormComponent>("reportForm");
 }
