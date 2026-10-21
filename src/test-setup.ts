@@ -3,7 +3,7 @@
  * `projects.web.architect.test.options.setupFiles`.
  *
  * jsdom ships no `ResizeObserver`, and several components construct one unconditionally in
- * `afterNextRender` (`justified-grid.component.ts`, `spotting-activity-heatmap.ts`). Every spec that
+ * `afterNextRender` (`app-nav.component.ts`, `spotting-activity-heatmap.ts`). Every spec that
  * renders those otherwise repeats the same no-op stub, so one guarded no-op here replaces those
  * four duplicates.
  *

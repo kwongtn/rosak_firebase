@@ -93,7 +93,7 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   lightbox, driven by a Relay-style GraphQL connection.
   - Deps: `graphqlResource`/`GraphQLClient`, `ToastService`, Hlm button/skeleton.
   - Extend: reusable `JustifiedGridComponent`/`MediaViewerComponent` (pure input/output, no gallery
-    coupling); pure `computeJustifiedRows()`/`getImgurThumbnail()`.
+    coupling); pure `getImgurThumbnail()`/`mediaLabel()`.
 - **gdpr** (`features/gdpr/` — single page; [doc](components/gdpr.md)) — Read-only GDPR compliance
   checklist rendered from a hand-edited Firestore doc.
   - Deps: `firebase/firestore` (`public/gdpr`, direct SDK), `HlmBadge`/`HlmSkeleton`.
