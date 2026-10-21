@@ -23,6 +23,15 @@ function setDocumentHidden(hidden: boolean): void {
   document.dispatchEvent(new Event("visibilitychange"));
 }
 
+/** The connection, driven by the tests: `navigator.onLine` is read through this. */
+let navigatorOnLine = true;
+
+/** Flips `navigator.onLine` and fires `online`/`offline` on window, the way the browser does. */
+function setOnline(online: boolean): void {
+  navigatorOnLine = online;
+  window.dispatchEvent(new Event(online ? "online" : "offline"));
+}
+
 describe("PollingSource", () => {
   beforeEach(() => {
     vi.useFakeTimers({
@@ -30,6 +39,8 @@ describe("PollingSource", () => {
     });
     documentHidden = false;
     Object.defineProperty(document, "hidden", { configurable: true, get: () => documentHidden });
+    navigatorOnLine = true;
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => navigatorOnLine });
     TestBed.configureTestingModule({
       providers: [{ provide: PLATFORM_ID, useValue: "browser" }],
     });
@@ -38,6 +49,7 @@ describe("PollingSource", () => {
   afterEach(() => {
     TestBed.resetTestingModule();
     Reflect.deleteProperty(document, "hidden");
+    Reflect.deleteProperty(navigator, "onLine");
     vi.useRealTimers();
   });
 
@@ -269,6 +281,125 @@ describe("PollingSource", () => {
       vi.advanceTimersByTime(60000);
 
       expect(addSpy).not.toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+      expect(onRefresh).not.toHaveBeenCalled();
+      addSpy.mockRestore();
+    });
+  });
+
+  describe("connectivity", () => {
+    it("pauses while offline: no refresh fires however long the connection stays down", () => {
+      const onRefresh = vi.fn();
+      createSource(onRefresh);
+
+      vi.advanceTimersByTime(10000);
+      setOnline(false);
+      vi.advanceTimersByTime(300000);
+
+      expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("refreshes at once on reconnect, before the deadline, and restarts the cadence there", () => {
+      const onRefresh = vi.fn();
+      const source = createSource(onRefresh);
+
+      vi.advanceTimersByTime(10000);
+      setOnline(false);
+      vi.advanceTimersByTime(5000);
+      setOnline(true);
+
+      // 15s of the 30s countdown were still left: reconnecting does not wait for them.
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+      expect(source.secondsRemaining()).toBe(30);
+      vi.advanceTimersByTime(29999);
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1);
+      expect(onRefresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts paused when created offline, and refreshes on reconnect", () => {
+      const onRefresh = vi.fn();
+      navigatorOnLine = false;
+      createSource(onRefresh);
+
+      vi.advanceTimersByTime(60000);
+      expect(onRefresh).not.toHaveBeenCalled();
+
+      setOnline(true);
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays paused when the tab becomes visible while still offline", () => {
+      const onRefresh = vi.fn();
+      createSource(onRefresh);
+
+      setDocumentHidden(true);
+      setOnline(false);
+      setDocumentHidden(false);
+      vi.advanceTimersByTime(120000);
+
+      expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("does not refresh on a reconnect while hidden: the return to visible decides", () => {
+      const onRefresh = vi.fn();
+      createSource(onRefresh);
+
+      vi.advanceTimersByTime(10000);
+      setDocumentHidden(true);
+      setOnline(false);
+      setOnline(true);
+      expect(onRefresh).not.toHaveBeenCalled();
+
+      // Visible again 5s later, with 15s of the deadline left: re-armed, not refreshed.
+      vi.advanceTimersByTime(5000);
+      setDocumentHidden(false);
+      expect(onRefresh).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(15000);
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays off a 'Never' beat on reconnect", () => {
+      const onRefresh = vi.fn();
+      const source = createSource(onRefresh);
+      source.setIntervalMs(null);
+
+      setOnline(false);
+      setOnline(true);
+      vi.advanceTimersByTime(120000);
+
+      expect(onRefresh).not.toHaveBeenCalled();
+      expect(source.secondsRemaining()).toBe(0);
+    });
+
+    it("removes its online and offline listeners when destroyed", () => {
+      const removeSpy = vi.spyOn(window, "removeEventListener");
+      const onRefresh = vi.fn();
+      createSource(onRefresh);
+
+      TestBed.resetTestingModule();
+      setOnline(false);
+      setOnline(true);
+
+      expect(removeSpy).toHaveBeenCalledWith("online", expect.any(Function));
+      expect(removeSpy).toHaveBeenCalledWith("offline", expect.any(Function));
+      expect(onRefresh).not.toHaveBeenCalled();
+      removeSpy.mockRestore();
+    });
+
+    it("does not listen for connectivity on the server", () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [{ provide: PLATFORM_ID, useValue: "server" }],
+      });
+      const addSpy = vi.spyOn(window, "addEventListener");
+
+      const onRefresh = vi.fn();
+      createSource(onRefresh);
+      setOnline(false);
+      setOnline(true);
+
+      expect(addSpy).not.toHaveBeenCalledWith("online", expect.any(Function));
+      expect(addSpy).not.toHaveBeenCalledWith("offline", expect.any(Function));
       expect(onRefresh).not.toHaveBeenCalled();
       addSpy.mockRestore();
     });

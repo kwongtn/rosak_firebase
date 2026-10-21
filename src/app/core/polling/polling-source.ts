@@ -24,6 +24,12 @@ const DEFAULT_POLLING_INTERVAL_MS = 30000;
  * While the document is hidden the timers are paused, and the wall-clock deadline is kept: on
  * `visibilitychange` back to visible, a deadline that passed while hidden refreshes at once, and
  * one still ahead is re-armed for the remaining time. A hidden tab therefore costs no requests.
+ *
+ * Offline (`navigator.onLine === false`, the same signal `OnlineService` reads) pauses the timers
+ * the same way, so no request is fired into a dead connection. The window's `online` event then
+ * refreshes at once, whatever the deadline, because a request may have failed just before the
+ * browser noticed the drop. Not while hidden (visibility takes over from there) and not for a
+ * "Never" beat.
  */
 export class PollingSource {
   readonly intervalMs = signal<PollingIntervalMs>(DEFAULT_POLLING_INTERVAL_MS);
@@ -48,12 +54,16 @@ export class PollingSource {
     this.onRefresh = onRefresh;
     if (this.isBrowser) {
       this.doc.addEventListener("visibilitychange", this.onVisibilityChange);
+      window.addEventListener("offline", this.onConnectivityChange);
+      window.addEventListener("online", this.onConnectivityChange);
       this.scheduleNext(this.intervalMs() ?? Infinity);
     }
     this.destroyRef.onDestroy(() => {
       this.stop();
       if (this.isBrowser) {
         this.doc.removeEventListener("visibilitychange", this.onVisibilityChange);
+        window.removeEventListener("offline", this.onConnectivityChange);
+        window.removeEventListener("online", this.onConnectivityChange);
       }
     });
   }
@@ -99,10 +109,11 @@ export class PollingSource {
   }
 
   /** Arms the refresh timeout and the countdown ticker for `delayMs` from now. Arms nothing on the
-   * server, while the document is hidden, or for "Never" (a non-finite delay). */
+   * server, while the document is hidden or the browser is offline, or for "Never" (a non-finite
+   * delay). */
   private armTimers(delayMs: number): void {
     this.pauseTimers();
-    if (!this.isBrowser || this.doc.hidden || !Number.isFinite(delayMs)) {
+    if (!this.isBrowser || this.isPaused() || !Number.isFinite(delayMs)) {
       return;
     }
     this.startTicker();
@@ -135,10 +146,16 @@ export class PollingSource {
     this.pauseTimers();
   }
 
-  /** Hidden: pause. Visible: refresh now if the deadline passed while hidden, else re-arm for the
-   * time that remains (keeping the cadence's percent scale, so the countdown does not jump). */
+  /** Browser-only: a hidden tab or an offline browser arms no timers. */
+  private isPaused(): boolean {
+    return this.doc.hidden || !navigator.onLine;
+  }
+
+  /** Hidden (or offline): pause. Visible: refresh now if the deadline passed while hidden, else
+   * re-arm for the time that remains (keeping the cadence's percent scale, so the countdown does
+   * not jump). */
   private readonly onVisibilityChange = (): void => {
-    if (this.doc.hidden) {
+    if (this.isPaused()) {
       this.pauseTimers();
       return;
     }
@@ -152,6 +169,18 @@ export class PollingSource {
     }
     this.armTimers(remainingMs);
     this.tick();
+  };
+
+  /** Offline: pause, keeping the deadline. Back online: refresh now (see the class comment). */
+  private readonly onConnectivityChange = (event: Event): void => {
+    if (event.type === "offline") {
+      this.pauseTimers();
+      return;
+    }
+    if (this.doc.hidden || !Number.isFinite(this.scheduledDelayMs)) {
+      return;
+    }
+    this.refreshNow();
   };
 
   private tick(): void {
