@@ -114,11 +114,14 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
 - **gallery** (`features/gallery/` — page + 3 child components + pure utils;
   [doc](components/gallery.md)) — Paginated, year-grouped public photo feed with a full-screen
   lightbox, driven by a Relay-style GraphQL connection. A shared `/gallery/:mediaId` link opens from
-  one `media(id)` fetch (on the server too) with per-photo share tags.
+  one `media(id)` fetch (on the server too) with per-photo share tags. The lightbox steps between
+  photos (arrow keys, swipe, buttons; fetching the next page at the end of the feed) and shares a
+  photo's link.
   - Deps: `graphqlResource`/`GraphQLClient`, `ToastService`, `Title`/`Meta`, Hlm button/skeleton.
   - Extend: reusable `JustifiedGridComponent` (CSS-only layout, so the server renders the photos)
-    and `MediaViewerComponent` (modal dialog; pure input/output, no gallery coupling); pure
-    `getImgurThumbnail()`/`mediaLabel()`.
+    and `MediaViewerComponent` (modal dialog; input/output driven, no gallery coupling: optional
+    `prev`/`next`/`sharePath` inputs and a `navigate` output, plain without them, as in insiden);
+    pure `getImgurThumbnail()`/`mediaLabel()`.
 - **gdpr** (`features/gdpr/` — single page; [doc](components/gdpr.md)) — Read-only GDPR compliance
   checklist rendered from a hand-edited Firestore doc.
   - Deps: `firebase/firestore` (`public/gdpr`, direct SDK), `HlmBadge`/`HlmSkeleton`.
