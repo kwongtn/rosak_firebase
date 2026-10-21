@@ -174,23 +174,11 @@ export class GalleryPage {
     const id = this.selectedMedia()?.id;
     return id ? this.edges().findIndex((e) => e.node.id === id) : -1;
   });
-  /** The nearest loaded photo before (-1) or after (1) the open one that is a different photo.
-   * shortcut: skips only a repeat right beside the open photo. The backend's `medias` order has no
-   * tie-break, so a page can start with the last photo of the page before it (seen on the dev
-   * data), and Next must not land on the photo already open. It cannot catch a repeat further
-   * apart; a total order in rosak_backend is the real fix. */
-  private neighbourOf(direction: -1 | 1): MediaNode | null {
-    const edges = this.edges();
+  /** The loaded photo before (-1) or after (1) the open one: null at an end of what is loaded, and
+   * for an open photo the feed has not reached. `edges` holds each photo once (see `loadMore`). */
+  private neighbourOf(offset: -1 | 1): MediaNode | null {
     const index = this._openIndex();
-    if (index < 0) {
-      return null;
-    }
-    for (let i = index + direction; i >= 0 && i < edges.length; i += direction) {
-      if (edges[i].node.id !== edges[index].node.id) {
-        return edges[i].node;
-      }
-    }
-    return null;
+    return index < 0 ? null : (this.edges()[index + offset]?.node ?? null);
   }
   protected readonly prevMedia = computed(() => this.neighbourOf(-1));
   protected readonly nextMedia = computed(() => this.neighbourOf(1));
@@ -294,6 +282,9 @@ export class GalleryPage {
   }
 
   private inFlightLoad: Promise<boolean> | undefined;
+  /** The cursor of the last row the backend sent. Kept apart from `edges`, which leaves repeats
+   * out: the next page starts after the rows seen, not after the last row kept. */
+  private endCursor: string | null = null;
 
   /** Returns whether the load actually succeeded — callers that loop (jumpToYear) need to know
    * so they can stop instead of hammering a failing request repeatedly. Concurrent calls share
@@ -308,16 +299,22 @@ export class GalleryPage {
     this.isLoading.set(true);
     this.inFlightLoad = (async () => {
       try {
-        const after = this.edges().at(-1)?.cursor ?? null;
         const data = await this.graphql.request<MediasFeedQueryData, MediasFeedQueryVars>(
           MEDIAS_QUERY,
           {
             first: pageSize,
-            after,
+            after: this.endCursor,
           },
         );
         this.hasMore.set(data.medias.pageInfo.hasNextPage);
-        this.edges.update((list) => [...list, ...data.medias.edges]);
+        this.endCursor = data.medias.edges.at(-1)?.cursor ?? this.endCursor;
+        // The backend's `medias` order has no tie-break (rosak_backend), so a page can repeat a
+        // photo the page before it ended with. Keep the first sighting: the grid would show it
+        // twice, `track` would see a duplicate key, and Next in the viewer would land on it again.
+        this.edges.update((list) => {
+          const loaded = new Set(list.map((e) => e.node.id));
+          return [...list, ...data.medias.edges.filter((e) => !loaded.has(e.node.id))];
+        });
         return true;
       } catch (err) {
         this.toast.error(

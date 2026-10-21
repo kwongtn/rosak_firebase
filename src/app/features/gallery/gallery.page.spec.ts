@@ -221,13 +221,18 @@ async function settle(fixture: ComponentFixture<GalleryPage>): Promise<void> {
   TestBed.tick();
 }
 
-function feedOf(nodes: MediaNode[], hasNextPage = false): { data: MediasFeedQueryData } {
+/** A page of the feed. `offset` is how many rows came before it, so its cursors go on from there. */
+function feedOf(
+  nodes: MediaNode[],
+  hasNextPage = false,
+  offset = 0,
+): { data: MediasFeedQueryData } {
   return {
     data: {
       medias: {
         totalCount: nodes.length,
-        pageInfo: { hasNextPage, endCursor: nodes.length ? `c${nodes.length}` : null },
-        edges: nodes.map((node, i) => ({ cursor: `c${i + 1}`, node })),
+        pageInfo: { hasNextPage, endCursor: nodes.length ? `c${offset + nodes.length}` : null },
+        edges: nodes.map((node, i) => ({ cursor: `c${offset + i + 1}`, node })),
       },
     },
   };
@@ -633,11 +638,22 @@ describe("GalleryPage photo viewer navigation", () => {
       expect(tag('property="og:title"')).toBeUndefined();
     });
 
-    it("steps past a repeat of the open photo, which the backend's untied order can put at a page boundary", async () => {
+    it("shows a photo once that the next page repeats, which the backend's untied order can do at a page boundary", async () => {
       vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
-      // The next page started with the last photo of the one before it (as on the dev data).
-      const fixture = await openFromFeed([P1, P2, P2, P3], "p2");
+      const fixture = await openFromFeed([P1, P2], "p2", true);
+      // The next page starts with the last photo of the one before it (as on the dev data).
+      feedRequest().flush(feedOf([P2, P3], false, 2));
+      await settle(fixture);
 
+      const grid = (fixture.nativeElement as HTMLElement).querySelectorAll(
+        "app-justified-grid button",
+      );
+      expect(Array.from(grid, (tile) => tile.getAttribute("aria-label"))).toEqual([
+        "Photo by alpha, 12 May 2024",
+        "Photo by bravo, 12 May 2024",
+        "Photo by charlie, 12 May 2024",
+      ]);
+      // And the viewer steps from the open photo to the next one, not to itself.
       await click(fixture, "next");
       expect(shownImage(fixture)).toBe(P3.file!.url);
       await click(fixture, "prev");
@@ -679,13 +695,23 @@ describe("GalleryPage photo viewer navigation", () => {
       noFeedRequest(); // that was the last page
     });
 
-    it("counts a repeat of the open photo as the end: the photo is still the last one loaded", async () => {
-      const fixture = await openFromFeed([P1, P2, P2], "p2", true);
+    it("goes on from where a page of nothing but repeats ended, not from the last photo it kept", async () => {
+      vi.spyOn(Router.prototype, "navigate").mockResolvedValue(true);
+      const fixture = await openFromFeed([P1, P2], "p2", true);
 
+      // The page after is only a repeat of what is loaded: nothing to add, and more to come.
+      const repeats = feedRequest();
+      expect(repeats.request.body.variables).toEqual({ first: 24, after: "c2" });
+      repeats.flush(feedOf([P2], true, 2));
+      await settle(fixture);
+      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
+
+      // Off the last photo and back asks again. From c2 that would bring the same repeat for good.
+      await click(fixture, "prev");
+      await click(fixture, "next");
       const more = feedRequest();
       expect(more.request.body.variables).toEqual({ first: 24, after: "c3" });
-      expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
-      more.flush(feedOf([P3]));
+      more.flush(feedOf([P3], false, 3));
       await settle(fixture);
       expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("false");
     });
