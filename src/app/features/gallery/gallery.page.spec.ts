@@ -157,6 +157,33 @@ describe("GalleryPage year jump", () => {
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
   });
+
+  it("does not throw or scroll when the visitor left the page while the jump was loading", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    const fixture = create("browser");
+    const http = TestBed.inject(HttpTestingController);
+    http
+      .expectOne((req) => req.body.query === MEDIA_YEAR_COUNTS_QUERY)
+      .flush({ data: { mediasGroupByPeriod: [] } });
+    http.expectOne((req) => req.body.query === MEDIAS_QUERY).flush(feedOf([node], true));
+    await settle(fixture); // the first page's load is over, so the jump asks for its own page
+    const target = document.createElement("section");
+    target.id = "gallery-year-2023";
+    const scrollIntoView = vi.fn();
+    target.scrollIntoView = scrollIntoView;
+    document.body.appendChild(target);
+
+    const jump = fixture.componentInstance.jumpToYear(2023);
+    const nextPage = http.expectOne((req) => req.body.query === MEDIAS_QUERY);
+    fixture.destroy(); // a nav link was clicked; GalleryPage is not a reuse route
+    nextPage.flush(feedOf([{ ...node, id: "m0", createdDate: "2023-06-01" }]));
+
+    // afterNextRender on the destroyed view's injector would throw NG0911 here.
+    await expect(jump).resolves.toBeUndefined();
+    TestBed.tick();
+    target.remove();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
 });
 
 /** The page's real template, minus the shell and ad children (they pull in live services). */

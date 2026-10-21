@@ -2,6 +2,7 @@ import {
   afterNextRender,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   Injector,
@@ -110,6 +111,7 @@ export class GalleryPage {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
 
@@ -290,7 +292,9 @@ export class GalleryPage {
       this.jumpTargetYear.set(null);
       return;
     }
-    if (this.isBrowser) {
+    // A jump can take seconds; if the visitor left /gallery meanwhile, registering a render hook
+    // on the destroyed view would throw NG0911.
+    if (this.isBrowser && !this.destroyRef.destroyed) {
       // The year's section is rendered by the next change detection (a macrotask away when
       // zoneless), so scrolling any earlier finds nothing.
       afterNextRender(
