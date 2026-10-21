@@ -151,6 +151,14 @@ describe("MySpottingsComponent", () => {
       ]);
     });
 
+    it("underlines the link at rest and shows where keyboard focus is", async () => {
+      await render(makeUser([makeEvent("1")]), false);
+
+      const classes = vehicleLinks()[0].classList;
+      expect(classes.contains("underline")).toBe(true);
+      expect(classes.contains("focus-visible:ring-2")).toBe(true);
+    });
+
     it("keeps the type and line label beside the link", async () => {
       await render(makeUser([makeEvent("1")]), false);
 

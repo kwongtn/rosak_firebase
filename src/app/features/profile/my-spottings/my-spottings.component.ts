@@ -173,7 +173,7 @@ interface EventDayGroup {
                             @if (vehiclePath(event.vehicle); as path) {
                               <a
                                 [routerLink]="path"
-                                class="hover:text-foreground underline underline-offset-2"
+                                class="hover:text-foreground focus-visible:ring-ring/50 rounded-sm underline underline-offset-2 outline-none focus-visible:ring-2"
                                 data-testid="history-vehicle-link"
                                 >{{ event.vehicle.identificationNo }}</a
                               >

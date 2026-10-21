@@ -145,6 +145,20 @@ describe("UserCardComponent", () => {
       expect(favouriteLink()?.getAttribute("href")).toBe("/spotting/4/vehicle/81");
     });
 
+    it("looks like a link before anyone hovers it, and shows where keyboard focus is", async () => {
+      // A phone has no hover, so an underline at rest is the only sign the number opens a page.
+      await render([
+        {
+          vehicle: { id: "9", identificationNo: "SCS 3", lines: [{ id: "4", code: "KJL" }] },
+          count: 2,
+        },
+      ]);
+
+      const classes = favouriteLink()?.classList;
+      expect(classes?.contains("underline")).toBe(true);
+      expect(classes?.contains("focus-visible:ring-2")).toBe(true);
+    });
+
     it("also links on someone else's profile, the vehicle page is public", async () => {
       await render(
         [

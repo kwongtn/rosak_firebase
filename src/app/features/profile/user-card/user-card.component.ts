@@ -149,7 +149,7 @@ import { firstLineVehiclePath } from "../data/vehicle-link.util";
                 @if (_favouriteVehiclePath(); as path) {
                   <a
                     [routerLink]="path"
-                    class="underline-offset-4 hover:underline"
+                    class="focus-visible:ring-ring/50 rounded-sm underline underline-offset-4 outline-none focus-visible:ring-2"
                     data-testid="favourite-vehicle-link"
                     >{{ fav.vehicle.identificationNo }}</a
                   >
