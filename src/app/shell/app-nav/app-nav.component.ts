@@ -22,6 +22,7 @@ import { HoverPreloadStrategy } from "../../core/routing/hover-preload.strategy"
 import { AppNavIconTrayComponent } from "./app-nav-icon-tray.component";
 import { AppNavModuleMenuComponent } from "./app-nav-module-menu.component";
 import { NavMenuState } from "./app-nav-menu-state";
+import { OfflineStripComponent } from "../offline-strip/offline-strip.component";
 import {
   GENERIC_TITLE,
   NAV_LINKS,
@@ -74,6 +75,7 @@ let hasRevealedNavLinksThisPageLoad = false;
     AccountPanelComponent,
     AppNavIconTrayComponent,
     AppNavModuleMenuComponent,
+    OfflineStripComponent,
   ],
   // Full-bleed, but not via a percentage-math breakout trick (that was tried and genuinely
   // broke: every page renders this inside a `p-4 sm:p-6 ...` wrapper, and `left-1/2 -ml-[50vw]`
@@ -252,6 +254,7 @@ let hasRevealedNavLinksThisPageLoad = false;
         (accountRequested)="accountPanelOpen.set(true)"
       ></div>
     </div>
+    <app-offline-strip />
 
     <hlm-sheet [open]="accountPanelOpen()" (openChange)="accountPanelOpen.set($event)" side="right">
       <div hlmSheetHeader class="flex items-center justify-between gap-2">

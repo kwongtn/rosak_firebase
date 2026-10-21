@@ -4,6 +4,7 @@ import { AuthService } from "../../core/auth/auth.service";
 import { FeedbackService } from "../../core/sentry/feedback.service";
 import { CONSOLE_LINKS, MODULE_NAV_LINKS, type ModuleNavLink } from "../nav-config";
 import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.component";
+import { OfflineStripComponent } from "../offline-strip/offline-strip.component";
 
 /**
  * Compact floating nav pill for full-bleed pages (currently `/tracker`) that don't want the
@@ -19,7 +20,7 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
  */
 @Component({
   selector: "app-compact-nav",
-  imports: [RouterLink, RouterLinkActive, ThemeToggleComponent],
+  imports: [RouterLink, RouterLinkActive, ThemeToggleComponent, OfflineStripComponent],
   template: `
     <!-- max-w: room for the AntV logo parked in the top-right on mobile (see styles.css)
          instead of the two fighting for the same row. flex-wrap on the top row is a safety
@@ -221,6 +222,9 @@ import { ThemeToggleComponent } from "../../ui/theme-toggle/theme-toggle.compone
           }
         </div>
       }
+      <!-- Bleeds to the pill's edges (cancelling its px-3/py-1.5) so the strip reads as the pill's
+           bottom band; the margins net to zero height while the strip is empty. -->
+      <app-offline-strip class="-mx-3 mt-1.5 -mb-1.5 overflow-hidden rounded-b-lg" />
     </div>
   `,
 })
