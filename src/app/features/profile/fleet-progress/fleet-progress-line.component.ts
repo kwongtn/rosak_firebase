@@ -117,10 +117,15 @@ export class FleetProgressLineComponent {
     () => `${this.row().spotted} of ${this.row().total} vehicles spotted`,
   );
 
-  /** The roster minus the spotted vehicles, or `null` until the roster has loaded. */
+  /**
+   * The roster minus the spotted vehicles, or `null` until the answer has arrived. An answer with no
+   * such line (it was removed meanwhile) is an empty roster, not a spinner that never ends.
+   */
   protected readonly _unspotted = computed(() => {
-    const roster = this._fleet.data()?.lines[0]?.vehicles;
-    return roster ? unspottedVehicles(roster, this.row().spottedIds) : null;
+    const answer = this._fleet.data();
+    return answer
+      ? unspottedVehicles(answer.lines[0]?.vehicles ?? [], this.row().spottedIds)
+      : null;
   });
 
   protected _pathFor(vehicleId: string): string {

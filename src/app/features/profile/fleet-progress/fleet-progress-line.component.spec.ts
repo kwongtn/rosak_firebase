@@ -150,6 +150,22 @@ describe("FleetProgressLineComponent", () => {
     expect(byTestId("fleet-line-toggle")?.textContent?.trim()).toBe("Hide 3 not yet spotted");
   });
 
+  it("shows an empty list, not an endless spinner, when the answer has no such line", async () => {
+    render();
+    byTestId("fleet-line-toggle")?.click();
+    fixture.detectChanges();
+
+    rosterRequests()[0].flush({ data: { lines: [] } });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(byTestId("fleet-line-unspotted")?.textContent).not.toContain("Loading vehicles");
+    expect(byTestId("fleet-line-unspotted")?.textContent).toContain(
+      "No other vehicles on this line.",
+    );
+    expect(vehicleLinks()).toHaveLength(0);
+  });
+
   it("collapses and re-opens from the list it already has, without asking again", async () => {
     render();
     await openWithRoster();
