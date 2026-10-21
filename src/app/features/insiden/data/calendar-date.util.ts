@@ -1,12 +1,17 @@
 import { CalendarIncident } from "./insiden.queries";
 
+/** How many days either side of the shown month the page reads, so the calendar's leading and
+ * trailing days of the neighbouring months carry their dots. The page's own copy about the loaded
+ * window interpolates this, so the words cannot drift from the read. */
+export const CALENDAR_WINDOW_PAD_DAYS = 14;
+
 export function calendarMonthRange(monthKey: string): { start: string; end: string } {
   const month = new Date(`${monthKey}-01T00:00:00Z`);
   const year = month.getUTCFullYear();
   const index = month.getUTCMonth();
   return {
-    start: dateKeyOf(new Date(Date.UTC(year, index, 1 - 14))),
-    end: dateKeyOf(new Date(Date.UTC(year, index + 1, 14))),
+    start: dateKeyOf(new Date(Date.UTC(year, index, 1 - CALENDAR_WINDOW_PAD_DAYS))),
+    end: dateKeyOf(new Date(Date.UTC(year, index + 1, CALENDAR_WINDOW_PAD_DAYS))),
   };
 }
 

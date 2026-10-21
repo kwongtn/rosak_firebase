@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from "@angular/core";
+import { Component, computed, effect, inject, input, linkedSignal, signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { DatePipe } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -29,7 +29,11 @@ import {
   INSIDEN_INCIDENTS_QUERY,
   InsidenIncidentsQueryData,
 } from "./data/insiden.queries";
-import { calendarMonthRange, incidentCoversDate } from "./data/calendar-date.util";
+import {
+  CALENDAR_WINDOW_PAD_DAYS,
+  calendarMonthRange,
+  incidentCoversDate,
+} from "./data/calendar-date.util";
 import {
   emptyIncidentFilterUrlState,
   filterIncidents,
@@ -44,6 +48,7 @@ import {
   withLineToggled,
   withMineToggled,
   type IncidentFilterUrlState,
+  type IncidentLineOption,
 } from "./data/incident-filter.util";
 import {
   exportFilterTokens,
@@ -180,6 +185,12 @@ export class InsidenPage {
   /** "My lines" reads as pressed only while it is what drives the line axis. */
   protected readonly mineActive = computed(() => isMineActive(this.filterUrlState()));
   protected readonly pinnedCount = computed(() => this.preferences.pinnedLineIds().length);
+  /** False on the server and on the first client render, true once the pins have been read back from
+   * localStorage. "You have not pinned any lines" must wait for it, or a rider WITH pins sees it
+   * flash on a `?mine=1` link before their pins arrive. */
+  protected readonly pinsHydrated = this.preferences.hydrated;
+  /** The width of the loaded window either side of the month, for the scope note's copy. */
+  protected readonly windowPadDays = CALENDAR_WINDOW_PAD_DAYS;
   protected readonly selectedLineIds = computed(() => new Set(this.filterCriteria().lineIds));
   protected readonly severityValue = computed(
     () => this.filterCriteria().severity?.toLowerCase() ?? "all",
@@ -199,6 +210,10 @@ export class InsidenPage {
     () => this.incidentsResource.data()?.calendarIncidents ?? [],
   );
   protected readonly loadedCount = computed(() => this.loadedIncidents().length);
+  /** Whether an answer for the CURRENT month is in hand. `data()` is dropped the moment the month
+   * changes, so every note that counts the loaded incidents ("Showing 2 of 5", "no incident in this
+   * window") waits for it instead of announcing "0 of 0" for the length of the request. */
+  protected readonly hasLoaded = computed(() => this.incidentsResource.data() !== undefined);
 
   /** The incidents every list and the calendar render: the loaded window narrowed by the filter.
    * `dayIncidents`, `pinned` and the calendar's dots all derive from this, so a filter applies to
@@ -215,9 +230,20 @@ export class InsidenPage {
     incidentsForMonthExport(this.allIncidents(), this.selectedMonth()),
   );
 
-  protected readonly lineOptions = computed(() =>
-    incidentLineOptions(this.loadedIncidents(), this.preferences.pinnedLineIds()),
-  );
+  /** The line chips: rebuilt from every month's read, but HELD while the next month is on its way.
+   * `data()` is dropped when the month changes, so a plain `computed` would empty the strip for the
+   * length of the request and remount every chip (a chip that had keyboard focus would lose it). */
+  protected readonly lineOptions = linkedSignal<
+    { options: IncidentLineOption[]; fetching: boolean },
+    IncidentLineOption[]
+  >({
+    source: () => ({
+      options: incidentLineOptions(this.loadedIncidents(), this.preferences.pinnedLineIds()),
+      fetching: this.incidentsResource.isFetching(),
+    }),
+    computation: ({ options, fetching }, previous) =>
+      fetching && previous !== undefined ? previous.value : options,
+  });
   /** Selected lines that have no chip (a shared link naming a line with no incident this month, or a
    * pinned line with none), counted so an active filter is never invisible. */
   protected readonly unlistedLineCount = computed(

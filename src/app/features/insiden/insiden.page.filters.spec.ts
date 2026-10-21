@@ -18,6 +18,7 @@ import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { ToastService } from "../../ui/toast/toast.service";
 import { IncidentCalendarComponent } from "./calendar/calendar.component";
+import { CALENDAR_WINDOW_PAD_DAYS } from "./data/calendar-date.util";
 import { INSIDEN_INCIDENTS_QUERY, type CalendarIncident } from "./data/insiden.queries";
 import { INSIDEN_MONTHLY_HISTORY_QUERY } from "./data/insiden-history.queries";
 import { IncidentCardComponent } from "./incident-card/incident-card.component";
@@ -76,16 +77,21 @@ describe("InsidenPage incident filters", () => {
   let httpMock: HttpTestingController;
   let router: Router;
   let pins: WritableSignal<string[]>;
+  let hydrated: WritableSignal<boolean>;
 
   beforeEach(async () => {
     pins = signal<string[]>([]);
+    hydrated = signal(true);
     await TestBed.configureTestingModule({
       imports: [InsidenPage],
       providers: [
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
         provideRouter([{ path: "**", component: RouteStub }]),
-        { provide: PreferencesService, useValue: { pinnedLineIds: pins.asReadonly() } },
+        {
+          provide: PreferencesService,
+          useValue: { pinnedLineIds: pins.asReadonly(), hydrated: hydrated.asReadonly() },
+        },
         {
           provide: AuthService,
           useValue: { isLoggedIn: () => false, isAdmin: () => false, user: () => null },
@@ -193,7 +199,10 @@ describe("InsidenPage incident filters", () => {
       // Sorted by code, none pinned.
       expect(chipCodes()).toEqual(["AG", "KGL", "KJL"]);
       expect(root().querySelector('[data-testid="filter-clear"]')).toBeNull();
-      expect(root().querySelector('[data-testid="filter-count"]')).toBeNull();
+      // The live region is always in the DOM (a region created together with its text is not
+      // announced), and empty until a filter gives it something to say.
+      expect(byTestId("filter-count").getAttribute("aria-live")).toBe("polite");
+      expect(byTestId("filter-count").textContent?.trim()).toBe("");
     });
 
     it("says the filters apply to the shown month's loaded window, not all history", async () => {
@@ -201,7 +210,8 @@ describe("InsidenPage incident filters", () => {
 
       const note = byTestId("filter-scope").textContent ?? "";
       expect(note).toContain("October 2026");
-      expect(note).toContain("14 days either side");
+      // Interpolated from the read's own constant, so the copy cannot drift from the window.
+      expect(note).toContain(`${CALENDAR_WINDOW_PAD_DAYS} days either side`);
       expect(note).toContain("ongoing");
       expect(note).toContain("not to all history");
     });
@@ -403,6 +413,29 @@ describe("InsidenPage incident filters", () => {
       expect(dayIds()).toEqual(["a", "b", "c", "e"]);
     });
 
+    it("waits for the pins to be read back before saying there are none", async () => {
+      hydrated.set(false);
+      await boot("/?mine=1");
+      expect(root().querySelector('[data-testid="filter-no-pins"]')).toBeNull();
+
+      // localStorage read, and the rider really has none.
+      hydrated.set(true);
+      await settle();
+      expect(byTestId("filter-no-pins").textContent).toContain("not pinned any lines");
+    });
+
+    it("never shows it to a rider whose pins arrive with the read-back", async () => {
+      hydrated.set(false);
+      await boot("/?mine=1");
+
+      pins.set(["3"]);
+      hydrated.set(true);
+      await settle();
+
+      expect(root().querySelector('[data-testid="filter-no-pins"]')).toBeNull();
+      expect(dayIds()).toEqual(["a", "b"]);
+    });
+
     it("lets an explicit ?lines= win over mine=1", async () => {
       pins.set(["10"]);
       await boot("/?mine=1&lines=3");
@@ -419,6 +452,32 @@ describe("InsidenPage incident filters", () => {
       expect(byTestId("filter-count").textContent?.replace(/\s+/g, " ").trim()).toBe(
         "Showing 2 of 5.",
       );
+    });
+
+    it("fills the live region when a filter turns on, so the count is announced", async () => {
+      await boot();
+      const region = byTestId("filter-count");
+      expect(region.textContent?.trim()).toBe("");
+
+      byTestId("filter-line-3").click();
+      await settle();
+
+      // The SAME element, now with text: a screen reader announces a change, not a new node.
+      expect(byTestId("filter-count")).toBe(region);
+      expect(region.textContent?.replace(/\s+/g, " ").trim()).toBe("Showing 2 of 5.");
+    });
+
+    it("moves keyboard focus to My lines when Clear filters removes itself", async () => {
+      await boot("/?lines=3");
+      const clear = byTestId("filter-clear");
+      clear.focus();
+      expect(document.activeElement).toBe(clear);
+
+      clear.click();
+      await settle();
+
+      expect(root().querySelector('[data-testid="filter-clear"]')).toBeNull();
+      expect(document.activeElement).toBe(byTestId("filter-mine"));
     });
 
     it("clears everything with one button and removes every param", async () => {
@@ -453,6 +512,57 @@ describe("InsidenPage incident filters", () => {
       expect(byTestId("filter-unlisted").textContent?.replace(/\s+/g, " ")).toContain(
         "1 selected line has no incident in this window.",
       );
+    });
+
+    describe("while the next month loads", () => {
+      /** Moves the page to November and leaves its read in flight. */
+      function startNextMonth(): ReturnType<HttpTestingController["expectOne"]> {
+        fixture.componentRef.setInput("date", "2026-11-03");
+        fixture.detectChanges();
+        TestBed.tick();
+        const read = httpMock.expectOne(
+          (request) => request.body?.query === INSIDEN_INCIDENTS_QUERY,
+        );
+        fixture.detectChanges();
+        return read;
+      }
+
+      it("keeps the filter bar and its line chips instead of blinking them out", async () => {
+        await boot("/?lines=3");
+        const bar = byTestId("incident-filters");
+        const chip = byTestId("filter-line-3");
+
+        const read = startNextMonth();
+
+        // `data()` is dropped the moment the month changes; the strip and the very same chip stay.
+        expect(byTestId("incident-filters")).toBe(bar);
+        expect(byTestId("filter-line-3")).toBe(chip);
+        expect(chipCodes()).toEqual(["AG", "KGL", "KJL"]);
+        read.flush({ data: { calendarIncidents: [] } });
+        await settle();
+      });
+
+      it("does not announce a count or a missing line for data it does not have yet", async () => {
+        await boot("/?lines=3");
+        expect(byTestId("filter-count").textContent?.replace(/\s+/g, " ").trim()).toBe(
+          "Showing 2 of 5.",
+        );
+
+        const read = startNextMonth();
+
+        // No "Showing 0 of 0." and no "1 selected line has no incident in this window." for the
+        // length of the request: both would be claims about a month that has not arrived.
+        expect(byTestId("filter-count").textContent?.trim()).toBe("");
+        expect(root().querySelector('[data-testid="filter-unlisted"]')).toBeNull();
+
+        read.flush({ data: { calendarIncidents: [] } });
+        await settle();
+        expect(byTestId("filter-count").textContent?.replace(/\s+/g, " ").trim()).toBe(
+          "Showing 0 of 0.",
+        );
+        expect(byTestId("filter-unlisted").textContent).toContain("1 selected line has");
+        expect(chipCodes()).toEqual([]);
+      });
     });
 
     it("keeps the filters in the URL when a day is picked", async () => {

@@ -1,4 +1,9 @@
-import { calendarMonthRange, dateKeyOf, incidentCoversDate } from "./calendar-date.util";
+import {
+  CALENDAR_WINDOW_PAD_DAYS,
+  calendarMonthRange,
+  dateKeyOf,
+  incidentCoversDate,
+} from "./calendar-date.util";
 import { CalendarIncident } from "./insiden.queries";
 
 function createMockIncident(
@@ -38,6 +43,14 @@ describe("calendarMonthRange", () => {
     ["2025-02", "2025-01-18", "2025-03-14"],
   ])("pads %s by exactly fourteen days on either side", (month, start, end) => {
     expect(calendarMonthRange(month)).toEqual({ start, end });
+  });
+
+  it("pads by CALENDAR_WINDOW_PAD_DAYS, the figure the page's scope note quotes", () => {
+    expect(CALENDAR_WINDOW_PAD_DAYS).toBe(14);
+    // 2026-09: the 1st minus the pad, and the day after the last day plus the pad.
+    const { start, end } = calendarMonthRange("2026-09");
+    expect(start).toBe(dateKeyOf(new Date(Date.UTC(2026, 8, 1 - CALENDAR_WINDOW_PAD_DAYS))));
+    expect(end).toBe(dateKeyOf(new Date(Date.UTC(2026, 9, CALENDAR_WINDOW_PAD_DAYS))));
   });
 });
 

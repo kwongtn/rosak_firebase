@@ -47,6 +47,103 @@
     </nav>
 
     @if (activeTab() === "incidents") {
+      <section
+        class="flex flex-col gap-2"
+        aria-label="Filter incidents"
+        data-testid="incident-filters"
+      >
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Lines">
+            <button
+              #mineChip
+              type="button"
+              hlmBadge
+              [variant]="mineActive() ? 'default' : 'outline'"
+              class="cursor-pointer px-3 py-1.5 text-sm"
+              data-testid="filter-mine"
+              [attr.aria-pressed]="mineActive()"
+              (click)="toggleMine()"
+            >
+              My lines
+              @if (pinnedCount() > 0) {
+                ({{ pinnedCount() }})
+              }
+            </button>
+            @for (line of lineOptions(); track line.id) {
+              <button
+                type="button"
+                hlmBadge
+                [variant]="selectedLineIds().has(line.id) ? 'default' : 'outline'"
+                class="cursor-pointer px-3 py-1.5 text-sm"
+                [attr.data-testid]="'filter-line-' + line.id"
+                [attr.aria-pressed]="selectedLineIds().has(line.id)"
+                [attr.aria-label]="line.code + ', ' + line.displayName"
+                [title]="line.displayName"
+                (click)="toggleLine(line.id)"
+              >
+                {{ line.code }}
+              </button>
+            }
+          </div>
+          <div
+            class="ml-auto flex flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label="Severity"
+            data-testid="filter-severity"
+          >
+            <span class="text-muted-foreground text-xs" aria-hidden="true">Severity</span>
+            @for (option of severityOptions; track option.value) {
+              <button
+                type="button"
+                hlmBadge
+                [variant]="severityValue() === option.value ? 'default' : 'outline'"
+                class="cursor-pointer px-3 py-1.5 text-sm"
+                [attr.data-testid]="'filter-severity-' + option.value"
+                [attr.aria-pressed]="severityValue() === option.value"
+                (click)="setSeverity(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+          @if (filterActive()) {
+            <button
+              hlmBtn
+              variant="ghost"
+              size="sm"
+              data-testid="filter-clear"
+              (click)="clearFilters(); mineChip.focus()"
+            >
+              Clear filters
+            </button>
+          }
+        </div>
+        <p class="text-muted-foreground text-xs" data-testid="filter-scope">
+          Filters apply to the incidents loaded for
+          {{ selectedDateObj() | date: "MMMM y" : "UTC" }} only (that month,
+          {{ windowPadDays }} days either side and ongoing incidents), not to all history.
+          <!-- Always in the DOM, filled in and emptied: a live region that is created together with its
+               text is not announced, so the element must exist before the count does. -->
+          <span aria-live="polite" data-testid="filter-count">
+            @if (filterActive() && hasLoaded()) {
+              Showing {{ allIncidents().length }} of {{ loadedCount() }}.
+            }
+          </span>
+          @if (hasLoaded() && unlistedLineCount() > 0) {
+            <span data-testid="filter-unlisted">
+              {{ unlistedLineCount() }} selected
+              {{ unlistedLineCount() === 1 ? "line has" : "lines have" }} no incident in this
+              window.
+            </span>
+          }
+          @if (mineActive() && pinsHydrated() && pinnedCount() === 0) {
+            <span data-testid="filter-no-pins">
+              You have not pinned any lines yet: pin lines on the home board to use My lines.
+            </span>
+          }
+        </p>
+      </section>
+
       @if (isLoading()) {
         <div class="flex flex-col gap-6 lg:flex-row">
           <div class="flex flex-col gap-3 lg:w-96">
@@ -68,100 +165,6 @@
       } @else if (hasError()) {
         <app-retry-banner [resource]="incidentsResource" message="Couldn't load incidents." />
       } @else {
-        <section
-          class="flex flex-col gap-2"
-          aria-label="Filter incidents"
-          data-testid="incident-filters"
-        >
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Lines">
-              <button
-                type="button"
-                hlmBadge
-                [variant]="mineActive() ? 'default' : 'outline'"
-                class="cursor-pointer px-3 py-1.5 text-sm"
-                data-testid="filter-mine"
-                [attr.aria-pressed]="mineActive()"
-                (click)="toggleMine()"
-              >
-                My lines
-                @if (pinnedCount() > 0) {
-                  ({{ pinnedCount() }})
-                }
-              </button>
-              @for (line of lineOptions(); track line.id) {
-                <button
-                  type="button"
-                  hlmBadge
-                  [variant]="selectedLineIds().has(line.id) ? 'default' : 'outline'"
-                  class="cursor-pointer px-3 py-1.5 text-sm"
-                  [attr.data-testid]="'filter-line-' + line.id"
-                  [attr.aria-pressed]="selectedLineIds().has(line.id)"
-                  [attr.aria-label]="line.code + ', ' + line.displayName"
-                  [title]="line.displayName"
-                  (click)="toggleLine(line.id)"
-                >
-                  {{ line.code }}
-                </button>
-              }
-            </div>
-            <div
-              class="ml-auto flex flex-wrap items-center gap-1.5"
-              role="group"
-              aria-label="Severity"
-              data-testid="filter-severity"
-            >
-              <span class="text-muted-foreground text-xs" aria-hidden="true">Severity</span>
-              @for (option of severityOptions; track option.value) {
-                <button
-                  type="button"
-                  hlmBadge
-                  [variant]="severityValue() === option.value ? 'default' : 'outline'"
-                  class="cursor-pointer px-3 py-1.5 text-sm"
-                  [attr.data-testid]="'filter-severity-' + option.value"
-                  [attr.aria-pressed]="severityValue() === option.value"
-                  (click)="setSeverity(option.value)"
-                >
-                  {{ option.label }}
-                </button>
-              }
-            </div>
-            @if (filterActive()) {
-              <button
-                hlmBtn
-                variant="ghost"
-                size="sm"
-                data-testid="filter-clear"
-                (click)="clearFilters()"
-              >
-                Clear filters
-              </button>
-            }
-          </div>
-          <p class="text-muted-foreground text-xs" data-testid="filter-scope">
-            Filters apply to the incidents loaded for
-            {{ selectedDateObj() | date: "MMMM y" : "UTC" }} only (that month, 14 days either side
-            and ongoing incidents), not to all history.
-            @if (filterActive()) {
-              <span aria-live="polite" data-testid="filter-count">
-                Showing {{ allIncidents().length }} of {{ loadedCount() }}.
-              </span>
-            }
-            @if (unlistedLineCount() > 0) {
-              <span data-testid="filter-unlisted">
-                {{ unlistedLineCount() }} selected
-                {{ unlistedLineCount() === 1 ? "line has" : "lines have" }} no incident in this
-                window.
-              </span>
-            }
-            @if (mineActive() && pinnedCount() === 0) {
-              <span data-testid="filter-no-pins">
-                You have not pinned any lines yet: pin lines on the home board to use My lines.
-              </span>
-            }
-          </p>
-        </section>
-
         <div class="flex flex-col gap-6 lg:flex-row">
           <app-incident-calendar
             class="lg:w-96"
