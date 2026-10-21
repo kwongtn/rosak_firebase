@@ -21,6 +21,7 @@ import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { UserCardComponent } from "./user-card/user-card.component";
+import { FleetProgressComponent } from "./fleet-progress/fleet-progress.component";
 import { SpottingActivityHeatmap } from "../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { MySpottingsComponent } from "./my-spottings/my-spottings.component";
 import { MyLinksComponent } from "./my-links/my-links.component";
@@ -59,6 +60,7 @@ const PROFILE_FALLBACK_TITLE = "MLPTF | Profile";
     AppNavComponent,
     AppFooterComponent,
     UserCardComponent,
+    FleetProgressComponent,
     SpottingActivityHeatmap,
     MySpottingsComponent,
     MyLinksComponent,
@@ -90,6 +92,8 @@ const PROFILE_FALLBACK_TITLE = "MLPTF | Profile";
               [data]="user.spottingTrends"
               [totalAllTime]="user.spottingsCount"
             />
+            <!-- Own profile only: the public query carries one vehicle, not the whole set. -->
+            <app-fleet-progress [favouriteVehicles]="user.favouriteVehicles" />
 
             <!-- Density cap: see profileBetweenCardsSlotId — footerEnd + this = 2 (max). -->
             <app-ad-slot

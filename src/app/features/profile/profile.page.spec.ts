@@ -21,6 +21,7 @@ import {
   type GetUserDataData,
   type UserData,
 } from "./data/profile.queries";
+import { FleetProgressComponent } from "./fleet-progress/fleet-progress.component";
 import { MyLinksComponent } from "./my-links/my-links.component";
 import { MySpottingsComponent } from "./my-spottings/my-spottings.component";
 import { ProfilePage } from "./profile.page";
@@ -87,6 +88,7 @@ describe("ProfilePage", () => {
             AppNavComponent,
             AppFooterComponent,
             UserCardComponent,
+            FleetProgressComponent,
             SpottingActivityHeatmap,
             MySpottingsComponent,
             MyLinksComponent,
@@ -136,6 +138,43 @@ describe("ProfilePage", () => {
     await vi.waitFor(() => expect(cardNickname()).toBe("Me"));
 
     expect(requestMock.mock.calls[0][0]).toBe(GET_USER_DATA_QUERY);
+  });
+
+  describe("fleet progress", () => {
+    function fleetCard(): (HTMLElement & { favouriteVehicles?: unknown }) | null {
+      return fixture.nativeElement.querySelector("app-fleet-progress");
+    }
+
+    it("hands the owner's favourite vehicles to the fleet card on their own profile", async () => {
+      const favouriteVehicles = [
+        {
+          vehicle: {
+            id: "1",
+            identificationNo: "V1",
+            lines: [{ id: "4", code: "LRT KJL", totalVehicleCount: 116 }],
+          },
+          count: 3,
+        },
+      ];
+      requestMock.mockResolvedValue({ user: { ...makeUser("Me"), favouriteVehicles } });
+
+      await mount("me");
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(fleetCard()).not.toBeNull();
+      });
+
+      expect(fleetCard()?.favouriteVehicles).toEqual(favouriteVehicles);
+    });
+
+    it("never shows it on someone else's profile, whose query carries one vehicle only", async () => {
+      requestMock.mockResolvedValue(publicResponse("Alice"));
+
+      await mount("alice");
+      await vi.waitFor(() => expect(cardNickname()).toBe("Alice"));
+
+      expect(fleetCard()).toBeNull();
+    });
   });
 
   it("reloads when the id input changes while the page stays mounted", async () => {

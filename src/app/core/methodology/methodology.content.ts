@@ -151,6 +151,14 @@ const REVIEWED_AT_IN_SERVICE_BADGE = "2026-10-19";
 const REVIEWED_AT_OPERATOR_AND_TABLE = "2026-10-19";
 
 /**
+ * Bumped when the own profile gained its Fleet progress card (2026-10-21): a new rule about
+ * spotting data, "distinct vehicles you have logged, out of each line's whole fleet". Only the
+ * `sightings` section is bumped, since that is where the rule is published; the other sections were
+ * not re-read.
+ */
+const REVIEWED_AT_FLEET_PROGRESS = "2026-10-21";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -206,7 +214,8 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     body: "How rider sightings are aggregated is owned by LINE_STATUS_DERIVE.md; this section renders once that rule ships.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
-    lastReviewed: REVIEWED_AT_SHIP,
+    // Bumped when the own profile's Fleet progress card was documented here (REVIEWED_AT_FLEET_PROGRESS).
+    lastReviewed: REVIEWED_AT_FLEET_PROGRESS,
     inProgress: true,
   },
   {
@@ -409,6 +418,22 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_SHIP,
+  },
+  {
+    // The profile's Fleet progress card. It is the person's own collection, so it says what counts as
+    // "spotted" (an entry, whatever status was recorded) and what the total is (the line's whole
+    // roster, the same count as the board's "In service" denominator) instead of leaving a rider to
+    // guess why 41 of 68 is not 41 of the trains running today.
+    id: "fleet.progress",
+    sectionId: "sightings",
+    title: "Fleet progress",
+    definition:
+      "For each line, the number of distinct vehicles you have logged at least once, out of every vehicle assigned to that line. A vehicle counts as spotted once you have submitted any spotting entry for it, whatever status or place you recorded. A vehicle assigned to several lines counts toward each of them. The total counts every assigned vehicle whatever its status, so it includes vehicles that are out of service, not yet spotted by anyone, or decommissioned. Only lines with at least one vehicle you have logged are listed. Only you see this, and it is never part of a public profile.",
+    summary:
+      "Distinct vehicles you have logged on a line, out of every vehicle assigned to it, whatever its status. Only you see this.",
+    ownerRoute: "/profile",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_FLEET_PROGRESS,
   },
   {
     // The front page's own headline metric — features/home/hero/home-hero.component.ts reads it

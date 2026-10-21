@@ -5,6 +5,16 @@ import { SpottingType, VehicleStatus } from "../../../core/graphql/types";
  * See archive/frontend-map/profile.md § Data & API Contracts.
  * ---------------------------------------------------------------------- */
 
+/**
+ * `favouriteVehicles(count: 1000)` is every distinct vehicle this user has logged (it feeds the
+ * fleet-progress card), not just the top one. 1000 is far above the number of vehicles in the
+ * system (about 600), so it is the whole set and not a top-N. The first entry is still the
+ * favourite train. Each line also carries `totalVehicleCount`, the fleet size that is the progress
+ * denominator.
+ *
+ * OWN PROFILE ONLY. The resolver ignores `spottingDataPublic`, so asking for more than the default
+ * count in `GET_PUBLIC_USER_QUERY` would list every vehicle an opted-out user has spotted.
+ */
 export const GET_USER_DATA_QUERY = /* GraphQL */ `
   query GetUserData($typeGroup: Boolean, $freeRange: Boolean) {
     user {
@@ -34,13 +44,14 @@ export const GET_USER_DATA_QUERY = /* GraphQL */ `
         day
         count
       }
-      favouriteVehicles {
+      favouriteVehicles(count: 1000) {
         vehicle {
           id
           identificationNo
           lines {
             id
             code
+            totalVehicleCount
           }
         }
         count
@@ -139,11 +150,12 @@ interface SpottingTrendPoint extends DateTrend {
   eventType: SpottingType;
 }
 
-interface FavouriteVehicle {
+export interface FavouriteVehicle {
   vehicle: {
     id: string;
     identificationNo: string;
-    lines: { id: string; code: string }[];
+    /** `totalVehicleCount` (the line's whole fleet) is selected by the owner query only. */
+    lines: { id: string; code: string; totalVehicleCount?: number }[];
   };
   count: number;
 }
@@ -169,6 +181,38 @@ export interface PublicUserData extends UserData {
 
 export interface GetPublicUserData {
   publicUser: PublicUserData | null; // Can be null if user not found
+}
+
+/* ---------------------------------------------------------------------- *
+ * lines(id).vehicles — one line's whole roster, read when a fleet-progress row is expanded so the
+ * vehicles the user has NOT spotted can be listed (roster minus the spotted ids). Public, and
+ * the same set `Line.totalVehicleCount` counts: one VehicleLine row per assigned vehicle, whatever
+ * its status. The resolver returns an unordered set, so the consumer sorts.
+ * ---------------------------------------------------------------------- */
+
+export const LINE_FLEET_QUERY = /* GraphQL */ `
+  query LineFleet($lineId: ID!) {
+    lines(filters: { id: $lineId }) {
+      id
+      vehicles {
+        id
+        identificationNo
+      }
+    }
+  }
+`;
+
+export interface LineFleetVars {
+  lineId: string;
+}
+
+export interface FleetVehicle {
+  id: string;
+  identificationNo: string;
+}
+
+export interface LineFleetData {
+  lines: { id: string; vehicles: FleetVehicle[] }[];
 }
 
 /* ---------------------------------------------------------------------- *
