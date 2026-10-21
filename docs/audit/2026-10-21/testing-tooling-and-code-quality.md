@@ -36,6 +36,8 @@ logEvent(this.analytics, "page_view", { page_path: path, page_location: window.l
 
 **medium** · effort S · performance · deps-tooling · partially confirmed · severity adjusted from high
 
+**Status, fix pass 2026-10-21:** Fixed (`698b61a`). Fixed as a side effect of F015. `@angular/build` 22.2 counts eager shared chunks as initial: the total is now 984.97 kB (257 kB transfer) against the 1 MB error budget, and the 500 kB warning fires on every build until its threshold is revisited.
+
 **Where:** `angular.json:42-44`, `.omo/evidence/audit-2026-10-21/build/build.log (Initial chunk files table)`, `.omo/evidence/audit-2026-10-21/build/stats.json`
 
 **Problem.** main-PHLJPND6.js statically imports four other chunks, all of which the browser must load before the app starts. Those chunks hold Angular core and common, the router and Spartan sonner, Sentry, and the insiden-page shared code. Together the eager JavaScript is about 1,087 KB raw and roughly 296 KB of brotli transfer. The build summary and the 500 kB initial budget see only the 290 KB main file, so no budget warning fires and regressions in shared code go unnoticed. The Initial total line understates real start-up JS by about 2.8 times.

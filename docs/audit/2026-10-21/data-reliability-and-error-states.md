@@ -10,6 +10,8 @@ Failed reads render as empty or zero, graphqlResource throws or blanks data, ret
 
 **high** · effort S · code-quality · ux-rest
 
+**Status, fix pass 2026-10-21:** Fixed (`685d53c`). Someone else's profile shows the owner's nickname, or "Anonymous spotter", and never the viewer's name, photo, email or phone.
+
 **Where:** `src/app/features/profile/user-card/user-card.component.ts:54`, `src/app/features/profile/user-card/user-card.component.ts:58`, `src/app/features/profile/profile.page.ts:110`
 
 **Problem.** The identity block of UserCardComponent always reads the signed-in Firebase user, even when isOwnProfile is false. On /profile/<someone-else> a logged-out visitor sees the h1 'Anonymous', and a logged-in visitor sees their own display name, photo, e-mail and phone number presented as if they belonged to the profile being viewed. This is exactly the mislabelling that the ProfilePage doc comment says it wants to avoid. It also leaks the viewer's own e-mail onto a page they may screenshot and share. The public query already returns the owner's nickname.
@@ -37,6 +39,8 @@ Failed reads render as empty or zero, graphqlResource throws or blanks data, ret
 #### F033 · Stop graphqlResource.data() and errors() from throwing, and keep the last good data during a failed refresh
 
 **high** · effort M · reliability · gap-3
+
+**Status, fix pass 2026-10-21:** Fixed (`b10af41`, `219c3e2`). `data()` and `errors()` never throw. A failed refresh of the same request keeps the last good payload, and the home board stays visible with a "Couldn't refresh. Showing the last loaded data." banner.
 
 **Where:** `src/app/core/graphql/graphql-client.ts:103`, `src/app/core/graphql/graphql-client.ts:104`, `src/app/core/graphql/graphql-client.ts:149`, `src/app/features/home/data/home.store.ts:233`, `src/app/features/home/data/home.store.ts:572`
 
@@ -70,6 +74,8 @@ Measured with headless Chromium against http://localhost:4321/ after failing eve
 
 **medium** · effort S · reliability · tracker-gallery · second check set severity high → medium
 
+**Status, fix pass 2026-10-21:** Fixed (`f49cc17`, `7fb51ac`, `42a7898`). Teardown stops L7's animation loop, destroys the scene, loses its WebGL context and restores the previous overflow. After five /tracker round trips no WebGL context is left alive.
+
 **Where:** `src/app/features/tracker/map/tracker-map.component.ts:252`, `src/app/features/tracker/map/tracker-map.component.ts:67`
 
 **Problem.** The component creates a new `Scene` (Mapbox map, WebGL context, rAF render loop, resize/gesture listeners, the animated rail LineLayer) on every visit, but never disposes it. Each client-side navigation away from /tracker and back leaks one WebGL context and a running animation loop. Browsers cap active contexts at around 16, after which Chrome logs `Too many active WebGL contexts` and silently drops the oldest, which can blank the map for returning users. The stops layers are also never removed from the scene, only their effects are destroyed. `documentElement.overflow` is forced to `auto` rather than restored, which fights `HlmSheet`'s own lock/unlock of the same property.
@@ -100,6 +106,8 @@ ngOnDestroy(): void {
 #### F022 · Stop failed third-party scripts (ad blockers) from raising a false 'new version deployed' prompt
 
 **medium** · effort S · reliability · ux-home · second check set severity high → medium
+
+**Status, fix pass 2026-10-21:** Fixed (`dbc2b92`). A failed cross-origin script, such as an ad blocked by an ad blocker, no longer raises the update prompt.
 
 **Where:** `src/app/core/version/new-version.service.ts:94`, `src/app/core/version/new-version.service.ts:111`, `src/app/core/version/new-version.service.ts:136`, `src/app/core/version/chunk-load-error.util.ts:16`, `src/index.html:40`, `.omo/evidence/audit-2026-10-21/routes/home__mobile__light__viewport.png`, `.omo/evidence/audit-2026-10-21/routes/home__desktop__light__viewport.png`
 

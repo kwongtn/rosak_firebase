@@ -10,6 +10,8 @@ Closed sheets, zero-filled grids and eager SDKs inflate SSR HTML, TransferState 
 
 **high** · effort S · data-fetching · performance · partially confirmed
 
+**Status, fix pass 2026-10-21:** Fixed (`1ffb602`, `6a36385`, backend `9f326fd`). The year counts load in the browser only, so SSR no longer waits; the year nav reserves its height. The backend counts with one GROUP BY (42-59 s locally before, 0.2-0.5 s after).
+
 **Where:** `src/app/features/gallery/gallery.page.ts:104`, `src/app/features/gallery/data/gallery.queries.ts:3`, `src/app/features/gallery/data/gallery.queries.ts:55`, `docs/components/gallery.md:29`, `src/app/app.routes.server.ts:49`
 
 **Problem.** The 6.8 s you measured is almost entirely one query. The year slider's mediasGroupByPeriod call is documented as cheap, but its own comment in gallery.queries.ts says the backend loads every media row, and timing shows it is 30-100 times slower than the actual 24-photo page. graphqlResource goes through httpResource, so Angular SSR holds the response until it settles, and the whole page waits on a decorative slider. The wait buys nothing visible, because the server HTML contains no photos at all (raw img count 0 of 24; the justified grid only lays out after afterNextRender). Slow SSR renders also tie up App Hosting's concurrency of 20 per instance. My timings ran while the machine's load average was 2.6 to 10.8, so absolute seconds are inflated, but the ranking is stable.
@@ -39,6 +41,8 @@ Measured against localhost:8000: mediasGroupByPeriod(type: YEAR) 13.3, 27.6, 34.
 #### F035 · Stop mounting the spotting and link forms on every home load; they put 137 KB of unused reference data into the SSR HTML
 
 **high** · effort M · performance · home-ui
+
+**Status, fix pass 2026-10-21:** Fixed (`355b460`, `419e47f`, `546a123`, `626766d`). The report, link and incident forms are created only when their sheet opens. On `/` the HTML fell from 207,123 B to 110,141 B and ng-state from 141,215 B to 13,910 B.
 
 **Where:** `src/app/features/home/home.page.ts:484`, `src/app/features/home/home.page.ts:486`, `src/app/features/home/home.page.ts:496`, `src/app/features/spotting/report-form/report-form.component.ts:92`, `src/app/features/insiden/link-form/link-form.component.ts:249`, `src/app/ui/sheet/sheet.ts:40`
 
@@ -71,6 +75,8 @@ Measured on curl http://localhost:4321/ : HTML 236,080 B; ng-state script 141,21
 
 **high** · effort M · data-fetching · spotting
 
+**Status, fix pass 2026-10-21:** Fixed (`1fef2e6`, `8f5340e`, `1fca374`, `b28820d`, `dd63486`). The header comes from a one-vehicle query, the timeline and history start in parallel, and the line roster loads in the browser only, for the switcher. ng-state on the vehicle page fell from 126,979 B to 29,343 B. Non-numeric ids go straight to not-found.
+
 **Where:** `src/app/features/spotting/vehicle-detail/vehicle-detail.page.ts:170`, `src/app/features/spotting/vehicle-detail/vehicle-detail.page.ts:67`, `src/app/features/spotting/vehicle-detail/vehicle-detail.page.ts:132`, `src/app/features/spotting/vehicle-detail/vehicle-detail.page.ts:146`
 
 **Problem.** The page needs one vehicle but fetches the roster of up to 116 vehicles with notes and counts, a payload about 40 times larger. The incident timeline and spotting-history components sit inside the `@else if (_vehicle())` block, so their queries are created only after the large query resolves. That serialises three round trips on the slowest request and delays the first useful paint on a deep link. The same path also sends the big payload to the browser inside TransferState.
@@ -102,6 +108,8 @@ Measured: VehicleTypesByLine for line 4 = 37,198 bytes in 4.6 s; vehicles(filter
 
 **high** · effort M · ssr-hydration · tracker-gallery
 
+**Status, fix pass 2026-10-21:** Fixed (`d07a2b9`). A CSS-only justified grid renders the same on server and client. The SSR HTML now has 24 `<img>` (it had 0); the first 4 load eagerly, the first with fetchpriority high.
+
 **Where:** `src/app/features/gallery/justified-grid/justified-grid.component.ts:73`, `src/app/features/gallery/justified-grid/justified-grid.component.ts:30`, `src/app/features/gallery/data/justified-layout.util.ts:1`
 
 **Problem.** On the server `containerWidth` is 0, so `computeJustifiedRows` returns no rows and each year section renders a heading above an empty div. After hydration the `ResizeObserver`/`afterNextRender` code sets the width, and the whole grid appears at once, pushing the Load more button, the in-feed ad and the footer down (large cumulative layout shift). Image downloads cannot start until JS has loaded, hydrated and run layout, so LCP is delayed and no-JS crawlers or link previews see an empty gallery even though the route is SSR for exactly that purpose.
@@ -132,6 +140,8 @@ return []  // computeJustifiedRows when containerWidth <= 0
 #### F049 · Deep links to a photo page through the whole feed one request at a time, including during SSR
 
 **high** · effort M · data-fetching · tracker-gallery
+
+**Status, fix pass 2026-10-21:** Fixed (backend `0ed9baf`, `4356969`, `47da5e0`, `ca90ca7`, `940e33a`). A deep link opens from one `media(id)` fetch on the server and in the browser, with per-photo share tags. The oldest photo renders in 0.57 s; before, the page walk redirected to /gallery after 29 s. Year jumps show a loading pill.
 
 **Where:** `src/app/features/gallery/gallery.page.ts:136`, `src/app/features/gallery/gallery.page.ts:225`, `src/app/features/gallery/gallery.page.ts:258`, `src/app/features/gallery/gallery.page.ts:233`
 
@@ -167,6 +177,8 @@ Introspection of Query: only `medias(order,before,after,first,last)`; there is n
 
 **medium** · effort S · performance · deps-tooling · partially confirmed · second check set severity high → medium
 
+**Status, fix pass 2026-10-21:** Fixed (`e580375`, `722455b`, `d1b4d15`, `866ba81`, `eb4895d`). Replay loads from its own chunk once the browser is idle, and the feedback widget on the first Report a bug click. Replay and feedback code reachable from main fell from 216,859 B to 397 B. `scripts/check-sentry-lazy.mjs` (run by `generate`) fails the build if the split is undone.
+
 **Where:** `src/main.ts:43-52`, `.omo/evidence/audit-2026-10-21/build/stats.json (outputs browser/main-PHLJPND6.js imports browser/chunk-A8PJBogX.js with kind import-statement)`
 
 **Problem.** The comment's rationale does not hold. Calling addIntegration after bootstrap defers only the start of recording, not the download. main-PHLJPND6.js statically imports chunk-A8PJBogX.js, so the replay and feedback code is fetched and parsed before the first paint on every route. That is roughly 216 KB raw and about 97 KB of brotli transfer for code that most sessions never run, since only 10% of sessions are replay-sampled (replaysSessionSampleRate: 0.1) and the feedback widget is opened on demand.
@@ -197,6 +209,8 @@ main.ts:47-51: "Deferred until after bootstrap via addIntegration() so the repla
 
 **medium** · effort S · data-fetching · spotting · second check set severity high → medium
 
+**Status, fix pass 2026-10-21:** Fixed (`3b5fdd6`, `419e47f`). The spotting shell creates the report form only when its sheet first opens (`@defer`), so /spotting pages no longer fetch or serialise LinesAndVehicles.
+
 **Where:** `src/app/features/spotting/spotting-shell/spotting-shell.page.ts:60`, `src/app/features/spotting/report-form/report-form.component.ts:92`, `src/app/features/spotting/data/spotting.queries.ts:119`, `src/app/ui/sheet/sheet.ts:42`
 
 **Problem.** HlmSheet only renders its panel after the first open, but projected content is still instantiated, so the form (and its resource) is created as soon as the shell mounts. Every visitor, including the majority who never open the form and every crawler, downloads every vehicle of every line, and the server waits for it before sending HTML because requests contribute to stability. It is 83 percent of the page's transferred state on /spotting/3.
@@ -225,6 +239,8 @@ Measured: POST LinesAndVehicles = 69,513 bytes in 2.47 s; SSR /spotting/3 ng-sta
 #### F018 · Line details grid asks the backend to zero-fill its data: 10,672 rows (694 KB) where only 232 are non-zero
 
 **medium** · effort S · performance · spotting · second check set severity high → medium
+
+**Status, fix pass 2026-10-21:** Fixed (`7cc5196`). The grid query sends `addZero: false`. On /spotting/4/details the grid entry fell from 694,607 B (10,672 rows) to 16,005 B (232 rows), and ng-state from 857,563 B to 188,347 B.
 
 **Where:** `src/app/features/spotting/data/spotting.queries.ts:341`, `src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.data.util.ts:127`
 

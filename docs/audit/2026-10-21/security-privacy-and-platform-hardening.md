@@ -10,6 +10,8 @@ Outdated SSR packages, exposed GPS/EXIF, no consent or security headers, an SSRF
 
 **high** · effort S · security · security
 
+**Status, fix pass 2026-10-21:** Fixed (`698b61a`). All `@angular/*` packages are on 22.2.3, and `npm audit --omit=dev` lists no Angular advisories. The advisories it cleared were moderate (`@angular/common` HttpTransferCache, `@angular/ssr` CommonEngine); the high-severity router and platform-server items in this write-up did not show in the audit run.
+
 **Where:** `package.json:34`, `package.json:39`, `package.json:40`, `package.json:41`
 
 **Problem.** The site server-renders /, /spotting, /insiden, /gallery and the catch-all, so the vulnerable platform-server and router code runs on every public request. The router DoS items and the malformed-DOCTYPE loop can be triggered by an anonymous visitor with a crafted URL, and they would pin one of at most 4 App Hosting instances (concurrency 20, 1 CPU). The SSRF and open-redirect items also matter because the SSR engine resolves URLs from request data. The range in package.json (^22.1.0) already permits the fixed versions, so only the lockfile holds the app back.
@@ -114,6 +116,8 @@ Storage: `match /public/{allPaths=**} { allow read; }` and everything else `if f
 
 **medium** · effort M · security · spotting · second check set severity high → medium
 
+**Status, fix pass 2026-10-21:** Fixed (backend `0a830bf`, backend `d94380f`, backend `73b1006`, `d583b5d`, `ed0b764`, `52f8731`). For an anonymous spotting, the location, the public-profile rows and counts, and the uploader of its photos are hidden from everyone but the reporter and admins. The form sends only latitude, longitude and accuracy, and says the position is public unless the report is anonymous.
+
 **Where:** `src/app/features/spotting/data/spotting.queries.ts:201`, `src/app/features/spotting/report-form/report-form.component.ts:295`, `src/app/features/spotting/report-form/report-form.component.html:164`
 
 **Problem.** A reporter who ticks 'Submit anonymously' and picks 'Location (GPS)' has their full-precision position (7 decimal places, about 1 cm) readable by anyone, tied to a vehicle and date. The form copy says 'We won't know your exact location until you submit', which implies it stays private. VEHICLE_EVENTS_QUERY also requests the whole `location` block even though no template renders it, so the app itself helps move this data around. The leak is mainly a backend resolver issue, but the frontend sends more precision than any feature needs and gives no disclosure.
@@ -139,6 +143,8 @@ Unauthenticated query against the local API: events(filters:{type:{exact:"LOCATI
 #### F044 · Photos keep their EXIF GPS and device data, and the compression path deliberately copies it back in
 
 **medium** · effort M · security · spotting · partially confirmed · second check set severity high → medium
+
+**Status, fix pass 2026-10-21:** Partly fixed (`4e8adbe`, `46ade1f`, `05b9cc3`, `757276e`, `c6ba2f0`, backend `32835a3`, backend `45a3075`, backend `6d8ad08`). GPS is removed losslessly before upload (Exif in JPEG, TIFF and PNG; XMP packets with GPS are dropped from JPEG). The server strips it again from JPEG, and refuses HEIC. Capture time and make/model are kept. **Left:** Photos uploaded before the fix keep their GPS on Discord, Imgur and temp storage, and need a re-host backfill. XMP GPS inside TIFF and PNG, and non-JPEG files posted straight to the API, are not stripped.
 
 **Where:** `src/app/core/upload/image-compression.service.ts:19`, `src/app/core/upload/image-compression.service.ts:51`, `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:78`, `rosak_backend/common/views.py:73`
 

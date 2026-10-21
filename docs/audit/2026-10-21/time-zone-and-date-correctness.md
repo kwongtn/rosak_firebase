@@ -10,6 +10,8 @@ Day buckets, defaults and labels mix UTC, viewer and server zones against naive 
 
 **high** · effort S · code-quality · gap-4
 
+**Status, fix pass 2026-10-21:** Fixed (`e8a89df`, `11fc8d6`, `6a2ed7b`, `159da4a`). Day keys take the date of naive Kuala Lumpur wall times as-is, shift offset strings by +8 h, and headers render without a second zone shift. Today and Yesterday come from `klDateKey()`. The specs run in both UTC and Asia/Kuala_Lumpur.
+
 **Where:** `src/app/features/insiden/data/link-day-group.util.ts:34-41`, `src/app/features/insiden/link-list/link-list.component.ts:38`, `src/app/features/insiden/link-list/link-list.component.ts:132`, `src/app/features/insiden/data/link-day-group.util.ts:77`
 
 **Problem.** The backend sends naive Asia/Kuala_Lumpur wall time (for example 2026-09-28T15:46:46). linkDateKey parses it with new Date(), which reads it in the viewer's zone, and then formats it with the UTC getters. In a UTC+8 browser, anything between 00:00 and 07:59 MYT therefore lands on the previous day. The header template then passes the date-only key to DatePipe with timezone UTC. Angular parses a date-only string as local midnight, and the UTC formatter shifts it back another 8 hours, so every header is one day early. On the UTC server (SSR, for example the situasi tab on spotting line pages) the result is correct, so the page renders right and then flips to wrong labels on hydration. The comments and docs justify the UTC frame as hydration-safe, but for naive strings it causes the divergence. The 'Today' and 'Yesterday' labels are also derived from the UTC clock, so they are wrong between 00:00 and 08:00 MYT.
@@ -37,6 +39,8 @@ linkDateKey: `const date = new Date(instantIso); ... return `${date.getUTCFullYe
 #### F010 · Compute 'today' and day buckets in Asia/Kuala_Lumpur instead of UTC
 
 **high** · effort S · ux · insiden-data
+
+**Status, fix pass 2026-10-21:** Fixed (`e8a89df`). A new `core/time` `klDateKey()` (fixed +8 h) sets the default day on /insiden, the calendar's today ring and the Today button.
 
 **Where:** `src/app/features/insiden/data/calendar-date.util.ts:13`, `src/app/features/insiden/insiden.page.ts:87`, `src/app/features/insiden/calendar/calendar.component.ts:264`, `src/app/features/insiden/calendar/calendar.component.ts:354`, `src/app/features/insiden/data/link-day-group.util.ts:34`, `src/app/features/insiden/link-list/link-list.component.ts:131`
 

@@ -10,6 +10,8 @@ Submit paths swallow errors, allow double submits, lose drafts and lose or retry
 
 **high** · effort S · reliability · insiden-data
 
+**Status, fix pass 2026-10-21:** Fixed (`c835c4d`). A successful or empty Extract releases the chronology row, in the incident form and in the console pending panel.
+
 **Where:** `src/app/features/insiden/incident-form/incident-form.component.ts:400`, `src/app/features/insiden/incident-form/incident-form.component.ts:434`, `src/app/features/insiden/incident-form/incident-form.component.ts:498`, `src/app/features/console/insiden/pending/pending.component.ts:595`, `src/app/features/insiden/incident-form/incident-form.component.html:304`
 
 **Problem.** extractChronology sets extracting:true before the call. It resets it to false only in the timeout handler, in the timed-out branch and in the catch block. On the happy path (response arrives inside 15 seconds, the common case) applyExtraction updates the chronology list but never clears the flag, and a null result (unauthenticated or server) also leaves it set. isExtracting(key) therefore stays true, so the template keeps the spinner and the Extracting label showing and keeps the indicator select, datetime, URL, textarea and Extract button disabled. The user cannot correct the extracted text and has to delete the row. The identical bug is copied into the console pending panel. No spec exercises extractChronology (the console spec states 'No extract/summarize test here'), which is how it survived.
@@ -40,6 +42,8 @@ if (result) {
 #### F003 · Network and server failures on the spotting, link and incident forms are re-thrown with no user-visible message
 
 **medium** · effort S · ux · gap-2 · second check set severity high → medium
+
+**Status, fix pass 2026-10-21:** Fixed (`5b27273`). A non-GraphQL failure on the spotting, link or incident form now shows a "Couldn't submit" toast (with an offline variant) and still reaches Sentry.
 
 **Where:** `src/app/features/spotting/report-form/report-form.component.ts:333`, `src/app/features/insiden/link-form/link-form.component.ts:522`, `src/app/features/insiden/incident-form/incident-form.component.ts:682`, `src/app/features/home/line-status/line-status-sheet.component.ts:389`
 

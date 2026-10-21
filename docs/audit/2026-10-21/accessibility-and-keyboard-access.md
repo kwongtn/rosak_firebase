@@ -10,6 +10,8 @@ Sheets, combobox, heatmap, calendar, gallery and the shell lack dialog/ARIA sema
 
 **high** · effort S · accessibility · accessibility
 
+**Status, fix pass 2026-10-21:** Fixed (`03b730e`). Every icon button that set `outline-none` (header tray, avatar, module menu, sheet Close buttons, compact nav, tracker panel, console, heatmap) now shows `focus-visible:ring-3 focus-visible:ring-ring/50`.
+
 **Where:** `src/app/shell/app-nav/app-nav-icon-tray.component.ts:89`, `src/app/shell/app-nav/app-nav-icon-tray.component.ts:130`, `src/app/shell/app-nav/app-nav-icon-tray.component.ts:170`, `src/app/shell/app-nav/app-nav-module-menu.component.ts:24`, `src/app/shell/app-nav/app-nav-module-menu.component.ts:112`, `src/app/shell/app-nav/app-nav.component.ts:263`, `src/app/shell/compact-nav/compact-nav.component.ts:151`, `src/app/features/tracker/info-panel/tracker-info-panel.component.ts:104`, `src/app/features/tracker/info-panel/tracker-info-panel.component.ts:143`, `src/app/features/console/insiden/links/links.component.html:188`, `src/app/features/console/insiden/pending/pending.component.html:85`, `src/app/features/console/insiden/pending/pending.component.html:149`, `src/app/domain-ui/spotting-activity-heatmap/spotting-activity-heatmap.ts:175`
 
 **Problem.** These buttons are plain <button>s (not hlmBtn, which carries focus-visible:ring-3), and every one sets outline-none while defining only hover: styles. Tailwind v4's outline-none removes the outline entirely, so keyboard focus on the Report-a-bug, new-version, avatar/Log in, module-menu trigger and every sheet Close (X) button is invisible. The captured keyboard screenshots only show indicators on the header text links (stops 3 and 6), which keep the browser default ring; the button stops in the same header never get one. This fails WCAG 2.4.7 on the header that appears on every page, and the sheet Close buttons are the first control keyboard users land on in a sheet.
@@ -38,6 +40,8 @@ class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 sh
 
 **high** · effort M · accessibility · accessibility
 
+**Status, fix pass 2026-10-21:** Fixed (`67c61c1`, `1fef2e6`, `b28820d`). The combobox has role=combobox, aria-expanded, aria-controls and aria-activedescendant, listbox and option roles, and a results count. It consumes Escape only while the list is open. The Month, Year and Switch vehicle comboboxes are labelled.
+
 **Where:** `src/app/ui/combobox/combobox.ts:25`, `src/app/ui/combobox/combobox.ts:57`, `src/app/ui/combobox/combobox.ts:62`, `src/app/features/insiden/calendar/calendar.component.ts:63`, `src/app/features/spotting/vehicle-detail/vehicle-detail.page.ts:79`
 
 **Problem.** The combobox input has no role=combobox, aria-expanded, aria-controls, aria-autocomplete or aria-activedescendant; the list has no role=listbox and rows have no role=option or aria-selected. A screen-reader user hears 'edit text' and is never told a list exists, how many matches there are, or which row the arrow keys highlighted. The calendar's month and year comboboxes and the vehicle breadcrumb combobox are passed no aria-label, so axe reports them as critical unlabeled form fields on /insiden, /insiden/:date and the vehicle page. Escape closes the dropdown but does not stopPropagation, so inside a sheet (the spotting report form's vehicle picker) the same keypress reaches HlmSheet's document:keydown.escape listener and closes the whole sheet, discarding what the rider typed.
@@ -65,6 +69,8 @@ class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 sh
 #### F032 · Name the gallery photo buttons and turn the photo viewer into an accessible dialog
 
 **high** · effort M · accessibility · accessibility
+
+**Status, fix pass 2026-10-21:** Fixed (`a9e546c`, `612ce27`). Thumbnails have names. The viewer is a modal dialog that moves focus in, traps it and restores it on close. Year jumps respect reduced motion and scroll once the year has rendered.
 
 **Where:** `src/app/features/gallery/justified-grid/justified-grid.component.ts:34`, `src/app/features/gallery/justified-grid/justified-grid.component.ts:44`, `src/app/features/gallery/media-viewer/media-viewer.component.ts:16`, `src/app/features/gallery/media-viewer/media-viewer.component.ts:49`, `src/app/features/gallery/gallery.page.ts:217`
 

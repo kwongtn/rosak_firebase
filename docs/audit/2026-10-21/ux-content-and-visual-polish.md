@@ -10,6 +10,8 @@ Misleading copy, missing error and empty states, layout collisions on phones, un
 
 **high** · effort S · ui-visual · insiden-ui
 
+**Status, fix pass 2026-10-21:** Fixed (`365fa34`, `2a944d1`). The vote buttons import HlmButton (28 px tall, focus ring, hover); the voted colour stays on hover.
+
 **Where:** `src/app/features/insiden/vote-button/vote-button.component.ts:70`, `src/app/features/insiden/vote-button/vote-button.component.ts:73-83`, `.omo/evidence/audit-2026-10-21/agents/insiden/s1.png`
 
 **Problem.** The template uses the hlmBtn directive and its variant and size inputs, but the component's imports array is empty, so the directive never attaches. The buttons therefore have none of the Helm styling: no padding, no 28 px height, no hover background, no focus ring (focus-visible styles come from buttonVariants) and no disabled opacity. The vote control is used on every incident card, every chronology row and every link card, which makes it the most repeated tap target in the feature, and at 16 px it is far below the 24 px WCAG 2.5.8 minimum and the 44 px mobile guideline. Phone users are the main audience, and keyboard users get no visible focus indicator on the control.
@@ -37,6 +39,8 @@ Misleading copy, missing error and empty states, layout collisions on phones, un
 #### F016 · No Open Graph or Twitter card tags and no default share image on any page
 
 **medium** · effort S · seo-meta · seo-pwa-i18n · already documented · second check set severity high → medium
+
+**Status, fix pass 2026-10-21:** Fixed (`5837b35`, `940e33a`). `index.html` has og:site_name, og:type, og:image (a new 1200x630 `share-card.png`), og:image:alt and twitter:card, and its fallback title is MLPTF. Per-route og:title and og:description remain with F202.
 
 **Where:** `src/index.html:4-13`, `docs/components/home.md:1535`
 
