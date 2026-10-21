@@ -54,7 +54,7 @@ import { vehiclePagePath } from "../data/vehicle-link.util";
           hlmBtn
           variant="ghost"
           size="xs"
-          class="self-start"
+          class="-ml-2 self-start"
           data-testid="fleet-line-toggle"
           [attr.aria-expanded]="_open()"
           [attr.aria-controls]="_open() ? _panelId() : null"

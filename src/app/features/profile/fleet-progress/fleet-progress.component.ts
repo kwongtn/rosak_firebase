@@ -46,7 +46,7 @@ import { FleetProgressLineComponent } from "./fleet-progress-line.component";
             Distinct vehicles you have logged, out of each line's fleet. Only you see this.
           </p>
         </div>
-        <div hlmCardContent class="gap-4">
+        <div hlmCardContent>
           @for (row of _rows(); track row.lineId) {
             <app-fleet-progress-line [row]="row" />
           }

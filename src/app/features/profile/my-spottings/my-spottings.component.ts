@@ -98,13 +98,13 @@ interface EventDayGroup {
               role="group"
               aria-label="Export your spottings"
             >
-              @if (_exportRows(); as rows) {
+              @if (_exportRows() !== null) {
                 <span
                   class="text-muted-foreground text-xs tabular-nums"
                   role="status"
                   data-testid="export-progress"
                 >
-                  Preparing {{ rows | number }} rows…
+                  Preparing {{ _exportRows() | number }} rows…
                 </span>
               }
               <button
