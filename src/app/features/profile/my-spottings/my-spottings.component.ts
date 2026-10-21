@@ -10,6 +10,7 @@ import {
   untracked,
 } from "@angular/core";
 import { DatePipe } from "@angular/common";
+import { RouterLink } from "@angular/router";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
@@ -32,6 +33,7 @@ import {
   PublicUserData,
 } from "../data/profile.queries";
 import { vehicleLinesLabel } from "../../../core/util/lines-label.util";
+import { firstLineVehiclePath } from "../data/vehicle-link.util";
 
 const PAGE_SIZE = 30;
 
@@ -59,6 +61,7 @@ interface EventDayGroup {
   selector: "app-my-spottings",
   imports: [
     DatePipe,
+    RouterLink,
     HlmButton,
     ...HlmCardImports,
     HlmSheet,
@@ -109,9 +112,18 @@ interface EventDayGroup {
                         <div class="flex flex-wrap items-center gap-2">
                           <spotting-type-badge [type]="event.type" />
                           <span class="text-muted-foreground text-xs">
-                            {{ event.vehicle.identificationNo }} ({{
-                              event.vehicle.vehicleType.internalName
-                            }}) — {{ vehicleLinesLabel(event.vehicle) }}
+                            @if (vehiclePath(event.vehicle); as path) {
+                              <a
+                                [routerLink]="path"
+                                class="hover:text-foreground underline underline-offset-2"
+                                data-testid="history-vehicle-link"
+                                >{{ event.vehicle.identificationNo }}</a
+                              >
+                            } @else {
+                              {{ event.vehicle.identificationNo }}
+                            }
+                            ({{ event.vehicle.vehicleType.internalName }}) —
+                            {{ vehicleLinesLabel(event.vehicle) }}
                           </span>
                           @if (event.notes) {
                             <span
@@ -208,6 +220,8 @@ export class MySpottingsComponent {
   readonly user = input.required<PublicUserData>();
   readonly isOwnProfile = input.required<boolean>();
   protected readonly vehicleLinesLabel = vehicleLinesLabel;
+  /** The vehicle page under the row's first line, `null` (plain text) for a vehicle on no line. */
+  protected readonly vehiclePath = firstLineVehiclePath;
 
   protected readonly showPrivacyMessage = computed(
     () => !this.isOwnProfile() && this.user().spottings === null,

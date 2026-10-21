@@ -36,8 +36,10 @@ export const GET_USER_DATA_QUERY = /* GraphQL */ `
       }
       favouriteVehicles {
         vehicle {
+          id
           identificationNo
           lines {
+            id
             code
           }
         }
@@ -78,8 +80,10 @@ export const GET_PUBLIC_USER_QUERY = /* GraphQL */ `
       }
       favouriteVehicles {
         vehicle {
+          id
           identificationNo
           lines {
+            id
             code
           }
         }
@@ -103,6 +107,7 @@ export const GET_PUBLIC_USER_QUERY = /* GraphQL */ `
             internalName
           }
           lines {
+            id
             code
           }
         }
@@ -136,8 +141,9 @@ interface SpottingTrendPoint extends DateTrend {
 
 interface FavouriteVehicle {
   vehicle: {
+    id: string;
     identificationNo: string;
-    lines: { code: string }[];
+    lines: { id: string; code: string }[];
   };
   count: number;
 }
@@ -217,6 +223,7 @@ export const GET_MY_EVENTS_QUERY = /* GraphQL */ `
           internalName
         }
         lines {
+          id
           code
         }
       }
@@ -244,7 +251,7 @@ export interface MyEvent {
     status: VehicleStatus;
     identificationNo: string;
     vehicleType: { internalName: string };
-    lines: { code: string }[];
+    lines: { id: string; code: string }[];
   };
 }
 

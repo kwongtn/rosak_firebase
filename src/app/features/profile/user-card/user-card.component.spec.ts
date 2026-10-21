@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection, signal, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
@@ -56,6 +57,7 @@ describe("UserCardComponent", () => {
       imports: [UserCardComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         { provide: AuthService, useValue: { user: viewer, idToken: vi.fn() } },
         {
           provide: GraphQLClient,
@@ -95,7 +97,14 @@ describe("UserCardComponent", () => {
   it("shows the most-spotted train with its line codes", async () => {
     const text = await render([
       {
-        vehicle: { identificationNo: "SCS 41", lines: [{ code: "KJL" }, { code: "AGL" }] },
+        vehicle: {
+          id: "81",
+          identificationNo: "SCS 41",
+          lines: [
+            { id: "4", code: "KJL" },
+            { id: "5", code: "AGL" },
+          ],
+        },
         count: 7,
       },
     ]);
@@ -103,6 +112,54 @@ describe("UserCardComponent", () => {
     expect(text).toContain("Favourite Train (7 spottings)");
     expect(text).toContain("SCS 41");
     expect(text).toContain("KJL, AGL");
+  });
+
+  describe("favourite train link", () => {
+    function favouriteLink(): HTMLAnchorElement | null {
+      return fixture.nativeElement.querySelector('[data-testid="favourite-vehicle-link"]');
+    }
+
+    it("links the identification number to the vehicle page under its first line", async () => {
+      await render([
+        {
+          vehicle: {
+            id: "81",
+            identificationNo: "SCS 41",
+            lines: [
+              { id: "4", code: "KJL" },
+              { id: "5", code: "AGL" },
+            ],
+          },
+          count: 7,
+        },
+      ]);
+
+      expect(favouriteLink()?.textContent?.trim()).toBe("SCS 41");
+      expect(favouriteLink()?.getAttribute("href")).toBe("/spotting/4/vehicle/81");
+    });
+
+    it("also links on someone else's profile, the vehicle page is public", async () => {
+      await render(
+        [
+          {
+            vehicle: { id: "9", identificationNo: "SCS 3", lines: [{ id: "4", code: "KJL" }] },
+            count: 2,
+          },
+        ],
+        { isOwnProfile: false },
+      );
+
+      expect(favouriteLink()?.getAttribute("href")).toBe("/spotting/4/vehicle/9");
+    });
+
+    it("shows plain text for a vehicle on no line, which has no page to open", async () => {
+      const text = await render([
+        { vehicle: { id: "9", identificationNo: "SCS 3", lines: [] }, count: 2 },
+      ]);
+
+      expect(favouriteLink()).toBeNull();
+      expect(text).toContain("SCS 3");
+    });
   });
 
   it.each([

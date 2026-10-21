@@ -11,6 +11,7 @@ import {
 } from "@angular/core";
 import { DecimalPipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { RouterLink } from "@angular/router";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { AuthService } from "../../../core/auth/auth.service";
 import { HlmButton } from "../../../ui/button/button";
@@ -27,6 +28,7 @@ import {
   UpdateUserVars,
   UserData,
 } from "../data/profile.queries";
+import { firstLineVehiclePath } from "../data/vehicle-link.util";
 
 /**
  * Identity header + nickname editor + stat cards. Ported from user/user.component.ts, but with
@@ -40,6 +42,7 @@ import {
   imports: [
     FormsModule,
     DecimalPipe,
+    RouterLink,
     HlmButton,
     HlmInput,
     HlmCheckbox,
@@ -141,7 +144,18 @@ import {
               <p class="text-muted-foreground text-xs">
                 Favourite Train ({{ fav.count }} spottings)
               </p>
-              <p class="text-lg font-semibold">{{ fav.vehicle.identificationNo }}</p>
+              <p class="text-lg font-semibold">
+                @if (_favouriteVehiclePath(); as path) {
+                  <a
+                    [routerLink]="path"
+                    class="underline-offset-4 hover:underline"
+                    data-testid="favourite-vehicle-link"
+                    >{{ fav.vehicle.identificationNo }}</a
+                  >
+                } @else {
+                  {{ fav.vehicle.identificationNo }}
+                }
+              </p>
               <p class="text-muted-foreground text-xs">{{ _favouriteVehicleLines() }}</p>
             </div>
           </div>
@@ -238,6 +252,11 @@ export class UserCardComponent {
       ?.vehicle.lines.map((l) => l.code)
       .join(", "),
   );
+  /** The vehicle page for the favourite train, or `null` when it sits on no line (plain text then). */
+  protected readonly _favouriteVehiclePath = computed(() => {
+    const favourite = this._favouriteVehicle();
+    return favourite ? firstLineVehiclePath(favourite.vehicle) : null;
+  });
 
   protected readonly _sheetOpen = signal(false);
   protected readonly _hoverCapable = signal(false);
