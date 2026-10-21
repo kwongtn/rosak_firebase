@@ -63,6 +63,10 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   JPEG, TIFF and PNG) once per queued file. `PhotoPickerComponent` accepts every image (`image/*` or an
   empty type); formats `stripGps` cannot clean (HEIC, WebP, AVIF, ...) upload as they are, GPS
   included, by the owner's choice.
+- `core/export/`: file downloads of data the page already holds. `csv.util.ts` (`toCsv` is pure and always
+  emits a header row; `downloadCsv`) and `json.util.ts` (`downloadJson`) share one contract: the platform
+  flag is a parameter and the download is a no-op on the server. Consumers: home's Pro lines widget (CSV)
+  and profile's spotting history (CSV and JSON).
 - `core/time/kl-date.ts`: `klDateKey(now?)`, the Asia/Kuala_Lumpur `YYYY-MM-DD` (fixed UTC+8, the
   same in every zone), is the one "today" for `/insiden`, its calendar and the link list.
 - `core/network/`: `OnlineService.isOnline` (root signal: `navigator.onLine` at startup, then the
@@ -209,13 +213,20 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   - Extend: `ReportSheetService` (cross-page sheet trigger seam); `report-form.schema.ts`
     (declarative validation); `spotting.queries.ts` (single GraphQL contract seam, including the
     one-vehicle `VEHICLE_HEADER_QUERY` behind the vehicle page).
-- **profile** (`features/profile/` — page + `user-card`/`my-spottings`/`my-links`;
+- **profile** (`features/profile/` — page + `user-card`/`fleet-progress`/`my-spottings`/`my-links`;
   [doc](components/profile.md)) — Signed-in user's dashboard: identity, editable nickname, spotting
-  stats/heatmap, deletable spotting history, own submitted links with thread grouping.
-  - Deps: `GraphQLClient`, `AuthService`, `RecaptchaService`, domain-ui heatmap/badges.
+  stats/heatmap, own-profile fleet progress (distinct vehicles spotted per line, with the missing ones
+  listed), deletable and exportable (CSV/JSON) spotting history, own submitted links with thread grouping.
+  Vehicle numbers link to the vehicle page, the owner can copy a share link, and the tab is titled
+  after the spotter.
+  - Deps: `GraphQLClient`, `AuthService`, `RecaptchaService`, domain-ui heatmap/badges, `core/export`,
+    the methodology registry (`fleet.progress`).
   - Extend: `data/profile.queries.ts` (single seam for query/type changes); `UserCardComponent`'s
     `isOwnProfile` input picks the own branch (signed-in identity, edit, privacy, votes) or the
-    public branch (the owner's nickname, no controls).
+    public branch (the owner's nickname, no controls). `data/fleet-progress.util.ts` and
+    `data/my-spottings-export.util.ts` are the pure seams for the collection view and the export columns.
+    `favouriteVehicles` beyond its default count is requested on the own profile only (the resolver
+    ignores `spottingDataPublic`).
 - **console** (`features/console/` — admin-only; spotting page + `insiden/pending` incident queue +
   `insiden/links` link triage at `/console/links`; [doc](components/console.md)) — Admin moderation
   queues: crowd-submitted spotting events (filter, paginate, bulk mark-as-read), pending incidents
@@ -288,11 +299,13 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
    (item deep-links), about (section anchors), spotting filters, console (shareable filter views),
    insiden (per-incident expand state), tracker (map/layer views). Elsewhere only path params are
    bound.
-2. **Client-side export.** `core/export/csv.util.ts` exists (`toCsv` is pure and always emits a
-   header row; `downloadCsv` is browser-gated); its only consumer is home's Pro lines widget
-   (tracker's info panel keeps a private `toCsv`). Still wanted, with data already client-side and
-   no backend change: profile (spotting history CSV/JSON), console (filtered queue), insiden
-   (`.ics`), gallery (per-year zip). No JSON/`.ics`/zip helper yet.
+2. **Client-side export.** `core/export/csv.util.ts` (`toCsv` is pure and always emits a header
+   row; `downloadCsv` is browser-gated) and `core/export/json.util.ts` (`downloadJson`) exist. Consumers:
+   home's Pro lines widget (CSV) and profile's spotting history (CSV and JSON, paged from the API;
+   tracker's info panel keeps a private `toCsv`). Still wanted, with data already client-side and
+   no backend change: console (filtered queue), insiden (`.ics`), gallery (per-year zip). No `.ics`/zip
+   helper yet. `downloadJson` copies `downloadCsv`'s blob-and-anchor steps; merge them into one
+   `downloadText` when a third format arrives.
 3. **User preferences / persistence.** `core/preferences/preferences.service.ts`
    (`PreferencesService`, localStorage key `rosak:preferences:v1`) holds home's pinned lines, view
    mode, density, etc.; home is the only consumer. Still missing: tracker saved layer presets,

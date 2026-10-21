@@ -3,9 +3,10 @@
 ## 📌 Purpose & Scope
 
 - **Core Responsibility:** The personal dashboard: identity header with editable nickname, spotting
-  stats, a spotting-activity heatmap, a paginated and deletable history of the caller's own
-  submissions, and the caller's own social-link submissions with a conversation hierarchy. The same
-  page renders another user's public profile, gated by their privacy setting.
+  stats, a spotting-activity heatmap, a fleet-progress card (own profile only), a paginated,
+  deletable and exportable history of the caller's own submissions, and the caller's own social-link
+  submissions with a conversation hierarchy. The same page renders another user's public profile,
+  gated by their privacy setting. Every vehicle number it shows links to that vehicle's page.
 - **Routes:** `/profile/:id` (uid-keyed, public), defined in `profile.routes.ts` (`PROFILE_ROUTES`).
   A bare `/profile` is redirected by `redirectToOwnProfileGuard` to `/profile/<own uid>`, or to
   `/spotting` when logged out. `profile/**` is `RenderMode.Client` in `app.routes.server.ts`, because
@@ -17,13 +18,24 @@
 Directory map:
 
 - `profile.page.ts`: route container (`ProfilePage`, `app-profile`), inline template. Hosts
-  `<app-profile-user-card>`, `<app-my-spottings>` and `<app-my-links>`.
+  `<app-profile-user-card>`, `<app-fleet-progress>` (own profile only), `<app-my-spottings>` and
+  `<app-my-links>`. Also names the document once a profile has loaded (see Internal State).
 - `profile.routes.ts`: `""` (guarded redirect) and `":id"`, both lazy `loadComponent` entries for `ProfilePage`.
 - `data/profile.queries.ts`: every GraphQL document, variable and response type for this feature (no components).
+- `data/vehicle-link.util.ts`: `vehiclePagePath(lineId, vehicleId)` and `firstLineVehiclePath(vehicle)`,
+  the one place the `/spotting/:lineId/vehicle/:vehicleId` URL is built here.
+- `data/fleet-progress.util.ts`: `buildFleetProgress()` (spotted vehicles grouped into one
+  `LineProgress` per line) and `unspottedVehicles()` (a line's roster minus the spotted ids, in natural order).
+- `data/my-spottings-export.util.ts`: `buildSpottingExportRows()`, `MY_SPOTTINGS_EXPORT_COLUMNS` and the
+  shared file name for the history export.
 - `user-card/user-card.component.ts`: identity header, nickname editor, stat cards, votes card and
   privacy sheet (`UserCardComponent`, `app-profile-user-card`).
-- `my-spottings/my-spottings.component.ts`: "Historical Spottings", a paginated list with delete and a
-  notes popover (`MySpottingsComponent`, `app-my-spottings`).
+- `fleet-progress/fleet-progress.component.ts`: the "Fleet progress" card (`FleetProgressComponent`,
+  `app-fleet-progress`): one row per line, with an `app-info-popover` on its title.
+  - `fleet-progress/fleet-progress-line.component.ts`: one line's row (`FleetProgressLineComponent`,
+    `app-fleet-progress-line`): the bar, "N of M spotted", and the lazily loaded list of vehicles not yet spotted.
+- `my-spottings/my-spottings.component.ts`: "Historical Spottings", a paginated list with delete, a
+  notes popover and an owner-only CSV/JSON export (`MySpottingsComponent`, `app-my-spottings`).
 - `my-links/my-links.component.ts`: "My Submitted Links" (`MyLinksComponent`, `app-my-links`). The
   caller's social-link submissions, keyset-paginated, with status badges. On the own profile only, it
   shows the conversation hierarchy: multi-select grouping, per-row Nest under / Ungroup / Move up /
@@ -43,6 +55,9 @@ Directory map:
   - `MySpottingsComponent`: `user` (`input.required<PublicUserData>()`) and `isOwnProfile`
     (`input.required<boolean>()`). The owner's history is fetched by the component itself. A
     non-owner sees `user().spottings` (`null` means private).
+  - `FleetProgressComponent.favouriteVehicles`: `input.required<readonly FavouriteVehicle[] | null | undefined>()`,
+    the owner query's `UserData.favouriteVehicles`. `ProfilePage` mounts the card in the own-profile
+    branch only. `FleetProgressLineComponent.row`: `input.required<LineProgress>()`.
   - `MyLinksComponent.isOwnProfile`: `input.required<boolean>()`, passed as `true`. A constructor
     `effect` calls `loadMore()` (untracked) when it becomes true.
   - `ProfilePage` internal state: `isAuthReady`, `isOwnProfile` (`auth.user()?.uid === id()`),
@@ -54,16 +69,27 @@ Directory map:
     banner (`ProfilePage`) or an inline error or empty state.
 - **GraphQL** (`data/profile.queries.ts` unless noted):
   - `GET_USER_DATA_QUERY`: owner only. `user { nickname, spottingsCount, mediaCount, spottingDataPublic,
-spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, vars
-    `{ typeGroup, freeRange }`. `ProfilePage` sets the owner's `spottings` to `null`.
+spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles(count: 1000) }`, vars
+    `{ typeGroup, freeRange }`. `ProfilePage` sets the owner's `spottings` to `null`. The
+    `favouriteVehicles` list is the whole set of distinct vehicles the user has logged (1000 is far above the
+    roughly 600 vehicles in the system), most-spotted first, so `[0]` is still the favourite train. Each
+    entry is `{ vehicle { id, identificationNo, lines { id, code, totalVehicleCount } }, count }`, where
+    `totalVehicleCount` is the fleet-progress denominator.
   - `GET_PUBLIC_USER_QUERY`: non-owners. `publicUser(id: $id)` with the same stats, plus `spottings`
-    (the history list, `null` when private).
+    (the history list, `null` when private). Its `favouriteVehicles` keeps the **default count of one**
+    and selects `lines { id code }` only. See Public Profiles & Privacy for why that must not grow.
+  - `LINE_FLEET_QUERY`: `lines(filters: {id: $lineId}) { id vehicles { id identificationNo } }`, a public
+    read of one line's roster. `FleetProgressLineComponent` makes it on the first expand. The roster is
+    the same set `Line.totalVehicleCount` counts (one row per vehicle assigned to the line, whatever its
+    status) and arrives unordered.
   - `UPDATE_USER_MUTATION`: `updateUser(input: UserInput!) { nickname }`. Used for nickname edits and
     for privacy saves (`{ nickname, spottingDataPublic }`).
   - `GET_MY_VOTES_CAST_QUERY`: own profile only. Returns the total votes cast (`myVotesCast`). Only the
     total is shown, never what was voted on.
   - `GET_MY_EVENTS_QUERY`: `events(filters: {onlyMine: true}, order: {created: DESC}, pagination:
-{limit, offset})`, returns `MyEvent[]`.
+{limit, offset})`, returns `MyEvent[]`. It selects `originStation` and `destinationStation`
+    (`displayName`) for the export, which a public profile's `spottings` list does not, so those two
+    `MyEvent` fields are optional.
   - `DELETE_EVENT_MUTATION`: `deleteEvent(input: DeleteEventInput!) { ok }`. The server enforces
     ownership and a hard 3-day window. `DELETE_WINDOW_MS` (`3 * 24 * 60 * 60 * 1000`) mirrors it on
     the client purely for UI affordance.
@@ -76,14 +102,20 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
     `REORDER_SOCIAL_MEDIA_LINKS_MUTATION` (`features/insiden/data/social-links.queries.ts`).
 - **Dependencies:**
   - `core/graphql/graphql-client.ts`: `GraphQLClient.request<TData, TVars>()`, a one-shot POST caller
-    used for every operation here. `graphqlResource()` exists, but it is unused: these calls are
-    imperative, and it sends no auth header (see the MyLinks section).
+    used for every authenticated operation here. `graphqlResource()` sends no auth header (see the
+    MyLinks section), so it serves only the one public read, `FleetProgressLineComponent`'s roster
+    (`LINE_FLEET_QUERY`). Every other call is imperative and carries `firebase-auth-key`.
   - `core/graphql/types.ts`: `SpottingType`, `VehicleStatus`, and the `GraphQLResponse<T>` /
     `GraphQLError` envelope.
   - `core/auth/auth.service.ts`: `user`, `isLoggedIn`, `isAdmin`, `whenReady: Promise<void>` (await it
     before trusting auth signals, or a page refresh redirects a logged-in user), `idToken()` (a fresh
     token per call), `login()`.
   - `core/auth/redirect-to-own-profile.guard.ts`: used only on the bare `""` route.
+  - `core/export/csv.util.ts` (`toCsv`, `downloadCsv`) and `core/export/json.util.ts` (`downloadJson`):
+    the history export.
+  - `core/methodology/` (`metricTooltip("fleet.progress")`) and `ui/info-popover`: the Fleet progress
+    title's explanation. The metric lives in the `sightings` section.
+  - `@angular/platform-browser`'s `Title` (`ProfilePage`) and `@angular/router`'s `RouterLink` (vehicle links).
   - `core/recaptcha/recaptcha.service.ts`: `RecaptchaService.execute(action)` lazy-loads reCAPTCHA v3 and
     returns a token. Required by `deleteEvent`, since the server enforces `IsRecaptchaChallengePassed`.
   - `ui/toast/toast.service.ts`: `ToastService.success/error/info(title, description?)`, a thin
@@ -114,6 +146,12 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
   re-load. `load()` reads no signal after its first `await`. It picks `GET_USER_DATA_QUERY` for the
   owner and `GET_PUBLIC_USER_QUERY` for everyone else, with one imperative request and no polling.
   `onPrivacySaved` and `onNicknameSaved` update `_user` in place.
+  - **Document title:** an `effect` sets the title to `<nickname> | MLPTF` once a profile has loaded, the
+    same `Title` mechanism the gallery uses for a photo. It reads `_user` and `_isLoading` (and nothing
+    else), so it follows a nickname edit. A reload keeps the previous `_user` in place while the next one
+    loads, so `_isLoading` gates it, and the effect's cleanup puts the route's static title
+    (`PROFILE_FALLBACK_TITLE`, equal to the `title` in `app.routes.ts`) back whenever the profile it named
+    is gone: a reload, a failure, or the page being left. A profile with no nickname keeps the route title.
   - **Stale responses:** every `load()` bumps `_loadSeq`, and a response (or failure) whose number is
     no longer current is dropped. Without it a slow A can land after B and show the wrong user.
   - **Failure:** `_isError` swaps the page body for `app-retry-banner` ("Couldn't load this
@@ -125,7 +163,14 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
   - **Identity header has two branches.** `isOwnProfile()` reads `auth.user()` (photo, `displayName` or "Anonymous", verified email, phone). A public profile shows only the owner's `user().nickname`, or "Anonymous spotter" when there is none, and never the viewer's identity.
   - `_savedNickname` shadows `user().nickname` after a successful save. The input is never mutated.
   - `_favouriteVehicle` is `favouriteVehicles?.[0]`, so an empty, `null` or `undefined` list renders
-    no Favourite Train card. `_favouriteVehicleLines` joins its line codes.
+    no Favourite Train card. `_favouriteVehicleLines` joins its line codes. `_favouriteVehiclePath`
+    (`firstLineVehiclePath`) makes the number a link to `/spotting/<first line id>/vehicle/<vehicle id>`,
+    and a vehicle on no line stays plain text because the route cannot address it.
+  - **Copy profile link** (own profile only, `data-testid="copy-profile-link"`): writes
+    `<origin>/profile/<uid>` with `navigator.clipboard.writeText` and toasts "Profile link copied". Where
+    there is no clipboard (an insecure context) or the browser refuses the write, nothing was copied, so
+    the URL goes in an info toast to copy by hand. The route is public, but a visitor only sees what the
+    owner's privacy setting allows.
   - **Privacy** (own profile only): `openPrivacySheet()` opens an `hlm-sheet` with a toggle
     (`id="privacy-toggle"`, disabled while `_isSavingPrivacy`). Enabling asks `window.confirm`, and
     declining reverts the draft. Disabling is instant with no confirmation. Both persist through
@@ -142,9 +187,45 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
   - `_hoverCapable` is set once in `afterNextRender` from `matchMedia("(hover: hover) and (pointer: fine)")`.
     Notes show as a hover tooltip on hover-capable devices, or in a tap-opened `hlm-sheet` otherwise.
     Only one of the two renders.
+  - Each row's identification number links to its vehicle page under the vehicle's first line
+    (`vehiclePath`, `data-testid="history-vehicle-link"`), and is plain text for a vehicle on no line.
+  - **Export** (owner only, with at least one row): "Export CSV" and "Export JSON"
+    (`data-testid` `export-csv` and `export-json`). `_ownEvents` is only the pages the list has loaded,
+    so `exportHistory()` seeds its own array from them and fetches on from `offset = rows so far` until a
+    page comes back short. A page is `EXPORT_PAGE_SIZE` (200) rows, not the list's `PAGE_SIZE` (30): the
+    request count is what costs, and a very large page is rejected by the backend (a 5000-row page failed
+    with "target lists can have at most 1664 entries"). It gathers into that array, **not** `_ownEvents`,
+    so a long export does not make the list render thousands of rows. `_exportRows` holds the running
+    count ("Preparing N rows…", `role="status"`) and disables both buttons, as does the list's own first
+    page. A failed page toasts "Couldn't export spottings" and downloads nothing, because a file of only
+    the first pages would look complete. A destroyed component stops the loop. The rows come from
+    `buildSpottingExportRows` (date, vehicle, line, type, status, notes, run number, origin, destination,
+    media count; `type` and `status` are the API's enum values), which also drops an event repeated across
+    pages, since offset paging shifts when something is logged mid-export. The file is
+    `mlptf-my-spottings.csv` or `.json`; the JSON has the same rows, keyed by the CSV column names.
   - `_canDelete(event)` recomputes the 3-day window client-side (`Date.now() - created <= DELETE_WINDOW_MS`).
     The window is 3 days (matching the server); never a 10-day constant.
   - An `isDestroyed` flag stops an in-flight `loadMore()` from writing into a destroyed component.
+- **`FleetProgressComponent` / `FleetProgressLineComponent`:** the Fleet progress card.
+  - **Own profile only, by privacy.** The numbers come from the owner query's full `favouriteVehicles`
+    list. See Public Profiles & Privacy.
+  - `buildFleetProgress()` groups the spotted vehicles by line: distinct by vehicle id, a vehicle on several
+    lines counts toward each, a vehicle on no line toward none, rows ordered by line code. `total` is
+    `Line.totalVehicleCount` raised to `spotted` if they ever disagree, so a bar cannot pass 100%. A user
+    with no spotted vehicle on any line gets no card (no empty heading).
+  - **Only lines with a spotted vehicle are listed.** The profile payload knows no others, so a line with
+    zero progress is absent. See Potential Feature Opportunities.
+  - Each row is a `role="progressbar"` in vehicles (`aria-valuenow` spotted, `aria-valuemax` total,
+    `aria-valuetext` "N of M vehicles spotted"), with the visible "N of M spotted" beside it. A fully
+    spotted line shows "All spotted" instead of the toggle.
+  - **The unspotted list is lazy.** Expanding a row makes one `graphqlResource()` request (`LINE_FLEET_QUERY`)
+    and shows the roster minus the spotted ids, sorted in natural order of the vehicle number, each linking to
+    `/spotting/<line id>/vehicle/<vehicle id>`. Every row owns its resource, so several can be open at once,
+    and it stays configured after the first open, so collapsing and re-opening does not fetch again. A
+    failure shows the shared retry banner for that row only.
+  - The metric is `fleet.progress` in the `sightings` methodology section (what counts as spotted: any entry
+    for the vehicle, whatever status or place was recorded; what the total includes: every assigned vehicle,
+    whatever its status). The popover is on the card title.
 - **`MyLinksComponent`:** the list stays **flat** on purpose. The backend never collapses `mine`, so a
   person can see and ungroup every submission they made, including any an admin hid. Hierarchy is shown
   by **indent**, because a row carries nothing to expand.
@@ -243,6 +324,16 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
   additive: a new block, plus a new `UserData` field (see Potential Feature Opportunities).
 - `data/profile.queries.ts` centralizes every document, type and variable for the feature. Extending the
   `user` query touches that file and the `UserData` consumer.
+- **`fleet-progress.util.ts` is the seam for any "my collection" view.** `buildFleetProgress()` takes
+  `FavouriteVehicle[]` and returns `LineProgress[]`, and `unspottedVehicles()` turns a roster into the
+  missing list, so a per-vehicle-type breakdown or another surface can reuse them. A new row field
+  belongs on `LineProgress`.
+- **`my-spottings-export.util.ts` is the seam for export columns.** A column is a `SpottingExportRow`
+  property plus an entry in `MY_SPOTTINGS_EXPORT_COLUMNS` (the compiler checks the two agree), and the CSV
+  header and the JSON key come from the same name. A field the row needs must be selected by
+  `GET_MY_EVENTS_QUERY` first.
+- **`vehicle-link.util.ts`** is where a vehicle URL is built on this feature. Use it instead of
+  hand-assembling `/spotting/.../vehicle/...`.
 - `MySpottingsComponent`'s notes branch (hover tooltip vs tap sheet, via `_hoverCapable`) is a reusable
   capability-detection pattern. Lift it into a shared directive if another feature needs the same branching.
 - **`link-thread-selection.util.ts` is the shared "select rows, then group them" seam.** Insiden uses it,
@@ -260,6 +351,13 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
 - **Backend:** `publicUser(id: ID!)` looks up a profile by Firebase uid. Public stats (nickname, counts,
   heatmap, favourite vehicle, `withMostEntries*`) are always visible. `spottings` (the history list)
   returns `null` for non-owners when `spotting_data_public` is false. The owner always sees their own history. For everyone but the owner and admins the backend leaves anonymous spottings out of that list and out of the counts, trends and favourites.
+- **🔴 `favouriteVehicles` ignores `spottingDataPublic`.** The resolver (`UserScalar.favourite_vehicles`) has
+  no privacy check, which is why the count is public (the favourite train is "always public"). It is also why
+  a count above the default must **never** be requested on the public path: `favouriteVehicles(count: 1000)`
+  would list every vehicle an opted-out user has spotted. Only `GET_USER_DATA_QUERY` (the caller's own
+  profile) asks for the whole set, and only the own-profile branch of `ProfilePage` mounts the card that
+  reads it. Showing it publicly needs a backend guard first (honour `spottingDataPublic` for counts above
+  a small cap).
 - **Frontend:** `ProfilePage` uses `GET_PUBLIC_USER_QUERY` for non-owners and the owner query otherwise.
   `MySpottingsComponent` shows a privacy message when `user().spottings === null`. `UserCardComponent`
   hides the edit, privacy and votes controls for non-owners.
@@ -274,9 +372,15 @@ spottingTrends, withMostEntriesMonth, withMostEntriesDay, favouriteVehicles }`, 
   but it has no multi-select. A checkbox UI could loop `DELETE_EVENT_MUTATION` over the selected ids,
   keeping the `_canDelete` gate, with no query or type changes. A real batch mutation would be a later
   atomicity and performance follow-up. The selection helpers in `link-thread-selection.util.ts` already exist.
-- **Export historical spottings (CSV or JSON):** `_ownEvents` already holds the caller's full history
-  client-side, so a download action can serialize it with no backend change. The shared
-  `core/export/csv.util.ts` (`toCsv` / `downloadCsv`) covers the CSV side. Not wired here yet.
+- **Fleet progress for lines with no spotted vehicle:** the card lists only lines the user has spotted on,
+  because the profile payload knows no others. A root `lines { id code totalVehicleCount }` read (or
+  `totalVehicleCount` on `SpottingLinesStore`'s query) would let `buildFleetProgress()` add a 0-of-N row per
+  untouched line.
+- **A spotted-vehicle aggregate:** `favouriteVehicles(count: 1000)` ships every spotted vehicle to compute a
+  few counts. A backend `spottedVehicleCount` per line would drop that payload, and a
+  `spottingDataPublic` guard on `favouriteVehicles` would allow a public version of the card.
+- **Cancel or background an export:** the heaviest spotters (tens of thousands of rows) wait through many
+  pages with only a "Preparing N rows…" line. An abort button, or a server-built export, would help them.
 - **New aggregate stat cards** (e.g. spotting streak, most-visited station): the frontend pattern is
   ready, but the data is not. The metric must be computed server-side and added to the `user` query and
   the `UserData` interface before a matching `@if` card can be wired.
