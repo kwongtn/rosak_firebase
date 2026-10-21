@@ -56,6 +56,11 @@ describe("linkDateKey", () => {
     expect(linkDateKey("2026-09-28T15:46:46.123456+08:00")).toBe("2026-09-28");
   });
 
+  it("parses a non-ISO timestamp instead of slicing its first ten characters", () => {
+    // Date.parse accepts this, but "Sep 28, 20" is not a key: the header DatePipe would throw on it.
+    expect(linkDateKey("Sep 28, 2026 15:46")).toBe("2026-09-28");
+  });
+
   it("returns '' for an unparseable timestamp", () => {
     expect(linkDateKey("not-a-date")).toBe("");
     expect(linkDateKey("")).toBe("");

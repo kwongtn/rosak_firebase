@@ -28,13 +28,18 @@ export function linkDisplayInstant(link: { created: string; occurredAt?: string 
  * Tested on the slice after the date so the date's own `-dd` can never read as an offset. */
 const HAS_OFFSET = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
 
+/** An ISO `YYYY-MM-DDT…` string: only these carry the day in their first ten characters. */
+const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T/;
+
 /** Asia/Kuala_Lumpur calendar-day key (YYYY-MM-DD) of a link timestamp; "" when unparseable.
  * The backend sends NAIVE Kuala Lumpur wall times ("2026-09-28T15:46:46", `USE_TZ = False`), whose
  * first ten characters already ARE the Malaysian day — so those are sliced, never run through
  * `new Date()` + UTC getters, which read them in the viewer's zone (UTC on the SSR server, +8 in a
  * Malaysian browser) and moved the day between SSR and hydration. A string that does carry an
  * offset is a true instant and is shifted to Kuala Lumpur (fixed UTC+8) first. Either way the key
- * is the same in every zone, which is what keeps SSR and the browser in agreement.
+ * is the same in every zone, which is what keeps SSR and the browser in agreement. Any other string
+ * `Date.parse` accepts ("Sep 28, 2026 15:46") takes the parse path: its first ten characters are not
+ * a date, and a non-`YYYY-MM-DD` key would make the header's DatePipe throw.
  *
  * WHICH instant gets bucketed is `linkDisplayInstant(link)` (the event time); the frame is
  * independent of that choice. */
@@ -43,7 +48,8 @@ export function linkDateKey(instantIso: string): string {
   if (Number.isNaN(ms)) {
     return "";
   }
-  return HAS_OFFSET.test(instantIso.slice(10)) ? klDateKey(ms) : instantIso.slice(0, 10);
+  const naive = ISO_DATE_TIME.test(instantIso) && !HAS_OFFSET.test(instantIso.slice(10));
+  return naive ? instantIso.slice(0, 10) : klDateKey(ms);
 }
 
 /** "Today"/"Yesterday" label for a day key, or "" for any older day (the template then formats
