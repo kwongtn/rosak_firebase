@@ -199,7 +199,9 @@
   - `AuthService` (`isLoggedIn`, `login()`, `idToken()`, `whenReady`).
   - `PollingSource` (`core/polling/polling-source.ts`) — the shared beat; pauses while `document.hidden`
     (deadline kept) and on return refreshes at once if the deadline passed, else re-arms for the
-    remainder. Timers are browser-only: SSR never arms one, a hidden tab costs nothing.
+    remainder. Timers are browser-only: SSR never arms one, a hidden tab costs nothing. Offline
+    (`navigator.onLine === false`) pauses it the same way; the window's `online` event refreshes at
+    once whatever the deadline (not while hidden, never for "Never"). The countdown freezes meanwhile.
   - `PreferencesService` (`core/preferences/`), `query-param.util` (`core/url-state/`), `csv.util`
     (`core/export/`) — see Internal State.
   - `AssetMultiSelectComponent` (`features/insiden/asset-multi-select/`) — station picker (status sheet)

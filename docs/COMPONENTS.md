@@ -45,7 +45,7 @@ integrations — most features use one; several straddle two:
 button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-external-link-icon`),
 `src/app/domain-ui/*` (status badges, activity heatmap — thin wrappers over the shared enums in
 `core/graphql/types.ts`), and `src/app/shell/*` (page chrome: `AppNavComponent`,
-`AppFooterComponent`, account panel, compact nav).
+`AppFooterComponent`, account panel, compact nav, offline strip).
 
 **Cross-cutting core** (`src/app/core/*`, no per-feature doc):
 
@@ -65,7 +65,19 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   included, by the owner's choice.
 - `core/time/kl-date.ts`: `klDateKey(now?)`, the Asia/Kuala_Lumpur `YYYY-MM-DD` (fixed UTC+8, the
   same in every zone), is the one "today" for `/insiden`, its calendar and the link list.
-- `core/version/`: `NewVersionService` prompts for a reload on a failed same-origin chunk only.
+- `core/network/`: `OnlineService.isOnline` (root signal: `navigator.onLine` at startup, then the
+  window's `online`/`offline` events; always `true` on the server). `false` is reliable, `true` only
+  means a network exists. Read by `OfflineStripComponent` (`shell/offline-strip/`: a slim
+  non-blocking "You're offline" line under `<app-nav>` and at the bottom of `<app-compact-nav>`; its
+  host is a permanent `role="status"` `aria-live="polite"` region, empty while online) and by
+  `NewVersionService`. `PollingSource` (`core/polling/`) reads `navigator.onLine` itself, the way it
+  reads `document.hidden`: offline pauses the beat, and the `online` event refreshes at once (not
+  while hidden, never for a "Never" beat).
+- `core/version/`: `NewVersionService` polls `/version.json` (`cache: "no-store"`) and prompts for a
+  reload on a failed same-origin chunk only. `promptReloadForNewVersion()` (also called by
+  `AppErrorHandler` for router chunk errors) checks `OnlineService` first: offline it toasts "You're
+  offline. This page needs a connection." on every failed attempt and leaves `hasNewVersion` false,
+  so the update button (whose click clears caches and reloads) stays dark.
 - **Sheet hosts** (home, `/insiden`, `/spotting`, every Situasi tab) mount the form of a closed sheet
   behind `@defer (when <sheet>.isOpen(); prefetch on idle)`, so its reads stay out of SSR and
   TransferState. Footers reach the form through a string-locator `viewChild`, null-safe.
