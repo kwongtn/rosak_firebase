@@ -1,12 +1,17 @@
 import { Component, computed, effect, inject, input, signal } from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
 import { DatePipe } from "@angular/common";
-import { Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
+import { injectIsBrowser } from "../../core/composables/is-browser";
 import { graphqlResource } from "../../core/graphql/graphql-client";
+import { PreferencesService } from "../../core/preferences/preferences.service";
 import { klDateKey } from "../../core/time/kl-date";
+import { writeQueryParams } from "../../core/url-state/query-param.util";
 import { resolveAdSlot } from "../../core/ads/ads.config";
 import { HlmButton } from "../../ui/button/button";
 import { HlmBadge } from "../../ui/badge/badge";
+import { HlmNativeSelect } from "../../ui/select/native-select";
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.component";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
@@ -24,6 +29,21 @@ import {
   InsidenIncidentsQueryData,
 } from "./data/insiden.queries";
 import { calendarMonthRange, incidentCoversDate } from "./data/calendar-date.util";
+import {
+  emptyIncidentFilterUrlState,
+  filterIncidents,
+  incidentFilterQueryPatch,
+  incidentLineOptions,
+  isIncidentFilterActive,
+  isMineActive,
+  readIncidentFilterUrlState,
+  resolveIncidentFilter,
+  severityFromSelectValue,
+  unlistedLineIds,
+  withLineToggled,
+  withMineToggled,
+  type IncidentFilterUrlState,
+} from "./data/incident-filter.util";
 import { isPendingIncidentStatus } from "./data/incident-status.util";
 import { LinksSectionComponent } from "./links-section/links-section.component";
 
@@ -40,6 +60,7 @@ import { LinksSectionComponent } from "./links-section/links-section.component";
     DatePipe,
     HlmButton,
     HlmBadge,
+    HlmNativeSelect,
     HlmSkeleton,
     RetryBannerComponent,
     AdSlotComponent,
@@ -63,6 +84,9 @@ export class InsidenPage {
   protected readonly activeTab = signal<"incidents" | "links">("incidents");
 
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly preferences = inject(PreferencesService);
+  private readonly isBrowser = injectIsBrowser();
 
   protected readonly auth = inject(AuthService);
   protected readonly incidentSheet = inject(IncidentSheetService);
@@ -90,7 +114,7 @@ export class InsidenPage {
   protected readonly selectedDate = computed(() => this.dateParam() ?? klDateKey());
   protected readonly selectedDateObj = computed(() => new Date(`${this.selectedDate()}T00:00:00Z`));
 
-  private readonly selectedMonth = computed(() => this.selectedDate().slice(0, 7));
+  protected readonly selectedMonth = computed(() => this.selectedDate().slice(0, 7));
 
   protected readonly incidentsResource = graphqlResource<InsidenIncidentsQueryData>(() => ({
     query: INSIDEN_INCIDENTS_QUERY,
@@ -124,8 +148,56 @@ export class InsidenPage {
   protected readonly isLoading = this.incidentsResource.isLoading;
   protected readonly hasError = this.incidentsResource.hasError;
 
-  protected readonly allIncidents = computed(
+  /** The query params as a signal, SEEDED FROM THE SNAPSHOT so the server render and the first
+   * client render read the same filters (an empty seed would paint the unfiltered list over a
+   * `?lines=` deep link on hydration). */
+  private readonly queryParamMap = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+
+  /** What the URL says (`?lines=` / `?severity=` / `?mine=`) — the single source of filter state.
+   * There is no second copy to drift: every control writes the URL and reads it back through here. */
+  private readonly filterUrlState = computed(() =>
+    readIncidentFilterUrlState(this.queryParamMap()),
+  );
+
+  /** The filter in force: the URL's, with "My lines" resolved against the reader's live pins. The
+   * pins are read from `PreferencesService`, which hydrates from localStorage after first render, so
+   * a `?mine=1` deep link shows the unfiltered month on the server and narrows once the browser has
+   * them — never a hydration mismatch, because server and first client render both read no pins. */
+  protected readonly filterCriteria = computed(() =>
+    resolveIncidentFilter(this.filterUrlState(), this.preferences.pinnedLineIds()),
+  );
+  protected readonly filterActive = computed(() => isIncidentFilterActive(this.filterCriteria()));
+  /** "My lines" reads as pressed only while it is what drives the line axis. */
+  protected readonly mineActive = computed(() => isMineActive(this.filterUrlState()));
+  protected readonly pinnedCount = computed(() => this.preferences.pinnedLineIds().length);
+  protected readonly selectedLineIds = computed(() => new Set(this.filterCriteria().lineIds));
+  protected readonly severityValue = computed(
+    () => this.filterCriteria().severity?.toLowerCase() ?? "all",
+  );
+
+  /** Everything the month's read returned, before any filter. The line chips come from THIS, so
+   * narrowing to one line never removes the other lines' chips. */
+  private readonly loadedIncidents = computed(
     () => this.incidentsResource.data()?.calendarIncidents ?? [],
+  );
+  protected readonly loadedCount = computed(() => this.loadedIncidents().length);
+
+  /** The incidents every list and the calendar render: the loaded window narrowed by the filter.
+   * `dayIncidents`, `pinned` and the calendar's dots all derive from this, so a filter applies to
+   * them uniformly. */
+  protected readonly allIncidents = computed(() =>
+    filterIncidents(this.loadedIncidents(), this.filterCriteria()),
+  );
+
+  protected readonly lineOptions = computed(() =>
+    incidentLineOptions(this.loadedIncidents(), this.preferences.pinnedLineIds()),
+  );
+  /** Selected lines that have no chip (a shared link naming a line with no incident this month, or a
+   * pinned line with none), counted so an active filter is never invisible. */
+  protected readonly unlistedLineCount = computed(
+    () => unlistedLineIds(this.filterCriteria().lineIds, this.lineOptions()).length,
   );
 
   private readonly _sorted = computed(() =>
@@ -179,7 +251,30 @@ export class InsidenPage {
   /** Routes the selection rather than just writing to a local signal, so the viewed day is a
    * real, shareable/bookmarkable URL (and Back/Forward walks through previously viewed days). */
   protected onDaySelected(dateKey: string): void {
-    this.router.navigate(["/insiden", dateKey]);
+    // `preserve` keeps `?lines=` / `?severity=` / `?mine=`: picking a day must not silently drop them.
+    this.router.navigate(["/insiden", dateKey], { queryParamsHandling: "preserve" });
+  }
+
+  protected toggleMine(): void {
+    this.writeFilter(withMineToggled(this.filterUrlState()));
+  }
+
+  protected toggleLine(lineId: string): void {
+    this.writeFilter(withLineToggled(this.filterUrlState(), this.filterCriteria().lineIds, lineId));
+  }
+
+  protected setSeverity(value: string): void {
+    this.writeFilter({ ...this.filterUrlState(), severity: severityFromSelectValue(value) });
+  }
+
+  protected clearFilters(): void {
+    this.writeFilter(emptyIncidentFilterUrlState());
+  }
+
+  /** Browser-gated merge-and-replace write (a reactive `router.navigate()` during SSR hangs the
+   * render, and a filter toggle is not a step the reader wants to walk back through). */
+  private writeFilter(next: IncidentFilterUrlState): void {
+    writeQueryParams(this.router, this.route, incidentFilterQueryPatch(next), this.isBrowser);
   }
 
   /** Clamped at 0 so an unbalanced collapse can never drive the count negative. */

@@ -68,6 +68,91 @@
       } @else if (hasError()) {
         <app-retry-banner [resource]="incidentsResource" message="Couldn't load incidents." />
       } @else {
+        <section
+          class="flex flex-col gap-2"
+          aria-label="Filter incidents"
+          data-testid="incident-filters"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              hlmBadge
+              [variant]="mineActive() ? 'default' : 'outline'"
+              class="cursor-pointer px-3 py-1.5 text-sm"
+              data-testid="filter-mine"
+              [attr.aria-pressed]="mineActive()"
+              (click)="toggleMine()"
+            >
+              My lines
+              @if (pinnedCount() > 0) {
+                ({{ pinnedCount() }})
+              }
+            </button>
+            @for (line of lineOptions(); track line.id) {
+              <button
+                type="button"
+                hlmBadge
+                [variant]="selectedLineIds().has(line.id) ? 'default' : 'outline'"
+                class="cursor-pointer px-3 py-1.5 text-sm"
+                [attr.data-testid]="'filter-line-' + line.id"
+                [attr.aria-pressed]="selectedLineIds().has(line.id)"
+                [attr.aria-label]="line.code + ', ' + line.displayName"
+                [title]="line.displayName"
+                (click)="toggleLine(line.id)"
+              >
+                {{ line.code }}
+              </button>
+            }
+            <label class="text-muted-foreground ml-auto flex items-center gap-1.5 text-xs">
+              Severity
+              <select
+                hlmSelect
+                #severitySelect
+                class="w-auto"
+                data-testid="filter-severity"
+                (change)="setSeverity(severitySelect.value)"
+              >
+                <option value="all" [selected]="severityValue() === 'all'">All</option>
+                <option value="major" [selected]="severityValue() === 'major'">Major</option>
+                <option value="minor" [selected]="severityValue() === 'minor'">Minor</option>
+              </select>
+            </label>
+            @if (filterActive()) {
+              <button
+                hlmBtn
+                variant="ghost"
+                size="sm"
+                data-testid="filter-clear"
+                (click)="clearFilters()"
+              >
+                Clear filters
+              </button>
+            }
+          </div>
+          <p class="text-muted-foreground text-xs" data-testid="filter-scope">
+            Filters apply to the incidents loaded for
+            {{ selectedDateObj() | date: "MMMM y" : "UTC" }} only (that month, 14 days either side
+            and ongoing incidents), not to all history.
+            @if (filterActive()) {
+              <span aria-live="polite" data-testid="filter-count">
+                Showing {{ allIncidents().length }} of {{ loadedCount() }}.
+              </span>
+            }
+            @if (unlistedLineCount() > 0) {
+              <span data-testid="filter-unlisted">
+                {{ unlistedLineCount() }} selected
+                {{ unlistedLineCount() === 1 ? "line has" : "lines have" }} no incident in this
+                window.
+              </span>
+            }
+            @if (mineActive() && pinnedCount() === 0) {
+              <span data-testid="filter-no-pins">
+                You have not pinned any lines yet: pin lines on the home board to use My lines.
+              </span>
+            }
+          </p>
+        </section>
+
         <div class="flex flex-col gap-6 lg:flex-row">
           <app-incident-calendar
             class="lg:w-96"
@@ -127,7 +212,13 @@
                 {{ selectedDateObj() | date: "MMMM d, y" : "UTC" }}
               </h2>
               @if (dayApproved().length === 0 && dayPending().length === 0) {
-                <p class="text-muted-foreground text-sm">No incidents on this day.</p>
+                <p class="text-muted-foreground text-sm" data-testid="day-empty">
+                  {{
+                    filterActive()
+                      ? "No incidents match the filters on this day."
+                      : "No incidents on this day."
+                  }}
+                </p>
               }
               @for (incident of dayApproved(); track incident.id) {
                 <app-incident-card
