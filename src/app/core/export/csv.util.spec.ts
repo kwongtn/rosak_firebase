@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { downloadCsv, toCsv } from "./csv.util";
+import { downloadCsv, downloadIcs, downloadText, toCsv } from "./csv.util";
 
 /**
  * The exact bytes a spreadsheet receives, with every line break spelled out.
@@ -148,6 +148,78 @@ describe("csv.util: downloadCsv", () => {
 
   it("is a no-op on the server, where there is no document to click", () => {
     downloadCsv("lines.csv", "a\r\n", false);
+
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(clicked).toEqual([]);
+  });
+});
+
+/** The text a Blob holds. jsdom's `Blob` has no `text()`, so read it through a `FileReader`. */
+function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
+describe("csv.util: downloadText / downloadIcs", () => {
+  /** The `download` attribute of every anchor that was clicked, in click order. */
+  const clicked: string[] = [];
+  let createObjectURL: ReturnType<typeof vi.fn>;
+  let revokeObjectURL: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    clicked.length = 0;
+    createObjectURL = vi.fn(() => "blob:fake");
+    revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: {
+      getAttribute(name: string): string | null;
+    }) {
+      clicked.push(this.getAttribute("download") ?? "");
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("downloadText downloads the text under the given filename and media type", async () => {
+    downloadText("notes.txt", "hello\r\nworld", "text/plain;charset=utf-8", true);
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const [blobArg] = createObjectURL.mock.calls[0];
+    expect((blobArg as Blob).type).toBe("text/plain;charset=utf-8");
+    expect(await readBlobText(blobArg as Blob)).toBe("hello\r\nworld");
+    expect(clicked).toEqual(["notes.txt"]);
+    expect(document.querySelectorAll("a[download]")).toHaveLength(0);
+  });
+
+  it("downloadIcs sends the calendar as text/calendar, byte for byte", async () => {
+    const ics = "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n";
+
+    downloadIcs("insiden-2026-10.ics", ics, true);
+
+    const [blobArg] = createObjectURL.mock.calls[0];
+    expect((blobArg as Blob).type).toBe("text/calendar;charset=utf-8");
+    expect(await readBlobText(blobArg as Blob)).toBe(ics);
+    expect(clicked).toEqual(["insiden-2026-10.ics"]);
+  });
+
+  it("revokes the object URL on the NEXT tick, as downloadCsv does", async () => {
+    downloadIcs("a.ics", "x", true);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake");
+  });
+
+  it("is a no-op on the server for both helpers", () => {
+    downloadText("a.txt", "x", "text/plain", false);
+    downloadIcs("a.ics", "x", false);
 
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(clicked).toEqual([]);

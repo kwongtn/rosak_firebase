@@ -3,9 +3,10 @@
  *
  * Split the same way `core/url-state/query-param.util.ts` splits its read/write halves, and for the
  * same SSR reason: {@link toCsv} is a PURE function with no platform dependency at all, so it is
- * unit-testable without a DOM and can run on the server; {@link downloadCsv} is the only half that
- * touches a browser API and it takes the platform flag as a parameter for the documented reason —
- * reading `PLATFORM_ID` needs an injection context that a plain function should not have.
+ * unit-testable without a DOM and can run on the server; {@link downloadText} (spelled
+ * {@link downloadCsv} / {@link downloadIcs} for the two formats this app exports) is the only half
+ * that touches a browser API and it takes the platform flag as a parameter for the documented
+ * reason — reading `PLATFORM_ID` needs an injection context that a plain function should not have.
  *
  * 🔴 **`toCsv` always emits a header row, including for zero rows.** A CSV whose header is missing
  * has no columns at all, so a spreadsheet shows one empty sheet and the reader cannot tell "the
@@ -77,7 +78,8 @@ export function toCsv(columns: readonly string[], rows: readonly CsvRow[]): stri
 }
 
 /**
- * Hands a serialised CSV to the browser as a file download.
+ * Hands serialised text to the browser as a file download. {@link downloadCsv} and
+ * {@link downloadIcs} are the two spellings callers use; the Blob + anchor mechanism lives here once.
  *
  * `isBrowser` is a PARAMETER rather than an internal `isPlatformBrowser` check for the same reason
  * `writeQueryParams` takes one: reading `PLATFORM_ID` needs an injection context, and a plain
@@ -89,11 +91,16 @@ export function toCsv(columns: readonly string[], rows: readonly CsvRow[]): stri
  * revoked in the same turn as the click. Mirrors `tracker-info-panel.component.ts`'s own export —
  * the repo already had one of these and this is the shared version rather than a second one.
  */
-export function downloadCsv(filename: string, csv: string, isBrowser: boolean): void {
+export function downloadText(
+  filename: string,
+  text: string,
+  mimeType: string,
+  isBrowser: boolean,
+): void {
   if (!isBrowser) {
     return;
   }
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([text], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -103,4 +110,14 @@ export function downloadCsv(filename: string, csv: string, isBrowser: boolean): 
   anchor.click();
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** A serialised CSV as a file download. See {@link downloadText}. */
+export function downloadCsv(filename: string, csv: string, isBrowser: boolean): void {
+  downloadText(filename, csv, "text/csv;charset=utf-8;", isBrowser);
+}
+
+/** A serialised iCalendar (`buildIcs`) as a file download. See {@link downloadText}. */
+export function downloadIcs(filename: string, ics: string, isBrowser: boolean): void {
+  downloadText(filename, ics, "text/calendar;charset=utf-8", isBrowser);
 }
