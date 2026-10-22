@@ -189,15 +189,65 @@ describe("PendingIncidentsComponent", () => {
     requestMock.mockClear();
 
     const component = asTestable(fixture);
+    // The applied term reaches the queue read on the next change detection.
+    async function advance(ms: number): Promise<void> {
+      await vi.advanceTimersByTimeAsync(ms);
+      TestBed.tick();
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
     component.onSearchInput("  lrt");
     component.onSearchInput("  lrt kl ");
-    await vi.advanceTimersByTimeAsync(299);
+    await advance(299);
     expect(callsFor("pendingCalendarIncidents")).toHaveLength(0);
 
-    await vi.advanceTimersByTimeAsync(1);
+    await advance(1);
     expect(callsFor("pendingCalendarIncidents")).toHaveLength(1);
     const [, vars] = callsFor("pendingCalendarIncidents")[0];
     expect(vars).toEqual({ search: "lrt kl" });
+  });
+
+  it("runs a search applied while an earlier read is in flight, and drops the earlier answer", async () => {
+    const component = asTestable(fixture);
+    await initialLoadsSettled(component);
+    const answers: ((rows: PendingIncident[]) => void)[] = [];
+    requestMock.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          answers.push((rows) => resolve({ pendingCalendarIncidents: rows })),
+        ),
+    );
+
+    component.onSearchInput("lrt");
+    await vi.waitFor(() => expect(callsFor("pendingCalendarIncidents")).toHaveLength(2));
+    // The first search is still unanswered when the second one is applied.
+    component.onSearchInput("kl sentral");
+    await vi.waitFor(() => expect(callsFor("pendingCalendarIncidents")).toHaveLength(3));
+    expect(callsFor("pendingCalendarIncidents")[2][1]).toEqual({ search: "kl sentral" });
+
+    answers[1]([makeRow({ id: "kl" })]);
+    await vi.waitFor(() => expect(component.rows().map((row) => row.id)).toEqual(["kl"]));
+    answers[0]([makeRow({ id: "lrt" })]);
+    await fixture.whenStable();
+    expect(component.rows().map((row) => row.id)).toEqual(["kl"]);
+    expect(component.isLoading()).toBe(false);
+  });
+
+  it("keeps the rows on screen and toasts when a later read fails", async () => {
+    const component = asTestable(fixture);
+    await initialLoadsSettled(component);
+    component.rows.set([makeRow({ id: "kept" })]);
+    requestMock.mockRejectedValueOnce(new Error("backend down"));
+
+    component.onSearchInput("lrt");
+    await vi.waitFor(() => expect(callsFor("pendingCalendarIncidents")).toHaveLength(2));
+    await vi.waitFor(() => expect(component.isLoading()).toBe(false));
+
+    expect(component.rows().map((row) => row.id)).toEqual(["kept"]);
+    expect(TestBed.inject(ToastService).error).toHaveBeenCalledWith(
+      "Couldn't load the approval queue",
+      "backend down",
+    );
   });
 
   it("approve calls the approve mutation and removes the row", async () => {

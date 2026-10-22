@@ -1,5 +1,5 @@
 import { DatePipe } from "@angular/common";
-import { Component, computed, inject, signal } from "@angular/core";
+import { Component, computed, inject, linkedSignal, resource, signal } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
@@ -147,8 +147,38 @@ export class PendingIncidentsComponent {
   private readonly ai = inject(IncidentAiService);
   private readonly searchDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
 
-  protected readonly rows = signal<PendingIncident[]>([]);
-  protected readonly isLoading = signal(false);
+  /** The search the queue was last asked for; the debounce writes it. */
+  private readonly appliedSearch = signal<string | undefined>(undefined);
+
+  /** The queue read, keyed on the applied search. A search applied while an earlier read is in
+   *  flight supersedes it, and the late answer of the superseded read is discarded. */
+  private readonly queue = resource({
+    params: () => ({ search: this.appliedSearch() }),
+    loader: async ({ params }) => {
+      try {
+        const idToken = await this.auth.idToken();
+        const data = await this.graphql.request<
+          PendingIncidentsQueryData,
+          PendingIncidentsQueryVars
+        >(PENDING_INCIDENTS_QUERY, params, idToken ? { "firebase-auth-key": idToken } : {});
+        return data.pendingCalendarIncidents;
+      } catch (err) {
+        this.toast.error(
+          "Couldn't load the approval queue",
+          err instanceof Error ? err.message : "Unknown error",
+        );
+        throw err;
+      }
+    },
+  });
+
+  /** The queue's rows. Writable, because approve, reject and save patch them locally; a read in
+   *  flight or a failed read keeps the rows already on screen. */
+  protected readonly rows = linkedSignal<PendingIncident[] | undefined, PendingIncident[]>({
+    source: () => (this.queue.hasValue() ? this.queue.value() : undefined),
+    computation: (rows, previous) => rows ?? previous?.value ?? [],
+  });
+  protected readonly isLoading = this.queue.isLoading;
 
   protected readonly skeletonRows = [0, 1, 2, 3, 4];
   protected readonly searchTerm = signal("");
@@ -223,22 +253,15 @@ export class PendingIncidentsComponent {
   protected readonly extractStates = signal(new Map<number, ChronologyExtractState>());
   protected readonly isSummarizing = signal(false);
 
-  private appliedSearch: string | undefined;
-
-  constructor() {
-    this.load();
-  }
-
   protected readonly eventValue = eventValue;
 
   protected readonly severityLabel = severityLabelText;
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
-    this.searchDebouncer.push(() => {
-      this.appliedSearch = searchTermOrUndefined(this.searchTerm());
-      this.load();
-    });
+    this.searchDebouncer.push(() =>
+      this.appliedSearch.set(searchTermOrUndefined(this.searchTerm())),
+    );
   }
 
   protected async approve(row: PendingIncident): Promise<boolean> {
@@ -714,29 +737,6 @@ export class PendingIncidentsComponent {
       return false;
     } finally {
       this.isMutating.set(false);
-    }
-  }
-
-  private async load(): Promise<void> {
-    if (this.isLoading()) {
-      return;
-    }
-    this.isLoading.set(true);
-    try {
-      const idToken = await this.auth.idToken();
-      const data = await this.graphql.request<PendingIncidentsQueryData, PendingIncidentsQueryVars>(
-        PENDING_INCIDENTS_QUERY,
-        { search: this.appliedSearch },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      this.rows.set(data.pendingCalendarIncidents);
-    } catch (err) {
-      this.toast.error(
-        "Couldn't load the approval queue",
-        err instanceof Error ? err.message : "Unknown error",
-      );
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
