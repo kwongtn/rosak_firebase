@@ -1,5 +1,6 @@
 import { Component, inject } from "@angular/core";
 import { FeedbackService } from "../../core/sentry/feedback.service";
+import { HlmIconButton } from "../../ui/icon-button/icon-button";
 
 /**
  * The "Report a bug" icon button shared by `<app-nav>`'s icon tray and `<app-compact-nav>`. An
@@ -19,10 +20,9 @@ import { FeedbackService } from "../../core/sentry/feedback.service";
  */
 @Component({
   selector: "button[app-report-bug-button]",
+  // `class` is exposed so the consumer's size class (`class="size-7"`) reaches HlmIconButton's hlm() merge.
+  hostDirectives: [{ directive: HlmIconButton, inputs: ["class"] }],
   host: {
-    type: "button",
-    class:
-      "text-muted-foreground hover:bg-muted hover:text-foreground flex shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
     "aria-label": "Report a bug",
     title: "Report a bug",
     "(click)": "feedback.openForm()",

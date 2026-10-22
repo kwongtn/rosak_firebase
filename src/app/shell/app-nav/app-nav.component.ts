@@ -15,6 +15,7 @@ import { filter, map } from "rxjs";
 import { AuthService } from "../../core/auth/auth.service";
 import { ImageUploadService } from "../../core/upload/image-upload.service";
 import { CONSOLE_LINKS, NAV_LINKS } from "../nav-config";
+import { HlmIconButton } from "../../ui/icon-button/icon-button";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { ToastService } from "../../ui/toast/toast.service";
 import { AccountPanelComponent } from "../account-panel/account-panel.component";
@@ -65,6 +66,7 @@ let hasRevealedNavLinksThisPageLoad = false;
   imports: [
     RouterLink,
     RouterLinkActive,
+    HlmIconButton,
     HlmSheet,
     HlmSheetHeader,
     HlmSheetBody,
@@ -193,8 +195,8 @@ let hasRevealedNavLinksThisPageLoad = false;
       <div hlmSheetHeader class="flex items-center justify-between gap-2">
         <h2 class="text-base font-semibold">Account</h2>
         <button
-          type="button"
-          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          hlmIconBtn
+          class="-mr-1.5"
           aria-label="Close"
           title="Close"
           (click)="accountPanelOpen.set(false)"

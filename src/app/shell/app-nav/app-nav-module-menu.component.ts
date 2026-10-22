@@ -1,5 +1,6 @@
 import { Component, input, output } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
+import { HlmIconButton } from "../../ui/icon-button/icon-button";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../ui/sheet/sheet";
 import { type ConsoleLink, type NavLink } from "../nav-config";
 
@@ -15,7 +16,7 @@ import { type ConsoleLink, type NavLink } from "../nav-config";
  */
 @Component({
   selector: "app-nav-module-menu",
-  imports: [RouterLink, RouterLinkActive, HlmSheet, HlmSheetHeader, HlmSheetBody],
+  imports: [RouterLink, RouterLinkActive, HlmIconButton, HlmSheet, HlmSheetHeader, HlmSheetBody],
   host: { class: "contents" },
   template: `
     <button
@@ -107,8 +108,8 @@ import { type ConsoleLink, type NavLink } from "../nav-config";
         <div hlmSheetHeader class="flex items-center justify-between gap-2">
           <h2 class="text-base font-semibold">Go to</h2>
           <button
-            type="button"
-            class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            hlmIconBtn
+            class="-mr-1.5"
             aria-label="Close"
             title="Close"
             (click)="openChange.emit(false)"

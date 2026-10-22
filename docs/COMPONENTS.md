@@ -59,7 +59,13 @@ Every open `HlmSheet` holds the root `ScrollLock` (`ui/sheet/scroll-lock.ts`) on
 unlocks only when the last open sheet lets go, whatever order they open and close in. The scrim is
 `z-[48]`: above the sticky nav (`z-[45]`) and under the `z-50` panel, so it dims the nav.
 `HlmButton` defaults a `<button>` to `type="button"` (an `<a>` gets no `type`); a submit button says
-`type="submit"`. `HlmCard`, `HlmCardContent`, `HlmSkeleton` and `HlmTr` merge a consumer `class`
+`type="submit"`. `HlmIconButton` (`<button hlmIconBtn aria-label="…">`, `ui/icon-button/icon-button.ts`) is the bare
+round icon-only button (`size-8`, hover tint, focus ring, always `type="button"`) behind the nav sheets' "Close"
+buttons and `<button app-report-bug-button>` (a host directive there); a consumer `class` (`size-7`, `-mr-1.5`)
+overrides its defaults through `hlm()`. It needs `aria-label` or `aria-labelledby` and logs a dev-mode
+`console.warn` without one; `hlmBtn size="icon"` stays the bordered/filled form. There is no Helm primitive yet for
+dropdown menu panels, segmented filter chips or dashed empty-state boxes: those stay hand-written class strings
+(and `tracker-info-panel` and `media-viewer` still carry their own icon-button strings). `HlmCard`, `HlmCardContent`, `HlmSkeleton` and `HlmTr` merge a consumer `class`
 through `hlm()`, so a `gap-3 p-4` or `rounded-full` on them wins; the other card and table parts keep
 static host classes (known conflicts, handled by the consumer: `!text-end` on `hlmTh` in the incident
 history table, `flex-row` on `hlmCardHeader` on the about page). `styles.css` defines `--success`, `--warning` and `--info` with `-foreground`
