@@ -112,6 +112,11 @@ jobs:
 
       - run: npm test
 
+      # Report-only, like the root lint job's audit.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+        continue-on-error: true
+
   build:
     needs: [lint, test]
     runs-on: ubuntu-latest
