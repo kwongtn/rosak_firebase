@@ -679,6 +679,8 @@ export class IncidentFormComponent {
     this._showChronologyErrors.set(true);
     const [firstRowError] = chronologyErrors(this.chronologies()).values();
     if (firstRowError) {
+      // Show the field errors on this press too, as Signal Forms' submit() would have.
+      this.incidentForm().markAsTouched();
       this.toast.error("Check the chronology", firstRowError);
       return;
     }

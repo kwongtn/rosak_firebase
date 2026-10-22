@@ -658,6 +658,20 @@ describe("IncidentFormComponent", () => {
       expect(savedSpy).not.toHaveBeenCalled();
     });
 
+    it("shows the form's own field errors on the same press as a chronology error", async () => {
+      const component = await openWithRows([
+        { ...emptyChronology(0), datetime: "2026-08-01T09:00" },
+      ]);
+      component.model.update((m) => ({ ...m, title: "" }));
+
+      await component.submit();
+      fixture.detectChanges();
+
+      expect(rowErrors()).toHaveLength(1);
+      expect(host().textContent).toContain("Enter a title");
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+
     it("keeps the indicator picked in a row's select, and an indicator alone is still a blank row", async () => {
       authMocks.isAdmin.mockReturnValue(true);
       const component = await openWithRows([emptyChronology(0)]);
