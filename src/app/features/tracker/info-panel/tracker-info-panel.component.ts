@@ -13,6 +13,7 @@ import {
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { observeHeight } from "../../../core/dom/observe-height";
 import { downloadCsv, toCsv } from "../../../core/export/csv.util";
+import { escapeHtml } from "../../../core/util/escape-html.util";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { GtfsRealtimeService } from "../data/gtfs-realtime.service";
@@ -31,14 +32,6 @@ type SortDir = 1 | -1;
 const RING_RADIUS = 8;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-/** Escapes text for safe interpolation inside the `<span>` wrapper tags `highlightJson` itself
- * introduces — the *only* markup this ever produces, so escaping the raw text first and never
- * otherwise touching attribute values keeps `[innerHTML]` below safe against anything an upstream
- * feed's own string values might contain. */
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 /** A small hand-rolled JSON syntax highlighter — this app already avoids pulling in a charting
  * library for one-off visualizations (see vehicle-status-trend's own doc comment); a colorized
  * `<pre>` is the same call: one regex pass distinguishing keys/strings/numbers/booleans/null is
@@ -46,7 +39,13 @@ function escapeHtml(value: string): string {
 function highlightJson(json: string): string {
   const pattern =
     /("(\\u[a-fA-F0-9]{4}|\\.|[^"\\])*"(\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
-  return escapeHtml(json).replace(pattern, (match) => {
+  // Escape each piece on its own, after matching: the pattern needs the raw quotes, and the only
+  // markup this produces is the `<span>` wrapper, so nothing from the JSON text can become markup
+  // in the `[innerHTML]` below.
+  let html = "";
+  let last = 0;
+  for (const m of json.matchAll(pattern)) {
+    const match = m[0];
     let cls = "text-sky-600 dark:text-sky-400"; // number
     if (match.startsWith('"')) {
       cls = match.endsWith(":")
@@ -57,8 +56,10 @@ function highlightJson(json: string): string {
     } else if (match === "null") {
       cls = "text-muted-foreground";
     }
-    return `<span class="${cls}">${match}</span>`;
-  });
+    html += `${escapeHtml(json.slice(last, m.index))}<span class="${cls}">${escapeHtml(match)}</span>`;
+    last = m.index + match.length;
+  }
+  return html + escapeHtml(json.slice(last));
 }
 
 /**

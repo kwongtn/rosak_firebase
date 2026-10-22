@@ -12,6 +12,7 @@ import { InfoPanelKind, TrackerInfoPanelComponent } from "./tracker-info-panel.c
 type PanelInternals = {
   snapshotVehicles: { set(value: IFeedEntity): void };
   rows: () => Array<Record<string, string | number>>;
+  highlightedJson: () => string;
   onSortClick: (col: string) => void;
   onExportCsv: () => void;
 };
@@ -106,7 +107,7 @@ const TWO_VEHICLES = {
   v2: { vehicle: { id: "v2", label: 'Bus, "B"\r2' } },
 } as unknown as IFeedEntity;
 
-describe("TrackerInfoPanelComponent CSV export", () => {
+describe("TrackerInfoPanelComponent exports and renders feed text safely", () => {
   let component: TrackerInfoPanelComponent;
   let panel: PanelInternals;
   let createObjectURL: ReturnType<typeof vi.fn>;
@@ -195,5 +196,23 @@ describe("TrackerInfoPanelComponent CSV export", () => {
 
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(clicked).toEqual([]);
+  });
+
+  it("highlights the raw JSON without letting a feed string become markup", () => {
+    setup("browser");
+    panel.snapshotVehicles.set({
+      v1: { vehicle: { id: "v1", label: '<img src=x onerror="alert(1)">' }, timestamp: 5 },
+    } as unknown as IFeedEntity);
+
+    const host = document.createElement("pre");
+    host.innerHTML = panel.highlightedJson();
+
+    expect(host.querySelector("img")).toBeNull();
+    expect(host.textContent).toContain('"label": "<img src=x onerror=\\"alert(1)\\">"');
+    // Keys, strings and numbers still get their own colour spans.
+    const spanTexts = Array.from(host.querySelectorAll("span")).map((span) => span.textContent);
+    expect(spanTexts).toContain('"label":');
+    expect(spanTexts).toContain('"<img src=x onerror=\\"alert(1)\\">"');
+    expect(spanTexts).toContain("5");
   });
 });

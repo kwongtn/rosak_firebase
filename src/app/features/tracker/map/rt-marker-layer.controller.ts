@@ -3,7 +3,7 @@ import { IMarker, IPopup, Marker, MarkerLayer, Popup, Scene } from "@antv/l7";
 import { anchorType } from "@antv/l7-utils";
 import { RtSource } from "../data/gtfs-realtime.service";
 import { IFeedEntity } from "../data/types";
-import { buildVehiclePopupHtml } from "./vehicle-popup-content";
+import { buildVehiclePopupElement } from "./vehicle-popup-content";
 import { VehicleIconMode, createVehicleMarkerElement } from "./vehicle-marker-icon";
 import * as Sentry from "@sentry/angular";
 
@@ -75,7 +75,7 @@ export class RtMarkerLayerController {
       // No separate `title` option — folding everything into `html` gives full control
       // over the layout instead of fighting L7's own bolded-title default styling for
       // just the one line.
-      popup.instance.setOptions({ html: buildVehiclePopupHtml(vehicle) });
+      popup.instance.setOptions({ html: buildVehiclePopupElement(vehicle) });
       if (popup.isClosed) {
         popup.instance.close();
       } else {

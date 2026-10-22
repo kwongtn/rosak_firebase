@@ -26,13 +26,6 @@ const CONGESTION_LABEL: Record<number, string> = {
   [transit_realtime.VehiclePosition.CongestionLevel.SEVERE_CONGESTION]: "Severe congestion",
 };
 
-function escapeHtml(value: string): string {
-  return value.replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-  );
-}
-
 /** "3m ago" / "2h ago" — a GTFS-RT `timestamp` is Unix seconds (occasionally a protobuf `Long`,
  * hence the `.toString()` round-trip), and "how stale is this" matters more here than the exact
  * clock time. */
@@ -52,20 +45,32 @@ function relativeTimeFrom(
   return `${Math.round(deltaSec / 3600)}h ago`;
 }
 
+/** One element with a class list and plain text: `textContent`, never markup, so a feed string
+ * cannot become HTML. */
+function textElement(tag: string, className: string, text: string): HTMLElement {
+  const el = document.createElement(tag);
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
 /**
- * Builds the realtime marker popup's HTML — plain Tailwind-classed markup (not an Angular
+ * Builds the realtime marker popup's content element — plain Tailwind-classed DOM (not an Angular
  * component: L7's `Popup` mounts its content directly into the map's own DOM, outside Angular's
  * component tree, so there's nothing to bind to; Tailwind's utility classes are plain global CSS
  * and apply here exactly as anywhere else in the app). See styles.css's `.l7-popup-content`
  * override for the surrounding chrome (background/shadow/radius) this content sits inside.
  *
+ * Every feed string goes in through `textContent`, so escaping is structural: a vehicle label of
+ * `<img onerror=...>` renders as text.
+ *
  * Each row is independently optional — a feed that's missing a field (or a future field this
  * doesn't know about yet) just renders fewer rows rather than "undefined" text, and adding a new
  * one is a single `rows.push(...)` line, not a template rewrite.
  */
-export function buildVehiclePopupHtml(
+export function buildVehiclePopupElement(
   vehicle: transit_realtime.IVehiclePosition | null | undefined,
-): string {
+): HTMLElement {
   const title = vehicle?.vehicle?.label || vehicle?.vehicle?.id || "Vehicle";
 
   const rows: Array<{ label: string; value: string }> = [];
@@ -104,22 +109,25 @@ export function buildVehiclePopupHtml(
     rows.push({ label: "Updated", value: updated });
   }
 
-  const rowsHtml = rows
-    .map(
-      (row) => `
-                <div class="flex items-baseline justify-between gap-3">
-                    <dt class="text-muted-foreground">${escapeHtml(row.label)}</dt>
-                    <dd class="font-medium">${escapeHtml(row.value)}</dd>
-                </div>`,
-    )
-    .join("");
+  const root = document.createElement("div");
+  root.className = "flex min-w-44 flex-col gap-1.5 text-xs";
+  root.append(textElement("p", "text-foreground text-sm font-semibold", String(title)));
 
-  return `
-        <div class="flex min-w-44 flex-col gap-1.5 text-xs">
-            <p class="text-foreground text-sm font-semibold">${escapeHtml(String(title))}</p>
-            <dl class="flex flex-col gap-1">
-                ${rowsHtml || '<p class="text-muted-foreground">No further data available.</p>'}
-            </dl>
-        </div>
-    `;
+  if (rows.length === 0) {
+    root.append(textElement("p", "text-muted-foreground", "No further data available."));
+    return root;
+  }
+  const list = document.createElement("dl");
+  list.className = "flex flex-col gap-1";
+  for (const row of rows) {
+    const item = document.createElement("div");
+    item.className = "flex items-baseline justify-between gap-3";
+    item.append(
+      textElement("dt", "text-muted-foreground", row.label),
+      textElement("dd", "font-medium", row.value),
+    );
+    list.append(item);
+  }
+  root.append(list);
+  return root;
 }
