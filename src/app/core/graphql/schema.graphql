@@ -1,0 +1,1235 @@
+type Asset {
+  id: ID!
+  assetType: String!
+  status: AssetStatus!
+  officialid: String!
+  shortDescription: String!
+  longDescription: String!
+  station: Station!
+}
+
+input AssetFilter {
+  id: ID
+  assetType: String
+  status: AssetStatus
+  officialid: StrFilterLookup
+  station: StationFilter
+  AND: AssetFilter
+  OR: AssetFilter
+  NOT: AssetFilter
+  DISTINCT: Boolean
+}
+
+enum AssetStatus {
+  UNDER_MAINTENANCE
+  IN_OPERATION
+}
+
+type Bus {
+  id: ID!
+  identifier: String!
+  type: BusType
+}
+
+input BusOrder {
+  id: Ordering
+  identifier: Ordering
+}
+
+type BusType {
+  id: ID!
+  title: String
+  description: String
+  buses: [Bus!]!
+}
+
+type CalendarIncidentCategoryScalar {
+  id: ID!
+  name: String!
+}
+
+enum CalendarIncidentChronologyIndicator {
+  GREEN
+  RED
+  BLUE
+  GRAY
+}
+
+input CalendarIncidentChronologyInput {
+  indicator: CalendarIncidentChronologyIndicator!
+  datetime: DateTime
+  sourceUrl: String
+  content: String
+}
+
+type CalendarIncidentChronologyScalar {
+  id: ID!
+  order: Int!
+  status: CalendarIncidentStatus!
+  calendarIncident: CalendarIncidentScalar!
+  indicator: String!
+  datetime: DateTime!
+  content: String!
+  sourceUrl: String
+  voteScore: Int!
+  voteBreakdown: VoteBreakdown!
+  userVote: Int!
+}
+
+input CalendarIncidentDateFilter {
+  range: DateRangeInput
+  exact: Date
+  month: IntExactInput
+  year: IntExactInput
+}
+
+input CalendarIncidentFilter {
+  id: ID
+  severity: String
+  status: CalendarIncidentStatus
+  AND: CalendarIncidentFilter
+  OR: CalendarIncidentFilter
+  NOT: CalendarIncidentFilter
+  DISTINCT: Boolean
+  ongoing: Boolean
+  activeNow: Boolean
+  upcomingWithinDays: Int
+  lines: LineFilter
+  stations: StationFilter
+  date: CalendarIncidentDateFilter
+}
+
+type CalendarIncidentGroupByDateSeverityScalar {
+  severity: String!
+  date: Date!
+  count: Int!
+  isLongTerm: Boolean
+}
+
+type CalendarIncidentHistoryEntryScalar {
+  timestamp: DateTime!
+  actor: String
+  changeType: String!
+  changedFields: [String!]!
+}
+
+input CalendarIncidentInput {
+  title: String!
+  brief: String!
+  startDatetime: DateTime!
+  severity: CalendarIncidentSeverity!
+  endDatetime: DateTime
+  longTerm: Boolean
+  inaccurate: Boolean
+  impactFactor: Float
+  details: String
+  lineIds: [ID!]
+  vehicleIds: [ID!]
+  stationIds: [ID!]
+  categoryIds: [ID!]
+  chronologies: [CalendarIncidentChronologyInput!]
+  version: Int
+}
+
+input CalendarIncidentOrder {
+  id: Ordering
+  order: Ordering
+  impactFactor: Ordering
+  startDatetime: Ordering
+  endDatetime: Ordering
+}
+
+type CalendarIncidentScalar {
+  id: ID!
+  created: DateTime!
+  startDatetime: DateTime!
+  endDatetime: DateTime
+  severity: CalendarIncidentSeverity!
+  status: CalendarIncidentStatus!
+  title: String!
+  brief: String!
+  details: String!
+  impactFactor: Float!
+  version: Int!
+  longTerm: Boolean!
+  inaccurate: Boolean!
+  lines: [Line!]!
+  vehicles: [Vehicle!]!
+  stations: [Station!]!
+  categories: [CalendarIncidentCategoryScalar!]!
+  chronologies: [CalendarIncidentChronologyScalar!]!
+  user: UserScalar
+  medias: [MediaScalar!]!
+  voteScore: Int!
+  voteBreakdown: VoteBreakdown!
+  userVote: Int!
+  links(first: Int! = 10, after: String = null): SocialMediaLinkConnection!
+  hasDetails: Boolean!
+  lastUpdated: DateTime!
+}
+
+enum CalendarIncidentSeverity {
+  MAJOR
+  MINOR
+  OTHERS
+}
+
+enum CalendarIncidentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  LIVE
+  REJECTED
+  PENDING_DELETION
+}
+
+"""Date (isoformat)"""
+scalar Date
+
+enum DateGroupings {
+  YEAR
+  MONTH
+  WEEK
+  DAY
+}
+
+input DateRangeInput {
+  start: Date
+  end: Date
+}
+
+"""Date with time (isoformat)"""
+scalar DateTime
+
+input DatetimeDateFilterLookup {
+  """Exact match. Filter will be skipped on `null` value"""
+  exact: DateTime
+
+  """Assignment test. Filter will be skipped on `null` value"""
+  isNull: Boolean
+
+  """
+  Exact match of items in a given list. Filter will be skipped on `null` value
+  """
+  inList: [DateTime!]
+
+  """Greater than. Filter will be skipped on `null` value"""
+  gt: DateTime
+
+  """Greater than or equal to. Filter will be skipped on `null` value"""
+  gte: DateTime
+
+  """Less than. Filter will be skipped on `null` value"""
+  lt: DateTime
+
+  """Less than or equal to. Filter will be skipped on `null` value"""
+  lte: DateTime
+
+  """Inclusive range test (between)"""
+  range: DatetimeRangeLookup
+  year: IntComparisonFilterLookup
+  month: IntComparisonFilterLookup
+  day: IntComparisonFilterLookup
+  weekDay: IntComparisonFilterLookup
+  isoWeekDay: IntComparisonFilterLookup
+  week: IntComparisonFilterLookup
+  isoYear: IntComparisonFilterLookup
+  quarter: IntComparisonFilterLookup
+}
+
+input DatetimeDatetimeFilterLookup {
+  """Exact match. Filter will be skipped on `null` value"""
+  exact: DateTime
+
+  """Assignment test. Filter will be skipped on `null` value"""
+  isNull: Boolean
+
+  """
+  Exact match of items in a given list. Filter will be skipped on `null` value
+  """
+  inList: [DateTime!]
+
+  """Greater than. Filter will be skipped on `null` value"""
+  gt: DateTime
+
+  """Greater than or equal to. Filter will be skipped on `null` value"""
+  gte: DateTime
+
+  """Less than. Filter will be skipped on `null` value"""
+  lt: DateTime
+
+  """Less than or equal to. Filter will be skipped on `null` value"""
+  lte: DateTime
+
+  """Inclusive range test (between)"""
+  range: DatetimeRangeLookup
+  year: IntComparisonFilterLookup
+  month: IntComparisonFilterLookup
+  day: IntComparisonFilterLookup
+  weekDay: IntComparisonFilterLookup
+  isoWeekDay: IntComparisonFilterLookup
+  week: IntComparisonFilterLookup
+  isoYear: IntComparisonFilterLookup
+  quarter: IntComparisonFilterLookup
+  hour: IntComparisonFilterLookup
+  minute: IntComparisonFilterLookup
+  second: IntComparisonFilterLookup
+  date: IntComparisonFilterLookup
+  time: IntComparisonFilterLookup
+}
+
+input DatetimeRangeLookup {
+  start: DateTime = null
+  end: DateTime = null
+}
+
+input DeleteEventInput {
+  id: ID!
+}
+
+type DjangoFileType {
+  name: String!
+  path: String!
+  size: Int!
+  url: String!
+}
+
+type DjangoImageType {
+  name: String!
+  path: String!
+  size: Int!
+  url: String!
+  width: Int!
+  height: Int!
+}
+
+input EventFilter {
+  id: ID
+  type: StrBaseFilterLookup
+  created: DatetimeDatetimeFilterLookup
+  spotted: DatetimeDateFilterLookup
+  notes: StrFilterLookup
+  status: StrFilterLookup
+  isAnonymous: Boolean
+  vehicle: VehicleFilter
+  AND: EventFilter
+  OR: EventFilter
+  NOT: EventFilter
+  DISTINCT: Boolean
+  hasNotes: Boolean
+  differentStatusThanVehicle: Boolean
+  isRead: Boolean
+  onlyMine: Boolean
+  freeSearch: String
+}
+
+input EventInput {
+  spottingDate: Date!
+  vehicle: ID!
+  notes: String
+  runNumber: String
+  status: SpottingVehicleStatus
+  type: SpottingEventType
+  wheelStatus: String
+  originStation: ID
+  destinationStation: ID
+  location: WebLocationInput
+  isAnonymous: Boolean
+}
+
+input EventOrder {
+  id: Ordering
+  spottingDate: Ordering
+  created: Ordering
+}
+
+type EventScalar {
+  id: ID!
+  created: Date!
+  spottingDate: Date!
+  vehicle: Vehicle!
+  notes: String!
+  status: SpottingVehicleStatus!
+  type: SpottingEventType!
+  wheelStatus: SpottingWheelStatus
+  runNumber: String
+  originStation: Station
+  destinationStation: Station
+  reporter: UserScalar
+  isRead: Boolean!
+  location: LocationEvent
+  mediaCount: Int!
+  medias: [MediaScalar!]!
+  isMine: Boolean!
+}
+
+input ExtractDataInput {
+  url: String!
+}
+
+type ExtractedIncidentDataScalar {
+  requestId: String!
+  data: JSON!
+}
+
+type FavouriteVehicleData {
+  vehicle: Vehicle!
+  count: Int!
+}
+
+input FeedLinkInput {
+  url: String!
+  title: String
+  lineIds: [ID!]
+  stationIds: [ID!]
+  status: PassengerStatus
+  delayMinutes: Int
+  notes: String
+  occurredAt: DateTime
+}
+
+type FeedLinkPayload {
+  ok: Boolean!
+  link: SocialMediaLinkScalar!
+  isDuplicate: Boolean!
+  duplicateOfId: Int
+  userVote: Int!
+}
+
+type GenericMutationReturn {
+  ok: Boolean!
+  id: Int
+}
+
+"""A geographical point that gets 'x, y' or 'x, y, z' as a tuple."""
+scalar GeoPoint
+
+enum GroupByEnum {
+  DAY
+  MONTH
+}
+
+input IntComparisonFilterLookup {
+  """Exact match. Filter will be skipped on `null` value"""
+  exact: Int
+
+  """Assignment test. Filter will be skipped on `null` value"""
+  isNull: Boolean
+
+  """
+  Exact match of items in a given list. Filter will be skipped on `null` value
+  """
+  inList: [Int!]
+
+  """Greater than. Filter will be skipped on `null` value"""
+  gt: Int
+
+  """Greater than or equal to. Filter will be skipped on `null` value"""
+  gte: Int
+
+  """Less than. Filter will be skipped on `null` value"""
+  lt: Int
+
+  """Less than or equal to. Filter will be skipped on `null` value"""
+  lte: Int
+
+  """Inclusive range test (between)"""
+  range: IntRangeLookup
+}
+
+input IntExactInput {
+  exact: Int
+}
+
+input IntRangeLookup {
+  start: Int = null
+  end: Int = null
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
+"""
+scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
+
+type Line {
+  id: ID!
+  code: String!
+  displayName: String!
+  displayColor: String!
+  status: LineStatus!
+  stations: [Station!]!
+  stationLines: [StationLine!]!
+  calendarIncidents: [CalendarIncidentScalar!]!
+  inServiceVehicleCount: Int!
+  totalVehicleCount: Int!
+  vehicleStatusCounts: [VehicleStatusCount!]!
+  passengerStatus: PassengerStatus
+  passengerStatusMessage: String
+  statusReportCount: Int!
+  passengerStatusCount: Int!
+  passengerStatusCounts: [PassengerStatusCount!]!
+  statusWindowMinutes: Int!
+  pulseLinks: [SocialMediaLinkScalar!]!
+  vehicleTypes: [VehicleType!]!
+  vehicles(spottedToday: Boolean = null): [Vehicle!]!
+  vehicleSpottingTrends(start: Date, end: Date, dateGroup: DateGroupings = DAY, typeGroup: Boolean = false, freeRange: Boolean = false, addZero: Boolean = true): [LineVehicleSpottingTrend!]!
+  chartographySources: [Source!]!
+}
+
+input LineFilter {
+  id: ID
+  code: String
+  displayName: StrFilterLookup
+  displayColor: StrFilterLookup
+  AND: LineFilter
+  OR: LineFilter
+  NOT: LineFilter
+  DISTINCT: Boolean
+}
+
+enum LineStatus {
+  TESTING
+  DEFUNCT
+  ACTIVE
+  PARTIAL_ACTIVE
+  PARTIAL_DISRUPTION
+  TOTAL_DISRUPTION
+}
+
+type LineStatusHistory {
+  lineId: ID!
+  buckets: [LineStatusHourBucket!]!
+}
+
+type LineStatusHourBucket {
+  hourStart: DateTime!
+  hourEnd: DateTime!
+  count: Int!
+  dominantStatus: PassengerStatus
+  statusCounts: [PassengerStatusCount!]!
+}
+
+type LineStatusReportConnection {
+  edges: [LineStatusReportEdge!]!
+  pageInfo: LineStatusReportPageInfo!
+}
+
+type LineStatusReportEdge {
+  node: LineStatusReportScalar!
+  cursor: String!
+}
+
+input LineStatusReportInput {
+  lineId: ID!
+  status: PassengerStatus!
+  stationIds: [ID!]
+  delayMinutes: Int
+  notes: String
+}
+
+type LineStatusReportPageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type LineStatusReportScalar {
+  id: ID!
+  status: PassengerStatus!
+  delayMinutes: Int
+  notes: String!
+  created: DateTime!
+  user: UserScalar!
+  stations: [Station!]!
+}
+
+type LineStatusWeekBucket {
+  weekday: Int!
+  hour: Int!
+  count: Int!
+  dominantStatus: PassengerStatus
+  statusCounts: [PassengerStatusCount!]!
+}
+
+type LineVehicleSpottingTrend {
+  dateKey: String!
+  year: Int!
+  month: Int
+  day: Int
+  dayOfWeek: Int
+  weekOfMonth: Int
+  weekOfYear: Int
+  isLastDayOfMonth: Boolean
+  isLastWeekOfMonth: Boolean
+  count: Int!
+  eventType: String
+  vehicle: Vehicle!
+}
+
+type Location {
+  id: ID!
+  dtReceived: DateTime!
+  dtGps: DateTime!
+  location: Point!
+  dir: Float
+  speed: Float
+  angle: Int
+  bus: Bus!
+}
+
+type LocationEvent {
+  id: ID!
+  accuracy: Float
+  altitudeAccuracy: Float
+  heading: Float
+  speed: Float
+  location: Point!
+  altitude: Float
+}
+
+input LocationFilter {
+  id: ID
+  busId: ID
+  dtReceivedRange: [DateTime!]
+  dtGpsRange: [DateTime!]
+  AND: LocationFilter
+  OR: LocationFilter
+  NOT: LocationFilter
+  DISTINCT: Boolean
+}
+
+input LocationOrder {
+  id: Ordering
+  dtReceived: Ordering
+  dtGps: Ordering
+}
+
+input MarkEventAsReadInput {
+  eventIds: [ID!]!
+}
+
+input MediaOrder {
+  created: Ordering
+  modified: Ordering
+}
+
+type MediaScalar {
+  id: ID!
+  uploader: UserScalar
+  file: DjangoImageType
+  width: Int!
+  height: Int!
+  url: String
+  discordSuffix: String!
+  caption: String!
+  duration: Int
+  contentType: String
+  fileName: String
+}
+
+type MediaType implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  created: DateTime!
+  uploader: UserScalar
+  file: DjangoFileType!
+  width: Int!
+  height: Int!
+  createdDate: String!
+}
+
+"""A connection to a list of items."""
+type MediaTypeConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [MediaTypeEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type MediaTypeEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: MediaType!
+}
+
+type MediasGroupByPeriodScalar {
+  type: DateGroupings!
+  dateKey: String!
+  year: Int!
+  month: Int
+  day: Int
+  count: Int!
+  medias: [MediaScalar!]!
+}
+
+type Mutation {
+  updateUser(input: UserInput!): UserScalar!
+  requestVerificationCode: UserVerificationCodeScalar!
+  deleteEvent(input: DeleteEventInput!): GenericMutationReturn!
+  addEvent(input: EventInput!): EventScalar!
+  markAsRead(input: MarkEventAsReadInput!): GenericMutationReturn!
+  createCalendarIncident(input: CalendarIncidentInput!): GenericMutationReturn!
+  updateCalendarIncident(calendarIncidentId: ID!, input: CalendarIncidentInput!): GenericMutationReturn!
+  submitCalendarIncident(calendarIncidentId: ID!): GenericMutationReturn!
+  approveCalendarIncident(calendarIncidentId: ID!): GenericMutationReturn!
+  rejectCalendarIncident(calendarIncidentId: ID!, reason: String!): GenericMutationReturn!
+  deleteCalendarIncident(calendarIncidentId: ID!): GenericMutationReturn!
+  createChronology(calendarIncidentId: ID!, input: CalendarIncidentChronologyInput!): GenericMutationReturn!
+  updateChronology(chronologyId: ID!, input: CalendarIncidentChronologyInput!): GenericMutationReturn!
+  approveChronology(chronologyId: ID!): GenericMutationReturn!
+  reorderChronology(chronologyId: ID!, targetOrder: Int!): GenericMutationReturn!
+  deleteChronology(chronologyId: ID!): GenericMutationReturn!
+  requestChronologyDeletion(chronologyId: ID!): GenericMutationReturn!
+  approveChronologyDeletion(chronologyId: ID!): GenericMutationReturn!
+  rejectChronologyDeletion(chronologyId: ID!): GenericMutationReturn!
+  upvote(calendarIncidentId: ID!): VoteMutationPayload!
+  downvote(calendarIncidentId: ID!): VoteMutationPayload!
+  removeVote(calendarIncidentId: ID!): VoteMutationPayload!
+  upvoteChronology(chronologyId: ID!): VoteMutationPayload!
+  downvoteChronology(chronologyId: ID!): VoteMutationPayload!
+  removeChronologyVote(chronologyId: ID!): VoteMutationPayload!
+  submitSocialMediaLink(input: SocialMediaLinkInput!): GenericMutationReturn!
+  markSocialMediaLinkCompleted(socialMediaLinkId: ID!): GenericMutationReturn!
+  updateSocialMediaLink(socialMediaLinkId: ID!, input: SocialMediaLinkInput!): GenericMutationReturn!
+  deleteSocialMediaLink(socialMediaLinkId: ID!): GenericMutationReturn!
+  groupSocialMediaLinks(linkIds: [ID!]!, parentId: ID = null): GenericMutationReturn!
+  ungroupSocialMediaLinks(linkIds: [ID!]!): GenericMutationReturn!
+  reorderSocialMediaLinks(linkIds: [ID!]!, parentId: ID): GenericMutationReturn!
+  submitFeedLink(input: FeedLinkInput!): FeedLinkPayload!
+  submitLineStatusReport(input: LineStatusReportInput!): GenericMutationReturn!
+  upvoteSocialMediaLink(socialMediaLinkId: ID!): VoteMutationPayload!
+  downvoteSocialMediaLink(socialMediaLinkId: ID!): VoteMutationPayload!
+  removeSocialMediaLinkVote(socialMediaLinkId: ID!): VoteMutationPayload!
+  extractDataFromUrl(input: ExtractDataInput!): ExtractedIncidentDataScalar!
+  registerPushToken(token: String!, lineIds: [ID!]!): GenericMutationReturn!
+  unregisterPushToken(token: String!): GenericMutationReturn!
+  triggerLineVehicleStatusSnapshot(input: TriggerInput!): GenericMutationReturn!
+}
+
+"""An object with a Globally Unique ID"""
+interface Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+}
+
+input OffsetPaginationInput {
+  offset: Int! = 0
+  limit: Int
+}
+
+enum Ordering {
+  ASC
+  ASC_NULLS_FIRST
+  ASC_NULLS_LAST
+  DESC
+  DESC_NULLS_FIRST
+  DESC_NULLS_LAST
+}
+
+"""Information to aid in pagination."""
+type PageInfo {
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+}
+
+enum PassengerStatus {
+  NORMAL
+  BUSY
+  CROWDED
+  EXTREMELY_CROWDED
+  BACKLOGGED
+  DELAYED
+  DISRUPTED
+}
+
+type PassengerStatusCount {
+  status: PassengerStatus!
+  count: Int!
+}
+
+"""Represents a point as `(x, y, z)` or `(x, y)`."""
+scalar Point
+
+type PushSubscriptionScalar {
+  token: String!
+  lines: [Line!]!
+}
+
+type Query {
+  lines(filters: LineFilter): [Line!]!
+  assets(filters: AssetFilter): [Asset!]!
+  stations(filters: StationFilter): [Station!]!
+  stationLines(filters: StationLineFilter): [StationLine!]!
+  vehicles(filters: VehicleFilter, order: VehicleOrder): [Vehicle!]!
+  vehicleTypes(filters: VehicleTypeFilter): [VehicleType!]!
+  medias(
+    order: MediaOrder
+
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): MediaTypeConnection!
+  media(id: ID!): MediaType
+  user: UserScalar!
+  myVotesCast: Int!
+  publicUser(id: ID!): UserScalar
+  mediasGroupByPeriod(type: DateGroupings!): [MediasGroupByPeriodScalar!]!
+  events(filters: EventFilter, order: EventOrder, pagination: OffsetPaginationInput): [EventScalar!]!
+
+  """Number of events"""
+  eventsCount: Int!
+  vehicleIncidents(filters: VehicleIncidentFilter): [VehicleIncident!]!
+  stationIncidents(filters: StationIncidentFilter): [StationIncident!]!
+  calendarIncidents(filters: CalendarIncidentFilter, order: CalendarIncidentOrder): [CalendarIncidentScalar!]!
+  calendarIncidentsBySeverityCount(startDate: Date, endDate: Date, groupBy: GroupByEnum! = DAY): [CalendarIncidentGroupByDateSeverityScalar!]!
+  pendingCalendarIncidents(search: String): [CalendarIncidentScalar!]!
+  socialMediaLinks(search: String, categoryId: ID, completed: Boolean, hidden: Boolean, lineId: ID, vehicleId: ID, stationId: ID, occurredAfter: DateTime, occurredBefore: DateTime): [SocialMediaLinkScalar!]!
+  publicSocialMediaLinks(incidentId: ID, lineId: ID, first: Int! = 20, after: String = null, mine: Boolean, status: SocialMediaLinkStatus, currentServiceDayOnly: Boolean! = false, lastWeekOnly: Boolean! = false, alignPageToDay: Boolean! = false, displayTodayInLastWeek: Boolean! = false, collapseThreads: Boolean! = false): SocialMediaLinkConnection!
+  calendarIncidentCategories: [CalendarIncidentCategoryScalar!]!
+  calendarIncidentHistory(id: ID!, limit: Int! = 50): [CalendarIncidentHistoryEntryScalar!]!
+  lineStatusHistory(lineId: ID!, dayStartHour: Int = 3, daysAgo: Int = 0): [LineStatusHourBucket!]!
+  networkStatusHistory(dayStartHour: Int = 3, daysAgo: Int = 0): [LineStatusHourBucket!]!
+  linesStatusHistory(lineIds: [ID!]!, dayStartHour: Int = 3, daysAgo: Int = 0): [LineStatusHistory!]!
+  lineStatusWeekProfile(lineId: ID!, weeks: Int = 6, dayStartHour: Int = 3): [LineStatusWeekBucket!]!
+  lineStatusReports(lineId: ID!, first: Int! = 20, after: String = null): LineStatusReportConnection!
+  pushSubscription(token: String!): PushSubscriptionScalar
+  locations(filters: LocationFilter, order: LocationOrder, pagination: OffsetPaginationInput): [Location!]!
+  buses(order: BusOrder, pagination: OffsetPaginationInput): [Bus!]!
+  locationsCount(filters: LocationFilter): Int!
+}
+
+type SocialMediaLinkConnection {
+  edges: [SocialMediaLinkEdge!]!
+  pageInfo: SocialMediaLinkPageInfo!
+  totalCount: Int!
+}
+
+type SocialMediaLinkEdge {
+  node: SocialMediaLinkScalar!
+  cursor: String!
+}
+
+input SocialMediaLinkInput {
+  url: String!
+  title: String
+  description: String
+  incidentId: ID
+  categoryIds: [ID!]
+  lineIds: [ID!]
+  vehicleIds: [ID!]
+  stationIds: [ID!]
+  status: SocialMediaLinkStatus
+  occurredAt: DateTime
+}
+
+type SocialMediaLinkPageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type SocialMediaLinkScalar {
+  id: ID!
+  url: String!
+  normalizedUrl: String
+  title: String!
+  description: String!
+  status: SocialMediaLinkStatus!
+  created: DateTime!
+  occurredAt: DateTime!
+  completed: Boolean!
+  completedAt: DateTime
+  isAutomated: Boolean!
+  parentId: ID
+  position: Int!
+  user: UserScalar!
+  categories: [CalendarIncidentCategoryScalar!]!
+  lines: [Line!]!
+  vehicles: [Vehicle!]!
+  stations: [Station!]!
+  isThreadRoot: Boolean!
+  sublinkCount: Int!
+  sublinks: [SocialMediaLinkScalar!]!
+  voteScore: Int!
+  voteBreakdown: VoteBreakdown!
+  userVote: Int!
+  completedBy: String
+}
+
+enum SocialMediaLinkStatus {
+  LIVE
+  PENDING_APPROVAL
+  HIDDEN
+}
+
+type Source {
+  id: ID!
+  name: String!
+  description: String!
+  officialSite: String
+  iconUrl: String
+}
+
+enum SpottingEventType {
+  DEPOT
+  LOCATION
+  BETWEEN_STATIONS
+  JUST_SPOTTING
+  AT_STATION
+}
+
+enum SpottingVehicleStatus {
+  IN_SERVICE
+  NOT_IN_SERVICE
+  DECOMMISSIONED
+  TESTING
+  NOT_SPOTTED
+  MARRIED
+  UNKNOWN
+}
+
+enum SpottingWheelStatus {
+  FRESH
+  NEAR_PERFECT
+  FLAT
+  WORN_OUT
+  WORRYING
+}
+
+type Station {
+  id: ID!
+  displayName: String!
+  location: GeoPoint
+  lines: [Line!]!
+  assets: [Asset!]!
+}
+
+input StationFilter {
+  id: ID
+  displayName: StrFilterLookup
+  line: LineFilter
+  AND: StationFilter
+  OR: StationFilter
+  NOT: StationFilter
+  DISTINCT: Boolean
+  stationLine: StationLineFilter
+  location: JSON
+}
+
+type StationIncident {
+  id: ID!
+  date: Date!
+  severity: String!
+  order: Int!
+  title: String!
+  brief: String
+  isLast: Boolean!
+  station: Station!
+}
+
+input StationIncidentFilter {
+  station: StationFilter
+  AND: StationIncidentFilter
+  OR: StationIncidentFilter
+  NOT: StationIncidentFilter
+  DISTINCT: Boolean
+}
+
+type StationLine {
+  id: ID!
+  displayName: String!
+  internalRepresentation: String
+  stations: [Station!]!
+  lines: [Line!]!
+}
+
+input StationLineFilter {
+  id: ID
+  displayName: StrFilterLookup
+  internalRepresentation: StrFilterLookup
+  station: StationFilter
+  line: LineFilter
+  AND: StationLineFilter
+  OR: StationLineFilter
+  NOT: StationLineFilter
+  DISTINCT: Boolean
+}
+
+input StrBaseFilterLookup {
+  """Exact match. Filter will be skipped on `null` value"""
+  exact: String
+
+  """Assignment test. Filter will be skipped on `null` value"""
+  isNull: Boolean
+
+  """
+  Exact match of items in a given list. Filter will be skipped on `null` value
+  """
+  inList: [String!]
+}
+
+input StrFilterLookup {
+  """Exact match. Filter will be skipped on `null` value"""
+  exact: String
+
+  """Assignment test. Filter will be skipped on `null` value"""
+  isNull: Boolean
+
+  """
+  Exact match of items in a given list. Filter will be skipped on `null` value
+  """
+  inList: [String!]
+
+  """Case-insensitive exact match. Filter will be skipped on `null` value"""
+  iExact: String
+
+  """
+  Case-sensitive containment test. Filter will be skipped on `null` value
+  """
+  contains: String
+
+  """
+  Case-insensitive containment test. Filter will be skipped on `null` value
+  """
+  iContains: String
+
+  """Case-sensitive starts-with. Filter will be skipped on `null` value"""
+  startsWith: String
+
+  """Case-insensitive starts-with. Filter will be skipped on `null` value"""
+  iStartsWith: String
+
+  """Case-sensitive ends-with. Filter will be skipped on `null` value"""
+  endsWith: String
+
+  """Case-insensitive ends-with. Filter will be skipped on `null` value"""
+  iEndsWith: String
+
+  """
+  Case-sensitive regular expression match. Filter will be skipped on `null` value
+  """
+  regex: String
+
+  """
+  Case-insensitive regular expression match. Filter will be skipped on `null` value
+  """
+  iRegex: String
+}
+
+input TriggerInput {
+  force: Boolean
+}
+
+input UserInput {
+  nickname: String!
+  spottingDataPublic: Boolean
+}
+
+type UserScalar {
+  firebaseId: String!
+  nickname: String!
+  creditBalance: Int!
+  freeCreditBalance: Int!
+  nonFreeCreditBalance: Int!
+  shortId: String!
+  spottingDataPublic: Boolean!
+  favouriteVehicles(count: Int = 1): [FavouriteVehicleData!]!
+  withMostEntries(type: DateGroupings!): WithMostEntriesData
+  spottings: [EventScalar!]
+  spottingsCount: Int!
+  mediaCount: Int!
+  spottingTrends(start: Date, end: Date, dateGroup: DateGroupings = DAY, typeGroup: Boolean = false, freeRange: Boolean = false): [UserSpottingTrend!]!
+}
+
+type UserSpottingTrend {
+  dateKey: String!
+  year: Int!
+  month: Int
+  day: Int
+  dayOfWeek: Int
+  weekOfMonth: Int
+  weekOfYear: Int
+  isLastDayOfMonth: Boolean
+  isLastWeekOfMonth: Boolean
+  eventType: String
+  count: Int!
+}
+
+type UserVerificationCodeScalar {
+  user: UserScalar!
+  created: DateTime!
+  code: Int!
+}
+
+type Vehicle {
+  id: ID!
+  identificationNo: String!
+  status: String!
+  lines: [Line!]!
+  notes: String!
+  nickname: String
+  inServiceSince: Date
+  vehicleType: VehicleType!
+  wheelStatus: WheelStatus
+  lastSpottingDate: Date
+
+  """
+  Creation time of the latest spotting; orders vehicles that share a lastSpottingDate.
+  """
+  lastSpottedAt: DateTime
+  spottingCount(after: Date = null, before: Date = null): Int!
+  incidents: [VehicleIncident!]!
+  spottings: [EventScalar!]!
+  incidentCount: Int!
+  canExpand: Boolean!
+  spottingTrends(start: Date, end: Date, dateGroup: DateGroupings = DAY, typeGroup: Boolean = false, freeRange: Boolean = false, addZero: Boolean = true): [VehicleSpottingTrend!]!
+}
+
+input VehicleFilter {
+  id: ID
+  status: String
+  AND: VehicleFilter
+  OR: VehicleFilter
+  NOT: VehicleFilter
+  DISTINCT: Boolean
+}
+
+type VehicleIncident {
+  id: ID!
+  date: Date!
+  severity: String!
+  order: Int!
+  title: String!
+  brief: String
+  isLast: Boolean!
+  vehicle: Vehicle!
+}
+
+input VehicleIncidentFilter {
+  vehicle: VehicleFilter
+  AND: VehicleIncidentFilter
+  OR: VehicleIncidentFilter
+  NOT: VehicleIncidentFilter
+  DISTINCT: Boolean
+}
+
+input VehicleOrder {
+  id: Ordering
+  identificationNo: Ordering
+  status: Ordering
+  inServiceSince: Ordering
+}
+
+type VehicleSpottingTrend {
+  dateKey: String!
+  year: Int!
+  month: Int
+  day: Int
+  dayOfWeek: Int
+  weekOfMonth: Int
+  weekOfYear: Int
+  isLastDayOfMonth: Boolean
+  isLastWeekOfMonth: Boolean
+  count: Int!
+  eventType: String
+}
+
+enum VehicleStatus {
+  IN_SERVICE
+  NOT_SPOTTED
+  OUT_OF_SERVICE
+  DECOMMISSIONED
+  MARRIED
+  TESTING
+  UNKNOWN
+}
+
+type VehicleStatusCount {
+  status: VehicleStatus!
+  count: Int!
+}
+
+type VehicleType {
+  id: ID!
+  internalName: String!
+  displayName: String!
+  info: String!
+  vehicles: [Vehicle!]!
+  vehicleStatusInServiceCount: Int!
+  vehicleStatusNotSpottedCount: Int!
+  vehicleStatusOutOfServiceCount: Int!
+  vehicleStatusDecommissionedCount: Int!
+  vehicleStatusMarriedCount: Int!
+  vehicleStatusTestingCount: Int!
+  vehicleStatusUnknownCount: Int!
+  vehicleTotalCount: Int!
+}
+
+input VehicleTypeFilter {
+  AND: VehicleTypeFilter
+  OR: VehicleTypeFilter
+  NOT: VehicleTypeFilter
+  DISTINCT: Boolean
+  lineId: ID
+}
+
+type VoteBreakdown {
+  upvotes: Int!
+  downvotes: Int!
+}
+
+type VoteMutationPayload {
+  ok: Boolean!
+  userVote: Int!
+  voteScore: Int!
+  upvotes: Int!
+  downvotes: Int!
+}
+
+input WebLocationInput {
+  accuracy: Float
+  altitudeAccuracy: Float
+  heading: Float
+  speed: Float
+  latitude: Float
+  longitude: Float
+  altitude: Float
+}
+
+enum WheelStatus {
+  FRESH
+  NEAR_PERFECT
+  FLAT
+  WORN_OUT
+  WORRYING
+}
+
+type WithMostEntriesData {
+  type: DateGroupings!
+  dateKey: String!
+  year: Int!
+  month: Int
+  day: Int
+  count: Int!
+}
