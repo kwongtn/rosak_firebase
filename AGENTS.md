@@ -85,10 +85,11 @@ third-party GTFS-realtime feeds for the tracker.
   `ngOnDestroy`.
 - **Lazy-load** new features via `loadChildren`/`loadComponent` in `src/app/app.routes.ts`. Error
   budgets: 1 MB initial bundle, 8 kB per component stylesheet. Angular 22.2 counts eager shared
-  chunks as initial. The initial total is 843.67 kB in the `ng build` table at `28bc9b2`
-  (2026-10-22), the final gate of the feature pass, after the front page moved into its lazy route
-  (`14e4f5c`). Before that move it was 997.74 kB in the same table at `f162b7e`, close to the error
-  budget. `docs/COMPONENTS.md` -> Initial bundle lists what is still eager and the next candidates.
+  chunks as initial. The initial total is 842.69 kB in the `ng build` table after the F520
+  dependency bumps (2026-10-23; 840.33 kB at `a1134965` just before them, 843.67 kB at `28bc9b2`,
+  the final gate of the feature pass), after the front page moved into its lazy route (`14e4f5c`).
+  Before that move it was 997.74 kB in the same table at `f162b7e`, close to the error budget.
+  `docs/COMPONENTS.md` -> Initial bundle lists what is still eager and the next candidates.
   The 500 kB warning always fires, so keep new eager imports out of `main`.
 - **Sentry Replay and the feedback widget are lazy chunks** (`core/sentry/`). Name
   `Sentry.replayIntegration`, `feedbackIntegration`, `getReplay` or `getFeedback` only in
