@@ -40,7 +40,7 @@ third-party GTFS-realtime feeds for the tracker.
 **Do not guess component interfaces, dependencies, or extension points — look them up:**
 
 - **[`docs/COMPONENTS.md`](docs/COMPONENTS.md) is canonical** — system topology, the catalog of all
-  11 features, and where the seams are.
+  12 features, and where the seams are.
 - **[`docs/components/`](docs/components/)`<feature>.md`** — per-feature interfaces, internal state,
   named extension points. Read the relevant one before touching a feature.
 - **[`archive/frontend-map/`](archive/frontend-map/) is LEGACY** — the pre-rewrite Angular 18 app
