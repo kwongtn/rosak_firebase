@@ -20,13 +20,13 @@ const SKELETON_ROWS = 3;
 
 /** One chip of the per-station strip: the station's display name and how many loaded reports named
  * it. `key` is the name too — the strip groups by display name, so the two are the same string and
- * `track` can use either. `stationId` is what the chip links to (`/station/:id`); it is `null` when
- * two station rows share the name, because one chip cannot open both pages. */
+ * `track` can use either. `stationId` is what the chip links to (`/station/:id`): the backend keeps
+ * display names unique (a DB constraint on `Station.display_name`), so a name is one station. */
 export interface StationStripEntry {
   key: string;
   label: string;
   count: number;
-  stationId: string | null;
+  stationId: string;
 }
 
 /**
@@ -71,15 +71,14 @@ export interface StationStripEntry {
                page would be a lie the reader cannot detect. The strip therefore HIDES itself rather
                than showing a partial count when there is no station data at all. -->
           @if (_stations().length > 0) {
-            <!-- Each chip opens its station's page. A name shared by two station rows has no single
-                 page, so that chip gets no href (a null routerLink) and stays a plain label. -->
+            <!-- Each chip opens its station's page. -->
             <div class="flex flex-wrap items-center gap-1.5" data-testid="station-strip">
               @for (station of _stations(); track station.key) {
                 <a
                   hlmBadge
                   variant="neutral"
                   class="focus-visible:ring-ring/50 gap-1 underline-offset-2 outline-none hover:underline focus-visible:ring-2"
-                  [routerLink]="station.stationId === null ? null : ['/station', station.stationId]"
+                  [routerLink]="['/station', station.stationId]"
                   data-testid="station-strip-link"
                 >
                   <span class="truncate">{{ station.label }}</span>
@@ -181,31 +180,33 @@ export class LineStatusReportsComponent {
    * is stable between reads.
    *
    * Grouped by `displayName` rather than by `id` because that is what the reader sees in the rows
-   * below and what the chip prints; two station rows sharing a display name are one place as far as
-   * this surface is concerned. `?? []` on both the report's stations and the report list, because
-   * `strictNullChecks` is OFF and a hand-built fixture must not throw inside a computed.
+   * below and what the chip prints; the backend keeps display names unique, so a name is one
+   * station and its chip links to that station's id. `?? []` on both the report's stations and the
+   * report list, because `strictNullChecks` is OFF and a hand-built fixture must not throw inside a
+   * computed.
    *
    * Only the LOADED page is counted — see the template comment for why that is a documented v1 limit
    * rather than an omission, and why the strip hides itself instead of showing a partial total.
    */
   protected readonly _stations = computed<StationStripEntry[]>(() => {
-    const counts = new Map<string, number>();
-    // The one station id behind each name, or `null` once a second id turns up under it.
-    const ids = new Map<string, string | null>();
+    const entries = new Map<string, StationStripEntry>();
     for (const report of this.reports()) {
       for (const station of report.stations ?? []) {
         const key = station?.displayName ?? "";
         if (key === "") {
           continue;
         }
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-        const known = ids.get(key);
-        ids.set(key, known === undefined || known === station.id ? station.id : null);
+        const entry = entries.get(key);
+        if (entry) {
+          entry.count += 1;
+        } else {
+          entries.set(key, { key, label: key, count: 1, stationId: station.id });
+        }
       }
     }
-    return [...counts.entries()]
-      .map(([key, count]) => ({ key, label: key, count, stationId: ids.get(key) ?? null }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    return [...entries.values()].sort(
+      (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+    );
   });
 
   constructor() {

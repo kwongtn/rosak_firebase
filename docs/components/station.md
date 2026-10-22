@@ -42,7 +42,7 @@
 | spotting `SpottingHistoryComponent` (vehicle page)                            | underlined text links, origin then destination        | `history-origin`, `history-destination` |
 | spotting `StationAssetsSectionComponent` (`/spotting/:lineId/details/assets`) | the station heading's name                            | `station-assets-station`                |
 
-The strip groups reports by display name, so a name that two station rows share has no single page: that chip gets a `null` `routerLink` (no `href`) and stays a plain label. The local data has no such pair.
+The strip groups reports by display name. The backend keeps display names unique (a DB constraint on `Station.display_name`), so each chip is one station and links to its id.
 
 ## ⚙️ Internal State & Logic
 

@@ -1077,9 +1077,9 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
     detect.
   - Each strip chip is a link to its station's page (`<a hlmBadge variant="neutral">`,
     `station-strip-link`, `routerLink` `['/station', id]`; see [station](station.md)).
-    `StationStripEntry.stationId` is the one station id behind the chip's name, or `null` when two
-    station rows share the name: that chip gets a `null` `routerLink`, so no `href`, and stays a plain
-    label. The row's own station names (`report-station`) are text, not links.
+    `StationStripEntry.stationId` is the station id behind the chip's name. The backend keeps display
+    names unique (a DB constraint on `Station.display_name`), so a name is one station and every chip
+    links. The row's own station names (`report-station`) are text, not links.
 
 ### Service-day widgets (sparkline · row tally · heat grid)
 

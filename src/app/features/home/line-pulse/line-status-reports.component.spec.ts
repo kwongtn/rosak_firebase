@@ -295,7 +295,8 @@ describe("LineStatusReportsComponent", () => {
     );
     // KLCC 3, then the single-report stations by name so the strip is stable between reads.
     expect(chips).toEqual(["KLCC 3", "Bukit Jalil 1", "Masjid Jamek 1", "Sri Petaling 1"]);
-    // Each chip opens its station's page.
+    // Each chip opens its station's page. Display names are unique in the backend (a DB
+    // constraint), so the three KLCC reports are one station and its chip links to s1.
     expect(
       [...(strip as HTMLElement).querySelectorAll('[data-testid="station-strip-link"]')].map(
         (chip) => [chip.tagName, chip.getAttribute("href")],
@@ -312,36 +313,6 @@ describe("LineStatusReportsComponent", () => {
         root.querySelector('[data-testid="line-status-reports-scroll"]') as Node,
       ),
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-
-  it("groups two station rows sharing a display name into one chip", async () => {
-    const fixture = render(true);
-    await flushReports(fixture, [
-      report("r1", [{ id: "s1", displayName: "KLCC" }]),
-      report("r2", [{ id: "s2", displayName: "KLCC" }]),
-    ]);
-
-    const root = fixture.nativeElement as HTMLElement;
-    // Display name is what the reader sees in the rows and what the chip prints, so two rows with
-    // the same name are one place as far as this surface is concerned.
-    const chips = [...root.querySelectorAll('[data-testid="station-strip"] [data-slot="badge"]')];
-    expect(chips).toHaveLength(1);
-    expect(chips[0]?.textContent?.replace(/\s+/g, " ").trim()).toBe("KLCC 2");
-    // Two stations behind one chip: there is no single page to open, so it gets no href.
-    expect(chips[0]?.hasAttribute("href")).toBe(false);
-  });
-
-  it("links a chip whose reports all name the same station row", async () => {
-    const fixture = render(true);
-    await flushReports(fixture, [
-      report("r1", [{ id: "s1", displayName: "KLCC" }]),
-      report("r2", [{ id: "s1", displayName: "KLCC" }]),
-    ]);
-
-    const root = fixture.nativeElement as HTMLElement;
-    const chip = root.querySelector('[data-testid="station-strip-link"]');
-    expect(chip?.textContent?.replace(/\s+/g, " ").trim()).toBe("KLCC 2");
-    expect(chip?.getAttribute("href")).toBe("/station/s1");
   });
 
   it("hides the strip entirely when no loaded report names a station", async () => {
