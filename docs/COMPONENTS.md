@@ -348,6 +348,11 @@ walks the static imports from `main.ts` and fails when it reaches `features/`, `
 - At `0a57ec4`, with the later packages merged, the table reads
   `Initial total | 842.04 kB | 223.51 kB`. `main` is unchanged at 237.37 kB, and `styles` grew from
   100.88 kB to 101.01 kB.
+- The typical week in a line's expanded panel (`line-week-profile`, its util, query document and two
+  registry tokens), measured on `c14b955` (the push and station packages merged) and on the branch:
+  `Initial total | 843.51 kB | 223.94 kB` became `843.67 kB | 224.00 kB`. All of the 0.16 kB is
+  `styles` (101.38 kB to 101.54 kB); `main` stays 238.08 kB. The front page's lazy `home-routes` chunk
+  grew from 193.00 kB to 201.00 kB (40.23 kB to 41.99 kB transferred).
 
 **Next candidates**, smallest risk first:
 
