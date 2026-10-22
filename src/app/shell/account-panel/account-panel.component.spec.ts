@@ -39,7 +39,6 @@ describe("AccountPanelComponent", () => {
               email: "ada@example.com",
               photoURL: null,
             }),
-            idToken: vi.fn(async () => null),
           },
         },
         { provide: GraphQLClient, useValue: graphql },

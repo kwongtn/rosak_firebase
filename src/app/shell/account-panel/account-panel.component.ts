@@ -195,11 +195,9 @@ export class AccountPanelComponent implements OnDestroy {
     // moved it elsewhere in the meantime.
     const focusBefore = this.isBrowser ? document.activeElement : null;
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<RequestVerificationCodeData>(
         REQUEST_VERIFICATION_CODE_MUTATION,
         {},
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       this.code.set(data.requestVerificationCode.code);
       this.startCountdown();
