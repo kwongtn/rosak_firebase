@@ -1123,7 +1123,6 @@ describe("HomeRefreshControlComponent (real HomeStore ordering)", () => {
           useValue: {
             isLoggedIn: signal(false),
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },

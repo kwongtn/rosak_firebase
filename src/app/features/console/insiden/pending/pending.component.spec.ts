@@ -131,7 +131,7 @@ describe("PendingIncidentsComponent", () => {
         { provide: GraphQLClient, useValue: { request: requestMock } },
         {
           provide: AuthService,
-          useValue: { idToken: async () => "token", isLoggedIn: () => true, isAdmin: () => true },
+          useValue: { isLoggedIn: () => true, isAdmin: () => true },
         },
         {
           provide: ToastService,

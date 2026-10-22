@@ -49,7 +49,6 @@ async function configureShell(deferBlockBehavior?: DeferBlockBehavior): Promise<
           isLoggedIn: signal(false),
           user: signal(null),
           login: vi.fn(),
-          idToken: async () => "token",
         },
       },
       { provide: GraphQLClient, useValue: { request: vi.fn() } },

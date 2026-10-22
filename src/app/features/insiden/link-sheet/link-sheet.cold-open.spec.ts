@@ -27,7 +27,7 @@ describe("LinkSheetComponent cold open", () => {
         provideHttpClientTesting(),
         {
           provide: AuthService,
-          useValue: { isLoggedIn: () => true, login: vi.fn(), idToken: async () => "token" },
+          useValue: { isLoggedIn: () => true, login: vi.fn() },
         },
         { provide: GraphQLClient, useValue: { request: vi.fn() } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },

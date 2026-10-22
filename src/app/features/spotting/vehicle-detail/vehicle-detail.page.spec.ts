@@ -96,7 +96,7 @@ describe("VehicleDetailPage", () => {
         ...(options.realToast ? [] : [{ provide: ToastService, useValue: toast }]),
         { provide: ImageUploadService, useValue: { pendingCount: signal(0) } },
         // The history asks who is signed in; the page spec has no Firebase to ask.
-        { provide: AuthService, useValue: { isLoggedIn: signal(false), idToken: vi.fn() } },
+        { provide: AuthService, useValue: { isLoggedIn: signal(false) } },
       ],
     }).compileComponents();
 

@@ -51,7 +51,7 @@ describe("LinkCardComponent", () => {
         provideZonelessChangeDetection(),
         {
           provide: AuthService,
-          useValue: { isLoggedIn, login: vi.fn(), idToken: async () => "token" },
+          useValue: { isLoggedIn, login: vi.fn() },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },

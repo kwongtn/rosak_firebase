@@ -67,7 +67,7 @@ describe("VoteButtonComponent", () => {
         provideZonelessChangeDetection(),
         {
           provide: AuthService,
-          useValue: { isLoggedIn, isAdmin: () => false, idToken: async () => "token" },
+          useValue: { isLoggedIn, isAdmin: () => false },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },

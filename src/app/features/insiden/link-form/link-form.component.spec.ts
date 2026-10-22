@@ -77,7 +77,7 @@ describe("LinkFormComponent", () => {
         provideHttpClientTesting(),
         {
           provide: AuthService,
-          useValue: { ...authMocks, idToken: async () => "token" },
+          useValue: { ...authMocks },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },

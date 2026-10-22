@@ -740,7 +740,7 @@ describe("a feed row round-trips its tags through the shared edit sheet", () => 
         provideHttpClientTesting(),
         {
           provide: AuthService,
-          useValue: { isLoggedIn: () => true, isAdmin: () => false, idToken: async () => "token" },
+          useValue: { isLoggedIn: () => true, isAdmin: () => false },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },

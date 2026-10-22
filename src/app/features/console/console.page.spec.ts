@@ -10,7 +10,6 @@ import { ReCaptchaV3Service } from "ng-recaptcha-2";
 import { of } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "../../core/auth/auth.service";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
 import { ToastService } from "../../ui/toast/toast.service";
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
@@ -92,7 +91,6 @@ describe("ConsolePage selection UX", () => {
         // reports it as an unhandled rejection, unrelated to the click test.
         provideRouter([{ path: "spotting/:lineId/vehicle/:vehicleId", children: [] }]),
         { provide: GraphQLClient, useValue: { request: requestMock } },
-        { provide: AuthService, useValue: { idToken: async () => "token" } },
         { provide: ToastService, useValue: toastMocks },
         { provide: ReCaptchaV3Service, useValue: { execute: recaptchaMock } },
       ],

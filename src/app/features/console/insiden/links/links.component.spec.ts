@@ -5,7 +5,6 @@ import { provideRouter } from "@angular/router";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
@@ -201,7 +200,6 @@ describe("SocialMediaLinksComponent", () => {
         provideRouter([]),
         provideHttpClientTesting(),
         { provide: GraphQLClient, useValue: { request: requestMock } },
-        { provide: AuthService, useValue: { idToken: async () => "token" } },
         { provide: ToastService, useValue: toastMocks },
       ],
     }).compileComponents();
@@ -3279,7 +3277,6 @@ describe("'Show all links' clicked while the first load is still in flight", () 
         provideRouter([]),
         provideHttpClientTesting(),
         { provide: GraphQLClient, useValue: { request: requestMock } },
-        { provide: AuthService, useValue: { idToken: async () => "token" } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
       ],
     }).compileComponents();

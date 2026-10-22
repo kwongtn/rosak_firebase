@@ -99,7 +99,6 @@ describe("InsidenPage incident sheet hosting", () => {
             isAdmin: () => false,
             user: () => null,
             login: vi.fn(),
-            idToken: async () => "token",
           },
         },
         { provide: GraphQLClient, useValue: { request: vi.fn() } },
