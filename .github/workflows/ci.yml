@@ -10,10 +10,11 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ref makes the older run's result moot, so stop it.
+# A newer push to the same PR makes the older run's result moot, so stop it. Pushes to main and
+# staging run to completion: their build job is the only one that uploads sourcemaps to Sentry.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
