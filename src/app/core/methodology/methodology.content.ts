@@ -54,54 +54,6 @@ const REVIEWED_AT_SHIP = "2026-09-24";
 const REVIEWED_AT_NETWORK_BOARD = "2026-10-03";
 
 /**
- * Bumped when the service-day history widgets landed — the hero's sparkline, the board's per-line
- * strips and the Pro heat grid (2026-10-03).
- *
- * A separate constant from `REVIEWED_AT_NETWORK_BOARD` on purpose even though both currently hold
- * the same date: these are a DIFFERENT review of the same section (the hour-bucket contract rather
- * than the live-status rules), and collapsing them would make the next bump on one silently claim a
- * review of the other.
- */
-const REVIEWED_AT_HISTORY_WIDGETS = "2026-10-06";
-
-/**
- * Bumped when the Pro bento dashboard shipped — its three board filters, the feed's three filter axes
- * and the CSV export (2026-10-03).
- *
- * A separate constant from the two above rather than a reuse of either: the one user-visible rule this
- * phase adds is "which lines do we say we have data about", which is a DIFFERENT review from the
- * confidence chip's levels (already shipped, describing the same evidence from the chip's side) and
- * from the service-day shapes (an entirely different set of widgets). Sharing a constant would make a
- * later bump on any one of the three silently claim a review of the other two.
- */
-const REVIEWED_AT_PRO_DASHBOARD = "2026-10-03";
-
-/**
- * Bumped when the Pro dashboard's OFFICIAL-NOTICES ARCHIVE and WORST-LINES RANKING landed — the two
- * supporting widgets that added a rule rather than a view of an existing one (2026-10-03).
- *
- * A fourth constant rather than a reuse of the three above, for the same reason each of them is
- * separate: the archive's window is a deliberate NON-window, and the ranking's is a service-day total
- * that is explicitly reports and not faults. Both are reviews of the `line-status` section's
- * substance that none of the earlier reviews would have covered, so sharing a constant would let the
- * next bump on any of the four silently claim a review of the other three.
- */
-const REVIEWED_AT_PRO_OFFICIAL_WIDGETS = "2026-10-03";
-
-/**
- * Bumped by the Phase 5B registry audit, which walked every number the front page actually ships
- * and asked the one question that matters — is it defined, and can a reader reach that definition?
- * (2026-10-03).
- *
- * It found one gap (`network.reports-now` shipped since the board landed with no `MetricDoc` at all)
- * and two rules that had a definition nobody could reach in situ. Both are now surfaced from the
- * hero. Only the `line-status` section is bumped: every one of these metrics lives there, and no
- * other section's substance was re-read (the `passenger.*` chips were checked for a SURFACE only, so
- * `sightings` keeps its ship date rather than claiming a review nobody did).
- */
-const REVIEWED_AT_POLISH = "2026-10-03";
-
-/**
  * Bumped when the front page's headline and tone were re-scoped to IN-SERVICE lines — closed
  * (Defunct) and pre-opening (Testing) lines no longer count in “N of M lines running normally”,
  * and the indicator's colour follows the same counts (2026-10-05).
@@ -112,17 +64,6 @@ const REVIEWED_AT_HEADLINE_IN_SERVICE = "2026-10-05";
  *  surface for the `line-status` section's fleet counts (2026-10-06). Only `line-status` is
  *  bumped: the other sections' substance was not re-read. */
 const REVIEWED_AT_SPOTTING_FLEET_CHIP = "2026-10-06";
-
-/**
- * Bumped when the front page's Others bucket landed — out-of-service (Testing/Defunct) lines left
- * "Needs attention" for a board group of their own, and the hero's "Needs attention" tile and
- * callout became in-service scoped like the headline (2026-10-06).
- *
- * A separate constant from `REVIEWED_AT_HEADLINE_IN_SERVICE`: that review covered the SENTENCE and
- * its colour, while this one re-read the ATTENTION RULE itself and the tile that publishes it.
- * Sharing a constant would let a later bump on either silently claim a review of the other.
- */
-const REVIEWED_AT_OTHERS_BUCKET = "2026-10-06";
 
 /**
  * Bumped when the front page's eight metrics gained a tooltip-sized `summary` (2026-10-07) — the

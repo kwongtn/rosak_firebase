@@ -65,3 +65,14 @@ export function section(id: string): MethodologySection {
   }
   return found;
 }
+
+/**
+ * Whether a `lastReviewed` date (ISO `YYYY-MM-DD`) is more than `STALE_REVIEW_MONTHS` before `now`.
+ * It marks an entry on the page and never fails a build, because the calendar must not break CI.
+ * An unparseable date is not stale.
+ */
+export function isReviewStale(lastReviewed: string, now: Date = new Date()): boolean {
+  const due = new Date(lastReviewed);
+  due.setUTCMonth(due.getUTCMonth() + Number(METHODOLOGY_CONSTANTS["STALE_REVIEW_MONTHS"].value));
+  return now.getTime() > due.getTime();
+}

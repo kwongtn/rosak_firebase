@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { METHODOLOGY_CONSTANTS } from "./methodology.constants";
 import {
+  isReviewStale,
   metricDoc,
   metricTooltip,
   renderMethodologyCopy,
@@ -198,5 +199,25 @@ describe("methodology render util: section", () => {
 
   it("leaves no unresolved token in a rendered section body", () => {
     expect(renderMethodologyCopy(section("line-status").body)).not.toContain("{{");
+  });
+});
+
+describe("methodology render util: isReviewStale", () => {
+  const NOW = new Date("2026-10-22T00:00:00Z");
+
+  it("is stale only once the date is more than STALE_REVIEW_MONTHS (6) old", () => {
+    expect(isReviewStale("2026-04-23", NOW)).toBe(false);
+    expect(isReviewStale("2026-04-22", NOW)).toBe(false); // exactly six months: not yet
+    expect(isReviewStale("2026-04-21", NOW)).toBe(true);
+  });
+
+  it("never marks a future or unparseable date", () => {
+    expect(isReviewStale("2027-01-01", NOW)).toBe(false);
+    expect(isReviewStale("not a date", NOW)).toBe(false);
+  });
+
+  it("reads the clock when no date is given", () => {
+    expect(isReviewStale("2000-01-01")).toBe(true);
+    expect(isReviewStale("2999-01-01")).toBe(false);
   });
 });

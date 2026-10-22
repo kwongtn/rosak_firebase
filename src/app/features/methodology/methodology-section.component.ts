@@ -1,7 +1,11 @@
 import { Component, computed, input } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { METRIC_DOCS, type MethodologySection } from "../../core/methodology/methodology.content";
-import { renderMethodologyCopy } from "../../core/methodology/methodology-render.util";
+import {
+  isReviewStale,
+  renderMethodologyCopy,
+} from "../../core/methodology/methodology-render.util";
+import { HlmBadge } from "../../ui/badge/badge";
 import { InfoPopover, type InfoPopoverLink } from "../../ui/info-popover/info-popover";
 
 /** One metric row: the registry entry's identity plus its already-token-rendered definition. */
@@ -9,12 +13,15 @@ interface MetricRow {
   id: string;
   title: string;
   content: string;
+  lastReviewed: string;
+  stale: boolean;
 }
 
 /**
  * One anchored block of `/methodology`: heading, "Last reviewed" date, owning-route link,
  * the in-progress state while the owning spec's code has not landed, and the registry metrics
- * that belong to it.
+ * that belong to it, each with its own review date. A date older than `STALE_REVIEW_MONTHS` (section
+ * or metric) shows a "Needs review" pill.
  *
  * Every string comes from `METHODOLOGY_SECTIONS` / `METRIC_DOCS` through
  * `renderMethodologyCopy()` — nothing here is typed inline, so the popover a rider opens on a
@@ -22,12 +29,17 @@ interface MetricRow {
  */
 @Component({
   selector: "app-methodology-section",
-  imports: [InfoPopover, RouterLink],
+  imports: [HlmBadge, InfoPopover, RouterLink],
   template: `
     <section [id]="section().id" class="flex scroll-mt-24 flex-col gap-3">
       <div class="flex flex-col gap-0.5">
         <h2 class="text-lg font-semibold">{{ section().title }}</h2>
-        <p class="text-muted-foreground text-xs">{{ _lastReviewed() }}</p>
+        <p class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+          {{ _lastReviewed() }}
+          @if (_stale()) {
+            <span hlmBadge variant="warning" data-testid="needs-review">Needs review</span>
+          }
+        </p>
       </div>
 
       <p class="text-sm">{{ _body() }}</p>
@@ -53,10 +65,16 @@ interface MetricRow {
       @if (_metrics().length > 0) {
         <ul class="flex flex-col gap-1.5">
           @for (metric of _metrics(); track metric.id) {
-            <li>
+            <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <app-info-popover [label]="metric.title" [content]="metric.content" [link]="_link()">
                 <span class="text-sm">{{ metric.title }}</span>
               </app-info-popover>
+              <span class="text-muted-foreground text-xs" data-testid="metric-reviewed">
+                Reviewed {{ metric.lastReviewed }}
+              </span>
+              @if (metric.stale) {
+                <span hlmBadge variant="warning" data-testid="needs-review">Needs review</span>
+              }
             </li>
           }
         </ul>
@@ -76,11 +94,15 @@ export class MethodologySectionComponent {
     renderMethodologyCopy(`Last reviewed ${this.section().lastReviewed}`),
   );
 
+  protected readonly _stale = computed(() => isReviewStale(this.section().lastReviewed));
+
   protected readonly _metrics = computed<MetricRow[]>(() =>
     METRIC_DOCS.filter((doc) => doc.sectionId === this.section().id).map((doc) => ({
       id: doc.id,
       title: doc.title,
       content: renderMethodologyCopy(doc.definition),
+      lastReviewed: doc.lastReviewed,
+      stale: isReviewStale(doc.lastReviewed),
     })),
   );
 

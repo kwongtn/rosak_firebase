@@ -36,9 +36,9 @@ export interface MethodologyConstant {
  * the service day starts at hour `SERVICE_DAY_START_HOUR` and the backend zero-fills
  * `SERVICE_DAY_HOURS` buckets from there, and the heat grid's opacity ladder has
  * `HEAT_INTENSITY_STEPS` steps. They are here so a widget's label and its `/methodology` sentence
- * cannot drift from the shape the backend actually returns — and `status-history-display.util.spec.ts`
- * pins each of them against the code that uses it, so a backend change that is not mirrored here
- * fails a test instead of quietly mislabelling a chart.
+ * cannot drift from each other — `status-history-display.util.spec.ts` pins each of them against the
+ * code that uses it. That compares frontend constants with frontend constants, so a backend change
+ * to the service day fails no test: it has to be mirrored here by hand.
  *
  * `REPORT_RANKING_TOP_LINES` is a display cap rather than a measurement — how many lines the Pro
  * worst-lines ranking shows (`features/home/pro/pro-report-ranking.component.ts`, published as
