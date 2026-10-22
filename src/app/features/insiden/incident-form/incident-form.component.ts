@@ -1,16 +1,9 @@
 import { Component, computed, effect, ElementRef, inject, signal, viewChild } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
-import {
-  graphqlResource,
-  GraphQLClient,
-  GraphQLRequestError,
-} from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
-import {
-  AssetMultiSelectComponent,
-  type AssetMultiSelectOption,
-} from "../asset-multi-select/asset-multi-select.component";
+import { AssetMultiSelectComponent } from "../asset-multi-select/asset-multi-select.component";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
@@ -26,8 +19,6 @@ import {
   CREATE_CALENDAR_INCIDENT_MUTATION,
   CreateCalendarIncidentData,
   CreateCalendarIncidentVars,
-  INSIDEN_REFERENCE_QUERY,
-  InsidenReferenceQueryData,
   SUBMIT_CALENDAR_INCIDENT_MUTATION,
   SubmitCalendarIncidentData,
   SubmitCalendarIncidentVars,
@@ -37,6 +28,11 @@ import {
 } from "../data/insiden.queries";
 import { IncidentAiService } from "../data/incident-ai.service";
 import { IncidentSheetService } from "../data/incident-sheet.service";
+import {
+  defaultCategoryId,
+  injectDefaultCategory,
+  injectInsidenReferenceOptions,
+} from "../data/insiden-reference-options";
 import {
   canMoveDown,
   canMoveUp,
@@ -172,126 +168,29 @@ export class IncidentFormComponent {
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
+
+  protected readonly isEditing = computed(() => this.sheet.editTarget() !== null);
+
+  private readonly reference = injectInsidenReferenceOptions(
+    this.selectedLineIds,
+    this.selectedVehicleIds,
+  );
+  protected readonly referenceResource = this.reference.resource;
+  protected readonly lineOptions = this.reference.lineOptions;
+  protected readonly vehicleOptions = this.reference.vehicleOptions;
+  protected readonly stationOptions = this.reference.stationOptions;
+  protected readonly categoryOptions = this.reference.categoryOptions;
+
   /** Category is a single mandatory dropdown value (default "Just Reporting") — the mutation
    * contract still takes an array, derived in `selectedCategoryIds`. Mirrors link-form. */
-  protected readonly selectedCategoryId = signal<string | null>(null);
+  protected readonly selectedCategoryId = injectDefaultCategory(
+    this.categoryOptions,
+    this.isEditing,
+  );
   protected readonly selectedCategoryIds = computed<string[]>(() => {
     const id = this.selectedCategoryId();
     return id ? [id] : [];
   });
-
-  protected readonly isEditing = computed(() => this.sheet.editTarget() !== null);
-
-  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
-    query: INSIDEN_REFERENCE_QUERY,
-  }));
-
-  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.lines ?? []).map((line) => ({
-      id: line.id,
-      label: `${line.code} — ${line.displayName}`,
-    })),
-  );
-
-  private readonly _linesById = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    return new Map(lines.map((line) => [line.id, line]));
-  });
-
-  /** vehicle id -> deduped parent line CODES for display, over ALL lines (see
-   * `_vehicleParentLineIds` for the id-based view). */
-  private readonly _vehicleParentCodes = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    const map = new Map<string, string[]>();
-    for (const line of lines) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          const codes = map.get(vehicle.id);
-          if (codes) {
-            if (!codes.includes(line.code)) {
-              codes.push(line.code);
-            }
-          } else {
-            map.set(vehicle.id, [line.code]);
-          }
-        }
-      }
-    }
-    return map;
-  });
-
-  /** vehicle id -> deduped parent line IDS, used to union preselected vehicles' parents
-   * into the option set so an edit-hydrated vehicle stays visible even when its line is
-   * not among the selected lines (AssetMultiSelect pre-selection caveat). */
-  private readonly _vehicleParentLineIds = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    const map = new Map<string, string[]>();
-    for (const line of lines) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          const ids = map.get(vehicle.id);
-          if (ids) {
-            if (!ids.includes(line.id)) {
-              ids.push(line.id);
-            }
-          } else {
-            map.set(vehicle.id, [line.id]);
-          }
-        }
-      }
-    }
-    return map;
-  });
-
-  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
-    const selected = this.selectedLineIds();
-    const lineFilter = selected.length > 0 ? new Set(selected) : null;
-    // Union the parent lines of currently-selected vehicles into the filter so their
-    // checkboxes stay visible/removable; an incident may tag a vehicle whose parent
-    // line isn't itself selected.
-    if (lineFilter) {
-      for (const vehicleId of this.selectedVehicleIds()) {
-        for (const parentId of this._vehicleParentLineIds().get(vehicleId) ?? []) {
-          lineFilter.add(parentId);
-        }
-      }
-    }
-    const lines = lineFilter
-      ? [...lineFilter].map((id) => this._linesById().get(id))
-      : [...this._linesById().values()];
-    const seen = new Set<string>();
-    const options: AssetMultiSelectOption[] = [];
-    for (const line of lines) {
-      if (!line) continue;
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          if (seen.has(vehicle.id)) continue;
-          seen.add(vehicle.id);
-          options.push({
-            id: vehicle.id,
-            label: vehicle.identificationNo,
-            parentCodes: this._vehicleParentCodes().get(vehicle.id),
-          });
-        }
-      }
-    }
-    return options;
-  });
-
-  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.stations ?? []).map((station) => ({
-      id: station.id,
-      label: station.displayName,
-      parentCodes: (station.lines ?? []).map((l) => l.code),
-    })),
-  );
-
-  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
-      id: category.id,
-      label: category.name,
-    })),
-  );
 
   /** The loaded lines and stations as the extraction matcher wants them; `null` until the reference
    * read has succeeded, so a fill that runs before then skips matching rather than reporting
@@ -396,21 +295,6 @@ export class IncidentFormComponent {
         this.clear();
       }
       this._wasSheetOpen = isOpen;
-    });
-
-    // Categories is a mandatory single-select — pre-fill "Just Reporting" whenever the sheet
-    // opens for a new submission (no edit target) once the reference data has loaded. Edit
-    // hydration and explicit user choices win; this only fills the empty slot.
-    effect(() => {
-      if (!this.sheet.isOpen() || this.sheet.editTarget() || this.selectedCategoryId()) {
-        return;
-      }
-      const justReporting = (this.referenceResource.data()?.calendarIncidentCategories ?? []).find(
-        (category) => category.name === "Just Reporting",
-      );
-      if (justReporting) {
-        this.selectedCategoryId.set(justReporting.id);
-      }
     });
 
     // Hydrate from `editTarget` once per open: `IncidentSheetService.open(incident)` is the
@@ -893,7 +777,7 @@ export class IncidentFormComponent {
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
-    this.selectedCategoryId.set(null);
+    this.selectedCategoryId.set(defaultCategoryId(this.categoryOptions()));
     this._fillNotes.set(NO_FILL_NOTES);
     this.sheet.editTarget.set(null);
     this.incidentForm().reset();

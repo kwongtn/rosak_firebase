@@ -11,28 +11,24 @@ import {
 } from "@angular/core";
 import { form as createForm, FormField, required, schema, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
-import {
-  graphqlResource,
-  GraphQLClient,
-  GraphQLRequestError,
-} from "../../../core/graphql/graphql-client";
+import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
 import { HlmButton } from "../../../ui/button/button";
 import { ErrorBoxComponent } from "../../../ui/error-box/error-box";
 import { HlmInput } from "../../../ui/input/input";
 import { HlmNativeSelect } from "../../../ui/select/native-select";
 import { ToastService } from "../../../ui/toast/toast.service";
+import { AssetMultiSelectComponent } from "../asset-multi-select/asset-multi-select.component";
 import {
-  AssetMultiSelectComponent,
-  AssetMultiSelectOption,
-} from "../asset-multi-select/asset-multi-select.component";
-import {
-  INSIDEN_REFERENCE_QUERY,
-  InsidenReferenceQueryData,
   SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
   SubmitSocialMediaLinkData,
   SubmitSocialMediaLinkVars,
 } from "../data/insiden.queries";
+import {
+  defaultCategoryId,
+  injectDefaultCategory,
+  injectInsidenReferenceOptions,
+} from "../data/insiden-reference-options";
 import { isoToOccurredAtInput, occurredAtInputToIso } from "../data/link-occurred-at.util";
 import { LinkSheetService } from "../data/link-sheet.service";
 import {
@@ -243,13 +239,6 @@ export class LinkFormComponent {
   protected readonly selectedLineIds = signal<string[]>([]);
   protected readonly selectedVehicleIds = signal<string[]>([]);
   protected readonly selectedStationIds = signal<string[]>([]);
-  /** Category is a single mandatory dropdown value (default "Just Reporting"); the mutation
-   * contract still takes an array, derived in `selectedCategoryIds`. */
-  protected readonly selectedCategoryId = signal<string | null>(null);
-  protected readonly selectedCategoryIds = computed<string[]>(() => {
-    const id = this.selectedCategoryId();
-    return id ? [id] : [];
-  });
 
   readonly isSubmitting = signal(false);
 
@@ -257,86 +246,32 @@ export class LinkFormComponent {
    * Public so the host page can re-label its sheet header/submit button. */
   readonly isEditing = computed(() => this.sheet.editTarget() !== null);
 
-  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
-    query: INSIDEN_REFERENCE_QUERY,
-  }));
+  private readonly reference = injectInsidenReferenceOptions(
+    this.selectedLineIds,
+    this.selectedVehicleIds,
+  );
+  protected readonly referenceResource = this.reference.resource;
+  protected readonly lineOptions = this.reference.lineOptions;
+  protected readonly vehicleOptions = this.reference.vehicleOptions;
+  protected readonly stationOptions = this.reference.stationOptions;
+  protected readonly categoryOptions = this.reference.categoryOptions;
+
+  /** Category is a single mandatory dropdown value (default "Just Reporting"); the mutation
+   * contract still takes an array, derived in `selectedCategoryIds`. */
+  protected readonly selectedCategoryId = injectDefaultCategory(
+    this.categoryOptions,
+    this.isEditing,
+  );
+  protected readonly selectedCategoryIds = computed<string[]>(() => {
+    const id = this.selectedCategoryId();
+    return id ? [id] : [];
+  });
 
   /** True while the first reference read is in flight (a create-mode submit now would drop the
    * default line and category, which only land with it). Edit mode hydrates from the edit target and
    * never needs the read, so it is not held back. Public so the sheet's Submit can wait on it. */
   readonly isReferenceLoading = computed(
     () => !this.isEditing() && this.referenceResource.isLoading(),
-  );
-
-  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.lines ?? []).map((line) => ({
-      id: line.id,
-      label: `${line.code} — ${line.displayName}`,
-    })),
-  );
-
-  private readonly _linesById = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    return new Map(lines.map((line) => [line.id, line]));
-  });
-
-  /** vehicle id -> deduped parent line codes, computed over ALL lines (not the selected-filtered view). */
-  private readonly _vehicleParentCodes = computed(() => {
-    const lines = [...this._linesById().values()];
-    const map = new Map<string, string[]>();
-    for (const line of lines) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          const codes = map.get(vehicle.id);
-          if (codes) {
-            if (!codes.includes(line.code)) codes.push(line.code);
-          } else {
-            map.set(vehicle.id, [line.code]);
-          }
-        }
-      }
-    }
-    return map;
-  });
-
-  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
-    const selected = this.selectedLineIds();
-    const lines =
-      selected.length > 0
-        ? selected.map((id) => this._linesById().get(id))
-        : [...this._linesById().values()];
-    const seen = new Set<string>();
-    const options: AssetMultiSelectOption[] = [];
-    for (const line of lines) {
-      if (!line) continue;
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          if (seen.has(vehicle.id)) continue;
-          seen.add(vehicle.id);
-          options.push({
-            id: vehicle.id,
-            label: vehicle.identificationNo,
-            parentCodes: this._vehicleParentCodes().get(vehicle.id),
-          });
-        }
-      }
-    }
-    return options;
-  });
-
-  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.stations ?? []).map((station) => ({
-      id: station.id,
-      label: station.displayName,
-      parentCodes: (station.lines ?? []).map((l) => l.code),
-    })),
-  );
-
-  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
-      id: category.id,
-      label: category.name,
-    })),
   );
 
   protected _onCategoryChange(event: Event): void {
@@ -411,21 +346,6 @@ export class LinkFormComponent {
       this.selectedStationIds.set((target.stations ?? []).map((station) => station.id));
       this.selectedCategoryId.set(target.categories?.[0]?.id ?? null);
       this.linkForm().reset();
-    });
-
-    // Categories is a mandatory single-select — pre-fill "Just Reporting" whenever the sheet
-    // opens for a new submission (no edit target) once the reference data has loaded. Edit
-    // hydration and explicit user choices win; this only fills the empty slot.
-    effect(() => {
-      if (!this.sheet.isOpen() || this.sheet.editTarget() || this.selectedCategoryId()) {
-        return;
-      }
-      const justReporting = (this.referenceResource.data()?.calendarIncidentCategories ?? []).find(
-        (category) => category.name === "Just Reporting",
-      );
-      if (justReporting) {
-        this.selectedCategoryId.set(justReporting.id);
-      }
     });
 
     // Pre-select defaultLineIds once per open, but only once the reference data is actually
@@ -566,7 +486,7 @@ export class LinkFormComponent {
     this.selectedLineIds.set([]);
     this.selectedVehicleIds.set([]);
     this.selectedStationIds.set([]);
-    this.selectedCategoryId.set(null);
+    this.selectedCategoryId.set(defaultCategoryId(this.categoryOptions()));
     // No stale incident targeting or edit target survives into the next open/submission.
     this.sheet.context.set(null);
     this.sheet.editTarget.set(null);

@@ -27,6 +27,7 @@ interface LinkFormModel {
 interface ComponentUnderTest {
   model: WritableSignal<LinkFormModel>;
   isSubmitting: WritableSignal<boolean>;
+  referenceResource: { reload(): void };
   submit(): Promise<void>;
   clear(): void;
 }
@@ -493,6 +494,68 @@ describe("LinkFormComponent", () => {
     await component.submit();
     const [, vars] = requestMock.mock.calls[0];
     expect(vars.input).not.toHaveProperty("occurredAt");
+  });
+
+  describe("tags", () => {
+    // TR-102 (id 5) runs on the Kelana Jaya Line (id 8), and `makeLink()` tags it with KTM1 (id 4)
+    // only: the shape an older row, or a line unticked after its vehicle was picked, leaves behind.
+    const TAGGED_REFERENCE = {
+      data: {
+        lines: [
+          {
+            id: "4",
+            code: "KTM1",
+            displayName: "KTM Komuter Line 1",
+            vehicleTypes: [
+              { id: "t4", displayName: "EMU", vehicles: [{ id: "7", identificationNo: "TR-201" }] },
+            ],
+          },
+          {
+            id: "8",
+            code: "KJL",
+            displayName: "Kelana Jaya Line",
+            vehicleTypes: [
+              {
+                id: "t8",
+                displayName: "Train",
+                vehicles: [{ id: "5", identificationNo: "TR-102" }],
+              },
+            ],
+          },
+        ],
+        stations: [{ id: "6", displayName: "KL Sentral", lines: [{ id: "8", code: "KJL" }] }],
+        calendarIncidentCategories: [{ id: "C1", name: "Just Reporting" }],
+      },
+    };
+
+    /** Label text and checked state of each option in the multi-select with this heading. */
+    function options(heading: string): Array<{ label: string; checked: boolean }> {
+      const select = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll("app-asset-multi-select"),
+      ).find((element) => element.textContent?.trim().startsWith(heading));
+      if (!select) throw new Error(`${heading} multi-select not rendered`);
+      return Array.from(select.querySelectorAll("label")).map((label) => ({
+        label: label.querySelector("span")?.textContent?.trim() ?? "",
+        checked: label.querySelector<HTMLInputElement>("input")?.checked ?? false,
+      }));
+    }
+
+    it("keeps a tagged vehicle whose line is not tagged listed and ticked, so it can be removed", async () => {
+      asTestable(fixture).referenceResource.reload();
+      fixture.detectChanges();
+      httpMock.expectOne((r) => r.method === "POST").flush(TAGGED_REFERENCE);
+      sheet.openEdit(makeLink());
+      await settle(fixture);
+      fixture.detectChanges();
+
+      // Ticked options float to the top of this form's lists.
+      expect(options("Vehicles")).toEqual([
+        { label: "TR-102", checked: true },
+        { label: "TR-201", checked: false },
+      ]);
+      // Stations are never narrowed by line, so a tagged station on another line stays listed too.
+      expect(options("Stations")).toEqual([{ label: "KL Sentral", checked: true }]);
+    });
   });
 
   describe("when created lazily by the sheet", () => {
