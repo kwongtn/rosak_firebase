@@ -1,11 +1,15 @@
-import { signal } from "@angular/core";
-import { describe, expect, it } from "vitest";
+import { provideHttpClient } from "@angular/common/http";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
+import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { TestBed } from "@angular/core/testing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AssetMultiSelectOption } from "../asset-multi-select/asset-multi-select.component";
-import type { InsidenReferenceQueryData } from "./insiden.queries";
+import { INSIDEN_REFERENCE_QUERY, type InsidenReferenceQueryData } from "./insiden.queries";
 import {
   defaultCategoryId,
   injectDefaultCategory,
+  injectInsidenReferenceOptions,
   vehicleOptionsFor,
 } from "./insiden-reference-options";
 
@@ -112,5 +116,67 @@ describe("injectDefaultCategory", () => {
     // Leaving edit mode starts the next submission on the default again.
     isEditing.set(false);
     expect(category()).toBe("C1");
+  });
+});
+
+describe("injectInsidenReferenceOptions", () => {
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("builds the four option lists from one reference read and follows the selection", async () => {
+    const selectedLineIds = signal<string[]>([]);
+    const selectedVehicleIds = signal<string[]>([]);
+    const reference = TestBed.runInInjectionContext(() =>
+      injectInsidenReferenceOptions(selectedLineIds, selectedVehicleIds),
+    );
+    expect(reference.lineOptions()).toEqual([]);
+
+    TestBed.tick();
+    httpMock
+      .expectOne(
+        (request) => request.method === "POST" && request.body.query === INSIDEN_REFERENCE_QUERY,
+      )
+      .flush({
+        data: {
+          lines: LINES,
+          stations: [
+            { id: "S1", displayName: "KL Sentral", lines: [{ id: "1", code: "KJL" }] },
+            { id: "S2", displayName: "Bandaraya", lines: [] },
+          ],
+          calendarIncidentCategories: [{ id: "C1", name: "Just Reporting" }],
+        },
+      });
+    await vi.waitFor(() => expect(reference.resource.data()).toBeDefined());
+
+    expect(reference.lineOptions()).toEqual([
+      { id: "1", label: "KJL — KJL Line" },
+      { id: "2", label: "AGL — AGL Line" },
+    ]);
+    expect(reference.stationOptions()).toEqual([
+      { id: "S1", label: "KL Sentral", parentCodes: ["KJL"] },
+      { id: "S2", label: "Bandaraya", parentCodes: [] },
+    ]);
+    expect(reference.categoryOptions()).toEqual([{ id: "C1", label: "Just Reporting" }]);
+    expect(ids(reference.vehicleOptions())).toEqual(["V1", "V2", "V3"]);
+
+    selectedLineIds.set(["2"]);
+    expect(ids(reference.vehicleOptions())).toEqual(["V2", "V3"]);
+
+    selectedVehicleIds.set(["V1"]);
+    expect(ids(reference.vehicleOptions())).toEqual(["V2", "V3", "V1"]);
   });
 });
