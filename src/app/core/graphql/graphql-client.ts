@@ -262,6 +262,11 @@ export interface GraphQLRequestOptions {
    * its own words. The error is still thrown and still reported to Sentry.
    */
   quiet?: boolean;
+  /**
+   * Send without the viewer's token ({@link ANONYMOUS}): a public read whose answer must match the
+   * anonymous `graphqlResource()` page it continues (`userVote`, `isMine`).
+   */
+  anonymous?: boolean;
 }
 
 /**
@@ -271,7 +276,8 @@ export interface GraphQLRequestOptions {
  *
  * The auth interceptor (`core/http/auth.interceptor.ts`) adds a signed-in viewer's
  * `firebase-auth-key` and keeps such a request out of the SSR transfer cache; a signed-out
- * viewer's request goes out anonymous. A failed token refresh rejects with Firebase's error.
+ * viewer's request, or one sent with `anonymous: true`, goes out anonymous. A failed token refresh
+ * rejects with Firebase's error.
  */
 @Injectable({ providedIn: "root" })
 export class GraphQLClient {
@@ -290,6 +296,7 @@ export class GraphQLClient {
       this.http.post<GraphQLResponse<TData>>(environment.backendGraphqlUrl, body, {
         headers: extraHeaders,
         timeout: options?.timeout,
+        context: options?.anonymous ? new HttpContext().set(ANONYMOUS, true) : undefined,
       }),
     );
     // Check errors FIRST before returning data. If GraphQL returned any errors,

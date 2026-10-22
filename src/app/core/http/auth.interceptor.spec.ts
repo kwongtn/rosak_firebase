@@ -181,6 +181,20 @@ describe("authInterceptor", () => {
       await sent;
     });
 
+    it("sends GraphQLClient.request unsigned and cacheable when asked for anonymous", async () => {
+      const sent = TestBed.inject(GraphQLClient).request(query, {}, undefined, {
+        anonymous: true,
+      });
+
+      // No await before this: nothing waits on a token.
+      const call = httpMock.expectOne(isGraphql);
+      expect(call.request.headers.has("firebase-auth-key")).toBe(false);
+      expect(call.request.transferCache).toBeUndefined();
+      expect(idToken).not.toHaveBeenCalled();
+      call.flush({ data: {} });
+      await sent;
+    });
+
     it("rejects GraphQLClient.request with the refresh error, not an HTTP error", async () => {
       const refreshFailed = new Error("token expired offline");
       idToken.mockRejectedValue(refreshFailed);
