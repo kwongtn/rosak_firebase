@@ -28,6 +28,12 @@ import { injectIsBrowser } from "../../core/composables/is-browser";
  * panel has no transform class yet — visually "open" — before the closed class lands, and
  * because `transform` is transitioned, the browser animates that as a slide-out. Not rendering
  * the panel until it's actually opened removes the untransformed frame entirely.
+ *
+ * Once closed, the panel stays mounted (and slides out) but leaves nothing behind for the keyboard or
+ * a screen reader: the focus trap is switched off, which takes its two anchors out of the tab order,
+ * and the panel is `inert`. A closed sheet with the trap still on left a keyboard trap right after
+ * its opener (Tab landed on an anchor, which sent focus into the hidden panel), and its content stayed
+ * in the accessibility tree.
  */
 @Component({
   selector: "hlm-sheet",
@@ -45,10 +51,11 @@ import { injectIsBrowser } from "../../core/composables/is-browser";
         (click)="close()"
       ></div>
       <div
-        cdkTrapFocus
+        [cdkTrapFocus]="open()"
         [cdkTrapFocusAutoCapture]="open()"
         class="bg-popover text-popover-foreground fixed z-50 flex flex-col shadow-lg transition-transform"
         [class]="_panelClass()"
+        [attr.inert]="open() ? null : ''"
       >
         <ng-content />
       </div>

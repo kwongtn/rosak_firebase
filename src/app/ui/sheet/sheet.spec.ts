@@ -104,3 +104,67 @@ describe("HlmSheet scroll lock", () => {
     expect(document.body.style.overflow).toBe("");
   });
 });
+
+@Component({
+  imports: [HlmSheet],
+  template: `
+    <hlm-sheet [(open)]="open" side="bottom">
+      <button type="button" data-testid="inside">Inside</button>
+    </hlm-sheet>
+  `,
+})
+class TrapHostComponent {
+  readonly open = signal(true);
+}
+
+describe("HlmSheet once closed", () => {
+  let fixture: ComponentFixture<TrapHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TrapHostComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TrapHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+  });
+
+  const host = () => fixture.nativeElement as HTMLElement;
+  /** The two focus-trap anchors CDK puts on either side of the panel. */
+  const anchors = () => Array.from(host().querySelectorAll<HTMLElement>(".cdk-focus-trap-anchor"));
+  const panel = () => host().querySelector<HTMLElement>('[data-testid="inside"]')!.parentElement!;
+
+  async function setOpen(open: boolean): Promise<void> {
+    fixture.componentInstance.open.set(open);
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  it("takes the trap's anchors out of the tab order and makes the panel inert", async () => {
+    expect(anchors()).toHaveLength(2);
+    expect(anchors().map((anchor) => anchor.getAttribute("tabindex"))).toEqual(["0", "0"]);
+    expect(panel().hasAttribute("inert")).toBe(false);
+
+    await setOpen(false);
+
+    // Still mounted, so it can slide out, but Tab can no longer land on an anchor that sends focus
+    // into the hidden panel, and the panel's content is out of the accessibility tree.
+    expect(anchors()).toHaveLength(2);
+    expect(anchors().some((anchor) => anchor.hasAttribute("tabindex"))).toBe(false);
+    expect(panel().hasAttribute("inert")).toBe(true);
+  });
+
+  it("puts both back when it opens again", async () => {
+    await setOpen(false);
+    await setOpen(true);
+
+    expect(anchors().map((anchor) => anchor.getAttribute("tabindex"))).toEqual(["0", "0"]);
+    expect(panel().hasAttribute("inert")).toBe(false);
+  });
+});
