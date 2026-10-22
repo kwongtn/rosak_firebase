@@ -1266,11 +1266,17 @@ export class HomeStore {
     if (!this.auth.isLoggedIn()) {
       return;
     }
+    // A gate, not a header: without a token both reads would be the render's again, so send none.
+    // A failed refresh rejects here, before either read, and reaches Sentry as an unhandled
+    // rejection of the constructor's `void this.loadVoteOverlay()`.
+    if (!(await this.auth.idToken())) {
+      return;
+    }
     // The auth interceptor signs both reads; that token is the only thing they add to the render's.
     // allSettled, not all: if one read fails, the other's votes must still land in the overlay.
-    // A per-request failure is already surfaced by `GraphQLClient` (toast + Sentry), so there is
-    // nothing to rethrow — and swallowing it keeps the constructor's fire-and-forget
-    // `void this.loadVoteOverlay()` from producing an unhandled rejection.
+    // A GraphQL-level failure is already surfaced by `GraphQLClient` (toast + Sentry); a transport
+    // failure only leaves that read's votes out. Nothing is rethrown, so one failed read cannot
+    // turn the constructor's fire-and-forget call into an unhandled rejection.
     //
     // 🔴 Neither read below adds the feed's `lineId` filter (`todayVars` / `lastWeekVars` do), and that
     // is the ONE documented asymmetry with the two resources: they send the window constants as they

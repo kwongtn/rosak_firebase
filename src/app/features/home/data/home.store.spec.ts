@@ -145,6 +145,7 @@ describe("HomeStore", () => {
   let httpMock: HttpTestingController;
   let requestMock: ReturnType<typeof vi.fn>;
   let isLoggedIn: ReturnType<typeof signal<boolean>>;
+  let idToken: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
 
   function createStore(): HomeStore {
     const store = TestBed.inject(HomeStore);
@@ -194,6 +195,7 @@ describe("HomeStore", () => {
       .fn()
       .mockResolvedValue({ publicSocialMediaLinks: { edges: [], pageInfo: {} } });
     isLoggedIn = signal(false);
+    idToken = vi.fn<() => Promise<string | null>>(async () => "token");
 
     TestBed.configureTestingModule({
       providers: [
@@ -205,6 +207,7 @@ describe("HomeStore", () => {
           useValue: {
             isLoggedIn,
             isAdmin: () => false,
+            idToken,
             whenReady: Promise.resolve(),
           },
         },
@@ -1043,6 +1046,19 @@ describe("HomeStore", () => {
       alignPageToDay: true,
       collapseThreads: true,
     });
+  });
+
+  it("sends no overlay read for a signed-in session that has no token", async () => {
+    // Unsigned, both reads would only repeat the anonymous render's answer.
+    isLoggedIn.set(true);
+    idToken.mockResolvedValue(null);
+    const store = createStore();
+    flushInitial([], feedData([makeFeedLink("x", 0)], false, null));
+
+    await vi.waitFor(() => expect(idToken).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(store.userVotes()).toEqual({});
   });
 
   it("keeps the last-week votes when the today overlay read rejects", async () => {

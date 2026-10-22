@@ -365,7 +365,8 @@ The single source of truth for page data.
   Knock-ons: `totalCount` counts rendered roots ("Showing X of Y" does not inflate); continuation pages
   must agree with page one (a continuation is a fresh request that sends the window's whole variables
   again — `PagedFeed` builds it from the same `todayVars()` / `lastWeekVars()` the resource uses, plus
-  `after` — because an uncollapsed page 2 re-lists every root and renders sublinks as loose rows); the overlay
+  `after`, and `anonymous: true` like page one — because an uncollapsed page 2 re-lists every root and
+  renders sublinks as loose rows); the overlay
   is only complete if it asks for the same shape. `/insiden`, situasi, per-incident cards and My Links
   stay flat and omit the key.
 - **Derived state.** `lines`; `feedLinks` (first + appended pages, de-duplicated by `node.id`);
@@ -421,7 +422,8 @@ The single source of truth for page data.
   - The public beat feeds the control (`intervalMs()` / `secondsRemaining()`) and `refreshNow()`, so
     tick and click cannot diverge.
 - **Authenticated `userVote` overlay.** The feed's `graphqlResource()` reads are anonymous, so its `userVote` is
-  always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady`, then issues **two** reads in
+  always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady` and `auth.idToken()` (no token:
+  no reads; a failed refresh rejects to Sentry), then issues **two** reads in
   `Promise.allSettled` (Today first page, Last Week first page;
   `GraphQLClient.request`, signed by the auth interceptor) and records every non-zero vote into
   the **public** `userVotes`, bound into every `app-link-thread`'s `voteValues`. `allSettled`, not
