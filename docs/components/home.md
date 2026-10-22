@@ -9,7 +9,7 @@
   - the **network board** — per-line status grouped `Needs attention` (full cards) → `My lines` →
     `All lines` → `Others` (compact rows): each line's live operational + passenger status, how far to
     trust it, the social entries behind it, and a **Notice** chip when an approved incident is running
-    on it (a pinned line's row adds **Planned works**);
+    on it (a pinned line, as a row or as a card, adds **Planned works**);
   - a global rolling **feed** of approved links (voting, conversations) behind a Today / Last Week tab
     set, headed by a login-gated link submit box;
   - an alternate **Pro dashboard** layout (bento of six widgets), chosen by `?view=pro` or a stored
@@ -278,7 +278,11 @@ The single source of truth for page data.
   - 🔴 **The failure flag wins over the payload**: `graphqlResource().data()` never throws and keeps the
     last good answer through a failed refresh of the same request, so it is the flag (not `data()`) that
     makes a failed read hide ITS widget instead of drawing old rows as current. Widgets gate on the flag
-    too.
+    too. 🔴 **The exception is the board's two incident lists** (`noticesFor`, `plannedWorksFor`): the
+    beat re-reads them, and one transient failure of a 30s refresh must not blank every chip beside lines
+    that stay on screen under the retry banner, so they keep the last good answer. A read that has never
+    answered has no data and draws nothing. The Pro incidents widget keeps the flag rule (it hides on
+    `incidentsFailed`).
   - **History:** `networkHistoryResource` (`NETWORK_STATUS_HISTORY_QUERY`, vars `{}`) and
     `linesHistoryResource` (`LINES_STATUS_HISTORY_QUERY`, vars `{ lineIds }`, capped at
     `HISTORY_LINE_ID_CAP` = 64, the backend's limit). Inert until `requestHistoryReads()` AND `lines()`
@@ -291,17 +295,23 @@ The single source of truth for page data.
     board and widget both ask still sends one request). Projections: `recentIncidents` (the newest
     `PRO_INCIDENT_LIMIT`, the widget's slice), `noticesFor(lineId)` (the UNCAPPED list grouped by
     `lines[].id` through `groupIncidentsByLine`: one computed, O(1) per row, because a line's incident
-    can sit past the widget's slice) and `incidentsFailed`. There is no loading flag: `noticesFor`
-    answers the same shared empty array while the read is unrequested, in flight or failed, and a row
-    draws nothing for it (no skeleton).
+    can sit past the widget's slice) and `incidentsFailed` (the widget's own hide signal; the chips do
+    not read it). There is no loading flag: `noticesFor` answers the same shared empty array while the
+    read is unrequested, in its first flight or failed before it ever answered, and a row draws nothing
+    for it (no skeleton). After the first answer a failed refresh keeps the last good list.
   - **Planned works:** `plannedWorksResource` (the same document, `HOME_PLANNED_WORKS_VARS`), gated on
-    `requestPlannedWorksRead()`, which the board calls from an `effect` once the My lines group has a
-    row. An unpinned reader never sends it, and neither does a server render (pins hydrate in
-    `afterNextRender`, so `myLines` is empty there). `plannedWorksFor(lineId)`; its failure flag is
-    private and hides its chips only.
-  - Both incident reads are absent from `reloadAll()` and the beat: they are read once per store, when
-    their surface first asks, so a tab left open for hours keeps the notices of its first read (the chip
-    links to the live day page). See Feature Opportunities.
+    `requestPlannedWorksRead()`, which the board calls from an `effect` once a PINNED line is on screen:
+    a row in My lines, or a card in Needs attention (attention wins over a pin, so a pinned broken line
+    stays a card). An unpinned reader never sends it, a pin on a line that is not on the board starts
+    nothing, and neither does a server render (pins hydrate in `afterNextRender`).
+    `plannedWorksFor(lineId)`; nothing reads its failure flag.
+  - 🔴 **The beat re-reads both incident lists** once their surface has asked
+    (`reloadIncidentsIfRequested()`, called by `reloadFirstPages()`, so the manual Refresh and a tab's
+    return to visible do too, through `PollingSource`). Without it a tab left open would keep saying an
+    incident is running after it ended, beside line statuses redrawn every 30 seconds. They are absent
+    from `reloadAll()` (a submit, an edit or a report changes no approved incident; a failed read retries
+    on `graphqlResource`'s own backoff), and from `isRefreshing`, so "Updating" tracks the three
+    page-critical reads only. One request per list per beat, shared by the board and the Pro widget.
   - **Official-notices archive:** `officialNoticesResource` re-issues `FEED_QUERY` with frozen
     `OFFICIAL_NOTICES_VARS`; gated on `requestOfficialNotices()`; `officialNotices` /
     `officialNoticesFailed` / `officialNoticesLoading`. Absent from `reloadAll()` and the beat (like
@@ -833,13 +843,12 @@ hook). Group `h2`s carry the breathing dot (Motion).
   out-of-service lines (TESTING pre-opening / DEFUNCT closed). Inventory no longer masquerades as
   service.
 - **Incident chips.** The board opts the ongoing read in from its constructor
-  (`store.requestIncidentsRead()`) and the planned-works read from an `effect` over `myLines()`
-  (`requestPlannedWorksRead()`). Every row and card embeds `app-line-notices` (see Incident notices):
-  the row passes `[planned]="_isPinned()"`, which is the My lines test because a pin takes a line out
-  of All lines and Others; the card passes nothing. So **Planned works draw on the compact rows of My
-  lines only**: a pinned line that needs attention is a card and shows its Notices alone. Until the
-  store has an answer for a line there is no chip, strip, gap or skeleton for it, and a failed read
-  never raises the retry banner.
+  (`store.requestIncidentsRead()`) and the planned-works read from an `effect` that fires once a pinned
+  line is on screen: `myLines()` has a row, or a Needs attention card is pinned
+  (`preferences.isPinned`). Every row and card embeds `app-line-notices` (see Incident notices) and
+  passes its own pin state as `[planned]`, so **Planned works draw on pinned lines, as a My lines row or
+  as a Needs attention card**. Until the store has an answer for a line there is no chip, strip, gap or
+  skeleton for it, and a failed read never raises the retry banner.
   - **SSR.** The ongoing read starts in the board's constructor, so it is issued during the server
     render: its answer rides TransferState, the Notice chips (and the rows a Notice takes out of the
     quiet fold) are in the server HTML, and the hydrated page sends no second request for it. The
@@ -945,9 +954,9 @@ hook). Group `h2`s carry the breathing dot (Motion).
   for an ACTIVE line** (a non-Active badge already tells the story; confidence is asked where status is
   the unremarkable default).
 - **Incident chips** sit between `line-row-chips` and `line-row-meta`:
-  `<app-line-notices class="mt-1.5" [lineId]="line().id" [planned]="_isPinned()" />`. The host is
-  `empty:hidden`, so a row with nothing to say gains no margin. The card embeds the same component under
-  its header, without `[planned]`.
+  `<app-line-notices class="mt-1.5" [lineId]="line().id" [lineName]="line().displayName" [planned]="_isPinned()" />`.
+  The host is `empty:hidden`, so a row with nothing to say gains no margin. The card embeds the same
+  component under its header, with the same three inputs.
 - `line-row-pin` (`aria-pressed`, action-naming `aria-label`; 🔴 the glyph FILLS when pinned —
   `[&>svg]:fill-current` on the `ng-icon` while `_isPinned()` — because `aria-pressed` alone leaves a
   16px outline pin saying "pin available" about a pin already on), `line-row-details`, `line-row-report`
@@ -995,9 +1004,10 @@ hook). Group `h2`s carry the breathing dot (Motion).
 
 ### Incident notices (`line-pulse/line-notices.component.ts`, `data/incident-notices.util.ts`)
 
-Approved incidents, per line, on the board. `app-line-notices` takes `lineId = input.required<string>()`
-and `planned = input(false)`, injects `HomeStore`, and reads only `noticesFor(lineId)` and, when
-`planned`, `plannedWorksFor(lineId)`. It renders a `<ul data-testid="line-notices">` or NOTHING.
+Approved incidents, per line, on the board. `app-line-notices` takes `lineId = input.required<string>()`,
+`lineName = input.required<string>()` (the line's display name, for the strip's accessible name) and
+`planned = input(false)`, injects `HomeStore`, and reads only `noticesFor(lineId)` and, when `planned`,
+`plannedWorksFor(lineId)`. It renders a `<ul data-testid="line-notices">` or NOTHING.
 
 - **Notice** (`line-notice`): an approved incident running on the line now (the ongoing read). It shows
   `Notice`, the severity word (`line-notice-severity`) and the title (`line-notice-title`, truncated,
@@ -1008,18 +1018,26 @@ and `planned = input(false)`, injects `HomeStore`, and reads only `noticesFor(li
   Angular `formatDate(…, "EEE d MMM", "en-US", "UTC")`) and the title, in the `outline` variant: it has
   not happened yet and carries no severity colour.
 - **Cap and overflow.** At most `MAX_LINE_CHIPS` (2) chips per line, Notices first (`pickLineChips`).
-  `+N` (`line-notices-more`, `aria-label` "N more on the incident calendar") links to `/insiden`, with N
-  every chip not drawn. An incident that sits in both lists (it started between the two reads) is drawn
-  once, as the Notice.
+  `+N` (`line-notices-more`, `aria-label` "+N more on the incident calendar", which starts with the
+  "+N" it shows) links to `/insiden`, with N every chip not drawn. An incident that sits in both lists
+  (it started between the two reads) is drawn once, as the Notice.
 - **Link.** `/insiden/<YYYY-MM-DD of startDatetime>`. The day comes from the offset-free datetime
   STRING (`incidentDayKey`), never from a `Date`: the server render and the hydrated page must write the
   same `href` whatever their timezones (the util spec runs it under UTC+14 and UTC−11). An unreadable
   datetime links to `/insiden`.
-- **Accessibility.** The Notice link's accessible name is `Notice: <title>` (`aria-label`). That label
-  replaces the link's content as its name, so the visible severity word is the link's DESCRIPTION
-  (`aria-describedby` points at its id, `line-notice-severity-<lineId>-<incidentId>`, unique per line
-  because one incident tags several lines): severity is a colour AND a word. The Planned works name is
-  `Planned works: <title>, starts <date>`.
+- **Accessibility.** 🔴 **A chip is named by the words it shows, with no `aria-label` and no
+  `aria-describedby`** (WCAG 2.5.3, label in name). The first version named the Notice link
+  `Notice: <title>` and pointed `aria-describedby` at the severity word, which left "Major" out of the
+  name, so "click Major" reached nothing for a voice-control user; the Planned works label reordered the
+  date the same way. Now the Notice name is `Notice Major <title>` and the Planned works name is
+  `Planned works Sat 25 Oct <title>` (Chromium's accessibility tree puts a space between the chip's flex
+  items; `e2e/home.spec.ts` asserts the names by role). Any `aria-label` a chip link ever carries must
+  CONTAIN its visible words (the "+N" link's does); the component spec checks every link in a strip for
+  that. Severity is a colour AND a word, and no word on a chip is dimmed with an opacity class
+  (`opacity-80` took the red and amber severity words under 4.5:1 on their own badge; the component
+  spec fails if one comes back). The `<ul>` is named `Incidents on <line display name>`, so the same
+  chips and the same "What is Notices and planned works?" button on sixteen rows still say whose they
+  are.
 - **Popover.** One `app-info-popover` (`line-notices-popover`) ends the strip, with
   `metricTooltip("incidents.line-notices")` (section `episodes`). Its tokens `PLANNED_WORKS_WINDOW_DAYS`
   (7) and `LINE_NOTICE_MAX_CHIPS` (2) are pinned by `home.queries.spec.ts` and
@@ -1448,9 +1466,9 @@ hourly and the header says so).
   `src/app/ui/`: a new number wanting the reveal is one binding; a new KIND of motion needs its own
   directive.
 - **`incident-notices.util.ts` + `app-line-notices`** — the incident-on-a-line seam. A surface that
-  wants the chips embeds `<app-line-notices [lineId]>` and opts the reads in (`requestIncidentsRead()`,
-  `requestPlannedWorksRead()`); a new chip kind is a `LineChip.kind`, a branch in `pickLineChips` and a
-  template branch. The backend also filters by `lines: { id }` and `stations`, so a per-line or
+  wants the chips embeds `<app-line-notices [lineId] [lineName] [planned]>` and opts the reads in
+  (`requestIncidentsRead()`, `requestPlannedWorksRead()`); a new chip kind is a `LineChip.kind`, a
+  branch in `pickLineChips` and a template branch. The backend also filters by `lines: { id }` and `stations`, so a per-line or
   per-station read is new variables on the same document.
 - **Reused shared primitives** stay the seams for new surfaces: `AssetMultiSelectComponent`,
   `VoteButtonComponent` (`targetType` supports `"link"`), Hlm `sheet`/`skeleton`/`badge`/`button`,
@@ -1694,9 +1712,9 @@ accessible name and `focus-visible` ring from their primitives.
   list).
 - **Focus order:** skip link first; mobile action bar after the main content; the feed tablist's roving
   `tabindex` so `Tab` enters the pair once and leaves once.
-- **Notice chips name themselves and say their severity in words.** The link is `Notice: <title>`, its
-  severity word is its `aria-describedby` description, and the colour is never the only channel (see
-  Incident notices). Planned works are named `Planned works: <title>, starts <date>`.
+- **Notice chips are named by the words they show, severity included.** `Notice Major <title>` and
+  `Planned works Sat 25 Oct <title>` (no `aria-label` override: label in name), the colour is never the
+  only channel, and the strip is named by its line (see Incident notices).
 - **The network tone is never the only channel.** `hero-status-line` is `aria-hidden` (colour alone is
   not information); every fact it carries is also text on screen — the `h1` sentence, the "Refreshing in
   Ns" label, the board's named lines. A fifth tone must add its sentence too.
@@ -1728,11 +1746,18 @@ accessible name and `focus-visible` ring from their primitives.
 - **Cause and direction on the expanded line row.** Not in the GraphQL `Line` schema, so neither the
   expanded row nor the Pro table can say why a line is disrupted or which way it runs. Needs an additive
   backend field first.
-- **Revalidate the notice reads.** The two incident reads are not on the 30s beat or in `reloadAll()`:
-  the lists change on a moderator's schedule rather than a rider's, and a failed refresh would hide the
-  chips under the failure-wins rule. A long-open tab therefore keeps the notices of its first read.
-  Reload them on `start()` re-entry and on a tab's return to visible, and keep the last good list for
-  the chips when a refresh fails.
+- **Quiet-fold shift on a client-side first visit.** A Normal line with a Notice stays out of the quiet
+  fold only once the ongoing read has answered. On a server-rendered visit the answer rides TransferState
+  and the chip is in the HTML, but when the store is created by navigation (the rider arrives from
+  another route, so there is no server answer) the lines can land first: such a line starts folded and
+  moves into All lines when the read lands. Holding the fold's loud/quiet decision until the read
+  settles (an `incidentsSettled` flag on the store) would stop the move, at the price of the All lines
+  group waiting on a supporting read, which is why it is not done.
+- **The Pro incidents widget and a failed refresh.** The board's chips keep the last good list through a
+  failed beat, but the widget still hides itself while `incidentsFailed()` is true, so on a failed
+  refresh it disappears (and its neighbours reflow) until the read's own retry (5s, doubling) succeeds.
+  Drop `!incidentsFailed()` from its visibility check if that flicker matters; it then shows the last
+  good rows like the chips do.
 - **Network-wide notices.** An approved incident with no line tags has no row to sit on, so the board
   says nothing about it. A board-level banner, or station-tagged chips through the backend's `stations`
   filter, would.
