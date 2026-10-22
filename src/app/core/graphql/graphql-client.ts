@@ -162,7 +162,8 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
 
   function scheduleRetry(): void {
     clearRetryTimer();
-    const delayMs = Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt(), RETRY_MAX_DELAY_MS);
+    // `attempt` already counts the failure being scheduled for, so the first retry waits the base delay.
+    const delayMs = Math.min(RETRY_BASE_DELAY_MS * 2 ** (attempt() - 1), RETRY_MAX_DELAY_MS);
     let remainingSec = Math.round(delayMs / 1000);
     retryCountdownSec.set(remainingSec);
     retryTimer = setInterval(() => {
