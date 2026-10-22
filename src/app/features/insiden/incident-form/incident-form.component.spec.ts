@@ -42,6 +42,8 @@ interface ComponentUnderTest {
   undoAll(): void;
   hydrate(incident: CalendarIncident): void;
   extractChronology(key: number): Promise<void>;
+  summarize(): Promise<void>;
+  isSummarizing: WritableSignal<boolean>;
   replaceWithExtraction(key: number): void;
   undoExtraction(key: number): void;
   isExtracting(key: number): boolean;
@@ -116,6 +118,7 @@ function incidentFixture(overrides: Partial<CalendarIncident> = {}): CalendarInc
 describe("IncidentFormComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
   let extractMock: ReturnType<typeof vi.fn>;
+  let summarizeMock: ReturnType<typeof vi.fn>;
   let toastMocks: {
     success: ReturnType<typeof vi.fn>;
     error: ReturnType<typeof vi.fn>;
@@ -129,6 +132,7 @@ describe("IncidentFormComponent", () => {
   beforeEach(async () => {
     requestMock = vi.fn().mockResolvedValue({ createCalendarIncident: { ok: true, id: 42 } });
     extractMock = vi.fn();
+    summarizeMock = vi.fn();
     toastMocks = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     authMocks = { isLoggedIn: vi.fn(() => true), isAdmin: vi.fn(() => false) };
 
@@ -143,7 +147,11 @@ describe("IncidentFormComponent", () => {
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },
-        { provide: IncidentAiService, useValue: { extract: extractMock } },
+        // The real service reaches for Firebase Auth and the network; the form only needs its API.
+        {
+          provide: IncidentAiService,
+          useValue: { extract: extractMock, summarize: summarizeMock },
+        },
       ],
     }).compileComponents();
 
@@ -271,6 +279,49 @@ describe("IncidentFormComponent", () => {
     );
     expect(sheet.isOpen()).toBe(true);
     expect(component.isSubmitting()).toBe(false);
+  });
+
+  describe("Summarize Incident", () => {
+    async function openWithEntry(): Promise<ComponentUnderTest> {
+      sheet.open();
+      const component = asTestable(fixture);
+      component.model.set(filledModel());
+      component.chronologies.set([{ ...emptyChronology(0), content: "Trains held" }]);
+      return component;
+    }
+
+    it("fills the title, brief and details from the summary", async () => {
+      const component = await openWithEntry();
+      summarizeMock.mockResolvedValueOnce({
+        title: "Signal fault",
+        brief: "Trains held at KL Sentral",
+        details: "Service resumed at 09:00.",
+      });
+
+      await component.summarize();
+
+      expect(summarizeMock).toHaveBeenCalledWith([
+        { indicator: "GREEN", datetime: "", content: "Trains held", sourceUrl: "" },
+      ]);
+      expect(component.model()).toMatchObject({
+        title: "Signal fault",
+        brief: "Trains held at KL Sentral",
+        details: "Service resumed at 09:00.",
+      });
+      expect(component.isSummarizing()).toBe(false);
+    });
+
+    it("keeps every field as it was and re-enables the button when the summary fails", async () => {
+      const component = await openWithEntry();
+      summarizeMock.mockRejectedValueOnce(new Error("Summarization failed (502)"));
+
+      // The service has toasted; the error still reaches the global handler.
+      await expect(component.summarize()).rejects.toThrow("Summarization failed (502)");
+
+      expect(component.model()).toEqual(filledModel());
+      expect(component.chronologies()[0].content).toBe("Trains held");
+      expect(component.isSummarizing()).toBe(false);
+    });
   });
 
   it("routes nested chronology edits through the pure list operations", () => {
@@ -769,6 +820,13 @@ describe("IncidentFormComponent", () => {
         expect(component.hasLateResult(0)).toBe(true);
         expect(component.isExtracting(0)).toBe(false);
         expect(component.chronologies()[0].content).toBe("typed by hand");
+        fixture.detectChanges();
+        const replace = Array.from(
+          (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+            '[data-testid="chronology-row"] button',
+          ),
+        ).find((button) => button.textContent?.trim() === "Replace");
+        expect(replace).toBeDefined();
       } finally {
         vi.useRealTimers();
       }

@@ -84,3 +84,93 @@ describe("AssetMultiSelectComponent fillHeight", () => {
     expect(root().classList.contains("min-h-0")).toBe(true);
   });
 });
+
+describe("AssetMultiSelectComponent behaviour", () => {
+  let fixture: ComponentFixture<AssetMultiSelectComponent>;
+
+  // M101 runs on two lines; the codes are matched as typed, the labels are what the rider sees.
+  const OPTIONS = [
+    { id: "v1", label: "C243", parentCodes: ["KJL"] },
+    { id: "v2", label: "M101", parentCodes: ["AGL", "SPL"] },
+    { id: "v3", label: "C244", parentCodes: ["KJL"] },
+  ];
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [AssetMultiSelectComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AssetMultiSelectComponent);
+    fixture.componentRef.setInput("heading", "Vehicles");
+    fixture.componentRef.setInput("options", OPTIONS);
+    fixture.componentRef.setInput("selectedIds", []);
+    fixture.detectChanges();
+  });
+
+  const host = () => fixture.nativeElement as HTMLElement;
+
+  function labels(): string[] {
+    return Array.from(host().querySelectorAll('[data-testid="asset-option-list"] label')).map(
+      (label) => label.querySelector("span")?.textContent?.trim() ?? "",
+    );
+  }
+
+  function search(text: string): void {
+    const input = host().querySelector<HTMLInputElement>('input[type="text"]');
+    if (!input) throw new Error("search box not rendered");
+    input.value = text;
+    input.dispatchEvent(new Event("input"));
+    fixture.detectChanges();
+  }
+
+  function tick(label: string): void {
+    const row = Array.from(host().querySelectorAll('[data-testid="asset-option-list"] label')).find(
+      (element) => element.querySelector("span")?.textContent?.trim() === label,
+    );
+    const checkbox = row?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (!checkbox) throw new Error(`${label} not listed`);
+    checkbox.click();
+    fixture.detectChanges();
+  }
+
+  it("finds an option by any of its parent line codes as well as by its label", () => {
+    search("spl");
+    expect(labels()).toEqual(["M101"]);
+
+    search("KJL");
+    expect(labels()).toEqual(["C243", "C244"]);
+
+    search("c24");
+    expect(labels()).toEqual(["C243", "C244"]);
+  });
+
+  it("says nothing matched rather than showing the empty-list message", () => {
+    search("  zzz ");
+
+    expect(labels()).toEqual([]);
+    expect(host().textContent).toContain('No matches for "zzz".');
+  });
+
+  it("keeps the given order unless pinnedSelected floats the ticked options to the top", () => {
+    fixture.componentRef.setInput("selectedIds", ["v3", "v2"]);
+    fixture.detectChanges();
+    expect(labels()).toEqual(["C243", "M101", "C244"]);
+
+    fixture.componentRef.setInput("pinnedSelected", true);
+    fixture.detectChanges();
+    // Ticked first, each group in the given order (not in the order they were ticked).
+    expect(labels()).toEqual(["M101", "C244", "C243"]);
+  });
+
+  it("emits the new selection on every toggle, appending a tick and dropping an untick", () => {
+    const emitted: string[][] = [];
+    fixture.componentInstance.selectedIds.subscribe((ids) => emitted.push(ids));
+
+    tick("C244");
+    tick("M101");
+    tick("C244");
+
+    expect(emitted).toEqual([["v3"], ["v3", "v2"], ["v2"]]);
+    expect(fixture.componentInstance.selectedIds()).toEqual(["v2"]);
+  });
+});
