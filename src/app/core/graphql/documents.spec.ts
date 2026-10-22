@@ -36,9 +36,7 @@ const documentModules = (
  * finding that fixes it. The case runs as `it.fails`, so fixing the drift fails it until the entry
  * is removed.
  */
-const KNOWN_DRIFT = new Map<string, string>([
-  ["SpottingVehicleStatus", "F354: types.ts lists 4 of the schema's 7 values"],
-]);
+const KNOWN_DRIFT = new Map<string, string>();
 
 const schema: GraphQLSchema = buildSchema(
   fs.readFileSync("src/app/core/graphql/schema.graphql", "utf8"),
