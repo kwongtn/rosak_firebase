@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
+import { expectNoNewAxeViolations } from "./helpers/axe";
 import {
   configureMock,
   expect,
@@ -127,4 +128,29 @@ test("USER: reports a spotting with a photo from the vehicle page", async ({ pag
     authKey: token,
     hasImage: true,
   });
+});
+
+test("VISITOR: the spotting pages have no automatically detectable accessibility violations", async ({
+  page,
+}) => {
+  await routeGraphQLToMock(page);
+  await configureMock(STUBS);
+
+  for (const [path, loaded] of [
+    ["/spotting/1", page.locator('a[href="/spotting/1/vehicle/1"]:visible').first()],
+    ["/spotting/1/vehicle/1", page.getByRole("heading", { name: "101", exact: true }).first()],
+  ] as const) {
+    await page.goto(path);
+    await expect(loaded).toBeVisible();
+
+    // Known app defects, reported rather than fixed here: the nav wordmark outside any landmark and
+    // the line overview's heading levels; on a phone also the nav logo link, which has no text
+    // once the wordmark is hidden, and a line overview without a level-one heading.
+    const onPhone = test.info().project.name === "mobile";
+    await expectNoNewAxeViolations(page, path, [
+      "region",
+      "heading-order",
+      ...(onPhone ? ["link-name", "page-has-heading-one"] : []),
+    ]);
+  }
 });

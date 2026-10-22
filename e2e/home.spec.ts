@@ -1,4 +1,5 @@
 import { loginAs } from "./helpers/auth";
+import { expectNoNewAxeViolations } from "./helpers/axe";
 import {
   configureMock,
   expect,
@@ -651,6 +652,23 @@ test.describe("community front page", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  test("VISITOR: the front page has no automatically detectable accessibility violations", async ({
+    page,
+  }) => {
+    await configureHome({
+      FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
+      Feed: feedPage(),
+    });
+
+    await page.goto("/");
+    await expect(page.locator("app-line-pulse-row").first()).toBeVisible();
+
+    // Known app defects, reported rather than fixed here: the info-popover and refresh buttons
+    // whose visible text is not part of their accessible name, and the nav wordmark outside any
+    // landmark.
+    await expectNoNewAxeViolations(page, "/", ["label-content-name-mismatch", "region"]);
   });
 
   test("USER: a rejected upvote rolls the optimistic count back and says so", async ({ page }) => {
