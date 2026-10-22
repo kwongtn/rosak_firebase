@@ -79,7 +79,7 @@
     "@angular/compiler-cli": "^22.2.3",
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.62.1",
-    "@sentry/cli": "^3.6.2",
+    "@sentry/cli": "^3.8.2",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/express": "^5.0.1",
     "@types/geojson": "^7946.0.16",
