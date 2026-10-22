@@ -4,9 +4,14 @@ import { TestBed } from "@angular/core/testing";
 import { RtMarkerLayerController } from "./rt-marker-layer.controller";
 import { RtSource } from "../data/gtfs-realtime.service";
 
+// The unit-test builder shares one module cache across spec files (`isolate: false`), so reset it on
+// both sides of this file; see "Unit-test isolation" in docs/COMPONENTS.md.
+vi.hoisted(() => vi.resetModules());
 vi.mock("@sentry/angular", () => ({
   captureException: vi.fn(),
 }));
+
+afterAll(() => vi.resetModules());
 
 describe("RtMarkerLayerController", () => {
   beforeEach(() => {

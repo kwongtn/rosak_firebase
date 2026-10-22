@@ -5,9 +5,14 @@ import { throwError } from "rxjs";
 import type JSZip from "jszip";
 import { GtfsStaticService, StaticSource } from "./gtfs-static.service";
 
+// The unit-test builder shares one module cache across spec files (`isolate: false`), so reset it on
+// both sides of this file; see "Unit-test isolation" in docs/COMPONENTS.md.
+vi.hoisted(() => vi.resetModules());
 vi.mock("@sentry/angular", () => ({
   captureException: vi.fn(),
 }));
+
+afterAll(() => vi.resetModules());
 
 describe("gtfs-static.service", () => {
   beforeEach(() => {

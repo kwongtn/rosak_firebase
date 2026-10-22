@@ -6,7 +6,7 @@ import {
 } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../core/auth/auth.service";
 import { ToastService } from "../../ui/toast/toast.service";
@@ -15,6 +15,11 @@ import { AppFooterComponent } from "../../shell/app-footer/app-footer.component"
 import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { PublicAboutDocument } from "./data/about.model";
 import { AboutPage } from "./about.page";
+
+// The unit-test builder shares one module cache across spec files (`isolate: false`), so reset it on
+// both sides of this file (a later real `AuthService` would otherwise be built on the stubbed
+// `firebase/app`); see "Unit-test isolation" in docs/COMPONENTS.md.
+vi.hoisted(() => vi.resetModules());
 
 // Firestore/Firebase are stubbed so the page's constructor subscription can be driven per test.
 // `vi.mock` factories are hoisted above imports, so shared handles come from `vi.hoisted`.
@@ -35,6 +40,8 @@ vi.mock("firebase/firestore", () => ({
   onSnapshot: firestore.onSnapshot,
   setDoc: firestore.setDoc,
 }));
+
+afterAll(() => vi.resetModules());
 
 type SnapshotNext = (snap: { data: () => unknown }) => void;
 type SnapshotError = () => void;
