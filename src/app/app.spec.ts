@@ -5,7 +5,10 @@ import { provideRouter } from "@angular/router";
 import { TestBed } from "@angular/core/testing";
 import * as Sentry from "@sentry/angular";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "./app";
 import { AppErrorHandler, is404Error } from "./app.config";
+import { AnalyticsService } from "./core/analytics/analytics.service";
+import { ThemeService } from "./core/theme/theme.service";
 import { NewVersionService } from "./core/version/new-version.service";
 
 describe("is404Error", () => {
@@ -82,5 +85,28 @@ describe("AppErrorHandler chunk-load detection", () => {
     const promptSpy = vi.spyOn(newVersionService, "promptReloadForNewVersion");
     handler.handleError(new Error("Cannot read properties of undefined (reading 'id')"));
     expect(promptSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("App", () => {
+  it("creates AnalyticsService, which is what starts page_view tracking", () => {
+    const created = vi.fn();
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: ThemeService, useValue: {} },
+        {
+          provide: AnalyticsService,
+          useFactory: () => {
+            created();
+            return {};
+          },
+        },
+      ],
+    }).overrideComponent(App, { set: { template: "", imports: [] } });
+
+    TestBed.createComponent(App);
+
+    expect(created).toHaveBeenCalledTimes(1);
   });
 });
