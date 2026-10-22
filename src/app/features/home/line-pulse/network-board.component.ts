@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from "@angular/common";
-import { Component, computed, effect, inject, input } from "@angular/core";
+import { Component, Directive, computed, effect, inject, input } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 
@@ -35,6 +35,21 @@ const SKELETON_ROWS = 3;
  *  of them any more — it belongs to {@link HomeViewModeService}, which the whole page (not just this
  *  board) has to be able to ask. */
 const SORT_PARAM = "sort";
+
+/**
+ * Types the `#boardRow` template's context. A bare `<ng-template let-line>` makes `line` implicitly
+ * `any`, which would stop `[line]="line"` and `line.id` being checked; the guard keeps them typed as
+ * the `@for` loops they replaced did. Type-only: it renders nothing.
+ */
+@Directive({ selector: "ng-template[boardRow]" })
+class BoardRowTemplate {
+  static ngTemplateContextGuard(
+    _dir: BoardRowTemplate,
+    _ctx: unknown,
+  ): _ctx is { $implicit: LinePulse; card?: boolean } {
+    return true;
+  }
+}
 
 /**
  * The network board: the front page's line panel, grouped the way a reader actually reads it.
@@ -99,6 +114,7 @@ const SORT_PARAM = "sort";
 @Component({
   selector: "app-network-board",
   imports: [
+    BoardRowTemplate,
     HlmButton,
     HlmSkeleton,
     InfoPopover,
@@ -414,7 +430,7 @@ const SORT_PARAM = "sort";
          agree exactly: a ring that lands on the card in one group and the row in another would
          report the same event two different ways. data-highlighted is on the same element as the
          ring classes so a spec can assert the highlight through the DOM as well as the signal. -->
-    <ng-template #boardRow let-line let-card="card">
+    <ng-template boardRow #boardRow let-line let-card="card">
       <div
         class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
         [class.ring-2]="_isHighlighted(line.id)"
