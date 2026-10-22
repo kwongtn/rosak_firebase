@@ -200,6 +200,14 @@ const REVIEWED_AT_STATION_PAGE = "2026-10-22";
 const REVIEWED_AT_PUSH_ALERTS = "2026-10-22";
 
 /**
+ * Bumped when a line's expanded panel gained its "Typical week" strip (2026-10-22, UTC). It publishes
+ * ONE new rule to the `line-status` section: the status riders most often reported in each hour of each
+ * service-day weekday over the last few weeks, with a slot that has too few reports left as "not enough
+ * reports". Its own constant for the same reason as every one above.
+ */
+const REVIEWED_AT_WEEK_PROFILE = "2026-10-22";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -250,9 +258,10 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     // section is what was reviewed. Also bumped for the line-details In-Service share chip surface
     // and again when the front page's metrics gained a tooltip-sized summary, and when the vehicle
     // count's "in service" badge was explained (REVIEWED_AT_IN_SERVICE_BADGE), when the
-    // line-status sheet's outbox published the queued-report expiry (REVIEWED_AT_REPORT_OUTBOX), and
-    // when the station page published which rider reports it shows (REVIEWED_AT_STATION_PAGE).
-    lastReviewed: REVIEWED_AT_STATION_PAGE,
+    // line-status sheet's outbox published the queued-report expiry (REVIEWED_AT_REPORT_OUTBOX),
+    // when the station page published which rider reports it shows (REVIEWED_AT_STATION_PAGE),
+    // and when a line's expanded panel published its typical week (REVIEWED_AT_WEEK_PROFILE).
+    lastReviewed: REVIEWED_AT_WEEK_PROFILE,
     inProgress: true,
   },
   {
@@ -635,6 +644,23 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
+  },
+  {
+    // The expanded line panel's `app-line-week-profile`. 🔴 Three things a rider cannot read off the
+    // grid: the rows are SERVICE days (a 01:30 Tuesday report is in Monday's row, at its end), a grey
+    // cell is "too few reports" and NOT "a good hour", and the colour is the most frequent status of
+    // the reports behind it, not an average. The numbers are tokens so the sentence and the code that
+    // sends the window and applies the threshold cannot disagree.
+    id: "line-status.typical-week",
+    sectionId: "line-status",
+    title: "A line's typical week",
+    definition:
+      "For one line, the passenger status riders most often reported in each hour of each weekday over the last {{WEEK_PROFILE_WEEKS}} weeks. Each row is a weekday of the community service day, which runs from {{SERVICE_DAY_START_HOUR}}:00 to 02:00, so a report at 01:30 on a Tuesday is counted under Monday and appears at the end of Monday's row. A cell is coloured by the status most of its reports gave (the more severe status wins a tie). A cell with fewer than {{MIN_REPORTS_PER_WEEK_SLOT}} reports behind it is left grey and reads as not enough reports, because one or two riders are not a pattern. The window rolls, so it includes the current day so far. It counts reports and not faults, and a grey cell is the absence of reports, not proof that service was good.",
+    summary:
+      "The status riders most often reported in each hour of each weekday over the last {{WEEK_PROFILE_WEEKS}} weeks. Rows are service days ({{SERVICE_DAY_START_HOUR}}:00 to 02:00). Fewer than {{MIN_REPORTS_PER_WEEK_SLOT}} reports in an hour shows as not enough reports.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_WEEK_PROFILE,
   },
   /* ---- the Pro board's "only lines with data" toggle. It is the ONE new judgement this phase
      shipped: the other two filters are exact values the reader typed (`status === PARTIAL_DISRUPTION`,

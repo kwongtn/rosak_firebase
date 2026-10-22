@@ -73,6 +73,13 @@ export interface MethodologyConstant {
  * `rosak_backend/incident/services/push.py`): at most one push per line in that window. Nothing on the
  * client applies it, so no spec can pin it to code; a backend change to the cooldown must change it
  * here by hand.
+ *
+ * `WEEK_PROFILE_WEEKS` and `MIN_REPORTS_PER_WEEK_SLOT` came with the expanded line panel's "Typical
+ * week" strip (`features/home/line-pulse/line-week-profile.component.ts`, published as
+ * `line-status.typical-week`). The first is the `weeks` the read sends, so a window this client names
+ * and the backend counts; the second is the strip's own corroboration threshold, like
+ * `CONFIRMED_MIN_REPORTS`: how many reports one weekday-hour slot needs before the strip colours it.
+ * `week-profile-display.util.spec.ts` pins both against the constants the code uses.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
@@ -88,4 +95,6 @@ export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STATION_INCIDENT_HISTORY_LIMIT: { value: 10, source: "INCIDENT_EPISODES.md" },
   STATION_REPORTS_PER_LINE: { value: 10, source: "LINE_STATUS_DERIVE.md" },
   PUSH_ALERT_COOLDOWN_MINUTES: { value: 30, source: "PUSH_NOTIFICATIONS.md" },
+  WEEK_PROFILE_WEEKS: { value: 6, source: "LINE_STATUS_DERIVE.md" },
+  MIN_REPORTS_PER_WEEK_SLOT: { value: 3, source: "LINE_STATUS_DERIVE.md" },
 };

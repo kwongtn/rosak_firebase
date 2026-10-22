@@ -55,6 +55,8 @@ describe("methodology render util: renderMethodologyCopy", () => {
       "STATION_INCIDENT_HISTORY_LIMIT",
       "STATION_REPORTS_PER_LINE",
       "PUSH_ALERT_COOLDOWN_MINUTES",
+      "WEEK_PROFILE_WEEKS",
+      "MIN_REPORTS_PER_WEEK_SLOT",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
@@ -119,6 +121,17 @@ describe("methodology render util: renderMethodologyCopy", () => {
     expect(METHODOLOGY_CONSTANTS["PUSH_ALERT_COOLDOWN_MINUTES"]).toEqual({
       value: 30,
       source: "PUSH_NOTIFICATIONS.md",
+    });
+    // The typical week's window (the `weeks` the read sends, which the backend counts) and its
+    // corroboration threshold (how many reports a weekday-hour slot needs before it is coloured).
+    // `week-profile-display.util.spec.ts` pins both against the constants the strip uses.
+    expect(METHODOLOGY_CONSTANTS["WEEK_PROFILE_WEEKS"]).toEqual({
+      value: 6,
+      source: "LINE_STATUS_DERIVE.md",
+    });
+    expect(METHODOLOGY_CONSTANTS["MIN_REPORTS_PER_WEEK_SLOT"]).toEqual({
+      value: 3,
+      source: "LINE_STATUS_DERIVE.md",
     });
   });
 
