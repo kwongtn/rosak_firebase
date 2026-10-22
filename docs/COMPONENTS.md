@@ -274,6 +274,9 @@ walks the static imports from `main.ts` and fails when it reaches `features/`, `
   idle prefetches included: 42 files and 1,452,540 bytes before, 46 files and 1,450,760 bytes
   after). `/insiden` fetches 36 kB less (1,422,438 bytes before, 1,386,281 after). The SSR HTML of
   `/` and `/insiden` is the same.
+- At `0a57ec4`, with the later packages merged, the table reads
+  `Initial total | 842.04 kB | 223.51 kB`. `main` is unchanged at 237.37 kB, and `styles` grew from
+  100.88 kB to 101.01 kB.
 
 **Next candidates**, smallest risk first:
 
