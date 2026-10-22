@@ -20,15 +20,17 @@ npm test -- --no-watch          # Vitest single run (= npm run test:ci). REQUIRE
 npm test -- --no-watch --filter "^App"   # single suite by name regex
 npm run test:scripts            # node:test specs for scripts/*.mjs (quoted glob: `node --test scripts/` fails on Node 24)
 npm run test:coverage           # unit tests + v8 coverage summary and lcov (report only, no threshold)
-npx prettier --check .          # the only lint gate (CI + pre-commit); --write . autofixes
+npx prettier --check .          # CI lint gate (CI and pre-commit also run eslint); --write . autofixes
 npm run verify                  # full gate: prettier + script tests + unit tests + prod build (prefer this)
 npm run e2e                     # Playwright: dev build + mock GraphQL server (see e2e/);
                                 # run `npx playwright install chromium` once first
 ```
 
-`npm run lint` runs ESLint (`eslint.config.mjs`: template accessibility rules, `no-explicit-any`,
-`no-floating-promises`). Every rule is `warn` except those at zero findings, so it does not gate yet;
-Prettier stays the CI lint gate. Type checking happens only via `npm run build`.
+`npm run lint` runs ESLint on `src/**` only (`eslint.config.mjs`: template accessibility rules,
+`no-explicit-any`, `no-floating-promises`; `e2e/` and `functions/` have no tsconfig for typed
+linting). Every rule is `warn` except those at zero findings, so only an error fails the CI `lint`
+job (`npm run lint --if-present`) or a pre-commit on staged `ts`/`html`. Type checking happens only
+via `npm run build`.
 `npm run schema:refresh` rewrites `src/app/core/graphql/schema.graphql` from the Docker backend.
 
 Backend (`../rosak_backend`, Django 5.2 + Strawberry GraphQL + Celery): commands live in
@@ -137,8 +139,8 @@ third-party GTFS-realtime feeds for the tracker.
    largely independent — stale context from another feature causes wrong assumptions.
 5. **Git**: commit at logical checkpoints — one concern per commit — so history reads
    chronologically and the working tree is never left full of uncommitted changes; push only when
-   asked. Pre-commit runs `lint-staged` → Prettier. Any AI-assisted commit must append a
-   `Co-authored-by:` trailer naming the agent **and** the model, e.g.
+   asked. Pre-commit runs `lint-staged` → Prettier, then ESLint. Any AI-assisted commit must append
+   a `Co-authored-by:` trailer naming the agent **and** the model, e.g.
    `Co-authored-by: opencode (opencode-go/deepseek-v4-flash) <noreply@opencode.ai>` or
    `Co-authored-by: Claude Code (claude-sonnet-4-5) <noreply@anthropic.com>`. Never attribute AI
    work to a human co-author.

@@ -281,7 +281,8 @@ itself.
   `core/graphql/schema.graphql`, a snapshot of the backend SDL, and checks that each string-literal
   union in `core/graphql/types.ts` named after a schema enum lists that enum's values. After a
   backend schema change, run `npm run schema:refresh` (needs the Docker backend; set
-  `ROSAK_BACKEND_COMPOSE` outside `../rosak_backend`) and commit the snapshot. A known mismatch is
+  `ROSAK_BACKEND_COMPOSE` outside `../rosak_backend`) and commit the snapshot: the spec is only as
+  fresh as the last refresh, and nothing in CI compares it with the backend yet. A known mismatch is
   listed in the spec's `KNOWN_DRIFT` map and runs as `it.fails`. `src/testing/axe.ts` exports
   `expectNoAxeViolations(fixture)`: axe-core with structural rules only (names, roles, ARIA, forms,
   list structure); jsdom has no layout, so contrast and target size belong to the browser passes.

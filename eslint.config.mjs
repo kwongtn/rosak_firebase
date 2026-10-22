@@ -4,7 +4,8 @@ import tseslint from "typescript-eslint";
 
 // Report-first config (F206): every rule starts at "warn" and moves to "error" once it reports
 // zero warnings (only alt-text so far). The rule set is deliberately small: the repo's `any` ban,
-// the template accessibility rules from MISTAKES.md, and unawaited promises.
+// the template accessibility rules from MISTAKES.md, and unawaited promises. Covers src/** only:
+// e2e/ and functions/ have no tsconfig for typed linting.
 export default defineConfig(
   { ignores: ["dist", ".angular", "node_modules", "graphify-out", "functions/lib"] },
   {
