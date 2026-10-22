@@ -84,12 +84,15 @@ describe("ConsoleMenuComponent", () => {
     // The router settles through real timers: awaiting it under the fake ones would hang.
     vi.useRealTimers();
     enter();
+    expect(panel()).not.toBeNull();
     panel()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     fixture.detectChanges();
     expect(panel()).toBeNull();
 
     enter();
-    host.querySelector<HTMLAnchorElement>("div.absolute a")?.click();
+    const subLink = host.querySelector<HTMLAnchorElement>("div.absolute a");
+    if (!subLink) throw new Error("dropdown sub-link not rendered");
+    subLink.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(panel()).toBeNull();

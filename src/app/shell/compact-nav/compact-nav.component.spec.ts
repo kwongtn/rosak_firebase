@@ -23,16 +23,19 @@ if (!window.matchMedia) {
 @Component({ template: "" })
 class TestOutlet {}
 
-async function renderNav(currentModulePath: string): Promise<HTMLElement> {
+async function renderNav(currentModulePath: string, isAdmin = false): Promise<HTMLElement> {
   await TestBed.resetTestingModule()
     .configureTestingModule({
       imports: [CompactNavComponent],
       providers: [
         provideRouter([{ path: "**", component: TestOutlet }]),
-        // Logged-out stub rather than the real AuthService: the unit-test builder shares one module
+        // Stub (logged out, or admin when `isAdmin`) rather than the real AuthService: the unit-test builder shares one module
         // registry across spec files, so the real one can come back already bound to another spec's
         // mocked firebase/app (about.page.spec) and throw from getAuth() depending on file order.
-        { provide: AuthService, useValue: { isLoggedIn: signal(false), isAdmin: signal(false) } },
+        {
+          provide: AuthService,
+          useValue: { isLoggedIn: signal(isAdmin), isAdmin: signal(isAdmin) },
+        },
       ],
     })
     .compileComponents();
@@ -71,6 +74,23 @@ describe("CompactNavComponent", () => {
     const labels = moduleLinkLabels(el);
     expect(labels).not.toContain("Gallery");
     expect(labels).toContain("Tracker");
+  });
+
+  it("renders the shared logo, bug button and (for admins) Console menu with the compact sizing", async () => {
+    const el = await renderNav("/tracker", true);
+    expect(el.querySelector("svg[app-brand-logo]")?.classList.contains("h-5")).toBe(true);
+    expect(el.querySelector("button[app-report-bug-button]")?.classList.contains("size-7")).toBe(
+      true,
+    );
+    const menu = el.querySelector("div[app-console-menu]");
+    expect(menu?.classList.contains("hidden")).toBe(true);
+    expect(menu?.classList.contains("sm:block")).toBe(true);
+    expect(menu?.querySelector("a")?.getAttribute("href")).toBe("/console/spotting");
+  });
+
+  it("omits the Console menu for non-admins", async () => {
+    const el = await renderNav("/tracker");
+    expect(el.querySelector("div[app-console-menu]")).toBeNull();
   });
 
   it("always shows exactly the module links minus the active one", async () => {
