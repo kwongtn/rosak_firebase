@@ -923,3 +923,133 @@ describe("GalleryPage year grouping", () => {
     expect(root.querySelector("#gallery-year-2023")).not.toBeNull();
   });
 });
+
+describe("GalleryPage paging", () => {
+  const photoIn = (id: string, year: number): MediaNode => ({
+    ...PHOTO,
+    id,
+    createdDate: `${year}-06-01`,
+  });
+  const tiles = (fixture: ComponentFixture<GalleryPage>): number =>
+    (fixture.nativeElement as HTMLElement).querySelectorAll("app-justified-grid button").length;
+  const noFeedRequest = (): void =>
+    TestBed.inject(HttpTestingController).expectNone((req) => req.body.query === MEDIAS_QUERY);
+
+  /** The page with its first page loaded, which says there are more. */
+  async function loadedFirstPage(hasNextPage = true): Promise<ComponentFixture<GalleryPage>> {
+    const fixture = createPage("browser");
+    answerYearCounts();
+    feedRequest().flush(feedOf([photoIn("a", 2024)], hasNextPage));
+    await settle(fixture);
+    return fixture;
+  }
+
+  describe("loadMore", () => {
+    it("shares one request between calls made while it is in flight, and asks again once it lands", async () => {
+      const fixture = createPage("browser"); // the constructor's own first load is in flight
+      answerYearCounts();
+      const page = fixture.componentInstance;
+
+      // A year jump clicked before the first page lands races the initial load by construction.
+      const racing = Promise.all([page.loadMore(), page.loadMore(100)]);
+      const request = feedRequest(); // exactly one request, at the first caller's size
+      expect(request.request.body.variables).toEqual({ first: 24, after: null });
+      request.flush(feedOf([photoIn("a", 2024)], true));
+
+      expect(await racing).toEqual([true, true]);
+      await settle(fixture);
+      expect(tiles(fixture)).toBe(1);
+
+      // The share is released with the answer, so the next call is a request of its own.
+      const next = page.loadMore();
+      const request2 = feedRequest();
+      expect(request2.request.body.variables).toEqual({ first: 24, after: "c1" });
+      request2.flush(feedOf([], false, 1));
+      expect(await next).toBe(true);
+    });
+
+    it("answers false and tells the visitor when a page fails, and the next call tries again", async () => {
+      const toast = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
+      const fixture = await loadedFirstPage();
+      const page = fixture.componentInstance;
+
+      const failing = page.loadMore();
+      feedRequest().flush("down", { status: 503, statusText: "Service Unavailable" });
+
+      expect(await failing).toBe(false);
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast.mock.calls[0][0]).toBe("Couldn't load photos");
+      expect(tiles(fixture)).toBe(1); // what was loaded stays
+
+      const retry = page.loadMore();
+      const request = feedRequest();
+      expect(request.request.body.variables).toEqual({ first: 24, after: "c1" });
+      request.flush(feedOf([photoIn("b", 2024)], false, 1));
+      expect(await retry).toBe(true);
+      await settle(fixture);
+      expect(tiles(fixture)).toBe(2);
+    });
+  });
+
+  describe("year jump", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("gives up without asking again, and without a second message, when a page fails", async () => {
+      const error = vi.spyOn(ToastService.prototype, "error").mockImplementation(() => {});
+      const info = vi.spyOn(ToastService.prototype, "info").mockImplementation(() => {});
+      const fixture = await loadedFirstPage();
+
+      const jump = fixture.componentInstance.jumpToYear(2020);
+      feedRequest().flush("down", { status: 503, statusText: "Service Unavailable" });
+      await jump;
+
+      expect(error).toHaveBeenCalledTimes(1); // loadMore's own toast
+      expect(info).not.toHaveBeenCalled();
+      noFeedRequest();
+      fixture.detectChanges();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector(
+          '[data-testid="gallery-jump-loading"]',
+        ),
+      ).toBeNull();
+    });
+
+    it("says the year has not come up when the feed runs out first", async () => {
+      const info = vi.spyOn(ToastService.prototype, "info").mockImplementation(() => {});
+      const fixture = await loadedFirstPage();
+
+      const jump = fixture.componentInstance.jumpToYear(2020);
+      feedRequest().flush(feedOf([photoIn("b", 2023)], false, 1));
+      await jump;
+
+      expect(info).toHaveBeenCalledTimes(1);
+      expect(info.mock.calls[0][0]).toBe("Still loading");
+      expect(info.mock.calls[0][1]).toContain("2020");
+      noFeedRequest();
+    });
+
+    it("pages at most 100 times, waiting 200 ms between pages, then stops", async () => {
+      const info = vi.spyOn(ToastService.prototype, "info").mockImplementation(() => {});
+      const fixture = await loadedFirstPage();
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+
+      const jump = fixture.componentInstance.jumpToYear(2020);
+      for (let page = 1; page <= 100; page++) {
+        const request = feedRequest();
+        expect(request.request.body.variables.first).toBe(100);
+        request.flush(feedOf([photoIn(`p${page}`, 2024)], true, page));
+        await vi.advanceTimersByTimeAsync(0); // the answer is read, and the throttle starts
+        noFeedRequest(); // nothing goes out until the delay has passed
+        await vi.advanceTimersByTimeAsync(199);
+        noFeedRequest();
+        await vi.advanceTimersByTimeAsync(1);
+      }
+      await jump;
+
+      noFeedRequest(); // a 101st page is never asked for
+      expect(info).toHaveBeenCalledTimes(1);
+    });
+  });
+});
