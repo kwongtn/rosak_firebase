@@ -378,6 +378,20 @@ describe("LineStatusSheetComponent", () => {
     expect(sheetMock.setOpen).not.toHaveBeenCalled();
   });
 
+  it("sends once when Submit is pressed again while the first is still sending", async () => {
+    let answer!: (value: unknown) => void;
+    requestMock.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    await prepareSubmit();
+
+    const first = asTestable(fixture).submit();
+    await asTestable(fixture).submit();
+    answer({ submitLineStatusReport: { ok: true, id: 1 } });
+    await first;
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(toastMocks.success).toHaveBeenCalledTimes(1);
+  });
+
   /* ---- the outbox: a report the server cannot take is queued, not lost ------------------ */
 
   function queuedReports() {
@@ -474,6 +488,20 @@ describe("LineStatusSheetComponent", () => {
       "It will send when you're back online.",
     );
     expect(sheetMock.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("does nothing when Submit is pressed again after an offline submit closed the sheet", async () => {
+    sheetMock.setOpen.mockImplementation((open: boolean) => sheetMock.isOpen.set(open));
+    await prepareSubmit();
+    window.dispatchEvent(new Event("offline"));
+    fixture.detectChanges();
+
+    await asTestable(fixture).submit();
+    await asTestable(fixture).submit();
+
+    expect(queuedReports()).toHaveLength(1);
+    expect(toastMocks.info).toHaveBeenCalledTimes(1);
+    expect(toastMocks.error).not.toHaveBeenCalled();
   });
 
   it("says, while offline, that Submit will save the report, and explains the expiry", async () => {

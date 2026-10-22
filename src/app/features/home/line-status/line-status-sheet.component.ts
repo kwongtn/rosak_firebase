@@ -531,6 +531,11 @@ export class LineStatusSheetComponent {
   }
 
   async submit(): Promise<void> {
+    // One submit at a time, and none once a submit has closed the sheet: the Submit button keeps
+    // focus while the sheet slides out, so a second Enter must not file anything or show an error.
+    if (this.isSubmitting() || !this.sheet.isOpen()) {
+      return;
+    }
     this.submitError.set(null);
     // 🔴 THE DRAFT-FIRST GUARD. This is the ONLY place an account is required, and it is reached only
     // when the reader presses Submit — never on open, never while they are still typing. Nothing is
