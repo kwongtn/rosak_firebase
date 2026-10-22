@@ -189,7 +189,7 @@ imports from `main.ts` and fails when it reaches `features/`, `shell/` or
 **Last measured** (`npx ng build`, 2026-10-22, after the home route's providers moved out of
 `app.routes.ts`):
 
-- `Initial total | 997.74 kB | 260.00 kB` became `Initial total | 841.90 kB | 223.48 kB`.
+- `Initial total | 997.74 kB | 260.00 kB` became `Initial total | 841.90 kB | 223.49 kB`.
 - `main` went from 393.21 kB to 237.37 kB. The other initial files did not change: Angular core,
   common, platform-browser and rxjs 276.42 kB, router and Spartan Brain 133.45 kB, `@sentry/core`
   91.76 kB, `styles` 100.88 kB and a 2.02 kB shared chunk.
