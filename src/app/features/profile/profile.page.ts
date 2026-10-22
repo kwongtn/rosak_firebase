@@ -22,6 +22,7 @@ import { AppNavComponent } from "../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
 import { UserCardComponent } from "./user-card/user-card.component";
 import { FleetProgressComponent } from "./fleet-progress/fleet-progress.component";
+import { ProfileAlertsComponent } from "./alerts/profile-alerts.component";
 import { SpottingActivityHeatmap } from "../../domain-ui/spotting-activity-heatmap/spotting-activity-heatmap";
 import { MySpottingsComponent } from "./my-spottings/my-spottings.component";
 import { MyLinksComponent } from "./my-links/my-links.component";
@@ -58,6 +59,7 @@ import {
     AppFooterComponent,
     UserCardComponent,
     FleetProgressComponent,
+    ProfileAlertsComponent,
     SpottingActivityHeatmap,
     MySpottingsComponent,
     MyLinksComponent,
@@ -92,6 +94,8 @@ import {
             <!-- Own profile only, and it loads itself: the whole spotted-vehicle list is slow, so
                  this page's first read does not wait for it. A public profile has one vehicle. -->
             <app-fleet-progress />
+            <!-- Own profile only: this browser's line alerts. Absent in a build without a VAPID key. -->
+            <app-profile-alerts />
 
             <!-- Density cap: see profileBetweenCardsSlotId — footerEnd + this = 2 (max). -->
             <app-ad-slot
