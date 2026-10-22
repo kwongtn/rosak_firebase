@@ -8,7 +8,7 @@ import {
   linkDayLabel,
   linkDisplayInstant,
 } from "./link-day-group.util";
-import { mytInstant, naiveMyt, SPEC_ZONES } from "./naive-myt.testing";
+import { mytInstant, naiveMyt, SPEC_ZONES } from "../../../../testing/naive-myt";
 
 // The F007 bugs (a naive wall time read in the viewer's zone, a date-only key shifted by the "UTC"
 // pipe) show in one zone or the other, so the zone-sensitive specs run in both: UTC is the SSR

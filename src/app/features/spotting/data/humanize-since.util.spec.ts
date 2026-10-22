@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mytInstant } from "../../../../testing/naive-myt";
 import { humanizeSince } from "./humanize-since.util";
 
 const NOW = new Date(2026, 7, 18, 12, 0, 0); // Aug 18, 2026, local noon
@@ -120,14 +121,6 @@ describe("humanizeSince", () => {
 });
 
 /**
- * The instant of a naive Kuala Lumpur wall time as the API sends it ("2026-10-01T05:23:15.833490":
- * no offset, `USE_TZ = False`). Malaysia is a fixed UTC+8, and a Date keeps milliseconds only.
- */
-function mytInstant(wall: string): Date {
-  return new Date(`${wall.slice(0, 23)}+08:00`);
-}
-
-/**
  * The same inputs in the SSR server's zone (UTC) and a Malaysian browser's. The right answer is the
  * one a Malaysian rider expects in both. A case that is wrong in one zone today runs as `it.fails`
  * there, naming its open finding: fixing the finding makes it fail, so flip it to `it` then.
@@ -153,37 +146,37 @@ describe.each(["UTC", "Asia/Kuala_Lumpur"])("humanizeSince on API timestamps in 
   });
 
   it("measures a timestamp that carries its offset the same way in every zone", () => {
-    vi.setSystemTime(mytInstant("2026-10-01T06:23:15.833490"));
+    vi.setSystemTime(mytInstant("2026-10-01", "06:23:15.833490"));
 
     expect(humanizeSince("2026-10-01T05:23:15.833+08:00")).toBe("1 hour ago");
   });
 
   wrongInUtc("reads a naive wall time as Kuala Lumpur time (F090)", () => {
-    vi.setSystemTime(mytInstant("2026-10-01T06:23:15.833490"));
+    vi.setSystemTime(mytInstant("2026-10-01", "06:23:15.833490"));
 
     expect(humanizeSince("2026-10-01T05:23:15.833490")).toBe("1 hour ago");
   });
 
   wrongInUtc("counts a minute across Kuala Lumpur midnight (F090)", () => {
-    vi.setSystemTime(mytInstant("2026-10-01T00:00:59"));
+    vi.setSystemTime(mytInstant("2026-10-01", "00:00:59"));
 
     expect(humanizeSince("2026-09-30T23:59:59")).toBe("1 minute ago");
   });
 
   wrongInUtc("counts calendar days from Kuala Lumpur midnight before 08:00 (F090)", () => {
-    vi.setSystemTime(mytInstant("2026-10-02T07:00:00"));
+    vi.setSystemTime(mytInstant("2026-10-02", "07:00:00"));
 
     expect(humanizeSince("2026-10-01T00:00:00")).toBe("1 Day ago");
   });
 
   wrongInUtc("counts a date-only value in Kuala Lumpur days before 08:00 (F438)", () => {
-    vi.setSystemTime(mytInstant("2026-10-03T07:00:00"));
+    vi.setSystemTime(mytInstant("2026-10-03", "07:00:00"));
 
     expect(humanizeSince("2026-10-01")).toBe("2 Days ago");
   });
 
   it("counts a date-only value a month back the same way in every zone", () => {
-    vi.setSystemTime(mytInstant("2026-10-01T12:00:00"));
+    vi.setSystemTime(mytInstant("2026-10-01", "12:00:00"));
 
     expect(humanizeSince("2026-09-01")).toBe("1 Month ago");
   });

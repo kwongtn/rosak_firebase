@@ -8,7 +8,7 @@ import {
   incidentCoversDate,
 } from "./calendar-date.util";
 import { CalendarIncident } from "./insiden.queries";
-import { mytInstant, naiveMyt, SPEC_ZONES } from "./naive-myt.testing";
+import { mytInstant, naiveMyt, SPEC_ZONES } from "../../../../testing/naive-myt";
 
 function createMockIncident(
   startDatetime: string,

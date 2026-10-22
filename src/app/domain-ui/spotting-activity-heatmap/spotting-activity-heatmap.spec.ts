@@ -2,20 +2,13 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { mytInstant } from "../../../testing/naive-myt";
 import {
   dateKeyOf,
   SpottingActivityHeatmap,
   spottingIntensityClass,
   toSpottingActivityPoints,
 } from "./spotting-activity-heatmap";
-
-/**
- * The instant of a naive Kuala Lumpur wall time as the API sends it ("2026-10-01T05:23:15.833490":
- * no offset, `USE_TZ = False`). Malaysia is a fixed UTC+8, and a Date keeps milliseconds only.
- */
-function mytInstant(wall: string): Date {
-  return new Date(`${wall.slice(0, 23)}+08:00`);
-}
 
 describe("SpottingActivityHeatmap smoke", () => {
   beforeEach(() => {
@@ -73,21 +66,21 @@ describe.each(["UTC", "Asia/Kuala_Lumpur"])("heatmap date helpers in TZ=%s", (zo
 
     it("gives the Kuala Lumpur day as today's key late in the evening", () => {
       vi.useFakeTimers();
-      vi.setSystemTime(mytInstant("2026-09-30T23:59:59"));
+      vi.setSystemTime(mytInstant("2026-09-30", "23:59:59"));
 
       expect(dateKeyOf(new Date())).toBe("2026-09-30");
     });
 
     // F436: the heatmap's and the grid's today key is a UTC day, a day behind until 08:00 MYT.
-    it.fails.each(["2026-10-01T00:00:00", "2026-10-01T05:23:15.833490"])(
-      "gives the Kuala Lumpur day as today's key at %s (F436)",
-      (wall) => {
-        vi.useFakeTimers();
-        vi.setSystemTime(mytInstant(wall));
+    it.fails.each([
+      ["2026-10-01", "00:00:00"],
+      ["2026-10-01", "05:23:15.833490"],
+    ])("gives the Kuala Lumpur day as today's key at %s %s (F436)", (day, time) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(mytInstant(day, time));
 
-        expect(dateKeyOf(new Date())).toBe("2026-10-01");
-      },
-    );
+      expect(dateKeyOf(new Date())).toBe("2026-10-01");
+    });
   });
 
   describe("toSpottingActivityPoints", () => {
