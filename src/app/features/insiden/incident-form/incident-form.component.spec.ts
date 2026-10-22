@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { HttpErrorResponse } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
@@ -126,6 +126,8 @@ describe("IncidentFormComponent", () => {
   };
   let authMocks: { isLoggedIn: ReturnType<typeof vi.fn>; isAdmin: ReturnType<typeof vi.fn> };
   let sheet: InstanceType<typeof IncidentSheetService>;
+  /** The form's `saved` output: the page reloads the month on it, so only a save may emit. */
+  let savedSpy: Mock<() => void>;
   let fixture: ComponentFixture<IncidentFormComponent>;
   let httpMock: HttpTestingController;
 
@@ -158,6 +160,8 @@ describe("IncidentFormComponent", () => {
     sheet = TestBed.inject(IncidentSheetService);
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(IncidentFormComponent);
+    savedSpy = vi.fn<() => void>();
+    fixture.componentInstance.saved.subscribe(savedSpy);
     fixture.detectChanges();
     const referenceRequest = httpMock.expectOne((r) => r.method === "POST");
     referenceRequest.flush({
@@ -248,6 +252,7 @@ describe("IncidentFormComponent", () => {
     expect(submitMutation).toBe(SUBMIT_CALENDAR_INCIDENT_MUTATION);
     expect(submitVars).toEqual({ calendarIncidentId: "42" });
     expect(toastMocks.success).toHaveBeenCalledTimes(1);
+    expect(savedSpy).toHaveBeenCalledTimes(1);
     expect(sheet.isOpen()).toBe(false);
     expect(component.model()).toEqual(emptyIncidentFormModel());
     expect(component.isSubmitting()).toBe(false);
@@ -262,6 +267,7 @@ describe("IncidentFormComponent", () => {
 
     expect(requestMock).toHaveBeenCalledTimes(1);
     expect(requestMock.mock.calls[0][0]).toBe(CREATE_CALENDAR_INCIDENT_MUTATION);
+    expect(savedSpy).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the form open when the create mutation fails", async () => {
@@ -273,6 +279,7 @@ describe("IncidentFormComponent", () => {
     await expect(component.submit()).rejects.toThrow("backend down");
 
     expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(savedSpy).not.toHaveBeenCalled();
     expect(sheet.isOpen()).toBe(true);
     expect(component.isSubmitting()).toBe(false);
   });
@@ -444,6 +451,7 @@ describe("IncidentFormComponent", () => {
     const mutationsSent = requestMock.mock.calls.map((call) => call[0]);
     expect(mutationsSent).not.toContain(SUBMIT_CALENDAR_INCIDENT_MUTATION);
     expect(toastMocks.success).toHaveBeenCalledWith("Incident updated", "Your changes were saved.");
+    expect(savedSpy).toHaveBeenCalledTimes(1);
     expect(sheet.isOpen()).toBe(false);
     expect(component.model()).toEqual(emptyIncidentFormModel());
     expect(component.isSubmitting()).toBe(false);
@@ -524,6 +532,7 @@ describe("IncidentFormComponent", () => {
 
     expect(requestMock).toHaveBeenCalledTimes(1);
     expect(toastMocks.error).toHaveBeenCalledWith("Couldn't save changes", conflictMessage);
+    expect(savedSpy).not.toHaveBeenCalled();
     expect(sheet.isOpen()).toBe(true);
     expect(component.model().title).toBe("Edited title");
     expect(component.isSubmitting()).toBe(false);
@@ -646,6 +655,24 @@ describe("IncidentFormComponent", () => {
       expect(toastMocks.error).toHaveBeenCalledWith("Check the chronology", message);
       expect(rowErrors()).toEqual([message]);
       expect(sheet.isOpen()).toBe(true);
+      expect(savedSpy).not.toHaveBeenCalled();
+    });
+
+    it("keeps the indicator picked in a row's select, and an indicator alone is still a blank row", async () => {
+      authMocks.isAdmin.mockReturnValue(true);
+      const component = await openWithRows([emptyChronology(0)]);
+      const select = host().querySelector<HTMLSelectElement>(
+        '[data-testid="chronology-row"] select',
+      );
+      if (!select) throw new Error("indicator select not rendered");
+
+      select.value = "RED";
+      select.dispatchEvent(new Event("change"));
+      fixture.detectChanges();
+
+      expect(component.chronologies()[0].indicator).toBe("RED");
+      await component.submit();
+      expect(requestMock.mock.calls[0][1].data.chronologies).toEqual([]);
     });
 
     it("clears the message as the description is typed, then submits", async () => {
@@ -701,6 +728,7 @@ describe("IncidentFormComponent", () => {
       expect(sheet.editTarget()).toBeNull();
       expect(component.model()).toEqual(emptyIncidentFormModel());
       expect(component.chronologies()).toEqual([]);
+      expect(savedSpy).not.toHaveBeenCalled();
     });
 
     it("resets the draft when the sheet itself closes on Escape", async () => {
@@ -711,6 +739,7 @@ describe("IncidentFormComponent", () => {
 
       expect(sheet.isOpen()).toBe(false);
       expect(component.model()).toEqual(emptyIncidentFormModel());
+      expect(savedSpy).not.toHaveBeenCalled();
     });
   });
 
