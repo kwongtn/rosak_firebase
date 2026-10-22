@@ -81,6 +81,8 @@ if (result) {
 
 **medium** · effort S · code-quality · gap-2
 
+**Status, quality pass 2026-10-22:** Fixed (`e1ad59e`). The report form's line-change effect now clears `atStation`, `originStation` and `destinationStation` together with the vehicle, so a stale station id can no longer pass the schema and be sent with another line's report. A component spec changes the line after picking stations and asserts all three are empty. Fixed as a side effect of F347. **Left:** The schema does not validate station ids against `stationOptions()`, which the recommendation names as the better fix.
+
 **Where:** `src/app/features/spotting/report-form/report-form.component.ts:172`, `src/app/features/spotting/report-form/report-form.component.ts:288`, `src/app/features/spotting/report-form/report-form.component.html:131`
 
 **Problem.** Changing the line clears the vehicle but not atStation, originStation or destinationStation. The station resource reloads for the new line, so the native selects show a blank value (no option matches the old id), yet the model still holds the old line's station id. The schema only checks that the string is non-empty, so the form validates and the old id is sent in the addEvent mutation. The result is either a backend error that the rider cannot understand, or a spotting filed against a station on the wrong line.
@@ -163,6 +165,8 @@ graphql-client.ts:229  this.toast.error("GraphQL Error", error.message);  (and t
 #### F106 · Add a re-entrancy guard to submit() so Enter or the keyboard Go key cannot create duplicate incidents or links
 
 **medium** · effort S · reliability · insiden-data
+
+**Status, quality pass 2026-10-22:** Fixed (`4940e32`). `IncidentFormComponent.submit()` and `LinkFormComponent.submit()` return early while `isSubmitting()` is true, with a spec each. The defect was smaller than the write-up says: Signal Forms' `submit()` already ignores a re-entrant call, so no second mutation was sent, but the second call cleared `isSubmitting` on its way out and re-enabled Submit mid-request. Fixed together with F238.
 
 **Where:** `src/app/features/insiden/incident-form/incident-form.component.ts:563`, `src/app/features/insiden/incident-form/incident-form.component.html:8`, `src/app/features/insiden/link-form/link-form.component.ts:440`, `src/app/features/insiden/link-form/link-form.component.ts:75`
 
@@ -406,6 +410,8 @@ this.toast.error("Login failed", err instanceof Error ? err.message : "Unknown e
 #### F196 · Image compression breaks on non-JPEG input, can hang forever on odd JPEGs, and may double-apply EXIF orientation
 
 **medium** · effort M · reliability · core-shell
+
+**Status, quality pass 2026-10-22:** Partly fixed (`63ba5a7`, `462699c`, `7b5e081`). Service half: `image-compression.service.ts` bounds-checks every JPEG marker and reads the file with `blob.arrayBuffer()`, so a truncated JPEG rejects and no longer leaves the promise unsettled; a null `toBlob` throws; a PNG, WebP or GIF is re-encoded as JPEG and renamed `.jpg`, because the backend names the stored file by extension; the re-attached Exif segment has Orientation reset to 1; and the size search returns the last size that fit. `addToQueue` saves to IndexedDB only a photo that is ready (`!toCompress || isCompressed`), so a resumed record can no longer be an uncompressed original. The new `image-compression.service.spec.ts` covers PNG input, truncated JPEGs and a null `toBlob` (see F269). **Left:** The picker-side catch, toast and entry removal is not done as the finding states: the owner chose to upload the original when compression fails (`c955733`), as F444 records. The Exif segment is kept on purpose, because the backend reads `DateTime`; GPS is removed by `stripGps` at send time. The search still re-reads and re-decodes the file at every step (F197, F260).
 
 **Where:** `src/app/core/upload/image-compression.service.ts:31`, `src/app/core/upload/image-compression.service.ts:36`, `src/app/core/upload/image-compression.service.ts:93`, `src/app/core/upload/image-compression.service.ts:95`, `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:7`, `src/app/core/upload/image-upload.service.ts:115`
 

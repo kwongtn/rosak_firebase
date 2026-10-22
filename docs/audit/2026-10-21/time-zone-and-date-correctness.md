@@ -100,6 +100,8 @@ spottingDate: new Date().toISOString().slice(0, 10),
 
 **medium** · effort S · ssr-hydration · gap-4 · partially confirmed · severity adjusted from high
 
+**Note, quality pass 2026-10-22:** pinned by three `it.fails` cases in `src/app/features/spotting/data/humanize-since.util.spec.ts`; still open.
+
 **Where:** `src/app/features/spotting/data/humanize-since.util.ts:10-16`, `src/app/features/insiden/link-card/link-card.component.ts:405`, `src/app/features/home/pro/pro-official-widget.ts:135`, `src/app/features/spotting/vehicle-detail/vehicle-status-board/vehicle-status-board.component.ts:27`
 
 **Problem.** occurredAt and created are naive MYT strings, parsed in the host's zone. On the production SSR server (container TZ is not set in apphosting.yaml, so presumably UTC) a link up to 8 hours old yields a negative elapsed time and renders 'less than a minute ago'. Home is SSR-rendered with a 20 s s-maxage cache and the feed is in the transfer state, so the first paint and the cached HTML show wrong text until hydration rewrites it. Viewers outside UTC+8 keep an 8-hour error. For date-only fields (lastSpottingDate, inServiceSince) the helper parses UTC midnight and invents a precise '4 hours ago' that means nothing for a date. I did not see a live SSR render with a fresh link (local data is from 1 Oct), so the SSR symptom is from simulation plus the code path. The label is also a one-shot computed that never ticks.
@@ -316,6 +318,8 @@ feed-day-groups.util.ts:56  groupFeedLinksByDay(links: FeedLink[], now: Date = n
 
 **low** · effort S · ssr-hydration · spotting · partially confirmed · severity adjusted from medium
 
+**Note, quality pass 2026-10-22:** pinned by `it.fails` cases in `src/app/domain-ui/spotting-activity-heatmap/spotting-activity-heatmap.spec.ts` (two timestamps in each of the two zone runs); still open.
+
 **Where:** `src/app/features/spotting/line-details/vehicle-spotting-grid/vehicle-spotting-grid.data.util.ts:47`, `src/app/domain-ui/spotting-activity-heatmap/spotting-activity-heatmap.ts:229`, `src/app/features/spotting/vehicle-detail/vehicle-detail.page.ts:222`, `src/app/features/spotting/line-details/line-details.page.ts:461`
 
 **Problem.** dateKeyOf is correct for calendar math on backend dates, but it is also applied to the current instant, so 'today' is the UTC date. From 00:00 to 08:00 MYT the highlighted column, the pulsing ring and the heading 'N spottings today' refer to yesterday, and at the start of a month the default window ends one month early. TODAY_KEY is a module constant: in the long-lived SSR process it is fixed at server start, so after midnight the server HTML marks a different 'today' than the browser, which is a hydration text mismatch. selectedYear and years() use the server's local clock for the same reason.
@@ -344,6 +348,8 @@ private readonly _today = firstOfMonth(new Date());
 #### F438 · The last-spotted age text invents a time of day from a date-only value
 
 **low** · effort S · code-quality · spotting
+
+**Note, quality pass 2026-10-22:** pinned by an `it.fails` case in `src/app/features/spotting/data/humanize-since.util.spec.ts`; still open.
 
 **Where:** `src/app/features/spotting/data/humanize-since.util.ts:9`, `src/app/features/spotting/vehicle-detail/vehicle-status-board/vehicle-status-board.component.ts:27`
 

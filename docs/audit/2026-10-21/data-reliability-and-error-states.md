@@ -461,6 +461,8 @@ private readonly spottingHistoryResource = graphqlResource<...>   // no hasError
 
 **medium** · effort S · reliability · tracker-gallery
 
+**Note, quality pass 2026-10-22:** pinned by an `it.fails` case in `src/app/features/tracker/data/gtfs-realtime.service.spec.ts` ('does not poll again when paused while a fetch is in flight'); still open. Whoever fixes it flips that case to a plain `it`.
+
 **Where:** `src/app/features/tracker/data/gtfs-realtime.service.ts:78`, `src/app/features/tracker/data/gtfs-realtime.service.ts:112`, `src/app/features/tracker/data/gtfs-realtime.service.ts:115`, `src/app/features/tracker/data/gtfs-realtime.service.ts:173`
 
 **Problem.** `pause()` only clears timers. A fetch already in flight (typical, since each poll takes about 0.7 s) still resolves and calls `scheduleNext`, which arms a fresh `pollTimeout`. So after leaving /tracker, or after unchecking a source and pressing Apply (`upsertSources` calls `source.pause()` and then drops the reference), the feed keeps polling in the background forever with no tick interval and no owner. `resume()` and `retryNow()` call `refresh()` without checking `isLoading`, so two requests can overlap and land out of order. `fetch` has no timeout or AbortSignal, so a hung connection leaves `isLoading` true and the source never reschedules.
@@ -847,6 +849,8 @@ export function lineStatusInfo(status: LineStatus): StatusInfo { return LINE_STA
 #### F401 · Malformed URLs and missing assets fall through to a full SSR render (500 with stack trace, or a 56 KB 404 page)
 
 **low** · effort S · reliability · platform · severity adjusted from medium
+
+**Note, quality pass 2026-10-22:** the `ssr-smoke` job in `.github/workflows/ci.yml` requests `/%E0%A4%A`, gets HTTP 500 and reports it as a `::warning::`; still open. When the server answers 400, that check becomes a normal `check /%E0%A4%A 400` call.
 
 **Where:** `src/server.ts:83`, `src/server.ts:94`, `src/server.ts:119`
 
