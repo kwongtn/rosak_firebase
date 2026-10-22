@@ -602,11 +602,11 @@ describe("PushService", () => {
 
       expect(push.lines()).toEqual([]);
       expect(readPushState()).toBeNull();
-      await vi.waitFor(() =>
-        expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-          [{ token: "fcm-token" }, undefined, { quiet: true }],
-        ]),
-      );
+      // Sent before forget() resolves, so before AuthService.logout signs out: the interceptor then
+      // asks for the token of the session that registered it.
+      expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([
+        [{ token: "fcm-token" }, undefined, { quiet: true }],
+      ]);
       settle({ unregisterPushToken: { ok: true } });
     });
 
