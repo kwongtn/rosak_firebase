@@ -188,7 +188,9 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
     converts a jsdom Blob for Node, and without it `mapbox-gl` (loaded by the L7 specs) throws
     `The "obj" argument must be an instance of Blob` at import.
   - `src/test-setup.ts` empties the toast list before every test: ordinary app code writes to that
-    process-wide store, so specs are not asked to clean up after it.
+    process-wide store, so specs are not asked to clean up after it. It also lifts Vitest's limits
+    of 5 s a test and 10 s a hook to 15 s and 30 s, because a component's first render takes up to
+    8 s when the machine is busy.
   - A spec that `vi.mock`s a module starts with `vi.hoisted(() => vi.resetModules())` and ends with
     `afterAll(() => vi.resetModules())`. Mocks are per file, the module cache is not: without the
     first, the unit under test keeps the bindings of whichever file loaded it first (a Sentry
