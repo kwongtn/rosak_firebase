@@ -18,7 +18,11 @@ importScripts("${sdk}/firebase-messaging-compat.js");
 // it: a tap on an alert focuses a tab already on its link, or opens the link. Same-origin links only.
 self.addEventListener("notificationclick", (event) => {
   const message = event.notification.data && event.notification.data.FCM_MSG;
-  const link = message && message.fcmOptions && message.fcmOptions.link;
+  // FCM may deliver webpush.fcm_options.link as notification.click_action; the SDK reads both too.
+  const link =
+    message &&
+    ((message.fcmOptions && message.fcmOptions.link) ||
+      (message.notification && message.notification.click_action));
   if (!link) {
     return;
   }

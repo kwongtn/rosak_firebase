@@ -90,6 +90,17 @@ describe("messagingServiceWorker (public/firebase-messaging-sw.js)", () => {
     expect(openWindow).toHaveBeenCalledExactlyOnceWith(`${ORIGIN}/insiden/2026-10-22`);
   });
 
+  it("opens a link that FCM delivered as the notification's click_action", async () => {
+    const { click, openWindow } = runWorker();
+
+    const event = await click({
+      FCM_MSG: { notification: { click_action: `${ORIGIN}/insiden/2026-10-22` } },
+    });
+
+    expect(event.stopImmediatePropagation).toHaveBeenCalledTimes(1);
+    expect(openWindow).toHaveBeenCalledExactlyOnceWith(`${ORIGIN}/insiden/2026-10-22`);
+  });
+
   it("focuses a tab that is already on the link instead of opening another", async () => {
     const tab = { url: `${ORIGIN}/insiden/2026-10-22`, focus: vi.fn(async () => undefined) };
     const { click, openWindow } = runWorker([{ url: `${ORIGIN}/`, focus: vi.fn() }, tab]);
