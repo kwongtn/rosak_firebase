@@ -5,6 +5,7 @@ import { Router, provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreferencesService } from "../../../core/preferences/preferences.service";
+import { FCM_VAPID_KEY } from "../../../core/push/push-loader";
 import type { LinePulse } from "../data/home-board.queries";
 import type { HomeIncidentItem } from "../data/home-incidents.queries";
 import { partitionBoardLines } from "../data/board-lines.util";
@@ -219,6 +220,9 @@ describe("NetworkBoardComponent", () => {
         // Both row elements route their report button through the route-scoped status-sheet service,
         // which the page (not the board) provides in the app's route table.
         { provide: LineStatusSheetService, useValue: lineStatusSheet },
+        // A pinned row draws the alert bell. Without a key it loads nothing, even when the developer's
+        // shell exports FCM_VAPID_KEY into the generated environment.
+        { provide: FCM_VAPID_KEY, useValue: "" },
         ...(options.platform ? [{ provide: PLATFORM_ID, useValue: options.platform }] : []),
       ],
     });
