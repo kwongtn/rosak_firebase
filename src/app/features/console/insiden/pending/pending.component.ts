@@ -259,9 +259,15 @@ export class PendingIncidentsComponent {
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
-    this.searchDebouncer.push(() =>
-      this.appliedSearch.set(searchTermOrUndefined(this.searchTerm())),
-    );
+    this.searchDebouncer.push(() => {
+      const search = searchTermOrUndefined(this.searchTerm());
+      // The same term leaves the params unchanged, so only a reload retries a failed read.
+      if (search === this.appliedSearch() && this.queue.status() === "error") {
+        this.queue.reload();
+      } else {
+        this.appliedSearch.set(search);
+      }
+    });
   }
 
   protected async approve(row: PendingIncident): Promise<boolean> {

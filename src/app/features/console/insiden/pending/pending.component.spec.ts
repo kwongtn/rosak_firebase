@@ -250,6 +250,30 @@ describe("PendingIncidentsComponent", () => {
     );
   });
 
+  it("retries a failed read when the same search is applied again, and does not refetch a good one", async () => {
+    const component = asTestable(fixture);
+    await initialLoadsSettled(component);
+    vi.useFakeTimers();
+    requestMock.mockClear();
+    requestMock.mockRejectedValueOnce(new Error("backend down"));
+
+    async function apply(term: string): Promise<void> {
+      component.onSearchInput(term);
+      await vi.advanceTimersByTimeAsync(300);
+      TestBed.tick();
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    await apply("lrt");
+    await apply(" lrt "); // the same trimmed term after a failed read: retried
+    await apply("lrt"); // the same term after a good read: not refetched
+
+    expect(callsFor("pendingCalendarIncidents").map(([, vars]) => vars)).toEqual([
+      { search: "lrt" },
+      { search: "lrt" },
+    ]);
+  });
+
   it("approve calls the approve mutation and removes the row", async () => {
     await initialLoadsSettled(asTestable(fixture));
     requestMock.mockClear();
