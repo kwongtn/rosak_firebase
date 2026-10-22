@@ -132,8 +132,9 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   (`ToastService.info(title, description, link)`).
   - `push-loader.ts`: `FCM_VAPID_KEY` (token, from `environment.fcm.vapidKey`) and
     `injectPushService()`, the only way a control reaches the service: a signal that is `null` until
-    a dynamic import lands after the first render. In a build without a key it loads nothing and
-    stays `null`. Consumers: home's alert bell on pinned rows and profile's Alerts card.
+    a dynamic import lands after the first render and `AuthService.whenReady` has resolved (so a
+    signed-in rider is never offered the sign-in while Firebase restores the session). In a build
+    without a key it loads nothing and stays `null`. Consumers: home's alert bell on pinned rows and profile's Alerts card.
   - `AuthService` drives two hooks through its own dynamic import, and only when a token is stored:
     `resume()` after a sign-in reads `pushSubscription(token)` once (the backend's lines win, and
     `null`, an unknown token or another account's, clears them; offline or on a failed read the

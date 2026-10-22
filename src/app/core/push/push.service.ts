@@ -112,6 +112,8 @@ export class PushService {
   });
   /** True until the rider has answered the browser's prompt: the bell shows the pre-prompt first. */
   readonly needsPermission = computed(() => this._permission() === "default");
+  /** Resolves once the session is known, before which `signed-out` may only mean "not restored yet". */
+  readonly whenReady: Promise<void> = this.auth.whenReady;
 
   constructor() {
     if (!injectIsBrowser()) {

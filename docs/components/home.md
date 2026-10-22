@@ -1015,11 +1015,11 @@ the pin). It reaches the service through `injectPushService()`, a dynamic import
 render, so neither the service nor Firebase Messaging is in the home chunk.
 
 - **States** (`data-state` on `line-alert-bell`): `unconfigured` (no VAPID key: nothing is loaded, and
-  the state never changes), `loading` (until the service lands; an inert placeholder of the same
-  size), `install`, `unsupported`, `blocked`, `signed-out`, `off` and `on`. The tooltip heading names
-  the state ("Alerts are not set up yet", "Install MLPTF to your Home Screen to get alerts",
-  "Notifications are blocked in your browser settings", "Sign in to get alerts", ...) and its body is
-  `metricTooltip("incidents.push-alerts")`.
+  the state never changes), `loading` (until the service lands and the session is restored; an inert
+  placeholder of the same size), `install`, `unsupported`, `blocked`, `signed-out`, `off` and `on`.
+  The tooltip heading names the state ("Alerts are not set up yet", "Install MLPTF to your Home
+  Screen to get alerts", "Notifications are blocked in your browser settings", "Sign in to get
+  alerts", ...) and its body is `metricTooltip("incidents.push-alerts")`.
 - 🔴 **Disabled is `aria-disabled`, never `disabled`.** A `disabled` button swallows the tap, and the
   tooltip that says why would never open. `onBell()` returns early in those states and while
   `busy()`. The `aria-label` is "Alerts for <name>", plus ": <reason>" when alerts cannot work here;

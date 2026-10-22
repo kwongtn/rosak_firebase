@@ -14,7 +14,7 @@ class AlertControlHost {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("injectPushService", () => {
-  const service = { stand: "in" };
+  let service: { whenReady: Promise<void> };
   let handleError: ReturnType<typeof vi.fn>;
 
   function create(vapidKey: string) {
@@ -33,6 +33,7 @@ describe("injectPushService", () => {
   }
 
   beforeEach(() => {
+    service = { whenReady: Promise.resolve() };
     handleError = vi.fn();
   });
 
@@ -46,6 +47,18 @@ describe("injectPushService", () => {
 
     await vi.waitFor(() => expect(fixture.componentInstance.push()).toBe(service));
     expect(handleError).not.toHaveBeenCalled();
+  });
+
+  it("waits for the session before it hands the service over", async () => {
+    let restore: () => void = () => undefined;
+    service.whenReady = new Promise<void>((resolve) => (restore = resolve));
+    const fixture = create("vapid-key");
+
+    await settle();
+    expect(fixture.componentInstance.push()).toBeNull();
+
+    restore();
+    await vi.waitFor(() => expect(fixture.componentInstance.push()).toBe(service));
   });
 
   it("loads nothing in a build without a VAPID key", async () => {

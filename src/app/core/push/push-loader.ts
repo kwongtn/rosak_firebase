@@ -27,9 +27,9 @@ export function injectPushConfigured(): boolean {
 /**
  * The root {@link PushService} for an alert control (a line row's bell, the profile's Alerts card),
  * loaded after the first render by a dynamic `import()`, so neither the service nor Firebase
- * Messaging lands in the caller's chunk. `null` until it lands, on the server, and for good in a
- * build without a VAPID key: alerts cannot work there, so nothing is downloaded (and nothing else,
- * such as `AuthService`, is created on its behalf).
+ * Messaging lands in the caller's chunk. `null` until it lands and the session is known, on the
+ * server, and for good in a build without a VAPID key: alerts cannot work there, so nothing is
+ * downloaded (and nothing else, such as `AuthService`, is created on its behalf).
  *
  * Must be called in an injection context. A failed load goes to the `ErrorHandler`, which turns a
  * chunk that cannot load into the app's offline or new-version notice.
@@ -45,11 +45,17 @@ export function injectPushService(): Signal<PushService | null> {
   inject(DestroyRef).onDestroy(() => (destroyed = true));
   afterNextRender(() => {
     import("./push.service")
-      .then(({ PushService }) => {
+      .then(async ({ PushService }) => {
         // A control that is gone by now (a row that unpinned, a page left) must not reach into a
         // destroyed injector.
+        if (destroyed) {
+          return;
+        }
+        const push = injector.get(PushService);
+        // The session first, so a signed-in rider is never offered the sign-in while it restores.
+        await push.whenReady;
         if (!destroyed) {
-          service.set(injector.get(PushService));
+          service.set(push);
         }
       })
       .catch((err: unknown) => errorHandler.handleError(err));
