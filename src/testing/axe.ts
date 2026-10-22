@@ -27,8 +27,9 @@ export function formatAxeViolations(violations: axe.Result[]): string[] {
 
 /**
  * Fails when axe finds a structural accessibility violation under the fixture's host element. Await
- * it after the view has settled (`detectChanges`, `whenStable`). axe leaves no listeners or globals
- * behind, so it is safe with `isolate: false`.
+ * it after the view has settled (`detectChanges`, `whenStable`). Importing axe sets `window.axe` and
+ * adds one inert window `message` listener, once per worker; nothing else reads either, so it is
+ * safe with `isolate: false`.
  */
 export async function expectNoAxeViolations(fixture: ComponentFixture<unknown>): Promise<void> {
   const results = await axe.run(fixture.nativeElement as HTMLElement, {
