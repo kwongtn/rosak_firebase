@@ -550,7 +550,8 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
 1. **URL-state sync (signal ↔ query param).** Shared helper exists:
    `core/url-state/query-param.util.ts` (pure read helpers, one browser-gated merge/replace write;
    defaults are never written to the URL). Adopted by home (`?view=`/`?sort=`/`?line=`/`?q=`) and
-   insiden (`?lines=`/`?severity=`/`?mine=`); spotting's line-overview encodes `sort`/`dir` inline.
+   insiden (`?lines=`/`?severity=`/`?mine=`); spotting's line-overview writes `sort`/`dir` through
+   `writeQueryParams`/`queryParamForWrite` (it keeps its own `isSortColumn` read guard).
    Not yet adopted: gdpr (item deep-links), about (section anchors), spotting filters, console
    (shareable filter views), insiden (per-incident expand state), tracker (map/layer views).
    Elsewhere only path params are bound.
