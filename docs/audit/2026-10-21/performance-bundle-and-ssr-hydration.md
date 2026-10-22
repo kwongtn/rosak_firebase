@@ -322,7 +322,7 @@ Playwright at 390x844 against http://localhost:4321/, two runs, identical: layou
 
 **medium** · effort S · performance · performance
 
-**Status, fix pass 2026-10-22:** Partly fixed (`14e4f5c`, `26fe6bc`). Part 3 is done: the Home route's providers moved into the lazy `features/home/home.routes.ts`, `main` fell from 393.21 kB to 237.37 kB and the initial total from 997.74 kB to 841.90 kB. `app.routes.spec.ts` now fails if `main.ts` statically reaches `features/`, `shell/` or `core/{auth,graphql,preferences,methodology}/`. **Left:** parts 1 and 2, `provideMarkdown()` (about 69 kB) and the root reCAPTCHA providers with `@angular/forms` (about 52 kB). `docs/COMPONENTS.md` -> Initial bundle lists both as the next candidates.
+**Status, feature pass 2026-10-22:** Partly fixed (`14e4f5c`, `26fe6bc`). Part 3 is done: the Home route's providers moved into the lazy `features/home/home.routes.ts`, `main` fell from 393.21 kB to 237.37 kB and the initial total from 997.74 kB to 841.90 kB. `app.routes.spec.ts` now fails if `main.ts` statically reaches `features/`, `shell/` or `core/{auth,graphql,preferences,methodology}/`. **Left:** parts 1 and 2, `provideMarkdown()` (about 69 kB) and the root reCAPTCHA providers with `@angular/forms` (about 52 kB). `docs/COMPONENTS.md` -> Initial bundle lists both as the next candidates.
 
 **Where:** `src/app/app.config.ts:17`, `src/app/app.config.ts:18`, `src/app/app.config.ts:177`, `src/app/app.routes.ts:4`, `src/app/app.routes.ts:24`, `src/app/features/insiden/incident-card/incident-card.component.ts:15`
 
