@@ -83,8 +83,9 @@ const SORT_PARAM = "sort";
  *
  * **Incident chips.** Every row and card can carry a Notice chip (`app-line-notices`), so the board
  * opts the store's ongoing-incidents read in as it mounts — the Pro widget asks for the same
- * resource, and two askers still send one request. The Planned works read is for the rows of My
- * lines only, so the board opts it in once a pinned line exists (pins are client state: the server
+ * resource, and two askers still send one request. The Planned works read is for the PINNED lines
+ * only, wherever they are drawn (a row in My lines, or a card in Needs attention: attention wins over
+ * a pin), so the board opts it in once a pinned line is on screen (pins are client state: the server
  * render never has one, and never sends that read). Both are the store's isolated reads: neither
  * can raise the page's error banner, and the board draws no placeholder while they load.
  *
@@ -654,9 +655,13 @@ export class NetworkBoardComponent {
     // request that only some surface may start is the store's own rule for its isolated reads. The
     // call is idempotent, so the Pro dashboard (board + incidents widget) still sends one request.
     this.store.requestIncidentsRead();
-    // Planned works draw on pinned lines' rows only, so the second read waits until there is one.
+    // Planned works draw on pinned lines only, so the second read waits until one is on screen: a row
+    // in My lines, or a card in Needs attention (a pinned line that needs attention stays a card).
     effect(() => {
-      if (this._mine().length > 0) {
+      if (
+        this._mine().length > 0 ||
+        this._attention().some((line) => this.preferences.isPinned(line.id))
+      ) {
         this.store.requestPlannedWorksRead();
       }
     });

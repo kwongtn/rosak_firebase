@@ -59,7 +59,7 @@ function chipView(chip: LineChip): ChipView {
  * component's.
  *
  * `planned` is the caller's decision too: the Planned works read is for the lines a rider pinned, so
- * the row passes its own pin state and the card passes nothing.
+ * the row and the card each pass their own pin state.
  *
  * At most `MAX_LINE_CHIPS` chips are drawn, Notices first (`pickLineChips`); a "+N" link to the
  * calendar covers the rest. Each chip links to `/insiden/<day it starts>`. The day comes from the
@@ -163,7 +163,7 @@ export class LineNoticesComponent {
   readonly lineId = input.required<string>();
   /** The line's display name: it names the strip, so a screen reader knows whose incidents these are. */
   readonly lineName = input.required<string>();
-  /** Whether this line also draws its Planned works. The row passes its pin state. */
+  /** Whether this line also draws its Planned works. The row and the card pass their pin state. */
   readonly planned = input(false);
 
   private readonly store = inject(HomeStore);

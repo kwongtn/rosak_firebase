@@ -398,6 +398,41 @@ test.describe("community front page", () => {
       });
   });
 
+  test("VISITOR: pinning a line that needs attention keeps it a card and asks for its planned works", async ({
+    page,
+  }) => {
+    await configureMock({
+      FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
+      Feed: feedPage(),
+      HomeRecentIncidents: { calendarIncidents: [] },
+    });
+    const plannedReads = async () =>
+      (await recordedCalls())
+        .filter((call) => call.operationName === "HomeRecentIncidents")
+        .map((call) => call.variables)
+        .filter((variables) => "upcomingWithinDays" in (variables["filters"] as object));
+
+    await page.goto("/");
+    const mrl = page
+      .getByTestId("line-board-attention")
+      .locator("app-line-pulse-card")
+      .filter({ hasText: "Monorail Line" });
+    await expect(mrl).toBeVisible();
+    // Nothing is pinned yet, so only the ongoing read has gone out.
+    expect(await plannedReads()).toEqual([]);
+
+    // Attention wins over a pin: the line stays a card (My lines stays empty), and the card carries
+    // what a pinned row would, so the planned-works read goes out for it.
+    await mrl.getByTestId("line-card-pin").click();
+    await expect(mrl.getByTestId("line-card-pin")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("line-board-mine")).toHaveCount(0);
+    await expect
+      .poll(plannedReads)
+      .toEqual([
+        { filters: { status: "LIVE", upcomingWithinDays: 7 }, order: { startDatetime: "ASC" } },
+      ]);
+  });
+
   test("USER: a duplicate submission surfaces the already-submitted indicator", async ({
     page,
   }) => {

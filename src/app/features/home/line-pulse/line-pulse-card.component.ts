@@ -57,7 +57,8 @@ const MAX_PULSE_LINKS = 5;
  * confidence chip answers a question the other chips never did — how much to trust any of this: an
  * operator-sourced post, several corroborating riders, one person's guess, or nothing at all (the
  * pure rule is `statusConfidence`). Under the header, `app-line-notices` draws the line's Notice
- * chips when an approved incident is running on it. The title row is
+ * chips when an approved incident is running on it and, for a pinned line, its Planned works. The
+ * title row is
  * the expand/collapse toggle for the lazy detail panel — the hourly report chart
  * and the recent reports list, both of which only read once expanded. Mobile-first: the card is a
  * single column with full-width, content-sized actions; from `sm:` the actions move to the right
@@ -185,11 +186,16 @@ const MAX_PULSE_LINKS = 5;
             </div>
           </header>
 
-          <!-- The line's Notice chips: an approved incident running on this line now. A line that
-               needs attention is exactly where one is most likely, so the card draws them too (the
-               compact row does). No Planned works here — those are for the rows of My lines. Renders
-               nothing without an answer, and the host is empty:hidden so the column's gap closes. -->
-          <app-line-notices [lineId]="line().id" [lineName]="line().displayName" />
+          <!-- The line's incident chips: a Notice for an approved incident running on this line now
+               (a line that needs attention is exactly where one is most likely), and, when the reader
+               pinned the line, its Planned works. A pin does not hide a broken line further down — it
+               stays a card — so the card has to carry what a pinned row carries. Renders nothing
+               without an answer, and the host is empty:hidden so the column's gap closes. -->
+          <app-line-notices
+            [lineId]="line().id"
+            [lineName]="line().displayName"
+            [planned]="_isPinned()"
+          />
 
           @if (_links().length > 0) {
             <ul class="flex flex-col gap-1.5">

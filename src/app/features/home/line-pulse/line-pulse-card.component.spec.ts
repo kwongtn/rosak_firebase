@@ -686,7 +686,9 @@ describe("LinePulseCardComponent", () => {
       );
     });
 
-    it("never draws Planned works: those belong to the rows of My lines", () => {
+    it("draws Planned works only while the line is pinned: a pin keeps a broken line a card", () => {
+      // "Attention wins over a pin", so the pinned line the reader most wants news about is a card, not
+      // a My lines row. The card has to carry what a pinned row carries.
       plannedByLine.set({
         "line-1": [
           {
@@ -700,14 +702,24 @@ describe("LinePulseCardComponent", () => {
           },
         ],
       });
-      const root = render(makeLine());
-      // Pinned, which is what makes a ROW draw them — the card still asks for Notices only.
+      const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
+
+      // Unpinned: the store HAS planned works for this line and the card draws none.
+      expect(root.querySelector('[data-testid="line-planned"]')).toBeNull();
+      expect(root.querySelector('[data-testid="line-notices"]')).toBeNull();
+
       preferences.togglePin("line-1");
       fixture.detectChanges();
 
       expect(preferences.isPinned("line-1")).toBe(true);
+      const chip = root.querySelector('[data-testid="line-planned"]');
+      expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-24");
+      expect(textOf(root, "line-planned-date")).toBe("Sat 24 Oct");
+      expect(textOf(root, "line-planned-title")).toBe("Track works");
+
+      preferences.togglePin("line-1");
+      fixture.detectChanges();
       expect(root.querySelector('[data-testid="line-planned"]')).toBeNull();
-      expect(root.querySelector('[data-testid="line-notices"]')).toBeNull();
     });
   });
 });

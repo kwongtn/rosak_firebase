@@ -238,7 +238,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
       <!-- The line's incident chips (Notice; for a pinned line also Planned works). Renders nothing
            until the store has an answer for this line — no skeleton, no gap: the host is empty:hidden.
            A pinned row is a row in My lines (a pin takes a line out of All lines and Others), so the
-           pin state IS the "My lines" test for Planned works. -->
+           pin state is the test for Planned works; the card applies the same test. -->
       <app-line-notices
         class="mt-1.5"
         [lineId]="line().id"

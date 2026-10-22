@@ -531,11 +531,36 @@ describe("NetworkBoardComponent", () => {
     expect(storeMock.requestPlannedWorksRead).toHaveBeenCalled();
   });
 
-  it("does not send the planned-works read for a pinned line that is a Needs attention card", async () => {
-    // "Pin says I care; it does not hide a broken line further down" — such a line is a card, the
-    // card draws no Planned works, so there is nothing for the second read to feed.
+  it("opts the planned-works read in for a pinned line that is a Needs attention card", async () => {
+    // "Pin says I care; it does not hide a broken line further down": such a line is a card, and the
+    // card draws Planned works, so the second read has something to feed with My lines EMPTY.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["dead"] }));
     const root = await board([makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("b")], {
       pinned: ["dead"],
+    });
+
+    expect(codesIn(root, "attention")).toEqual(["DEAD"]);
+    expect(codesIn(root, "mine")).toEqual([]);
+    expect(storeMock.requestPlannedWorksRead).toHaveBeenCalled();
+  });
+
+  it("opts the planned-works read in when a Needs attention card is pinned after the first paint", async () => {
+    await board([makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("b")]);
+    expect(storeMock.requestPlannedWorksRead).not.toHaveBeenCalled();
+
+    preferences.togglePin("dead");
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(storeMock.requestPlannedWorksRead).toHaveBeenCalled();
+  });
+
+  it("does not send the planned-works read for an attention card nobody pinned, or a pin on no line", async () => {
+    // A pin on a line that is not on the board (a retired line, a Pro filter) feeds no chip, so it
+    // starts no read either.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["ghost-line"] }));
+    const root = await board([makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("b")], {
+      pinned: ["ghost-line"],
     });
 
     expect(codesIn(root, "attention")).toEqual(["DEAD"]);
@@ -590,25 +615,37 @@ describe("NetworkBoardComponent", () => {
     );
   });
 
-  it("draws Planned works for the pinned lines of My lines only", async () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["mine"] }));
+  it("draws Planned works on pinned lines only: a My lines row, or a Needs attention card", async () => {
+    // A pin does not take a broken line out of Needs attention, so a pinned line that needs attention
+    // is a card; it gets its Planned works like a pinned row does.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["mine", "dead"] }));
     const root = await board(
-      [makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("mine"), makeLine("plain")],
-      {
-        pinned: ["mine"],
-      },
+      [
+        makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+        makeLine("worse", { status: "PARTIAL_DISRUPTION" }),
+        makeLine("mine"),
+        makeLine("plain"),
+      ],
+      { pinned: ["mine", "dead"] },
     );
     const works = (id: string) => incident(id, { startDatetime: "2026-10-24T22:00:00" });
-    storeMock.planned.set({ dead: [works("1")], mine: [works("2")], plain: [works("3")] });
+    storeMock.planned.set({
+      dead: [works("1")],
+      worse: [works("2")],
+      mine: [works("3")],
+      plain: [works("4")],
+    });
     TestBed.tick();
     fixture.detectChanges();
 
     expect(preferences.isPinned("mine")).toBe(true);
-    // The same works are on three lines; only the pinned line's My lines row draws them.
+    // The same works are on four lines; only the two pinned ones draw them.
     expect(chipsIn(root, "mine", "line-planned")).toBe(1);
-    expect(chipsIn(root, "attention", "line-planned")).toBe(0);
+    expect(chipsIn(root, "attention", "line-planned")).toBe(1);
     expect(chipsIn(root, "all", "line-planned")).toBe(0);
-    expect(root.querySelectorAll('[data-testid="line-planned"]')).toHaveLength(1);
+    expect(root.querySelector('[id="line-dead"] [data-testid="line-planned"]')).not.toBeNull();
+    expect(root.querySelector('[id="line-worse"] [data-testid="line-planned"]')).toBeNull();
+    expect(root.querySelectorAll('[data-testid="line-planned"]')).toHaveLength(2);
   });
 
   it("caps a row at two chips with a +N link, whichever group it is in", async () => {
