@@ -1,8 +1,9 @@
-import { provideZonelessChangeDetection } from "@angular/core";
+import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AuthService } from "../../core/auth/auth.service";
 import { METHODOLOGY_SECTIONS, METRIC_DOCS } from "../../core/methodology/methodology.content";
 import { MethodologySectionComponent } from "./methodology-section.component";
 
@@ -15,6 +16,7 @@ const SECTION = METHODOLOGY_SECTIONS.map((entry) => ({
 describe("MethodologySectionComponent review dates", () => {
   let fixture: ComponentFixture<MethodologySectionComponent>;
   let root: HTMLElement;
+  const isAdmin = signal(true);
 
   /** Renders the section with the clock at `today`. Only `Date` is faked, so rendering is unaffected. */
   async function render(today: string): Promise<void> {
@@ -32,9 +34,14 @@ describe("MethodologySectionComponent review dates", () => {
     el.querySelectorAll('[data-testid="needs-review"]');
 
   beforeEach(async () => {
+    isAdmin.set(true);
     await TestBed.configureTestingModule({
       imports: [MethodologySectionComponent],
-      providers: [provideZonelessChangeDetection(), provideRouter([])],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { isAdmin } },
+      ],
     }).compileComponents();
   });
 
@@ -61,6 +68,14 @@ describe("MethodologySectionComponent review dates", () => {
     await render("2026-10-22T12:00:00Z");
 
     expect(pills(root)).toHaveLength(0);
+  });
+
+  it("shows the pill to an admin only, never to a rider", async () => {
+    isAdmin.set(false);
+    await render("2030-01-01T00:00:00Z");
+
+    expect(pills(root)).toHaveLength(0);
+    expect(rows()).toHaveLength(SECTION.docs.length); // the dates themselves stay public
   });
 
   it("marks the section and every metric once their dates are more than six months old", async () => {

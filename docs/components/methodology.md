@@ -121,8 +121,10 @@ deliberately not built in v1: there is no `onSnapshot`, no editor, and the page 
   `sectionId` matches, with that metric's own `lastReviewed` beside it (`data-testid="metric-reviewed"`).
   The body, the section's `lastReviewed` and each metric's `content` go through `renderMethodologyCopy()`.
   A section or metric whose `lastReviewed` is more than `STALE_REVIEW_MONTHS` (6) old, by
-  `isReviewStale()` against the clock, gets a "Needs review" pill (`data-testid="needs-review"`). The
-  pill is public and informational: it never fails a build, because a calendar date must not break CI.
+  `isReviewStale()` against the clock, gets a "Needs review" pill (`data-testid="needs-review"`), shown
+  only while `AuthService.isAdmin()` is true: it is an editorial to-do, and the page is public and
+  server-rendered. The dates stay public. The pill never fails a build, because a calendar date must not
+  break CI.
 - **`InfoPopover`** (`src/app/ui/info-popover/info-popover.ts`, selector `app-info-popover`). Inputs:
   - `label`, `content` (already-rendered text), `link`, `testId`
   - `align`: `"start" | "end" | "center"`

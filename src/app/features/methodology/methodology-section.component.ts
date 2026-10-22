@@ -1,5 +1,6 @@
-import { Component, computed, input } from "@angular/core";
+import { Component, computed, inject, input } from "@angular/core";
 import { RouterLink } from "@angular/router";
+import { AuthService } from "../../core/auth/auth.service";
 import { METRIC_DOCS, type MethodologySection } from "../../core/methodology/methodology.content";
 import {
   isReviewStale,
@@ -20,8 +21,8 @@ interface MetricRow {
 /**
  * One anchored block of `/methodology`: heading, "Last reviewed" date, owning-route link,
  * the in-progress state while the owning spec's code has not landed, and the registry metrics
- * that belong to it, each with its own review date. A date older than `STALE_REVIEW_MONTHS` (section
- * or metric) shows a "Needs review" pill.
+ * that belong to it, each with its own review date. An admin sees a "Needs review" pill beside a date
+ * older than `STALE_REVIEW_MONTHS` (section or metric): it is an editorial to-do, not copy for riders.
  *
  * Every string comes from `METHODOLOGY_SECTIONS` / `METRIC_DOCS` through
  * `renderMethodologyCopy()` — nothing here is typed inline, so the popover a rider opens on a
@@ -94,7 +95,11 @@ export class MethodologySectionComponent {
     renderMethodologyCopy(`Last reviewed ${this.section().lastReviewed}`),
   );
 
-  protected readonly _stale = computed(() => isReviewStale(this.section().lastReviewed));
+  private readonly isAdmin = inject(AuthService).isAdmin;
+
+  protected readonly _stale = computed(
+    () => this.isAdmin() && isReviewStale(this.section().lastReviewed),
+  );
 
   protected readonly _metrics = computed<MetricRow[]>(() =>
     METRIC_DOCS.filter((doc) => doc.sectionId === this.section().id).map((doc) => ({
@@ -102,7 +107,7 @@ export class MethodologySectionComponent {
       title: doc.title,
       content: renderMethodologyCopy(doc.definition),
       lastReviewed: doc.lastReviewed,
-      stale: isReviewStale(doc.lastReviewed),
+      stale: this.isAdmin() && isReviewStale(doc.lastReviewed),
     })),
   );
 
