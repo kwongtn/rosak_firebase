@@ -15,6 +15,7 @@ import { SUBMIT_LINE_STATUS_REPORT_MUTATION } from "../data/home-history.queries
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerMetric } from "../data/line-status-metrics.util";
 import { LineStatusSheetComponent } from "./line-status-sheet.component";
+import { lineStatusDraftKey, serializeLineStatusDraft } from "./line-status-draft.util";
 
 function stubMatchMedia(matches: boolean): void {
   vi.stubGlobal(
@@ -123,6 +124,8 @@ describe("LineStatusSheetComponent", () => {
   afterEach(() => {
     httpMock.verify();
     vi.unstubAllGlobals();
+    // The sheet saves its draft to sessionStorage, which outlives a test inside this file.
+    sessionStorage.clear();
   });
 
   /* ---- draft-first: the form is NOT behind a login wall ---------------------------------- */
@@ -445,6 +448,158 @@ describe("LineStatusSheetComponent", () => {
     expect(list?.classList.contains("flex-1")).toBe(true);
     expect(list?.classList.contains("max-h-none")).toBe(true);
     expect(list?.classList.contains("max-h-44")).toBe(false);
+  });
+
+  /* ---- the saved draft (sessionStorage, per line) --------------------------------------- */
+
+  describe("draft persistence", () => {
+    const KEY = lineStatusDraftKey("line-1");
+
+    function savedDraft(): Record<string, unknown> | null {
+      const raw = sessionStorage.getItem(KEY);
+      return raw === null ? null : (JSON.parse(raw) as Record<string, unknown>);
+    }
+
+    function restoredLine(): HTMLElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+        '[data-testid="line-status-draft-restored"]',
+      );
+    }
+
+    /** Lets the persist effect run after a signal write. */
+    function flushEffects(): void {
+      fixture.detectChanges();
+      TestBed.tick();
+      fixture.detectChanges();
+    }
+
+    function closeSheet(): void {
+      sheetMock.isOpen.set(false);
+      flushEffects();
+    }
+
+    /** Reopens on the same line; the station read is already cached, so nothing new goes out. */
+    async function reopenSheet(): Promise<void> {
+      sheetMock.isOpen.set(true);
+      flushEffects();
+      httpMock
+        .match((r) => r.method === "POST" && r.body.query.includes("StationLinesByLine"))
+        .forEach((request) => request.flush({ data: { stationLines: [] } }));
+      await fixture.whenStable();
+      flushEffects();
+    }
+
+    it("saves the draft while open, keeps it through a close, and restores it on the next open", async () => {
+      await openSheetWithStations();
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="status-option-DELAYED"]')
+        ?.click();
+      asTestable(fixture).notes.set("Two trains stuck at Angkasapuri");
+      asTestable(fixture).delayMinutes.set("12");
+      asTestable(fixture).selectedStationIds.set(["s1"]);
+      flushEffects();
+      expect(savedDraft()).toEqual({
+        status: "DELAYED",
+        delayMinutes: "12",
+        notes: "Two trains stuck at Angkasapuri",
+        stationIds: ["s1"],
+      });
+      expect(restoredLine()).toBeNull();
+
+      // An accidental close resets the sheet but keeps the saved copy.
+      closeSheet();
+      expect(asTestable(fixture).notes()).toBe("");
+      expect(savedDraft()).not.toBeNull();
+
+      await reopenSheet();
+      expect(asTestable(fixture).status()).toBe("DELAYED");
+      expect(asTestable(fixture).notes()).toBe("Two trains stuck at Angkasapuri");
+      expect(asTestable(fixture).delayMinutes()).toBe("12");
+      expect(asTestable(fixture).selectedStationIds()).toEqual(["s1"]);
+      expect(restoredLine()?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+        "Draft restored. Discard",
+      );
+    });
+
+    it("restores only this line's draft", async () => {
+      sessionStorage.setItem(
+        lineStatusDraftKey("line-2"),
+        serializeLineStatusDraft({
+          status: "DISRUPTED",
+          delayMinutes: "",
+          notes: "Another line",
+          stationIds: [],
+        }),
+      );
+
+      await openSheetWithStations();
+
+      expect(asTestable(fixture).status()).toBeNull();
+      expect(asTestable(fixture).notes()).toBe("");
+      expect(restoredLine()).toBeNull();
+    });
+
+    it("forgets the saved draft on Discard and hands focus to the first status chip", async () => {
+      sessionStorage.setItem(
+        KEY,
+        serializeLineStatusDraft({
+          status: "CROWDED",
+          delayMinutes: "",
+          notes: "Saved earlier",
+          stationIds: [],
+        }),
+      );
+      await openSheetWithStations();
+      expect(asTestable(fixture).notes()).toBe("Saved earlier");
+
+      const root = fixture.nativeElement as HTMLElement;
+      root.querySelector<HTMLButtonElement>('[data-testid="line-status-draft-discard"]')?.click();
+      flushEffects();
+
+      expect(savedDraft()).toBeNull();
+      expect(asTestable(fixture).status()).toBeNull();
+      expect(asTestable(fixture).notes()).toBe("");
+      expect(restoredLine()).toBeNull();
+      expect(document.activeElement).toBe(
+        root.querySelector('[data-testid="status-option-NORMAL"]'),
+      );
+    });
+
+    it("forgets the saved draft after a successful submit", async () => {
+      await prepareSubmit();
+      asTestable(fixture).notes.set("All good now");
+      flushEffects();
+      expect(savedDraft()).not.toBeNull();
+
+      await asTestable(fixture).submit();
+
+      expect(requestMock).toHaveBeenCalledTimes(1);
+      expect(savedDraft()).toBeNull();
+    });
+
+    it("keeps the saved draft when the server rejects the report", async () => {
+      requestMock.mockRejectedValue(new GraphQLRequestError([{ message: "Line closed" }]));
+      await prepareSubmit();
+      flushEffects();
+
+      await asTestable(fixture).submit();
+
+      expect(savedDraft()).toMatchObject({ status: "NORMAL" });
+    });
+
+    it("does not save a chooser preset on its own, but saves it once the reader types", async () => {
+      await openSheetWithPreset("DISRUPTED");
+      flushEffects();
+      expect(savedDraft()).toBeNull();
+
+      asTestable(fixture).notes.set("Stuck between stations");
+      flushEffects();
+
+      expect(savedDraft()).toMatchObject({
+        status: "DISRUPTED",
+        notes: "Stuck between stations",
+      });
+    });
   });
 
   function createWithViewport(matches: boolean): void {
