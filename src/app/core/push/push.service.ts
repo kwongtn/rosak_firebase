@@ -38,8 +38,12 @@ export type PushSupport = "supported" | "install" | "unsupported";
 
 /** What a browser can do for web push, before the SDK's own async `isSupported()` is asked. */
 export function browserPushSupport(nav: Navigator, scope: object): PushSupport {
-  // Only Safari on iOS and iPadOS defines `navigator.standalone`; `false` there is a browser tab.
-  if ((nav as Navigator & { standalone?: boolean }).standalone === false) {
+  // WebKit on iOS and iPadOS defines `navigator.standalone`, and `false` there is a browser tab. The
+  // touch test keeps a Mac out, whose Safari has web push in a tab (an iPad reports itself as a Mac).
+  if (
+    (nav as Navigator & { standalone?: boolean }).standalone === false &&
+    nav.maxTouchPoints > 0
+  ) {
     return "install";
   }
   return "Notification" in scope && "serviceWorker" in nav && "PushManager" in scope

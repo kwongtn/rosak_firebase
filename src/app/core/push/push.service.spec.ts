@@ -542,9 +542,22 @@ describe("browserPushSupport", () => {
   });
 
   it("asks for the Home Screen app in an iOS Safari tab, and not in the installed app", () => {
-    expect(browserPushSupport({ standalone: false } as unknown as Navigator, {})).toBe("install");
+    const tab = { standalone: false, maxTouchPoints: 5 } as unknown as Navigator;
+    expect(browserPushSupport(tab, {})).toBe("install");
     expect(
-      browserPushSupport({ standalone: true, serviceWorker: {} } as unknown as Navigator, withPush),
+      browserPushSupport(
+        { standalone: true, maxTouchPoints: 5, serviceWorker: {} } as unknown as Navigator,
+        withPush,
+      ),
+    ).toBe("supported");
+  });
+
+  it("leaves a Mac's Safari tab alone, which has web push without installing", () => {
+    expect(
+      browserPushSupport(
+        { standalone: false, maxTouchPoints: 0, serviceWorker: {} } as unknown as Navigator,
+        withPush,
+      ),
     ).toBe("supported");
   });
 });
