@@ -5,8 +5,8 @@
  *
  * Kept free of Angular (mirrors chronology-list.util.ts / extract-data.util.ts) so the mapping
  * is unit-testable in isolation — see incident-to-form.util.spec.ts. This is the single
- * conversion used by `IncidentFormComponent.hydrate()`; the console panel's own `openDetail`
- * prefill stays separate (Task 11 scope is the public form).
+ * conversion used by `IncidentFormComponent.hydrate()` and by the console approval panel's
+ * `openDetail` (a pending row has the same shape).
  */
 
 import type { CalendarIncident } from "../data/insiden.queries";

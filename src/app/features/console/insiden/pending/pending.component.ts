@@ -34,10 +34,8 @@ import {
   updateChronology,
   type ChronologyDraft,
 } from "../../../insiden/incident-form/chronology-list.util";
-import {
-  applyExtractionToChronology,
-  isoToDateTimeLocal,
-} from "../../../insiden/incident-form/extract-data.util";
+import { applyExtractionToChronology } from "../../../insiden/incident-form/extract-data.util";
+import { incidentToForm } from "../../../insiden/incident-form/incident-to-form.util";
 import {
   emptyIncidentFormModel,
   incidentFormSchema,
@@ -280,43 +278,24 @@ export class PendingIncidentsComponent {
     }
   }
 
-  /** Opens the detail panel with the full edit form pre-filled from the row —
-   *  flat scalars through `model`, datetimes converted to datetime-local
-   *  values (`isoToDateTimeLocal`), chronologies rebuilt as local drafts with
-   *  fresh keys, and the affected-asset ids seeded into the multi-selects. */
+  /** Opens the detail panel with the full edit form pre-filled from the row through
+   *  `incidentToForm`, the public form's own mapping: datetimes as datetime-local values,
+   *  chronologies sorted by `order` as local drafts with fresh keys, and the affected-asset ids
+   *  seeded into the multi-selects. */
   protected openDetail(row: PendingIncident): void {
+    const mapped = incidentToForm(row, this.nextKey);
+    this.nextKey += mapped.chronologies.length;
     this.selectedRow.set(row);
-    this.model.set({
-      title: row.title,
-      brief: row.brief,
-      details: row.details,
-      startDatetime: isoToDateTimeLocal(row.startDatetime),
-      endDatetime: isoToDateTimeLocal(row.endDatetime),
-      severity: row.severity,
-      longTerm: row.longTerm,
-      inaccurate: row.inaccurate,
-    });
+    this.model.set(mapped.model);
     this.incidentForm().reset();
     this.editImpactFactor.set(row.impactFactor);
-    this.chronologies.set(
-      row.chronologies
-        .slice()
-        .sort((a, b) => a.order - b.order)
-        .map((chronology) => ({
-          key: this.nextKey++,
-          indicator: chronology.indicator,
-          datetime: isoToDateTimeLocal(chronology.datetime),
-          sourceUrl: chronology.sourceUrl ?? "",
-          content: chronology.content ?? "",
-          collapsed: false,
-        })),
-    );
+    this.chronologies.set(mapped.chronologies);
     this.extractStates.set(new Map());
     this.isSummarizing.set(false);
-    this.selectedLineIds.set(row.lines.map((line) => line.id));
-    this.selectedVehicleIds.set(row.vehicles.map((vehicle) => vehicle.id));
-    this.selectedStationIds.set(row.stations.map((station) => station.id));
-    this.selectedCategoryIds.set(row.categories.map((category) => category.id));
+    this.selectedLineIds.set(mapped.selectedLineIds);
+    this.selectedVehicleIds.set(mapped.selectedVehicleIds);
+    this.selectedStationIds.set(mapped.selectedStationIds);
+    this.selectedCategoryIds.set(mapped.selectedCategoryIds);
   }
 
   protected closePanel(): void {
