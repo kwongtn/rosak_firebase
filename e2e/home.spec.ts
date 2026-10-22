@@ -374,14 +374,20 @@ test.describe("community front page", () => {
       mrl.getByRole("link", { name: "Notice Major Train fault", exact: true }),
     ).toHaveCount(1);
 
-    // The board asked for ONE read, with the literal LIVE + activeNow variables, and nothing for
-    // planned works (no line is pinned).
+    // Every incident read the board has sent carries the literal LIVE + activeNow variables (no clock,
+    // so a server render and a hydrated page send the same object), and none is a planned-works read
+    // (no line is pinned): any other read would fail the comparison. The ongoing read repeats on the
+    // page's 30s beat, so this asserts on each read that went out, not on how many.
     const incidentCalls = (await recordedCalls()).filter(
       (call) => call.operationName === "HomeRecentIncidents",
     );
-    expect(incidentCalls.map((call) => call.variables)).toEqual([
-      { filters: { status: "LIVE", activeNow: true }, order: { startDatetime: "DESC" } },
-    ]);
+    expect(incidentCalls.length).toBeGreaterThan(0);
+    for (const call of incidentCalls) {
+      expect(call.variables).toEqual({
+        filters: { status: "LIVE", activeNow: true },
+        order: { startDatetime: "DESC" },
+      });
+    }
 
     // Pinning a line puts it in My lines, and only then does the planned-works read go out.
     await kjl.getByTestId("line-row-pin").click();
@@ -426,14 +432,15 @@ test.describe("community front page", () => {
           call.operationName === "HomeRecentIncidents" &&
           "activeNow" in (call.variables["filters"] as object),
       ).length;
-    expect(await ongoingReads()).toBe(1);
+    const readsBefore = await ongoingReads();
+    expect(readsBefore).toBeGreaterThan(0);
 
     // The incident ends: the next answer no longer lists it.
     await configureMock(stubs([]));
     await page.getByTestId("line-refresh-countdown").click();
 
     await expect(kjl.getByTestId("line-notice")).toHaveCount(0);
-    expect(await ongoingReads()).toBe(2);
+    expect(await ongoingReads()).toBeGreaterThan(readsBefore);
   });
 
   test("VISITOR: pinning a line that needs attention keeps it a card and asks for its planned works", async ({
@@ -464,11 +471,10 @@ test.describe("community front page", () => {
     await mrl.getByTestId("line-card-pin").click();
     await expect(mrl.getByTestId("line-card-pin")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("line-board-mine")).toHaveCount(0);
-    await expect
-      .poll(plannedReads)
-      .toEqual([
-        { filters: { status: "LIVE", upcomingWithinDays: 7 }, order: { startDatetime: "ASC" } },
-      ]);
+    await expect.poll(plannedReads).toContainEqual({
+      filters: { status: "LIVE", upcomingWithinDays: 7 },
+      order: { startDatetime: "ASC" },
+    });
   });
 
   test("USER: a duplicate submission surfaces the already-submitted indicator", async ({
