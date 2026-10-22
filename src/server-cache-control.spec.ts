@@ -43,6 +43,7 @@ describe("staticCacheControl", () => {
     ["ngsw-worker.js"],
     ["safety-worker.js"],
     ["worker-basic.min.js"],
+    ["firebase-messaging-sw.js"],
     ["manifest.webmanifest"],
     ["icons/icon-192.png"],
     ["icons/apple-touch-icon.png"],

@@ -19,6 +19,7 @@ const BUILD_OUTPUT = [
   "/main-ABC123.js.map",
   "/chunk-DEF456.js",
   "/styles-GHI789.css",
+  "/firebase-messaging-sw.js",
   "/version.json",
   "/manifest.webmanifest",
   "/robots.txt",
@@ -57,6 +58,12 @@ describe("ngsw-config.json", () => {
       installMode: "prefetch",
       urls: ["/chunk-DEF456.js", "/index.csr.html", "/main-ABC123.js", "/styles-GHI789.css"],
     });
+  });
+
+  it("never caches the Firebase Cloud Messaging worker, which the browser fetches itself", async () => {
+    const { assetGroups } = await generateManifest();
+
+    expect(assetGroups.flatMap((group) => group.urls)).not.toContain("/firebase-messaging-sw.js");
   });
 
   it("caches images only lazily, on first use", async () => {

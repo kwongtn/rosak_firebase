@@ -7,7 +7,7 @@
       "name": "app",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/index.csr.html", "/*.css", "/*.js"]
+        "files": ["/index.csr.html", "/*.css", "/*.js", "!/firebase-messaging-sw.js"]
       }
     },
     {
