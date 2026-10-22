@@ -12,7 +12,6 @@ function filledModel(): ReportFormModel {
     ...emptyReportFormModel(),
     lineId: "4",
     vehicleId: "v1",
-    selectedVehicleStatus: "OUT_OF_SERVICE",
     spottingDate: "2026-10-20",
     status: "NOT_IN_SERVICE",
     type: "BETWEEN_STATIONS",
@@ -33,13 +32,7 @@ describe("report form draft (de)serialisers", () => {
     const draft = parseReportFormDraft(serializeReportFormDraft(model, 2));
 
     expect(draft?.photoCount).toBe(2);
-    expect(draft?.model).toEqual({ ...model, selectedVehicleStatus: "" });
-  });
-
-  it("does not save the derived vehicle status", () => {
-    const raw = serializeReportFormDraft(filledModel(), 0);
-
-    expect(JSON.parse(raw)).not.toHaveProperty("selectedVehicleStatus");
+    expect(draft?.model).toEqual(model);
   });
 
   it.each([
@@ -89,10 +82,10 @@ describe("report form draft (de)serialisers", () => {
     expect(draft?.photoCount).toBe(0);
   });
 
-  it("compares drafts on what they keep, ignoring the derived vehicle status", () => {
+  it("compares drafts on what they keep", () => {
     const a = filledModel();
 
-    expect(sameReportFormDraft(a, { ...a, selectedVehicleStatus: "" })).toBe(true);
+    expect(sameReportFormDraft(a, { ...a })).toBe(true);
     expect(sameReportFormDraft(a, { ...a, notes: "different" })).toBe(false);
     expect(sameReportFormDraft(a, { ...a, sanityTest: false })).toBe(false);
     expect(sameReportFormDraft(a, { ...a, type: "DEPOT" })).toBe(false);

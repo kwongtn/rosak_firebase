@@ -12,8 +12,7 @@ import { emptyReportFormModel, type ReportFormModel } from "./report-form.schema
 export const REPORT_FORM_DRAFT_KEY = `${SESSION_DRAFT_PREFIX}spotting-report:v1`;
 
 /**
- * A saved draft: the model without its derived `selectedVehicleStatus` (the form re-derives it from
- * the vehicle list), and how many photos it had. File blobs are not saved, so the rider picks the
+ * A saved draft: the model, and how many photos it had. File blobs are not saved, so the rider picks the
  * photos again; the count lets the "Draft restored" line say so.
  */
 export interface ReportFormDraft {
@@ -68,7 +67,7 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | nul
     : null;
 }
 
-/** True when the two models hold the same draft. `selectedVehicleStatus` is derived, so ignored. */
+/** True when the two models hold the same draft. */
 export function sameReportFormDraft(a: ReportFormModel, b: ReportFormModel): boolean {
   return (
     TEXT_FIELDS.every((field) => a[field] === b[field]) &&

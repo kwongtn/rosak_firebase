@@ -17,7 +17,7 @@ import {
   GraphQLRequestError,
 } from "../../../core/graphql/graphql-client";
 import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
-import { SpottingType, VehicleStatus, WheelStatus } from "../../../core/graphql/types";
+import { SpottingType, WheelStatus } from "../../../core/graphql/types";
 import { AuthService } from "../../../core/auth/auth.service";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import {
@@ -51,7 +51,12 @@ import {
   StationLinesQueryData,
   StationLinesQueryVars,
 } from "../data/spotting.queries";
-import { emptyReportFormModel, reportFormSchema, type ReportFormModel } from "./report-form.schema";
+import {
+  ABNORMAL_VEHICLE_STATUSES,
+  emptyReportFormModel,
+  reportFormSchema,
+  type ReportFormModel,
+} from "./report-form.schema";
 import {
   parseReportFormDraft,
   REPORT_FORM_DRAFT_KEY,
@@ -60,8 +65,6 @@ import {
 } from "./report-form-draft.util";
 import { PhotoPickerComponent } from "./photo-picker/photo-picker.component";
 import { ImageFile } from "../../../core/upload/image-file";
-
-const ABNORMAL_STATUSES = new Set(["DECOMMISSIONED", "MARRIED", "OUT_OF_SERVICE", "UNKNOWN"]);
 
 /**
  * "Add a Spotting Entry" — a single form (per user feedback, no multi-step wizard), but still
@@ -113,7 +116,10 @@ export class ReportFormComponent {
   readonly isPhotosCompressing = computed(() => this.photoPickerRef()?.isCompressing() ?? false);
 
   protected readonly model = signal(emptyReportFormModel());
-  protected readonly reportForm = createForm(this.model, reportFormSchema);
+  protected readonly reportForm = createForm(
+    this.model,
+    reportFormSchema(() => this.selectedVehicleStatusValue() ?? ""),
+  );
 
   private readonly linesAndVehiclesResource = graphqlResource<LinesAndVehiclesQueryData>(() => ({
     query: LINES_AND_VEHICLES_QUERY,
@@ -157,13 +163,13 @@ export class ReportFormComponent {
   });
 
   protected readonly allowRunNumber = computed(() => allowRunNumber(this.model().lineId));
-  protected readonly isAbnormalVehicle = computed(() =>
-    ABNORMAL_STATUSES.has(this.model().selectedVehicleStatus),
+  /** The selected vehicle's current status: its badge, and the schema's sanity-test gate. */
+  protected readonly selectedVehicleStatusValue = computed(
+    () => this._vehiclesForLine().find((v) => v.id === this.model().vehicleId)?.status,
   );
-  protected readonly selectedVehicleStatusValue = computed(() => {
-    const status = this.model().selectedVehicleStatus;
-    return status ? (status as VehicleStatus) : undefined;
-  });
+  protected readonly isAbnormalVehicle = computed(() =>
+    ABNORMAL_VEHICLE_STATUSES.has(this.selectedVehicleStatusValue() ?? ""),
+  );
 
   // Project only the primitives the station query depends on, so the resource re-runs on a
   // line/type change but NOT on every unrelated model write (otherwise each keystroke in Notes
@@ -218,22 +224,19 @@ export class ReportFormComponent {
       }
     });
 
-    // Changing the line discards the vehicle selection — same as the old app.
+    // Changing the line discards the vehicle and station selections, which belong to the old
+    // line: a kept station id would still pass the schema and be sent with the new line's report.
     effect(() => {
       const lineId = this.model().lineId;
       if (lineId !== this._lastLineId) {
         this._lastLineId = lineId;
-        this.model.update((m) => ({ ...m, vehicleId: "", selectedVehicleStatus: "" }));
-      }
-    });
-
-    // Keep selectedVehicleStatus (used only by the sanity-test schema rule) in sync with
-    // whichever vehicle is currently selected.
-    effect(() => {
-      const vehicleId = this.model().vehicleId;
-      const status = this._vehiclesForLine().find((v) => v.id === vehicleId)?.status ?? "";
-      if (status !== this.model().selectedVehicleStatus) {
-        this.model.update((m) => ({ ...m, selectedVehicleStatus: status }));
+        this.model.update((m) => ({
+          ...m,
+          vehicleId: "",
+          atStation: "",
+          originStation: "",
+          destinationStation: "",
+        }));
       }
     });
 

@@ -549,6 +549,63 @@ describe("ReportFormComponent", () => {
     expect(root.textContent).not.toContain("may not normally be spottable");
   });
 
+  it("asks for the sanity check only while the selected vehicle's listed status is abnormal", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+    const component = fixture.componentInstance as unknown as ComponentUnderTest & {
+      reportForm(): { errorSummary(): { message?: string }[] };
+    };
+    const SANITY = "Confirm you meant to report against this vehicle";
+    const messages = () =>
+      component
+        .reportForm()
+        .errorSummary()
+        .map((e) => e.message);
+
+    // v1 is OUT_OF_SERVICE in the fleet list; the status is read from there, not from the model.
+    component.model.update((m) => ({ ...m, vehicleId: "v1" }));
+    await settle();
+    expect(messages()).toEqual([SANITY]);
+
+    component.model.update((m) => ({ ...m, sanityTest: true }));
+    await settle();
+    expect(messages()).toEqual([]);
+
+    component.model.update((m) => ({ ...m, vehicleId: "", sanityTest: false }));
+    await settle();
+    expect(messages()).not.toContain(SANITY);
+  });
+
+  it("drops the vehicle and the stations of the old line when the line changes", async () => {
+    storeLines.set([SEEDED_LINE]);
+    sheet.openFor("4");
+    await settle();
+    const component = fixture.componentInstance as unknown as ComponentUnderTest;
+    component.model.update((m) => ({
+      ...m,
+      vehicleId: "v1",
+      type: "BETWEEN_STATIONS",
+      atStation: "s1",
+      originStation: "s1",
+      destinationStation: "s2",
+    }));
+    await flushStationLines();
+
+    component.model.update((m) => ({ ...m, lineId: "7" }));
+    await flushStationLines();
+
+    // A kept station id is non-empty, so it passed the schema and was sent with line 7's report.
+    expect(model()).toMatchObject({
+      lineId: "7",
+      vehicleId: "",
+      type: "BETWEEN_STATIONS",
+      atStation: "",
+      originStation: "",
+      destinationStation: "",
+    });
+  });
+
   describe("LOCATION spotting", () => {
     async function openLocationReport(): Promise<ComponentUnderTest> {
       storeLines.set([SEEDED_LINE]);
