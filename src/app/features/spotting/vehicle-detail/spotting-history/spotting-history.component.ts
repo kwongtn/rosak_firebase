@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
 import { DatePipe } from "@angular/common";
+import { RouterLink } from "@angular/router";
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucideCamera } from "@ng-icons/lucide";
 import { AuthService } from "../../../../core/auth/auth.service";
@@ -52,6 +53,7 @@ interface EventGroup {
   selector: "app-spotting-history",
   imports: [
     DatePipe,
+    RouterLink,
     HlmBadge,
     HlmButton,
     HlmSkeleton,
@@ -83,11 +85,23 @@ interface EventGroup {
                     <div class="flex flex-wrap items-center gap-2">
                       <span class="text-sm font-medium">{{ event.spottingDate | date }}</span>
                       <spotting-type-badge [type]="event.type" />
+                      <!-- Each station opens its own page. -->
                       @if (event.originStation) {
                         <span class="text-muted-foreground text-xs">
-                          {{ event.originStation.displayName }}
+                          <a
+                            [routerLink]="['/station', event.originStation.id]"
+                            class="hover:text-foreground underline underline-offset-2"
+                            data-testid="history-origin"
+                            >{{ event.originStation.displayName }}</a
+                          >
                           @if (event.destinationStation) {
-                            → {{ event.destinationStation.displayName }}
+                            →
+                            <a
+                              [routerLink]="['/station', event.destinationStation.id]"
+                              class="hover:text-foreground underline underline-offset-2"
+                              data-testid="history-destination"
+                              >{{ event.destinationStation.displayName }}</a
+                            >
                           }
                         </span>
                       }

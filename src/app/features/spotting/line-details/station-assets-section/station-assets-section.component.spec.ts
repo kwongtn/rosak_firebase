@@ -187,4 +187,16 @@ describe("StationAssetsSectionComponent", () => {
     expect(stationNames).toEqual(["KL Sentral", "Pasar Seni"]);
     expect(textOf(root())).toContain("No assets recorded yet.");
   });
+
+  it("links each station's name to its station page", async () => {
+    await answerWith(STATIONS);
+
+    const links = [
+      ...root().querySelectorAll<HTMLAnchorElement>('h3 [data-testid="station-assets-station"]'),
+    ];
+    expect(links.map((link) => [textOf(link), link.getAttribute("href")])).toEqual([
+      ["KL Sentral", "/station/1"],
+      ["Pasar Seni", "/station/2"],
+    ]);
+  });
 });

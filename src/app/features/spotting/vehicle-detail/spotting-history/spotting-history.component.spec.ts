@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection, signal, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../../core/auth/auth.service";
@@ -57,6 +58,7 @@ describe("SpottingHistoryComponent", () => {
       imports: [SpottingHistoryComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         { provide: GraphQLClient, useValue: { request } },
         { provide: AuthService, useValue: { isLoggedIn, idToken } },
       ],
@@ -442,6 +444,51 @@ describe("SpottingHistoryComponent", () => {
       const headings = [...root().querySelectorAll("h3")].map(textOf);
       expect(headings).toEqual(["October 2026", "September 2026"]);
       expect(root().querySelector("h4")).toBeNull();
+    });
+  });
+
+  describe("stations", () => {
+    it("links the origin and the destination to their station pages", async () => {
+      await render([
+        makeEvent("a", {
+          originStation: { id: "1", displayName: "KL Sentral" },
+          destinationStation: { id: "65", displayName: "Abdullah Hukum" },
+        }),
+      ]);
+
+      const origin = root().querySelector('[data-testid="history-origin"]');
+      const destination = root().querySelector('[data-testid="history-destination"]');
+      expect([origin?.tagName, textOf(origin), origin?.getAttribute("href")]).toEqual([
+        "A",
+        "KL Sentral",
+        "/station/1",
+      ]);
+      expect([
+        destination?.tagName,
+        textOf(destination),
+        destination?.getAttribute("href"),
+      ]).toEqual(["A", "Abdullah Hukum", "/station/65"]);
+      // The two names still read as one trip.
+      expect(textOf(origin?.parentElement)).toBe("KL Sentral → Abdullah Hukum");
+    });
+
+    it("links the origin alone when no destination was logged", async () => {
+      await render([makeEvent("a", { originStation: { id: "1", displayName: "KL Sentral" } })]);
+
+      expect(root().querySelector('[data-testid="history-origin"]')?.getAttribute("href")).toBe(
+        "/station/1",
+      );
+      expect(root().querySelector('[data-testid="history-destination"]')).toBeNull();
+      expect(textOf(root().querySelector('[data-testid="history-origin"]')?.parentElement)).toBe(
+        "KL Sentral",
+      );
+    });
+
+    it("shows no station link for a spotting without stations", async () => {
+      await render([makeEvent("a")]);
+
+      expect(root().querySelector('[data-testid="history-origin"]')).toBeNull();
+      expect(root().querySelector('a[href^="/station/"]')).toBeNull();
     });
   });
 

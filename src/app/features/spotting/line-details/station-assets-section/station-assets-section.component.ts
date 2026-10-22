@@ -1,4 +1,5 @@
 import { Component, computed, inject, input } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { injectIsBrowser } from "../../../../core/composables/is-browser";
 import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
@@ -29,7 +30,7 @@ import {
  */
 @Component({
   selector: "app-station-assets-section",
-  imports: [AssetStatusBadge, HlmBadge, HlmSkeleton, RetryBannerComponent],
+  imports: [RouterLink, AssetStatusBadge, HlmBadge, HlmSkeleton, RetryBannerComponent],
   template: `
     <div class="flex flex-col gap-3">
       <!-- bg-background sticky, matching every other section header on this page (the title
@@ -89,7 +90,15 @@ import {
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           @for (station of stations(); track station.id) {
             <div class="border-border flex flex-col gap-2 rounded-lg border p-3">
-              <h3 class="text-sm font-semibold">{{ station.displayName }}</h3>
+              <!-- The name opens the station's page (its lines, incidents and reports). -->
+              <h3 class="text-sm font-semibold">
+                <a
+                  [routerLink]="['/station', station.id]"
+                  class="underline-offset-2 hover:underline"
+                  data-testid="station-assets-station"
+                  >{{ station.displayName }}</a
+                >
+              </h3>
               @if (station.assets.length === 0) {
                 <p class="text-muted-foreground text-xs">No assets recorded yet.</p>
               } @else {
