@@ -17,9 +17,11 @@ import { defineConfig, devices } from "@playwright/test";
 const STATIC_PORT = Number(process.env["STATIC_PORT"] ?? 4300);
 const MOCK_PORT = Number(process.env["MOCK_GRAPHQL_PORT"] ?? 4301);
 
-/** Specs that set their own viewports or exercise hover, which a touch phone profile cannot do. */
+/**
+ * Specs that set their own viewports or exercise hover, which a touch phone profile cannot do.
+ * home.spec.ts is not here: it skips its few hover and viewport tests itself (`isMobile`).
+ */
 const DESKTOP_ONLY = [
-  "**/home.spec.ts",
   "**/spotting-details.spec.ts",
   "**/spotting-keep-alive.spec.ts",
   "**/tracker.spec.ts",

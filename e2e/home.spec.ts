@@ -243,7 +243,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("community front page", () => {
-  test("VISITOR: renders the feed and line pulse list read-only", async ({ page }) => {
+  test("VISITOR: renders the feed and line pulse list read-only", async ({ page, isMobile }) => {
+    test.skip(isMobile, "needs hover, which a touch profile lacks");
     const created = new Date().toISOString();
     await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
@@ -662,11 +663,18 @@ test.describe("community front page", () => {
 
     await page.goto("/");
     await expect(page.locator("app-line-pulse-row").first()).toBeVisible();
+    // Scan the whole page: the feed loads separately from the line board.
+    await expect(page.getByTestId("feed-scroll").locator("app-link-card")).toBeVisible();
 
     // Known app defects, reported rather than fixed here: the info-popover and refresh buttons
     // whose visible text is not part of their accessible name, and the nav wordmark outside any
-    // landmark.
-    await expectNoNewAxeViolations(page, "/", ["label-content-name-mismatch", "region"]);
+    // landmark; on a phone also the nav logo link, which has no text once the wordmark is hidden.
+    const onPhone = test.info().project.name === "mobile";
+    await expectNoNewAxeViolations(page, "/", [
+      "label-content-name-mismatch",
+      "region",
+      ...(onPhone ? ["link-name"] : []),
+    ]);
   });
 
   test("USER: a rejected upvote rolls the optimistic count back and says so", async ({ page }) => {
@@ -774,7 +782,9 @@ test.describe("community front page", () => {
 
   test("VISITOR: expanding a line row lazily loads the hourly chart, the typical week and reports", async ({
     page,
+    isMobile,
   }) => {
+    test.skip(isMobile, "needs hover, which a touch profile lacks");
     const reportsCreated = new Date().toISOString();
     await configureHome({
       FrontPageLines: { lines: [KJL_LINE] },
@@ -899,7 +909,11 @@ test.describe("community front page", () => {
     await expect(kjl.getByTestId("line-row-expanded")).toHaveCount(0);
   });
 
-  test("VISITOR: the typical week's cells stay put while its readout changes", async ({ page }) => {
+  test("VISITOR: the typical week's cells stay put while its readout changes", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "pins its own viewport");
     // Narrow on purpose, so a mixed hour's readout wraps onto a second line. Drawn above the table it
     // pushed the cells down, and a still pointer then sat over the row above: aimed at the top edge of
     // Thursday 15:00, it read Wednesday.
@@ -988,7 +1002,9 @@ test.describe("community front page", () => {
   for (const scenario of WEEK_ANSWERS) {
     test(`VISITOR: the typical week keeps its place in the panel from loading to ${scenario.name}`, async ({
       page,
+      isMobile,
     }) => {
+      test.skip(isMobile, "pins its own viewport");
       await page.setViewportSize(scenario.viewport);
       await configureHome({
         FrontPageLines: { lines: [KJL_LINE] },
@@ -1059,7 +1075,8 @@ test.describe("community front page", () => {
     });
   }
 
-  test("VISITOR: clamps a right-edge popover into the viewport", async ({ page }) => {
+  test("VISITOR: clamps a right-edge popover into the viewport", async ({ page, isMobile }) => {
+    test.skip(isMobile, "pins its own viewport");
     // The clamp only matters on a narrow-enough board: the two-column grid starts at lg (1024), so
     // below it the board is full-width and a row's right-aligned pin sits within 224px (the panel's
     // `min-w-56` floor) of the viewport's right edge. 1000px makes the clamp-relevance predicate
@@ -1115,7 +1132,9 @@ test.describe("community front page", () => {
 
   test("VISITOR: the hero tooltip carries the short summary, not the full definition", async ({
     page,
+    isMobile,
   }) => {
+    test.skip(isMobile, "needs hover, which a touch profile lacks");
     await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
       Feed: feedPage(),
