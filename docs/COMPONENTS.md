@@ -190,7 +190,8 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   - `src/test-setup.ts` empties the toast list before every test: ordinary app code writes to that
     process-wide store, so specs are not asked to clean up after it. It also lifts Vitest's limits
     of 5 s a test and 10 s a hook to 15 s and 30 s, because a component's first render takes up to
-    8 s when the machine is busy.
+    8 s when the machine is busy. `vi.waitFor` keeps its own 1 s default (`vi.setConfig` cannot
+    change it): pass `{ timeout }` where a wait covers a slow first render.
   - A spec that `vi.mock`s a module starts with `vi.hoisted(() => vi.resetModules())` and ends with
     `afterAll(() => vi.resetModules())`. Mocks are per file, the module cache is not: without the
     first, the unit under test keeps the bindings of whichever file loaded it first (a Sentry

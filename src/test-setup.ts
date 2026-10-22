@@ -27,6 +27,13 @@
 import { toastState } from "@spartan-ng/brain/sonner";
 import { beforeEach, vi } from "vitest";
 
+// One worker per core, next to whatever else runs on the box: a component's first render takes 0.4 to
+// 1.5 s alone and up to 8 s when the machine is busy, so Vitest's defaults of 5 s a test and 10 s a
+// hook fail a correct test at random. Set before the hook below is registered, so that hook gets the
+// raised limit too. `vi.setConfig` has no option for `vi.waitFor`, which keeps its own default of 1 s:
+// pass `{ timeout }` to a call that waits for a slow first render.
+vi.setConfig({ testTimeout: 15_000, hookTimeout: 30_000 });
+
 class NoopResizeObserver implements ResizeObserver {
   constructor(_callback: ResizeObserverCallback) {}
   observe(_target: Element, _options?: ResizeObserverOptions): void {}
@@ -41,8 +48,3 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 beforeEach(() => {
   toastState.reset();
 });
-
-// One worker per core, next to whatever else runs on the box: a component's first render takes 0.4 to
-// 1.5 s alone and up to 8 s when the machine is busy, so Vitest's defaults of 5 s a test and 10 s a
-// hook fail a correct test at random.
-vi.setConfig({ testTimeout: 15_000, hookTimeout: 30_000 });
