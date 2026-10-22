@@ -699,6 +699,47 @@ describe("PendingIncidentsComponent", () => {
       expect(component.chronologies()[0].indicator).toBe("BLUE");
       expect(component.chronologies()[0].content).toBe("typed by hand");
     });
+
+    it("routes an edit by key: the other entry keeps its object", async () => {
+      const component = asTestable(fixture);
+      component.openDetail(
+        makeRow({
+          chronologies: [
+            {
+              order: 0,
+              indicator: "RED",
+              datetime: "2026-08-01T08:30:00Z",
+              content: "first",
+              sourceUrl: null,
+            },
+            {
+              order: 1,
+              indicator: "GREEN",
+              datetime: "2026-08-01T09:30:00Z",
+              content: "second",
+              sourceUrl: null,
+            },
+          ],
+        }),
+      );
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const [firstBefore, secondBefore] = component.chronologies();
+
+      const textareas = (
+        fixture.nativeElement as HTMLElement
+      ).querySelectorAll<HTMLTextAreaElement>("section[app-pending-chronology-editor] textarea");
+      expect(textareas).toHaveLength(2);
+      textareas[1].value = "second, edited";
+      textareas[1].dispatchEvent(new Event("input", { bubbles: true }));
+
+      const [first, second] = component.chronologies();
+      expect(first).toBe(firstBefore);
+      expect(second).not.toBe(secondBefore);
+      expect(second.content).toBe("second, edited");
+      expect(second.key).toBe(secondBefore.key);
+    });
   });
 
   describe("Extract Data", () => {

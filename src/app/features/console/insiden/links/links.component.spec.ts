@@ -3050,6 +3050,30 @@ describe("SocialMediaLinksComponent", () => {
     expect(component.editOccurredAt()).toBe("2026-07-28T21:15");
   });
 
+  it("the edit panel's controls feed their handlers through the template", async () => {
+    const component = asTestable(fixture);
+    component.openLinkDetail(makeLink());
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const type = (selector: string, value: string): void => {
+      const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        selector,
+      );
+      if (!input) throw new Error(`${selector} not rendered`);
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    type('input[type="url"][placeholder^="https://x.com"]', "https://x.com/prasarana/status/9");
+    type('input[placeholder="What is this about?"]', "Retitled");
+    type('[data-testid="edit-occurred-at"]', "2026-07-28T21:15");
+
+    expect(component.editUrl()).toBe("https://x.com/prasarana/status/9");
+    expect(component.editTitle()).toBe("Retitled");
+    expect(component.editOccurredAt()).toBe("2026-07-28T21:15");
+  });
+
   it("saveLinkEdit sends the control's value as occurredAt", async () => {
     await initialLoadsSettled(asTestable(fixture));
     requestMock.mockClear();
