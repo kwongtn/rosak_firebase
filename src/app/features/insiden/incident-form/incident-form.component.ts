@@ -12,6 +12,7 @@ import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
+import { eventValue } from "../../../core/util/dom-event.util";
 import { AssetMultiSelectComponent } from "../asset-multi-select/asset-multi-select.component";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -386,13 +387,13 @@ export class IncidentFormComponent {
     field: "datetime" | "sourceUrl" | "content",
     event: Event,
   ): void {
-    const value = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
+    const value = eventValue(event);
     this.chronologies.update((list) => updateChronology(list, key, { [field]: value }));
   }
 
   protected setChronologyIndicator(key: number, event: Event): void {
     // The select only offers INDICATORS.
-    const indicator = (event.target as HTMLSelectElement).value as ChronologyIndicator;
+    const indicator = eventValue(event) as ChronologyIndicator;
     this.chronologies.update((list) => updateChronology(list, key, { indicator }));
   }
 
