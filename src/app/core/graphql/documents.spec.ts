@@ -31,6 +31,16 @@ const documentModules = (
   }
 ).glob("/src/app/**/*.{queries,mutations}.ts", { eager: true });
 
+/** The `*.queries.ts` files as raw text: their string-literal unions are types, with no runtime export. */
+const queryModuleSources = (
+  import.meta as unknown as {
+    glob(
+      pattern: string,
+      options: { query: string; import: string; eager: true },
+    ): Record<string, string>;
+  }
+).glob("/src/app/**/*.queries.ts", { query: "?raw", import: "default", eager: true });
+
 /**
  * Documents or unions known to disagree with the schema today: the name the test uses, then the
  * finding that fixes it. The case runs as `it.fails`, so fixing the drift fails it until the entry
@@ -100,20 +110,23 @@ describe("GraphQL documents against schema.graphql", () => {
   });
 });
 
+/** Every `export type X = "A" | "B"` string-literal union in one source text, as `[name, values]`. */
+function stringUnionsIn(source: string): [string, string[]][] {
+  return Array.from(
+    source.matchAll(/export type (\w+)\s*=\s*((?:\|?\s*"[^"]*"\s*)+);/g),
+    ([, name, body]) => [name, Array.from(body.matchAll(/"([^"]*)"/g), (m) => m[1])],
+  );
+}
+
+const schemaEnums = new Map(
+  Object.values(schema.getTypeMap())
+    .filter(isEnumType)
+    .map((type) => [type.name, type.getValues().map((value) => value.name)]),
+);
+
 describe("string-literal unions in core/graphql/types.ts against schema enums", () => {
   const source = fs.readFileSync("src/app/core/graphql/types.ts", "utf8");
-  const unions = new Map<string, string[]>(
-    Array.from(
-      source.matchAll(/export type (\w+)\s*=\s*((?:\|?\s*"[^"]*"\s*)+);/g),
-      ([, name, body]) => [name, Array.from(body.matchAll(/"([^"]*)"/g), (m) => m[1])],
-    ),
-  );
-  const enums = new Map(
-    Object.values(schema.getTypeMap())
-      .filter(isEnumType)
-      .map((type) => [type.name, type.getValues().map((value) => value.name)]),
-  );
-  const named = [...unions].filter(([name]) => enums.has(enumNameOf(name)));
+  const named = stringUnionsIn(source).filter(([name]) => schemaEnums.has(enumNameOf(name)));
 
   it("finds unions named after a schema enum", () => {
     expect(named.length).toBeGreaterThan(3);
@@ -121,7 +134,33 @@ describe("string-literal unions in core/graphql/types.ts against schema enums", 
 
   for (const [name, values] of named) {
     testFor(name)(`${name} lists the values of enum ${enumNameOf(name)}`, () => {
-      expect([...values].sort()).toEqual([...(enums.get(enumNameOf(name)) ?? [])].sort());
+      expect([...values].sort()).toEqual([...(schemaEnums.get(enumNameOf(name)) ?? [])].sort());
+    });
+  }
+});
+
+describe("string-literal unions in feature *.queries.ts files against schema enums", () => {
+  const named = Object.entries(queryModuleSources).flatMap(([path, source]) =>
+    stringUnionsIn(source)
+      .filter(([name]) => schemaEnums.has(enumNameOf(name)))
+      .map(([name, values]) => ({
+        name: `${path.replace("/src/app/", "")} ${name}`,
+        enumName: enumNameOf(name),
+        values,
+      })),
+  );
+
+  it("finds unions named after a schema enum", () => {
+    // CalendarIncidentSeverity (insiden and console) and CalendarIncidentStatus today.
+    expect(named.length).toBeGreaterThanOrEqual(3);
+  });
+
+  for (const { name, enumName, values } of named) {
+    testFor(name)(`${name} lists the values of enum ${enumName}`, () => {
+      // Lowercase members are the stored TextChoices spellings the dual-casing contract keeps on
+      // purpose (see insiden.queries.ts); only the GraphQL spellings must match the enum.
+      const graphqlSpellings = values.filter((value) => value === value.toUpperCase());
+      expect([...graphqlSpellings].sort()).toEqual([...(schemaEnums.get(enumName) ?? [])].sort());
     });
   }
 });
