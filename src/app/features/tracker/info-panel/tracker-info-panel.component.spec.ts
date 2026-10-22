@@ -1,7 +1,7 @@
 import { provideHttpClient } from "@angular/common/http";
 import { PLATFORM_ID, provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import { GtfsRealtimeService } from "../data/gtfs-realtime.service";
 import { GtfsStaticService, StaticSource } from "../data/gtfs-static.service";
@@ -110,8 +110,8 @@ const TWO_VEHICLES = {
 describe("TrackerInfoPanelComponent exports and renders feed text safely", () => {
   let component: TrackerInfoPanelComponent;
   let panel: PanelInternals;
-  let createObjectURL: ReturnType<typeof vi.fn>;
-  let revokeObjectURL: ReturnType<typeof vi.fn>;
+  let createObjectURL: MockInstance<typeof URL.createObjectURL>;
+  let revokeObjectURL: MockInstance<typeof URL.revokeObjectURL>;
   /** The `download` attribute of every anchor that was clicked, in click order. */
   const clicked: string[] = [];
 
@@ -135,9 +135,10 @@ describe("TrackerInfoPanelComponent exports and renders feed text safely", () =>
 
   beforeEach(() => {
     clicked.length = 0;
-    createObjectURL = vi.fn(() => "blob:fake");
-    revokeObjectURL = vi.fn();
-    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
+    // Spies on the two statics, not `vi.stubGlobal("URL", ...)`: a plain object is not a
+    // constructor, and Angular's HTTP/router code calls `new URL(...)`.
+    createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
+    revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: {
       getAttribute(name: string): string | null;
     }) {
@@ -146,7 +147,6 @@ describe("TrackerInfoPanelComponent exports and renders feed text safely", () =>
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
