@@ -144,6 +144,41 @@ const HISTORY_BUCKETS = [
   },
 ];
 
+/**
+ * The typical week the backend sends for KJL: all 168 slots, Monday first and the service day's
+ * hours from 03. One Thursday-afternoon slot clears the 3-report minimum and a thin Thursday-morning
+ * one does not; every other slot is empty.
+ */
+function weekProfileSlots(): Array<Record<string, unknown>> {
+  const filled: Record<string, Record<string, unknown>> = {
+    "3:15": {
+      count: 9,
+      dominantStatus: "CROWDED",
+      statusCounts: [
+        { status: "NORMAL", count: 1 },
+        { status: "CROWDED", count: 6 },
+        { status: "DELAYED", count: 2 },
+      ],
+    },
+    "3:8": { count: 2, dominantStatus: "BUSY", statusCounts: [{ status: "BUSY", count: 2 }] },
+  };
+  const slots: Array<Record<string, unknown>> = [];
+  for (let weekday = 0; weekday < 7; weekday++) {
+    for (let index = 0; index < 24; index++) {
+      const hour = (3 + index) % 24;
+      slots.push({
+        weekday,
+        hour,
+        count: 0,
+        dominantStatus: null,
+        statusCounts: [],
+        ...filled[`${weekday}:${hour}`],
+      });
+    }
+  }
+  return slots;
+}
+
 /** One page of KJL community reports: the first carries a delay, a station and notes, the
  * second only a badge. Both are created at `created` so the row's right-aligned relative time
  * (and the exact timestamp on its `title`) is deterministic. */
@@ -596,7 +631,7 @@ test.describe("community front page", () => {
     );
   });
 
-  test("VISITOR: expanding a line row lazily loads the hourly chart and reports", async ({
+  test("VISITOR: expanding a line row lazily loads the hourly chart, the typical week and reports", async ({
     page,
   }) => {
     const reportsCreated = new Date().toISOString();
@@ -604,6 +639,7 @@ test.describe("community front page", () => {
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
+      LineStatusWeekProfile: { lineStatusWeekProfile: weekProfileSlots() },
       LineStatusReports: reportsPage(reportsCreated),
     });
 
@@ -612,7 +648,7 @@ test.describe("community front page", () => {
     const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
     const toggle = kjl.getByTestId("line-row-toggle");
 
-    // Folded, the detail panel is absent and neither lazy read has been issued at all.
+    // Folded, the detail panel is absent and no lazy read has been issued at all.
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(kjl.getByTestId("line-row-expanded")).toHaveCount(0);
     expect((await recordedCalls()).map((call) => call.operationName)).not.toContain(
@@ -620,6 +656,9 @@ test.describe("community front page", () => {
     );
     expect((await recordedCalls()).map((call) => call.operationName)).not.toContain(
       "LineStatusReports",
+    );
+    expect((await recordedCalls()).map((call) => call.operationName)).not.toContain(
+      "LineStatusWeekProfile",
     );
 
     await toggle.click();
@@ -646,6 +685,28 @@ test.describe("community front page", () => {
     await expect(chart.getByTestId("line-status-chart-readout")).toContainText("Crowded 3");
     await page.mouse.move(0, 0);
 
+    // The typical week sits under today's chart: seven weekday rows of 24 hour cells. The slot with
+    // enough reports is coloured and named, the thin one is left muted, and hovering shows its reports.
+    const week = kjl.getByTestId("line-week-profile");
+    await expect(week).toBeVisible();
+    await expect(week.getByTestId("line-week-row")).toHaveCount(7);
+    await expect(week.getByTestId("line-week-cell")).toHaveCount(168);
+    const busyCell = week.locator('[data-weekday="3"] [data-hour="15"]');
+    await expect(busyCell).toHaveAttribute(
+      "aria-label",
+      "Thursday 15:00–16:00 · 9 reports · Normal 1, Crowded 6, Delayed 2",
+    );
+    await expect(busyCell).not.toHaveAttribute("data-muted", "");
+    await expect(week.locator('[data-weekday="3"] [data-hour="8"]')).toHaveAttribute(
+      "data-muted",
+      "",
+    );
+    await busyCell.hover();
+    await expect(week.getByTestId("line-week-profile-readout")).toContainText(
+      "Thursday 15:00–16:00 · 9 reports",
+    );
+    await page.mouse.move(0, 0);
+
     // The reports list: the stubbed page renders a badge, a delay, the station and notes per
     // row, with the relative time pinned right and the exact timestamp on its `title`.
     const reports = kjl.getByTestId("line-status-reports");
@@ -669,6 +730,9 @@ test.describe("community front page", () => {
     await expect
       .poll(async () => (await recordedCalls()).map((call) => call.operationName))
       .toContain("LineStatusReports");
+    await expect
+      .poll(async () => (await recordedCalls()).map((call) => call.operationName))
+      .toContain("LineStatusWeekProfile");
 
     const historyCall = (await recordedCalls()).find(
       (call) => call.operationName === "LineStatusHistory",
@@ -678,11 +742,57 @@ test.describe("community front page", () => {
       (call) => call.operationName === "LineStatusReports",
     );
     expect(reportsCall?.variables).toEqual({ lineId: "1", first: 10 });
+    const weekCall = (await recordedCalls()).find(
+      (call) => call.operationName === "LineStatusWeekProfile",
+    );
+    expect(weekCall?.variables).toEqual({ lineId: "1", weeks: 6, dayStartHour: 3 });
 
     // Collapsing hides the panel again.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(kjl.getByTestId("line-row-expanded")).toHaveCount(0);
+  });
+
+  test("VISITOR: the typical week's cells stay put while its readout changes", async ({ page }) => {
+    // Narrow on purpose, so a mixed hour's readout wraps onto a second line. Drawn above the table it
+    // pushed the cells down, and a still pointer then sat over the row above: aimed at the top edge of
+    // Thursday 15:00, it read Wednesday.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await configureMock({
+      FrontPageLines: { lines: [KJL_LINE] },
+      Feed: feedPage(),
+      LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
+      LineStatusWeekProfile: { lineStatusWeekProfile: weekProfileSlots() },
+      LineStatusReports: reportsPage(new Date().toISOString()),
+    });
+
+    await page.goto("/");
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await kjl.getByTestId("line-row-toggle").click();
+
+    const week = kjl.getByTestId("line-week-profile");
+    const table = week.getByTestId("line-week-profile-table");
+    const busyCell = week.locator('[data-weekday="3"] [data-hour="15"]');
+    await expect(table).toBeVisible();
+    await busyCell.scrollIntoViewIfNeeded();
+    const tableBefore = await table.boundingBox();
+    const cell = await busyCell.boundingBox();
+    if (!tableBefore || !cell) {
+      throw new Error("the typical week's table has no layout box");
+    }
+
+    await page.mouse.move(cell.x + cell.width / 2, cell.y + 3);
+    const readout = week.getByTestId("line-week-profile-readout");
+    await expect(readout).toContainText("Thursday 15:00–16:00 · 9 reports");
+    // The sentence is longer than one line here, which is what moved the table before.
+    const readoutBox = await readout.boundingBox();
+    expect(readoutBox?.height).toBeGreaterThan(36);
+    expect((await table.boundingBox())?.y).toBe(tableBefore.y);
+
+    // Leaving the table puts the hint back, and the table is still where it was.
+    await page.mouse.move(0, 0);
+    await expect(readout).toContainText("Hover or tap an hour");
+    expect((await table.boundingBox())?.y).toBe(tableBefore.y);
   });
 
   test("VISITOR: clamps a right-edge popover into the viewport", async ({ page }) => {
