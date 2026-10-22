@@ -13,9 +13,10 @@ import { environment } from "./environments/environment";
 export const sentrySharedOptions = {
   dsn: environment.sentry.dsn,
   environment: environment.environmentName,
-  /** The current deploy's short git hash (see scripts/generate-build-info.mjs) — ties every
-   * error report to exactly the build that produced it, the same identifier already shown in
-   * the page footer. */
+  /** The current deploy's full 40-character git hash (see scripts/generate-build-info.mjs) —
+   * ties every error report to exactly the build that produced it. scripts/sentry-sourcemaps.mjs
+   * names the Sentry release with this same value (read from public/version.json), so both must
+   * stay the full hash. */
   release: buildInfo.hash,
   /** Distinguishes this rewrite's reports from the old app's, which reports to the same Sentry
    * project (see environment.ts's own comment) — filterable in Sentry without needing a second
