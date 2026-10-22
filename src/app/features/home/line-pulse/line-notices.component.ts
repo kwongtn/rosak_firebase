@@ -80,7 +80,9 @@ function chipView(chip: LineChip): ChipView {
   template: `
     @if (_view().chips.length > 0) {
       <!-- A chip is capped at the strip's width minus the trailing info glyph (16px + gap), so a long
-           title truncates instead of pushing the glyph alone onto its own line on a phone. -->
+           title truncates instead of pushing the glyph alone onto its own line on a phone. No word is
+           dimmed with an opacity: the severity word is what makes the colour not the only channel, and
+           opacity-80 took the amber (light) and red severity words under 4.5:1 on their own badge. -->
       <ul
         class="flex flex-wrap items-center gap-1.5"
         [attr.aria-label]="'Incidents on ' + lineName()"
@@ -97,7 +99,7 @@ function chipView(chip: LineChip): ChipView {
                 data-testid="line-notice"
               >
                 <span class="font-semibold">Notice</span>
-                <span class="font-normal opacity-80" data-testid="line-notice-severity">{{
+                <span class="font-normal" data-testid="line-notice-severity">{{
                   chip.severityLabel
                 }}</span>
                 <span
@@ -117,11 +119,9 @@ function chipView(chip: LineChip): ChipView {
               >
                 <span class="font-semibold">Planned works</span>
                 @if (chip.dateLabel; as date) {
-                  <span
-                    class="font-normal tabular-nums opacity-80"
-                    data-testid="line-planned-date"
-                    >{{ date }}</span
-                  >
+                  <span class="font-normal tabular-nums" data-testid="line-planned-date">{{
+                    date
+                  }}</span>
                 }
                 <span
                   class="min-w-0 truncate font-normal"

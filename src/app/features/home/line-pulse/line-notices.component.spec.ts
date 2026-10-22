@@ -195,6 +195,23 @@ describe("LineNoticesComponent", () => {
       expect(chip?.hasAttribute("aria-describedby")).toBe(false);
     });
 
+    it("never dims a word on the chip: the severity word must keep its badge contrast", () => {
+      // opacity-80 on the severity word measured 3.5:1 (red, light), 4.2:1 (amber, light) and 3.4:1
+      // (red, dark) against 4.5:1 for 12px text; without it amber is 6.4:1. Hierarchy comes from the
+      // font weight instead.
+      store.notices.set({ "1": [makeIncident("a", { severity: "MINOR" })] });
+      store.planned.set({ "1": [makeIncident("p")] });
+      const root = render({ planned: true });
+
+      const chips = root.querySelectorAll(
+        '[data-testid="line-notice"] *, [data-testid="line-planned"] *',
+      );
+      expect(chips.length).toBeGreaterThan(0);
+      for (const part of chips) {
+        expect(part.className, textOf(part)).not.toMatch(/opacity-/);
+      }
+    });
+
     it("uses the severity colours /insiden uses: red for Major, amber for Minor, neutral for Other", () => {
       store.notices.set({
         "1": [
