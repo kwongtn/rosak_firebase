@@ -61,9 +61,10 @@ unlocks only when the last open sheet lets go, whatever order they open and clos
 `HlmButton` defaults a `<button>` to `type="button"` (an `<a>` gets no `type`); a submit button says
 `type="submit"`. `HlmCard`, `HlmCardContent`, `HlmSkeleton` and `HlmTr` merge a consumer `class`
 through `hlm()`, so a `gap-3 p-4` or `rounded-full` on them wins; the other card and table parts keep
-static host classes. `styles.css` defines `--success`, `--warning` and `--info` with `-foreground`
+static host classes (known conflicts, handled by the consumer: `!text-end` on `hlmTh` in the incident
+history table, `flex-row` on `hlmCardHeader` on the about page). `styles.css` defines `--success`, `--warning` and `--info` with `-foreground`
 variants, light and dark, as `bg-success`, `text-info-foreground` and so on: `--X` is the accent for
-an icon, dot, fill or large text, `--X-foreground` is small text on a `bg-X/15` tint. Red is the
+an icon, dot, fill or large text, `--X-foreground` is small text on a `bg-X/15` tint (not on a solid `bg-X`, unlike `--primary-foreground`). Red is the
 existing `--destructive`. Badge variants, toast icons, the home hero and the vote buttons use them;
 other components still use raw palette utilities.
 
