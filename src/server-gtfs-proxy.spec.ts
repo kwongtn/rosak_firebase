@@ -97,18 +97,22 @@ describe("createGtfsProxyHandler", () => {
     expect(captureException).toHaveBeenCalledWith(boom);
   });
 
-  it("answers 502 when the upstream times out, passing a bounded abort signal", async () => {
+  it("bounds the upstream fetch with AbortSignal.timeout(GTFS_UPSTREAM_TIMEOUT_MS)", async () => {
     const timeout = new DOMException("The operation timed out.", "TimeoutError");
-    const fetch = vi.fn<FetchLike>(async (_url, init) => {
-      expect(init.signal).toBeInstanceOf(AbortSignal);
+    const fetch = vi.fn<FetchLike>(async () => {
       throw timeout;
     });
+    const spy = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const { res, captureException } = await run(fetch, ALLOWED_URL);
 
-    const { res, captureException } = await run(fetch, ALLOWED_URL);
-
-    expect(GTFS_UPSTREAM_TIMEOUT_MS).toBe(15_000);
-    expect(res.statusCode).toBe(502);
-    expect(captureException).toHaveBeenCalledWith(timeout);
+      expect(spy).toHaveBeenCalledWith(GTFS_UPSTREAM_TIMEOUT_MS);
+      expect(fetch.mock.calls[0]?.[1].signal).toBe(spy.mock.results[0]?.value);
+      expect(res.statusCode).toBe(502);
+      expect(captureException).toHaveBeenCalledWith(timeout);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("rejects a missing url with 400 without fetching", async () => {
