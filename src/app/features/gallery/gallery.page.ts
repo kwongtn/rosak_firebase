@@ -308,9 +308,10 @@ export class GalleryPage {
         );
         this.hasMore.set(data.medias.pageInfo.hasNextPage);
         this.endCursor = data.medias.edges.at(-1)?.cursor ?? this.endCursor;
-        // The backend's `medias` order has no tie-break (rosak_backend), so a page can repeat a
-        // photo the page before it ended with. Keep the first sighting: the grid would show it
-        // twice, `track` would see a duplicate key, and Next in the viewer would land on it again.
+        // Since rosak_backend 7a02ef4 the `medias` order ends in the primary key, so a page no
+        // longer repeats a photo; an API without it still can. Keep the first sighting: the grid
+        // would show a repeat twice, `track` would see a duplicate key, and Next in the viewer
+        // would land on it again.
         this.edges.update((list) => {
           const loaded = new Set(list.map((e) => e.node.id));
           return [...list, ...data.medias.edges.filter((e) => !loaded.has(e.node.id))];
