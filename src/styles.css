@@ -1,7 +1,8 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css";
+/* source(): scan only src/. Default detection reads docs, e2e specs and graphify-out, which put junk rules (and a css-syntax-error warning) in this sheet. */
+@import "tailwindcss/utilities.css" source("../src");
 
 @import "@spartan-ng/brain/hlm-tailwind-preset.css";
 
