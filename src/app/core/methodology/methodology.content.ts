@@ -167,6 +167,13 @@ const REVIEWED_AT_FLEET_PROGRESS = "2026-10-21";
 const REVIEWED_AT_INCIDENT_HISTORY = "2026-10-22";
 
 /**
+ * Bumped when the line-status sheet gained its offline outbox (2026-10-22, UTC). It publishes ONE
+ * new rule to the `line-status` section: a report saved while offline is dropped, not sent, once it
+ * is `REPORT_OUTBOX_MAX_AGE_MINUTES` old. Its own constant for the same reason as every one above.
+ */
+const REVIEWED_AT_REPORT_OUTBOX = "2026-10-22";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -213,8 +220,9 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     // a definition and a reachable one. Every metric on this page belongs to this section, so the
     // section is what was reviewed. Also bumped for the line-details In-Service share chip surface
     // and again when the front page's metrics gained a tooltip-sized summary, and when the vehicle
-    // count's "in service" badge was explained (REVIEWED_AT_IN_SERVICE_BADGE).
-    lastReviewed: REVIEWED_AT_IN_SERVICE_BADGE,
+    // count's "in service" badge was explained (REVIEWED_AT_IN_SERVICE_BADGE), and when the
+    // line-status sheet's outbox published the queued-report expiry (REVIEWED_AT_REPORT_OUTBOX).
+    lastReviewed: REVIEWED_AT_REPORT_OUTBOX,
     inProgress: true,
   },
   {
@@ -630,6 +638,24 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_TOOLTIP_CONCISION,
+  },
+  {
+    // The line-status sheet's offline outbox (`core/offline/report-outbox.service.ts`), surfaced from
+    // the sheet's "will send when you're back online" line. The backend stamps a report with the time
+    // it ARRIVES and takes no client time, so a report that waited would count as fresh in the
+    // board's window; the expiry is what keeps a late send from doing that. The definition names the
+    // window without its length on purpose: that length is the backend's, per line, and is never
+    // mirrored here (only the outbox's own cap is a frontend number).
+    id: "line-status.queued-report-expiry",
+    sectionId: "line-status",
+    title: "Saved reports",
+    definition:
+      "When a line status report cannot reach the server, it is saved on this device and sent when the connection comes back. The server records a report at the moment it arrives, not when you wrote it, so a saved report expires {{REPORT_OUTBOX_MAX_AGE_MINUTES}} minutes after you submit it: an expired report is dropped and you are told, so a late send cannot land outside the board's status window and count an old observation as current. Each line keeps one saved report, and submitting again for the same line replaces it. A saved report is sent only for the account that wrote it.",
+    summary:
+      "Queued reports expire after {{REPORT_OUTBOX_MAX_AGE_MINUTES}} minutes so a late send cannot land outside the board's status window. A newer report for the same line replaces the saved one.",
+    ownerRoute: "/",
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_REPORT_OUTBOX,
   },
   /* ---- `/insiden`'s "Last 12 months" chart and "Export month" files. 🔴 The rule is "counted ONCE,
      in the month the incident STARTED", and only APPROVED (live) incidents: a three-day outage is one

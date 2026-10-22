@@ -49,6 +49,7 @@ describe("methodology render util: renderMethodologyCopy", () => {
       "SERVICE_DAY_HOURS",
       "HEAT_INTENSITY_STEPS",
       "REPORT_RANKING_TOP_LINES",
+      "REPORT_OUTBOX_MAX_AGE_MINUTES",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
@@ -75,6 +76,13 @@ describe("methodology render util: renderMethodologyCopy", () => {
     // value against the constant the widget slices with.
     expect(METHODOLOGY_CONSTANTS["REPORT_RANKING_TOP_LINES"]).toEqual({
       value: 5,
+      source: "LINE_STATUS_DERIVE.md",
+    });
+    // How long a report queued while offline may wait: a frontend rule, set to the backend's status
+    // window because the backend stamps a report on arrival. `report-outbox.service.spec.ts` pins
+    // this value against the constant the outbox compares with.
+    expect(METHODOLOGY_CONSTANTS["REPORT_OUTBOX_MAX_AGE_MINUTES"]).toEqual({
+      value: 15,
       source: "LINE_STATUS_DERIVE.md",
     });
   });

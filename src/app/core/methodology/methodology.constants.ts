@@ -45,6 +45,13 @@ export interface MethodologyConstant {
  * `network.report-ranking`). It is here for one reason: the ranking's own methodology sentence names
  * the cap, and a cap written in two places is a cap that drifts. The widget's spec pins this value
  * against the constant the widget actually slices with.
+ *
+ * `REPORT_OUTBOX_MAX_AGE_MINUTES` is a frontend rule too: how long a line status report queued
+ * while offline may wait before it is dropped instead of sent (`core/offline/
+ * report-outbox.service.ts`, published as `line-status.queued-report-expiry`). The backend stamps a
+ * report when it arrives, so the cap is set to the backend's status window to keep a late send from
+ * counting a stale report as fresh. The service's spec pins this value against the constant the
+ * outbox compares with.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
@@ -54,4 +61,5 @@ export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   SERVICE_DAY_HOURS: { value: 24, source: "LINE_STATUS_DERIVE.md" },
   HEAT_INTENSITY_STEPS: { value: 5, source: "LINE_STATUS_DERIVE.md" },
   REPORT_RANKING_TOP_LINES: { value: 5, source: "LINE_STATUS_DERIVE.md" },
+  REPORT_OUTBOX_MAX_AGE_MINUTES: { value: 15, source: "LINE_STATUS_DERIVE.md" },
 };
