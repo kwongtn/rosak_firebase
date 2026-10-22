@@ -3,7 +3,7 @@
 ## 📌 Purpose & Scope
 
 - **Core Responsibility:** Renders `/tracker`, a full-bleed live map of Malaysian public-transit vehicles. It polls several GTFS-realtime vehicle-position feeds plus GTFS-static stop data. Users opt sources in/out (per-operator realtime feeds, per-operator stop layers, a static railway-line overlay) through a draft → Apply flow. The result is drawn as an `@antv/l7` WebGL scene with markers, popups, and a per-layer info panel (stats, sortable table, raw JSON + CSV export).
-- **Domain/Layer:** Angular Presentation: a standalone, lazy-routed page plus child components, backed by root-provided services that own polling and state. No Django/GraphQL involvement and no server-side business logic. One proxy endpoint, `/api/gtfs-proxy` (in `src/server.ts`, outside this feature), exists only to work around CORS on the GTFS-static host.
+- **Domain/Layer:** Angular Presentation: a standalone, lazy-routed page plus child components, backed by root-provided services that own polling and state. No Django/GraphQL involvement and no server-side business logic. One proxy endpoint, `/api/gtfs-proxy` (handler in `src/server-gtfs-proxy.ts`, mounted by `src/server.ts`, outside this feature), exists only to work around CORS on the GTFS-static host. It bounds the upstream fetch at 15 s and sends `Cache-Control: public, max-age=3600` on success.
 
 ## 🔌 Interface & Data Flow
 
