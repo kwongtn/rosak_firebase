@@ -22,9 +22,10 @@ const ASSET_TYPE_LABEL: Record<AssetType, string> = {
 
 /**
  * Read-only listing of each station's tracked assets (lifts, escalators) on this line, with each
- * asset's status (`asset-status-badge`: "In service" / "Out of service"). That status is
- * maintained in the backend from operator information, not from live rider reports, and the
- * section says so — a rider relying on a lift must know the badge can lag behind a breakdown.
+ * asset's status (`asset-status-badge`: "In service" / "Out of service"). That status is entered by
+ * the team in the backend (nothing else writes it today), not taken from live rider reports, and the
+ * section says so — a rider relying on a lift must know the badge can lag behind a breakdown. The
+ * note shows only while a status is on screen to qualify.
  *
  * This is the first half of a "volunteers report station asset breakages" feature. The second
  * half (a report mutation, and a rule that turns reports into a status) does not exist on the
@@ -77,10 +78,12 @@ const ASSET_TYPE_LABEL: Record<AssetType, string> = {
       </div>
       <!-- Outside the sticky header on purpose: a sentence here would make the pinned bar taller
            on a phone, and it is only worth reading once, not while scrolling. -->
-      <p class="text-muted-foreground text-xs" data-testid="asset-status-note">
-        Each asset's status is maintained from operator information, not live rider reports, so it
-        can lag behind a breakdown.
-      </p>
+      @if (hasAssets()) {
+        <p class="text-muted-foreground text-xs" data-testid="asset-status-note">
+          Each asset's status is set by the MLPTF team, not reported live by riders, so it can lag
+          behind a breakdown.
+        </p>
+      }
       @if (resource.isLoading()) {
         <div hlmSkeleton class="h-32 w-full"></div>
       } @else if (resource.hasError()) {
@@ -150,6 +153,9 @@ export class StationAssetsSectionComponent {
   }));
 
   protected readonly stations = computed(() => this.resource.data()?.lines[0]?.stations ?? []);
+  protected readonly hasAssets = computed(() =>
+    this.stations().some((station) => station.assets.length > 0),
+  );
 
   constructor() {
     // Keep-alive retains stale data, so silently revalidate when the details route is re-entered.

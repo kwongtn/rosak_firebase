@@ -137,25 +137,38 @@ describe("StationAssetsSectionComponent", () => {
     expect(escalator.querySelectorAll("asset-status-badge")).toHaveLength(1);
   });
 
-  it("says the status is operator-maintained, not live reports, and drops the old promise", async () => {
+  it("says the team sets the status, not live rider reports, and drops the old promise", async () => {
     await answerWith(STATIONS);
 
     const note = root().querySelector('[data-testid="asset-status-note"]');
-    expect(textOf(note)).toContain("operator information");
-    expect(textOf(note)).toContain("not live rider reports");
+    expect(textOf(note)).toBe(
+      "Each asset's status is set by the MLPTF team, not reported live by riders, so it can lag behind a breakdown.",
+    );
     expect(textOf(root())).not.toContain("coming soon");
     // Not in the pinned header: a sentence there would make the sticky bar taller on a phone.
     expect(note?.closest(".sticky")).toBeNull();
   });
 
-  it("shows the note while the first load is still pending", () => {
-    expect(root().querySelector('[data-testid="asset-status-note"]')).not.toBeNull();
+  it("has no note while the first load is pending: there is no status yet to qualify", () => {
     expect(root().querySelector("[hlmskeleton]")).not.toBeNull();
+    expect(root().querySelector('[data-testid="asset-status-note"]')).toBeNull();
 
     httpMock.expectOne((r) => r.method === "POST").flush({ data: { lines: [] } });
   });
 
-  it("renders no status badge for a line with no assets (the local database has none)", async () => {
+  it("has no note when the request failed", async () => {
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query.includes("LineStationAssets"))
+      .flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await fixture.whenStable();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(root().querySelector("app-retry-banner")).not.toBeNull();
+    expect(root().querySelector('[data-testid="asset-status-note"]')).toBeNull();
+  });
+
+  it("renders no status badge and no note for a line with no assets (the local database has none)", async () => {
     await answerWith([
       { id: "1", displayName: "KL Sentral", assets: [] },
       { id: "2", displayName: "Pasar Seni", assets: [] },
@@ -163,6 +176,7 @@ describe("StationAssetsSectionComponent", () => {
 
     expect(assetRows()).toHaveLength(0);
     expect(root().querySelectorAll("asset-status-badge")).toHaveLength(0);
+    expect(root().querySelector('[data-testid="asset-status-note"]')).toBeNull();
     expect(textOf(root()).match(/No assets recorded yet\./g)).toHaveLength(2);
   });
 
