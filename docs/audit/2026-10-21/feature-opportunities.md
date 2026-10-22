@@ -10,6 +10,8 @@ Mostly frontend-ready ideas built on data and seams that already exist: rider in
 
 **medium** · effort S · feature · features
 
+**Status, feature pass 2026-10-22:** Fixed (`7b0357b`, `67eb378`, `48474d0`, `4339386`, `64372ec`, `21d223f`, `9518488`, `e84055f`, `67c042e`, `2473a6a`, backend `699126d`, backend `07c8289`). Both slices are done. Every compact row and every Needs attention card on the Rider board shows a Notice chip for each approved incident running on its line, with a link to that day on /insiden. A pinned line, as a My lines row or as a card, also shows the Planned works that start within seven days. At most two chips show per line, and the chips are re-read on the 30 s beat. The shared ongoing read now sends `status: LIVE` with `activeNow`. The Pro widget used to send `OR: { ongoing: true }`, which only looks at the end time, so it listed drafts and reports pending approval on a public page. That is corrected, and the widget now shares the board's read. A Notice also takes a Normal line out of the quiet fold. **Left:** an incident with no line tag has no row to sit on, and the Pro widget still hides itself while its read has failed.
+
 **Where:** `src/app/features/home/data/home.store.ts:548`, `src/app/features/home/data/home-incidents.queries.ts:37`, `src/app/features/home/data/home-incidents.queries.ts:56`, `src/app/features/home/data/home-board.queries.ts:14`, `src/app/features/home/home.page.ts:165`
 
 **Problem.** The default home view is the Rider view, which is what most phone commuters see. It shows the line status (from passenger reports) and pulse links, but the community-curated incident calendar (calendarIncidents, with title, brief, severity and the affected lines) is read only when the Pro dashboard widget asks for it. The result is that a commuter who opens the board and sees a line as 'Normal' gets no hint that a moderator-approved incident is open on that line. The query is already hydration-safe (compile-time constant variables), already selects lines { id code }, and the store already has a recentIncidents computed, so the data seam exists and simply is not wired into the Rider surface. Note that 'ongoing' in the backend means end_datetime IS NULL, so a planned work with a known end time is never returned by this query.
@@ -129,6 +131,8 @@ public/ contains only: ads.txt favicon.ico favicon.svg image-not-found.png robot
 
 **medium** · effort M · feature · features · already documented
 
+**Status, feature pass 2026-10-22:** Fixed (`f86a497`, `a4dec01`, `35551c2`, `273855a`, `34b8079`, `7a2fe2b`, `6f8e348`, `4381e63`, `0888e3e`, `d92d17f`, `f18b649`, `8a50b1c`, `7c06cfd`, `7d2ca7f`). Both slices are done. The line-status sheet keeps its draft per line and the spotting report form keeps its draft in one slot, both in `sessionStorage` and tied to the signed-in account. Each is restored on the next open with a Discard button. A line status report that the server could not take is saved in an outbox in `localStorage`, shown as "Saved / It will send when you're back online.", and sent on reconnect, when the home route starts and on every board refresh. A queued report is dropped once it is older than its line's own reporting window (15 minutes where the window is not known), and a published methodology metric explains the rule. **Left:** no client `occurredAt`, because the backend stamps a report on arrival, so a report that waited still counts as fresh and the expiry only bounds how stale it can be. The flush runs on the home route only, not app-wide. The backend has no idempotency key, so a report whose reply was lost can be sent twice.
+
 **Where:** `docs/components/spotting.md:99`, `src/app/features/home/line-status/line-status-sheet.component.ts:395`, `src/app/features/spotting/report-form/report-form.component.ts:223`, `src/app/core/preferences/preferences.service.ts:52`
 
 **Problem.** Contributors report from platforms and trains, exactly where connectivity drops (underground LRT/MRT sections, tunnels, crowded cells). A failed line-status submit leaves the user with an error and a sheet to keep open; if the sheet is closed or the tab is killed by the OS, the report is lost, and the spotting report form clears itself on close. For a crowd-sourced status board, losing reports at the moment of disruption is the worst time to lose them. The photo upload queue already uses IndexedDB, so the pattern exists, but status reports and drafts have none.
@@ -177,7 +181,7 @@ Live schema: Mutation.updateUser exists (profile nickname and privacy only); no 
 
 **medium** · effort M · feature · features
 
-**Status, feature pass 2026-10-22:** Partly fixed (`dca6a37`, `9ba407d`, `6cc2843`, `ee468be`, `5ae999d`). Slice 1 is done: /insiden has a "Last 12 months" section, collapsed until it is opened, with Major and Minor bars per month and a table fallback. It counts approved incidents on the client from `calendarIncidents`, because `calendarIncidentsBySeverityCount(groupBy: MONTH)` was a running total that reset each January. The backend has since fixed it (backend `9832a3d`), and the page does not use the fixed aggregate yet. **Left:** slice 2, the "Typical week" strip per line. Its backend inputs (`daysAgo` on the status-history queries and `lineStatusWeekProfile`) have landed.
+**Status, feature pass 2026-10-22:** Partly fixed (`dca6a37`, `9ba407d`, `6cc2843`, `ee468be`, `5ae999d`). Slice 1 is done: /insiden has a "Last 12 months" section, collapsed until it is opened, with Major and Minor bars per month and a table fallback. It counts approved incidents on the client from `calendarIncidents`, because `calendarIncidentsBySeverityCount(groupBy: MONTH)` was a running total that reset each January. The backend has since fixed it (backend `9832a3d`), and the page does not use the fixed aggregate yet. The backend inputs of slice 2 have landed: `daysAgo` on the status-history queries (backend `19db35f`) and `lineStatusWeekProfile` (backend `0755450`). **Left:** slice 2, the "Typical week" strip per line, which is in progress.
 
 **Where:** `src/app/features/home/data/home-history.queries.ts:15`, `src/app/features/home/data/home-history.queries.ts:48`, `src/app/features/insiden/data/insiden.queries.ts:27`, `docs/components/home.md:1551`
 
@@ -200,6 +204,8 @@ Live schema: calendarIncidentsBySeverityCount(startDate, endDate, groupBy) is us
 #### F292 · Spotting history never shows photos, run number or wheel condition although the query fetches them
 
 **medium** · effort M · feature · ux-spotting
+
+**Status, feature pass 2026-10-22:** Fixed (`2344494`, `52d0568`, `68f0869`, `925f83e`). Each row of the vehicle history has a second line with a "Yours" tag, "Run 12", the wheel condition (labelled "Wheels") and a camera chip ("3 photos"), and the month headings are `h3`. The "Yours" tag needs `isMine`, which the backend answers only for a request that carries `firebase-auth-key`, so the history sends a signed-in viewer's token and asks again when the viewer signs in or out. `GraphQLClient.request` keeps such requests out of the SSR transfer cache. **Left:** the camera chip is not a link, because `medias` has no filter by spotting. A signed-in hard load shows the list without tags until the session is restored.
 
 **Where:** `src/app/features/spotting/data/spotting.queries.ts:195`, `src/app/features/spotting/vehicle-detail/spotting-history/spotting-history.component.ts:51`, `src/app/features/spotting/vehicle-detail/spotting-history/spotting-history.component.ts:46`
 
@@ -707,6 +713,8 @@ _showPinHint() && !_quietExpanded()
 #### F597 · Show lift and escalator status per station and let riders report breakages
 
 **low** · effort L · feature · features · partially confirmed · severity adjusted from medium · already documented
+
+**Status, feature pass 2026-10-22:** Partly fixed (`8516719`, `fc4b084`, `e9997c2`, backend `7e9fc20`). Phase 1 is done: the backend exposes `Asset.status` as an enum with a filter, and Station Assets reads it and shows an "In service" or "Out of service" badge per asset, with a note that the MLPTF team sets the status and riders do not report it live. **Left:** rider reporting of breakages, which needs a backend mutation and a rule for turning reports into a status, and asset seeding. The local database holds no assets, so the badge is proven by spec fixtures and not by live data.
 
 **Where:** `docs/components/spotting.md:100`, `src/app/features/spotting/data/spotting.queries.ts:400`, `src/app/features/spotting/line-details/station-assets-section/station-assets-section.component.ts:100`
 

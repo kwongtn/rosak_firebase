@@ -322,6 +322,8 @@ Playwright at 390x844 against http://localhost:4321/, two runs, identical: layou
 
 **medium** · effort S · performance · performance
 
+**Status, fix pass 2026-10-22:** Partly fixed (`14e4f5c`, `26fe6bc`). Part 3 is done: the Home route's providers moved into the lazy `features/home/home.routes.ts`, `main` fell from 393.21 kB to 237.37 kB and the initial total from 997.74 kB to 841.90 kB. `app.routes.spec.ts` now fails if `main.ts` statically reaches `features/`, `shell/` or `core/{auth,graphql,preferences,methodology}/`. **Left:** parts 1 and 2, `provideMarkdown()` (about 69 kB) and the root reCAPTCHA providers with `@angular/forms` (about 52 kB). `docs/COMPONENTS.md` -> Initial bundle lists both as the next candidates.
+
 **Where:** `src/app/app.config.ts:17`, `src/app/app.config.ts:18`, `src/app/app.config.ts:177`, `src/app/app.routes.ts:4`, `src/app/app.routes.ts:24`, `src/app/features/insiden/incident-card/incident-card.component.ts:15`
 
 **Problem.** Three static imports in always-loaded files drag feature code into main.js. provideMarkdown() in app.config.ts imports ngx-markdown and marked (69 KB attributed) although only IncidentCardComponent renders markdown. The ng-recaptcha-2 import in the same file (used only by the admin console) brings 4 KB plus the 47.5 KB @angular/forms runtime into main. app.routes.ts imports HomeStore and its dependencies (home queries, methodology.content.ts) just to list them in the home route's providers, so about 46 KB of home-only code is in the entry bundle for every route. Together that is about 115 KB attributed, roughly a third of main.js, parsed on every page including /methodology and the 404 page.
