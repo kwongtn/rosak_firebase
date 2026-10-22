@@ -12,7 +12,13 @@ import {
   UNREGISTER_PUSH_TOKEN_MUTATION,
 } from "./push.queries";
 import { FCM_VAPID_KEY } from "./push-loader";
-import { PUSH_SUPPORT, PushService, PushSupport, browserPushSupport } from "./push.service";
+import {
+  PUSH_SUPPORT,
+  PushService,
+  PushSupport,
+  browserPushSupport,
+  linkOnOrigin,
+} from "./push.service";
 
 // The unit-test builder shares one module cache across spec files (`isolate: false`), so reset it on
 // both sides of this file; see "Unit-test isolation" in docs/COMPONENTS.md.
@@ -534,9 +540,10 @@ describe("PushService", () => {
         notification: { title: "KJL: Signal fault", body: "Trains held at KLCC" },
         fcmOptions: { link: "https://app.example/insiden/2026-10-22" },
       });
+      // The backend's FRONTEND_BASE_URL need not be this site: the link opens the same page here.
       expect(toast.info).toHaveBeenCalledWith("KJL: Signal fault", "Trains held at KLCC", {
         label: "Open",
-        href: "https://app.example/insiden/2026-10-22",
+        href: `${location.origin}/insiden/2026-10-22`,
       });
 
       next({});
@@ -626,6 +633,24 @@ describe("push storage", () => {
 
     expect(readPushState()).toBeNull();
     expect(() => writePushState({ token: "t", lines: [KJL] })).not.toThrow();
+  });
+});
+
+describe("linkOnOrigin", () => {
+  const HERE = "https://staging.example";
+
+  it("keeps the path, query and fragment and puts them on this origin", () => {
+    expect(linkOnOrigin("https://community.example/insiden/2026-10-22?line=7#top", HERE)).toBe(
+      `${HERE}/insiden/2026-10-22?line=7#top`,
+    );
+    expect(linkOnOrigin(`${HERE}/insiden/2026-10-22`, HERE)).toBe(`${HERE}/insiden/2026-10-22`);
+    expect(linkOnOrigin("/insiden/2026-10-22", HERE)).toBe(`${HERE}/insiden/2026-10-22`);
+  });
+
+  it("never names another host, even for a path that starts with //", () => {
+    const href = linkOnOrigin("https://community.example//elsewhere.example/phish", HERE);
+    expect(new URL(href).origin).toBe(HERE);
+    expect(new URL(href).pathname).toBe("//elsewhere.example/phish");
   });
 });
 

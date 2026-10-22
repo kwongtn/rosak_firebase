@@ -111,13 +111,27 @@ describe("messagingServiceWorker (public/firebase-messaging-sw.js)", () => {
     expect(openWindow).not.toHaveBeenCalled();
   });
 
-  it("never opens a link on another origin", async () => {
+  it("opens a link on another origin as the same page on this one", async () => {
+    // A staging site whose backend still names the production FRONTEND_BASE_URL, for example.
+    const tab = { url: `${ORIGIN}/insiden/2026-10-22`, focus: vi.fn(async () => undefined) };
+    const { click, openWindow } = runWorker([tab]);
+
+    const event = await click(alert("https://community.example/insiden/2026-10-22"));
+    expect(event.notification.close).toHaveBeenCalledTimes(1);
+    expect(tab.focus).toHaveBeenCalledTimes(1);
+
+    await click(alert("https://elsewhere.example/phish?x=1#y"));
+    expect(openWindow).toHaveBeenCalledExactlyOnceWith(`${ORIGIN}/phish?x=1#y`);
+  });
+
+  it("never opens another site, even for a path that starts with //", async () => {
     const { click, openWindow } = runWorker();
 
-    const event = await click(alert("https://elsewhere.example/phish"));
+    await click(alert("https://community.example//elsewhere.example/phish"));
 
-    expect(event.notification.close).toHaveBeenCalledTimes(1);
-    expect(openWindow).not.toHaveBeenCalled();
+    const [opened] = openWindow.mock.calls[0] as unknown as [string];
+    expect(new URL(opened).origin).toBe(ORIGIN);
+    expect(opened).toBe(`${ORIGIN}//elsewhere.example/phish`);
   });
 
   it("leaves a notification without an FCM link to the other handlers", async () => {

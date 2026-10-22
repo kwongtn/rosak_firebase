@@ -15,7 +15,7 @@ importScripts("${sdk}/firebase-app-compat.js");
 importScripts("${sdk}/firebase-messaging-compat.js");
 
 // Added before firebase.messaging() adds the SDK's own click handler, so this one runs first and stops
-// it: a tap on an alert focuses a tab already on its link, or opens the link. Same-origin links only.
+// it: a tap on an alert focuses a tab already on its link, or opens the link, always on this origin.
 self.addEventListener("notificationclick", (event) => {
   const message = event.notification.data && event.notification.data.FCM_MSG;
   // FCM may deliver webpush.fcm_options.link as notification.click_action; the SDK reads both too.
@@ -28,10 +28,13 @@ self.addEventListener("notificationclick", (event) => {
   }
   event.stopImmediatePropagation();
   event.notification.close();
-  const url = new URL(link, self.location.origin);
-  if (url.origin !== self.location.origin) {
-    return;
-  }
+  // The backend writes its FRONTEND_BASE_URL into the link, which need not be this site (a staging or
+  // preview origin): open the same page here, never another site. Setters keep a //host path a path.
+  const parsed = new URL(link, self.location.origin);
+  const url = new URL(self.location.origin);
+  url.pathname = parsed.pathname;
+  url.search = parsed.search;
+  url.hash = parsed.hash;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       const open = clients.find((client) => client.url === url.href);

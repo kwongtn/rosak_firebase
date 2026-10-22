@@ -73,6 +73,20 @@ function firebaseApp() {
 }
 
 /**
+ * An alert's `link` as the same page on `origin`. The backend writes its own `FRONTEND_BASE_URL` into
+ * the link, which need not be the site the rider is on (a staging or preview origin). Built with
+ * setters, so a path that starts with `//` stays a path and never names another host.
+ */
+export function linkOnOrigin(link: string, origin: string): string {
+  const parsed = new URL(link, origin);
+  const url = new URL(origin);
+  url.pathname = parsed.pathname;
+  url.search = parsed.search;
+  url.hash = parsed.hash;
+  return url.href;
+}
+
+/**
  * Web push alerts for a rider's lines (audit F294): the backend sends one FCM message when a MAJOR
  * incident on a subscribed line is approved, at most once per line in 30 minutes.
  *
@@ -386,7 +400,7 @@ export class PushService {
     this.toast.info(
       payload.notification?.title ?? "Line alert",
       payload.notification?.body,
-      link ? { label: "Open", href: link } : undefined,
+      link ? { label: "Open", href: linkOnOrigin(link, location.origin) } : undefined,
     );
   }
 }
