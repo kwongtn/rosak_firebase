@@ -44,7 +44,7 @@ import { PublicSocialMediaLink } from "../data/social-links.queries";
               @for (link of group.items; track link.id) {
                 <app-link-card
                   [link]="link"
-                  [userVote]="voteValues()[link.id] ?? link.userVote ?? 0"
+                  [userVote]="voteValues()[link.id] ?? link.userVote"
                   [editable]="canEdit(link)"
                   (voteChanged)="voteChanged.emit({ id: link.id, value: $event.value })"
                   (edit)="openEdit($event)"
@@ -81,7 +81,7 @@ import { PublicSocialMediaLink } from "../data/social-links.queries";
                 @for (link of pending(); track link.id) {
                   <app-link-card
                     [link]="link"
-                    [userVote]="voteValues()[link.id] ?? link.userVote ?? 0"
+                    [userVote]="voteValues()[link.id] ?? link.userVote"
                     [editable]="canEdit(link)"
                     (voteChanged)="voteChanged.emit({ id: link.id, value: $event.value })"
                     (edit)="openEdit($event)"

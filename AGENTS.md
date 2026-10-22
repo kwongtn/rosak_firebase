@@ -89,11 +89,13 @@ third-party GTFS-realtime feeds for the tracker.
 
 **Typing & error handling**
 
-- **`strict` is ON by default.** `tsconfig.json` sets no `strict` key, and TypeScript 6 defaults it
-  to true, so `strictNullChecks`, `noImplicitAny` and the rest of the family are enforced (checked:
-  `const a: string = null` fails `tsc`). Also enforced: `noImplicitOverride`, `noImplicitReturns`,
-  `noPropertyAccessFromIndexSignature`, `noFallthroughCasesInSwitch`. `strictTemplates` is not set
-  (Angular's default: off). GraphQL response types are hand-written mirrors of untyped query
+- **`strict` and `strictTemplates` are ON.** `tsconfig.json` sets `"strict": true` explicitly (TypeScript
+  6 would default it to true anyway), so `strictNullChecks`, `noImplicitAny` and the rest of the
+  family are enforced (checked: `const a: string = null` fails `tsc`). Also enforced:
+  `noImplicitOverride`, `noImplicitReturns`, `noPropertyAccessFromIndexSignature`,
+  `noFallthroughCasesInSwitch`. `angularCompilerOptions.strictTemplates` is true, so template
+  bindings are type-checked against the component class; fix the type or narrow in the template
+  rather than adding `$any()`. GraphQL response types are hand-written mirrors of untyped query
   strings, so still guard server data explicitly with `?.` / `??` / early returns.
 - **`any` is banned.** Use `unknown` plus narrowing, or a real type.
 - **Never swallow errors.** No empty `catch`, no catch-and-`console.log`. The global `ErrorHandler`
