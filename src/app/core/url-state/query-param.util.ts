@@ -9,7 +9,7 @@ import type { ActivatedRoute, Router } from "@angular/router";
  * WRITE half is a single browser-gated `navigate()` so no caller has to re-derive the merge/replace
  * rules or remember the platform guard.
  *
- * The two rules that actually matter, both of which the spoting page encodes inline today:
+ * The two rules that actually matter, both of which every caller relies on:
  *  1. **A default value never appears in the URL.** Omitting it (`null`) is what makes "no query
  *     params" and "the default view" the same state — otherwise every page load of a default view
  *     carries a parameter it did not choose.
@@ -89,9 +89,9 @@ export function readTextQueryParam(
  * `injectIsBrowser()` once.
  *
  * 🔴 The guard is load-bearing, not a nicety: a *reactive* `router.navigate()` during SSR hangs
- * the render (the server waits on a navigation the client will never answer), which is why
- * line-overview's write-back effect bails the same way. A no-op on the server also keeps the
- * server HTML and the hydrated client's URL identical.
+ * the render (the server waits on a navigation the client will never answer), so every caller
+ * (line-overview's sort handler, the home and insiden pages) writes through here. A no-op on the
+ * server also keeps the server HTML and the hydrated client's URL identical.
  */
 export function writeQueryParams(
   router: Router,
