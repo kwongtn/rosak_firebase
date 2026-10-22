@@ -13,6 +13,7 @@ import {
 import { SUBMIT_LINE_STATUS_REPORT_MUTATION } from "./home-history.queries";
 import { HomeStore } from "./home.store";
 import { provideReportOutboxFlush } from "./report-outbox-flush";
+import { LINE_STATUS_SUBMIT_TIMEOUT_MS } from "./submit-line-status-report";
 
 describe("provideReportOutboxFlush", () => {
   let flush: ReturnType<typeof vi.fn<(send: ReportOutboxSender) => Promise<number>>>;
@@ -114,6 +115,7 @@ describe("provideReportOutboxFlush", () => {
         },
       },
       { "firebase-auth-key": "fresh-token" },
+      { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS },
     );
   });
 });

@@ -4,7 +4,7 @@ import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GraphQLClient, graphqlResource } from "./graphql-client";
+import { GraphQLClient, graphqlResource, type GraphQLRequestOptions } from "./graphql-client";
 
 interface LinesData {
   lines: { id: string }[];
@@ -324,8 +324,8 @@ describe("graphql-client", () => {
 
   describe("GraphQLClient.request", () => {
     /** Sends one request through the client, answers it, and returns what went out. */
-    async function send(headers?: Record<string, string>) {
-      const sent = TestBed.inject(GraphQLClient).request<LinesData>(query, {}, headers);
+    async function send(headers?: Record<string, string>, options?: GraphQLRequestOptions) {
+      const sent = TestBed.inject(GraphQLClient).request<LinesData>(query, {}, headers, options);
       const call = httpMock.expectOne((r) => r.method === "POST" && r.body.query === query);
       call.flush({ data: { lines: [] } });
       await sent;
@@ -344,6 +344,11 @@ describe("graphql-client", () => {
       const sent = await send({ "firebase-auth-key": "tok-1" });
 
       expect(sent.transferCache).toBe(false);
+    });
+
+    it("hands a timeout to HttpClient, and sets none unless asked", async () => {
+      expect((await send({}, { timeout: 15_000 })).timeout).toBe(15_000);
+      expect((await send()).timeout).toBeUndefined();
     });
 
     it("leaves every other request to the transfer cache, so a server-rendered read is not asked twice", async () => {

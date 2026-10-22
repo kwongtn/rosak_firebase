@@ -236,6 +236,15 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
   };
 }
 
+/** Per-call options of {@link GraphQLClient.request}. */
+export interface GraphQLRequestOptions {
+  /**
+   * Milliseconds before the request is abandoned. It then rejects with an `HttpErrorResponse` of
+   * status 0, the same shape as a dropped connection. Unset, only the browser gives up.
+   */
+  timeout?: number;
+}
+
 /**
  * One-shot GraphQL call for mutations (or queries fired imperatively, e.g. on submit)
  * rather than bound to the signal graph. Throws GraphQLRequestError if the response
@@ -254,11 +263,13 @@ export class GraphQLClient {
     query: string,
     variables?: TVars,
     extraHeaders?: Record<string, string>,
+    options?: GraphQLRequestOptions,
   ): Promise<TData> {
     const body: GraphQLRequestBody = { query, variables: variables ?? {} };
     const response = await firstValueFrom(
       this.http.post<GraphQLResponse<TData>>(environment.backendGraphqlUrl, body, {
         headers: extraHeaders,
+        timeout: options?.timeout,
         // The viewer's token makes this a different question from the one the server rendered
         // (whose answer is "anonymous"): `isMine`, `userVote`. The SSR transfer cache keys on
         // method, URL and body, not headers, and answers from the server's copy until the app first

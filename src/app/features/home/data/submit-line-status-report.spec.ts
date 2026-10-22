@@ -4,7 +4,11 @@ import type { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLRequestError, type GraphQLClient } from "../../../core/graphql/graphql-client";
 import type { QueuedLineStatusReport } from "../../../core/offline/report-outbox.service";
 import { SUBMIT_LINE_STATUS_REPORT_MUTATION } from "./home-history.queries";
-import { sendQueuedLineStatusReport, submitLineStatusReport } from "./submit-line-status-report";
+import {
+  LINE_STATUS_SUBMIT_TIMEOUT_MS,
+  sendQueuedLineStatusReport,
+  submitLineStatusReport,
+} from "./submit-line-status-report";
 
 function fakes(token: string | null, result: unknown) {
   const request = vi.fn(async (..._args: unknown[]) => result);
@@ -24,7 +28,7 @@ const INPUT = {
 };
 
 describe("submitLineStatusReport", () => {
-  it("sends the input with the caller's token and resolves the payload's ok", async () => {
+  it("sends the input with the caller's token and a timeout, and resolves the payload's ok", async () => {
     const { graphql, auth, request } = fakes("token", {
       submitLineStatusReport: { ok: true, id: 1 },
     });
@@ -35,7 +39,10 @@ describe("submitLineStatusReport", () => {
       SUBMIT_LINE_STATUS_REPORT_MUTATION,
       { input: INPUT },
       { "firebase-auth-key": "token" },
+      { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS },
     );
+    // A tunnel's dead link must turn into a queued report within a wait a rider sits through.
+    expect(LINE_STATUS_SUBMIT_TIMEOUT_MS).toBe(15_000);
   });
 
   it("sends no auth header without a token, and reports a payload that is not ok", async () => {
@@ -49,6 +56,7 @@ describe("submitLineStatusReport", () => {
       SUBMIT_LINE_STATUS_REPORT_MUTATION,
       { input: INPUT },
       {},
+      { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS },
     ]);
   });
 
