@@ -667,6 +667,10 @@ export class IncidentFormComponent {
 
   /** Public so a hosting shell's footer can drive Submit/Clear like the spotting sheet does. */
   async submit(): Promise<void> {
+    // Enter in a field (or the keyboard's Go key) reaches here past the disabled footer button.
+    if (this.isSubmitting()) {
+      return;
+    }
     if (!this.auth.isLoggedIn()) {
       this.toast.error("Please log in", "You need an account to report an incident.");
       return;

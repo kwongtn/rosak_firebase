@@ -386,6 +386,10 @@ export class LinkFormComponent {
   }
 
   async submit(): Promise<void> {
+    // Enter in a field (or the keyboard's Go key) reaches here past the disabled Submit button.
+    if (this.isSubmitting()) {
+      return;
+    }
     if (!this.auth.isLoggedIn()) {
       this.toast.error("Please log in", "You need an account to submit a link.");
       return;

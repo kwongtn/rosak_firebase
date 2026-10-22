@@ -331,6 +331,27 @@ describe("LinkFormComponent", () => {
     expect(component.isSubmitting()).toBe(false);
   });
 
+  it("stays busy and sends one mutation when submit runs again while the first is in flight", async () => {
+    // Enter in the URL field reaches submit() past the sheet's disabled Submit button.
+    let answer!: (value: unknown) => void;
+    requestMock.mockReturnValueOnce(new Promise((done) => (answer = done)));
+    sheet.open();
+    const component = asTestable(fixture);
+    component.model.set(filledModel());
+
+    const first = component.submit();
+    await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(1));
+    await component.submit();
+    // Signal Forms' submit() already ignores a call while one runs, but the second call used to
+    // clear the busy flag on its way out, re-enabling Submit with the first request in flight.
+    expect(component.isSubmitting()).toBe(true);
+    answer({ submitSocialMediaLink: { ok: true } });
+    await first;
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(toastMocks.success).toHaveBeenCalledTimes(1);
+  });
+
   it("adds no toast of its own for a GraphQL rejection, which GraphQLClient already showed", async () => {
     requestMock.mockRejectedValueOnce(new GraphQLRequestError([{ message: "Duplicate link" }]));
     sheet.open();
