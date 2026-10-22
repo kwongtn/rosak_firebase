@@ -120,3 +120,68 @@ describe("app routes: the lazy home route", () => {
     expect(second.probe).toBe(first.probe);
   });
 });
+
+/**
+ * Node's fs, typed by hand: the runner is Node, but the spec type-check has no Node types.
+ * `process.getBuiltinModule` needs Node 22.3+; `engines` and CI pin 24.
+ */
+const fs = (
+  globalThis as unknown as {
+    process: {
+      getBuiltinModule(id: "node:fs"): {
+        existsSync(path: string): boolean;
+        readFileSync(path: string, encoding: "utf8"): string;
+      };
+    };
+  }
+).process.getBuiltinModule("node:fs");
+
+/** A static value import or re-export of a relative path. `import type` is erased, import() lazy. */
+const STATIC_IMPORT =
+  /^\s*(?:import|export)\s+(?!type\b)(?:[^;]*?\bfrom\s+)?["'](\.{1,2}\/[^"']+)["']/gm;
+
+/**
+ * Every source file `src/main.ts` reaches through static imports, as paths relative to the project
+ * root (where `ng test` runs): esbuild puts all of them in the initial bundle.
+ * shortcut: a regex over source text, so a value-style import used only as a type counts as eager
+ * and a non-relative app import is not followed; walk `ng build --stats-json`'s metafile instead if
+ * either ever matters.
+ */
+function eagerSourceFiles(): string[] {
+  const seen = new Set<string>();
+  const queue = ["src/main.ts"];
+  for (let file = queue.pop(); file !== undefined; file = queue.pop()) {
+    if (seen.has(file)) {
+      continue;
+    }
+    seen.add(file);
+    for (const [, specifier] of fs.readFileSync(file, "utf8").matchAll(STATIC_IMPORT)) {
+      const base = new URL(specifier, `file:///${file}`).pathname.slice(1);
+      const target = [`${base}.ts`, `${base}/index.ts`, base].find((path) => fs.existsSync(path));
+      if (target === undefined) {
+        throw new Error(`${file} imports "${specifier}", which resolves to no file`);
+      }
+      queue.push(target);
+    }
+  }
+  return [...seen];
+}
+
+describe("app routes: what main.ts pulls into the initial bundle", () => {
+  it("statically reaches no page, shell, auth, GraphQL client, preferences or methodology code", () => {
+    const eager = eagerSourceFiles();
+
+    // The walk has to see the real graph, or the check below passes on an empty list.
+    expect(eager).toEqual(
+      expect.arrayContaining(["src/app/app.config.ts", "src/app/app.routes.ts", "src/app/app.ts"]),
+    );
+    // Each of these is lazy on purpose (docs/COMPONENTS.md -> Initial bundle). One static import
+    // from the eager graph moves it, and everything it imports, into main: HomeStore alone brought
+    // Firebase Auth and the methodology registry, about 156 kB.
+    expect(
+      eager.filter((file) =>
+        /^src\/app\/(?:features|shell|core\/(?:auth|graphql|preferences|methodology))\//.test(file),
+      ),
+    ).toEqual([]);
+  });
+});

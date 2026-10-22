@@ -182,7 +182,9 @@ Everything else is lazy, the front page included (`features/home/home.routes.ts`
 [home](components/home.md) → Route). So are the shell (the pages import it), `AuthService` with
 Firebase Auth (a shared chunk of about 91 kB), `GraphQLClient`, `PreferencesService` and the
 methodology registry. A static import of any of them from `main.ts`, `app.config.ts`,
-`app.routes.ts` or anything they import moves it into `main`.
+`app.routes.ts` or anything they import moves it into `main`. `app.routes.spec.ts` walks the static
+imports from `main.ts` and fails when it reaches `features/`, `shell/` or
+`core/{auth,graphql,preferences,methodology}/`.
 
 **Last measured** (`npx ng build`, 2026-10-22, after the home route's providers moved out of
 `app.routes.ts`):
