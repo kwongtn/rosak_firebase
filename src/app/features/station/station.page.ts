@@ -16,6 +16,7 @@ import { RetryBannerComponent } from "../../ui/retry-banner/retry-banner.compone
 import { HlmSkeleton } from "../../ui/skeleton/skeleton";
 import {
   incidentDayKey,
+  incidentDayLabel,
   incidentSeverityLabel,
   incidentSeverityVariant,
 } from "../home/data/incident-notices.util";
@@ -38,7 +39,9 @@ import {
 interface IncidentRow {
   id: string;
   title: string;
-  startDatetime: string;
+  /** The start day (`22 Oct 2026`) read from the string and written in UTC, as the link is, so no
+   *  machine's zone can change it; `null` when the datetime cannot be read. */
+  dayLabel: string | null;
   severityLabel: string;
   severityVariant: BadgeVariants["variant"];
   /** `routerLink` commands: the calendar day the incident starts on, or the calendar's own landing
@@ -51,7 +54,7 @@ function incidentRow(incident: StationIncident): IncidentRow {
   return {
     id: incident.id,
     title: incident.title,
-    startDatetime: incident.startDatetime,
+    dayLabel: incidentDayLabel(incident.startDatetime, "d MMM y"),
     severityLabel: incidentSeverityLabel(incident.severity),
     severityVariant: incidentSeverityVariant(incident.severity),
     link: day ? ["/insiden", day] : ["/insiden"],

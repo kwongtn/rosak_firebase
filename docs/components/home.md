@@ -1044,8 +1044,9 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
   `incident-notices.util.spec.ts`.
 - **Pure util** (`incident-notices.util.ts`): `groupIncidentsByLine` keeps the INPUT order inside a line,
   so the read's ORDER BY decides what comes first (DESC: newest; ASC: soonest) and one fixed sort cannot
-  be wrong for one of the two; `pickLineChips`; `incidentDayKey`; `incidentDayLabel`;
-  `incidentSeverityVariant` / `incidentSeverityLabel`; `MAX_LINE_CHIPS`.
+  be wrong for one of the two; `pickLineChips`; `incidentDayKey`; `incidentDayLabel` (default
+  pattern `EEE d MMM`; the station page passes `d MMM y`); `incidentSeverityVariant` /
+  `incidentSeverityLabel`; `MAX_LINE_CHIPS`.
 - **Not covered.** An incident with no `lines` has no row to sit on (6 of the 280 dev incidents are
   untagged); station tags are ignored; `longTerm` and `inaccurate` are not selected.
 

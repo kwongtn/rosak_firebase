@@ -100,12 +100,13 @@ export function incidentDayKey(startDatetime: string): string | null {
   return dayOf(startDatetime) ? startDatetime.slice(0, 10) : null;
 }
 
-/** The start day as the board writes a day (`Sat 25 Oct`), or `null` for an unreadable datetime.
- *  `formatDate` with an explicit locale and `UTC`, so neither the ICU build nor the machine's
- *  timezone can change the text. */
-export function incidentDayLabel(startDatetime: string): string | null {
+/** The start day as the board writes a day (`Sat 25 Oct`), or in another `formatDate` pattern (the
+ *  station page passes `d MMM y`), or `null` for an unreadable datetime. `formatDate` with an
+ *  explicit locale and `UTC`, so neither the ICU build nor the machine's timezone can change the
+ *  text. */
+export function incidentDayLabel(startDatetime: string, format = "EEE d MMM"): string | null {
   const date = dayOf(startDatetime);
-  return date ? formatDate(date, "EEE d MMM", "en-US", "UTC") : null;
+  return date ? formatDate(date, format, "en-US", "UTC") : null;
 }
 
 /** Severity → badge variant, the pairing `/insiden` cards and the Pro widget already use (red / amber /

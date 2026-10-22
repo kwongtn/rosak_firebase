@@ -218,6 +218,12 @@ describe("incidentDayLabel", () => {
   it("is null for an unreadable datetime", () => {
     expect(incidentDayLabel("soon")).toBeNull();
     expect(incidentDayLabel("2026-02-30T00:00:00")).toBeNull();
+    expect(incidentDayLabel("soon", "d MMM y")).toBeNull();
+  });
+
+  it("writes another pattern when asked, as the station page's dated rows do", () => {
+    expect(incidentDayLabel("2026-10-22T07:15:00", "d MMM y")).toBe("22 Oct 2026");
+    expect(incidentDayLabel("2025-12-31T23:59:59", "d MMM y")).toBe("31 Dec 2025");
   });
 
   it.each(["UTC", "Asia/Kuala_Lumpur", "Pacific/Kiritimati", "Pacific/Pago_Pago"])(
@@ -226,6 +232,8 @@ describe("incidentDayLabel", () => {
       withTimeZone(zone, () => {
         expect(incidentDayLabel("2026-10-24T23:59:59")).toBe("Sat 24 Oct");
         expect(incidentDayLabel("2026-10-25T00:00:00")).toBe("Sun 25 Oct");
+        expect(incidentDayLabel("2025-12-31T23:59:59", "d MMM y")).toBe("31 Dec 2025");
+        expect(incidentDayLabel("2026-01-01T00:00:00", "d MMM y")).toBe("1 Jan 2026");
       });
     },
   );

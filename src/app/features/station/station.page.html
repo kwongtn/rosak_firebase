@@ -233,7 +233,7 @@
     <span hlmBadge [variant]="incident.severityVariant">{{ incident.severityLabel }}</span>
     <span class="min-w-0 truncate">{{ incident.title }}</span>
     <span class="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">{{
-      incident.startDatetime | date: "d MMM y"
+      incident.dayLabel
     }}</span>
   </a>
 </ng-template>

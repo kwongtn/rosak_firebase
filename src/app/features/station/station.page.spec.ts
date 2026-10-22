@@ -297,6 +297,16 @@ describe("StationPage: incidents", () => {
     expect(textOf(rows.at(-1))).toContain("Incident 91");
   });
 
+  it("keeps an incident whose start cannot be read, linking to the calendar with no day", async () => {
+    create();
+    await answer(stationData({ history: [incident("7", "soon", { title: "Undated fault" })] }));
+
+    // No day to print or to open, so the row keeps its words and opens the calendar's landing day.
+    const link = allByTestId("station-history-incident")[0]?.querySelector("a");
+    expect(partsOf(link)).toEqual(["Minor", "Undated fault", ""]);
+    expect(link?.getAttribute("href")).toBe("/insiden");
+  });
+
   it("says so when no incident is in effect and none came before", async () => {
     create();
     await answer();
