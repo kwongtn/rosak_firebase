@@ -24,5 +24,5 @@ env:
   # paste the public key here. It is public (the browser receives it), so a plain value is fine.
   # Empty: the alert bell renders disabled with "Alerts are not set up yet".
   - variable: FCM_VAPID_KEY
-    value: ""
+    value: "BBQSiMklo3Hj4lUiB3Abc4dPeL6la7Jr7iWqK0hBlQw_7bl8S2bfq73k_3KgUO9pJmPI_qJHPCVCPhBWAFZEAGA"
     availability: [BUILD]
