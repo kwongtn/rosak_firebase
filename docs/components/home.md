@@ -150,9 +150,10 @@
     (`linesStatusHistory(lineIds)`) back the sparkline, row tally, heat grid and Pro ranking (same
     `LineStatusHourBucket` fields, pinned in the spec); `LINE_STATUS_WEEK_PROFILE_QUERY`
     (`lineStatusWeekProfile(lineId, weeks, dayStartHour)`: one slot per weekday and hour, with the hourly
-    bucket's `count` / `dominantStatus` / `statusCounts`) backs the expanded panel's typical week and is
-    the one history document whose `weeks` and `dayStartHour` are SENT, as literals (`WEEK_PROFILE_WEEKS`,
-    `SERVICE_DAY_START_HOUR`), because the grid is laid out from them; `SUBMIT_LINE_STATUS_REPORT_MUTATION`
+    bucket's `count` / `dominantStatus` / `statusCounts`) backs the expanded panel's typical week. Its
+    `weeks` and `dayStartHour` are SENT, as literals (`WEEK_PROFILE_WEEKS`, and `SERVICE_DAY_START_HOUR`,
+    the one constant the hourly chart sends too), because the grid is laid out from them;
+    `SUBMIT_LINE_STATUS_REPORT_MUTATION`
     (`submitLineStatusReport(input: LineStatusReportInput!)`), sent only through
     `submitLineStatusReport(graphql, auth, input, { quiet })` (`data/submit-line-status-report.ts`),
     the one path the sheet's Submit and the outbox flush share. It reads the ID token at send time,
@@ -1110,7 +1111,9 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
   none). `flex-col-reverse`; only the topmost segment rounds its top. Hover readout and each bar's
   `title`/`aria-label` carry the hour range, total and per-status breakdown. All 24 hours labelled on a
   `min-w-[24rem]` strip in an `overflow-x-auto` lane; the skeleton, empty and loaded states share the
-  exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card never jumps.
+  exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card never jumps. The `dayStartHour` it
+  sends is the shared `SERVICE_DAY_START_HOUR` (`data/status-history-display.util.ts`), the constant the
+  typical week below sends and lays its columns out from, so the two cannot drift apart.
 - **`LineWeekProfileComponent`** (`line-pulse/line-week-profile.component.ts`, `app-line-week-profile`,
   input `lineId`) — the "Typical week" under today's chart: for ONE line, the status riders most often
   reported in each hour of each weekday over the last `WEEK_PROFILE_WEEKS` (6) weeks, as a 7-row (Mon to
@@ -1123,11 +1126,21 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
   thresholds and strings come from `data/week-profile-display.util.ts` (`buildWeekProfile`, pure); the
   component only draws. It lives here and not in the line-status sheet: that sheet is the link-less report
   form, with no history and no day-start of its own.
-  - States, in order: `line-week-profile-skeleton` (no payload for THIS line yet, so a changed `lineId`
-    shows it again and never "no reports": `data()` is dropped on a request change while `isLoading()`
-    stays false); the shared retry banner on a failed read; `line-week-profile-empty` ("No reports in
-    the last 6 weeks", the backend's `[]`); `line-week-profile-sparse` (reports exist but no hour has the
-    minimum, so a sentence replaces 168 grey boxes); the strip.
+  - States, in order, all drawn inside ONE block (`line-week-profile-body`): `line-week-profile-skeleton`
+    (no payload for THIS line yet, so a changed `lineId` shows it again and never "no reports": `data()`
+    is dropped on a request change while `isLoading()` stays false); the shared retry banner on a failed
+    read; `line-week-profile-empty` ("No reports in the last 6 weeks", the backend's `[]`);
+    `line-week-profile-sparse` (reports exist but no hour has the minimum, so a sentence replaces 168
+    grey boxes); the strip.
+  - 🔴 **Every state shares one reserved height** (`WEEK_STATE_MIN_HEIGHT_CLASS`, `min-h-64`, 256px, on
+    `line-week-profile-body`), as the chart's states share `min-h-40`. When only the skeleton held the
+    height (`h-64`), an answer of `[]` collapsed the section by 236px at 390px and dragged the reports
+    list up under the rider's finger, a too-sparse answer by 196px and the retry banner by 142px
+    (measured in Chromium). Now the sentences and the banner are centred in the block (`flex-1` and
+    `my-auto`), and the table, 247px at 1280px and 266px at 390px where its legend wraps to three
+    lines, grows the block by 0 and 10px. A minimum, never a fixed height, so a taller body still shows
+    all of itself. The spec pins that every state sits inside the block, and `e2e/home.spec.ts` measures
+    the whole section and the reports list from the skeleton to each answer.
   - 🔴 **Below `MIN_REPORTS_PER_WEEK_SLOT` (3) a cell is the muted track and reads "Not enough reports
     (2 of 3)"** (`data-muted`), whatever its dominant status says: two riders one evening are not a
     pattern, and grey is the absence of reports, never a good hour. A cell is coloured by its dominant
@@ -1137,6 +1150,9 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
     start a 01:30 Tuesday report is Monday, hour 1, so it sits at the END of Monday's row, where the
     hourly chart files it. `buildWeekProfile` looks every cell up by (weekday, hour), so neither the order
     of the backend's slots nor a missing slot can move a column, and it drops a slot outside 0-6 / 0-23.
+    A cell's sentence (its `aria-label` and the readout, where the caption that explains service days is
+    out of sight) calls an hour before the day start "night": "Monday night 01:00–02:00" is a report
+    filed on Tuesday morning, and "Monday 01:00–02:00" would claim a Monday one.
   - The strip IS a `<table>` (`line-week-profile-table`): a caption, `th scope` weekday and hour headers
     with sr-only full names, and text plus a one-sentence `aria-label` in every `td`. Cells are not
     focusable (168 tab stops are worse than none), so the table is the keyboard and screen-reader route to
@@ -1237,8 +1253,8 @@ rows.
 - **`week-profile-display.util.ts`** (`buildWeekProfile(slots, dayStartHour?, minReports?)`) turns the
   backend's typical-week slots into the strip's grid: `days` (7, Monday first) of `cells` (24, from the day
   start), `columns` (hour label, range and the every-other-hour axis tick), `total` and a `state` of
-  `empty` | `sparse` | `ready`. A cell carries `muted`, `colorClass`, a stand-alone `title` and a header-free
-  `text`. It reuses `reportsPhrase`, `historyBreakdownPhrase` and `passengerBarClass`, so a Crowded hour
+  `empty` | `sparse` | `ready`. A cell carries `muted`, `colorClass`, a stand-alone `title` (an hour before
+  the day start reads "Monday night 01:00–02:00") and a header-free `text`. It reuses `reportsPhrase`, `historyBreakdownPhrase` and `passengerBarClass`, so a Crowded hour
   reads the same here as in today's chart and the heat grid. `notEnoughReportsPhrase` is the one wording
   of the threshold.
 - **`network-summary.util.ts`** (`summarizeNetwork`) is the one place the board's rule lives — **pure**,
@@ -1636,7 +1652,8 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
   `line-alert-prompt` (the dialog inside the sheet), `line-alert-allow`, `line-alert-dismiss`.
 - **Expanded panel:** `line-status-chart`, `line-status-reports`, `line-status-reports-scroll`,
   `report-station`, `report-time`, `station-strip`, `station-strip-link`, `station-strip-count`; typical
-  week `line-week-profile`, `line-week-profile-popover` (the PANEL), `line-week-profile-skeleton`,
+  week `line-week-profile`, `line-week-profile-popover` (the PANEL), `line-week-profile-body` (the one
+  reserved-height block every state sits in), `line-week-profile-skeleton`,
   `line-week-profile-empty`, `line-week-profile-sparse`, `line-week-profile-readout`,
   `line-week-profile-table`, `line-week-profile-legend`, `line-week-row` (`data-weekday`),
   `line-week-cell` (`data-hour`, `data-muted`).
@@ -1854,6 +1871,18 @@ accessible name and `focus-visible` ring from their primitives.
   "yesterday" or "same weekday last week" step on `app-line-status-chart` is `$daysAgo` on
   `LINE_STATUS_HISTORY_QUERY` plus a control, and reading it against the typical week above is the
   question riders ask ("is today worse than usual?").
+- **Reach the typical week's numbers from the keyboard.** The cells are `td`s with no focus stop on
+  purpose (168 tab stops are worse than none), so a sighted keyboard user gets no readout and only a screen
+  reader walking the table hears the counts (the chart's bars have the same limit). One roving-tabindex
+  grid (arrow keys move `hovered`, one tab stop for the table) would give both a route; a "show as list"
+  disclosure of the busiest hours would be the cheaper alternative. A cell is about 11px by 20px at 390px,
+  under the 24px WCAG 2.5.8 target, and the many spoken "Not enough reports (0 of 3)" cells (up to 168)
+  make a mostly empty table noisy; a roving grid could skip the empty ones.
+- **Check the hourly chart's readout for the typical week's old flaw.** `line-status-chart-readout` sits
+  ABOVE the bars and wraps to a second line for a mixed hour at 390px, which grows it by a line on hover
+  and moves the bars down. The typical week read the wrong row for that reason (its readout now sits below
+  the table). The chart's targets are columns, so a shift cannot make it read the wrong bar, but a pointer
+  at a bar's top edge may flicker. Not measured.
 - **A per-link deep link.** Feed root rows carry `id="feed-link-<id>"`, but only the duplicate
   indicator's click uses it (`e2e/home.spec.ts` asserts only the `href`); nothing reads a
   `#feed-link-<id>` fragment on arrival. Add a fragment handler that scrolls to and highlights one
