@@ -413,6 +413,11 @@ walks the static imports from `main.ts` and fails when it reaches `features/`, `
   (`842.24 kB`), the line alerts 1.27 kB (`843.51 kB` with the station page) and the typical week
   0.16 kB, all of it `styles`. The typical week bullet above quotes 224.00 kB for the transfer size
   from that package's own build, and the gate printed 223.93 kB.
+- At `a1134965`, the tip of the audit quality pass (265 test files and 4035 tests passed), the table
+  reads `Initial total | 840.33 kB | 224.58 kB`, which is 3.34 kB below the 843.67 kB at `28bc9b2`.
+  Limiting Tailwind's source detection to `src/` (F404) took 5.28 kB off `styles` (the total read
+  838.39 kB right after it), and the later packages added 1.94 kB, the last 0.45 kB of it from the auth
+  interceptor package (839.88 kB before it).
 
 **Next candidates**, smallest risk first:
 
