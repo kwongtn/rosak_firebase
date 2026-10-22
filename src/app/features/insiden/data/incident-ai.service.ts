@@ -1,8 +1,6 @@
 import { Injectable, inject } from "@angular/core";
 
-import { getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-
+import { AuthService } from "../../../core/auth/auth.service";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { environment } from "../../../../environments/environment";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -42,10 +40,6 @@ interface ExtractIncidentResult {
 
 const FUNCTIONS_REGION = "asia-southeast1";
 
-function firebaseApp() {
-  return getApps().length ? getApps()[0] : initializeApp(environment.firebase);
-}
-
 /** Base URL for the Express functions API, derived from the Firebase projectId so
  * it stays correct if the project ever changes — no hardcoded ID. */
 function functionsBaseUrl(): string {
@@ -62,92 +56,78 @@ function apiUrl(path: "/extract" | "/summarize"): string {
   return `${functionsBaseUrl()}/${envSegment()}/v1${path}`;
 }
 
-/** Resolves the current user's Firebase ID token, or null if not authenticated. */
-async function currentIdToken(): Promise<string | null> {
-  const user = getAuth(firebaseApp()).currentUser;
-  if (!user) {
-    return null;
-  }
-  return user.getIdToken();
-}
-
 /**
  * Client wrapper for the incident AI functions (extraction and summarization live
  * in functions/src/index.ts). Both are HTTPS endpoints that require the caller's
- * Firebase ID token, attached as a Bearer header. SSR-safe: the auth/module is
- * only ever touched on the browser, and callers get back `null` on the server.
+ * Firebase ID token (from `AuthService`), attached as a Bearer header. SSR-safe: callers
+ * get back `null` on the server.
  */
 @Injectable({ providedIn: "root" })
 export class IncidentAiService {
   private readonly isBrowser = injectIsBrowser();
+  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
   /** Summarizes a list of chronology entries into title/brief/details. Returns
    * null on the server or when the user is unauthenticated. */
-  async summarize(chronologies: SummarizeChronology[]): Promise<SummarizeResult | null> {
-    if (!this.isBrowser) {
-      return null;
-    }
-    const token = await currentIdToken();
-    if (!token) {
-      this.toast.error("Please log in", "You need an account to use AI summarization.");
-      return null;
-    }
-    try {
-      const res = await fetch(apiUrl("/summarize"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ chronologies }),
-      });
-      if (!res.ok) {
-        throw new Error(`Summarization failed (${res.status})`);
-      }
-      return (await res.json()) as SummarizeResult;
-    } catch (err) {
-      const message =
-        typeof err === "object" && err !== null && "message" in err
-          ? String(err.message)
-          : "Unknown error";
-      this.toast.error("Summarization failed", message);
-      throw err;
-    }
+  summarize(chronologies: SummarizeChronology[]): Promise<SummarizeResult | null> {
+    return this.post<SummarizeResult>(
+      "/summarize",
+      { chronologies },
+      "summarization",
+      "Summarization failed",
+    );
   }
 
   /** Extracts incident data from a source URL. Callers pass their own requestId so
    * late responses can be matched (and ignored) after a row has been deleted. The
    * result echoes it back; throws (after toasting) on failure. Returns null on the
    * server or when the user is unauthenticated. */
-  async extract(url: string, requestId: string): Promise<ExtractIncidentResult | null> {
+  extract(url: string, requestId: string): Promise<ExtractIncidentResult | null> {
+    return this.post<ExtractIncidentResult>(
+      "/extract",
+      { url, requestId },
+      "extraction",
+      "Data extraction failed",
+    );
+  }
+
+  /** POSTs `body` to one AI endpoint with the rider's ID token. Null on the server or with no
+   * signed-in user (after a toast); a network error or a non-2xx answer is toasted as `failure`
+   * and rethrown. */
+  private async post<T>(
+    path: "/extract" | "/summarize",
+    body: unknown,
+    feature: string,
+    failure: string,
+  ): Promise<T | null> {
     if (!this.isBrowser) {
       return null;
     }
-    const token = await currentIdToken();
+    const token = await this.auth.idToken();
     if (!token) {
-      this.toast.error("Please log in", "You need an account to use AI extraction.");
+      this.toast.error("Please log in", `You need an account to use AI ${feature}.`);
       return null;
     }
     try {
-      const res = await fetch(apiUrl("/extract"), {
+      const res = await fetch(apiUrl(path), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ url, requestId }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
-        throw new Error(`Data extraction failed (${res.status})`);
+        throw new Error(`${failure} (${res.status})`);
       }
-      return (await res.json()) as ExtractIncidentResult;
+      return (await res.json()) as T;
     } catch (err) {
       const message =
         typeof err === "object" && err !== null && "message" in err
           ? String(err.message)
           : "Unknown error";
-      this.toast.error("Data extraction failed", message);
+      this.toast.error(failure, message);
       throw err;
     }
   }
