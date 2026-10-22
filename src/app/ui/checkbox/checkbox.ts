@@ -1,5 +1,5 @@
 import { BrnCheckbox } from "@spartan-ng/brain/checkbox";
-import { Component, computed, effect, forwardRef, input, output } from "@angular/core";
+import { Component, computed, forwardRef, input, linkedSignal, output } from "@angular/core";
 import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from "@angular/forms";
 import { hlm } from "../utils/hlm";
 
@@ -21,14 +21,14 @@ import { hlm } from "../utils/hlm";
   host: { class: "contents" },
   template: `
     <brn-checkbox
-      [checked]="checked"
-      [disabled]="disabled"
+      [checked]="checked()"
+      [disabled]="disabled()"
       [aria-label]="ariaLabel()"
       [class]="_computedClass()"
       (checkedChange)="_handleChange($event)"
       (touched)="onTouched?.()"
     >
-      @if (checked) {
+      @if (checked()) {
         <svg
           viewBox="0 0 24 24"
           class="size-3.5"
@@ -64,31 +64,24 @@ export class HlmCheckbox implements ControlValueAccessor {
     ),
   );
 
-  checked = false;
-  disabled = false;
+  // linkedSignal: follows the input, and writeValue/setDisabledState/a click `.set()` over it, so
+  // a programmatic write from the forms API marks the zoneless view dirty (a plain field did not).
+  readonly checked = linkedSignal(() => this.checkedInput());
+  readonly disabled = linkedSignal(() => this.disabledInput());
 
   private onChange?: (value: boolean) => void;
   protected onTouched?: () => void;
 
-  constructor() {
-    effect(() => {
-      this.checked = this.checkedInput();
-    });
-    effect(() => {
-      this.disabled = this.disabledInput();
-    });
-  }
-
   protected _handleChange(value: boolean): void {
-    if (this.disabled) return;
-    this.checked = value;
+    if (this.disabled()) return;
+    this.checked.set(value);
     this.onChange?.(value);
     this.onTouched?.();
     this.checkedChange.emit(value);
   }
 
   writeValue(value: boolean): void {
-    this.checked = value;
+    this.checked.set(value);
   }
 
   registerOnChange(fn: (value: boolean) => void): void {
@@ -100,6 +93,6 @@ export class HlmCheckbox implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this.disabled = isDisabled;
+    this.disabled.set(isDisabled);
   }
 }
