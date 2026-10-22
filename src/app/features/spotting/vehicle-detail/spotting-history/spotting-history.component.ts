@@ -43,8 +43,8 @@ interface EventGroup {
  * a level, which axe reports as heading-order).
  *
  * `isMine` is the backend's answer to "is this the asking user's entry", and it knows the asker
- * only from the `firebase-auth-key` header. So a signed-in viewer's requests carry their token (and
- * skip the SSR transfer cache, see `GraphQLClient.request`), and when the viewer signs in or out
+ * only from the `firebase-auth-key` header. So a signed-in viewer's requests carry their token (the
+ * auth interceptor adds it and skips the SSR transfer cache), and when the viewer signs in or out
  * the first page is asked for again and swapped in where it stands. The server never has a
  * session, and a hard load asks before Firebase has restored one, so those first pages are
  * anonymous (every `isMine` false) and a restored session upgrades them a moment later.
@@ -217,12 +217,10 @@ export class SpottingHistoryComponent {
     const offset = restart ? 0 : untracked(() => this._events().length);
     this._isLoading.set(true);
     try {
-      // Only a signed-in viewer has a token to wait for; an anonymous request goes out at once.
-      const idToken = this.auth.isLoggedIn() ? await this.auth.idToken() : null;
+      // The auth interceptor signs a signed-in viewer's request; an anonymous one goes out at once.
       const data = await this.graphql.request<VehicleEventsQueryData, VehicleEventsQueryVars>(
         VEHICLE_EVENTS_QUERY,
         { vehicleId, limit: PAGE_SIZE, offset },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       if (request !== this.latestRequest) {
         return;

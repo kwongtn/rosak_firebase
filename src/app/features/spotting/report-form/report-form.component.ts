@@ -398,7 +398,6 @@ export class ReportFormComponent {
         const m = this.model();
         const location = this.capturedLocation();
 
-        const idToken = await this.auth.idToken();
         const data = await this.graphql.request<AddSpottingEventData, AddSpottingEventVars>(
           ADD_SPOTTING_EVENT_MUTATION,
           {
@@ -430,7 +429,6 @@ export class ReportFormComponent {
               isAnonymous: m.isAnonymous,
             },
           },
-          idToken ? { "firebase-auth-key": idToken } : {},
         );
 
         for (const photo of this.photos()) {

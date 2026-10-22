@@ -48,19 +48,17 @@ describe("SpottingHistoryComponent", () => {
   let fixture: ComponentFixture<SpottingHistoryComponent>;
   let request: ReturnType<typeof vi.fn>;
   let isLoggedIn: WritableSignal<boolean>;
-  let idToken: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     request = vi.fn();
     isLoggedIn = signal(false);
-    idToken = vi.fn().mockResolvedValue("tok-1");
     await TestBed.configureTestingModule({
       imports: [SpottingHistoryComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
         { provide: GraphQLClient, useValue: { request } },
-        { provide: AuthService, useValue: { isLoggedIn, idToken } },
+        { provide: AuthService, useValue: { isLoggedIn } },
       ],
     }).compileComponents();
   });
@@ -121,11 +119,11 @@ describe("SpottingHistoryComponent", () => {
     await render([makeEvent("a")]);
 
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(
-      VEHICLE_EVENTS_QUERY,
-      { vehicleId: "103", limit: 20, offset: 0 },
-      {},
-    );
+    expect(request).toHaveBeenCalledWith(VEHICLE_EVENTS_QUERY, {
+      vehicleId: "103",
+      limit: 20,
+      offset: 0,
+    });
     // The template reads these four; dropping one from the document would blank its element
     // without any other test noticing.
     for (const field of ["runNumber", "mediaCount", "isMine", "wheelStatus"]) {
@@ -159,11 +157,14 @@ describe("SpottingHistoryComponent", () => {
   });
 
   describe("who is asking", () => {
-    it("sends no token for an anonymous viewer, and does not fetch one", async () => {
+    it("sends only the query and its variables: the auth interceptor adds a signed-in viewer's token", async () => {
+      isLoggedIn.set(true);
       await render([makeEvent("a")]);
 
-      expect(idToken).not.toHaveBeenCalled();
-      expect(request.mock.calls[0][2]).toEqual({});
+      expect(request.mock.calls[0]).toEqual([
+        VEHICLE_EVENTS_QUERY,
+        { vehicleId: "103", limit: 20, offset: 0 },
+      ]);
     });
 
     it("sends an anonymous viewer's request at once, not a turn later", () => {
@@ -171,33 +172,20 @@ describe("SpottingHistoryComponent", () => {
 
       create();
 
-      // Nothing was awaited since the component was created: only a signed-in viewer waits (for a
-      // token), so the server and a first paint ask exactly when they did before the viewer mattered.
+      // Nothing was awaited since the component was created: only the interceptor waits for a
+      // signed-in viewer's token, so the server and a first paint ask as soon as they can.
       expect(request).toHaveBeenCalledTimes(1);
     });
 
-    it("sends a signed-in viewer's token as firebase-auth-key, which is how the backend finds their own entries", async () => {
+    it("tags a signed-in viewer's own entries, which the backend finds from the token", async () => {
       isLoggedIn.set(true);
       await render([makeEvent("a", { isMine: true })]);
 
       expect(request).toHaveBeenCalledTimes(1);
-      expect(request).toHaveBeenCalledWith(
-        VEHICLE_EVENTS_QUERY,
-        { vehicleId: "103", limit: 20, offset: 0 },
-        { "firebase-auth-key": "tok-1" },
-      );
       expect(yoursTags()).toHaveLength(1);
     });
 
-    it("sends nothing when a signed-in viewer has no token to give (the e2e auth override)", async () => {
-      isLoggedIn.set(true);
-      idToken.mockResolvedValue(null);
-      await render([makeEvent("a")]);
-
-      expect(request.mock.calls[0][2]).toEqual({});
-    });
-
-    it("asks for the first page again, with the token, when the viewer signs in, and swaps the rows in where they stand", async () => {
+    it("asks for the first page again when the viewer signs in, and swaps the rows in where they stand", async () => {
       await render([makeEvent("a"), makeEvent("b")]);
       expect(yoursTags()).toHaveLength(0);
 
@@ -206,11 +194,11 @@ describe("SpottingHistoryComponent", () => {
       await setSignedIn(true);
 
       expect(request).toHaveBeenCalledTimes(2);
-      expect(request).toHaveBeenLastCalledWith(
-        VEHICLE_EVENTS_QUERY,
-        { vehicleId: "103", limit: 20, offset: 0 },
-        { "firebase-auth-key": "tok-1" },
-      );
+      expect(request).toHaveBeenLastCalledWith(VEHICLE_EVENTS_QUERY, {
+        vehicleId: "103",
+        limit: 20,
+        offset: 0,
+      });
       // The anonymous rows stay up while the answer is on its way: no skeleton, no empty state.
       expect(rows()).toHaveLength(2);
       expect(root().querySelector("[hlmskeleton]")).toBeNull();
@@ -225,7 +213,7 @@ describe("SpottingHistoryComponent", () => {
       ).toEqual([true, false]);
     });
 
-    it("asks again without the token when the viewer signs out, and the tags go", async () => {
+    it("asks again when the viewer signs out, and the tags go", async () => {
       isLoggedIn.set(true);
       await render([makeEvent("a", { isMine: true })]);
       expect(yoursTags()).toHaveLength(1);
@@ -234,11 +222,11 @@ describe("SpottingHistoryComponent", () => {
       await setSignedIn(false);
 
       expect(request).toHaveBeenCalledTimes(2);
-      expect(request).toHaveBeenLastCalledWith(
-        VEHICLE_EVENTS_QUERY,
-        { vehicleId: "103", limit: 20, offset: 0 },
-        {},
-      );
+      expect(request).toHaveBeenLastCalledWith(VEHICLE_EVENTS_QUERY, {
+        vehicleId: "103",
+        limit: 20,
+        offset: 0,
+      });
       expect(yoursTags()).toHaveLength(0);
     });
 
@@ -303,11 +291,11 @@ describe("SpottingHistoryComponent", () => {
       fixture.componentRef.setInput("vehicleId", "104");
       fixture.detectChanges();
       await settle();
-      expect(request).toHaveBeenLastCalledWith(
-        VEHICLE_EVENTS_QUERY,
-        { vehicleId: "104", limit: 20, offset: 0 },
-        {},
-      );
+      expect(request).toHaveBeenLastCalledWith(VEHICLE_EVENTS_QUERY, {
+        vehicleId: "104",
+        limit: 20,
+        offset: 0,
+      });
 
       first.answer(page("a"));
       await settle();
@@ -349,7 +337,7 @@ describe("SpottingHistoryComponent", () => {
   });
 
   describe("Load more", () => {
-    it("asks for the next 20 from where the list ends, with the viewer's token, and appends them", async () => {
+    it("asks for the next 20 from where the list ends, and appends them", async () => {
       isLoggedIn.set(true);
       request
         .mockResolvedValueOnce({ events: page("a") })
@@ -360,11 +348,11 @@ describe("SpottingHistoryComponent", () => {
 
       await clickLoadMore();
 
-      expect(request).toHaveBeenLastCalledWith(
-        VEHICLE_EVENTS_QUERY,
-        { vehicleId: "103", limit: 20, offset: 20 },
-        { "firebase-auth-key": "tok-1" },
-      );
+      expect(request).toHaveBeenLastCalledWith(VEHICLE_EVENTS_QUERY, {
+        vehicleId: "103",
+        limit: 20,
+        offset: 20,
+      });
       expect(rows()).toHaveLength(25);
       // A short page was the last one.
       expect(loadMoreButton()).toBeNull();
@@ -410,11 +398,11 @@ describe("SpottingHistoryComponent", () => {
       request.mockResolvedValueOnce({ events: page("d", 3) });
       await clickLoadMore();
 
-      expect(request).toHaveBeenLastCalledWith(
-        VEHICLE_EVENTS_QUERY,
-        { vehicleId: "103", limit: 20, offset: 20 },
-        { "firebase-auth-key": "tok-1" },
-      );
+      expect(request).toHaveBeenLastCalledWith(VEHICLE_EVENTS_QUERY, {
+        vehicleId: "103",
+        limit: 20,
+        offset: 20,
+      });
       expect(rows()).toHaveLength(23);
     });
 
