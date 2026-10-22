@@ -120,6 +120,8 @@ export class PushService {
   /** Bumped by every stored change, so a restore that answers after one cannot undo it. */
   private _changes = 0;
   private _listening = false;
+  /** Firebase Messaging, loaded once for the token and the foreground listener alike. */
+  private _messaging: ReturnType<PushService["loadMessaging"]> | null = null;
 
   /** The lines this browser has alerts for. */
   readonly lines = computed(() => this._state()?.lines ?? []);
@@ -242,7 +244,10 @@ export class PushService {
    * After a sign-in while this browser has alerts (`AuthService`): toasts the alerts that arrive while
    * a tab is visible, and restores the lines from the backend with ONE read. The backend's answer
    * wins, and `null` (a token it does not know, or one another account registered) clears them.
-   * Offline, or when the read fails, the stored lines stand.
+   * Offline, or when the read fails, the stored lines stand. With notifications allowed it then asks
+   * the SDK for the current token: FCM hands out a new one now and then (the SDK's weekly refresh, a
+   * changed push subscription), and a backend that only knows the old one stops sending without a
+   * word. The SDK keeps the token, so that is usually a local read.
    */
   async resume(): Promise<void> {
     const state = this._state();
@@ -269,6 +274,9 @@ export class PushService {
       }
       const lines = data.pushSubscription?.lines ?? [];
       this.save(lines.length > 0 ? { token: state.token, lines } : null);
+      if (lines.length > 0 && this._permission() === "granted") {
+        await this.refreshToken({ token: state.token, lines });
+      }
     } catch (err) {
       // GraphQLClient already reported a GraphQLRequestError.
       if (!(err instanceof GraphQLRequestError)) {
@@ -321,11 +329,13 @@ export class PushService {
     }
   }
 
-  private async register(token: string, lines: PushLine[]): Promise<void> {
+  /** `quiet` for a background call: GraphQLClient then leaves a refusal untoasted. */
+  private async register(token: string, lines: PushLine[], quiet = false): Promise<void> {
     const data = await this.graphql.request<RegisterPushTokenData, RegisterPushTokenVars>(
       REGISTER_PUSH_TOKEN_MUTATION,
       { token, lineIds: lines.map((line) => line.id) },
       await this.authHeaders(),
+      { quiet },
     );
     if (!data.registerPushToken.ok) {
       throw new Error("registerPushToken answered ok: false");
@@ -356,8 +366,17 @@ export class PushService {
     return idToken ? { "firebase-auth-key": idToken } : {};
   }
 
-  /** Firebase Messaging, imported on first use; `null` where the SDK says web push cannot work. */
-  private async messaging() {
+  /** Firebase Messaging, imported once on first use; `null` where the SDK says web push cannot work. */
+  private messaging(): ReturnType<PushService["loadMessaging"]> {
+    // A load that failed (a chunk that did not arrive) is tried again next time.
+    this._messaging ??= this.loadMessaging().catch((err: unknown) => {
+      this._messaging = null;
+      throw err;
+    });
+    return this._messaging;
+  }
+
+  private async loadMessaging() {
     const sdk = await import("firebase/messaging");
     if (!(await sdk.isSupported())) {
       this._support.set("unsupported");
@@ -377,6 +396,20 @@ export class PushService {
     // default scope, /firebase-cloud-messaging-push-scope, apart from ngsw-worker.js at /, and waits
     // for it to activate. Asked on every subscribe, so the SDK's weekly token refresh happens.
     return loaded.sdk.getToken(loaded.messaging, { vapidKey: this.vapidKey });
+  }
+
+  /** Registers a token FCM has replaced, with the same lines (see `resume`). */
+  private async refreshToken(stored: StoredPushState): Promise<void> {
+    const changes = this._changes;
+    const loaded = await this.messaging();
+    if (!loaded) {
+      return;
+    }
+    const token = await loaded.sdk.getToken(loaded.messaging, { vapidKey: this.vapidKey });
+    // A change the rider made meanwhile already registered the current token.
+    if (token !== stored.token && changes === this._changes) {
+      await this.register(token, stored.lines, true);
+    }
   }
 
   /** A visible tab gets no system notification, so its alerts become toasts. Started once a page. */

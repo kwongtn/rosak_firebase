@@ -219,7 +219,7 @@ describe("PushService", () => {
       expect(sdk.getMessaging).toHaveBeenCalledExactlyOnceWith(FIREBASE_APP);
       expect(sdk.getToken).toHaveBeenCalledExactlyOnceWith(MESSAGING, { vapidKey: "vapid-key" });
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token", lineIds: ["1"] }, HEADERS],
+        [{ token: "fcm-token", lineIds: ["1"] }, HEADERS, { quiet: false }],
       ]);
       expect(push.lines()).toEqual([KJL]);
       expect(push.isSubscribed("1")).toBe(true);
@@ -240,7 +240,7 @@ describe("PushService", () => {
 
       expect(notification.requestPermission).not.toHaveBeenCalled();
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token", lineIds: ["1", "2"] }, HEADERS],
+        [{ token: "fcm-token", lineIds: ["1", "2"] }, HEADERS, { quiet: false }],
       ]);
       expect(readPushState()?.lines).toEqual([KJL, AGL]);
     });
@@ -254,7 +254,7 @@ describe("PushService", () => {
       await push.subscribe(AGL);
 
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "new-token", lineIds: ["1", "2"] }, HEADERS],
+        [{ token: "new-token", lineIds: ["1", "2"] }, HEADERS, { quiet: false }],
       ]);
       expect(readPushState()?.token).toBe("new-token");
     });
@@ -383,7 +383,7 @@ describe("PushService", () => {
       await push.unsubscribe("1");
 
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token", lineIds: ["2"] }, HEADERS],
+        [{ token: "fcm-token", lineIds: ["2"] }, HEADERS, { quiet: false }],
       ]);
       expect(readPushState()).toEqual({ token: "fcm-token", lines: [AGL] });
       expect(toast.success).toHaveBeenCalledWith("Alerts off for KJL");
@@ -460,6 +460,49 @@ describe("PushService", () => {
       ]);
       expect(push.lines()).toEqual([AGL]);
       expect(readPushState()).toEqual({ token: "fcm-token", lines: [AGL] });
+    });
+
+    it("registers a token FCM has replaced, with the same lines and without a toast", async () => {
+      answers[PUSH_SUBSCRIPTION_QUERY] = async () => ({
+        pushSubscription: { token: "fcm-token", lines: [KJL, AGL] },
+      });
+      sdk.getToken.mockResolvedValue("new-token");
+      const push = create();
+
+      await push.resume();
+
+      expect(sdk.getToken).toHaveBeenCalledWith(MESSAGING, { vapidKey: "vapid-key" });
+      expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
+        [{ token: "new-token", lineIds: ["1", "2"] }, HEADERS, { quiet: true }],
+      ]);
+      expect(readPushState()).toEqual({ token: "new-token", lines: [KJL, AGL] });
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("sends nothing while FCM still hands out the stored token", async () => {
+      answers[PUSH_SUBSCRIPTION_QUERY] = async () => ({
+        pushSubscription: { token: "fcm-token", lines: [KJL] },
+      });
+      const push = create();
+
+      await push.resume();
+
+      expect(sdk.getToken).toHaveBeenCalledTimes(1);
+      expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([]);
+      expect(readPushState()).toEqual({ token: "fcm-token", lines: [KJL] });
+    });
+
+    it("asks FCM for no token before notifications are allowed", async () => {
+      notification.permission = "default";
+      answers[PUSH_SUBSCRIPTION_QUERY] = async () => ({
+        pushSubscription: { token: "fcm-token", lines: [KJL] },
+      });
+      const push = create();
+
+      await push.resume();
+
+      expect(sdk.getToken).not.toHaveBeenCalled();
+      expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([]);
     });
 
     it("clears the alerts when the backend does not know the token for this account", async () => {
