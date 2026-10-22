@@ -842,7 +842,7 @@ Four groups over ONE partition. Order: `line-skeleton` rows while the first read
 nothing shows (a later reload never blanks the board), the dashed `line-board-empty` ("No lines yet."),
 the `board-controls` row, the groups. Every line's wrapper keeps `line-board-row` (stable order/partition
 hook); it is ONE `ng-template` (`#boardRow`, card for Needs attention, row elsewhere) stamped through
-`ngTemplateOutlet` by all five `@for`s, so the anchor, the ring and the testid cannot drift between groups. Group `h2`s carry the breathing dot (Motion).
+`ngTemplateOutlet` by all five `@for`s, so the anchor, the ring and the testid cannot drift between groups. A type-only `BoardRowTemplate` guard directive (`ng-template[boardRow]`) keeps `line` typed as `LinePulse` inside it. Group `h2`s carry the breathing dot (Motion).
 
 - `Needs attention · N` (`line-board-attention` / `-heading`) — full `app-line-pulse-card`s, in-service
   only, **hidden entirely when empty** (nobody should scroll past a "· 0" heading).
