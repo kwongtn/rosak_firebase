@@ -240,8 +240,9 @@
     request fails or retries; its `isFetching` (raw in-flight, unlike pristine-only `isLoading`) backs
     `HomeStore.isRefreshing`. `GraphQLClient.request(query, variables?, extraHeaders?)` — mutations and
     the authenticated overlay read.
-  - `AuthService` (`isLoggedIn`, `login()`, `whenReady`). The auth interceptor (`core/http/`) signs
-    every `GraphQLClient.request`; the feed's `graphqlResource()` reads stay anonymous.
+  - `AuthService` (`isLoggedIn`, `login()`, `whenReady`, `idToken()` as the overlay's gate). The auth
+    interceptor (`core/http/`) signs every `GraphQLClient.request` except the feed's Load More pages
+    (`anonymous: true`); the feed's `graphqlResource()` reads stay anonymous.
   - `PollingSource` (`core/polling/polling-source.ts`) — the shared beat; pauses while `document.hidden`
     (deadline kept) and on return refreshes at once if the deadline passed, else re-arms for the
     remainder. Timers are browser-only: SSR never arms one, a hidden tab costs nothing. Offline

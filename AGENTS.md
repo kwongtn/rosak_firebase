@@ -70,6 +70,11 @@ third-party GTFS-realtime feeds for the tracker.
   free); mutations call `inject(GraphQLClient).request(query, variables, headers)` from an event
   handler — never `httpResource`, whose re-fetch-on-signal-change lifecycle is wrong for one-shot
   writes.
+- **Auth header**: `core/http/auth.interceptor.ts` signs every backend request (`backendUrl` /
+  `backendGraphqlUrl`) with a signed-in viewer's `firebase-auth-key`. Never attach it by hand.
+  `graphqlResource()` reads are anonymous unless `{ authenticated: true }`; an imperative public read
+  that continues one passes `{ anonymous: true }` to `GraphQLClient.request`; a public cacheable
+  `HttpClient`/`httpResource` read sets `context: new HttpContext().set(ANONYMOUS, true)`.
 - **`inject()`, not constructor parameters.**
 - **Built-in control flow** `@if`/`@for`/`@switch`; never import `CommonModule`, `NgIf`, or `NgFor`.
 - **UI layer**: compose from `src/app/ui/*` (HlmBadge, HlmButton, HlmSkeleton…) and Spartan Brain

@@ -83,11 +83,13 @@ other components still use raw palette utilities.
   `GraphQLClient.request` writes. `toastSubmitFailure(toast)` is what a form's submit `catch` calls
   for any error the client did not already toast, before rethrowing to Sentry. A `graphqlResource`
   read is anonymous (`ANONYMOUS`) unless it passes `{ authenticated: true }`, which waits for
-  `AuthService.whenReady` before its first request and is then signed by the auth interceptor
-  (`core/http/` below). `GraphQLClient.request` is always signed for a signed-in viewer; call sites
-  pass no token. `request()`'s fourth argument takes `timeout` (ms, handed to
-  `HttpClient`, which then rejects with a status-0 `HttpErrorResponse`) and `quiet` (no "GraphQL
-  Error" toast from the client, for a background caller that toasts itself; Sentry still gets it).
+  `AuthService.whenReady` before its first request (once; it does not refetch on sign-in or
+  sign-out) and is then signed by the auth interceptor (`core/http/` below). `GraphQLClient.request`
+  is signed for a signed-in viewer; call sites pass no token. `request()`'s fourth argument takes
+  `timeout` (ms, handed to `HttpClient`, which then rejects with a status-0 `HttpErrorResponse`),
+  `quiet` (no "GraphQL Error" toast from the client, for a background caller that toasts itself;
+  Sentry still gets it) and `anonymous` (sent with `ANONYMOUS`, for a continuation page of an
+  anonymous `graphqlResource` list: home feed, gallery, links tab, incident card links).
 - `core/http/auth.interceptor.ts` (eager, registered in `app.config.ts`): `authInterceptor` adds
   the signed-in viewer's Firebase ID token as `firebase-auth-key` to every request whose URL starts
   with `backendGraphqlUrl` or `backendUrl`, and sets `transferCache: false` on it (the SSR transfer
