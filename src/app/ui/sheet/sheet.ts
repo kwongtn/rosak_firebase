@@ -10,7 +10,7 @@ import {
   model,
   signal,
 } from "@angular/core";
-import { injectIsBrowser } from "../../core/composables/is-browser";
+import { ScrollLock } from "./scroll-lock";
 
 /**
  * A slide-in panel, replacing ng-zorro's nz-drawer. Deliberately built directly on CDK's
@@ -34,6 +34,9 @@ import { injectIsBrowser } from "../../core/composables/is-browser";
  * and the panel is `inert`. A closed sheet with the trap still on left a keyboard trap right after
  * its opener (Tab landed on an anchor, which sent focus into the hidden panel), and its content stayed
  * in the accessibility tree.
+ *
+ * Layering: the scrim is `z-[48]` and the panel `z-50`. The sticky `AppNav` is `z-[45]` (see
+ * app-nav.component.ts), so the scrim has to outrank it to dim the nav, and stay under the panel.
  */
 @Component({
   selector: "hlm-sheet",
@@ -45,7 +48,7 @@ import { injectIsBrowser } from "../../core/composables/is-browser";
   template: `
     @if (_everOpened()) {
       <div
-        class="bg-black/50 fixed inset-0 z-40 transition-opacity"
+        class="bg-black/50 fixed inset-0 z-[48] transition-opacity"
         [class.opacity-0]="!open()"
         [class.opacity-100]="open()"
         (click)="close()"
@@ -68,7 +71,8 @@ export class HlmSheet implements OnDestroy {
   // Opt-in so hosts with dense multi-column forms can widen without changing every consumer.
   readonly wide = input(false);
 
-  private readonly isBrowser = injectIsBrowser();
+  private readonly scrollLock = inject(ScrollLock);
+  private holdsScrollLock = false;
   protected readonly _everOpened = signal(false);
 
   protected readonly _panelClass = computed(() => {
@@ -95,20 +99,14 @@ export class HlmSheet implements OnDestroy {
   constructor() {
     // The backdrop is a fixed overlay, but that alone doesn't stop wheel/touch scroll
     // gestures over it from reaching and scrolling the page underneath — lock it explicitly
-    // for as long as the sheet is open.
+    // for as long as the sheet is open. The lock is shared (ScrollLock), so one sheet closing
+    // never unlocks the page while another is still open.
     effect(() => {
       const isOpen = this.open();
       if (isOpen) {
         this._everOpened.set(true);
       }
-      if (!this.isBrowser) {
-        return;
-      }
-      // `overflow-x: clip` on html/body (styles.css) keeps a classic 15px viewport scrollbar
-      // alive even with body overflow hidden — lock the root element too, or the page scrollbar
-      // stays visible behind the sheet.
-      document.body.style.overflow = isOpen ? "hidden" : "";
-      document.documentElement.style.overflow = isOpen ? "hidden" : "";
+      this.setScrollLocked(isOpen);
     });
   }
 
@@ -123,10 +121,14 @@ export class HlmSheet implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.isBrowser) {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    }
+    this.setScrollLocked(false);
+  }
+
+  private setScrollLocked(locked: boolean): void {
+    if (locked === this.holdsScrollLock) return;
+    this.holdsScrollLock = locked;
+    if (locked) this.scrollLock.acquire();
+    else this.scrollLock.release();
   }
 }
 
