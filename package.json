@@ -74,7 +74,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@types/express": "^5.0.1",
     "@types/geojson": "^7946.0.16",
-    "@types/node": "^20.17.19",
+    "@types/node": "^24",
     "@types/papaparse": "^5.5.2",
     "husky": "^9.0.0",
     "jsdom": "^28.0.0",
