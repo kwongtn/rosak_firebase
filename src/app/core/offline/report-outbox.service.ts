@@ -181,7 +181,15 @@ export class ReportOutboxService {
    */
   async flush(send: ReportOutboxSender): Promise<number> {
     // The empty check keeps a flush on every board beat down to one storage read.
-    if (!this.isBrowser || !this.online.isOnline() || this._flushing || this.load().length === 0) {
+    if (!this.isBrowser || this.load().length === 0) {
+      return 0;
+    }
+    // Firebase restores a session asynchronously: without this, an app-start flush would read
+    // "logged out" and keep everything, or send without a token and lose it to the permission error.
+    // Awaited before the busy flag and the Web Lock, so a session that is slow to restore holds up
+    // this call only, never this tab's next flush or another tab's.
+    await this.auth.whenReady;
+    if (!this.online.isOnline() || this._flushing) {
       return 0;
     }
     this._flushing = true;
@@ -197,9 +205,6 @@ export class ReportOutboxService {
   }
 
   private async sendQueued(send: ReportOutboxSender): Promise<number> {
-    // Firebase restores a session asynchronously: without this, an app-start flush would read
-    // "logged out" and keep everything, or send without a token and lose it to the permission error.
-    await this.auth.whenReady;
     const now = Date.now();
     const uid = this.currentUid();
     // Re-read inside the lock: another tab may have sent or replaced entries meanwhile.

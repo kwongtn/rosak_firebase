@@ -318,6 +318,23 @@ describe("ReportOutboxService", () => {
     expect(sent).toBe(1);
   });
 
+  it("waits for the session outside the Web Lock, so a restore that never ends blocks no other tab", async () => {
+    const request = vi.fn((_name: string, callback: () => Promise<number>) => callback());
+    Object.defineProperty(navigator, "locks", { configurable: true, value: { request } });
+    TestBed.overrideProvider(AuthService, {
+      useValue: { isLoggedIn, user, whenReady: new Promise<void>(() => undefined) },
+    });
+    store([queued("line-1", 1)]);
+    const send = vi.fn<ReportOutboxSender>(async () => true);
+
+    void service().flush(send);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(request).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(stored()).toHaveLength(1);
+  });
+
   /* ---- the stored shape ------------------------------------------------------------------- */
 
   it.each([
