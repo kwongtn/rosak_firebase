@@ -9,6 +9,7 @@
 
 - **Inputs / Signals:** none. `NotFoundPage` derives everything from injected services (`Router`, `Location`), not route params.
 - **Outputs:** none. Terminal page.
+- **Embedded use:** the station page (`/station/:id`, see [station](station.md)) renders `<app-not-found>` inside itself for an unknown station id, so the 404 status and the joke apply there too. Anything this page starts to read from its own route config would not be there in that case.
 - **Message selection:** `attemptedPath` is `Router.url`. `message` (`NotFoundMessage`) hashes that path into an index over `NOT_FOUND_MESSAGES` (`not-found-messages.ts`, 40 entries). The pick is deterministic per URL, not `Math.random()`, so SSR and hydration render the same joke.
 - **Pet caption:** the same hash picks the line above the photo. `petCaption(kind)` delegates to `scrollLineFor(attemptedPath, kind)`, which indexes `NOT_FOUND_SCROLL_LINES` (8 lines) and substitutes the `{kind}` token. It is a function, not a `computed()`, because the animal is known only after the browser fetch resolves.
 - **Pet fetch (browser only):** in the constructor, guarded by `injectIsBrowser()`. It picks cat or dog at random (50/50) and calls `api.thecatapi.com/v1/images/search` or `dog.ceo/api/breeds/image/random`. Both are keyless. It sets `petPic` on success and `petPicFailed` on error. Not called during SSR.

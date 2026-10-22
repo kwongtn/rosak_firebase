@@ -1075,6 +1075,11 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
     page of ten): "where, among the reports you can see", never a total. A complete figure needs an
     additive backend aggregate — a client total over a truncated page would be a lie the reader cannot
     detect.
+  - Each strip chip is a link to its station's page (`<a hlmBadge variant="neutral">`,
+    `station-strip-link`, `routerLink` `['/station', id]`; see [station](station.md)).
+    `StationStripEntry.stationId` is the one station id behind the chip's name, or `null` when two
+    station rows share the name: that chip gets a `null` `routerLink`, so no `href`, and stays a plain
+    label. The row's own station names (`report-station`) are text, not links.
 
 ### Service-day widgets (sparkline · row tally · heat grid)
 
@@ -1529,7 +1534,7 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
   `line-row-reports-popover`, `line-row-pin`, `line-row-pin-popover`, `line-row-details`,
   `line-row-report`, `line-row-toggle`, `line-row-expanded`, `line-row-pro`, `line-row-report-window`.
 - **Expanded panel:** `line-status-chart`, `line-status-reports`, `line-status-reports-scroll`,
-  `report-station`, `report-time`, `station-strip`, `station-strip-count`.
+  `report-station`, `report-time`, `station-strip`, `station-strip-link`, `station-strip-count`.
 - **Sheets:** `line-status-submit-error`, `cancel-line-status-report`, `login-button`,
   `line-status-draft-restored`, `line-status-draft-discard`, `line-status-outbox-note`,
   `line-status-outbox-popover`; chooser
