@@ -1,4 +1,5 @@
-import { Directive } from "@angular/core";
+import { Directive, computed, input } from "@angular/core";
+import { hlm } from "../utils/hlm";
 
 @Directive({
   selector: "div[hlmTableContainer]",
@@ -15,11 +16,19 @@ export class HlmTHead {}
 @Directive({ selector: "tbody[hlmTBody]", host: { class: "[&_tr:last-child]:border-0" } })
 export class HlmTBody {}
 
+// Merges a consumer `class` through `hlm()`: clickable rows ask for `hover:bg-muted`, which lost
+// to the host's `hover:bg-muted/50` as a plain class.
 @Directive({
   selector: "tr[hlmTr]",
-  host: { class: "hover:bg-muted/50 border-b transition-colors" },
+  host: { "[class]": "_computedClass()" },
 })
-export class HlmTr {}
+export class HlmTr {
+  readonly userClass = input<string>("", { alias: "class" });
+
+  protected readonly _computedClass = computed(() =>
+    hlm("hover:bg-muted/50 border-b transition-colors", this.userClass()),
+  );
+}
 
 @Directive({
   selector: "th[hlmTh]",
