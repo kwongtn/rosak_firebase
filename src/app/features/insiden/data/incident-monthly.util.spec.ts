@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   HISTORY_MONTHS,
-  bucketIncidentsByMonth,
+  bucketSeverityCountsByMonth,
   busiestMonth,
-  historyYearSpan,
+  historyDateBounds,
   monthKeysEndingAt,
   monthLongLabel,
   monthShortLabel,
@@ -12,15 +12,11 @@ import {
   toMonthlyBars,
   yAxisTicks,
 } from "./incident-monthly.util";
-import type { MonthlyHistoryIncident } from "./insiden-history.queries";
+import type { SeverityCountRow } from "./insiden-history.queries";
 
-function incident(
-  id: string,
-  startDatetime: string,
-  severity: MonthlyHistoryIncident["severity"],
-  status: string | null | undefined = "LIVE",
-): MonthlyHistoryIncident {
-  return { id, startDatetime, severity, status };
+/** One row of `calendarIncidentsBySeverityCount(groupBy: MONTH)`: `date` is the first of the month. */
+function countRow(severity: string, date: string, count: number): SeverityCountRow {
+  return { severity, date, count };
 }
 
 describe("incident-monthly.util: monthKeysEndingAt", () => {
@@ -86,36 +82,61 @@ describe("incident-monthly.util: monthKeysEndingAt", () => {
   });
 });
 
-describe("incident-monthly.util: historyYearSpan", () => {
-  it("is the year of the first and last month", () => {
-    expect(historyYearSpan(monthKeysEndingAt("2026-03"))).toEqual({
-      startYear: 2025,
-      endYear: 2026,
+describe("incident-monthly.util: historyDateBounds", () => {
+  it("runs from 1 January of the first month's year to 31 December of the last month's", () => {
+    // 2025-04 .. 2026-03 touches two calendar years, so the read spans both of them whole.
+    expect(historyDateBounds(monthKeysEndingAt("2026-03"))).toEqual({
+      startDate: "2025-01-01",
+      endDate: "2026-12-31",
     });
   });
 
-  it("collapses to one year when the window ends in December", () => {
-    expect(historyYearSpan(monthKeysEndingAt("2026-12"))).toEqual({
-      startYear: 2026,
-      endYear: 2026,
+  it("is one calendar year when the window ends in December", () => {
+    expect(historyDateBounds(monthKeysEndingAt("2026-12"))).toEqual({
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+  });
+
+  it("starts in the previous year when the window ends in January", () => {
+    // 2025-02 .. 2026-01.
+    expect(historyDateBounds(monthKeysEndingAt("2026-01"))).toEqual({
+      startDate: "2025-01-01",
+      endDate: "2026-12-31",
+    });
+  });
+
+  it("asks the same question for every month of one pair of years, which is what lets paging re-bucket", () => {
+    // January to November 2026 all begin in 2025 and end in 2026; December 2026 is a different pair.
+    const pair = historyDateBounds(monthKeysEndingAt("2026-01"));
+    for (let month = 2; month <= 11; month++) {
+      const endMonth = `2026-${String(month).padStart(2, "0")}`;
+      expect(historyDateBounds(monthKeysEndingAt(endMonth))).toEqual(pair);
+    }
+    expect(historyDateBounds(monthKeysEndingAt("2026-12"))).not.toEqual(pair);
+  });
+
+  it("keeps a year below 1000 four digits wide, as the backend's Date needs", () => {
+    expect(historyDateBounds(monthKeysEndingAt("0999-12"))).toEqual({
+      startDate: "0999-01-01",
+      endDate: "0999-12-31",
     });
   });
 
   it("is null for an empty window", () => {
-    expect(historyYearSpan([])).toBeNull();
+    expect(historyDateBounds([])).toBeNull();
   });
 });
 
-describe("incident-monthly.util: bucketIncidentsByMonth", () => {
+describe("incident-monthly.util: bucketSeverityCountsByMonth", () => {
   const months = monthKeysEndingAt("2026-03", 3); // 2026-01, 2026-02, 2026-03
 
-  it("counts by the month an incident STARTED in, split by severity", () => {
-    const { rows } = bucketIncidentsByMonth(
+  it("puts each row's count on its month, split by severity", () => {
+    const { rows, otherSeverity } = bucketSeverityCountsByMonth(
       [
-        incident("1", "2026-01-05T08:00:00", "MAJOR"),
-        incident("2", "2026-01-20T08:00:00", "MINOR"),
-        incident("3", "2026-01-21T08:00:00", "MINOR"),
-        incident("4", "2026-03-02T08:00:00", "MAJOR"),
+        countRow("MAJOR", "2026-01-01", 1),
+        countRow("MINOR", "2026-01-01", 2),
+        countRow("MAJOR", "2026-03-01", 4),
       ],
       months,
     );
@@ -123,43 +144,74 @@ describe("incident-monthly.util: bucketIncidentsByMonth", () => {
     expect(rows).toEqual([
       { monthKey: "2026-01", major: 1, minor: 2 },
       { monthKey: "2026-02", major: 0, minor: 0 },
-      { monthKey: "2026-03", major: 1, minor: 0 },
+      { monthKey: "2026-03", major: 4, minor: 0 },
     ]);
+    expect(otherSeverity).toBe(0);
   });
 
-  it("counts an incident once however long it lasted: only its start month", () => {
-    // The long-running incident is in the dataset from 2023 to 2024; it must appear in ONE bucket.
-    const { rows } = bucketIncidentsByMonth(
-      [incident("long", "2026-01-27T08:00:00", "MAJOR")],
+  it("zero-fills a month that has no row, because the aggregate leaves empty months out", () => {
+    const { rows } = bucketSeverityCountsByMonth(
+      [countRow("MINOR", "2026-01-01", 3), countRow("MAJOR", "2026-03-01", 1)],
       months,
     );
 
-    expect(rows.map((row) => row.major)).toEqual([1, 0, 0]);
+    expect(rows[1]).toEqual({ monthKey: "2026-02", major: 0, minor: 0 });
   });
 
-  it("counts only LIVE incidents (in either casing)", () => {
-    const { rows } = bucketIncidentsByMonth(
+  it("gives every month of the axis a row even when the server answers with none", () => {
+    const { rows, otherSeverity } = bucketSeverityCountsByMonth([], months);
+
+    expect(rows.map((row) => row.monthKey)).toEqual(months);
+    expect(rows.every((row) => row.major === 0 && row.minor === 0)).toBe(true);
+    expect(otherSeverity).toBe(0);
+  });
+
+  it("takes each month's own count, never an accumulation of the months before it", () => {
+    // The shape of the old backend defect: a running total would read 4, 5, 7.
+    const { rows } = bucketSeverityCountsByMonth(
       [
-        incident("a", "2026-02-01T00:00:00", "MAJOR", "LIVE"),
-        incident("b", "2026-02-02T00:00:00", "MAJOR", "live"),
-        incident("c", "2026-02-03T00:00:00", "MAJOR", "DRAFT"),
-        incident("d", "2026-02-04T00:00:00", "MAJOR", "PENDING_APPROVAL"),
-        incident("e", "2026-02-05T00:00:00", "MAJOR", "REJECTED"),
-        incident("f", "2026-02-06T00:00:00", "MAJOR", null),
-        // A default parameter swallows an explicit `undefined`, so the missing status is spread in.
-        { ...incident("g", "2026-02-07T00:00:00", "MAJOR"), status: undefined },
+        countRow("MAJOR", "2026-01-01", 4),
+        countRow("MAJOR", "2026-02-01", 1),
+        countRow("MAJOR", "2026-03-01", 2),
       ],
       months,
     );
 
-    expect(rows[1]).toEqual({ monthKey: "2026-02", major: 2, minor: 0 });
+    expect(rows.map((row) => row.major)).toEqual([4, 1, 2]);
   });
 
-  it("ignores incidents that started outside the window, such as year-read carry-overs", () => {
-    const { rows, otherSeverity } = bucketIncidentsByMonth(
+  it("fills a window across two calendar years, each January on its own count", () => {
+    const sixMonths = monthKeysEndingAt("2026-03", 6); // 2025-10 .. 2026-03
+    const { rows } = bucketSeverityCountsByMonth(
       [
-        incident("early", "2025-12-31T23:59:59", "MAJOR"),
-        incident("late", "2026-04-01T00:00:00", "MINOR"),
+        countRow("MAJOR", "2025-10-01", 3),
+        countRow("MINOR", "2025-12-01", 2),
+        countRow("MAJOR", "2026-01-01", 1),
+        countRow("MINOR", "2026-01-01", 1),
+        countRow("MAJOR", "2026-03-01", 5),
+      ],
+      sixMonths,
+    );
+
+    expect(rows).toEqual([
+      { monthKey: "2025-10", major: 3, minor: 0 },
+      { monthKey: "2025-11", major: 0, minor: 0 },
+      { monthKey: "2025-12", major: 0, minor: 2 },
+      { monthKey: "2026-01", major: 1, minor: 1 },
+      { monthKey: "2026-02", major: 0, minor: 0 },
+      { monthKey: "2026-03", major: 5, minor: 0 },
+    ]);
+  });
+
+  it("ignores a row outside the window, even the same month of another year", () => {
+    // The read spans whole calendar years, so rows from the months either side of the window come
+    // back. February 2025 shares a month NUMBER with February 2026 and must not land in its bar.
+    const { rows, otherSeverity } = bucketSeverityCountsByMonth(
+      [
+        countRow("MAJOR", "2025-02-01", 9),
+        countRow("MAJOR", "2025-12-01", 9),
+        countRow("MINOR", "2026-04-01", 9),
+        countRow("OTHERS", "2025-01-01", 9),
       ],
       months,
     );
@@ -168,39 +220,31 @@ describe("incident-monthly.util: bucketIncidentsByMonth", () => {
     expect(otherSeverity).toBe(0);
   });
 
-  it("collapses an incident returned by both year reads into one", () => {
-    // An incident overlapping two calendar years is in both `startYearIncidents` and
-    // `endYearIncidents`; counting both would double it.
-    const dup = incident("dup", "2026-01-10T08:00:00", "MINOR");
+  it("sums rows that repeat a month and severity instead of keeping the last", () => {
+    const { rows } = bucketSeverityCountsByMonth(
+      [countRow("MAJOR", "2026-02-01", 2), countRow("MAJOR", "2026-02-01", 3)],
+      months,
+    );
 
-    const { rows } = bucketIncidentsByMonth([dup, { ...dup }], months);
-
-    expect(rows[0]?.minor).toBe(1);
+    expect(rows[1]?.major).toBe(5);
   });
 
-  it("reports approved incidents of other severity separately rather than dropping them silently", () => {
-    const { rows, otherSeverity } = bucketIncidentsByMonth(
+  it("reports OTHERS and any unrecognised severity as other severity, inside the window only", () => {
+    const { rows, otherSeverity } = bucketSeverityCountsByMonth(
       [
-        incident("o1", "2026-01-05T08:00:00", "OTHERS"),
-        incident("o2", "2026-02-05T08:00:00", "OTHERS"),
-        incident("o3", "2026-02-06T08:00:00", "OTHERS", "DRAFT"),
+        countRow("OTHERS", "2026-01-01", 2),
+        countRow("SEVERE", "2026-02-01", 1),
+        countRow("OTHERS", "2025-06-01", 4),
       ],
       months,
     );
 
-    expect(otherSeverity).toBe(2);
-    expect(rows.every((row) => row.major === 0 && row.minor === 0)).toBe(true);
-  });
-
-  it("zero-fills every month so the axis never skips one", () => {
-    const { rows } = bucketIncidentsByMonth([], months);
-
-    expect(rows.map((row) => row.monthKey)).toEqual(months);
+    expect(otherSeverity).toBe(3);
     expect(rows.every((row) => row.major === 0 && row.minor === 0)).toBe(true);
   });
 
   it("is empty for an empty window", () => {
-    expect(bucketIncidentsByMonth([incident("1", "2026-01-01T00:00:00", "MAJOR")], [])).toEqual({
+    expect(bucketSeverityCountsByMonth([countRow("MAJOR", "2026-01-01", 1)], [])).toEqual({
       rows: [],
       otherSeverity: 0,
     });

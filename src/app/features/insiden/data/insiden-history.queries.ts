@@ -1,79 +1,59 @@
-import type { CalendarIncidentSeverity } from "./insiden.queries";
-
 /**
- * The "Last 12 months" read: every incident that STARTED in the window, with only the four fields
- * the chart needs, so the payload stays a few bytes per incident (the page's own document drags
- * chronologies, links and photos along).
+ * The "Last 12 months" read: the backend's own per-month count,
+ * `calendarIncidentsBySeverityCount(startDate, endDate, groupBy: MONTH)`.
  *
- * 🔴 **Why this is not `calendarIncidentsBySeverityCount(groupBy: MONTH)`.** The audit (F213) points
- * at that aggregate, and it is the obvious source, but its MONTH grouping is not a per-month count:
- * `get_calendar_incidents_by_severity_count` (rosak_backend `incident/schema/resolvers.py`) filters
- * each bucket with `start year <= Y AND start month <= M` — the month NUMBER compared on its own,
- * across years — plus an end-month condition, so the result is a running total that resets every
- * January and, over a multi-year window, counts earlier years' incidents again in every later year's
- * rows. Against the local data (280 incidents), window 2024-01..2024-12 returns MAJOR 1, 8, 12, 18,
- * 26, 30 for months whose true counts are 1, 7, 4, 6, 8, 4, and a 2023-01..2026-12 window reports 10
- * MAJOR for January 2024 when one started. The resolver also has no status filter (drafts and pending reports are counted) and
- * no docstring, and its tests cover one month of open incidents only. A bar chart of those numbers
- * would be a plausible-looking lie, so this reads the incidents and counts them here. When the
- * backend resolver is fixed to a true per-month count, swapping this document for the aggregate is
- * a change to this file and `bucketIncidentsByMonth` and nothing else.
+ * It answers with one row per (calendar month, severity) that has an incident: `date` is the first
+ * of the month and `count` is the number of `LIVE` incidents of that severity whose start falls in
+ * that month. Each incident is counted once, in its start month, however long it lasted, and drafts,
+ * pending and rejected reports never count (`get_calendar_incidents_by_severity_count`,
+ * rosak_backend `incident/schema/resolvers.py`; `docs/components/incident.md` -> Aggregation). So
+ * the page neither downloads the incidents nor filters on `status`, and the payload is at most a
+ * few dozen rows however many incidents there are. A month with no `LIVE` incident has NO row: the
+ * bucketing (`bucketSeverityCountsByMonth`) zero-fills the axis.
  *
- * **Two aliased reads, not one.** `CalendarIncidentFilter.date` has a `range` (capped at 60 days)
- * and a `year` form that is not capped: `year: { exact: Y }` returns every incident overlapping
- * calendar year Y, which always includes each one that STARTED in Y. A 12-month window ends in year
- * Y and begins in Y or Y - 1, so these two aliases cover it; an incident spanning both comes back
- * twice and is de-duplicated by `id`. A window that ends in December begins in January of the SAME
- * year, and one read covers it: `$sameYear` makes the server skip the second alias instead of
- * answering the identical question twice (the payload grows with every ongoing incident, which each
- * year read returns whatever its age). Status is not filterable server-side, so it is read and
- * filtered on the client.
+ * 🔴 **Needs rosak_backend `9832a3d`.** Before it, the MONTH grouping compared the month NUMBER on
+ * its own across years (`start year <= Y AND start month <= M`), so every row was a running total
+ * that reset each January, drafts included, and this document would draw plausible, wrong bars. The
+ * backend deploys first.
+ *
+ * **The window.** The variables come from the page's route-derived month only, never the clock
+ * (the hydration rule): `monthKeysEndingAt(selectedMonth)` gives the 12 months shown and
+ * `historyDateBounds` turns them into 1 January of the first month's year and 31 December of the
+ * last month's year: the calendar years those two months fall in, read whole. Both bounds sit on
+ * month edges, which matters because the bounds are exact dates and a bound inside a month would
+ * give that month a partial count (only the incidents that started inside the window). The request
+ * depends on the pair of years alone, so paging to another month inside the pair asks the same
+ * question and re-buckets what is loaded; the months of the pair outside the 12 shown come back
+ * too (up to 24 months of rows) and are ignored by the bucketing.
  */
 export const INSIDEN_MONTHLY_HISTORY_QUERY = /* GraphQL */ `
-  query InsidenMonthlyHistory(
-    $startYear: CalendarIncidentFilter
-    $endYear: CalendarIncidentFilter
-    $sameYear: Boolean!
-  ) {
-    startYearIncidents: calendarIncidents(filters: $startYear) {
-      id
-      startDatetime
+  query InsidenMonthlyHistory($startDate: Date!, $endDate: Date!) {
+    calendarIncidentsBySeverityCount(startDate: $startDate, endDate: $endDate, groupBy: MONTH) {
       severity
-      status
-    }
-    endYearIncidents: calendarIncidents(filters: $endYear) @skip(if: $sameYear) {
-      id
-      startDatetime
-      severity
-      status
+      date
+      count
     }
   }
 `;
 
-/** The slice of an incident the monthly chart reads. */
-export interface MonthlyHistoryIncident {
-  id: string;
-  /** Naive Kuala Lumpur wall time, like every incident datetime (backend `USE_TZ = False`). */
-  startDatetime: string;
-  severity: CalendarIncidentSeverity;
-  /** The approval state; only `LIVE` is counted. */
-  status?: string | null;
+/** One row of the aggregate: the `LIVE` incidents of one severity that started in one month. */
+export interface SeverityCountRow {
+  /**
+   * A plain `String` in the schema, not an enum: `MAJOR`, `MINOR` or `OTHERS` today. Anything else
+   * is counted as other severity rather than dropped.
+   */
+  severity: string;
+  /** The first day of the month, `YYYY-MM-01` (the schema's `Date`: no time, no zone). */
+  date: string;
+  count: number;
 }
 
 export interface InsidenMonthlyHistoryData {
-  startYearIncidents: MonthlyHistoryIncident[];
-  /** Absent when the window sits inside one calendar year (`$sameYear`). */
-  endYearIncidents?: MonthlyHistoryIncident[];
+  calendarIncidentsBySeverityCount: SeverityCountRow[];
 }
 
-/** `CalendarIncidentFilter` for "overlaps calendar year `exact`". */
-export interface YearFilter {
-  date: { year: { exact: number } };
-}
-
+/** The window of the read: inclusive `YYYY-MM-DD` dates, both required by the resolver. */
 export interface InsidenMonthlyHistoryVars {
-  startYear: YearFilter;
-  endYear: YearFilter;
-  /** True when both years are the same one, so the second read is skipped server-side. */
-  sameYear: boolean;
+  startDate: string;
+  endDate: string;
 }

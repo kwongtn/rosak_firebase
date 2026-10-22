@@ -802,14 +802,14 @@ describe("InsidenPage incident filters", () => {
       historyToggle().click();
       fixture.detectChanges();
 
-      // 5 October 2026 -> November 2025 .. October 2026 -> calendar years 2025 and 2026.
+      // 5 October 2026 -> November 2025 .. October 2026 -> calendar years 2025 and 2026, read whole
+      // (month edges on both bounds, so no month is counted partially).
       const request = httpMock.expectOne(isHistoryRead);
       expect(request.request.body.variables).toEqual({
-        startYear: { date: { year: { exact: 2025 } } },
-        endYear: { date: { year: { exact: 2026 } } },
-        sameYear: false,
+        startDate: "2025-01-01",
+        endDate: "2026-12-31",
       });
-      request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      request.flush({ data: { calendarIncidentsBySeverityCount: [] } });
       await settle();
     });
 
@@ -817,9 +817,7 @@ describe("InsidenPage incident filters", () => {
       await boot();
       historyToggle().click();
       fixture.detectChanges();
-      httpMock
-        .expectOne(isHistoryRead)
-        .flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      httpMock.expectOne(isHistoryRead).flush({ data: { calendarIncidentsBySeverityCount: [] } });
       await settle();
 
       fixture.componentRef.setInput("date", "2027-01-10");
@@ -831,11 +829,10 @@ describe("InsidenPage incident filters", () => {
       const history = httpMock.expectOne(isHistoryRead);
 
       expect(history.request.body.variables).toEqual({
-        startYear: { date: { year: { exact: 2026 } } },
-        endYear: { date: { year: { exact: 2027 } } },
-        sameYear: false,
+        startDate: "2026-01-01",
+        endDate: "2027-12-31",
       });
-      history.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      history.flush({ data: { calendarIncidentsBySeverityCount: [] } });
       await settle();
     });
 
@@ -843,9 +840,7 @@ describe("InsidenPage incident filters", () => {
       await boot();
       historyToggle().click();
       fixture.detectChanges();
-      httpMock
-        .expectOne(isHistoryRead)
-        .flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      httpMock.expectOne(isHistoryRead).flush({ data: { calendarIncidentsBySeverityCount: [] } });
       await settle();
 
       // October 2026 -> March 2026: the incidents window changes (a new month), the history's does not.

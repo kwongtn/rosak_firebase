@@ -8,39 +8,35 @@ import { metricTooltip } from "../../../core/methodology/methodology-render.util
 import {
   INSIDEN_MONTHLY_HISTORY_QUERY,
   type InsidenMonthlyHistoryData,
-  type MonthlyHistoryIncident,
+  type SeverityCountRow,
 } from "../data/insiden-history.queries";
 import { IncidentHistoryComponent } from "./incident-history.component";
 
-function incident(
-  id: string,
-  startDatetime: string,
-  severity: MonthlyHistoryIncident["severity"],
-  status = "LIVE",
-): MonthlyHistoryIncident {
-  return { id, startDatetime, severity, status };
+/** One row of the aggregate; `date` is the first of the month, as the backend sends it. */
+function row(severity: string, date: string, count = 1): SeverityCountRow {
+  return { severity, date, count };
+}
+
+/** What `calendarIncidentsBySeverityCount(groupBy: MONTH)` answers with these rows. */
+function counts(...rows: SeverityCountRow[]): InsidenMonthlyHistoryData {
+  return { calendarIncidentsBySeverityCount: rows };
 }
 
 /**
- * A window ending 2026-03 (so 2025-04 .. 2026-03): the two year reads overlap on incident 4, one
- * incident is outside the window, one is a draft, and one is of "other" severity.
+ * A window ending 2026-03 (so 2025-04 .. 2026-03), answered as the whole-calendar-year read answers
+ * it (2025-01-01 .. 2026-12-31): the months of 2025 and 2026 outside the window come back too and
+ * must not draw. February 2026 has no row at all, and January 2026 holds only an "other" severity.
  */
 function marchWindowData(): InsidenMonthlyHistoryData {
-  const december = incident("4", "2025-12-30T08:00:00", "MINOR");
-  return {
-    startYearIncidents: [
-      incident("1", "2025-04-10T08:00:00", "MAJOR"),
-      incident("2", "2025-04-11T08:00:00", "MINOR"),
-      incident("3", "2025-03-31T23:00:00", "MAJOR"), // before the window
-      december,
-    ],
-    endYearIncidents: [
-      { ...december },
-      incident("5", "2026-03-02T08:00:00", "MAJOR"),
-      incident("6", "2026-01-02T08:00:00", "OTHERS"),
-      incident("7", "2026-02-02T08:00:00", "MAJOR", "DRAFT"),
-    ],
-  };
+  return counts(
+    row("MAJOR", "2025-03-01", 7), // before the window
+    row("MAJOR", "2025-04-01"),
+    row("MINOR", "2025-04-01"),
+    row("MINOR", "2025-12-01"),
+    row("OTHERS", "2026-01-01"),
+    row("MAJOR", "2026-03-01"),
+    row("MINOR", "2026-08-01", 4), // after the window
+  );
 }
 
 describe("IncidentHistoryComponent", () => {
@@ -145,42 +141,49 @@ describe("IncidentHistoryComponent", () => {
   });
 
   describe("request variables (hydration rule)", () => {
-    it("derives the two year filters from endMonth", () => {
+    it("derives the date bounds from endMonth: 1 January of the first year to 31 December of the last", () => {
+      const fixture = mount("2026-03");
+      open(fixture);
+
+      // 2025-04 .. 2026-03 touches 2025 and 2026, so the read spans both whole years and both bounds
+      // sit on month edges (a bound inside a month would give that month a partial count).
+      const request = httpMock.expectOne(isHistoryRead);
+      expect(request.request.body.variables).toEqual({
+        startDate: "2025-01-01",
+        endDate: "2026-12-31",
+      });
+      request.flush({ data: counts() });
+    });
+
+    it("reads the backend's per-month aggregate, not the incidents", () => {
       const fixture = mount("2026-03");
       open(fixture);
 
       const request = httpMock.expectOne(isHistoryRead);
-      expect(request.request.body.variables).toEqual({
-        startYear: { date: { year: { exact: 2025 } } },
-        endYear: { date: { year: { exact: 2026 } } },
-        sameYear: false,
-      });
-      request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      expect(request.request.body.query).toContain("calendarIncidentsBySeverityCount");
+      expect(request.request.body.query).toContain("groupBy: MONTH");
+      expect(request.request.body.query).not.toContain("calendarIncidents(");
+      request.flush({ data: counts() });
     });
 
-    it("asks for one year once, not twice, when the window ends in December", () => {
+    it("asks for one calendar year when the window ends in December", () => {
       const fixture = mount("2026-12");
       open(fixture);
 
-      // January..December 2026 sits inside 2026: the second aliased read would repeat the first, so
-      // `$sameYear` has the server skip it (the payload grows with every ongoing incident).
+      // January..December 2026 sits inside 2026.
       const request = httpMock.expectOne(isHistoryRead);
       expect(request.request.body.variables).toEqual({
-        startYear: { date: { year: { exact: 2026 } } },
-        endYear: { date: { year: { exact: 2026 } } },
-        sameYear: true,
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
       });
-      expect(request.request.body.query).toContain("@skip(if: $sameYear)");
-      request.flush({ data: { startYearIncidents: [] } });
+      request.flush({ data: counts() });
     });
 
-    it("draws a December window from the one read the server answers", async () => {
-      const fixture = await openAndAnswer("2026-12", {
-        startYearIncidents: [
-          incident("a", "2026-01-10T08:00:00", "MAJOR"),
-          incident("b", "2026-12-02T08:00:00", "MINOR"),
-        ],
-      });
+    it("draws a December window from its one year of rows", async () => {
+      const fixture = await openAndAnswer(
+        "2026-12",
+        counts(row("MAJOR", "2026-01-01"), row("MINOR", "2026-12-01")),
+      );
 
       const byMonth = new Map(bars(fixture).map((bar) => [bar.dataset["month"], bar]));
       expect(bars(fixture)).toHaveLength(12);
@@ -201,7 +204,7 @@ describe("IncidentHistoryComponent", () => {
       open(first);
       const early = httpMock.expectOne(isHistoryRead);
       const earlyVariables = early.request.body.variables;
-      early.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      early.flush({ data: counts() });
 
       vi.setSystemTime(new Date("2019-01-01T00:00:00Z"));
       const second = mount("2026-03");
@@ -209,7 +212,7 @@ describe("IncidentHistoryComponent", () => {
       const late = httpMock.expectOne(isHistoryRead);
 
       expect(late.request.body.variables).toEqual(earlyVariables);
-      late.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      late.flush({ data: counts() });
     });
 
     it("reads again, with new variables, when the month changes", async () => {
@@ -218,19 +221,19 @@ describe("IncidentHistoryComponent", () => {
       fixture.componentRef.setInput("endMonth", "2025-02");
       fixture.detectChanges();
 
+      // 2024-03 .. 2025-02.
       const request = httpMock.expectOne(isHistoryRead);
       expect(request.request.body.variables).toEqual({
-        startYear: { date: { year: { exact: 2024 } } },
-        endYear: { date: { year: { exact: 2025 } } },
-        sameYear: false,
+        startDate: "2024-01-01",
+        endDate: "2025-12-31",
       });
-      request.flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      request.flush({ data: counts() });
     });
 
     it("does not read again for another month in the same pair of calendar years: it re-buckets", async () => {
-      // 2026-03 and 2026-06 both span 2025 and 2026, so the two year reads already hold every month
-      // of both windows. `httpResource` re-reads on any NEW request object, so this pins that the
-      // request function only re-runs when the pair of years changes.
+      // 2026-03 and 2026-06 both span 2025 and 2026, so the rows of the two years already hold every
+      // month of both windows. `httpResource` re-reads on any NEW request object, so this pins that
+      // the request function only re-runs when the pair of years changes.
       const fixture = await openAndAnswer("2026-03");
       expect(bars(fixture)[0]?.dataset["month"]).toBe("2025-04");
 
@@ -267,11 +270,10 @@ describe("IncidentHistoryComponent", () => {
       expect(months[11]).toBe("2026-03");
     });
 
-    it("counts approved incidents by start month, once, and ignores drafts and strays", async () => {
+    it("draws each month from its own rows, and leaves a month with no row or only other severity empty", async () => {
       const fixture = await openAndAnswer();
       const byMonth = new Map(bars(fixture).map((bar) => [bar.dataset["month"], bar]));
 
-      // April 2025: 1 major + 1 minor. December 2025: the incident returned by BOTH reads, once.
       expect(byMonth.get("2025-04")?.getAttribute("title")).toBe(
         "April 2025 · 2 incidents · Major 1, Minor 1",
       );
@@ -281,9 +283,45 @@ describe("IncidentHistoryComponent", () => {
       expect(byMonth.get("2026-03")?.getAttribute("title")).toBe(
         "March 2026 · 1 incident · Major 1, Minor 0",
       );
-      // The draft in February and the other-severity incident in January do not draw.
+      // February has no row at all, and January's only row is of other severity: neither draws.
       expect(byMonth.get("2026-02")?.getAttribute("title")).toBe("February 2026 · No incidents");
       expect(byMonth.get("2026-01")?.getAttribute("title")).toBe("January 2026 · No incidents");
+    });
+
+    it("ignores the rows the two-year read returns for months outside the window", async () => {
+      const fixture = await openAndAnswer();
+      const months = bars(fixture).map((bar) => bar.dataset["month"]);
+
+      // March 2025 (7 major) and August 2026 (4 minor) came back with the calendar years. They draw
+      // no bar, and they do not lift the busiest month the others are scaled to: April 2025, with
+      // two incidents, is still the full-height bar, half major and half minor.
+      expect(months).not.toContain("2025-03");
+      expect(months).not.toContain("2026-08");
+      const april = bars(fixture).find((bar) => bar.dataset["month"] === "2025-04");
+      expect(segmentHeights(april, "major")).toBeCloseTo(50);
+      expect(segmentHeights(april, "minor")).toBeCloseTo(50);
+    });
+
+    it("gives each January only its own row across the two calendar years", async () => {
+      // A running total that reset each January once reported 10 major for the January of a later
+      // year in which one incident started. Every bar reads its own row and nothing is carried over.
+      const fixture = await openAndAnswer(
+        "2026-03",
+        counts(
+          row("MAJOR", "2025-01-01", 9), // the earlier January, outside the window
+          row("MAJOR", "2025-10-01", 4),
+          row("MAJOR", "2026-01-01"),
+        ),
+      );
+      const byMonth = new Map(bars(fixture).map((bar) => [bar.dataset["month"], bar]));
+
+      expect(byMonth.get("2026-01")?.getAttribute("title")).toBe(
+        "January 2026 · 1 incident · Major 1, Minor 0",
+      );
+      expect(byMonth.get("2025-10")?.getAttribute("title")).toBe(
+        "October 2025 · 4 incidents · Major 4, Minor 0",
+      );
+      expect(byMonth.get("2025-11")?.getAttribute("title")).toBe("November 2025 · No incidents");
     });
 
     it("stacks major under minor and sizes each segment by its share of the bar", async () => {
@@ -334,14 +372,10 @@ describe("IncidentHistoryComponent", () => {
 
     it("leaves the middle of the y axis unlabelled when the busiest count is odd", async () => {
       // 3 incidents in one month: the middle gridline sits at 1.5, which no label may claim.
-      const fixture = await openAndAnswer("2026-03", {
-        startYearIncidents: [],
-        endYearIncidents: [
-          incident("a", "2026-03-01T08:00:00", "MAJOR"),
-          incident("b", "2026-03-02T08:00:00", "MINOR"),
-          incident("c", "2026-03-03T08:00:00", "MINOR"),
-        ],
-      });
+      const fixture = await openAndAnswer(
+        "2026-03",
+        counts(row("MAJOR", "2026-03-01"), row("MINOR", "2026-03-01", 2)),
+      );
       const labels = [...byTestId(fixture, "incident-history-axis").querySelectorAll("span")].map(
         (label) => label.textContent?.trim(),
       );
@@ -352,13 +386,10 @@ describe("IncidentHistoryComponent", () => {
     it("draws a bar exactly as tall as its share of the busiest month, with no floor", async () => {
       // 1 against 40: 2.5 % of the plot. A percentage floor would have drawn it as 6 %, taller than
       // the y axis says it is; only the pixel minimum on the segment keeps it visible.
-      const many = Array.from({ length: 40 }, (_, index) =>
-        incident(`m${index}`, "2026-03-05T08:00:00", "MINOR"),
+      const fixture = await openAndAnswer(
+        "2026-03",
+        counts(row("MINOR", "2026-03-01", 40), row("MAJOR", "2026-02-01")),
       );
-      const fixture = await openAndAnswer("2026-03", {
-        startYearIncidents: [],
-        endYearIncidents: [...many, incident("one", "2026-02-05T08:00:00", "MAJOR")],
-      });
       const february = bars(fixture).find((bar) => bar.dataset["month"] === "2026-02");
 
       expect(segmentHeights(february, "major")).toBeCloseTo(2.5);
@@ -383,9 +414,25 @@ describe("IncidentHistoryComponent", () => {
       );
     });
 
+    it("adds up other severity across months, and words the plural", async () => {
+      const fixture = await openAndAnswer(
+        "2026-03",
+        counts(
+          row("MAJOR", "2026-03-01"),
+          row("OTHERS", "2026-01-01", 2),
+          row("OTHERS", "2026-02-01", 3),
+          row("OTHERS", "2025-02-01", 8), // outside the window
+        ),
+      );
+
+      expect(byTestId(fixture, "incident-history-other").textContent).toContain(
+        "5 approved incidents of other severity are not shown.",
+      );
+    });
+
     it("omits that note when there are none", async () => {
       const data = marchWindowData();
-      data.endYearIncidents = (data.endYearIncidents ?? []).filter(
+      data.calendarIncidentsBySeverityCount = data.calendarIncidentsBySeverityCount.filter(
         (entry) => entry.severity !== "OTHERS",
       );
       const fixture = await openAndAnswer("2026-03", data);
@@ -508,11 +555,24 @@ describe("IncidentHistoryComponent", () => {
   });
 
   describe("states", () => {
-    it("says so when no approved incident started in the window", async () => {
-      const fixture = await openAndAnswer("2026-03", {
-        startYearIncidents: [incident("d", "2026-01-05T08:00:00", "MAJOR", "PENDING_APPROVAL")],
-        endYearIncidents: [],
-      });
+    it("says so when the server has no row at all: no approved incident started in the two years", async () => {
+      const fixture = await openAndAnswer("2026-03", counts());
+
+      expect(byTestId(fixture, "incident-history-empty").textContent).toContain(
+        "No approved Major or Minor incidents started in the 12 months to March 2026.",
+      );
+      expect(root(fixture).querySelector('[data-testid="incident-history-chart"]')).toBeNull();
+    });
+
+    it("says so too when every row is outside the window or of other severity", async () => {
+      const fixture = await openAndAnswer(
+        "2026-03",
+        counts(
+          row("MAJOR", "2025-02-01", 3),
+          row("MINOR", "2026-09-01"),
+          row("OTHERS", "2026-02-01"),
+        ),
+      );
 
       expect(byTestId(fixture, "incident-history-empty").textContent).toContain(
         "No approved Major or Minor incidents started in the 12 months to March 2026.",
@@ -540,9 +600,7 @@ describe("IncidentHistoryComponent", () => {
 
       expect(byTestId(fixture, "incident-history-skeleton")).toBeTruthy();
       expect(root(fixture).querySelector('[data-testid="incident-history-empty"]')).toBeNull();
-      httpMock
-        .expectOne(isHistoryRead)
-        .flush({ data: { startYearIncidents: [], endYearIncidents: [] } });
+      httpMock.expectOne(isHistoryRead).flush({ data: counts() });
     });
 
     it("collapses again without issuing another request", async () => {

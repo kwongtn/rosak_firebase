@@ -1,10 +1,9 @@
-import { isLiveIncidentStatus } from "./incident-status.util";
-import type { MonthlyHistoryIncident } from "./insiden-history.queries";
+import type { InsidenMonthlyHistoryVars, SeverityCountRow } from "./insiden-history.queries";
 
 /**
- * Pure rules for the "Last 12 months" chart: which 12 months, which incidents count in which month,
- * and the bar geometry. Angular-free so every rule is testable without a DOM; the component only
- * renders what these return.
+ * Pure rules for the "Last 12 months" chart: which 12 months, how the backend's per-month counts
+ * fill them, and the bar geometry. Angular-free so every rule is testable without a DOM; the
+ * component only renders what these return.
  */
 
 /** How many months the section covers, ending at (and including) the month the calendar shows. */
@@ -58,17 +57,24 @@ export function monthKeysEndingAt(endMonth: string, count = HISTORY_MONTHS): str
   return keys;
 }
 
-/** The calendar years the first and last month fall in — the two `year` filters of the read — or
- * `null` for an empty window. */
-export function historyYearSpan(
-  monthKeys: readonly string[],
-): { startYear: number; endYear: number } | null {
+/**
+ * The inclusive bounds of the aggregate read for the window `monthKeys`: 1 January of the first
+ * month's year to 31 December of the last month's year, or `null` for an empty window.
+ *
+ * Whole calendar years, not the 12 months themselves, for two reasons. Both bounds then sit on month
+ * edges (the backend counts only the incidents inside the bounds, so a bound inside a month would
+ * give that month a partial count). And the result depends on the PAIR of years alone, so paging to
+ * another month inside the pair asks the same question and the loaded rows are re-bucketed instead
+ * of read again. A month key is `YYYY-MM` with a zero-padded year, which is the year format the
+ * backend's `Date` needs, so the year is sliced and never converted to a number.
+ */
+export function historyDateBounds(monthKeys: readonly string[]): InsidenMonthlyHistoryVars | null {
   const first = monthKeys[0];
   const last = monthKeys[monthKeys.length - 1];
   if (first === undefined || last === undefined) {
     return null;
   }
-  return { startYear: Number(first.slice(0, 4)), endYear: Number(last.slice(0, 4)) };
+  return { startDate: `${first.slice(0, 4)}-01-01`, endDate: `${last.slice(0, 4)}-12-31` };
 }
 
 /** One month's counts. `OTHERS` is not a column: see {@link MonthlyHistory.otherSeverity}. */
@@ -86,41 +92,35 @@ export interface MonthlyHistory {
 }
 
 /**
- * Counts approved incidents by the month they STARTED in.
+ * Places the backend's per-month counts on the axis.
  *
- * Each incident is counted once, in its start month, however long it lasted; `status` must be LIVE
- * (drafts, pending and rejected reports are left out); an incident that started outside the window
- * — the year reads also return carry-overs from earlier months — is ignored. Duplicates by `id` are
- * collapsed first, because an incident overlapping two calendar years comes back from both reads.
- * Months with no incident are present with zeros, so the axis never skips one.
+ * The server has already counted: `LIVE` incidents only, each once, in the month it STARTED in. So
+ * this only puts each row's `count` on its month and severity. A month with no row is present with
+ * zeros (the aggregate omits empty months), so the axis never skips one. A row outside the window
+ * is ignored: the read spans whole calendar years, and the match is on the full `YYYY-MM`, so the
+ * same month of another year can never land in a bar. `OTHERS`, and any severity this chart does
+ * not draw, add up in `otherSeverity` instead of being dropped. Counts are summed, not assigned, so
+ * a month and severity that came back twice would still add up.
  */
-export function bucketIncidentsByMonth(
-  incidents: readonly MonthlyHistoryIncident[],
+export function bucketSeverityCountsByMonth(
+  counts: readonly SeverityCountRow[],
   monthKeys: readonly string[],
 ): MonthlyHistory {
   const byMonth = new Map<string, MonthlySeverityRow>(
     monthKeys.map((monthKey) => [monthKey, { monthKey, major: 0, minor: 0 }]),
   );
-  const seen = new Set<string>();
   let otherSeverity = 0;
-  for (const incident of incidents) {
-    if (seen.has(incident.id)) {
-      continue;
-    }
-    seen.add(incident.id);
-    if (!isLiveIncidentStatus(incident.status)) {
-      continue;
-    }
-    const row = byMonth.get(incident.startDatetime.slice(0, 7));
+  for (const { date, severity, count } of counts) {
+    const row = byMonth.get(date.slice(0, 7));
     if (row === undefined) {
       continue;
     }
-    if (incident.severity === "MAJOR") {
-      row.major += 1;
-    } else if (incident.severity === "MINOR") {
-      row.minor += 1;
+    if (severity === "MAJOR") {
+      row.major += count;
+    } else if (severity === "MINOR") {
+      row.minor += count;
     } else {
-      otherSeverity += 1;
+      otherSeverity += count;
     }
   }
   return { rows: [...byMonth.values()], otherSeverity };

@@ -7,8 +7,8 @@ import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.comp
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
 import { HlmTableImports } from "../../../ui/table/table";
 import {
-  bucketIncidentsByMonth,
-  historyYearSpan,
+  bucketSeverityCountsByMonth,
+  historyDateBounds,
   monthKeysEndingAt,
   monthLongLabel,
   monthlyHistorySummary,
@@ -20,7 +20,6 @@ import {
   INSIDEN_MONTHLY_HISTORY_QUERY,
   type InsidenMonthlyHistoryData,
   type InsidenMonthlyHistoryVars,
-  type YearFilter,
 } from "../data/insiden-history.queries";
 
 /** The registry entry this section publishes; the title and the tooltip both read it. */
@@ -31,10 +30,6 @@ const METRIC_ID = "incidents.monthly-by-severity";
  * them never moves what is below. Same value as the home line-status chart's reservation.
  */
 const STATE_MIN_HEIGHT_CLASS = "min-h-40";
-
-function yearFilter(year: number): YearFilter {
-  return { date: { year: { exact: year } } };
-}
 
 /**
  * `/insiden`'s **"Last 12 months"** section: stacked Major / Minor bars of how many approved incidents
@@ -53,12 +48,16 @@ function yearFilter(year: number): YearFilter {
  * **Hydration rule.** `graphqlResource` request bodies must be identical on the server and in the
  * browser, so the window comes from `endMonth` — the page's route-derived `selectedMonth`, the same
  * on both sides — and never from `new Date()`: a clock that rolls over a month between the server
- * render and hydration would otherwise ask two different questions of one page. Today the read only
- * starts after a click, in the browser, so the rule is not load-bearing yet; it is kept so that
- * opening the section by default stays safe.
+ * render and hydration would otherwise ask two different questions of one page. The chain is
+ * `endMonth` -> `monthKeysEndingAt` (the 12 months) -> `historyDateBounds` (1 January of the first
+ * month's year to 31 December of the last month's), and nothing else feeds the request. Today the
+ * read only starts after a click, in the browser, so the rule is not load-bearing yet; it is kept so
+ * that opening the section by default stays safe.
  *
- * What is counted is the `incidents.monthly-by-severity` registry entry; why the read is
- * `calendarIncidents` and not `calendarIncidentsBySeverityCount` is in `insiden-history.queries.ts`.
+ * What is counted is the `incidents.monthly-by-severity` registry entry, and the server does the
+ * counting: the read is `calendarIncidentsBySeverityCount(groupBy: MONTH)`, whose rows this
+ * component only places on the axis. What it returns, and why the bounds are whole calendar years,
+ * is in `insiden-history.queries.ts`.
  *
  * Accessibility: the chart is a `role="group"` named by a summary sentence (the window, the totals
  * and the peak) and every bar is a focusable button named by its own month, total and split, which
@@ -315,15 +314,15 @@ export class IncidentHistoryComponent {
   protected readonly monthKeys = computed(() => monthKeysEndingAt(this.endMonth()));
 
   /**
-   * The calendar years the window spans, compared BY VALUE. `monthKeys()` is a fresh array for every
-   * month, so a request derived from it would re-read for a month that needs no new data: the two
-   * year reads cover every month of the pair, and `httpResource` treats any new request object as a
-   * new request even when its contents are equal. With value equality the request function only
-   * re-runs when the pair of years changes, so paging through a year re-buckets what is already
-   * loaded.
+   * The read's date bounds (whole calendar years), compared BY VALUE. `monthKeys()` is a fresh array
+   * for every month, so a request derived from it would re-read for a month that needs no new data:
+   * the rows of the pair of years already cover every month of both windows, and `httpResource`
+   * treats any new request object as a new request even when its contents are equal. With value
+   * equality the request function only re-runs when the pair of years changes, so paging through a
+   * year re-buckets what is already loaded.
    */
-  private readonly yearSpan = computed(() => historyYearSpan(this.monthKeys()), {
-    equal: (a, b) => a?.startYear === b?.startYear && a?.endYear === b?.endYear,
+  private readonly dateBounds = computed(() => historyDateBounds(this.monthKeys()), {
+    equal: (a, b) => a?.startDate === b?.startDate && a?.endDate === b?.endDate,
   });
 
   protected readonly resource = graphqlResource<
@@ -333,19 +332,11 @@ export class IncidentHistoryComponent {
     if (!this.expanded()) {
       return undefined;
     }
-    const span = this.yearSpan();
-    if (span === null) {
+    const bounds = this.dateBounds();
+    if (bounds === null) {
       return undefined;
     }
-    return {
-      query: INSIDEN_MONTHLY_HISTORY_QUERY,
-      variables: {
-        startYear: yearFilter(span.startYear),
-        endYear: yearFilter(span.endYear),
-        // A window that ends in December sits inside one year; the second read would repeat the first.
-        sameYear: span.startYear === span.endYear,
-      },
-    };
+    return { query: INSIDEN_MONTHLY_HISTORY_QUERY, variables: bounds };
   });
 
   /**
@@ -363,13 +354,12 @@ export class IncidentHistoryComponent {
         this.resource.data() === undefined),
   );
 
-  private readonly history = computed(() => {
-    const data = this.resource.data();
-    return bucketIncidentsByMonth(
-      [...(data?.startYearIncidents ?? []), ...(data?.endYearIncidents ?? [])],
+  private readonly history = computed(() =>
+    bucketSeverityCountsByMonth(
+      this.resource.data()?.calendarIncidentsBySeverityCount ?? [],
       this.monthKeys(),
-    );
-  });
+    ),
+  );
 
   protected readonly bars = computed(() => toMonthlyBars(this.history().rows));
 
