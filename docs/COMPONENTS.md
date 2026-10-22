@@ -1,6 +1,6 @@
 # System Component Registry & Architecture Map
 
-_Compiled from `docs/components/*.md` — covers all 11 top-level features under `src/app/features/`.
+_Compiled from `docs/components/*.md` — covers all 12 top-level features under `src/app/features/`.
 This file is topology + feature index; per-feature interfaces, state, and extension points live in
 those docs._
 
@@ -13,7 +13,7 @@ integrations — most features use one; several straddle two:
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Angular Feature Pages (src/app/features/*)                             │
 │  home · gallery · gdpr · about · methodology · spotting · profile ·     │
-│  console · insiden · tracker · not-found                                │
+│  console · insiden · station · tracker · not-found                      │
 └───────┬───────────────────┬───────────────────┬─────────────────────────┘
         │                   │                   │
         ▼                   ▼                   ▼
@@ -208,8 +208,8 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 
 **Content models coexist by design:**
 
-- **GraphQL-backed, dynamic:** home, spotting, profile, console, insiden — user/admin-generated
-  data, queried live from the Django backend.
+- **GraphQL-backed, dynamic:** home, spotting, profile, console, insiden, station —
+  user/admin-generated data, queried live from the Django backend.
 - **Firestore-backed, hand-edited CMS:** gdpr, about — single documents (`public/gdpr`,
   `public/about`) edited by an admin outside the app, streamed via `onSnapshot`. Same pattern in
   both (private `_data` signal + `computed()` projections + manual subscribe/`ngOnDestroy`
@@ -409,6 +409,21 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
     `incidentLinkLine`, `incidentToForm`, `chronologyStatusLabel`, `linkDisplayInstant`,
     `isoToOccurredAtInput`/`occurredAtInputToIso`, `link-thread-selection` helpers);
     `app-link-thread` is the named extension point for any grouped link row.
+- **station** (`features/station/` — single page + `data/` query module and one pure util;
+  [doc](components/station.md)) — Public, server-rendered `/station/:id`: the lines that serve a
+  station with their current status, the approved incidents tagged with it (in effect now, then the
+  newest 10 others, each linking to its day on `/insiden`), the rider reports that name it among each
+  serving line's newest 10 (a browser-only read), and its lifts and escalators with their status.
+  The tab and the share tags are titled after the station, and an unknown id renders the 404 page.
+  Every station name in the app links here: incident cards, the report station strip of an expanded
+  line on the front page, spotting history origins and destinations, and the line page's assets tab.
+  - Deps: `graphqlResource`, `Title`/`Meta`, `RouterLink`, domain-ui `line-status-badge` and
+    `asset-status-badge`, `NotFoundPage`, home's incident and passenger-status utils, spotting's
+    `humanizeSince` and `ASSET_TYPE_LABEL`, the methodology registry (`incidents.station`,
+    `station.reports`).
+  - Extend: `data/station.queries.ts` (one server read whose only variable is the route's id;
+    `stationReportsRequest` for the per-line reports), `data/station-reports.util.ts`
+    (`stationTaggedReports`, the swap point for a backend station filter on reports).
 - **tracker** (`features/tracker/` — shell + map + status-card + info-panel, 4 root-provided
   services; [doc](components/tracker.md)) — Full-bleed live WebGL map of GTFS-realtime vehicles +
   GTFS-static stops + railway overlay, with opt-in layers via a draft/Apply flow.
