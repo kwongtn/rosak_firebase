@@ -9,7 +9,7 @@ import { PreferencesService } from "../../../core/preferences/preferences.servic
 import { FeedDayGroup, groupFeedLinksByDay } from "./feed-day-groups.util";
 import { FRONT_PAGE_LINES_QUERY, FrontPageLinesQueryData, LinePulse } from "./home-board.queries";
 import { FEED_QUERY, FeedQueryData, FeedQueryVars } from "./home-feed.queries";
-import { FeedLink, FeedLinkEdge, FeedLinkPageInfo } from "./home-feed-items";
+import { FeedLink } from "./home-feed-items";
 import {
   LINES_STATUS_HISTORY_QUERY,
   LineStatusHourBucket,
@@ -46,13 +46,11 @@ import {
   HOME_FEED_COLLAPSE_VARS,
   LAST_WEEK_PAGE_SIZE,
   OFFICIAL_NOTICES_VARS,
-  dedupeEdges,
-  maxFeedTotalCount,
-  mergeFeedPageInfo,
   recordSubtreeVotes,
   resolveUserVote,
 } from "./home-feed.util";
 import { NetworkSummary, summarizeNetwork } from "./network-summary.util";
+import { PagedFeed } from "./paged-feed";
 
 /**
  * How long the post-submit highlight ring stays on the line that was reported about.
@@ -73,6 +71,30 @@ export const HIGHLIGHT_VISIBLE_MS = 2000;
  * declared next to the resource so a future backend cap bump has exactly one place to move.
  */
 export const HISTORY_LINE_ID_CAP = 64;
+
+/**
+ * The variables of the two feed windows, WITHOUT the line filter: the one place each window's shape is
+ * written down. The first-page resource and its `loadMore` continuation both add the filter on top
+ * (and `after`, for the continuation); the authenticated vote-overlay read sends them as they are —
+ * which is exactly the "same read, less `lineId`" parity `loadVoteOverlay()` documents, made true by
+ * construction instead of by keeping three literals in step.
+ *
+ * Compile-time constants, so the server render and the client hydration send structurally identical
+ * variables and the SSR TransferState payload is reused.
+ */
+const TODAY_FEED_VARS: FeedQueryVars = {
+  first: FEED_PAGE_SIZE,
+  status: "LIVE",
+  currentServiceDayOnly: true,
+  ...HOME_FEED_COLLAPSE_VARS,
+};
+const LAST_WEEK_FEED_VARS: FeedQueryVars = {
+  first: LAST_WEEK_PAGE_SIZE,
+  status: "LIVE",
+  lastWeekOnly: true,
+  alignPageToDay: true,
+  ...HOME_FEED_COLLAPSE_VARS,
+};
 
 /** What a line with no incident answers: ONE frozen array, so a row's computed sees an unchanged value
  *  instead of a fresh `[]` on every read. */
@@ -160,14 +182,8 @@ export class HomeStore {
       return;
     }
     this._lineFilter.set(next);
-    this.appendedEdges.set([]);
-    this.appendedHasNext.set(null);
-    this.appendedTotalCount.set(null);
-    this.nextCursor.set(null);
-    this.lastWeekAppendedEdges.set([]);
-    this.lastWeekAppendedHasNext.set(null);
-    this.lastWeekAppendedTotalCount.set(null);
-    this.lastWeekNextCursor.set(null);
+    this.today.reset();
+    this.lastWeek.reset();
   }
 
   /**
@@ -184,16 +200,30 @@ export class HomeStore {
     return lineId === null ? {} : { lineId };
   });
 
+  /**
+   * The Today window's variables: its shape plus the line filter. Conditionally spread so "no filter"
+   * is the key's ABSENCE — see `FeedQueryVars.lineId`. The first-page resource and the `loadMore`
+   * continuation both send exactly this (the continuation adds `after`): a cursor minted under one
+   * filter must not be continued under another (see `setLineFilter`), and an uncollapsed page 2
+   * appended to a collapsed page 1 would re-list every root and render members as loose rows.
+   */
+  private readonly todayVars = (): FeedQueryVars => ({
+    ...TODAY_FEED_VARS,
+    ...this._lineFilterVars(),
+  });
+
+  /** The Last Week window's variables — see {@link todayVars}. Collapses threads too: this surface
+   * renders `app-link-thread` per day group exactly like the today feed, so an uncollapsed last week
+   * would split a group across two day headers. Static (never a computed date), so SSR's
+   * TransferState hydrates without a refetch. */
+  private readonly lastWeekVars = (): FeedQueryVars => ({
+    ...LAST_WEEK_FEED_VARS,
+    ...this._lineFilterVars(),
+  });
+
   private readonly feedResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => ({
     query: FEED_QUERY,
-    variables: {
-      first: FEED_PAGE_SIZE,
-      status: "LIVE",
-      currentServiceDayOnly: true,
-      ...HOME_FEED_COLLAPSE_VARS,
-      // Conditionally spread so "no filter" is the key's ABSENCE — see `FeedQueryVars.lineId`.
-      ...this._lineFilterVars(),
-    },
+    variables: this.todayVars(),
   }));
 
   /**
@@ -215,25 +245,12 @@ export class HomeStore {
 
   /** The collapsed "Last Week" section's first page: a 7-calendar-day window with TODAY EXCLUDED
    * (the backend's `displayTodayInLastWeek` default is `false`, so the newest day group is
-   * "Yesterday"), day-aligned pages. Variables are STATIC (only the boolean flags, never a computed
-   * date) so SSR's TransferState hydrates without a refetch. Collapses threads too — this surface
-   * renders `app-link-thread` per day group exactly like the today feed, so an uncollapsed last week
-   * would split a group across two day headers. Inert until {@link requestLastWeek}. */
+   * "Yesterday"), day-aligned pages. Inert until {@link requestLastWeek}. */
   private readonly lastWeekResource = graphqlResource<FeedQueryData, FeedQueryVars>(() => {
     if (!this._lastWeekRequested()) {
       return undefined;
     }
-    return {
-      query: FEED_QUERY,
-      variables: {
-        first: LAST_WEEK_PAGE_SIZE,
-        status: "LIVE",
-        lastWeekOnly: true,
-        alignPageToDay: true,
-        ...HOME_FEED_COLLAPSE_VARS,
-        ...this._lineFilterVars(),
-      },
-    };
+    return { query: FEED_QUERY, variables: this.lastWeekVars() };
   });
 
   readonly lines = computed<LinePulse[]>(() => this.linesResource.data()?.lines ?? []);
@@ -813,76 +830,36 @@ export class HomeStore {
    */
   readonly othersLines = computed<LinePulse[]>(() => this._boardPartition().others);
 
-  private readonly appendedEdges = signal<FeedLinkEdge[]>([]);
-  private readonly appendedHasNext = signal<boolean | null>(null);
-  private readonly appendedTotalCount = signal<number | null>(null);
-  private readonly nextCursor = signal<string | null>(null);
-  private readonly loadingMore = signal(false);
-
-  private readonly lastWeekAppendedEdges = signal<FeedLinkEdge[]>([]);
-  private readonly lastWeekAppendedHasNext = signal<boolean | null>(null);
-  private readonly lastWeekAppendedTotalCount = signal<number | null>(null);
-  private readonly lastWeekNextCursor = signal<string | null>(null);
-  private readonly lastWeekLoadingMore = signal(false);
-
-  /** First page (resource) + appended continuation pages, in backend order, de-duplicated by
-   *  `node.id` — see `dedupeEdges`: a refresh of page one can overlap an appended page, and a
-   *  duplicate id would throw on the page's `track link.id`. */
-  private readonly edges = computed<FeedLinkEdge[]>(() =>
-    dedupeEdges([
-      ...(this.feedResource.data()?.publicSocialMediaLinks.edges ?? []),
-      ...this.appendedEdges(),
-    ]),
+  /** The Today window: its first page (the resource) plus the Load More pages appended behind it. */
+  private readonly today = new PagedFeed(
+    () => this.feedResource.data(),
+    this.todayVars,
+    (variables) => this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, variables),
   );
 
-  readonly feedLinks = computed<FeedLink[]>(() => this.edges().map((edge) => edge.node));
-
-  readonly feedPageInfo = computed<FeedLinkPageInfo | null>(() =>
-    mergeFeedPageInfo(
-      this.feedResource.data()?.publicSocialMediaLinks.pageInfo ?? null,
-      this.appendedHasNext(),
-      this.nextCursor(),
-    ),
+  /** The Last Week window, paginated like {@link today}. Its pages are day-aligned (see
+   * {@link lastWeekVars}), so a Load More never ends mid-day. */
+  private readonly lastWeek = new PagedFeed(
+    () => this.lastWeekResource.data(),
+    this.lastWeekVars,
+    (variables) => this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, variables),
   );
 
-  /** The "Showing N of M" denominator for the today feed — see {@link maxFeedTotalCount} for why it
-   * is the `Math.max` of the live first page and the appended reading. */
-  readonly feedTotalCount = computed<number>(() =>
-    maxFeedTotalCount(
-      this.appendedTotalCount(),
-      this.feedResource.data()?.publicSocialMediaLinks.totalCount ?? null,
-    ),
-  );
+  /** First page + appended pages, de-duplicated by `node.id` (see {@link PagedFeed}). */
+  readonly feedLinks = this.today.links;
 
-  /** First page (resource) + appended continuation pages of the last-week section, in backend
-   * order (newest-first), de-duplicated by `node.id` like the today feed. */
-  private readonly lastWeekEdges = computed<FeedLinkEdge[]>(() =>
-    dedupeEdges([
-      ...(this.lastWeekResource.data()?.publicSocialMediaLinks.edges ?? []),
-      ...this.lastWeekAppendedEdges(),
-    ]),
-  );
+  readonly feedPageInfo = this.today.pageInfo;
 
-  readonly lastWeekLinks = computed<FeedLink[]>(() =>
-    this.lastWeekEdges().map((edge) => edge.node),
-  );
+  /** The "Showing N of M" denominator for the today feed. */
+  readonly feedTotalCount = this.today.totalCount;
 
-  readonly lastWeekPageInfo = computed<FeedLinkPageInfo | null>(() =>
-    mergeFeedPageInfo(
-      this.lastWeekResource.data()?.publicSocialMediaLinks.pageInfo ?? null,
-      this.lastWeekAppendedHasNext(),
-      this.lastWeekNextCursor(),
-    ),
-  );
+  /** The last-week section's links, in backend order (newest-first), de-duplicated like the today feed. */
+  readonly lastWeekLinks = this.lastWeek.links;
 
-  /** The "Showing N of M" denominator for the last-week section — `Math.max` of the two sources for
-   * exactly the reason `feedTotalCount` documents. */
-  readonly lastWeekTotalCount = computed<number>(() =>
-    maxFeedTotalCount(
-      this.lastWeekAppendedTotalCount(),
-      this.lastWeekResource.data()?.publicSocialMediaLinks.totalCount ?? null,
-    ),
-  );
+  readonly lastWeekPageInfo = this.lastWeek.pageInfo;
+
+  /** The "Showing N of M" denominator for the last-week section. */
+  readonly lastWeekTotalCount = this.lastWeek.totalCount;
 
   /** The last-week links bucketed into local calendar days (up to 7 groups, newest first). */
   readonly lastWeekDayGroups = computed<FeedDayGroup[]>(() =>
@@ -921,7 +898,7 @@ export class HomeStore {
   );
 
   /** True while a `loadMoreLastWeek()` continuation page is in flight. */
-  readonly isLoadingMoreLastWeek = this.lastWeekLoadingMore.asReadonly();
+  readonly isLoadingMoreLastWeek = this.lastWeek.isLoadingMore;
 
   readonly isLoading = computed(
     () => this.linesResource.isLoading() || this.feedResource.isLoading(),
@@ -950,7 +927,7 @@ export class HomeStore {
 
   /** True while a `loadMore()` continuation page is in flight (the resources' own loading state
    * doesn't cover the manual request, so the page hides "Load More" on this too). */
-  readonly isLoadingMore = this.loadingMore.asReadonly();
+  readonly isLoadingMore = this.today.isLoadingMore;
 
   readonly hasError = computed(
     () =>
@@ -1144,14 +1121,8 @@ export class HomeStore {
    * beat deliberately does NOT (`reloadFirstPages`) — a chart that redraws every 30 seconds is noise,
    * and the service-day aggregate it draws barely changes inside one tick. */
   reloadAll(): void {
-    this.appendedEdges.set([]);
-    this.appendedHasNext.set(null);
-    this.appendedTotalCount.set(null);
-    this.nextCursor.set(null);
-    this.lastWeekAppendedEdges.set([]);
-    this.lastWeekAppendedHasNext.set(null);
-    this.lastWeekAppendedTotalCount.set(null);
-    this.lastWeekNextCursor.set(null);
+    this.today.reset();
+    this.lastWeek.reset();
     this.linesResource.reload();
     this.feedResource.reload();
     this.reloadLastWeekIfRequested();
@@ -1169,7 +1140,7 @@ export class HomeStore {
    * would also be wrong at a 30-second cadence: the reader's Load More progress would be thrown
    * away every tick, and the first page's rows would be the only thing on screen. The overlap that
    * creates instead (a refetched page one can re-include a row an appended page already holds) is
-   * absorbed by the `dedupeEdges` merge in `edges`/`lastWeekEdges` — which is why the two pieces
+   * absorbed by the `dedupeEdges` merge in `PagedFeed` — which is why the two pieces
    * belong together and neither is optional.
    *
    * The flip side, stated so nobody reads the merge as a full reconciliation: a row DELETED server
@@ -1218,69 +1189,17 @@ export class HomeStore {
     }
   }
 
-  /** Loads the next feed page through the same query with the last page's cursor. Coalesced by
-   * `loadingMore`; a no-op when there is no next page or no cursor.
-   *
-   * `HOME_FEED_COLLAPSE_VARS` is repeated here (not inherited from the resource) because a
-   * continuation page is a fresh request with its own variables: an uncollapsed page 2 appended to a
-   * collapsed page 1 would re-list every root and render members as loose rows. */
-  async loadMore(): Promise<void> {
-    const pageInfo = this.feedPageInfo();
-    const cursor = pageInfo?.endCursor ?? null;
-    if (this.loadingMore() || !pageInfo?.hasNextPage || !cursor) {
-      return;
-    }
-    this.loadingMore.set(true);
-    try {
-      const data = await this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, {
-        first: FEED_PAGE_SIZE,
-        after: cursor,
-        status: "LIVE",
-        currentServiceDayOnly: true,
-        ...HOME_FEED_COLLAPSE_VARS,
-        // The same conditional spread the resource uses, and for the same reason: a continuation
-        // page is a FRESH request with its own variables, so a cursor minted under one filter must
-        // not be continued under another (see `setLineFilter`).
-        ...this._lineFilterVars(),
-      });
-      const connection = data.publicSocialMediaLinks;
-      this.appendedEdges.update((prev) => [...prev, ...connection.edges]);
-      this.appendedHasNext.set(connection.pageInfo.hasNextPage);
-      this.appendedTotalCount.set(connection.totalCount);
-      this.nextCursor.set(connection.pageInfo.endCursor);
-    } finally {
-      this.loadingMore.set(false);
-    }
+  /** Loads the next feed page through the same query with the last page's cursor. Coalesced; a no-op
+   * when there is no next page or no cursor. The continuation is a fresh request that sends the
+   * window's whole variables again (collapse flag and line filter included) — see {@link todayVars}. */
+  loadMore(): Promise<void> {
+    return this.today.loadMore();
   }
 
-  /** Loads the next day-aligned last-week page through the same query with the last page's
-   * cursor. Coalesced by `lastWeekLoadingMore`; a no-op when there is no next page or no cursor.
-   * Collapses threads, like its first page (see `loadMore`). */
-  async loadMoreLastWeek(): Promise<void> {
-    const pageInfo = this.lastWeekPageInfo();
-    const cursor = pageInfo?.endCursor ?? null;
-    if (this.lastWeekLoadingMore() || !pageInfo?.hasNextPage || !cursor) {
-      return;
-    }
-    this.lastWeekLoadingMore.set(true);
-    try {
-      const data = await this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, {
-        first: LAST_WEEK_PAGE_SIZE,
-        after: cursor,
-        status: "LIVE",
-        lastWeekOnly: true,
-        alignPageToDay: true,
-        ...HOME_FEED_COLLAPSE_VARS,
-        ...this._lineFilterVars(),
-      });
-      const connection = data.publicSocialMediaLinks;
-      this.lastWeekAppendedEdges.update((prev) => [...prev, ...connection.edges]);
-      this.lastWeekAppendedHasNext.set(connection.pageInfo.hasNextPage);
-      this.lastWeekAppendedTotalCount.set(connection.totalCount);
-      this.lastWeekNextCursor.set(connection.pageInfo.endCursor);
-    } finally {
-      this.lastWeekLoadingMore.set(false);
-    }
+  /** Loads the next day-aligned last-week page through the same query with the last page's cursor.
+   * Coalesced like {@link loadMore}; collapses threads, like its first page. */
+  loadMoreLastWeek(): Promise<void> {
+    return this.lastWeek.loadMore();
   }
 
   /** Two authenticated reads — the today feed's first page and the last-week first page — merged
@@ -1350,32 +1269,13 @@ export class HomeStore {
     // nothing to rethrow — and swallowing it keeps the constructor's fire-and-forget
     // `void this.loadVoteOverlay()` from producing an unhandled rejection.
     //
-    // 🔴 Neither variables object below spreads the feed's `lineId` filter, and that is the ONE
-    // documented asymmetry with the two resources. Do not "fix" it by copying the spread across:
-    // a filtered overlay is a NARROWER read than the render, which is the direction that loses
-    // votes (see the invariant above).
+    // 🔴 Neither read below adds the feed's `lineId` filter (`todayVars` / `lastWeekVars` do), and that
+    // is the ONE documented asymmetry with the two resources: they send the window constants as they
+    // are. Do not "fix" it by sending `todayVars()` instead: a filtered overlay is a NARROWER read
+    // than the render, which is the direction that loses votes (see the invariant above).
     const results = await Promise.allSettled([
-      this.graphql.request<FeedQueryData, FeedQueryVars>(
-        FEED_QUERY,
-        {
-          first: FEED_PAGE_SIZE,
-          status: "LIVE",
-          currentServiceDayOnly: true,
-          ...HOME_FEED_COLLAPSE_VARS,
-        },
-        headers,
-      ),
-      this.graphql.request<FeedQueryData, FeedQueryVars>(
-        FEED_QUERY,
-        {
-          first: LAST_WEEK_PAGE_SIZE,
-          status: "LIVE",
-          lastWeekOnly: true,
-          alignPageToDay: true,
-          ...HOME_FEED_COLLAPSE_VARS,
-        },
-        headers,
-      ),
+      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, TODAY_FEED_VARS, headers),
+      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, LAST_WEEK_FEED_VARS, headers),
     ]);
     const overlay: Record<string, number> = {};
     for (const result of results) {
