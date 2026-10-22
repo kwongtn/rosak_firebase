@@ -4,10 +4,11 @@ import type { ActivatedRoute, Router } from "@angular/router";
  * Query-parameter helpers for view state that belongs in the URL (`?view=`, `?sort=`, `?line=`,
  * `?q=`).
  *
- * The split mirrors `features/spotting/line-overview/line-overview.page.ts`: the READ half is a
- * pure function over a `ParamMap`, so it is SSR-safe and unit-testable with no Router at all; the
- * WRITE half is a single browser-gated `navigate()` so no caller has to re-derive the merge/replace
- * rules or remember the platform guard.
+ * The READ half is a pure function over a `ParamMap`, so it is SSR-safe and unit-testable with no
+ * Router at all; the WRITE half is a single browser-gated `navigate()` so no caller has to re-derive
+ * the merge/replace rules or remember the platform guard. `home-view-mode.service.ts` and
+ * `insiden/data/incident-filter.util.ts` read through it; line-overview writes through it but keeps
+ * its own `sort`/`dir` read guard.
  *
  * The two rules that actually matter, both of which every caller relies on:
  *  1. **A default value never appears in the URL.** Omitting it (`null`) is what makes "no query
