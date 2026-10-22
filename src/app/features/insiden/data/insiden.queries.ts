@@ -7,18 +7,20 @@ import type { VoteAcknowledgement } from "../vote-button/vote-state.util";
 import type { PublicSocialMediaLink } from "./social-links.queries";
 
 /** Approval lifecycle of a calendar incident (backend `CalendarIncidentStatus` TextChoices:
- * `draft`, `pending_approval`, `live`, `rejected`). Both the stored (lowercase) and the GraphQL
- * enum (SCREAMING_SNAKE) casings are represented — TextChoicesField fields serialize as an enum
- * on the wire, but older payloads can carry the raw stored value. */
+ * `draft`, `pending_approval`, `live`, `rejected`, `pending_deletion`). Both the stored (lowercase)
+ * and the GraphQL enum (SCREAMING_SNAKE) casings are represented — TextChoicesField fields serialize
+ * as an enum on the wire, but older payloads can carry the raw stored value. */
 export type CalendarIncidentStatus =
   | "DRAFT"
   | "PENDING_APPROVAL"
   | "LIVE"
   | "REJECTED"
+  | "PENDING_DELETION"
   | "draft"
   | "pending_approval"
   | "live"
-  | "rejected";
+  | "rejected"
+  | "pending_deletion";
 
 /* ---------------------------------------------------------------------- *
  * calendarIncidents — line/vehicle/station-level service disruptions. A genuinely different
