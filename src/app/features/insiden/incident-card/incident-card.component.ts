@@ -398,10 +398,9 @@ export class IncidentCardComponent implements OnDestroy {
   }
 
   /** Lazily fetch the latest history entry when the details area expands (Task 18):
-   * never on page load, so collapsed cards stay quiet. The query is IsLoggedIn and
-   * graphqlResource() has no header channel (its httpResource body carries only
-   * query/variables) — so this follows the card's existing imperative lazy pattern
-   * (loadMoreLinks): GraphQLClient.request + the Firebase idToken. */
+   * never on page load, so collapsed cards stay quiet. The query is IsLoggedIn, so it goes
+   * through GraphQLClient.request, which the auth interceptor signs, following the card's
+   * existing imperative lazy pattern (loadMoreLinks). */
   private async loadHistory(): Promise<void> {
     if (!this.auth.isLoggedIn() || this.historyFetchInFlight) {
       return;
@@ -409,15 +408,10 @@ export class IncidentCardComponent implements OnDestroy {
     this.historyFetchInFlight = true;
     const incidentId = this.incident().id;
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<
         CalendarIncidentHistoryData,
         CalendarIncidentHistoryVars
-      >(
-        CALENDAR_INCIDENT_HISTORY_QUERY,
-        { id: incidentId, limit: 1 },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
+      >(CALENDAR_INCIDENT_HISTORY_QUERY, { id: incidentId, limit: 1 });
       // The wrapper can be re-targeted to a different incident while the request is in
       // flight (day navigation reuses the component instance) — only apply the match.
       if (this.incident().id === incidentId) {
@@ -480,11 +474,9 @@ export class IncidentCardComponent implements OnDestroy {
     }
     this.deletionRequestingId.set(id);
     try {
-      const idToken = await this.auth.idToken();
       await this.graphql.request<ChronologyDeletionRequestData, ChronologyDeletionRequestVars>(
         REQUEST_CHRONOLOGY_DELETION_MUTATION,
         { chronologyId: id },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       this.deletionOverride.update((map) => new Map(map).set(id, "PENDING_DELETION"));
       this.toast.success("Deletion requested", "An admin will approve or reject this request.");

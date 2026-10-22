@@ -694,38 +694,32 @@ export class IncidentFormComponent {
     try {
       const ok = await submit(this.incidentForm, async () => {
         const m = this.model();
-        const idToken = await this.auth.idToken();
-        const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
         if (target) {
           const updated = await this.graphql.request<
             UpdateCalendarIncidentData,
             UpdateCalendarIncidentVars
-          >(
-            UPDATE_CALENDAR_INCIDENT_MUTATION,
-            {
-              calendarIncidentId: target.id,
-              input: {
-                title: m.title,
-                brief: m.brief,
-                details: m.details || null,
-                startDatetime: new Date(m.startDatetime).toISOString(),
-                endDatetime: m.endDatetime ? new Date(m.endDatetime).toISOString() : null,
-                severity: m.severity as CalendarIncidentSeverity,
-                longTerm: m.longTerm,
-                inaccurate: m.inaccurate,
-                // Echoed, not editable: the backend defaults an omitted impactFactor to 0,
-                // so leaving it out would silently wipe it on every public edit.
-                impactFactor: target.impactFactor ?? 0,
-                lineIds: this.selectedLineIds(),
-                vehicleIds: this.selectedVehicleIds(),
-                stationIds: this.selectedStationIds(),
-                categoryIds: this.selectedCategoryIds(),
-                chronologies: chronologyInputs(this.chronologies()),
-                version: target.version ?? null,
-              },
+          >(UPDATE_CALENDAR_INCIDENT_MUTATION, {
+            calendarIncidentId: target.id,
+            input: {
+              title: m.title,
+              brief: m.brief,
+              details: m.details || null,
+              startDatetime: new Date(m.startDatetime).toISOString(),
+              endDatetime: m.endDatetime ? new Date(m.endDatetime).toISOString() : null,
+              severity: m.severity as CalendarIncidentSeverity,
+              longTerm: m.longTerm,
+              inaccurate: m.inaccurate,
+              // Echoed, not editable: the backend defaults an omitted impactFactor to 0,
+              // so leaving it out would silently wipe it on every public edit.
+              impactFactor: target.impactFactor ?? 0,
+              lineIds: this.selectedLineIds(),
+              vehicleIds: this.selectedVehicleIds(),
+              stationIds: this.selectedStationIds(),
+              categoryIds: this.selectedCategoryIds(),
+              chronologies: chronologyInputs(this.chronologies()),
+              version: target.version ?? null,
             },
-            headers,
-          );
+          });
           // The backend returns a revision id ONLY when the update created/resumed a DRAFT
           // revision (non-admin editing a LIVE incident, incl. same-actor draft resume).
           // Chain the submit mutation so the revision reaches the approval queue — otherwise
@@ -736,7 +730,6 @@ export class IncidentFormComponent {
             await this.graphql.request<SubmitCalendarIncidentData, SubmitCalendarIncidentVars>(
               SUBMIT_CALENDAR_INCIDENT_MUTATION,
               { calendarIncidentId: updated.updateCalendarIncident.id },
-              headers,
             );
           }
           return [];
@@ -744,33 +737,28 @@ export class IncidentFormComponent {
         const created = await this.graphql.request<
           CreateCalendarIncidentData,
           CreateCalendarIncidentVars
-        >(
-          CREATE_CALENDAR_INCIDENT_MUTATION,
-          {
-            data: {
-              title: m.title,
-              brief: m.brief,
-              details: m.details || null,
-              startDatetime: new Date(m.startDatetime).toISOString(),
-              endDatetime: m.endDatetime ? new Date(m.endDatetime).toISOString() : null,
-              severity: m.severity as CalendarIncidentSeverity,
-              longTerm: m.longTerm,
-              inaccurate: m.inaccurate,
-              lineIds: this.selectedLineIds(),
-              vehicleIds: this.selectedVehicleIds(),
-              stationIds: this.selectedStationIds(),
-              categoryIds: this.selectedCategoryIds(),
-              chronologies: chronologyInputs(this.chronologies()),
-            },
+        >(CREATE_CALENDAR_INCIDENT_MUTATION, {
+          data: {
+            title: m.title,
+            brief: m.brief,
+            details: m.details || null,
+            startDatetime: new Date(m.startDatetime).toISOString(),
+            endDatetime: m.endDatetime ? new Date(m.endDatetime).toISOString() : null,
+            severity: m.severity as CalendarIncidentSeverity,
+            longTerm: m.longTerm,
+            inaccurate: m.inaccurate,
+            lineIds: this.selectedLineIds(),
+            vehicleIds: this.selectedVehicleIds(),
+            stationIds: this.selectedStationIds(),
+            categoryIds: this.selectedCategoryIds(),
+            chronologies: chronologyInputs(this.chronologies()),
           },
-          headers,
-        );
+        });
         // Admin creates land LIVE directly; only non-admin drafts need the approval queue.
         if (!this.auth.isAdmin() && created.createCalendarIncident.id !== null) {
           await this.graphql.request<SubmitCalendarIncidentData, SubmitCalendarIncidentVars>(
             SUBMIT_CALENDAR_INCIDENT_MUTATION,
             { calendarIncidentId: String(created.createCalendarIncident.id) },
-            headers,
           );
         }
         return [];

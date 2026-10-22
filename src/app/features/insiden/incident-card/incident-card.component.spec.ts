@@ -1019,7 +1019,7 @@ describe("IncidentCardComponent history line", () => {
     );
   }
 
-  it("fetches the latest entry lazily on expand (limit 1, id-token headers) and not before", async () => {
+  it("fetches the latest entry lazily on expand (limit 1) and not before", async () => {
     expect(requestMock).not.toHaveBeenCalled();
     expect(historyLine()).toBeNull();
 
@@ -1028,7 +1028,8 @@ describe("IncidentCardComponent history line", () => {
     const [query, vars, headers] = requestMock.mock.calls[0];
     expect(query).toBe(CALENDAR_INCIDENT_HISTORY_QUERY);
     expect(vars).toEqual({ id: "42", limit: 1 });
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // The token is the auth interceptor's: the call carries no headers.
+    expect(headers).toBeUndefined();
 
     await vi.waitFor(() => expect(historyLine()).not.toBeNull());
   });

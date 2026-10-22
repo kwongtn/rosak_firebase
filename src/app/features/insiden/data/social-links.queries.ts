@@ -137,8 +137,8 @@ export interface PublicSocialMediaLinksQueryData {
  * stays for the spotting line-details panel (first page only). `mine` (Task 23)
  * switches to the caller's own submissions (status-independent); the backend
  * returns an empty page for anonymous callers — the profile feature always
- * sends an idToken header alongside it (mirrors my-spottings, never
- * graphqlResource). `collapseThreads` swaps the flat row list for conversation
+ * sends it through GraphQLClient.request, which the auth interceptor signs
+ * (mirrors my-spottings, never an anonymous graphqlResource). `collapseThreads` swaps the flat row list for conversation
  * ROOTS and is only ever set by the home feed; see PublicSocialMediaLinksVars for
  * the null-vs-omit trap its `Boolean!` argument type makes load-bearing, and
  * FEED_QUERY for the one document that actually nests `sublinks`.
@@ -408,17 +408,16 @@ export interface UpdateSocialMediaLinkData {
  * re-fetch-on-signal-change lifecycle is wrong for a one-shot write). The
  * `firebase-auth-key` header is REQUIRED, not decorative: both mutations are
  * `IsLoggedIn` and the ownership gate needs the caller's `common.User`, so an
- * omitted header fails as anonymous.
+ * unsigned request fails as anonymous. The auth interceptor adds it to every
+ * `GraphQLClient.request` from a signed-in viewer; never mark these `ANONYMOUS`.
  *
  * ```ts
- * const idToken = await this.auth.idToken();
  * const data = await this.graphql.request<GroupSocialMediaLinksData, GroupSocialMediaLinksVars>(
  *   GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
  *   {
  *     linkIds: selectedWithin(selectedIds(), visibleLinkIds()).filter(Boolean), // `[ID!]!`
  *     ...(targetParentId ? { parentId: targetParentId } : {}), // omit to start a new tree
  *   },
- *   idToken ? { "firebase-auth-key": idToken } : {},
  * );
  * // data.groupSocialMediaLinks.id -> refetch this ONE conversation. It is an Int.
  * ```
@@ -528,14 +527,12 @@ export interface GroupSocialMediaLinksVars {
  * group verbs:
  *
  * ```ts
- * const idToken = await this.auth.idToken();
  * await this.graphql.request<ReorderSocialMediaLinksData, ReorderSocialMediaLinksVars>(
  *   REORDER_SOCIAL_MEDIA_LINKS_MUTATION,
  *   {
  *     linkIds: orderedSiblingIds, // every one already a child of parentId
  *     parentId: row.parentId,     // REQUIRED KEY — null reorders the roots
  *   },
- *   idToken ? { "firebase-auth-key": idToken } : {},
  * );
  * ```
  */
@@ -619,11 +616,9 @@ export interface ReorderSocialMediaLinksVars {
  * `firebase-auth-key` header:
  *
  * ```ts
- * const idToken = await this.auth.idToken();
  * await this.graphql.request<UngroupSocialMediaLinksData, UngroupSocialMediaLinksVars>(
  *   UNGROUP_SOCIAL_MEDIA_LINKS_MUTATION,
  *   { linkIds: [...selected].filter(Boolean) },
- *   idToken ? { "firebase-auth-key": idToken } : {},
  * );
  * ```
  */

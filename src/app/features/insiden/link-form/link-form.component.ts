@@ -399,7 +399,6 @@ export class LinkFormComponent {
     try {
       const ok = await submit(this.linkForm, async () => {
         const m = this.model();
-        const idToken = await this.auth.idToken();
         if (target) {
           const vars: UpdateSocialMediaLinkVars = {
             socialMediaLinkId: target.id,
@@ -427,7 +426,6 @@ export class LinkFormComponent {
           await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
             UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
             vars,
-            idToken ? { "firebase-auth-key": idToken } : {},
           );
         } else {
           const context = this.sheet.context();
@@ -453,7 +451,6 @@ export class LinkFormComponent {
           await this.graphql.request<SubmitSocialMediaLinkData, SubmitSocialMediaLinkVars>(
             SUBMIT_SOCIAL_MEDIA_LINK_MUTATION,
             vars,
-            idToken ? { "firebase-auth-key": idToken } : {},
           );
         }
         return [];

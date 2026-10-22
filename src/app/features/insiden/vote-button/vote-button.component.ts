@@ -244,8 +244,6 @@ export class VoteButtonComponent {
    * response is read in one place instead of three near-identical `await`s. `as const` is
    * what keeps `field` a literal union instead of widening to `string`. */
   private async requestVote(target: VoteValue): Promise<VoteAcknowledgement | null> {
-    const idToken = await this.auth.idToken();
-    const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
     if (this.targetType() === "chronology") {
       const [mutation, field] =
         target === 1
@@ -256,7 +254,7 @@ export class VoteButtonComponent {
       const data = await this.graphql.request<
         ChronologyVoteMutationData,
         ChronologyVoteMutationVars
-      >(mutation, { chronologyId: this.incidentId() }, headers);
+      >(mutation, { chronologyId: this.incidentId() });
       return data[field] ?? null;
     }
     if (this.targetType() === "link") {
@@ -269,7 +267,6 @@ export class VoteButtonComponent {
       const data = await this.graphql.request<SocialMediaLinkVoteData, SocialMediaLinkVoteVars>(
         mutation,
         { id: this.incidentId() },
-        headers,
       );
       return data[field] ?? null;
     }
@@ -279,11 +276,9 @@ export class VoteButtonComponent {
         : target === -1
           ? ([DOWNVOTE_MUTATION, "downvote"] as const)
           : ([REMOVE_VOTE_MUTATION, "removeVote"] as const);
-    const data = await this.graphql.request<VoteMutationData, VoteMutationVars>(
-      mutation,
-      { incidentId: this.incidentId() },
-      headers,
-    );
+    const data = await this.graphql.request<VoteMutationData, VoteMutationVars>(mutation, {
+      incidentId: this.incidentId(),
+    });
     return data[field] ?? null;
   }
 }
