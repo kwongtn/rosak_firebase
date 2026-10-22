@@ -95,6 +95,26 @@ describe("MediaViewerComponent", () => {
     expect(closed).toBe(1);
   });
 
+  it("locks the page's scroll while open and releases it when destroyed", async () => {
+    expect(document.body.style.overflow).toBe("");
+
+    await open(photo("a"));
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fixture.destroy();
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("does not touch the page's scroll on the server, where there is no document body to lock", async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: "server" }] });
+
+    await open(photo("a"));
+    expect(document.body.style.overflow).toBe("");
+
+    fixture.destroy();
+    expect(document.body.style.overflow).toBe("");
+  });
+
   it("closes once on a click on Close, and on a click on the backdrop, but not on one in the photo area", async () => {
     const viewer = await open(photo("a"));
     let closed = 0;
