@@ -1079,7 +1079,9 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
     `station-strip-link`, `routerLink` `['/station', id]`; see [station](station.md)).
     `StationStripEntry.stationId` is the station id behind the chip's name. The backend keeps display
     names unique (a DB constraint on `Station.display_name`), so a name is one station and every chip
-    links. The row's own station names (`report-station`) are text, not links.
+    links. A visually hidden ` report`/` reports` after the count makes the link's name
+    `KLCC 3 reports` (an `aria-label` would replace the visible words). The row's own station names
+    (`report-station`) are text, not links.
 
 ### Service-day widgets (sparkline · row tally · heat grid)
 

@@ -293,8 +293,23 @@ describe("LineStatusReportsComponent", () => {
     const chips = [...(strip as HTMLElement).querySelectorAll('[data-slot="badge"]')].map(
       (chip) => chip.textContent?.replace(/\s+/g, " ").trim() ?? "",
     );
-    // KLCC 3, then the single-report stations by name so the strip is stable between reads.
-    expect(chips).toEqual(["KLCC 3", "Bukit Jalil 1", "Masjid Jamek 1", "Sri Petaling 1"]);
+    // KLCC 3, then the single-report stations by name so the strip is stable between reads. The
+    // hidden word after the count is part of each link's name, so a screen reader hears a count of
+    // reports, in the singular for one.
+    expect(chips).toEqual([
+      "KLCC 3 reports",
+      "Bukit Jalil 1 report",
+      "Masjid Jamek 1 report",
+      "Sri Petaling 1 report",
+    ]);
+    expect(
+      [...(strip as HTMLElement).querySelectorAll('[data-testid="station-strip-count"]')].map(
+        (count) => count.textContent?.trim(),
+      ),
+    ).toEqual(["3", "1", "1", "1"]);
+    expect(
+      [...(strip as HTMLElement).querySelectorAll(".sr-only")].map((word) => word.textContent),
+    ).toEqual([" reports", " report", " report", " report"]);
     // Each chip opens its station's page. Display names are unique in the backend (a DB
     // constraint), so the three KLCC reports are one station and its chip links to s1.
     expect(

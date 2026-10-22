@@ -35,12 +35,12 @@
 
 **Inbound links.** Each of these renders a station name as a `RouterLink` to `['/station', station.id]`. A host or spec that renders one needs the router (`provideRouter([])` in a spec).
 
-| Where                                                                         | Element                                               | `data-testid`                           |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------- |
-| insiden `IncidentCardComponent` (every incident card)                         | `<a hlmBadge variant="outline">`, the badge look kept | `incident-station`                      |
-| home `LineStatusReportsComponent` (the station strip of an expanded line)     | `<a hlmBadge variant="neutral">`, count inside        | `station-strip-link`                    |
-| spotting `SpottingHistoryComponent` (vehicle page)                            | underlined text links, origin then destination        | `history-origin`, `history-destination` |
-| spotting `StationAssetsSectionComponent` (`/spotting/:lineId/details/assets`) | the station heading's name                            | `station-assets-station`                |
+| Where                                                                         | Element                                                                   | `data-testid`                           |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------- |
+| insiden `IncidentCardComponent` (every incident card)                         | `<a hlmBadge variant="outline">`, the badge look kept                     | `incident-station`                      |
+| home `LineStatusReportsComponent` (the station strip of an expanded line)     | `<a hlmBadge variant="neutral">`, count inside, then a hidden `report(s)` | `station-strip-link`                    |
+| spotting `SpottingHistoryComponent` (vehicle page)                            | underlined text links, origin then destination                            | `history-origin`, `history-destination` |
+| spotting `StationAssetsSectionComponent` (`/spotting/:lineId/details/assets`) | the station heading's name                                                | `station-assets-station`                |
 
 The strip groups reports by display name. The backend keeps display names unique (a DB constraint on `Station.display_name`), so each chip is one station and links to its id.
 

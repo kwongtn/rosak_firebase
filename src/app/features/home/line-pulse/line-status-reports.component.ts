@@ -71,7 +71,8 @@ export interface StationStripEntry {
                page would be a lie the reader cannot detect. The strip therefore HIDES itself rather
                than showing a partial count when there is no station data at all. -->
           @if (_stations().length > 0) {
-            <!-- Each chip opens its station's page. -->
+            <!-- Each chip opens its station's page. The hidden word after the count makes the
+                 link's name "KLCC 3 reports" for a screen reader, not a bare "KLCC 3". -->
             <div class="flex flex-wrap items-center gap-1.5" data-testid="station-strip">
               @for (station of _stations(); track station.key) {
                 <a
@@ -85,6 +86,7 @@ export interface StationStripEntry {
                   <span class="tabular-nums" data-testid="station-strip-count">
                     {{ station.count }}
                   </span>
+                  <span class="sr-only">{{ station.count === 1 ? " report" : " reports" }}</span>
                 </a>
               }
             </div>
