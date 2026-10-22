@@ -54,6 +54,10 @@ function routePattern(root: ActivatedRouteSnapshot): string {
  * document title and the full URL (query string and profile ids included), and a second, manual
  * event for the same landing would count every visit twice.
  *
+ * `page_location` is the origin plus that same route pattern, so campaign parameters in the landing
+ * URL (`utm_*`, `gclid`) do not reach GA4 and cannot drive attribution. That is deliberate: keeping
+ * ids out of reports came first. If campaigns are ever run, pass those parameters on alone.
+ *
  * Instantiated once by the root `App` component. Nothing touches the SDK until the first render has
  * finished (`afterNextRender`), so the gtag script does not compete with bootstrap, and only when
  * the browser can run Analytics at all (`isSupported()`: cookies and IndexedDB on).

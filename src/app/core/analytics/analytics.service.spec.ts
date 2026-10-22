@@ -5,11 +5,11 @@ import {
   provideZonelessChangeDetection,
 } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
-import { Router, Routes, provideRouter } from "@angular/router";
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Route, Router, Routes, provideRouter } from "@angular/router";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { environment } from "../../../environments/environment";
-import { pathWithOptionalParamMatcher } from "../routing/optional-param-matcher";
+import { routes as appRoutes } from "../../app.routes";
 import { AnalyticsService } from "./analytics.service";
 
 // The unit-test builder shares one module cache across spec files (`isolate: false`), so reset it on
@@ -32,52 +32,50 @@ afterAll(() => vi.resetModules());
 @Component({ template: "" })
 class StubPage {}
 
-/** The shapes of `app.routes.ts` that carry ids: a param, nested paths, and the two matcher kinds. */
-const routes: Routes = [
-  { path: "", pathMatch: "full", title: "MLPTF | Live Network Board", component: StubPage },
-  {
-    path: "profile",
-    title: "MLPTF | Profile",
-    children: [
-      { path: "", component: StubPage },
-      { path: ":id", component: StubPage },
-    ],
-  },
-  {
-    matcher: pathWithOptionalParamMatcher("gallery", "mediaId"),
-    title: "MLPTF | Gallery",
-    component: StubPage,
-  },
-  { path: "station/:id", title: "MLPTF | Station", component: StubPage },
-  {
-    path: "spotting",
-    title: "MLPTF | TranSPOT",
-    children: [
-      {
-        path: "",
-        children: [
-          { path: ":lineId", component: StubPage },
-          {
-            path: ":lineId",
-            children: [
-              {
-                matcher: pathWithOptionalParamMatcher("details", "tab"),
-                component: StubPage,
-              },
-            ],
-          },
-          { path: ":lineId/vehicle/:vehicleId", component: StubPage },
-        ],
-      },
-    ],
-  },
-  { path: "**", title: "MLPTF | Page not found", component: StubPage },
-];
+/**
+ * The real route tree: `app.routes.ts` and every lazily loaded children file, with each page, guard,
+ * resolver and provider swapped for nothing. Paths, matchers and titles stay the real ones, so a
+ * reshaped or added route is seen by this spec.
+ */
+async function realRoutes(list: Routes): Promise<Routes> {
+  return Promise.all(
+    list.map(async (route): Promise<Route> => {
+      const lazy = route.loadChildren ? ((await route.loadChildren()) as Routes) : undefined;
+      const children = route.children ?? lazy;
+      return {
+        path: route.path,
+        matcher: route.matcher,
+        pathMatch: route.pathMatch,
+        title: typeof route.title === "string" ? route.title : undefined,
+        ...(children ? { children: await realRoutes(children) } : { component: StubPage }),
+      };
+    }),
+  );
+}
+
+/** Every routable leaf with a `path`, as a [url with a marker for each param, configured pattern]. */
+function leaves(list: Routes, prefix: string[] = []): [string, string][] {
+  return list.flatMap((route): [string, string][] => {
+    if (route.path === "**" || route.matcher) {
+      return [];
+    }
+    const parts = route.path ? [...prefix, route.path] : prefix;
+    return route.children
+      ? leaves(route.children, parts)
+      : [[`/${parts.join("/").replace(/:\w+/g, "SECRET-ID")}`, `/${parts.join("/")}`]];
+  });
+}
 
 const ANALYTICS = { analytics: true };
 
 describe("AnalyticsService", () => {
   let router: Router;
+
+  let routes: Routes;
+
+  beforeAll(async () => {
+    routes = await realRoutes(appRoutes);
+  });
 
   beforeEach(() => {
     sdk.isSupported.mockResolvedValue(true);
@@ -180,6 +178,7 @@ describe("AnalyticsService", () => {
     ["/spotting/KJL/vehicle/SCS-12", "/spotting/:lineId/vehicle/:vehicleId"],
     ["/spotting/KJL/details", "/spotting/:lineId/details"],
     ["/spotting/KJL/details/situasi", "/spotting/:lineId/details/:tab"],
+    ["/insiden/2026-10-21", "/insiden/:date"],
     ["/nowhere/at/all?x=1", "/**"],
   ])("normalises %s to the route pattern %s", async (url, pattern) => {
     await start();
@@ -201,12 +200,32 @@ describe("AnalyticsService", () => {
     expect(sdk.logEvent).not.toHaveBeenCalled();
   });
 
+  it("never lets an id into page_path: every real route in the app is logged as its pattern", async () => {
+    await start();
+    const cases = leaves(routes);
+    // The routes with a matcher cannot be walked: they are the `it.each` cases above (three today).
+    const matchers = (list: Routes): number =>
+      list.reduce((n, r) => n + (r.matcher ? 1 : 0) + matchers(r.children ?? []), 0);
+    expect(matchers(routes)).toBe(3);
+    expect(cases.length).toBeGreaterThan(8);
+
+    for (const [url, pattern] of cases) {
+      await visit(url);
+      expect(pageViews().at(-1)).toMatchObject({ page_path: pattern });
+    }
+    expect(
+      pageViews()
+        .map((view) => view.page_path)
+        .join(),
+    ).not.toContain("SECRET-ID");
+  });
+
   it("stays away from the SDK on the server", async () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
-        provideRouter(routes),
+        provideRouter([]),
         { provide: PLATFORM_ID, useValue: "server" },
       ],
     });
