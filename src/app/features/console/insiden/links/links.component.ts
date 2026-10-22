@@ -1,9 +1,7 @@
 import { DatePipe } from "@angular/common";
-import { Component, computed, inject, signal } from "@angular/core";
-import { AuthService } from "../../../../core/auth/auth.service";
-import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql-client";
+import { Component, computed } from "@angular/core";
+import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { eventValue } from "../../../../core/util/dom-event.util";
-import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmIconButton } from "../../../../ui/icon-button/icon-button";
@@ -23,10 +21,7 @@ import {
   categoryOptionsOf,
   filterStationOptionsOf,
   filterVehicleOptionsOf,
-  indexCategoriesById,
   indexLinesById,
-  indexStationsById,
-  indexVehiclesById,
   lineOptionsOf,
   stationOptionsOf,
   vehicleOptionsOf,
@@ -40,24 +35,12 @@ import {
   INSIDEN_REFERENCE_QUERY,
   type InsidenReferenceQueryData,
 } from "../../../insiden/data/insiden.queries";
-import {
-  DELETE_SOCIAL_MEDIA_LINK_MUTATION,
-  DeleteSocialMediaLinkData,
-  DeleteSocialMediaLinkVars,
-  SocialMediaLinkRow,
-  UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
-  UpdateSocialMediaLinkData,
-  UpdateSocialMediaLinkVars,
-} from "../data/insiden-console.queries";
 import { isSameMinute } from "../data/same-minute.util";
-import {
-  isoToOccurredAtInput,
-  occurredAtInputToIso,
-} from "../../../insiden/data/link-occurred-at.util";
 import { threadLabel } from "../../../insiden/data/link-thread-selection.util";
 import { injectLinksQueue } from "./links-queue";
 import { useLinksTree } from "./links-tree";
 import { injectLinksActions } from "./links-actions";
+import { injectLinkEditPanel } from "./link-edit-panel";
 
 /**
  * /console/links — triage queue for crowd-submitted social media
@@ -282,10 +265,17 @@ import { injectLinksActions } from "./links-actions";
   templateUrl: "./links.component.html",
 })
 export class SocialMediaLinksComponent {
-  /* The queue's data and filters live in `links-queue.ts`, the selection and conversation tree in
-   * `links-tree.ts` and the row verbs in `links-actions.ts`. The template and the spec read every
-   * member off this class, so those members are re-exposed here under their own names. */
+  /* The page is wired from four pieces: the queue's data and filters (`links-queue.ts`), the
+   * selection and conversation tree (`links-tree.ts`), the row verbs (`links-actions.ts`) and the
+   * detail sheet (`link-edit-panel.ts`). The template and the spec read every member off this
+   * class, so each piece's members are re-exposed here under their own names. */
   private readonly queue = injectLinksQueue();
+  private readonly tree = useLinksTree(this.queue.links, this.queue.queueIsComplete);
+  private readonly actions = injectLinksActions(this.queue, this.tree);
+  private readonly panel = injectLinkEditPanel(this.queue.links, this.actions, () =>
+    this.referenceResource.data(),
+  );
+
   protected readonly links = this.queue.links;
   protected readonly isLoading = this.queue.isLoading;
   protected readonly queueIsComplete = this.queue.queueIsComplete;
@@ -309,9 +299,7 @@ export class SocialMediaLinksComponent {
   protected readonly onDateToInput = this.queue.onDateToInput;
   protected readonly resetFilters = this.queue.resetFilters;
   protected readonly showAllLinks = this.queue.showAllLinks;
-  private readonly load = this.queue.load;
 
-  private readonly tree = useLinksTree(this.queue.links, this.queue.queueIsComplete);
   protected readonly selectedIds = this.tree.selectedIds;
   protected readonly visibleLinkIds = this.tree.visibleLinkIds;
   protected readonly selectedCount = this.tree.selectedCount;
@@ -339,7 +327,6 @@ export class SocialMediaLinksComponent {
   protected readonly toggleSelectAll = this.tree.toggleSelectAll;
   protected readonly clearSelection = this.tree.clearSelection;
 
-  private readonly actions = injectLinksActions(this.queue, this.tree);
   protected readonly groupSelected = this.actions.groupSelected;
   protected readonly nestSelectedUnder = this.actions.nestSelectedUnder;
   protected readonly ungroupLink = this.actions.ungroupLink;
@@ -350,13 +337,32 @@ export class SocialMediaLinksComponent {
   protected readonly unhideLink = this.actions.unhideLink;
   protected readonly markCompleted = this.actions.markCompleted;
 
-  private readonly graphql = inject(GraphQLClient);
-  private readonly auth = inject(AuthService);
-  private readonly toast = inject(ToastService);
+  protected readonly selectedLink = this.panel.selectedLink;
+  protected readonly editUrl = this.panel.editUrl;
+  protected readonly editTitle = this.panel.editTitle;
+  protected readonly editOccurredAt = this.panel.editOccurredAt;
+  protected readonly urlTouched = this.panel.urlTouched;
+  protected readonly isEditing = this.panel.isEditing;
+  protected readonly isSaving = this.panel.isSaving;
+  protected readonly isDeleting = this.panel.isDeleting;
+  protected readonly selectedLineIds = this.panel.selectedLineIds;
+  protected readonly selectedVehicleIds = this.panel.selectedVehicleIds;
+  protected readonly selectedStationIds = this.panel.selectedStationIds;
+  protected readonly selectedCategoryIds = this.panel.selectedCategoryIds;
+  protected readonly canSave = this.panel.canSave;
+  protected readonly openLinkDetail = this.panel.openLinkDetail;
+  protected readonly closeLinkPanel = this.panel.closeLinkPanel;
+  protected readonly onEditUrlInput = this.panel.onEditUrlInput;
+  protected readonly onEditTitleInput = this.panel.onEditTitleInput;
+  protected readonly onEditOccurredAtInput = this.panel.onEditOccurredAtInput;
+  protected readonly saveLinkEdit = this.panel.saveLinkEdit;
+  protected readonly approveFromPanel = this.panel.approveFromPanel;
+  protected readonly markCompletedFromPanel = this.panel.markCompletedFromPanel;
+  protected readonly hideFromPanel = this.panel.hideFromPanel;
+  protected readonly unhideFromPanel = this.panel.unhideFromPanel;
+  protected readonly deleteLink = this.panel.deleteLink;
 
   protected readonly skeletonRows = [0, 1, 2, 3, 4];
-
-  protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
 
   /** Typed `$event.target.value` for the edit panel's inputs (no `$any` in a template). */
   protected readonly eventValue = eventValue;
@@ -372,26 +378,6 @@ export class SocialMediaLinksComponent {
    *  lives in `same-minute.util.ts`, so its NaN guard and truncation rule cannot
    *  be re-invented inline in a template binding. */
   protected readonly isSameMinute = isSameMinute;
-
-  /** Edit form state — same signals as LinkFormComponent's fields, driven by
-   * the console's own sheet instead of LinkSheetService. */
-  protected readonly editUrl = signal("");
-  protected readonly editTitle = signal("");
-  /** "When did this happen?" — a `datetime-local` value (`YYYY-MM-DDTHH:mm`, naive
-   *  local wall time), hydrated from the row's `occurredAt` and NOT from `created`:
-   *  a link whose event time differs from its report time is exactly the one an
-   *  admin opens this sheet to correct, so hydrating from the wrong column would
-   *  quietly rewrite it on the very next save. */
-  protected readonly editOccurredAt = signal("");
-  protected readonly urlTouched = signal(false);
-  protected readonly isEditing = signal(false);
-  protected readonly isSaving = signal(false);
-  protected readonly isDeleting = signal(false);
-
-  protected readonly selectedLineIds = signal<string[]>([]);
-  protected readonly selectedVehicleIds = signal<string[]>([]);
-  protected readonly selectedStationIds = signal<string[]>([]);
-  protected readonly selectedCategoryIds = signal<string[]>([]);
 
   protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
     query: INSIDEN_REFERENCE_QUERY,
@@ -413,8 +399,6 @@ export class SocialMediaLinksComponent {
     vehicleParentCodesOf(this.referenceResource.data()),
   );
 
-  private readonly _vehiclesById = computed(() => indexVehiclesById(this.referenceResource.data()));
-
   protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() =>
     vehicleOptionsOf(
       this.referenceResource.data(),
@@ -423,8 +407,6 @@ export class SocialMediaLinksComponent {
       this._vehicleParentCodes(),
     ),
   );
-
-  private readonly _stationsById = computed(() => indexStationsById(this.referenceResource.data()));
 
   protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
     stationOptionsOf(this.referenceResource.data()),
@@ -443,244 +425,11 @@ export class SocialMediaLinksComponent {
     filterStationOptionsOf(this.referenceResource.data(), this.filterLineId()),
   );
 
-  private readonly _categoriesById = computed(() =>
-    indexCategoriesById(this.referenceResource.data()),
-  );
-
   protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
     categoryOptionsOf(this.referenceResource.data()),
   );
 
-  /** Mirrors link-form.schema's `required(f.url)` — Save is disabled while the URL is blank. */
-  protected readonly canSave = computed(() => this.editUrl().trim().length > 0);
-
   constructor() {
-    this.load();
-  }
-
-  protected openLinkDetail(link: SocialMediaLinkRow): void {
-    this.selectedLink.set(link);
-    this.isEditing.set(true);
-    this.editUrl.set(link.url);
-    this.editTitle.set(link.title);
-    // From `occurredAt`, never from `created` — see editOccurredAt's comment.
-    this.editOccurredAt.set(isoToOccurredAtInput(link.occurredAt));
-    this.urlTouched.set(false);
-    this.selectedLineIds.set(link.lines.map((line) => line.id));
-    this.selectedVehicleIds.set(link.vehicles.map((vehicle) => vehicle.id));
-    this.selectedStationIds.set(link.stations.map((station) => station.id));
-    this.selectedCategoryIds.set(link.categories.map((category) => category.id));
-  }
-
-  protected closeLinkPanel(): void {
-    this.selectedLink.set(null);
-    this.isEditing.set(false);
-    this.editUrl.set("");
-    this.editTitle.set("");
-    // Reset with the rest of the form: a closed sheet must not carry one row's
-    // event time into the next one an admin opens.
-    this.editOccurredAt.set("");
-    this.urlTouched.set(false);
-    this.selectedLineIds.set([]);
-    this.selectedVehicleIds.set([]);
-    this.selectedStationIds.set([]);
-    this.selectedCategoryIds.set([]);
-  }
-
-  protected onEditUrlInput(value: string): void {
-    this.editUrl.set(value);
-    this.urlTouched.set(true);
-  }
-
-  protected onEditTitleInput(value: string): void {
-    this.editTitle.set(value);
-  }
-
-  protected onEditOccurredAtInput(value: string): void {
-    this.editOccurredAt.set(value);
-  }
-
-  /** Full edit — same field set as "Submit a link". The backend replaces
-   *  lines/vehicles/stations/categories from the input verbatim, so the payload
-   *  carries the complete form state, not just the edited scalars. */
-  protected async saveLinkEdit(): Promise<void> {
-    const link = this.selectedLink();
-    if (!link) {
-      return;
-    }
-    if (!this.canSave()) {
-      this.urlTouched.set(true);
-      return;
-    }
-    this.isSaving.set(true);
-    try {
-      const idToken = await this.auth.idToken();
-      await this.graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
-        UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
-        {
-          socialMediaLinkId: link.id,
-          input: {
-            url: this.editUrl(),
-            title: this.editTitle() || null,
-            lineIds: this.selectedLineIds(),
-            vehicleIds: this.selectedVehicleIds(),
-            stationIds: this.selectedStationIds(),
-            categoryIds: this.selectedCategoryIds(),
-            // ⚠️ ALWAYS send this key, and never write it as `?? undefined` or
-            // `link.occurredAt ?? null`. `SocialMediaLinkInput` is
-            // replace-not-patch and `occurredAt` is tri-state with a
-            // DESTRUCTIVE third state:
-            //   omitted        → leave the event time untouched
-            //   a datetime     → set it
-            //   explicit null  → RESET it to the row's submission time
-            // So an untouched box round-trips the link's current event time (the
-            // normal save), and a CLEARED box sends the explicit `null` on
-            // purpose — "this actually happened when it was reported" is exactly
-            // what null encodes, and it is the one place an admin can undo a
-            // wrong guess. Omitting the key instead would make "cleared"
-            // unreachable from a visible-but-empty control. Mirrors
-            // LinkFormComponent.submit's identical branch.
-            occurredAt: occurredAtInputToIso(this.editOccurredAt()),
-          },
-        },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      const updated = this.buildUpdatedLink(link);
-      this.links.update((list) =>
-        list.map((existing) => (existing.id === link.id ? updated : existing)),
-      );
-      this.selectedLink.set(updated);
-      this.toast.success("Link updated", updated.url);
-    } catch (err) {
-      this.toast.error(
-        "Couldn't save changes",
-        err instanceof Error ? err.message : "Unknown error",
-      );
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  /** Rebuilds the local row from the saved form state so the table row and the
-   *  detail card show exactly what the backend now holds. Preference goes to
-   *  reference data (it carries the display labels); anything the reference set
-   *  doesn't know yet falls back to the row's own objects. */
-  private buildUpdatedLink(link: SocialMediaLinkRow): SocialMediaLinkRow {
-    const resolve = <T extends { id: string }>(
-      ids: string[],
-      current: T[],
-      lookup: (id: string) => T | undefined,
-    ): T[] =>
-      ids
-        .map((id) => lookup(id) ?? current.find((item) => item.id === id))
-        .filter((x): x is T => x !== undefined);
-    const linesById = this._linesById();
-    const vehiclesById = this._vehiclesById();
-    const stationsById = this._stationsById();
-    const categoriesById = this._categoriesById();
-    return {
-      ...link,
-      url: this.editUrl(),
-      title: this.editTitle(),
-      // Mirrors the tri-state the server just applied: a cleared box RESETS the
-      // event time to the submission time, so the optimistic row must show that
-      // same fallback rather than keep the stale value it is replacing.
-      occurredAt: occurredAtInputToIso(this.editOccurredAt()) ?? link.created,
-      lines: resolve(this.selectedLineIds(), link.lines, (id) => linesById.get(id)),
-      vehicles: resolve(this.selectedVehicleIds(), link.vehicles, (id) => vehiclesById.get(id)),
-      stations: resolve(this.selectedStationIds(), link.stations, (id) => stationsById.get(id)),
-      categories: resolve(this.selectedCategoryIds(), link.categories, (id) =>
-        categoriesById.get(id),
-      ),
-    };
-  }
-
-  /** The detail sheet's Approve — the SAME two-write sequence the row's Approve
-   *  runs, reached through the same `approveLink`, so the two surfaces cannot
-   *  disagree about what approving means (and there is deliberately no
-   *  panel-only variant to drift).
-   *
-   *  It closes the panel when the PUBLISH succeeded, including the partial-failure
-   *  case: the row is live either way, the toast has already said whether it was
-   *  also retired, and the sheet's `selectedLink` is a stale copy of a row the
-   *  reload has already replaced. `markCompletedFromPanel` closes on the same
-   *  rule. */
-  protected async approveFromPanel(): Promise<void> {
-    const link = this.selectedLink();
-    if (!link) {
-      return;
-    }
-    const ok = await this.approveLink(link);
-    if (ok) {
-      this.closeLinkPanel();
-    }
-  }
-
-  protected async markCompletedFromPanel(): Promise<void> {
-    const link = this.selectedLink();
-    if (!link) {
-      return;
-    }
-    const ok = await this.markCompleted(link);
-    if (ok) {
-      this.closeLinkPanel();
-    }
-  }
-
-  /** The sheet's Hide — the same `hideLink` the row calls (including its
-   *  conversation-coupling confirm), reached from the panel so the two surfaces
-   *  cannot disagree. Closes on success, like the other panel verbs. */
-  protected async hideFromPanel(): Promise<void> {
-    const link = this.selectedLink();
-    if (!link) {
-      return;
-    }
-    const ok = await this.hideLink(link);
-    if (ok) {
-      this.closeLinkPanel();
-    }
-  }
-
-  /** The sheet's Unhide — the same single-write `unhideLink` the row calls, with
-   *  no completion step. Closes on success. */
-  protected async unhideFromPanel(): Promise<void> {
-    const link = this.selectedLink();
-    if (!link) {
-      return;
-    }
-    const ok = await this.unhideLink(link);
-    if (ok) {
-      this.closeLinkPanel();
-    }
-  }
-
-  /** Admin hard-delete of a link entry. Mirrors the spotting-history delete:
-   *  a native confirm guard, then the admin mutation; on success the row is
-   *  dropped locally and the panel closes. */
-  protected async deleteLink(link: SocialMediaLinkRow): Promise<void> {
-    if (!confirm("Delete this link entry? This can't be undone.")) {
-      return;
-    }
-    this.isDeleting.set(true);
-    try {
-      const idToken = await this.auth.idToken();
-      await this.graphql.request<DeleteSocialMediaLinkData, DeleteSocialMediaLinkVars>(
-        DELETE_SOCIAL_MEDIA_LINK_MUTATION,
-        { linkId: link.id },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      this.links.update((list) => list.filter((existing) => existing.id !== link.id));
-      if (this.selectedLink()?.id === link.id) {
-        this.closeLinkPanel();
-      }
-      this.toast.success("Link deleted", link.url);
-    } catch (err) {
-      this.toast.error(
-        "Couldn't delete link",
-        err instanceof Error ? err.message : "Unknown error",
-      );
-    } finally {
-      this.isDeleting.set(false);
-    }
+    this.queue.load();
   }
 }
