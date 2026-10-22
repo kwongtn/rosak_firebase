@@ -6,7 +6,7 @@ import type { AuthService } from "../auth/auth.service";
 import { environment } from "../../../environments/environment";
 
 /** The header the backend reads the viewer from (`FirebaseUser.get_current_user`). */
-export const AUTH_HEADER = "firebase-auth-key";
+const AUTH_HEADER = "firebase-auth-key";
 
 /**
  * Set on a request to send it without the viewer's token: a public read whose answer is the same

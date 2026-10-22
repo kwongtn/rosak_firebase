@@ -167,7 +167,11 @@ describe("authInterceptor", () => {
       r.method === "POST" && r.url === GRAPHQL && r.body.query === query;
 
     it("signs GraphQLClient.request and keeps the caller's own headers", async () => {
-      const sent = TestBed.inject(GraphQLClient).request(query, {}, { "g-recaptcha-response": "r" });
+      const sent = TestBed.inject(GraphQLClient).request(
+        query,
+        {},
+        { "g-recaptcha-response": "r" },
+      );
       await flushToken();
 
       const call = httpMock.expectOne(isGraphql);
