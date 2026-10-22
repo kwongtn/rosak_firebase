@@ -39,9 +39,10 @@ export const incidentFormSchema = schema<IncidentFormModel>((f) => {
   required(f.startDatetime, { message: "Select a start date and time" });
   required(f.severity, { message: "Select a severity" });
 
-  // A validator on End itself, so its message shows under End: an error a validateTree returns with
-  // a `field` key still lands on the form root, where no template reads it. Both values are
-  // datetime-local strings, which sort as times while they share that format.
+  // A validator on End itself, so its message shows under End. (A validateTree error targets a field
+  // only through its `fieldTree` key; the `field` key this rule used before is ignored, so the error
+  // fell back to the form root, where no template reads it.) Both values are datetime-local strings,
+  // which sort as times while they share that format.
   validate(f.endDatetime, ({ value, valueOf }) => {
     const start = valueOf(f.startDatetime);
     return start && value() && value() < start
