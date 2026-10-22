@@ -353,6 +353,13 @@ walks the static imports from `main.ts` and fails when it reaches `features/`, `
   `Initial total | 843.51 kB | 223.94 kB` became `843.67 kB | 224.00 kB`. All of the 0.16 kB is
   `styles` (101.38 kB to 101.54 kB); `main` stays 238.08 kB. The front page's lazy `home-routes` chunk
   grew from 193.00 kB to 201.00 kB (40.23 kB to 41.99 kB transferred).
+- At `28bc9b2`, the final gate of the feature pass (Prettier clean, 222 test files and 3481 tests
+  passed), the table reads `Initial total | 843.67 kB | 223.93 kB`, and the budget warning reports
+  `total of 843.42 kB`, which leaves about 156 kB under the 1 MB error budget. That is 1.63 kB above
+  the 842.04 kB at `0a57ec4`, and the wave 2 packages account for all of it: the station page 0.20 kB
+  (`842.24 kB`), the line alerts 1.27 kB (`843.51 kB` with the station page) and the typical week
+  0.16 kB, all of it `styles`. The typical week bullet above quotes 224.00 kB for the transfer size
+  from that package's own build, and the gate printed 223.93 kB.
 
 **Next candidates**, smallest risk first:
 
