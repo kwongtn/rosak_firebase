@@ -50,7 +50,9 @@ export class RtSource {
 
   constructor(config: RtSourceConfig) {
     this.sourceUrl = config.sourceUrl;
-    this.refreshIntervalMs = config.intervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
+    // `null` is a real choice ("Do not refresh"), so only an absent interval takes the default.
+    this.refreshIntervalMs =
+      config.intervalMs === undefined ? DEFAULT_REFRESH_INTERVAL_MS : config.intervalMs;
   }
 
   /** Changes the normal (non-error) refresh cadence. An error-backoff countdown already in
