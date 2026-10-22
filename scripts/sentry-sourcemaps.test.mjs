@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { readRelease } from "./sentry-sourcemaps.mjs";
 
 const HASH = "5c0d457f3e9e61fa641704a99d412b0d539857e7";
@@ -33,5 +35,47 @@ describe("readRelease", () => {
 
   it("returns null when version.json does not exist", () => {
     assert.equal(readRelease(rootWith()), null);
+  });
+
+  it("returns null, not a crash, when version.json is malformed", () => {
+    assert.equal(readRelease(rootWith("{ not json")), null);
+  });
+});
+
+// Runs a copy of the script from a throwaway root, so a developer's real .sentryclirc and dist/
+// never take part. Every run must exit 0 without reaching sentry-cli (no network, no npx).
+describe("sentry-sourcemaps CLI", () => {
+  const script = join(dirname(fileURLToPath(import.meta.url)), "sentry-sourcemaps.mjs");
+
+  function run(env, { versionJson, withDist } = {}) {
+    const root = rootWith(versionJson);
+    mkdirSync(join(root, "scripts"));
+    copyFileSync(script, join(root, "scripts/sentry-sourcemaps.mjs"));
+    if (withDist) {
+      mkdirSync(join(root, "dist/web"), { recursive: true });
+    }
+    const { SENTRY_AUTH_TOKEN: _token, ...base } = process.env;
+    const result = spawnSync(process.execPath, [join(root, "scripts/sentry-sourcemaps.mjs")], {
+      env: { ...base, ...env },
+      encoding: "utf8",
+    });
+    return { status: result.status, lines: result.stdout.trim().split("\n") };
+  }
+
+  it("logs one line and exits 0 when there is no auth token", () => {
+    const { status, lines } = run({}, { versionJson: JSON.stringify({ hash: HASH }) });
+    assert.equal(status, 0);
+    assert.equal(lines.length, 1);
+    assert.match(lines[0], /No Sentry auth token/);
+  });
+
+  it("logs one line and exits 0 when the token is set but there is no release hash", () => {
+    const { status, lines } = run(
+      { SENTRY_AUTH_TOKEN: "dummy" },
+      { versionJson: JSON.stringify({ hash: "unknown" }), withDist: true },
+    );
+    assert.equal(status, 0);
+    assert.equal(lines.length, 1);
+    assert.match(lines[0], /No usable release hash/);
   });
 });

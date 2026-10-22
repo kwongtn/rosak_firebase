@@ -25,14 +25,20 @@ const distDir = join(rootDir, "dist/web");
 
 /**
  * The release name: the `hash` build-info stamped into the build, or null when there is none to
- * use (version.json missing, or "unknown" because the build had no git checkout).
+ * use (version.json missing or malformed, or "unknown" because the build had no git checkout).
  */
 export function readRelease(root) {
   const versionJson = join(root, "public/version.json");
   if (!existsSync(versionJson)) {
     return null;
   }
-  const { hash } = JSON.parse(readFileSync(versionJson, "utf8"));
+  let hash;
+  try {
+    ({ hash } = JSON.parse(readFileSync(versionJson, "utf8")));
+  } catch {
+    // This script soft-fails by design: unreadable build info means no release, not a failed build.
+    return null;
+  }
   return hash && hash !== "unknown" ? hash : null;
 }
 
@@ -63,7 +69,7 @@ if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const release = readRelease(rootDir);
   if (!release) {
     console.log(
-      "[sentry-sourcemaps] No release hash in public/version.json (build-info ran without git?) — skipping upload.",
+      "[sentry-sourcemaps] No usable release hash in public/version.json (missing, malformed, or build-info ran without git?) — skipping upload.",
     );
     process.exit(0);
   }
