@@ -30,6 +30,7 @@ import {
 import type { StatusConfidence } from "../data/status-confidence.util";
 import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
 import { currentServiceBucketIndex, historyTotal } from "../data/status-history-display.util";
+import { LineNoticesComponent } from "./line-notices.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
 import { StatusInfoChipComponent } from "./status-info-chip.component";
@@ -48,7 +49,9 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * code and name, the plain-language operational status, plus — for an ACTIVE line only — the
  * confidence chip that says how much to trust it and the rider-reported crowd. A non-Active status
  * badge already carries that line's story, so the confidence and passenger chips are omitted there.
- * Then a SECOND strip carrying the fleet count and the report
+ * Then, only when the line has one, its incident chips (`app-line-notices`: a Notice for an approved
+ * incident running now, and for a PINNED line also its Planned works), and a SECOND strip carrying the
+ * fleet count and the report
  * tally together (see the template's note on why they are grouped, and why that is what fixes a 390px
  * phone), and the actions — pin, Details, Report, expand. Same set and order as the full card, so
  * every group on the board reads as one control per line; only the weight differs (the card's
@@ -91,6 +94,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
     InfoPopover,
     NgIcon,
     RouterLink,
+    LineNoticesComponent,
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
@@ -230,6 +234,12 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
           </span>
         }
       </div>
+
+      <!-- The line's incident chips (Notice; for a pinned line also Planned works). Renders nothing
+           until the store has an answer for this line — no skeleton, no gap: the host is empty:hidden.
+           A pinned row is a row in My lines (a pin takes a line out of All lines and Others), so the
+           pin state IS the "My lines" test for Planned works. -->
+      <app-line-notices class="mt-1.5" [lineId]="line().id" [planned]="_isPinned()" />
 
       <!-- 🔴 The fleet count and the report count are ONE fragment, and they sit on their OWN strip.
            A 390px phone could not fit the status pill, the confidence chip ("Unconfirmed (0 reports)"), the

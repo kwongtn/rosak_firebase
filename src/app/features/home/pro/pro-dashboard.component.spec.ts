@@ -112,6 +112,10 @@ function makeStore(lines: LinePulse[] = []) {
       }>
     >([]),
     requestIncidentsRead: vi.fn(),
+    // The embedded board's own incident reads: it opts both in and its rows read the two lookups.
+    requestPlannedWorksRead: vi.fn(),
+    noticesFor: () => [],
+    plannedWorksFor: () => [],
     isLoadingMore: signal(false),
     feedLinks: signal<FeedLink[]>([makeFeedLink("a")]),
     feedPageInfo: signal<{ hasNextPage: boolean; endCursor: string | null } | null>({
@@ -545,7 +549,12 @@ describe("pro-dashboard.component: ProDashboardComponent", () => {
     // One explicit call each, from the widget that renders the answer. A store-constructed resource
     // would fire for every store — including every Rider visit and every feed-focused spec.
     expect(storeMock.requestHistoryReads).toHaveBeenCalled();
-    expect(storeMock.requestIncidentsRead).toHaveBeenCalledTimes(1);
+    // The incidents list has TWO askers here — the widget and the embedded board, whose rows draw the
+    // Notice chips from the same list — and exactly two: the call is idempotent in the real store, so
+    // the dashboard still sends one request. A third asker would be a surface nobody reviewed.
+    expect(storeMock.requestIncidentsRead).toHaveBeenCalledTimes(2);
+    // Nothing is pinned in this fixture, so no row draws Planned works and that read stays unsent.
+    expect(storeMock.requestPlannedWorksRead).not.toHaveBeenCalled();
     // The archive read is the third of the three, and it is the one NOBODY else may request: it is
     // only mounted here.
     expect(storeMock.requestOfficialNotices).toHaveBeenCalledTimes(1);

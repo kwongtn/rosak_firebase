@@ -11,6 +11,8 @@ import {
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
 import { LinePulse } from "../data/home-board.queries";
+import type { HomeIncidentItem } from "../data/home-incidents.queries";
+import { HomeStore } from "../data/home.store";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { LinePulseCardComponent } from "./line-pulse-card.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
@@ -62,6 +64,9 @@ describe("LinePulseCardComponent", () => {
     openFor: ReturnType<typeof vi.fn>;
     setOpen: ReturnType<typeof vi.fn>;
   };
+  /** The store's incident lists by line id, as real signals read inside the lookups. */
+  let noticesByLine: ReturnType<typeof signal<Record<string, HomeIncidentItem[]>>>;
+  let plannedByLine: ReturnType<typeof signal<Record<string, HomeIncidentItem[]>>>;
 
   beforeEach(async () => {
     sheetMock = {
@@ -70,6 +75,8 @@ describe("LinePulseCardComponent", () => {
       openFor: vi.fn(),
       setOpen: vi.fn(),
     };
+    noticesByLine = signal({});
+    plannedByLine = signal({});
     // The pin is real state that outlives one fixture, so each test starts from a clean store
     // rather than inheriting whatever the previous card pinned.
     localStorage.clear();
@@ -83,9 +90,18 @@ describe("LinePulseCardComponent", () => {
         // resolve to a real route.
         provideRouter([
           { path: "spotting/:lineId", children: [{ path: "details", children: [] }] },
+          { path: "insiden", children: [{ path: ":date", children: [] }] },
         ]),
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
+        // The card draws the line's Notice chips, which read the store; only the two lookups.
+        {
+          provide: HomeStore,
+          useValue: {
+            noticesFor: (lineId: string) => noticesByLine()[lineId] ?? [],
+            plannedWorksFor: (lineId: string) => plannedByLine()[lineId] ?? [],
+          },
+        },
       ],
     }).compileComponents();
 
@@ -634,6 +650,60 @@ describe("LinePulseCardComponent", () => {
         renderMethodologyCopy(metricDoc("status-confidence.confirmed").definition),
       );
       expect(panel?.querySelector("a")?.getAttribute("href")).toBe("/methodology#line-status");
+    });
+  });
+
+  describe("the incident chips", () => {
+    it("draws no incident chips while the store has no answer for the line", () => {
+      const root = render(makeLine());
+
+      expect(root.querySelector('[data-testid="line-notices"]')).toBeNull();
+      expect(root.querySelector("[hlmskeleton], [data-testid*='skeleton']")).toBeNull();
+    });
+
+    it("draws a Notice chip for an incident running on the line — the card is where trouble is", () => {
+      noticesByLine.set({
+        "line-1": [
+          {
+            id: "a",
+            startDatetime: "2026-10-22T08:00:00",
+            endDatetime: null,
+            severity: "MAJOR",
+            title: "Signal fault",
+            brief: "",
+            lines: [{ id: "line-1", code: "KJL" }],
+          },
+        ],
+      });
+      const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
+
+      const chip = root.querySelector('[data-testid="line-notice"]');
+      expect(chip?.getAttribute("aria-label")).toBe("Notice: Signal fault");
+      expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-22");
+    });
+
+    it("never draws Planned works: those belong to the rows of My lines", () => {
+      plannedByLine.set({
+        "line-1": [
+          {
+            id: "p",
+            startDatetime: "2026-10-24T22:00:00",
+            endDatetime: null,
+            severity: "MINOR",
+            title: "Track works",
+            brief: "",
+            lines: [{ id: "line-1", code: "KJL" }],
+          },
+        ],
+      });
+      const root = render(makeLine());
+      // Pinned, which is what makes a ROW draw them — the card still asks for Notices only.
+      preferences.togglePin("line-1");
+      fixture.detectChanges();
+
+      expect(preferences.isPinned("line-1")).toBe(true);
+      expect(root.querySelector('[data-testid="line-planned"]')).toBeNull();
+      expect(root.querySelector('[data-testid="line-notices"]')).toBeNull();
     });
   });
 });

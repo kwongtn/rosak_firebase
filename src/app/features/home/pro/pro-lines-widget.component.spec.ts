@@ -72,6 +72,11 @@ function makeStore(lines: LinePulse[], history: Map<string, LineStatusHourBucket
     // The board's operator-family mirror. The widget never reads it, but the board's effect writes it.
     lineFamily: signal<string | null>(null),
     setLineFamily: vi.fn(),
+    // The board opts the two incident reads in and its rows read the lookups; nothing here has any.
+    requestIncidentsRead: vi.fn(),
+    requestPlannedWorksRead: vi.fn(),
+    noticesFor: () => [],
+    plannedWorksFor: () => [],
   };
   store.setProStatusFilter = vi.fn((value: string | null) => store.proStatusFilter.set(value));
   store.setProPassengerFilter = vi.fn((value: string | null) =>

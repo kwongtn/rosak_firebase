@@ -225,6 +225,11 @@ interface StoreMock {
   linesHistoryFor: (lineId: string) => LineStatusHourBucket[];
   linesHistoryFailed: WritableSignal<boolean>;
   requestHistoryReads: ReturnType<typeof vi.fn>;
+  // The board's incident chips: it opts the two reads in and its rows read the two lookups.
+  requestIncidentsRead: ReturnType<typeof vi.fn>;
+  requestPlannedWorksRead: ReturnType<typeof vi.fn>;
+  noticesFor: () => never[];
+  plannedWorksFor: () => never[];
   polling: {
     intervalMs: WritableSignal<number | null>;
     secondsRemaining: WritableSignal<number>;
@@ -331,6 +336,10 @@ describe("HomePage", () => {
       linesHistoryFor: () => [],
       linesHistoryFailed: signal(false),
       requestHistoryReads: vi.fn(),
+      requestIncidentsRead: vi.fn(),
+      requestPlannedWorksRead: vi.fn(),
+      noticesFor: () => [],
+      plannedWorksFor: () => [],
       // The REAL rule (set the signal, then let the board's effect scroll the anchor) rather than a
       // spy that records the call — a spy would pass even if the board never drew the ring.
       highlightLine: vi.fn((lineId: string) => {

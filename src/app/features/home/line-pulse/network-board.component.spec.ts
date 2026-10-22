@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import type { LinePulse } from "../data/home-board.queries";
+import type { HomeIncidentItem } from "../data/home-incidents.queries";
 import { partitionBoardLines } from "../data/board-lines.util";
 import type { BoardSort } from "../data/board-lines.util";
 import { HomeStore } from "../data/home.store";
@@ -141,6 +142,15 @@ function makeBoardStore(
     linesHistoryFor: () => [],
     linesHistoryFailed: signal(false),
     requestHistoryReads: vi.fn(),
+    // The incident chips. The board OPTS THE TWO READS IN (the two spies) and its rows read the two
+    // lookups; both lookups read a signal inside the call, as the store's do, so a spec can let an
+    // answer land after the first paint. `[]` is the store's answer for "not asked / in flight / failed".
+    requestIncidentsRead: vi.fn(),
+    requestPlannedWorksRead: vi.fn(),
+    notices: signal<Record<string, HomeIncidentItem[]>>({}),
+    planned: signal<Record<string, HomeIncidentItem[]>>({}),
+    noticesFor: (lineId: string): HomeIncidentItem[] => store.notices()[lineId] ?? [],
+    plannedWorksFor: (lineId: string): HomeIncidentItem[] => store.planned()[lineId] ?? [],
   };
   apply(null, sort);
   return store;
@@ -196,7 +206,10 @@ describe("NetworkBoardComponent", () => {
       imports: [NetworkBoardComponent],
       providers: [
         provideZonelessChangeDetection(),
-        provideRouter([{ path: "", component: BoardHostStub }]),
+        provideRouter([
+          { path: "", component: BoardHostStub },
+          { path: "insiden", children: [{ path: ":date", children: [] }] },
+        ]),
         { provide: HomeStore, useValue: storeMock },
         // The board no longer owns ?view=: `HomeViewModeService` does, and the board reads its
         // `view()` and its toggle calls `setView()`. The REAL service is provided rather than a stub
@@ -458,6 +471,186 @@ describe("NetworkBoardComponent", () => {
     const others = inventory.querySelector<HTMLElement>('[data-testid="line-board-others"]');
     expect(others?.classList.contains("border-t")).toBe(true);
     expect(others?.className.split(/\s+/)).toContain("pt-4");
+  });
+
+  /* ---- the incident chips ----------------------------------------------------------- */
+
+  /** One incident row, as the store hands it to a row. */
+  function incident(id: string, overrides: Partial<HomeIncidentItem> = {}): HomeIncidentItem {
+    return {
+      id,
+      startDatetime: "2026-10-22T08:00:00",
+      endDatetime: null,
+      severity: "MINOR",
+      title: `Incident ${id}`,
+      brief: "",
+      lines: [],
+      ...overrides,
+    };
+  }
+
+  /** The chips of one kind inside one group's section. */
+  function chipsIn(
+    root: HTMLElement,
+    group: "attention" | "mine" | "all" | "others",
+    kind: "line-notice" | "line-planned",
+  ): number {
+    return (
+      root
+        .querySelector(`[data-testid="line-board-${group}"]`)
+        ?.querySelectorAll(`[data-testid="${kind}"]`).length ?? 0
+    );
+  }
+
+  it("opts the ongoing-incidents read in as it mounts, and leaves the planned-works read alone", async () => {
+    await board([makeLine("a"), makeLine("b")]);
+
+    // One call from the board itself, not one per row. Nothing is pinned, so nothing draws Planned
+    // works and that second read is never sent.
+    expect(storeMock.requestIncidentsRead).toHaveBeenCalledTimes(1);
+    expect(storeMock.requestPlannedWorksRead).not.toHaveBeenCalled();
+  });
+
+  it("opts the planned-works read in once the My lines group has a row", async () => {
+    await board([makeLine("a"), makeLine("b")], { pinned: ["a"] });
+
+    expect(storeMock.requestPlannedWorksRead).toHaveBeenCalled();
+  });
+
+  it("opts the planned-works read in when a pin appears after the first paint", async () => {
+    // Pins are client state: the server render never has one, and the first client paint is the
+    // server's. The read starts when the group first has a row, not before.
+    await board([makeLine("a")]);
+    expect(storeMock.requestPlannedWorksRead).not.toHaveBeenCalled();
+
+    storeMock.myLines.set([makeLine("a")]);
+    storeMock.allLines.set([]);
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(storeMock.requestPlannedWorksRead).toHaveBeenCalled();
+  });
+
+  it("does not send the planned-works read for a pinned line that is a Needs attention card", async () => {
+    // "Pin says I care; it does not hide a broken line further down" — such a line is a card, the
+    // card draws no Planned works, so there is nothing for the second read to feed.
+    const root = await board([makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("b")], {
+      pinned: ["dead"],
+    });
+
+    expect(codesIn(root, "attention")).toEqual(["DEAD"]);
+    expect(codesIn(root, "mine")).toEqual([]);
+    expect(storeMock.requestPlannedWorksRead).not.toHaveBeenCalled();
+  });
+
+  it("draws no incident markup at all while the incidents read has no answer", async () => {
+    const root = await board([
+      makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+      makeLine("a"),
+      makeLine("b"),
+    ]);
+
+    // The store answers `[]` for loading: no chip, no strip, no skeleton on a row. The only skeleton
+    // the board owns is the LINES read's, and it is not showing.
+    expect(root.querySelector('[data-testid="line-notices"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-notice"]')).toBeNull();
+    expect(root.querySelector('[data-testid="line-skeleton"]')).toBeNull();
+    expect(root.querySelectorAll('[data-testid="line-board-row"]')).toHaveLength(3);
+  });
+
+  it("draws a Notice on the line it belongs to, in every group and on an attention card", async () => {
+    const root = await board(
+      [
+        makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+        makeLine("mine"),
+        makeLine("plain"),
+        makeLine("trial", { status: "TESTING" }),
+      ],
+      { pinned: ["mine"] },
+    );
+    storeMock.notices.set({
+      dead: [incident("1", { title: "Signal fault" })],
+      mine: [incident("2")],
+      plain: [incident("3")],
+      trial: [incident("4")],
+    });
+    TestBed.tick();
+    fixture.detectChanges();
+
+    for (const group of ["attention", "mine", "all", "others"] as const) {
+      expect(chipsIn(root, group, "line-notice"), group).toBe(1);
+    }
+    // And on the card it is the card's own line: the chip is inside the row wrapper of its line.
+    const deadRow = root.querySelector('[id="line-dead"]');
+    expect(deadRow?.querySelector('[data-testid="line-notice"]')?.getAttribute("aria-label")).toBe(
+      "Notice: Signal fault",
+    );
+  });
+
+  it("draws Planned works for the pinned lines of My lines only", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["mine"] }));
+    const root = await board(
+      [makeLine("dead", { status: "TOTAL_DISRUPTION" }), makeLine("mine"), makeLine("plain")],
+      {
+        pinned: ["mine"],
+      },
+    );
+    const works = (id: string) => incident(id, { startDatetime: "2026-10-24T22:00:00" });
+    storeMock.planned.set({ dead: [works("1")], mine: [works("2")], plain: [works("3")] });
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(preferences.isPinned("mine")).toBe(true);
+    // The same works are on three lines; only the pinned line's My lines row draws them.
+    expect(chipsIn(root, "mine", "line-planned")).toBe(1);
+    expect(chipsIn(root, "attention", "line-planned")).toBe(0);
+    expect(chipsIn(root, "all", "line-planned")).toBe(0);
+    expect(root.querySelectorAll('[data-testid="line-planned"]')).toHaveLength(1);
+  });
+
+  it("caps a row at two chips with a +N link, whichever group it is in", async () => {
+    const root = await board([makeLine("plain")]);
+    storeMock.notices.set({
+      plain: [incident("1"), incident("2"), incident("3")],
+    });
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(chipsIn(root, "all", "line-notice")).toBe(2);
+    const more = root.querySelector('[data-testid="line-notices-more"]');
+    expect(more?.textContent?.trim()).toBe("+1");
+    expect(more?.getAttribute("href")).toBe("/insiden");
+  });
+
+  it("keeps every id on the board unique with chips in every group", async () => {
+    // The Notice link points `aria-describedby` at its severity word by id, so the ids are
+    // per line AND incident; two groups drawing the same incident for two lines must not collide.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["mine"] }));
+    const root = await board(
+      [
+        makeLine("dead", { status: "TOTAL_DISRUPTION" }),
+        makeLine("mine"),
+        makeLine("plain"),
+        makeLine("trial", { status: "TESTING" }),
+      ],
+      { pinned: ["mine"] },
+    );
+    const shared = incident("shared", {
+      lines: [
+        { id: "dead", code: "DEAD" },
+        { id: "mine", code: "MINE" },
+        { id: "plain", code: "PLAIN" },
+        { id: "trial", code: "TRIAL" },
+      ],
+    });
+    storeMock.notices.set({ dead: [shared], mine: [shared], plain: [shared], trial: [shared] });
+    storeMock.planned.set({ mine: [incident("p")] });
+    TestBed.tick();
+    fixture.detectChanges();
+
+    const ids = [...root.querySelectorAll("[id]")].map((element) => element.id);
+    expect(ids.filter((id) => id.startsWith("line-notice-severity-"))).toHaveLength(4);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   /* ---- the controls ---------------------------------------------------------------- */

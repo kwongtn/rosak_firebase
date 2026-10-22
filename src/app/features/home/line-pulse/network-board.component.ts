@@ -81,6 +81,13 @@ const SORT_PARAM = "sort";
  * ring VISIBLE with no transition under `prefers-reduced-motion`, which is what a reader who asked
  * for less motion still needs — the information, not the flourish.
  *
+ * **Incident chips.** Every row and card can carry a Notice chip (`app-line-notices`), so the board
+ * opts the store's ongoing-incidents read in as it mounts — the Pro widget asks for the same
+ * resource, and two askers still send one request. The Planned works read is for the rows of My
+ * lines only, so the board opts it in once a pinned line exists (pins are client state: the server
+ * render never has one, and never sends that read). Both are the store's isolated reads: neither
+ * can raise the page's error banner, and the board draws no placeholder while they load.
+ *
  * **Focus visibility on the controls row.** The four segmented buttons (sort / view) are plain
  * `<button>`s rather than `hlmBtn`, because a segmented group needs a shared track and the button
  * primitive's own border and padding are the wrong shape for it. That means the primitive's
@@ -641,6 +648,17 @@ export class NetworkBoardComponent {
   }
 
   constructor() {
+    // Notice chips. Opt in here, not in the rows: sixteen rows would call it sixteen times, and a
+    // request that only some surface may start is the store's own rule for its isolated reads. The
+    // call is idempotent, so the Pro dashboard (board + incidents widget) still sends one request.
+    this.store.requestIncidentsRead();
+    // Planned works draw on pinned lines' rows only, so the second read waits until there is one.
+    effect(() => {
+      if (this._mine().length > 0) {
+        this.store.requestPlannedWorksRead();
+      }
+    });
+
     // Write half: mirror the effective SORT into the URL. `writeQueryParams` is browser-gated (a
     // reactive navigate() during SSR hangs the render), and the equality guard below stops the
     // redundant navigation a back/forward would otherwise trigger by re-navigating onto the exact

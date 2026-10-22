@@ -26,6 +26,7 @@ import {
   vehicleBreakdownRows,
   vehicleCountInfo,
 } from "../data/status-info.util";
+import { LineNoticesComponent } from "./line-notices.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
 import { StatusInfoChipComponent } from "./status-info-chip.component";
@@ -55,7 +56,8 @@ const MAX_PULSE_LINKS = 5;
  * "Unconfirmed (0 reports)" / "No data" beside it is noise. Where the status is unremarkable the
  * confidence chip answers a question the other chips never did — how much to trust any of this: an
  * operator-sourced post, several corroborating riders, one person's guess, or nothing at all (the
- * pure rule is `statusConfidence`). The title row is
+ * pure rule is `statusConfidence`). Under the header, `app-line-notices` draws the line's Notice
+ * chips when an approved incident is running on it. The title row is
  * the expand/collapse toggle for the lazy detail panel — the hourly report chart
  * and the recent reports list, both of which only read once expanded. Mobile-first: the card is a
  * single column with full-width, content-sized actions; from `sm:` the actions move to the right
@@ -69,6 +71,7 @@ const MAX_PULSE_LINKS = 5;
     InfoPopover,
     NgIcon,
     RouterLink,
+    LineNoticesComponent,
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
@@ -181,6 +184,12 @@ const MAX_PULSE_LINKS = 5;
               </div>
             </div>
           </header>
+
+          <!-- The line's Notice chips: an approved incident running on this line now. A line that
+               needs attention is exactly where one is most likely, so the card draws them too (the
+               compact row does). No Planned works here — those are for the rows of My lines. Renders
+               nothing without an answer, and the host is empty:hidden so the column's gap closes. -->
+          <app-line-notices [lineId]="line().id" />
 
           @if (_links().length > 0) {
             <ul class="flex flex-col gap-1.5">

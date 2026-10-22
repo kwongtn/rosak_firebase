@@ -14,6 +14,7 @@ import { PreferencesService } from "../../../core/preferences/preferences.servic
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home-board.queries";
 import type { LineStatusHourBucket } from "../data/home-history.queries";
+import type { HomeIncidentItem } from "../data/home-incidents.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { HomeStore } from "../data/home.store";
 import { LinePulseRowComponent } from "./line-pulse-row.component";
@@ -74,6 +75,10 @@ describe("LinePulseRowComponent", () => {
   let historyByLine: Map<string, LineStatusHourBucket[]>;
   let historyFailed: ReturnType<typeof signal<boolean>>;
   let requestHistoryReads: ReturnType<typeof vi.fn>;
+  /** The store's two incident lists by line id: the Notices (running now) and the Planned works. Real
+   *  signals, read inside the lookups the way the store's are, so a spec can let an answer land later. */
+  let noticesByLine: ReturnType<typeof signal<Record<string, HomeIncidentItem[]>>>;
+  let plannedByLine: ReturnType<typeof signal<Record<string, HomeIncidentItem[]>>>;
 
   /** The first hour of the fixture service day (2026-09-21T19:00Z), for the clock tests. */
   const SERVICE_DAY_START = new Date("2026-09-21T19:00:00+00:00").getTime();
@@ -92,6 +97,8 @@ describe("LinePulseRowComponent", () => {
     historyByLine = new Map();
     historyFailed = signal(false);
     requestHistoryReads = vi.fn();
+    noticesByLine = signal({});
+    plannedByLine = signal({});
     // The pin is real state that outlives one fixture, so each test starts from a clean store.
     localStorage.clear();
 
@@ -103,6 +110,7 @@ describe("LinePulseRowComponent", () => {
         // `/spotting/:lineId` and its `details` child or the href never resolves (NG04002).
         provideRouter([
           { path: "spotting/:lineId", children: [{ path: "details", children: [] }] },
+          { path: "insiden", children: [{ path: ":date", children: [] }] },
         ]),
         provideHttpClientTesting(),
         { provide: LineStatusSheetService, useValue: sheetMock },
@@ -113,6 +121,8 @@ describe("LinePulseRowComponent", () => {
             linesHistoryFor: (lineId: string) => historyByLine.get(lineId) ?? [],
             linesHistoryFailed: historyFailed,
             requestHistoryReads,
+            noticesFor: (lineId: string) => noticesByLine()[lineId] ?? [],
+            plannedWorksFor: (lineId: string) => plannedByLine()[lineId] ?? [],
           },
         },
       ],
@@ -680,6 +690,116 @@ describe("LinePulseRowComponent", () => {
     expect(row?.querySelector('[data-testid="line-row-details"]')).not.toBeNull();
     expect(row?.querySelector('[data-testid="line-row-report"]')).not.toBeNull();
     expect(row?.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+  });
+
+  describe("incident chips", () => {
+    /** One incident row; its title and start day are what the chip draws. */
+    function incident(id: string, overrides: Partial<HomeIncidentItem> = {}): HomeIncidentItem {
+      return {
+        id,
+        startDatetime: "2026-10-22T08:00:00",
+        endDatetime: null,
+        severity: "MINOR",
+        title: `Incident ${id}`,
+        brief: "",
+        lines: [{ id: "line-1", code: "KJL" }],
+        ...overrides,
+      };
+    }
+
+    it("draws nothing while the incidents read has no answer: no strip, no skeleton", () => {
+      // The store answers `[]` for "not asked", "in flight" and "failed". A row must not announce a
+      // pending lookup for something most lines never have.
+      const root = render(makeLine());
+
+      expect(root.querySelector('[data-testid="line-notices"]')).toBeNull();
+      expect(root.querySelector('[data-testid="line-notice"]')).toBeNull();
+      expect(root.querySelector("[hlmskeleton], [data-testid*='skeleton']")).toBeNull();
+    });
+
+    it("draws a Notice chip for an incident on this line, linking to the day it started", () => {
+      noticesByLine.set({
+        "line-1": [incident("a", { title: "Signal fault", severity: "MAJOR" })],
+      });
+      const root = render(makeLine());
+
+      const chip = root.querySelector('[data-testid="line-notice"]');
+      expect(chip?.getAttribute("aria-label")).toBe("Notice: Signal fault");
+      expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-22");
+      expect(textOf(root, "line-notice-severity")).toBe("Major");
+      expect(textOf(root, "line-notice-title")).toBe("Signal fault");
+    });
+
+    it("lets a chip land after the first paint, without the row remounting", () => {
+      const root = render(makeLine());
+      expect(root.querySelector('[data-testid="line-notice"]')).toBeNull();
+
+      noticesByLine.set({ "line-1": [incident("a")] });
+      fixture.detectChanges();
+
+      expect(root.querySelector('[data-testid="line-notice"]')).not.toBeNull();
+    });
+
+    it("reads the answer for ITS OWN line only", () => {
+      noticesByLine.set({ "line-2": [incident("other")] });
+      const root = render(makeLine({ id: "line-1" }));
+
+      expect(root.querySelector('[data-testid="line-notice"]')).toBeNull();
+    });
+
+    it("draws Planned works only while the row is pinned (a pinned row is a My lines row)", () => {
+      plannedByLine.set({
+        "line-1": [incident("p", { startDatetime: "2026-10-24T22:00:00", title: "Track works" })],
+      });
+      const root = render(makeLine());
+
+      // Unpinned: the store HAS planned works for this line and the row still draws none.
+      expect(root.querySelector('[data-testid="line-planned"]')).toBeNull();
+
+      root.querySelector<HTMLButtonElement>('[data-testid="line-row-pin"]')?.click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+
+      const chip = root.querySelector('[data-testid="line-planned"]');
+      expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-24");
+      expect(textOf(root, "line-planned-date")).toBe("Sat 24 Oct");
+      expect(textOf(root, "line-planned-title")).toBe("Track works");
+
+      root.querySelector<HTMLButtonElement>('[data-testid="line-row-pin"]')?.click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(root.querySelector('[data-testid="line-planned"]')).toBeNull();
+    });
+
+    it("sits between the status chips and the fleet/report strip", () => {
+      noticesByLine.set({ "line-1": [incident("a")] });
+      const root = render(makeLine());
+
+      const order = [
+        ...root.querySelectorAll(
+          '[data-testid="line-row-chips"], [data-testid="line-notices"], [data-testid="line-row-meta"]',
+        ),
+      ].map((strip) => strip.getAttribute("data-testid"));
+      expect(order).toEqual(["line-row-chips", "line-notices", "line-row-meta"]);
+    });
+
+    it("draws at most two chips, and +N links the rest to /insiden", () => {
+      noticesByLine.set({ "line-1": [incident("a"), incident("b"), incident("c"), incident("d")] });
+      const root = render(makeLine());
+
+      expect(root.querySelectorAll('[data-testid="line-notice"]')).toHaveLength(2);
+      const more = root.querySelector('[data-testid="line-notices-more"]');
+      expect(textOf(root, "line-notices-more")).toBe("+2");
+      expect(more?.getAttribute("href")).toBe("/insiden");
+    });
+
+    it("draws its chips in the Pro view too", () => {
+      noticesByLine.set({ "line-1": [incident("a")] });
+      const root = render(makeLine(), { viewMode: "pro" });
+
+      expect(root.querySelector('[data-testid="line-notice"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="line-row-pro"]')).not.toBeNull();
+    });
   });
 
   it("reads a stored pin only after the browser hydration pass, so SSR and first paint agree", () => {
