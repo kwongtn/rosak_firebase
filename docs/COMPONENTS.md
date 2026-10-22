@@ -55,6 +55,17 @@ shared by `<app-nav>` and `<app-compact-nav>`, so a change to one reaches both. 
 opened. While it is closed its focus trap is off and its panel is `inert`, so nothing in it can take
 focus or reach a screen reader, and a host whose control had focus moves focus back to its opener
 itself.
+Every open `HlmSheet` holds the root `ScrollLock` (`ui/sheet/scroll-lock.ts`) once, so the page
+unlocks only when the last open sheet lets go, whatever order they open and close in. The scrim is
+`z-[48]`: above the sticky nav (`z-[45]`) and under the `z-50` panel, so it dims the nav.
+`HlmButton` defaults a `<button>` to `type="button"` (an `<a>` gets no `type`); a submit button says
+`type="submit"`. `HlmCard`, `HlmCardContent`, `HlmSkeleton` and `HlmTr` merge a consumer `class`
+through `hlm()`, so a `gap-3 p-4` or `rounded-full` on them wins; the other card and table parts keep
+static host classes. `styles.css` defines `--success`, `--warning` and `--info` with `-foreground`
+variants, light and dark, as `bg-success`, `text-info-foreground` and so on: `--X` is the accent for
+an icon, dot, fill or large text, `--X-foreground` is small text on a `bg-X/15` tint. Red is the
+existing `--destructive`. Badge variants, toast icons, the home hero and the vote buttons use them;
+other components still use raw palette utilities.
 
 **Cross-cutting core** (`src/app/core/*`, no per-feature doc):
 
