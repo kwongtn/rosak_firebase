@@ -482,19 +482,6 @@ export type {
   UpdateSocialMediaLinkVars,
 } from "../../../insiden/data/social-links.queries";
 
-export const CONSOLE_CATEGORIES_QUERY = /* GraphQL */ `
-  query ConsoleCategories {
-    calendarIncidentCategories {
-      id
-      name
-    }
-  }
-`;
-
-export interface ConsoleCategoriesQueryData {
-  calendarIncidentCategories: { id: string; name: string }[];
-}
-
 /* ---------------------------------------------------------------------- *
  * Chronology deletion review (Task 6 backend mutations — spec E1). The
  * request flow is LIVE-only: a user (or admin) flags a LIVE chronology via

@@ -48,8 +48,6 @@ import {
   type InsidenReferenceQueryData,
 } from "../../../insiden/data/insiden.queries";
 import {
-  CONSOLE_CATEGORIES_QUERY,
-  ConsoleCategoriesQueryData,
   DELETE_SOCIAL_MEDIA_LINK_MUTATION,
   DeleteSocialMediaLinkData,
   DeleteSocialMediaLinkVars,
@@ -341,7 +339,6 @@ export class SocialMediaLinksComponent {
   private readonly queueDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
 
   protected readonly links = signal<SocialMediaLinkRow[]>([]);
-  protected readonly categories = signal<{ id: string; name: string }[]>([]);
   protected readonly isLoading = signal(false);
 
   protected readonly skeletonRows = [0, 1, 2, 3, 4];
@@ -617,6 +614,12 @@ export class SocialMediaLinksComponent {
     query: INSIDEN_REFERENCE_QUERY,
   }));
 
+  /** The Category filter's options, from the same reference read as the edit panel's tags (it
+   *  already selects every category), not a second categories query. */
+  protected readonly categories = computed(
+    () => this.referenceResource.data()?.calendarIncidentCategories ?? [],
+  );
+
   protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
     lineOptionsOf(this.referenceResource.data()),
   );
@@ -686,7 +689,6 @@ export class SocialMediaLinksComponent {
 
   constructor() {
     this.load();
-    this.loadCategories();
   }
 
   protected onSearchInput(value: string): void {
@@ -1706,23 +1708,6 @@ export class SocialMediaLinksComponent {
       this.queueIsComplete.set(queueIsComplete);
     } catch (err) {
       this.toast.error("Couldn't load links", err instanceof Error ? err.message : "Unknown error");
-    }
-  }
-
-  private async loadCategories(): Promise<void> {
-    try {
-      const idToken = await this.auth.idToken();
-      const data = await this.graphql.request<ConsoleCategoriesQueryData>(
-        CONSOLE_CATEGORIES_QUERY,
-        undefined,
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      this.categories.set(data.calendarIncidentCategories);
-    } catch (err) {
-      this.toast.error(
-        "Couldn't load categories",
-        err instanceof Error ? err.message : "Unknown error",
-      );
     }
   }
 }

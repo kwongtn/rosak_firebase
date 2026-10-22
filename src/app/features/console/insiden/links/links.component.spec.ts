@@ -9,7 +9,6 @@ import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
-  CONSOLE_CATEGORIES_QUERY,
   DELETE_SOCIAL_MEDIA_LINK_MUTATION,
   MARK_LINK_COMPLETED_MUTATION,
   SOCIAL_MEDIA_LINKS_QUERY,
@@ -233,7 +232,7 @@ describe("SocialMediaLinksComponent", () => {
    * otherwise a follow-up load() hits its own re-entrancy guard. */
   async function initialLoadsSettled(component: ComponentUnderTest): Promise<void> {
     await fixture.whenStable();
-    await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(requestMock).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => expect(component.isLoading()).toBe(false));
   }
 
@@ -398,7 +397,7 @@ describe("SocialMediaLinksComponent", () => {
     );
   }
 
-  it("loads links and categories on init with the pending default filter", async () => {
+  it("loads links on init with the pending default filter", async () => {
     await initialLoadsSettled(asTestable(fixture));
 
     const component = asTestable(fixture);
@@ -416,8 +415,31 @@ describe("SocialMediaLinksComponent", () => {
     expect("stationId" in linkVars).toBe(false);
     expect("occurredAfter" in linkVars).toBe(false);
     expect("occurredBefore" in linkVars).toBe(false);
-    const [, categoryVars] = callsFor("calendarIncidentCategories")[0];
-    expect(categoryVars).toBeUndefined();
+    // The Category filter reads the reference query's categories; no second categories query.
+    expect(callsFor("calendarIncidentCategories")).toHaveLength(0);
+  });
+
+  it("lists the reference read's categories in the Category filter", async () => {
+    (
+      fixture.componentInstance as unknown as { referenceResource: { reload(): void } }
+    ).referenceResource.reload();
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: {
+          lines: [],
+          stations: [],
+          calendarIncidentCategories: [{ id: "c1", name: "Signal" }],
+        },
+      });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const options = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll("app-links-filter-bar option"),
+    ).map((option) => option.textContent?.trim());
+    expect(options).toContain("Signal");
   });
 
   it("debounces typing and refetches once with the trimmed term after 300ms", async () => {
