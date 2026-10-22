@@ -1,5 +1,6 @@
 import { Environment } from "./environment.model";
 import { firebaseConfig } from "./firebase-config.generated";
+import { runtimeConfig } from "./runtime-config.generated";
 
 export const environment: Environment = {
   production: false,
@@ -16,6 +17,10 @@ export const environment: Environment = {
   mapbox: {
     token:
       "pk.eyJ1Ijoia3dvbmd0biIsImEiOiJjbHd3d241ZWExMGhyMmpzN3hzcTh1bXU5In0.eQt0fqq-1aRq023MLG7VPg",
+  },
+  // Empty unless FCM_VAPID_KEY is set for `npm start`, so local alerts stay off by default.
+  fcm: {
+    vapidKey: runtimeConfig.fcmVapidKey,
   },
   // Same project as prod (see environment.ts's own comment on why one shared project rather
   // than a second one to provision) — *not* disabled here the way the old app's dev

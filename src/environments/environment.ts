@@ -21,6 +21,9 @@ export const environment: Environment = {
   mapbox: {
     token: runtimeConfig.mapboxToken,
   },
+  fcm: {
+    vapidKey: runtimeConfig.fcmVapidKey,
+  },
   sentry: {
     // Same project the old app reports to (see the repo root's own environment.prod.ts) —
     // errors from both apps land in one place during the side-by-side rewrite period,

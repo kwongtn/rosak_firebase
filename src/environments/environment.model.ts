@@ -24,6 +24,12 @@ export interface Environment {
   mapbox: {
     token: string;
   };
+  /** Firebase Cloud Messaging, for the line alerts (`core/push`). */
+  fcm: {
+    /** The project's Web Push (VAPID) public key, from the `FCM_VAPID_KEY` build variable (see
+     * generate-runtime-config.mjs). Empty means alerts are not set up: the bell renders disabled. */
+    vapidKey: string;
+  };
   sentry: {
     /** `undefined` makes the SDK a safe no-op (see environment.development.ts) — local dev
      * doesn't need its own separate enable/disable flag on top of this. */

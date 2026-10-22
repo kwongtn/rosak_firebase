@@ -20,6 +20,9 @@ const FALLBACK = {
   captchaSiteKey: "6Le4ekQhAAAAAKu_C7LTyylJfe8Q8Gv5fiNFx_kj",
   environmentName: "production",
   uploadConcurrency: 5,
+  // The Web Push (VAPID) public key of the Firebase project, for the line alerts (core/push). Empty
+  // until one is generated (see apphosting.yaml), and the alert bell then renders disabled.
+  fcmVapidKey: "",
 };
 
 const config = {
@@ -29,6 +32,7 @@ const config = {
   captchaSiteKey: process.env["CAPTCHA_SITE_KEY"] ?? FALLBACK.captchaSiteKey,
   environmentName: process.env["ENVIRONMENT_NAME"] ?? FALLBACK.environmentName,
   uploadConcurrency: Number(process.env["UPLOAD_CONCURRENCY"] ?? FALLBACK.uploadConcurrency),
+  fcmVapidKey: process.env["FCM_VAPID_KEY"] ?? FALLBACK.fcmVapidKey,
 };
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");

@@ -33,6 +33,13 @@ env:
   - variable: UPLOAD_CONCURRENCY
     value: "5"
     availability: [BUILD]
+  # Web Push (VAPID) public key for the line alerts (core/push). Generate it in the Firebase
+  # console: Project settings > Cloud Messaging > Web Push certificates > Generate key pair, and
+  # paste the public key here. It is public (the browser receives it), so a plain value is fine.
+  # Empty: the alert bell renders disabled with "Alerts are not set up yet".
+  - variable: FCM_VAPID_KEY
+    value: ""
+    availability: [BUILD]
   # FIREBASE_WEBAPP_CONFIG is not declared here: App Hosting auto-populates it at build time
   # with the linked Firebase Web App's SDK config (Console/CLI: App Hosting → this backend →
   # linked web app), consumed by scripts/generate-firebase-config.mjs. An env entry for it is
