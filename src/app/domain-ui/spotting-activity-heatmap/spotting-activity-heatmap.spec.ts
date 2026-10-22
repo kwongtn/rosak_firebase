@@ -13,7 +13,7 @@ import {
  * The instant of a naive Kuala Lumpur wall time as the API sends it ("2026-10-01T05:23:15.833490":
  * no offset, `USE_TZ = False`). Malaysia is a fixed UTC+8, and a Date keeps milliseconds only.
  */
-function naiveMyt(wall: string): Date {
+function mytInstant(wall: string): Date {
   return new Date(`${wall.slice(0, 23)}+08:00`);
 }
 
@@ -73,7 +73,7 @@ describe.each(["UTC", "Asia/Kuala_Lumpur"])("heatmap date helpers in TZ=%s", (zo
 
     it("gives the Kuala Lumpur day as today's key late in the evening", () => {
       vi.useFakeTimers();
-      vi.setSystemTime(naiveMyt("2026-09-30T23:59:59"));
+      vi.setSystemTime(mytInstant("2026-09-30T23:59:59"));
 
       expect(dateKeyOf(new Date())).toBe("2026-09-30");
     });
@@ -83,7 +83,7 @@ describe.each(["UTC", "Asia/Kuala_Lumpur"])("heatmap date helpers in TZ=%s", (zo
       "gives the Kuala Lumpur day as today's key at %s (F436)",
       (wall) => {
         vi.useFakeTimers();
-        vi.setSystemTime(naiveMyt(wall));
+        vi.setSystemTime(mytInstant(wall));
 
         expect(dateKeyOf(new Date())).toBe("2026-10-01");
       },
