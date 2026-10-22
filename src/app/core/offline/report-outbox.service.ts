@@ -247,8 +247,9 @@ export class ReportOutboxService {
           continue;
         }
         // A transport failure: the connection is not really back. Keep this report and the rest for
-        // the next try, which is the whole point of the outbox. The submit that queued it already
-        // rethrew its own failure to Sentry.
+        // the next try, which is the whole point of the outbox. Not rethrown: a dead link is the
+        // case the outbox exists for, and a submit that queued after a failure already sent that
+        // failure to Sentry.
         break;
       }
     }
