@@ -315,6 +315,82 @@ test.describe("community front page", () => {
     await expect(page.getByTestId("submit-line-status-report")).toBeVisible();
   });
 
+  test("VISITOR: approved incidents show as Notice chips on the lines they are tagged with", async ({
+    page,
+  }) => {
+    const incident = (id: string, lineId: string, code: string, overrides = {}) => ({
+      id,
+      startDatetime: "2026-10-20T08:30:00",
+      endDatetime: null,
+      severity: "MAJOR",
+      title: `Incident ${id}`,
+      brief: "",
+      lines: [{ id: lineId, code }],
+      ...overrides,
+    });
+    await configureMock({
+      FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
+      Feed: feedPage(),
+      // The mock answers by operation name, so both incident reads get this one list.
+      HomeRecentIncidents: {
+        calendarIncidents: [
+          incident("101", "1", "KJL", { title: "Signal fault at KL Sentral" }),
+          incident("102", "1", "KJL", { severity: "MINOR", startDatetime: "2026-10-19T22:10:00" }),
+          incident("103", "1", "KJL", { severity: "OTHERS" }),
+          incident("104", "2", "MRL", { title: "Train fault" }),
+        ],
+      },
+    });
+
+    await page.goto("/");
+
+    // A Normal line still gets its notice: two chips at most, the rest behind "+N".
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await expect(kjl.getByTestId("line-notice")).toHaveCount(2);
+    const first = kjl.getByTestId("line-notice").first();
+    await expect(first).toHaveAttribute("aria-label", "Notice: Signal fault at KL Sentral");
+    await expect(first).toHaveAttribute("href", "/insiden/2026-10-20");
+    await expect(first.getByTestId("line-notice-severity")).toHaveText("Major");
+    // The severity word is the link's description, so a screen reader still hears it.
+    await expect(first).toHaveAccessibleDescription("Major");
+    await expect(kjl.getByTestId("line-notices-more")).toHaveText("+1");
+    await expect(kjl.getByTestId("line-notices-more")).toHaveAttribute("href", "/insiden");
+
+    // A line that needs attention is a card, and the card draws its Notice too.
+    const mrl = page
+      .getByTestId("line-board-attention")
+      .locator("app-line-pulse-card")
+      .filter({ hasText: "Monorail Line" });
+    await expect(mrl.getByTestId("line-notice")).toHaveCount(1);
+    await expect(mrl.getByTestId("line-notice")).toHaveAttribute(
+      "aria-label",
+      "Notice: Train fault",
+    );
+
+    // The board asked for ONE read, with the literal LIVE + activeNow variables, and nothing for
+    // planned works (no line is pinned).
+    const incidentCalls = (await recordedCalls()).filter(
+      (call) => call.operationName === "HomeRecentIncidents",
+    );
+    expect(incidentCalls.map((call) => call.variables)).toEqual([
+      { filters: { status: "LIVE", activeNow: true }, order: { startDatetime: "DESC" } },
+    ]);
+
+    // Pinning a line puts it in My lines, and only then does the planned-works read go out.
+    await kjl.getByTestId("line-row-pin").click();
+    await expect(page.getByTestId("line-board-mine")).toBeVisible();
+    await expect
+      .poll(async () =>
+        (await recordedCalls())
+          .filter((call) => call.operationName === "HomeRecentIncidents")
+          .map((call) => call.variables),
+      )
+      .toContainEqual({
+        filters: { status: "LIVE", upcomingWithinDays: 7 },
+        order: { startDatetime: "ASC" },
+      });
+  });
+
   test("USER: a duplicate submission surfaces the already-submitted indicator", async ({
     page,
   }) => {
