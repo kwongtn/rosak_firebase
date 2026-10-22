@@ -197,7 +197,7 @@ deliberately not built in v1: there is no `onSnapshot`, no editor, and the page 
   `iconPosition` / `triggerClasses` rather than a second glyph or a second pill's padding.
 - **Route and chrome:** the route is registered through `loadComponent`, so it can be moved, guarded or
   given resolvers without touching the page. The footer link is the only nav entry. It is deliberately
-  **not** in `MODULE_NAV_LINKS` (`src/app/shell/nav-config.ts`), which is the app's module switcher.
+  **not** in `NAV_LINKS` (`src/app/shell/nav-config.ts`), which is the app's module switcher.
 
 ## 💡 Potential Feature Opportunities
 

@@ -15,7 +15,6 @@ import { mergeMap } from "rxjs/operators";
 @Injectable({ providedIn: "root" })
 export class HoverPreloadStrategy implements PreloadingStrategy {
   private preloadedRoutes = new Set<string>();
-  private preloadSubjects = new Map<string, Observable<void>>();
 
   /** Call this from nav link hover/focus to trigger preloading of a specific route. */
   preloadRoute(routePath: string): void {
@@ -23,23 +22,13 @@ export class HoverPreloadStrategy implements PreloadingStrategy {
       return; // Already preloaded
     }
 
-    const subject = this.preloadSubjects.get(routePath);
-    if (subject) {
-      return; // Preload already in progress
-    }
-
     // Find the route config (this is a simplified lookup)
     // In practice, the route path is matched when the router processes the route
     this.preloadedRoutes.add(routePath);
   }
 
-  /** Checks if a route has been preloaded. */
-  isPreloaded(routePath: string): boolean {
-    return this.preloadedRoutes.has(routePath);
-  }
-
   /** Standard preloading strategy interface - used by Angular router. */
-  preload(route: Route, load: () => Observable<any>): Observable<any> {
+  preload(route: Route, load: () => Observable<unknown>): Observable<unknown> {
     // Only preload if explicitly marked with data.preload === 'hover'
     // and if we've been told to preload it via preloadRoute()
     if (route.data?.["preload"] === "hover" && this.preloadedRoutes.has(route.path ?? "")) {

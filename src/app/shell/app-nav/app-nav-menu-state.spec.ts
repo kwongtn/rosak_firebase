@@ -58,21 +58,4 @@ describe("NavMenuState", () => {
       expect(state.moduleMenuOpen()).toBe(true);
     });
   });
-
-  describe("console menu", () => {
-    it("does nothing without hover capability", () => {
-      state.onConsoleMenuEnter();
-      expect(state.consoleMenuOpen()).toBe(false);
-    });
-
-    it("auto-opens on enter and closes after the hover-close delay", () => {
-      state.hoverCapable.set(true);
-      state.onConsoleMenuEnter();
-      expect(state.consoleMenuOpen()).toBe(true);
-
-      state.onConsoleMenuLeave();
-      vi.advanceTimersByTime(HOVER_CLOSE_DELAY_MS);
-      expect(state.consoleMenuOpen()).toBe(false);
-    });
-  });
 });

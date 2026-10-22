@@ -1,8 +1,7 @@
 import { Component, input, output } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../ui/sheet/sheet";
-import { type ConsoleLink } from "../nav-config";
-import { type NavLink } from "./app-nav.util";
+import { type ConsoleLink, type NavLink } from "../nav-config";
 
 /**
  * `<app-nav>`'s "not enough room for the full link row" menu: the compact "current module ▾"

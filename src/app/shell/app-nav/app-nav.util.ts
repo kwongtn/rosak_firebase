@@ -1,21 +1,6 @@
-/** A single cross-feature module link rendered by `<app-nav>` (inline row, collapsed dropdown and
- * mobile sheet). `exact` feeds `routerLinkActiveOptions` — only Home matches exactly. */
-export interface NavLink {
-  path: string;
-  label: string;
-  exact: boolean;
-}
+import { NAV_LINKS } from "../nav-config";
 
 export const GENERIC_TITLE = "Malaysia Land Public Transport Fans";
-
-export const NAV_LINKS: NavLink[] = [
-  { path: "/", label: "Home", exact: true },
-  { path: "/spotting", label: "TranSPOT", exact: false },
-  { path: "/tracker", label: "Tracker", exact: false },
-  { path: "/gallery", label: "Gallery", exact: false },
-  { path: "/insiden", label: "Insiden", exact: false },
-  { path: "/about", label: "About", exact: false },
-];
 
 /** The first path segment of a router URL, query and fragment stripped — `/?view=pro` is the
  * Home segment, not `"?view=pro"`. */

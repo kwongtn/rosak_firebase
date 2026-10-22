@@ -5,22 +5,20 @@ import { signal } from "@angular/core";
 export const HOVER_CLOSE_DELAY_MS = 300;
 
 /**
- * Open/close state for `<app-nav>`'s two hover menus, kept out of the component so the rendering
- * concern and the menu-state concern stay separate.
+ * Open/close state for `<app-nav>`'s collapsed module menu, kept out of the component so the
+ * rendering concern and the menu-state concern stay separate.
  *
- * Both menus only auto-open on a `(hover: hover) and (pointer: fine)` device: a hover-incapable
+ * The menu only auto-opens on a `(hover: hover) and (pointer: fine)` device: a hover-incapable
  * device gets a tap-to-toggle trigger with no hover-close timer to fight (see `hoverCapable`,
  * fed by the component's measured `matchMedia` check). `moduleMenuOpen` is the collapsed
- * trigger's dropdown/sheet; `consoleMenuOpen` is the Console item's own hover dropdown in the
- * expanded inline link list — a separate signal because the two never render together.
+ * trigger's dropdown/sheet. The Console item's own hover dropdown in the expanded inline link
+ * list keeps its state inside `<app-console-menu>`, and is handed `hoverCapable`.
  */
 export class NavMenuState {
   readonly moduleMenuOpen = signal(false);
-  readonly consoleMenuOpen = signal(false);
   readonly hoverCapable = signal(false);
 
   private hoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
-  private consoleHoverCloseTimeout: ReturnType<typeof setTimeout> | undefined;
 
   onModuleMenuEnter(): void {
     if (!this.hoverCapable()) {
@@ -49,23 +47,5 @@ export class NavMenuState {
       return;
     }
     this.moduleMenuOpen.set(!this.moduleMenuOpen());
-  }
-
-  onConsoleMenuEnter(): void {
-    if (!this.hoverCapable()) {
-      return;
-    }
-    clearTimeout(this.consoleHoverCloseTimeout);
-    this.consoleMenuOpen.set(true);
-  }
-
-  onConsoleMenuLeave(): void {
-    if (!this.hoverCapable()) {
-      return;
-    }
-    this.consoleHoverCloseTimeout = setTimeout(
-      () => this.consoleMenuOpen.set(false),
-      HOVER_CLOSE_DELAY_MS,
-    );
   }
 }

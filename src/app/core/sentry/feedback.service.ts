@@ -25,9 +25,10 @@ export const LOAD_FEEDBACK = new InjectionToken<() => Promise<Feedback>>("LoadFe
  * Sentry's User Feedback widget behind a lazy load. Its code (~60 KB) is its own chunk, fetched the
  * first time someone opens "Report a bug" instead of on every page load — which is why nothing in
  * the first-load graph may reference `Sentry.feedbackIntegration` or `Sentry.getFeedback()`
- * statically (main.ts doesn't register it either). The app's own "Report a bug" buttons (app-nav
- * icon tray, compact nav) are its only trigger, each calling `openForm()` from a plain (click)
- * binding. Browser-only: on the server it loads nothing.
+ * statically (main.ts doesn't register it either). The app's own "Report a bug" buttons (the
+ * shared `app-report-bug-button`, in the app-nav icon tray and the compact nav) are its only
+ * trigger, calling `openForm()` from a plain (click) binding. Browser-only: on the server it loads
+ * nothing.
  */
 @Injectable({ providedIn: "root" })
 export class FeedbackService {

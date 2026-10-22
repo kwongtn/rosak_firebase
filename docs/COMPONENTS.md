@@ -47,7 +47,11 @@ integrations — most features use one; several straddle two:
 button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-external-link-icon`),
 `src/app/domain-ui/*` (status badges, activity heatmap — thin wrappers over the shared enums in
 `core/graphql/types.ts`), and `src/app/shell/*` (page chrome: `AppNavComponent`,
-`AppFooterComponent`, account panel, compact nav, offline strip). `HlmSheet` stays mounted once it has
+`AppFooterComponent`, account panel, compact nav, offline strip). `shell/nav-config.ts` holds the
+one `NAV_LINKS` module list (the compact nav renders it minus the active module) and the one
+`CONSOLE_LINKS` list; the logo (`<svg app-brand-logo>`), the "Report a bug" button
+(`<button app-report-bug-button>`) and the admin Console hover menu (`<div app-console-menu>`) are
+shared by `<app-nav>` and `<app-compact-nav>`, so a change to one reaches both. `HlmSheet` stays mounted once it has
 opened. While it is closed its focus trap is off and its panel is `inert`, so nothing in it can take
 focus or reach a screen reader, and a host whose control had focus moves focus back to its opener
 itself.

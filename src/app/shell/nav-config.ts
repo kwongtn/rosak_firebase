@@ -20,25 +20,27 @@ export const CONSOLE_LINKS: ConsoleLink[] = [
   { path: "/console/links", label: "Social Media Links", exact: false },
 ];
 
-/** A single cross-feature module link shown in the compact floating nav pill (the one
- * `/tracker` keeps instead of the full-width `<app-nav>`). Shared between every page that
- * reuses the pill, so adding a module here makes it appear everywhere automatically. */
-export interface ModuleNavLink {
+/** A single cross-feature module link rendered by `<app-nav>` (inline row, collapsed dropdown and
+ * mobile sheet) and by the compact floating nav pill. `exact` feeds `routerLinkActiveOptions` —
+ * only Home matches exactly. */
+export interface NavLink {
   path: string;
   label: string;
+  exact: boolean;
 }
 
-/** The cross-feature module links, in display order. The compact nav renders these *minus*
- * whichever module is currently active (passed to the component as `currentModulePath`), so a
- * module never lists itself as a navigation option — the current module is already shown in the
- * pill's brand/logo trigger, so a second entry would be redundant. Keeping this list here (rather
- * than hardcoding it per page) means a future module that reuses the pill gets the same
- * self-exclusion for free just by setting its own `currentModulePath`. */
-export const MODULE_NAV_LINKS: ModuleNavLink[] = [
-  { path: "/", label: "Home" },
-  { path: "/spotting", label: "TranSPOT" },
-  { path: "/tracker", label: "Tracker" },
-  { path: "/gallery", label: "Gallery" },
-  { path: "/insiden", label: "Insiden" },
-  { path: "/about", label: "About" },
+/** Single source of truth for the cross-feature module links, in display order — read by
+ * `<app-nav>` and its `moduleLabelFor`, and by the compact nav pill (the one `/tracker` keeps
+ * instead of the full-width `<app-nav>`). The compact nav renders these *minus* whichever module
+ * is currently active (passed to the component as `currentModulePath`), so a module never lists
+ * itself as a navigation option — the current module is already shown in the pill's brand/logo
+ * trigger, so a second entry would be redundant. Adding a module here makes it appear in both
+ * navs automatically. */
+export const NAV_LINKS: NavLink[] = [
+  { path: "/", label: "Home", exact: true },
+  { path: "/spotting", label: "TranSPOT", exact: false },
+  { path: "/tracker", label: "Tracker", exact: false },
+  { path: "/gallery", label: "Gallery", exact: false },
+  { path: "/insiden", label: "Insiden", exact: false },
+  { path: "/about", label: "About", exact: false },
 ];

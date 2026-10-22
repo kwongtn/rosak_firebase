@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { NAV_LINKS } from "../nav-config";
 import {
-  NAV_LINKS,
   avatarButtonClassFor,
   avatarLabelText,
   moduleLabelFor,
