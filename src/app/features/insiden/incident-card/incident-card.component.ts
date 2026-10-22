@@ -445,11 +445,14 @@ export class IncidentCardComponent implements OnDestroy {
       const data = await this.graphql.request<
         PublicSocialMediaLinksQueryData,
         PublicSocialMediaLinksVars
-      >(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, {
-        first: LINK_PAGE_SIZE,
-        after: cursor,
-        incidentId: this.incident().id,
-      });
+      >(
+        PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
+        { first: LINK_PAGE_SIZE, after: cursor, incidentId: this.incident().id },
+        undefined,
+        // Anonymous like page one (the incident's nested `links`), so every page shows the same
+        // vote state.
+        { anonymous: true },
+      );
       const connection = data.publicSocialMediaLinks;
       this.appendedEdges.update((prev) => [...prev, ...connection.edges]);
       this.appendedHasNext.set(connection.pageInfo.hasNextPage);

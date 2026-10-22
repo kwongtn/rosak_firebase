@@ -291,21 +291,33 @@ describe("HomeStore", () => {
 
     // An uncollapsed continuation appended to a collapsed first page would re-list every root and
     // render members as loose rows — so the flag is not optional here either.
-    expect(requestMock).toHaveBeenNthCalledWith(1, expect.stringContaining("query Feed"), {
-      first: FEED_PAGE_SIZE,
-      after: "cursor-x",
-      status: "LIVE",
-      currentServiceDayOnly: true,
-      collapseThreads: true,
-    });
-    expect(requestMock).toHaveBeenNthCalledWith(2, expect.stringContaining("query Feed"), {
-      first: LAST_WEEK_PAGE_SIZE,
-      after: "cursor-w",
-      status: "LIVE",
-      lastWeekOnly: true,
-      alignPageToDay: true,
-      collapseThreads: true,
-    });
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("query Feed"),
+      {
+        first: FEED_PAGE_SIZE,
+        after: "cursor-x",
+        status: "LIVE",
+        currentServiceDayOnly: true,
+        collapseThreads: true,
+      },
+      undefined,
+      { anonymous: true },
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("query Feed"),
+      {
+        first: LAST_WEEK_PAGE_SIZE,
+        after: "cursor-w",
+        status: "LIVE",
+        lastWeekOnly: true,
+        alignPageToDay: true,
+        collapseThreads: true,
+      },
+      undefined,
+      { anonymous: true },
+    );
   });
 
   it("renders a collapsed root with its subtree nested and counts the root once", async () => {
@@ -584,13 +596,18 @@ describe("HomeStore", () => {
     requestMock.mockResolvedValueOnce(feedData([makeFeedLink("y")], false, "cursor-y"));
     await store.loadMore();
 
-    expect(requestMock).toHaveBeenCalledWith(expect.stringContaining("query Feed"), {
-      first: FEED_PAGE_SIZE,
-      after: "cursor-x",
-      status: "LIVE",
-      currentServiceDayOnly: true,
-      collapseThreads: true,
-    });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.stringContaining("query Feed"),
+      {
+        first: FEED_PAGE_SIZE,
+        after: "cursor-x",
+        status: "LIVE",
+        currentServiceDayOnly: true,
+        collapseThreads: true,
+      },
+      undefined,
+      { anonymous: true },
+    );
     expect(store.feedLinks().map((l) => l.id)).toEqual(["x", "y"]);
 
     // hasNextPage is now false — a further loadMore is a no-op (no request).
@@ -950,14 +967,19 @@ describe("HomeStore", () => {
     requestMock.mockResolvedValueOnce(feedData([makeFeedLink("w2")], false, "cursor-w2"));
     await store.loadMoreLastWeek();
 
-    expect(requestMock).toHaveBeenCalledWith(expect.stringContaining("query Feed"), {
-      first: LAST_WEEK_PAGE_SIZE,
-      after: "cursor-w",
-      status: "LIVE",
-      lastWeekOnly: true,
-      alignPageToDay: true,
-      collapseThreads: true,
-    });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.stringContaining("query Feed"),
+      {
+        first: LAST_WEEK_PAGE_SIZE,
+        after: "cursor-w",
+        status: "LIVE",
+        lastWeekOnly: true,
+        alignPageToDay: true,
+        collapseThreads: true,
+      },
+      undefined,
+      { anonymous: true },
+    );
     expect(store.lastWeekLinks().map((l) => l.id)).toEqual(["w1", "w2"]);
 
     requestMock.mockClear();
@@ -1718,23 +1740,35 @@ describe("HomeStore: the feed line filter", () => {
     await store.loadMore();
     await store.loadMoreLastWeek();
 
-    expect(requestMock).toHaveBeenNthCalledWith(1, expect.stringContaining("query Feed"), {
-      first: FEED_PAGE_SIZE,
-      after: "cursor-x",
-      status: "LIVE",
-      currentServiceDayOnly: true,
-      collapseThreads: true,
-      lineId: "line-42",
-    });
-    expect(requestMock).toHaveBeenNthCalledWith(2, expect.stringContaining("query Feed"), {
-      first: LAST_WEEK_PAGE_SIZE,
-      after: "cursor-w",
-      status: "LIVE",
-      lastWeekOnly: true,
-      alignPageToDay: true,
-      collapseThreads: true,
-      lineId: "line-42",
-    });
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("query Feed"),
+      {
+        first: FEED_PAGE_SIZE,
+        after: "cursor-x",
+        status: "LIVE",
+        currentServiceDayOnly: true,
+        collapseThreads: true,
+        lineId: "line-42",
+      },
+      undefined,
+      { anonymous: true },
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("query Feed"),
+      {
+        first: LAST_WEEK_PAGE_SIZE,
+        after: "cursor-w",
+        status: "LIVE",
+        lastWeekOnly: true,
+        alignPageToDay: true,
+        collapseThreads: true,
+        lineId: "line-42",
+      },
+      undefined,
+      { anonymous: true },
+    );
   });
 
   it("DROPS every appended page for both feeds when the filter changes", async () => {

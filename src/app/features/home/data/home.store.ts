@@ -830,11 +830,15 @@ export class HomeStore {
    */
   readonly othersLines = computed<LinePulse[]>(() => this._boardPartition().others);
 
-  /** The Today window: its first page (the resource) plus the Load More pages appended behind it. */
+  /** The Today window: its first page (the resource) plus the Load More pages appended behind it.
+   * Every page is anonymous like the first; the viewer's votes come from the vote overlay. */
   private readonly today = new PagedFeed(
     () => this.feedResource.data(),
     this.todayVars,
-    (variables) => this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, variables),
+    (variables) =>
+      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, variables, undefined, {
+        anonymous: true,
+      }),
   );
 
   /** The Last Week window, paginated like {@link today}. Its pages are day-aligned (see
@@ -842,7 +846,10 @@ export class HomeStore {
   private readonly lastWeek = new PagedFeed(
     () => this.lastWeekResource.data(),
     this.lastWeekVars,
-    (variables) => this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, variables),
+    (variables) =>
+      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, variables, undefined, {
+        anonymous: true,
+      }),
   );
 
   /** First page + appended pages, de-duplicated by `node.id` (see {@link PagedFeed}). */

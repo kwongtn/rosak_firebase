@@ -169,7 +169,10 @@ export class LinksSectionComponent {
       const data = await this.graphql.request<
         PublicSocialMediaLinksQueryData,
         PublicSocialMediaLinksVars
-      >(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, { first: PAGE_SIZE, after: cursor });
+      >(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, { first: PAGE_SIZE, after: cursor }, undefined, {
+        // Anonymous like page one (`linksResource`), so every page shows the same vote state.
+        anonymous: true,
+      });
       const connection = data.publicSocialMediaLinks;
       this.appendedEdges.update((prev) => [...prev, ...connection.edges]);
       this.appendedHasNext.set(connection.pageInfo.hasNextPage);

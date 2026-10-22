@@ -5,6 +5,7 @@ import { By } from "@angular/platform-browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
+import { ANONYMOUS } from "../../../core/http/auth.interceptor";
 import { klDateKey } from "../../../core/time/kl-date";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LinkCardComponent } from "../link-card/link-card.component";
@@ -171,6 +172,8 @@ describe("LinksSectionComponent pagination", () => {
     const loadMore = asTestable(fixture).loadMore();
     const next = httpMock.expectOne((r) => r.method === "POST");
     expect(next.request.body.variables).toEqual({ first: 20, after: "cursor-a" });
+    // Anonymous like page one, or a signed-in viewer's own votes show on page two only.
+    expect(next.request.context.get(ANONYMOUS)).toBe(true);
     next.flush({
       data: connectionOf([makeLink("b", "LIVE")], false, "cursor-b"),
     });

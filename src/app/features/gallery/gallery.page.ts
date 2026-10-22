@@ -305,6 +305,8 @@ export class GalleryPage {
             first: pageSize,
             after: this.endCursor,
           },
+          undefined,
+          { anonymous: true },
         );
         this.hasMore.set(data.medias.pageInfo.hasNextPage);
         this.endCursor = data.medias.edges.at(-1)?.cursor ?? this.endCursor;
@@ -386,6 +388,8 @@ export class GalleryPage {
       const data = await this.graphql.request<MediaByIdQueryData, MediaByIdQueryVars>(
         MEDIA_BY_ID_QUERY,
         { id },
+        undefined,
+        { anonymous: true },
       );
       media = data.media;
     } catch (error) {

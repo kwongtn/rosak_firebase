@@ -9,6 +9,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { Meta, Title } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ANONYMOUS } from "../../core/http/auth.interceptor";
 import { AdSlotComponent } from "../../ui/ad-slot/ad-slot.component";
 import { ToastService } from "../../ui/toast/toast.service";
 import { AppFooterComponent } from "../../shell/app-footer/app-footer.component";
@@ -269,6 +270,7 @@ describe("GalleryPage deep link", () => {
 
     const media = mediaByIdRequest();
     expect(media.request.body.variables).toEqual({ id: PHOTO.id });
+    expect(media.request.context.get(ANONYMOUS)).toBe(true);
     media.flush({ data: { media: PHOTO } });
     await settle(fixture);
 
@@ -684,6 +686,7 @@ describe("GalleryPage photo viewer navigation", () => {
 
       const more = feedRequest();
       expect(more.request.body.variables).toEqual({ first: 24, after: "c2" });
+      expect(more.request.context.get(ANONYMOUS)).toBe(true);
       // Nothing to go to until it lands.
       expect(control(fixture, "next").getAttribute("aria-disabled")).toBe("true");
       more.flush(feedOf([P3]));

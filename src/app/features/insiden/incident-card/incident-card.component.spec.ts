@@ -580,14 +580,19 @@ describe("IncidentCardComponent incident links", () => {
 
     await asTestableCard(fixture).loadMoreLinks();
 
-    expect(requestMock).toHaveBeenCalledWith(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, {
-      first: 10,
-      // Forwarded verbatim — the nested connection mints the same (occurredAt, id) keyset as the
-      // root query, so no re-derivation happens here (and `collapseThreads` stays unsent so the
-      // card's list is flat and complete).
-      after: "cursor-live-1",
-      incidentId: "42",
-    });
+    expect(requestMock).toHaveBeenCalledWith(
+      PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
+      {
+        first: 10,
+        // Forwarded verbatim — the nested connection mints the same (occurredAt, id) keyset as the
+        // root query, so no re-derivation happens here (and `collapseThreads` stays unsent so the
+        // card's list is flat and complete).
+        after: "cursor-live-1",
+        incidentId: "42",
+      },
+      undefined,
+      { anonymous: true },
+    );
     fixture.detectChanges();
     expect(linkLines()).toHaveLength(3);
   });
