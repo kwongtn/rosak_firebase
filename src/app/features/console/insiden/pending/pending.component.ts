@@ -1,5 +1,13 @@
 import { DatePipe } from "@angular/common";
-import { Component, computed, inject, linkedSignal, resource, signal } from "@angular/core";
+import {
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  linkedSignal,
+  resource,
+  signal,
+} from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
@@ -255,11 +263,18 @@ export class PendingIncidentsComponent {
   protected readonly canSave = computed(() => isIncidentFormSaveable(this.model()));
 
   protected readonly extractStates = signal(new Map<number, ChronologyExtractState>());
+  /** The 15s caps of extractions still running; closing the panel or leaving the page clears them,
+   *  so a cap cannot toast or write state for a panel that is gone. */
+  private readonly extractTimers = new Set<ReturnType<typeof setTimeout>>();
   protected readonly isSummarizing = signal(false);
 
   protected readonly eventValue = eventValue;
 
   protected readonly severityLabel = severityLabelText;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.clearExtractTimers());
+  }
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
@@ -333,6 +348,7 @@ export class PendingIncidentsComponent {
   }
 
   protected closePanel(): void {
+    this.clearExtractTimers();
     this.selectedRow.set(null);
     this.model.set(emptyIncidentFormModel());
     this.incidentForm().reset();
@@ -504,6 +520,7 @@ export class PendingIncidentsComponent {
       });
       this.toast.error("Data extraction failed", "Please fill in manually.");
     }, EXTRACT_TIMEOUT_MS);
+    this.extractTimers.add(timer);
 
     try {
       const result = await this.ai.extract(url, requestId);
@@ -541,7 +558,14 @@ export class PendingIncidentsComponent {
           replaced: false,
         });
       }
+    } finally {
+      this.extractTimers.delete(timer);
     }
+  }
+
+  private clearExtractTimers(): void {
+    this.extractTimers.forEach((timer) => clearTimeout(timer));
+    this.extractTimers.clear();
   }
 
   /** Applies a late extraction result, snapshotting the entry first so Undo can

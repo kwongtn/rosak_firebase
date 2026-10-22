@@ -1067,5 +1067,21 @@ describe("PendingIncidentsComponent", () => {
       expect(component.extractStates().get(key)?.lateResult).toEqual(EXTRACTED);
       expect(component.chronologies()[0].content).toBe("typed by hand");
     });
+
+    it("drops the 15s cap when the panel closes or the page is left", async () => {
+      const component = asTestable(fixture);
+      extractMock.mockReturnValue(new Promise(() => undefined));
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+      void component.extractChronology(await openPanel(component));
+      component.closePanel();
+      const key = await openPanel(component);
+      void component.extractChronology(key);
+      fixture.destroy();
+      await vi.advanceTimersByTimeAsync(15_000);
+
+      expect(TestBed.inject(ToastService).error).not.toHaveBeenCalled();
+      expect(component.extractStates().get(key)?.extracting).toBe(true);
+    });
   });
 });
