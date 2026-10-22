@@ -213,15 +213,12 @@ export class ProfilePage {
     this._isLoading.set(true);
     this._isError.set(false);
     try {
-      const idToken = await this.auth.idToken();
-      const headers: Record<string, string> = idToken ? { "firebase-auth-key": idToken } : {};
       let user: PublicUserData | undefined;
 
       if (isOwn) {
         const data = await this.graphql.request<GetUserDataData, GetUserDataVars>(
           GET_USER_DATA_QUERY,
           { typeGroup: true, freeRange: true },
-          headers,
         );
         // `spottings` stays null on the owner branch: GET_USER_DATA_QUERY doesn't return them,
         // and the owner's history is fetched by <app-my-spottings> itself (GET_MY_EVENTS_QUERY,
@@ -231,7 +228,6 @@ export class ProfilePage {
         const data = await this.graphql.request<GetPublicUserData, GetPublicUserVars>(
           GET_PUBLIC_USER_QUERY,
           { id, typeGroup: true, freeRange: true },
-          headers,
         );
         user = data.publicUser ?? undefined;
       }

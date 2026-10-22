@@ -15,7 +15,6 @@ import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { downloadCsv, toCsv } from "../../../core/export/csv.util";
 import { downloadJson } from "../../../core/export/json.util";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
-import { AuthService } from "../../../core/auth/auth.service";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCardImports } from "../../../ui/card/card";
@@ -323,12 +322,11 @@ export class MySpottingsComponent {
   protected readonly _loadFailed = signal(false);
 
   private readonly graphql = inject(GraphQLClient);
-  private readonly auth = inject(AuthService);
   private readonly recaptcha = inject(RecaptchaService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
-  /** Firebase-id-token requests only exist in the browser; on the server `auth.idToken()`
-   * resolves null and an unauthenticated `onlyMine` query would just fail. */
+  /** Signed requests only exist in the browser; on the server there is no session, so an
+   * unsigned `onlyMine` query would just fail. */
   private readonly isBrowser = injectIsBrowser();
 
   /** Rows gathered so far while an export pages through the history; `null` while none is running. */
@@ -421,18 +419,16 @@ export class MySpottingsComponent {
   /**
    * One page of the caller's own history, newest first, from `offset`. `null` means the component
    * was destroyed on the way, so the caller must not write the page anywhere (and no request is made
-   * if it happened while the token was being fetched).
+   * once it is).
    */
   private async fetchEventsPage(offset: number, limit: number): Promise<MyEvent[] | null> {
-    const idToken = await this.auth.idToken();
     if (this.isDestroyed) {
       return null;
     }
-    const data = await this.graphql.request<GetMyEventsData, GetMyEventsVars>(
-      GET_MY_EVENTS_QUERY,
-      { limit, offset },
-      idToken ? { "firebase-auth-key": idToken } : {},
-    );
+    const data = await this.graphql.request<GetMyEventsData, GetMyEventsVars>(GET_MY_EVENTS_QUERY, {
+      limit,
+      offset,
+    });
     return this.isDestroyed ? null : data.events;
   }
 
@@ -523,17 +519,11 @@ export class MySpottingsComponent {
     }
     this._deletingId.set(eventId);
     try {
-      const [captchaToken, idToken] = await Promise.all([
-        this.recaptcha.execute("deleteSpottingEntry"),
-        this.auth.idToken(),
-      ]);
+      const captchaToken = await this.recaptcha.execute("deleteSpottingEntry");
       const data = await this.graphql.request<DeleteEventData, DeleteEventVars>(
         DELETE_EVENT_MUTATION,
         { deleteEventInput: { id: eventId } },
-        {
-          "g-recaptcha-response": captchaToken,
-          ...(idToken ? { "firebase-auth-key": idToken } : {}),
-        },
+        { "g-recaptcha-response": captchaToken },
       );
       if (data.deleteEvent.ok) {
         this._ownEvents.update((list) => list.filter((event) => event.id !== eventId));

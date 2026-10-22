@@ -1,6 +1,5 @@
 import { Component, ErrorHandler, afterNextRender, computed, inject, signal } from "@angular/core";
 
-import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import { HlmCardImports } from "../../../ui/card/card";
@@ -94,7 +93,6 @@ import { FleetProgressLineComponent } from "./fleet-progress-line.component";
 })
 export class FleetProgressComponent {
   private readonly graphql = inject(GraphQLClient);
-  private readonly auth = inject(AuthService);
   private readonly errorHandler = inject(ErrorHandler);
 
   private readonly _vehicles = signal<readonly FleetSpottedVehicle[]>([]);
@@ -126,11 +124,9 @@ export class FleetProgressComponent {
     this._isLoading.set(true);
     this._isError.set(false);
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<GetFleetProgressData, Record<string, never>>(
         GET_FLEET_PROGRESS_QUERY,
         {},
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       const vehicles = data.user.favouriteVehicles;
       if (vehicles.length >= FLEET_FAVOURITES_COUNT) {

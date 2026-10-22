@@ -119,14 +119,14 @@ Directory map:
     `REORDER_SOCIAL_MEDIA_LINKS_MUTATION` (`features/insiden/data/social-links.queries.ts`).
 - **Dependencies:**
   - `core/graphql/graphql-client.ts`: `GraphQLClient.request<TData, TVars>()`, a one-shot POST caller
-    used for every authenticated operation here. `graphqlResource()` sends no auth header (see the
+    used for every authenticated operation here. A default `graphqlResource()` read is anonymous (see the
     MyLinks section), so it serves only the one public read, `FleetProgressLineComponent`'s roster
-    (`LINE_FLEET_QUERY`). Every other call is imperative and carries `firebase-auth-key`.
+    (`LINE_FLEET_QUERY`). Every other call is imperative, and the auth interceptor
+    (`core/http/auth.interceptor.ts`) adds `firebase-auth-key` to it.
   - `core/graphql/types.ts`: `SpottingType`, `VehicleStatus`, and the `GraphQLResponse<T>` /
     `GraphQLError` envelope.
   - `core/auth/auth.service.ts`: `user`, `isLoggedIn`, `isAdmin`, `whenReady: Promise<void>` (await it
-    before trusting auth signals, or a page refresh redirects a logged-in user), `idToken()` (a fresh
-    token per call), `login()`.
+    before trusting auth signals, or a page refresh redirects a logged-in user), `login()`.
   - `core/auth/redirect-to-own-profile.guard.ts`: used only on the bare `""` route.
   - `core/export/csv.util.ts` (`toCsv`, `downloadCsv`) and `core/export/json.util.ts` (`downloadJson`):
     the history export.
@@ -247,8 +247,8 @@ Directory map:
   - **Own profile only, by privacy.** The numbers come from `GET_FLEET_PROGRESS_QUERY`, the caller's own
     full `favouriteVehicles` list. See Public Profiles & Privacy.
   - **It loads itself, after the page has painted.** The constructor registers an `afterNextRender` read
-    (browser only, so SSR never issues it), through `GraphQLClient.request` with the caller's
-    `firebase-auth-key` (`graphqlResource()` sends no auth header). `_isLoading` shows an `hlmSkeleton`
+    (browser only, so SSR never issues it), through `GraphQLClient.request`, which the auth interceptor
+    signs with the caller's `firebase-auth-key`. `_isLoading` shows an `hlmSkeleton`
     (`data-testid="fleet-progress-loading"`). A failure shows the shared retry banner for this card only
     (no countdown, Try Now re-reads), and the rest of the profile is untouched. A `GraphQLRequestError` is
     already toasted and reported by `GraphQLClient`, so only other errors go to the `ErrorHandler`.
@@ -380,10 +380,10 @@ Directory map:
     toasted and reported to Sentry by `GraphQLClient`. Anything else is rethrown to the Sentry-backed global
     `ErrorHandler` rather than dying quietly in a click handler. The mutation's returned root `id` is unused.
     It is a GraphQL `Int`, unlike every other id in the feature, and this list reloads wholesale.
-  - **Auth:** `graphqlResource()` sends no auth header, which would 403 the `mine: true` filter. Reads and
-    writes therefore go through `GraphQLClient.request()` with a per-call `firebase-auth-key`. On the server
-    `auth.idToken()` resolves `null`, and the read is skipped. `MySpottingsComponent` and
-    `UserCardComponent` follow the same pattern.
+  - **Auth:** a default `graphqlResource()` read is anonymous, which would 403 the `mine: true` filter.
+    Reads and writes therefore go through `GraphQLClient.request()`, which the auth interceptor signs with
+    the caller's `firebase-auth-key`. On the server there is no session, and the read is skipped.
+    `MySpottingsComponent` and `UserCardComponent` follow the same pattern.
 
 ## 🧩 Extension Points & Hooks
 

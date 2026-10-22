@@ -4,7 +4,6 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { metricTooltip } from "../../../core/methodology/methodology-render.util";
 import {
@@ -64,7 +63,6 @@ describe("FleetProgressComponent", () => {
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AuthService, useValue: { idToken: vi.fn(async () => "token") } },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ErrorHandler, useValue: { handleError: handleErrorMock } },
       ],
@@ -100,17 +98,13 @@ describe("FleetProgressComponent", () => {
   }
 
   describe("the read", () => {
-    it("asks for the caller's own favourites, with their Firebase token, once", async () => {
+    it("asks for the caller's own favourites once (the auth interceptor adds their token)", async () => {
       requestMock.mockResolvedValue(answer([spotted("1", [KJL])]));
 
       await render();
 
       expect(requestMock).toHaveBeenCalledTimes(1);
-      expect(requestMock).toHaveBeenCalledWith(
-        GET_FLEET_PROGRESS_QUERY,
-        {},
-        { "firebase-auth-key": "token" },
-      );
+      expect(requestMock).toHaveBeenCalledWith(GET_FLEET_PROGRESS_QUERY, {});
     });
 
     it("shows a skeleton while the answer is on its way, then the card in its place", async () => {

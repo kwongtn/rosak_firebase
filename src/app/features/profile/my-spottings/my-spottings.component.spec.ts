@@ -3,7 +3,6 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -98,7 +97,6 @@ describe("MySpottingsComponent", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
-        { provide: AuthService, useValue: { idToken: vi.fn(async () => "token") } },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: RecaptchaService, useValue: { execute: recaptchaExecute } },
         { provide: ToastService, useValue: toast },
@@ -373,7 +371,8 @@ describe("MySpottingsComponent", () => {
       const [query, variables, headers] = requestMock.mock.calls.at(-1)!;
       expect(query).toBe(DELETE_EVENT_MUTATION);
       expect(variables).toEqual({ deleteEventInput: { id: "1" } });
-      expect(headers).toEqual({ "g-recaptcha-response": "captcha", "firebase-auth-key": "token" });
+      // The token is the auth interceptor's; the call carries the captcha only.
+      expect(headers).toEqual({ "g-recaptcha-response": "captcha" });
       expect(deleteButtons().every((button) => !button.disabled)).toBe(true);
     });
 

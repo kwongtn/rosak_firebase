@@ -73,7 +73,7 @@ describe("UserCardComponent", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
-        { provide: AuthService, useValue: { user: viewer, idToken: vi.fn() } },
+        { provide: AuthService, useValue: { user: viewer } },
         { provide: GraphQLClient, useValue: { request } },
         { provide: ToastService, useValue: toast },
       ],

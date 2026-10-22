@@ -305,11 +305,9 @@ export class UserCardComponent {
 
   private async loadVotesCast(): Promise<void> {
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<MyVotesCastData, Record<string, never>>(
         GET_MY_VOTES_CAST_QUERY,
         {},
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       this._votesCast.set(data.myVotesCast);
     } catch (err) {
@@ -333,11 +331,9 @@ export class UserCardComponent {
   protected async save(): Promise<void> {
     this.isSaving.set(true);
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<UpdateUserData, UpdateUserVars>(
         UPDATE_USER_MUTATION,
         { data: { nickname: this.nicknameDraft } },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       this._savedNickname.set(data.updateUser.nickname);
       this.nicknameSaved.emit(data.updateUser.nickname);
@@ -402,11 +398,9 @@ export class UserCardComponent {
   private async savePrivacySetting(value: boolean): Promise<void> {
     this._isSavingPrivacy.set(true);
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<UpdateUserData, UpdateUserVars>(
         UPDATE_USER_MUTATION,
         { data: { nickname: this._displayedNickname(), spottingDataPublic: value } },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       this._spottingDataPublicDraft.set(value);
       this.privacySaved.emit(value);

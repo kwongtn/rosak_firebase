@@ -152,7 +152,7 @@ describe("MyLinksComponent", () => {
         provideZonelessChangeDetection(),
         {
           provide: AuthService,
-          useValue: { idToken: async () => "token", user: () => null },
+          useValue: { user: () => null },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: { success: vi.fn(), error: toastError, info: vi.fn() } },
@@ -178,7 +178,8 @@ describe("MyLinksComponent", () => {
     const [query, vars, headers] = requestMock.mock.calls[0];
     expect(query).toBe(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY);
     expect(vars).toEqual({ mine: true, first: 20, after: null });
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // The token is the auth interceptor's: the call carries no headers.
+    expect(headers).toBeUndefined();
 
     expect(fixture.nativeElement.textContent).toContain("Link a");
     expect(fixture.nativeElement.textContent).toContain("Pending approval");
@@ -208,7 +209,6 @@ describe("MyLinksComponent", () => {
     expect(requestMock.mock.calls[1]).toEqual([
       PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
       { mine: true, first: 20, after: "cursor-a" },
-      { "firebase-auth-key": "token" },
     ]);
     expect(fixture.nativeElement.textContent).toContain("Link b");
   });
@@ -261,7 +261,8 @@ describe("MyLinksComponent", () => {
     // new conversation" (backend elects the earliest row as the root) from "nest under this
     // link". Omitting it is the spelling that cannot be misread as the nest mode.
     expect(Object.prototype.hasOwnProperty.call(vars, "parentId")).toBe(false);
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // The token is the auth interceptor's: the call carries no headers.
+    expect(headers).toBeUndefined();
   });
 
   it("keeps the group action disabled for zero and for ONE ticked row", async () => {
@@ -318,7 +319,6 @@ describe("MyLinksComponent", () => {
     expect(requestMock.mock.calls[2]).toEqual([
       PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
       { mine: true, first: 20, after: null },
-      { "firebase-auth-key": "token" },
     ]);
     expect(textOf(fixture, "thread-selection-count")).toContain("0 selected");
     // The ROOT carries the descendant count and so is the only row that shows the badge…
@@ -448,7 +448,8 @@ describe("MyLinksComponent", () => {
     // legal GraphQL and the refusal is the RESOLVER'S OWN GUARD (`interactions.py:287`).
     expect(Object.prototype.hasOwnProperty.call(vars, "parentId")).toBe(true);
     expect(vars.parentId).toBeNull();
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // The token is the auth interceptor's: the call carries no headers.
+    expect(headers).toBeUndefined();
   });
 
   it("moves a sublink inside its parent's own run, naming that parent", async () => {
@@ -807,7 +808,8 @@ describe("MyLinksComponent", () => {
     const [query, vars, headers] = requestMock.mock.calls[1];
     expect(query).toBe(UNGROUP_SOCIAL_MEDIA_LINKS_MUTATION);
     expect(vars).toEqual({ linkIds: ["m"] });
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // The token is the auth interceptor's: the call carries no headers.
+    expect(headers).toBeUndefined();
 
     // A ROOT is not "ungrouped" — under the tree it is the HEAD of its conversation, with
     // nothing to detach — so no button is offered there, and no cascade is implied anywhere.

@@ -73,7 +73,6 @@ describe("ProfilePage", () => {
           useValue: {
             whenReady: Promise.resolve(),
             user: signedInUid,
-            idToken: vi.fn(async () => "token"),
           },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },

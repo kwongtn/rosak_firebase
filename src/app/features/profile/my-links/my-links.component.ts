@@ -1,6 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
-import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmCardImports } from "../../../ui/card/card";
@@ -50,9 +49,10 @@ const PAGE_SIZE = 20;
  * "My Submitted Links" (Task 23) — the one-way-street view from spec F2: a logged-in
  * user sees their own link submissions here (never others'), via the Task 10 `mine`
  * cursor-paginated connection. Data access mirrors <app-my-spottings> EXACTLY — this
- * is NOT graphqlResource (that is an HttpClient helper with no auth headers and would
- * 403 the `mine` filter): the idToken is minted per call and sent as firebase-auth-key;
- * on the server `auth.idToken()` resolves null and the query is skipped.
+ * is NOT graphqlResource (its default read is anonymous and would 403 the `mine` filter):
+ * GraphQLClient.request, which the auth interceptor signs with the caller's token. The
+ * structural writes (group, nest, reorder, ungroup) are `IsLoggedIn` and owner-gated, so the
+ * token is required, not decoration. On the server there is no session and the query is skipped.
  *
  * CONVERSATION TREE (spec F7, submitter half, on the nested backend model). A
  * conversation is an ordered TREE: a row's `parentId` is null exactly when the row IS
@@ -252,10 +252,9 @@ export class MyLinksComponent {
   protected readonly threadLabel = threadLabel;
 
   private readonly graphql = inject(GraphQLClient);
-  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
-  /** Firebase-id-token requests only exist in the browser; on the server `auth.idToken()`
-   * resolves null and the `mine` query would just fail (same reasoning as my-spottings). */
+  /** Signed requests only exist in the browser; on the server there is no session and the
+   * `mine` query would just fail (same reasoning as my-spottings). */
   private readonly isBrowser = injectIsBrowser();
 
   protected readonly _links = signal<PublicSocialMediaLink[]>([]);
@@ -438,7 +437,6 @@ export class MyLinksComponent {
       this.graphql.request<ReorderSocialMediaLinksData, ReorderSocialMediaLinksVars>(
         REORDER_SOCIAL_MEDIA_LINKS_MUTATION,
         { linkIds: ordered, parentId: link.parentId ?? null },
-        await this._authHeaders(),
       ),
     );
   }
@@ -473,7 +471,6 @@ export class MyLinksComponent {
         this.graphql.request<GroupSocialMediaLinksData, GroupSocialMediaLinksVars>(
           GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
           { linkIds, parentId: targetId },
-          await this._authHeaders(),
         ),
       { clearSelection: true },
     );
@@ -511,7 +508,6 @@ export class MyLinksComponent {
         this.graphql.request<GroupSocialMediaLinksData, GroupSocialMediaLinksVars>(
           GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
           { linkIds },
-          await this._authHeaders(),
         ),
       { clearSelection: true },
     );
@@ -538,7 +534,6 @@ export class MyLinksComponent {
       this.graphql.request<UngroupSocialMediaLinksData, UngroupSocialMediaLinksVars>(
         UNGROUP_SOCIAL_MEDIA_LINKS_MUTATION,
         { linkIds: [linkId] },
-        await this._authHeaders(),
       ),
     );
   }
@@ -568,14 +563,6 @@ export class MyLinksComponent {
     } finally {
       this._isThreading.set(false);
     }
-  }
-
-  /** Mint the id token for a structural write. Both mutations and the reorder are
-   *  `IsLoggedIn` and the ownership gate needs the caller's `common.User`, so an absent
-   *  header fails as anonymous — the header is required, not decoration. */
-  private async _authHeaders(): Promise<Record<string, string>> {
-    const idToken = await this.auth.idToken();
-    return idToken ? { "firebase-auth-key": idToken } : {};
   }
 
   /** Full reload from the first page — the only correct refresh after a structural write,
@@ -612,15 +599,14 @@ export class MyLinksComponent {
     this._isLoading.set(true);
     this._loadError.set(null);
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<
         PublicSocialMediaLinksQueryData,
         PublicSocialMediaLinksVars
-      >(
-        PUBLIC_SOCIAL_MEDIA_LINKS_QUERY,
-        { mine: true, first: PAGE_SIZE, after: this._nextCursor() },
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
+      >(PUBLIC_SOCIAL_MEDIA_LINKS_QUERY, {
+        mine: true,
+        first: PAGE_SIZE,
+        after: this._nextCursor(),
+      });
       const connection = data.publicSocialMediaLinks;
       this._links.update((list) => [...list, ...connection.edges.map((edge) => edge.node)]);
       this._hasMore.set(connection.pageInfo.hasNextPage);
