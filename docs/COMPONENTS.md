@@ -177,6 +177,27 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 - **Sheet hosts** (home, `/insiden`, `/spotting`, every Situasi tab) mount the form of a closed sheet
   behind `@defer (when <sheet>.isOpen(); prefetch on idle)`, so its reads stay out of SSR and
   TransferState. Footers reach the form through a string-locator `viewChild`, null-safe.
+- **Unit-test isolation** (no `core/` module): `@angular/build:unit-test` runs Vitest with
+  `isolate: false` (its default; `ng test --isolate` flips it, at roughly three times the run time
+  here). One worker process then runs many spec files on ONE jsdom window (DOM, storage,
+  `location`, `navigator`, `URL`) and ONE module cache. Vitest runs the previous run's failed and
+  slowest files first, so a leak shows up as a flake in an innocent file that passes alone or on a
+  rerun. Rules that keep the suite independent of file order:
+  - Restore what a spec changes: spy (`vi.spyOn`, then `vi.restoreAllMocks()`) rather than define
+    and `delete`. Never delete `URL.createObjectURL`: the test DOM's `URL` has its own, which
+    converts a jsdom Blob for Node, and without it `mapbox-gl` (loaded by the L7 specs) throws
+    `The "obj" argument must be an instance of Blob` at import.
+  - `src/test-setup.ts` empties the toast list before every test: ordinary app code writes to that
+    process-wide store, so specs are not asked to clean up after it.
+  - A spec that `vi.mock`s a module starts with `vi.hoisted(() => vi.resetModules())` and ends with
+    `afterAll(() => vi.resetModules())`. Mocks are per file, the module cache is not: without the
+    first, the unit under test keeps the bindings of whichever file loaded it first (a Sentry
+    assertion that never fires); without the second, the next file gets modules still bound to
+    these mocks.
+  - To chase an order-dependent failure, run one worker in a fixed or seeded order with a
+    throwaway `--runner-config` file: `test: { maxWorkers: 1, fileParallelism: false }` plus
+    `sequence: { sequencer }` (a class whose `sort(files)` returns the order) or
+    `sequence: { shuffle: { files: true }, seed: 11 }`.
 
 **Content models coexist by design:**
 
