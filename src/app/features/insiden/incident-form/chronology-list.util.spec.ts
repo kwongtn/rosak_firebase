@@ -197,6 +197,14 @@ describe("chronologyInputs", () => {
       { indicator: "RED", datetime: null, sourceUrl: null, content: "Trains held" },
     ]);
   });
+
+  it("trims what it sends, so a whitespace-only source URL is sent as no URL", () => {
+    const list = [{ ...draft(1, "  Trains held\n"), sourceUrl: "   " }];
+
+    expect(chronologyInputs(list)).toEqual([
+      { indicator: "GREEN", datetime: null, sourceUrl: null, content: "Trains held" },
+    ]);
+  });
 });
 
 describe("indicatorLabel", () => {

@@ -88,8 +88,9 @@ export function chronologyInputs(list: readonly ChronologyDraft[]) {
     .map((c) => ({
       indicator: c.indicator,
       datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
-      sourceUrl: c.sourceUrl || null,
-      content: c.content || null,
+      // Trimmed with the same rule as the blank-row filter, so a whitespace-only URL is no URL.
+      sourceUrl: c.sourceUrl.trim() || null,
+      content: c.content.trim() || null,
     }));
 }
 
