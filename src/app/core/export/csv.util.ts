@@ -106,8 +106,7 @@ export function toCsv(columns: readonly string[], rows: readonly CsvRow[]): stri
  *
  * The anchor is created, clicked and REMOVED inside the call, and the object URL is revoked on the
  * next tick rather than synchronously: Firefox cancels an in-flight download when the URL is
- * revoked in the same turn as the click. Mirrors `tracker-info-panel.component.ts`'s own export —
- * the repo already had one of these and this is the shared version rather than a second one.
+ * revoked in the same turn as the click.
  */
 export function downloadText(
   filename: string,
