@@ -1,4 +1,9 @@
-<hlm-sheet [open]="sheet.isOpen()" (openChange)="sheet.setOpen($event)" side="right" [wide]="true">
+<hlm-sheet
+  [open]="sheet.isOpen()"
+  (openChange)="$event ? sheet.setOpen(true) : close()"
+  side="right"
+  [wide]="true"
+>
   <div hlmSheetHeader>
     <h2 class="text-base font-semibold">
       {{ isEditing() ? "Edit Incident" : "Report an Incident" }}
@@ -497,13 +502,7 @@
       {{ isEditing() ? "Undo All" : "Clear form" }}
     </button>
     <div class="flex items-center gap-2">
-      <button
-        hlmBtn
-        variant="outline"
-        type="button"
-        [disabled]="isSubmitting()"
-        (click)="sheet.close()"
-      >
+      <button hlmBtn variant="outline" type="button" [disabled]="isSubmitting()" (click)="close()">
         Cancel
       </button>
       <button

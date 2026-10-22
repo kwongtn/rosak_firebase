@@ -280,23 +280,12 @@ export class IncidentFormComponent {
 
   private readonly extractStates = signal(new Map<number, ChronologyExtractState>());
 
-  private _wasSheetOpen = false;
   /** Id of the incident already hydrated for the current open session — re-running the
    * effect (e.g. reference data arriving) must not stomp user edits. Reset whenever the
    * sheet closes or the target is cleared, so the next open re-hydrates. */
   private _hydratedIncidentId: string | null = null;
 
   constructor() {
-    // Reset the whole draft (including touched state) whenever the sheet closes, so the
-    // next open starts blank regardless of how the previous session ended.
-    effect(() => {
-      const isOpen = this.sheet.isOpen();
-      if (!isOpen && this._wasSheetOpen) {
-        this.clear();
-      }
-      this._wasSheetOpen = isOpen;
-    });
-
     // Hydrate from `editTarget` once per open: `IncidentSheetService.open(incident)` is the
     // Task 12 edit entry point (also callable as `hydrate()` directly). The reference
     // resource arriving later does NOT re-trigger — the effect only depends on the target.
@@ -752,8 +741,7 @@ export class IncidentFormComponent {
               : "Your changes were saved."
             : "It will appear once approved.",
         );
-        this.clear();
-        this.sheet.close();
+        this.close();
       }
     } catch (err) {
       if (err instanceof GraphQLRequestError) {
@@ -768,6 +756,13 @@ export class IncidentFormComponent {
     } finally {
       this.isSubmitting.set(false);
     }
+  }
+
+  /** Every way the rider closes the sheet (Cancel, Escape, the backdrop) ends here, so the next open
+   * starts blank, touched state included, however this session ended. */
+  protected close(): void {
+    this.clear();
+    this.sheet.close();
   }
 
   clear(): void {

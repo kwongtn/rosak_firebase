@@ -19,10 +19,15 @@ export class IncidentSheetService {
   }
 
   close() {
-    this.isOpen.set(false);
+    this.setOpen(false);
   }
 
   setOpen(open: boolean) {
+    if (!open) {
+      // The edit dies with the session that opened it: a form created after this close (it is
+      // deferred until the first open) must not hydrate an edit the rider walked away from.
+      this.editTarget.set(null);
+    }
     this.isOpen.set(open);
   }
 }

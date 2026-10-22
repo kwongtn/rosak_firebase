@@ -487,6 +487,44 @@ describe("IncidentFormComponent", () => {
     expect(component.chronologies()).toEqual([]);
   });
 
+  describe("closing the sheet", () => {
+    async function openDraft(): Promise<ComponentUnderTest> {
+      sheet.open(incidentFixture());
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const component = asTestable(fixture);
+      component.model.update((m) => ({ ...m, title: "Half-typed edit" }));
+      fixture.detectChanges();
+      return component;
+    }
+
+    it("resets the draft and drops the edit when the rider presses Cancel", async () => {
+      const component = await openDraft();
+      const cancel = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button"),
+      ).find((button) => button.textContent?.trim() === "Cancel");
+      if (!cancel) throw new Error("Cancel not rendered");
+
+      cancel.click();
+      fixture.detectChanges();
+
+      expect(sheet.isOpen()).toBe(false);
+      expect(sheet.editTarget()).toBeNull();
+      expect(component.model()).toEqual(emptyIncidentFormModel());
+      expect(component.chronologies()).toEqual([]);
+    });
+
+    it("resets the draft when the sheet itself closes on Escape", async () => {
+      const component = await openDraft();
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      fixture.detectChanges();
+
+      expect(sheet.isOpen()).toBe(false);
+      expect(component.model()).toEqual(emptyIncidentFormModel());
+    });
+  });
+
   it("undoes all edits by re-hydrating from the edit target", async () => {
     sheet.open(incidentFixture());
     fixture.detectChanges();
