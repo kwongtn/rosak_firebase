@@ -20,6 +20,7 @@ import {
   NetworkStatusHistoryQueryVars,
 } from "./home-history.queries";
 import {
+  HOME_PLANNED_WORKS_VARS,
   HOME_RECENT_INCIDENT_VARS,
   HOME_RECENT_INCIDENTS_QUERY,
   HomeIncidentItem,
@@ -38,6 +39,7 @@ import {
   partitionBoardLines,
 } from "./board-lines.util";
 import type { BoardLineGroups, BoardSort } from "./board-lines.util";
+import { groupIncidentsByLine } from "./incident-notices.util";
 import { filterByLineFamily } from "./line-family.util";
 import {
   FEED_PAGE_SIZE,
@@ -71,6 +73,10 @@ export const HIGHLIGHT_VISIBLE_MS = 2000;
  * declared next to the resource so a future backend cap bump has exactly one place to move.
  */
 export const HISTORY_LINE_ID_CAP = 64;
+
+/** What a line with no incident answers: ONE frozen array, so a row's computed sees an unchanged value
+ *  instead of a fresh `[]` on every read. */
+const NO_INCIDENTS: readonly HomeIncidentItem[] = Object.freeze([]);
 
 /**
  * Route-scoped store for the community front page (provided by the route in a later wave —
@@ -529,23 +535,32 @@ export class HomeStore {
   }
 
   /* ------------------------------------------------------------------ *
-   * The Pro dashboard's INCIDENTS read — a third lazy, ISOLATED read
+   * The INCIDENTS read — the Pro widget's list AND the board's Notice
+   * chips — a third lazy, ISOLATED read
    * ------------------------------------------------------------------ *
    *
    * The same arrangement as the two history reads above, for the same reason: a supporting widget
    * that cannot load must hide ITSELF and never put the page's retry banner over a working page. So
-   * `incidentsResource` is gated on the Pro widget's explicit opt-in, feeds
-   * {@link recentIncidents} / {@link incidentsFailed}, and appears in NEITHER `hasError` NOR
+   * `incidentsResource` is gated on an explicit opt-in, feeds {@link recentIncidents} /
+   * {@link noticesFor} / {@link incidentsFailed}, and appears in NEITHER `hasError` NOR
    * `isRefreshing` — a chart-and-list pair must not be able to hold the refresh confirmation open or
-   * replace the board with an error banner.
+   * replace the board with an error banner. A failed read hides the CHIPS, never the line rows.
+   *
+   * Two surfaces opt in (the Pro widget and the network board) and they share this ONE resource, so
+   * a Pro reader whose board and widget both ask still sends one request.
    *
    * Its variables are the module-level {@link HOME_RECENT_INCIDENT_VARS} constant — NOT computed per
    * call and certainly not from a clock — so the server render and the client hydration send the
-   * same object and the TransferState payload is reused.
+   * same object and the TransferState payload is reused. 🔴 They carry `status: LIVE`: the root
+   * `calendarIncidents` field would otherwise hand drafts to this public page.
+   *
+   * Like the official-notices archive it is absent from `reloadAll()` and from the beat: it is read
+   * once per store, when its surface first asks.
    */
   private readonly _incidentsRequested = signal(false);
 
-  /** Asks the store to read the ongoing-incidents list. Called by the Pro widget's constructor. */
+  /** Asks the store to read the ongoing-incidents list. Called by the Pro widget's constructor and by
+   *  the network board's (idempotent: the second call changes nothing). */
   requestIncidentsRead(): void {
     this._incidentsRequested.set(true);
   }
@@ -561,13 +576,12 @@ export class HomeStore {
   });
 
   /**
-   * The newest ongoing incidents, capped at {@link PRO_INCIDENT_LIMIT}.
+   * EVERY LIVE incident running now, newest first — uncapped.
    *
-   * The backend returns an ordered LIST with no limit argument, so the cap is a slice here. It is a
-   * slice rather than a claim of completeness, and the widget says "newest first" rather than
-   * "everything" so the reader is not misled about what the other rows were.
+   * The Pro widget shows a slice of this ({@link recentIncidents}); the board's chips group the WHOLE
+   * list ({@link noticesFor}), because a line's incident can sit past the widget's slice.
    */
-  readonly recentIncidents = computed<HomeIncidentItem[]>(() => {
+  private readonly ongoingIncidents = computed<HomeIncidentItem[]>(() => {
     // 🔴 **The failure flag wins over the payload, on purpose.** `data()` is total and keeps the last
     // good answer through a failed refresh, but a supporting widget that cannot refresh hides ITSELF
     // rather than draw old rows as current — the same rule the sparkline documents for the history
@@ -575,11 +589,78 @@ export class HomeStore {
     if (this.incidentsFailed()) {
       return [];
     }
-    return (this.incidentsResource.data()?.calendarIncidents ?? []).slice(0, PRO_INCIDENT_LIMIT);
+    return this.incidentsResource.data()?.calendarIncidents ?? [];
   });
+
+  /**
+   * The newest ongoing incidents, capped at {@link PRO_INCIDENT_LIMIT}.
+   *
+   * The backend returns an ordered LIST with no limit argument, so the cap is a slice here. It is a
+   * slice rather than a claim of completeness, and the widget says "newest first" rather than
+   * "everything" so the reader is not misled about what the other rows were.
+   */
+  readonly recentIncidents = computed<HomeIncidentItem[]>(() =>
+    this.ongoingIncidents().slice(0, PRO_INCIDENT_LIMIT),
+  );
 
   /** True when the incidents read failed — the widget's OWN hide signal, never `hasError`. */
   readonly incidentsFailed = this.incidentsResource.hasError;
+
+  private readonly noticesByLine = computed(() => groupIncidentsByLine(this.ongoingIncidents()));
+
+  /**
+   * The ongoing incidents tagged with this line, newest first — the board's Notice chips. A shared
+   * empty array for a line with none, and while the read is loading or failed: a row draws nothing
+   * for an unanswered read (no skeleton), so "no answer yet" and "no incident" look the same on
+   * purpose. O(1) per row: the grouping is one computed over the read, like `linesHistoryFor`.
+   */
+  noticesFor(lineId: string): readonly HomeIncidentItem[] {
+    return this.noticesByLine().get(lineId) ?? NO_INCIDENTS;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * The board's PLANNED WORKS read — one more lazy, ISOLATED read
+   * ------------------------------------------------------------------ *
+   *
+   * Same arrangement again: opt-in, hides ITSELF on failure, in neither `hasError` nor `isRefreshing`,
+   * absent from `reloadAll()` and the beat. It asks for LIVE incidents that START within the next
+   * seven days ({@link HOME_PLANNED_WORKS_VARS}, literal variables, the backend counts the days) and
+   * only the My lines rows draw it, so the board opts in once a pinned line exists — an unpinned
+   * reader never sends it.
+   */
+  private readonly _plannedWorksRequested = signal(false);
+
+  /** Asks the store to read the planned-works list. Called by the network board once a line is pinned. */
+  requestPlannedWorksRead(): void {
+    this._plannedWorksRequested.set(true);
+  }
+
+  private readonly plannedWorksResource = graphqlResource<
+    HomeRecentIncidentsQueryData,
+    HomeRecentIncidentsQueryVars
+  >(() => {
+    if (!this._plannedWorksRequested()) {
+      return undefined;
+    }
+    return { query: HOME_RECENT_INCIDENTS_QUERY, variables: HOME_PLANNED_WORKS_VARS };
+  });
+
+  /** True when the planned-works read failed — hides its chips only, never `hasError`. */
+  private readonly plannedWorksFailed = this.plannedWorksResource.hasError;
+
+  private readonly plannedWorksByLine = computed(() => {
+    // The failure flag wins over the payload here too (see `ongoingIncidents`).
+    if (this.plannedWorksFailed()) {
+      return groupIncidentsByLine([]);
+    }
+    return groupIncidentsByLine(this.plannedWorksResource.data()?.calendarIncidents ?? []);
+  });
+
+  /** The LIVE works starting within seven days that are tagged with this line, soonest first. A shared
+   *  empty array when none, while loading, and on failure. */
+  plannedWorksFor(lineId: string): readonly HomeIncidentItem[] {
+    return this.plannedWorksByLine().get(lineId) ?? NO_INCIDENTS;
+  }
 
   /* ------------------------------------------------------------------ *
    * The Pro dashboard's OFFICIAL-NOTICES ARCHIVE read — a fourth lazy,

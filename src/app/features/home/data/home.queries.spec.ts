@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { METHODOLOGY_CONSTANTS } from "../../../core/methodology/methodology.constants";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { LinkSheetService } from "../../insiden/data/link-sheet.service";
 import { LinkFormComponent } from "../../insiden/link-form/link-form.component";
@@ -25,7 +26,11 @@ import {
 } from "./home-feed-mutations.queries";
 import { FEED_QUERY } from "./home-feed.queries";
 import { LINES_STATUS_HISTORY_QUERY, NETWORK_STATUS_HISTORY_QUERY } from "./home-history.queries";
-import { HOME_RECENT_INCIDENT_VARS, HOME_RECENT_INCIDENTS_QUERY } from "./home-incidents.queries";
+import {
+  HOME_PLANNED_WORKS_VARS,
+  HOME_RECENT_INCIDENT_VARS,
+  HOME_RECENT_INCIDENTS_QUERY,
+} from "./home-incidents.queries";
 
 /* ---------------------------------------------------------------------- *
  * Why this file parses the document instead of trusting the types
@@ -470,12 +475,39 @@ describe("HOME_RECENT_INCIDENTS_QUERY", () => {
     expect(Object.isFrozen(HOME_RECENT_INCIDENT_VARS.order)).toBe(true);
   });
 
-  it("sends status LIVE, because the root field has no status gate of its own", () => {
-    // `calendarIncidents` answers an anonymous caller with drafts, pending and rejected incidents
-    // unless it is told `status: LIVE`. Every rider-facing read of it must say so; a filter added to
-    // these variables that dropped this key would publish drafts.
-    expect(HOME_RECENT_INCIDENT_VARS.filters.status).toBe("LIVE");
+  it("sends the planned-works window as literals too: starting within 7 days, soonest first", () => {
+    // `upcomingWithinDays` is the BACKEND's clock (`now < start <= now + N days`), so there is no date
+    // here either.
+    expect(HOME_PLANNED_WORKS_VARS).toEqual({
+      filters: { status: "LIVE", upcomingWithinDays: 7 },
+      order: { startDatetime: "ASC" },
+    });
+    expect(JSON.stringify(HOME_PLANNED_WORKS_VARS)).not.toMatch(/20\d\d-\d\d-\d\d/);
+    expect(Object.isFrozen(HOME_PLANNED_WORKS_VARS)).toBe(true);
+    expect(Object.isFrozen(HOME_PLANNED_WORKS_VARS.filters)).toBe(true);
+    expect(Object.isFrozen(HOME_PLANNED_WORKS_VARS.order)).toBe(true);
   });
+
+  it("publishes the window it sends: the methodology page's seven days are this constant", () => {
+    // The popover and /methodology say "within N days" from a registry token; this is the pin that
+    // keeps the sentence and the variable from drifting apart.
+    expect(HOME_PLANNED_WORKS_VARS.filters.upcomingWithinDays).toBe(
+      METHODOLOGY_CONSTANTS["PLANNED_WORKS_WINDOW_DAYS"].value,
+    );
+  });
+
+  it.each([
+    ["the ongoing read", HOME_RECENT_INCIDENT_VARS],
+    ["the planned-works read", HOME_PLANNED_WORKS_VARS],
+  ])(
+    "sends status LIVE on %s, because the root field has no status gate of its own",
+    (_name, vars) => {
+      // `calendarIncidents` answers an anonymous caller with drafts, pending and rejected incidents
+      // unless it is told `status: LIVE`. Every rider-facing read of it must say so; a filter added to
+      // either object that dropped this key would publish drafts.
+      expect(vars.filters.status).toBe("LIVE");
+    },
+  );
 
   it("asks for a MINIMAL row — no details, medias, chronologies or nested links", () => {
     // The insiden page's own document selects all of those because its cards render them. This widget

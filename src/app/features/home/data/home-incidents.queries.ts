@@ -68,6 +68,18 @@ export const HOME_RECENT_INCIDENT_VARS = Object.freeze({
   order: Object.freeze({ startDatetime: "DESC" }),
 });
 
+/**
+ * The variables of the planned-works read (board Planned works chips): LIVE incidents that START
+ * within the next seven days, soonest first. `upcomingWithinDays` is the backend's clock
+ * (`now < start <= now + N days`, N in 1..60), so the window needs no `new Date()` here and the
+ * object is a literal like the one above. The seven is a published number
+ * (`PLANNED_WORKS_WINDOW_DAYS` in the methodology registry); the queries spec pins the two together.
+ */
+export const HOME_PLANNED_WORKS_VARS = Object.freeze({
+  filters: Object.freeze({ status: "LIVE", upcomingWithinDays: 7 }),
+  order: Object.freeze({ startDatetime: "ASC" }),
+});
+
 export interface HomeRecentIncidentsQueryVars {
   filters: Record<string, unknown>;
   order: Record<string, unknown>;

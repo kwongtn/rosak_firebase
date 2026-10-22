@@ -13,6 +13,7 @@ import { FeedLink, FeedLinkSublink } from "./home-feed-items";
 import { LineStatusHourBucket } from "./home-history.queries";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { PRO_INCIDENT_LIMIT } from "./home-incidents.queries";
+import type { HomeIncidentItem } from "./home-incidents.queries";
 import { HISTORY_LINE_ID_CAP, HomeStore } from "./home.store";
 import { FEED_PAGE_SIZE, LAST_WEEK_PAGE_SIZE, OFFICIAL_NOTICES_PAGE_SIZE } from "./home-feed.util";
 
@@ -2458,6 +2459,188 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
     expect(store.isLoading()).toBe(false);
     expect(store.isRefreshing()).toBe(false);
     expect(store.isLoadingLastWeek()).toBe(false);
+  });
+
+  /* ---- the board's Notice and Planned works chips: the same reads, grouped by line ---- */
+
+  /** One incident row, as `HOME_RECENT_INCIDENTS_QUERY` returns it. */
+  function incident(
+    id: string,
+    lineIds: string[],
+    overrides: Partial<HomeIncidentItem> = {},
+  ): HomeIncidentItem {
+    return {
+      id,
+      startDatetime: "2026-10-22T08:00:00",
+      endDatetime: null,
+      severity: "MINOR",
+      title: `Incident ${id}`,
+      brief: "",
+      lines: lineIds.map((lineId) => ({ id: lineId, code: lineId.toUpperCase() })),
+      ...overrides,
+    };
+  }
+
+  const isIncidentsRead = (r: HttpRequest<unknown>): boolean =>
+    r.method === "POST" && (r.body as { query: string }).query.includes("HomeRecentIncidents");
+  const readsFilter =
+    (key: string) =>
+    (r: HttpRequest<unknown>): boolean =>
+      isIncidentsRead(r) &&
+      key in ((r.body as { variables: { filters: object } }).variables.filters ?? {});
+  const ongoingRead = readsFilter("activeNow");
+  const plannedRead = readsFilter("upcomingWithinDays");
+
+  /** Opts one of the two reads in, lets it issue, answers it, and lets the answer land. */
+  async function answerRead(
+    ask: (store: HomeStore) => void,
+    matches: (r: HttpRequest<unknown>) => boolean,
+    calendarIncidents: HomeIncidentItem[],
+  ): Promise<HomeStore> {
+    const store = await startedWith([]);
+    ask(store);
+    await afterVariablesChange();
+    httpMock.expectOne(matches).flush({ data: { calendarIncidents } });
+    await Promise.resolve();
+    TestBed.tick();
+    return store;
+  }
+
+  it("groups EVERY ongoing incident by line, including the ones past the Pro widget's cap", async () => {
+    // The widget shows a slice of PRO_INCIDENT_LIMIT; a rider's chip must not depend on where an
+    // incident happens to sit in the newest-first list.
+    const crowded = Array.from({ length: PRO_INCIDENT_LIMIT + 2 }, (_, index) =>
+      incident(`i-${index}`, ["1"]),
+    );
+    const late = incident("late", ["2", "3"]);
+    const store = await answerRead((s) => s.requestIncidentsRead(), ongoingRead, [
+      ...crowded,
+      late,
+    ]);
+
+    expect(store.recentIncidents()).toHaveLength(PRO_INCIDENT_LIMIT);
+    expect(store.recentIncidents().map((i) => i.id)).not.toContain("late");
+    expect(store.noticesFor("1")).toHaveLength(PRO_INCIDENT_LIMIT + 2);
+    // One incident on two lines is on both.
+    expect(store.noticesFor("2")).toEqual([late]);
+    expect(store.noticesFor("3")).toEqual([late]);
+  });
+
+  it("keeps the backend's newest-first order inside a line", async () => {
+    const newer = incident("new", ["1"], { startDatetime: "2026-10-22T09:00:00" });
+    const older = incident("old", ["1"], { startDatetime: "2026-10-21T09:00:00" });
+    const store = await answerRead((s) => s.requestIncidentsRead(), ongoingRead, [newer, older]);
+
+    expect(store.noticesFor("1").map((i) => i.id)).toEqual(["new", "old"]);
+  });
+
+  it("answers the SAME empty array for a line with no incident, before the read, while it loads and after", async () => {
+    const store = await startedWith([]);
+    const before = store.noticesFor("1");
+    expect(before).toEqual([]);
+
+    // Requested but unanswered: loading draws nothing (no skeleton belongs on a row).
+    store.requestIncidentsRead();
+    await afterVariablesChange();
+    expect(store.noticesFor("1")).toBe(before);
+
+    httpMock.expectOne(ongoingRead).flush({ data: { calendarIncidents: [incident("a", ["2"])] } });
+    await Promise.resolve();
+    TestBed.tick();
+    expect(store.noticesFor("1")).toBe(before);
+    expect(store.noticesFor("2")).toHaveLength(1);
+  });
+
+  it("gives a line no Notice chips when the incidents read failed, and leaves the page flags alone", async () => {
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    await afterVariablesChange();
+    httpMock
+      .expectOne(ongoingRead)
+      .flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(store.incidentsFailed()).toBe(true);
+    expect(store.noticesFor("1")).toEqual([]);
+    expect(store.hasError()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+  });
+
+  it("does not send the planned-works read until the board asks for it", async () => {
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    await afterVariablesChange();
+
+    // Asking for Notices must not drag the second read in: it is for pinned lines only.
+    expect(httpMock.match(plannedRead)).toHaveLength(0);
+    expect(store.plannedWorksFor("1")).toEqual([]);
+    httpMock.expectOne(ongoingRead).flush({ data: { calendarIncidents: [] } });
+  });
+
+  it("sends the planned-works literals: LIVE, starting within 7 days, soonest first", async () => {
+    const store = await startedWith([]);
+    store.requestPlannedWorksRead();
+    await afterVariablesChange();
+
+    const request = httpMock.expectOne(plannedRead);
+    expect(request.request.body.variables).toEqual({
+      filters: { status: "LIVE", upcomingWithinDays: 7 },
+      order: { startDatetime: "ASC" },
+    });
+    // The other read is not dragged in by this one either.
+    expect(httpMock.match(ongoingRead)).toHaveLength(0);
+    request.flush({ data: { calendarIncidents: [] } });
+  });
+
+  it("groups planned works by line in the backend's soonest-first order", async () => {
+    const soon = incident("soon", ["1", "2"], { startDatetime: "2026-10-24T22:00:00" });
+    const later = incident("later", ["1"], { startDatetime: "2026-10-27T22:00:00" });
+    const store = await answerRead((s) => s.requestPlannedWorksRead(), plannedRead, [soon, later]);
+
+    expect(store.plannedWorksFor("1").map((i) => i.id)).toEqual(["soon", "later"]);
+    expect(store.plannedWorksFor("2")).toEqual([soon]);
+    expect(store.plannedWorksFor("3")).toEqual([]);
+    // Planned works are not Notices: the two lists are separate reads.
+    expect(store.noticesFor("1")).toEqual([]);
+  });
+
+  it("keeps a FAILED planned-works read off the page's error state and hides its chips only", async () => {
+    const store = await startedWith([]);
+    store.requestPlannedWorksRead();
+    await afterVariablesChange();
+    httpMock
+      .expectOne(plannedRead)
+      .flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await Promise.resolve();
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(store.plannedWorksFor("1")).toEqual([]);
+    expect(store.hasError()).toBe(false);
+    expect(store.isLoading()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.isLoadingLastWeek()).toBe(false);
+  });
+
+  it("sends both reads as two requests when both are asked for, and each answer stays with its own list", async () => {
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    store.requestPlannedWorksRead();
+    await afterVariablesChange();
+
+    httpMock
+      .expectOne(ongoingRead)
+      .flush({ data: { calendarIncidents: [incident("now", ["1"])] } });
+    httpMock
+      .expectOne(plannedRead)
+      .flush({ data: { calendarIncidents: [incident("soon", ["1"])] } });
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(store.noticesFor("1").map((i) => i.id)).toEqual(["now"]);
+    expect(store.plannedWorksFor("1").map((i) => i.id)).toEqual(["soon"]);
   });
 });
 
