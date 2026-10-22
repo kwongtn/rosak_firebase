@@ -2,6 +2,7 @@ import { loginAs } from "./helpers/auth";
 import {
   configureMock,
   expect,
+  graphqlError,
   recordedCalls,
   resetMock,
   routeGraphQLToMock,
@@ -650,6 +651,72 @@ test.describe("community front page", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  test("USER: a rejected upvote rolls the optimistic count back and says so", async ({ page }) => {
+    await loginAs(page);
+    await configureHome({
+      FrontPageLines: { lines: [KJL_LINE] },
+      Feed: feedPage(),
+      UpvoteSocialMediaLink: graphqlError("Vote rejected"),
+    });
+    // Hold the answer so the optimistic state can be seen before the server's refusal lands.
+    let refuse!: () => void;
+    const held = new Promise<void>((resolve) => (refuse = resolve));
+    await page.route("**/graphql/", async (route) => {
+      if ((route.request().postData() ?? "").includes("UpvoteSocialMediaLink")) {
+        await held;
+      }
+      await route.fallback();
+    });
+
+    await page.goto("/");
+
+    const card = page
+      .getByTestId("feed-scroll")
+      .locator("app-link-card")
+      .filter({ hasText: "Kelana Jaya Line disruption thread" });
+    await expect(card.getByText("+3")).toBeVisible();
+    await card.getByRole("button", { name: "Upvote" }).click();
+    await expect(card.getByText("+4")).toBeVisible();
+    await expect(card.getByRole("button", { name: "Upvote" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    refuse();
+    await expect(page.getByText("Vote not recorded")).toBeVisible();
+    await expect(card.getByText("+3")).toBeVisible();
+    await expect(card.getByRole("button", { name: "Upvote" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  test("USER: a status report the server refuses stays in the open sheet with its error", async ({
+    page,
+  }) => {
+    await loginAs(page);
+    await configureHome({
+      FrontPageLines: { lines: [KJL_LINE] },
+      Feed: feedPage(),
+      SubmitLineStatusReport: { submitLineStatusReport: { ok: false, id: null } },
+    });
+
+    await page.goto("/");
+
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await kjl.getByTestId("line-row-report").click();
+    await page.getByTestId("status-option-CROWDED").click();
+    await page.getByTestId("submit-line-status-report").click();
+
+    await expect(page.getByTestId("line-status-submit-error")).toHaveText(
+      "Couldn't submit your report. Please try again.",
+    );
+    await expect(page.getByText("Line status reported")).toHaveCount(0);
+    // Nothing was lost: the sheet is still open on the chosen status.
+    await expect(page.getByTestId("status-option-CROWDED")).toBeVisible();
+    await expect(page.getByTestId("submit-line-status-report")).toBeEnabled();
   });
 
   test("USER: a report filed offline is queued, then sent with the token when the network returns", async ({
