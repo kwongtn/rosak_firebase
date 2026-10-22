@@ -22,7 +22,7 @@ function firebaseApp() {
  * configured `path`; the optional-param matcher routes (`/gallery`, `/insiden`, `details`) have no
  * `path`, so their first consumed segment is the literal prefix and any further one is a param.
  */
-export function routePattern(root: ActivatedRouteSnapshot): string {
+function routePattern(root: ActivatedRouteSnapshot): string {
   const parts: string[] = [];
   for (let node: ActivatedRouteSnapshot | null = root; node; node = node.firstChild) {
     const { routeConfig: config, url, params } = node;
