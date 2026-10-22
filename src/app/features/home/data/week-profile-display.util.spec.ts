@@ -164,7 +164,38 @@ describe("week-profile-display.util: the layout", () => {
     const monday = buildWeekProfile(fullWeek({ "0:1": slot(0, 1, 5) })).days[0];
     const cell = monday?.cells.find((candidate) => candidate.count > 0);
     expect(monday?.cells.indexOf(cell as NonNullable<typeof cell>)).toBe(22);
-    expect(cell?.title).toBe("Monday 01:00–02:00 · 5 reports · Crowded 5");
+    expect(cell?.title).toBe("Monday night 01:00–02:00 · 5 reports · Crowded 5");
+  });
+
+  it("calls an after-midnight cell 'night', so its sentence is true read on its own", () => {
+    // `title` is also the aria-label and the hover readout, where the caption that explains service
+    // days is not in sight: "Monday 01:00–02:00" there would claim a Monday-morning hour.
+    const monday = buildWeekProfile(fullWeek({ "0:1": slot(0, 1, 5) })).days[0];
+    const titleOf = (hour: number): string | undefined =>
+      monday?.cells.find((cell) => cell.hour === hour)?.title;
+
+    expect(titleOf(0)).toBe("Monday night 00:00–01:00 · Not enough reports (0 of 3)");
+    expect(titleOf(1)).toBe("Monday night 01:00–02:00 · 5 reports · Crowded 5");
+    expect(titleOf(2)).toBe("Monday night 02:00–03:00 · Not enough reports (0 of 3)");
+    // The first hour of the service day and the evening hours are plain "Monday".
+    expect(titleOf(3)).toBe("Monday 03:00–04:00 · Not enough reports (0 of 3)");
+    expect(titleOf(23)).toBe("Monday 23:00–00:00 · Not enough reports (0 of 3)");
+    // Only the sentence changes: the header-free text a table cell reads is untouched.
+    expect(monday?.cells.find((cell) => cell.hour === 1)?.text).toBe("Crowded, 5 reports");
+  });
+
+  it("says 'night' only for the hours before the day start it is given", () => {
+    const midnightStart = buildWeekProfile(fullWeek({ "0:0": slot(0, 0, 4) }, 0), 0);
+    const titles = midnightStart.days.flatMap((day) => day.cells.map((cell) => cell.title));
+    // A day that starts at midnight has no after-midnight hours.
+    expect(titles.some((title) => title.includes("night"))).toBe(false);
+    expect(midnightStart.days[0]?.cells[0]?.title).toBe(
+      "Monday 00:00–01:00 · 4 reports · Crowded 4",
+    );
+
+    const fiveStart = buildWeekProfile(fullWeek({ "0:4": slot(0, 4, 4) }, 5), 5);
+    const nights = fiveStart.days[0]?.cells.filter((cell) => cell.title.includes("night"));
+    expect(nights?.map((cell) => cell.hour)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it("does not depend on the order the slots arrive in", () => {

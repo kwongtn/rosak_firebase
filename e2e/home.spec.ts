@@ -706,6 +706,11 @@ test.describe("community front page", () => {
       "Thursday 15:00–16:00 · 9 reports · Normal 1, Crowded 6, Delayed 2",
     );
     await expect(busyCell).not.toHaveAttribute("data-muted", "");
+    // An hour after midnight belongs to the weekday before it, and its sentence says "night".
+    await expect(week.locator('[data-weekday="0"] [data-hour="1"]')).toHaveAttribute(
+      "aria-label",
+      "Monday night 01:00–02:00 · Not enough reports (0 of 3)",
+    );
     await expect(week.locator('[data-weekday="3"] [data-hour="8"]')).toHaveAttribute(
       "data-muted",
       "",

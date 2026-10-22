@@ -67,7 +67,9 @@ export interface WeekProfileCell {
   /** Fewer than the minimum reports: painted as the muted track, never as a status. */
   muted: boolean;
   colorClass: string;
-  /** One sentence that stands alone: "Thursday 15:00–16:00 · 9 reports · Crowded 6, Delayed 3". */
+  /** One sentence that stands alone: "Thursday 15:00–16:00 · 9 reports · Crowded 6, Delayed 3". An
+   * hour after midnight says so, because its weekday is the service day's and not the wall clock's:
+   * "Monday night 01:00–02:00" is a report filed on Tuesday morning. */
   title: string;
   /** The same cell without its weekday and hour, for a table whose headers carry those. */
   text: string;
@@ -163,7 +165,13 @@ export function buildWeekProfile(
   let readyCells = 0;
 
   const toCell = (weekday: number, hour: number): WeekProfileCell => {
-    const head = `${WEEKDAY_NAMES[weekday]} ${hourRange(hour)}`;
+    // The hours before the day start close the PREVIOUS weekday's row: Monday's 01:00 is Tuesday 01:00
+    // by the wall clock. Read on its own, "Monday 01:00–02:00" would state a false calendar fact, and the
+    // sentence is also the aria-label and the hover readout, where the caption is not in sight.
+    // shortcut: "night" assumes a service day that starts in the small hours, as the 03:00 one does;
+    // reword it if `dayStartHour` ever moves past about 06:00.
+    const day = hour < dayStartHour ? `${WEEKDAY_NAMES[weekday]} night` : WEEKDAY_NAMES[weekday];
+    const head = `${day} ${hourRange(hour)}`;
     const slot = slots.get(slotKey(weekday, hour));
     if (slot === undefined || !slot.dominantStatus || slot.count < minReports) {
       const phrase = notEnoughReportsPhrase(slot?.count ?? 0, minReports);
