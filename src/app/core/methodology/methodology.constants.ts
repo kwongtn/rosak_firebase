@@ -67,6 +67,12 @@ export interface MethodologyConstant {
  * each serving line's newest status reports the page searches for the station. Both are display or
  * read caps this client chooses, and `station.page.spec.ts` pins each against the constant in
  * `station.queries.ts` that the page actually slices or requests with.
+ *
+ * `PUSH_ALERT_COOLDOWN_MINUTES` came with the line alerts (`core/push/push.service.ts`, published as
+ * `incidents.push-alerts`). It MIRRORS the backend's `COOLDOWN_SECONDS` (1800, in
+ * `rosak_backend/incident/services/push.py`): at most one push per line in that window. Nothing on the
+ * client applies it, so no spec can pin it to code; a backend change to the cooldown must change it
+ * here by hand.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
@@ -81,4 +87,5 @@ export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   LINE_NOTICE_MAX_CHIPS: { value: 2, source: "INCIDENT_EPISODES.md" },
   STATION_INCIDENT_HISTORY_LIMIT: { value: 10, source: "INCIDENT_EPISODES.md" },
   STATION_REPORTS_PER_LINE: { value: 10, source: "LINE_STATUS_DERIVE.md" },
+  PUSH_ALERT_COOLDOWN_MINUTES: { value: 30, source: "PUSH_NOTIFICATIONS.md" },
 };

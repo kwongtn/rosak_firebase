@@ -11,6 +11,7 @@ import {
   renderMethodologyCopy,
 } from "../../../core/methodology/methodology-render.util";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
+import { FCM_VAPID_KEY } from "../../../core/push/push-loader";
 import { ReportSheetService } from "../../spotting/data/report-sheet.service";
 import type { LinePulse } from "../data/home-board.queries";
 import type { LineStatusHourBucket } from "../data/home-history.queries";
@@ -113,6 +114,8 @@ describe("LinePulseRowComponent", () => {
           { path: "insiden", children: [{ path: ":date", children: [] }] },
         ]),
         provideHttpClientTesting(),
+        // A build without alerts, so a pinned row's bell loads nothing (its own spec covers the rest).
+        { provide: FCM_VAPID_KEY, useValue: "" },
         { provide: LineStatusSheetService, useValue: sheetMock },
         { provide: ReportSheetService, useValue: reportSheetMock },
         {
@@ -626,6 +629,23 @@ describe("LinePulseRowComponent", () => {
     pin?.click();
     fixture.detectChanges();
     expect(icon()?.getAttribute("class")).not.toContain("fill-current");
+  });
+
+  it("draws the alert bell beside the pin on a pinned row only", () => {
+    const root = render(makeLine({ id: "line-42" }));
+    const bell = () => root.querySelector('[data-testid="line-alert-bell"]');
+    expect(bell()).toBeNull();
+
+    root.querySelector<HTMLButtonElement>('[data-testid="line-row-pin"]')?.click();
+    fixture.detectChanges();
+
+    expect(bell()?.getAttribute("aria-label")).toBe(
+      "Alerts for Kelana Jaya Line: Alerts are not set up yet",
+    );
+
+    root.querySelector<HTMLButtonElement>('[data-testid="line-row-pin"]')?.click();
+    fixture.detectChanges();
+    expect(bell()).toBeNull();
   });
 
   it("keeps the pro detail off a rider row, and draws no Line HQ link in any view", () => {

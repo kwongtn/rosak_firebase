@@ -192,6 +192,14 @@ const REVIEWED_AT_LINE_NOTICES = "2026-10-22";
 const REVIEWED_AT_STATION_PAGE = "2026-10-22";
 
 /**
+ * Bumped when the front page's pinned lines gained their alert bell (2026-10-22, UTC). It publishes
+ * ONE new rule to the `episodes` section: which incidents send a web push alert, and the per-line
+ * cooldown (`PUSH_ALERT_COOLDOWN_MINUTES`). A constant of its own for the same reason as every one
+ * above.
+ */
+const REVIEWED_AT_PUSH_ALERTS = "2026-10-22";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -224,9 +232,10 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
     // Bumped for `/insiden`'s "Last 12 months" chart: the section now carries its first metric. Bumped
-    // again for the front page board's Notice / Planned works chips (REVIEWED_AT_LINE_NOTICES), and for
-    // the station page's incident lists (REVIEWED_AT_STATION_PAGE).
-    lastReviewed: REVIEWED_AT_STATION_PAGE,
+    // again for the front page board's Notice / Planned works chips (REVIEWED_AT_LINE_NOTICES), for
+    // the station page's incident lists (REVIEWED_AT_STATION_PAGE), and for the line alerts' rule
+    // (REVIEWED_AT_PUSH_ALERTS).
+    lastReviewed: REVIEWED_AT_PUSH_ALERTS,
     inProgress: true,
   },
   {
@@ -759,5 +768,21 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: null,
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_STATION_PAGE,
+  },
+  {
+    // The alert bell on a pinned line (features/home/line-pulse/line-alert-bell.component.ts) and the
+    // profile's Alerts card. 🔴 What a rider cannot see from a bell: which incidents send an alert (a
+    // moderator's approval of a MAJOR one, nothing else) and why a second one on the same line can stay
+    // silent (the backend's per-line cooldown). It is an incident-RECORD rule, so it sits with them.
+    id: "incidents.push-alerts",
+    sectionId: "episodes",
+    title: "Line alerts",
+    definition:
+      "With alerts on for a line, this browser shows a notification when a moderator approves a Major incident from the incident calendar that is tagged with that line, or approves a change that makes such an incident Major. Minor incidents, incidents a moderator creates or edits directly, and official operator posts send no alert. A line sends at most one alert every {{PUSH_ALERT_COOLDOWN_MINUTES}} minutes, so another approval on it inside that time stays silent, and a browser that follows several lines of one incident gets one alert. Tapping the alert opens the incident calendar on the day the incident starts; while the app is open, the alert shows inside it instead. Alerts belong to this browser and your account: signing out turns them off here.",
+    summary:
+      "A Major incident on this line, once a moderator approves it. At most one alert a line every {{PUSH_ALERT_COOLDOWN_MINUTES}} minutes; it opens the calendar on the incident's day.",
+    ownerRoute: "/",
+    sourceSpec: "PUSH_NOTIFICATIONS.md",
+    lastReviewed: REVIEWED_AT_PUSH_ALERTS,
   },
 ];

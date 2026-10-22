@@ -30,6 +30,7 @@ import {
 import type { StatusConfidence } from "../data/status-confidence.util";
 import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
 import { currentServiceBucketIndex, historyTotal } from "../data/status-history-display.util";
+import { LineAlertBellComponent } from "./line-alert-bell.component";
 import { LineNoticesComponent } from "./line-notices.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
@@ -55,7 +56,8 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * tally together (see the template's note on why they are grouped, and why that is what fixes a 390px
  * phone), and the actions — pin, Details, Report, expand. Same set and order as the full card, so
  * every group on the board reads as one control per line; only the weight differs (the card's
- * Report is primary, the row's outline). In `pro` view it adds what an operator actually wants
+ * Report is primary, the row's outline). A pinned row adds the alert bell after the pin
+ * (`app-line-alert-bell`, web push for a major incident on the line), which the card does not carry. In `pro` view it adds what an operator actually wants
  * instead of what a rider scans for: the report count WITH its reporting window, so a number is
  * never read without the span it covers.
  *
@@ -94,6 +96,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
     InfoPopover,
     NgIcon,
     RouterLink,
+    LineAlertBellComponent,
     LineNoticesComponent,
     LineStatusBadge,
     LineStatusChartComponent,
@@ -183,6 +186,11 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
               />
             </button>
           </ng-template>
+          <!-- Alerts are for the rider's own lines, so the bell rides on a pinned row only (a pinned
+               row is a My lines row; a pinned line that needs attention is a card and has none). -->
+          @if (_isPinned()) {
+            <app-line-alert-bell [line]="line()" />
+          }
           <!-- The visible labels are the same on every row, so each names its line for a screen
                reader: a list of sixteen bare "Report" buttons is unusable out of context. -->
           <a

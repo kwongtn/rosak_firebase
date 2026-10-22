@@ -54,6 +54,7 @@ describe("methodology render util: renderMethodologyCopy", () => {
       "LINE_NOTICE_MAX_CHIPS",
       "STATION_INCIDENT_HISTORY_LIMIT",
       "STATION_REPORTS_PER_LINE",
+      "PUSH_ALERT_COOLDOWN_MINUTES",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
@@ -112,6 +113,12 @@ describe("methodology render util: renderMethodologyCopy", () => {
     expect(METHODOLOGY_CONSTANTS["STATION_REPORTS_PER_LINE"]).toEqual({
       value: 10,
       source: "LINE_STATUS_DERIVE.md",
+    });
+    // The line alerts' per-line cooldown: a mirror of the backend's COOLDOWN_SECONDS (1800) that no
+    // client code applies, so this assertion is the only pin. Change both when the backend changes.
+    expect(METHODOLOGY_CONSTANTS["PUSH_ALERT_COOLDOWN_MINUTES"]).toEqual({
+      value: 30,
+      source: "PUSH_NOTIFICATIONS.md",
     });
   });
 
