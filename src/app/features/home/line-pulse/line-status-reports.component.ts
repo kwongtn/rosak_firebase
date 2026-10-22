@@ -1,5 +1,6 @@
 import { DatePipe } from "@angular/common";
 import { Component, computed, effect, input } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmSkeleton } from "../../../ui/skeleton/skeleton";
@@ -19,11 +20,13 @@ const SKELETON_ROWS = 3;
 
 /** One chip of the per-station strip: the station's display name and how many loaded reports named
  * it. `key` is the name too — the strip groups by display name, so the two are the same string and
- * `track` can use either. */
+ * `track` can use either. `stationId` is what the chip links to (`/station/:id`); it is `null` when
+ * two station rows share the name, because one chip cannot open both pages. */
 export interface StationStripEntry {
   key: string;
   label: string;
   count: number;
+  stationId: string | null;
 }
 
 /**
@@ -35,7 +38,7 @@ export interface StationStripEntry {
  */
 @Component({
   selector: "app-line-status-reports",
-  imports: [DatePipe, HlmBadge, HlmSkeleton, RetryBannerComponent],
+  imports: [DatePipe, RouterLink, HlmBadge, HlmSkeleton, RetryBannerComponent],
   template: `
     @if (expanded()) {
       <section class="flex flex-col gap-2" data-testid="line-status-reports">
@@ -68,14 +71,22 @@ export interface StationStripEntry {
                page would be a lie the reader cannot detect. The strip therefore HIDES itself rather
                than showing a partial count when there is no station data at all. -->
           @if (_stations().length > 0) {
+            <!-- Each chip opens its station's page. A name shared by two station rows has no single
+                 page, so that chip gets no href (a null routerLink) and stays a plain label. -->
             <div class="flex flex-wrap items-center gap-1.5" data-testid="station-strip">
               @for (station of _stations(); track station.key) {
-                <span hlmBadge variant="neutral" class="gap-1">
+                <a
+                  hlmBadge
+                  variant="neutral"
+                  class="focus-visible:ring-ring/50 gap-1 underline-offset-2 outline-none hover:underline focus-visible:ring-2"
+                  [routerLink]="station.stationId === null ? null : ['/station', station.stationId]"
+                  data-testid="station-strip-link"
+                >
                   <span class="truncate">{{ station.label }}</span>
                   <span class="tabular-nums" data-testid="station-strip-count">
                     {{ station.count }}
                   </span>
-                </span>
+                </a>
               }
             </div>
           }
@@ -179,6 +190,8 @@ export class LineStatusReportsComponent {
    */
   protected readonly _stations = computed<StationStripEntry[]>(() => {
     const counts = new Map<string, number>();
+    // The one station id behind each name, or `null` once a second id turns up under it.
+    const ids = new Map<string, string | null>();
     for (const report of this.reports()) {
       for (const station of report.stations ?? []) {
         const key = station?.displayName ?? "";
@@ -186,10 +199,12 @@ export class LineStatusReportsComponent {
           continue;
         }
         counts.set(key, (counts.get(key) ?? 0) + 1);
+        const known = ids.get(key);
+        ids.set(key, known === undefined || known === station.id ? station.id : null);
       }
     }
     return [...counts.entries()]
-      .map(([key, count]) => ({ key, label: key, count }))
+      .map(([key, count]) => ({ key, label: key, count, stationId: ids.get(key) ?? null }))
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   });
 

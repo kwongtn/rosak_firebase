@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
@@ -55,7 +56,7 @@ describe("LineStatusReportsComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LineStatusReportsComponent],
-      providers: [provideZonelessChangeDetection(), provideHttpClientTesting()],
+      providers: [provideZonelessChangeDetection(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
@@ -294,6 +295,17 @@ describe("LineStatusReportsComponent", () => {
     );
     // KLCC 3, then the single-report stations by name so the strip is stable between reads.
     expect(chips).toEqual(["KLCC 3", "Bukit Jalil 1", "Masjid Jamek 1", "Sri Petaling 1"]);
+    // Each chip opens its station's page.
+    expect(
+      [...(strip as HTMLElement).querySelectorAll('[data-testid="station-strip-link"]')].map(
+        (chip) => [chip.tagName, chip.getAttribute("href")],
+      ),
+    ).toEqual([
+      ["A", "/station/s1"],
+      ["A", "/station/s3"],
+      ["A", "/station/s2"],
+      ["A", "/station/s4"],
+    ]);
     // It answers WHERE, which the list itself cannot at a glance — so it sits above the list.
     expect(
       (strip as HTMLElement).compareDocumentPosition(
@@ -315,6 +327,21 @@ describe("LineStatusReportsComponent", () => {
     const chips = [...root.querySelectorAll('[data-testid="station-strip"] [data-slot="badge"]')];
     expect(chips).toHaveLength(1);
     expect(chips[0]?.textContent?.replace(/\s+/g, " ").trim()).toBe("KLCC 2");
+    // Two stations behind one chip: there is no single page to open, so it gets no href.
+    expect(chips[0]?.hasAttribute("href")).toBe(false);
+  });
+
+  it("links a chip whose reports all name the same station row", async () => {
+    const fixture = render(true);
+    await flushReports(fixture, [
+      report("r1", [{ id: "s1", displayName: "KLCC" }]),
+      report("r2", [{ id: "s1", displayName: "KLCC" }]),
+    ]);
+
+    const root = fixture.nativeElement as HTMLElement;
+    const chip = root.querySelector('[data-testid="station-strip-link"]');
+    expect(chip?.textContent?.replace(/\s+/g, " ").trim()).toBe("KLCC 2");
+    expect(chip?.getAttribute("href")).toBe("/station/s1");
   });
 
   it("hides the strip entirely when no loaded report names a station", async () => {
