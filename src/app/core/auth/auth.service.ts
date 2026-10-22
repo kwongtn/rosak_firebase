@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 
 import { injectIsBrowser } from "../composables/is-browser";
+import { readStorageItem } from "../util/web-storage.util";
 import { environment } from "../../../environments/environment";
 import { ToastService } from "../../ui/toast/toast.service";
 
@@ -79,18 +80,32 @@ export class AuthService {
     this.auth = getAuth(firebaseApp());
     onAuthStateChanged(
       this.auth,
-      async (user) => {
-        this.userSignal.set(user);
-        this.isLoggedIn.set(user !== null);
-        this.isAdmin.set(user !== null && (await user.getIdTokenResult()).claims["admin"] === true);
-        this.firstName.set(user ? localStorage.getItem(firstNameStorageKey(user.uid)) : null);
-        this.resolveReady();
-      },
+      (user) => this.applyUser(user),
       (error) => {
         this.errorHandler.handleError(error);
         this.resolveReady();
       },
     );
+  }
+
+  /** Firebase's auth-state callback: publishes the user, then their admin claim. */
+  private async applyUser(user: User | null): Promise<void> {
+    this.userSignal.set(user);
+    this.isLoggedIn.set(user !== null);
+    // Best-effort read: a storage access that throws must not stop `whenReady` either.
+    this.firstName.set(user ? readStorageItem("local", firstNameStorageKey(user.uid)) : null);
+    try {
+      this.isAdmin.set(user !== null && (await user.getIdTokenResult()).claims["admin"] === true);
+    } catch (err) {
+      // Reading the claim can refresh the token, which fails offline once it has expired. Fail
+      // closed and report it; the user is still signed in.
+      this.isAdmin.set(false);
+      this.errorHandler.handleError(err);
+    } finally {
+      // Always: a failed claim read must not leave every `whenReady` waiter (the route guards, the
+      // report outbox) pending for good.
+      this.resolveReady();
+    }
   }
 
   /** Google-popup sign-in — the only login method the current app offers. Resolves to
