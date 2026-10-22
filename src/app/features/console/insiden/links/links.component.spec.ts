@@ -85,7 +85,7 @@ function withoutStoredOrder(row: SocialMediaLinkRow): SocialMediaLinkRow {
 interface ComponentUnderTest {
   isLoading: WritableSignal<boolean>;
   links: WritableSignal<SocialMediaLinkRow[]>;
-  categories: WritableSignal<{ id: string; name: string }[]>;
+  categories: () => { id: string; name: string }[];
   selectedLink: WritableSignal<SocialMediaLinkRow | null>;
   editUrl: WritableSignal<string>;
   editTitle: WritableSignal<string>;
@@ -228,7 +228,7 @@ describe("SocialMediaLinksComponent", () => {
   });
 
   /** Zoneless whenStable() does not track the constructor's fire-and-forget
-   * load promises — wait for both queries AND for the loading flag to drop,
+   * load promise — wait for the links query AND for the loading flag to drop,
    * otherwise a follow-up load() hits its own re-entrancy guard. */
   async function initialLoadsSettled(component: ComponentUnderTest): Promise<void> {
     await fixture.whenStable();
@@ -274,9 +274,9 @@ describe("SocialMediaLinksComponent", () => {
   /** The operation names in the order they were sent, so a two-step Approve can
    *  assert the SEQUENCE and not merely that both happened. */
   function operationSequence(): string[] {
-    return requestMock.mock.calls
-      .map((call) => (call[0] as string).match(/(?:query|mutation) (\w+)/)?.[1] ?? "")
-      .filter((name) => name !== "ConsoleCategories");
+    return requestMock.mock.calls.map(
+      (call) => (call[0] as string).match(/(?:query|mutation) (\w+)/)?.[1] ?? "",
+    );
   }
 
   /** Reorder, like the group verbs, is matched on its OPERATION name — the

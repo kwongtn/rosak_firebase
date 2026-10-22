@@ -69,7 +69,7 @@ function makeRow(overrides: Partial<PendingIncident> = {}): PendingIncident {
  * through this typed projection instead of leaking `any` into the suite. */
 interface ComponentUnderTest {
   rows: WritableSignal<PendingIncident[]>;
-  isLoading: WritableSignal<boolean>;
+  isLoading: () => boolean;
   rejectTarget: WritableSignal<PendingIncident | null>;
   rejectReason: WritableSignal<string>;
   selectedRow: WritableSignal<PendingIncident | null>;
@@ -160,8 +160,8 @@ describe("PendingIncidentsComponent", () => {
     vi.useRealTimers();
   });
 
-  /** Zoneless whenStable() does not track the constructor's fire-and-forget
-   * load promise — wait for the queue query (and the loading flag to drop).
+  /** Zoneless whenStable() does not track the queue resource's first read —
+   * wait for the queue query (and the loading flag to drop).
    * The panel's reference data is already flushed through httpMock in beforeEach. */
   async function initialLoadsSettled(component: ComponentUnderTest): Promise<void> {
     await fixture.whenStable();
