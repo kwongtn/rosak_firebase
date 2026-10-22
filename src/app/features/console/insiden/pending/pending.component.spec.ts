@@ -81,6 +81,8 @@ interface ComponentUnderTest {
   selectedStationIds: WritableSignal<string[]>;
   selectedCategoryIds: WritableSignal<string[]>;
   canSave: () => boolean;
+  referenceResource: { reload(): void };
+  vehicleOptions: () => { id: string; label: string }[];
   onSearchInput(value: string): void;
   approve(row: PendingIncident): Promise<boolean>;
   openReject(row: PendingIncident): void;
@@ -334,6 +336,56 @@ describe("PendingIncidentsComponent", () => {
 
     expect(component.chronologies().map((c) => c.indicator)).toEqual(["BLUE", "GREEN"]);
     expect(component.chronologies()[0].content).toBe("Start");
+  });
+
+  it("keeps a vehicle tagged without its line in the vehicle options (shared reference options)", async () => {
+    const component = asTestable(fixture);
+    component.referenceResource.reload();
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: {
+          lines: [
+            {
+              id: "l1",
+              code: "KJL",
+              displayName: "Kelana Jaya",
+              vehicleTypes: [
+                {
+                  id: "t1",
+                  displayName: "Train",
+                  vehicles: [{ id: "v1", identificationNo: "18" }],
+                },
+              ],
+            },
+            {
+              id: "l2",
+              code: "AGL",
+              displayName: "Ampang",
+              vehicleTypes: [
+                {
+                  id: "t2",
+                  displayName: "Train",
+                  vehicles: [{ id: "v2", identificationNo: "42" }],
+                },
+              ],
+            },
+          ],
+          stations: [],
+          calendarIncidentCategories: [],
+        },
+      });
+    await fixture.whenStable();
+
+    component.openDetail(
+      makeRow({
+        lines: [{ id: "l2", code: "AGL", displayName: "Ampang" }],
+        vehicles: [{ id: "v1", identificationNo: "18" }],
+      }),
+    );
+
+    expect(component.vehicleOptions().map((option) => option.id)).toEqual(["v2", "v1"]);
   });
 
   it("closePanel clears the selection and resets the edit form", () => {

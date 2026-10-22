@@ -2,7 +2,7 @@ import { DatePipe } from "@angular/common";
 import { Component, computed, inject, signal } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../../core/auth/auth.service";
-import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql-client";
+import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { eventValue } from "../../../../core/util/dom-event.util";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmButton } from "../../../../ui/button/button";
@@ -18,15 +18,9 @@ import { HlmTableImports } from "../../../../ui/table/table";
 import { AppNavComponent } from "../../../../shell/app-nav/app-nav.component";
 import { AppFooterComponent } from "../../../../shell/app-footer/app-footer.component";
 import { ConsoleNavComponent } from "../../console-nav.component";
-import {
-  AssetMultiSelectComponent,
-  type AssetMultiSelectOption,
-} from "../../../insiden/asset-multi-select/asset-multi-select.component";
-import {
-  CalendarIncidentSeverity,
-  INSIDEN_REFERENCE_QUERY,
-  InsidenReferenceQueryData,
-} from "../../../insiden/data/insiden.queries";
+import { AssetMultiSelectComponent } from "../../../insiden/asset-multi-select/asset-multi-select.component";
+import { CalendarIncidentSeverity } from "../../../insiden/data/insiden.queries";
+import { injectInsidenReferenceOptions } from "../../../insiden/data/insiden-reference-options";
 import {
   type ExtractedIncidentData,
   IncidentAiService,
@@ -79,6 +73,12 @@ import {
   type ChronologyPatch,
 } from "./pending-chronology-editor.component";
 import { PendingDeletionRequestsComponent } from "./pending-deletion-requests.component";
+import {
+  indexCategoriesById,
+  indexLinesById,
+  indexStationsById,
+  indexVehiclesById,
+} from "../links/link-reference.util";
 import {
   asCalendarIncident,
   buildUpdatedIncidentRow,
@@ -204,107 +204,17 @@ export class PendingIncidentsComponent {
   protected readonly selectedStationIds = signal<string[]>([]);
   protected readonly selectedCategoryIds = signal<string[]>([]);
 
-  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
-    query: INSIDEN_REFERENCE_QUERY,
-  }));
-
-  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.lines ?? []).map((line) => ({
-      id: line.id,
-      label: `${line.code} — ${line.displayName}`,
-    })),
+  /** The reference read and option lists the public forms use (`injectInsidenReferenceOptions`), so
+   *  a vehicle tagged without its line stays listed here too. */
+  private readonly reference = injectInsidenReferenceOptions(
+    this.selectedLineIds,
+    this.selectedVehicleIds,
   );
-
-  private readonly _linesById = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    return new Map(lines.map((line) => [line.id, line]));
-  });
-
-  /** A vehicle's true line memberships, built over ALL lines (not just the
-   * selected-filtered view vehicleOptions() uses) — a vehicle's parent codes
-   * shouldn't disappear just because its line got unchecked. */
-  private readonly _vehicleParentCodes = computed(() => {
-    const lines = this.referenceResource.data()?.lines ?? [];
-    const map = new Map<string, string[]>();
-    for (const line of lines) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          const codes = map.get(vehicle.id);
-          if (codes) {
-            if (!codes.includes(line.code)) {
-              codes.push(line.code);
-            }
-          } else {
-            map.set(vehicle.id, [line.code]);
-          }
-        }
-      }
-    }
-    return map;
-  });
-
-  private readonly _vehiclesById = computed(() => {
-    const map = new Map<string, { id: string; identificationNo: string }>();
-    for (const line of this.referenceResource.data()?.lines ?? []) {
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          map.set(vehicle.id, { id: vehicle.id, identificationNo: vehicle.identificationNo });
-        }
-      }
-    }
-    return map;
-  });
-
-  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() => {
-    const selected = this.selectedLineIds();
-    const lines =
-      selected.length > 0
-        ? selected.map((id) => this._linesById().get(id))
-        : [...this._linesById().values()];
-    const seen = new Set<string>();
-    const options: AssetMultiSelectOption[] = [];
-    for (const line of lines) {
-      if (!line) continue;
-      for (const vehicleType of line.vehicleTypes) {
-        for (const vehicle of vehicleType.vehicles) {
-          if (seen.has(vehicle.id)) continue;
-          seen.add(vehicle.id);
-          options.push({
-            id: vehicle.id,
-            label: vehicle.identificationNo,
-            parentCodes: this._vehicleParentCodes().get(vehicle.id),
-          });
-        }
-      }
-    }
-    return options;
-  });
-
-  private readonly _stationsById = computed(
-    () => new Map((this.referenceResource.data()?.stations ?? []).map((s) => [s.id, s])),
-  );
-
-  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.stations ?? []).map((station) => ({
-      id: station.id,
-      label: station.displayName,
-      parentCodes: (station.lines ?? []).map((l) => l.code),
-    })),
-  );
-
-  private readonly _categoriesById = computed(
-    () =>
-      new Map(
-        (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((c) => [c.id, c]),
-      ),
-  );
-
-  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
-    (this.referenceResource.data()?.calendarIncidentCategories ?? []).map((category) => ({
-      id: category.id,
-      label: category.name,
-    })),
-  );
+  protected readonly referenceResource = this.reference.resource;
+  protected readonly lineOptions = this.reference.lineOptions;
+  protected readonly vehicleOptions = this.reference.vehicleOptions;
+  protected readonly stationOptions = this.reference.stationOptions;
+  protected readonly categoryOptions = this.reference.categoryOptions;
 
   /** Mirrors incident-form.schema's required(title/brief/startDatetime/severity)
    *  plus the end>=start tree check — Save is disabled while the form is invalid. */
@@ -781,6 +691,7 @@ export class PendingIncidentsComponent {
         // Nothing was sent — the amended payload stays in the panel.
         return;
       }
+      const reference = this.referenceResource.data();
       const updated = buildUpdatedIncidentRow({
         row,
         model: this.model(),
@@ -790,10 +701,10 @@ export class PendingIncidentsComponent {
         selectedVehicleIds: this.selectedVehicleIds(),
         selectedStationIds: this.selectedStationIds(),
         selectedCategoryIds: this.selectedCategoryIds(),
-        linesById: this._linesById(),
-        vehiclesById: this._vehiclesById(),
-        stationsById: this._stationsById(),
-        categoriesById: this._categoriesById(),
+        linesById: indexLinesById(reference),
+        vehiclesById: indexVehiclesById(reference),
+        stationsById: indexStationsById(reference),
+        categoriesById: indexCategoriesById(reference),
       });
       this.rows.update((rows) => rows.map((r) => (r.id === row.id ? updated : r)));
       this.selectedRow.set(updated);
