@@ -157,6 +157,19 @@ interface EventDayGroup {
         } @else if (canViewSpottings()) {
           @if (_events().length === 0 && _isLoading()) {
             <p class="text-muted-foreground text-sm">Loading your spottings…</p>
+          } @else if (_events().length === 0 && _loadFailed()) {
+            <div class="flex items-center gap-3">
+              <p class="text-muted-foreground text-sm">Couldn't load your spottings.</p>
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                data-testid="retry-spottings"
+                (click)="loadMore()"
+              >
+                Retry
+              </button>
+            </div>
           } @else if (_events().length === 0) {
             <p class="text-muted-foreground text-sm">No spottings logged yet.</p>
           } @else {
@@ -305,6 +318,9 @@ export class MySpottingsComponent {
   private readonly _ownEvents = signal<MyEvent[]>([]);
   protected readonly _isLoading = signal(false);
   protected readonly _hasMore = signal(false);
+  /** The last page request failed. With rows on screen "Load more" is the retry; with none, the
+   * empty message would be a lie, so the list shows a Retry instead. */
+  protected readonly _loadFailed = signal(false);
 
   private readonly graphql = inject(GraphQLClient);
   private readonly auth = inject(AuthService);
@@ -380,6 +396,7 @@ export class MySpottingsComponent {
       return;
     }
     this._isLoading.set(true);
+    this._loadFailed.set(false);
     try {
       const events = await this.fetchEventsPage(
         untracked(() => this._ownEvents().length),
@@ -391,6 +408,7 @@ export class MySpottingsComponent {
       this._hasMore.set(events.length === PAGE_SIZE);
       this._ownEvents.update((list) => [...list, ...events]);
     } catch (err) {
+      this._loadFailed.set(true);
       this.toast.error(
         "Couldn't load spottings",
         err instanceof Error ? err.message : "Unknown error",
@@ -479,7 +497,10 @@ export class MySpottingsComponent {
   }
 
   protected _canDelete(event: MyEvent): boolean {
-    return Date.now() - new Date(event.created).getTime() <= DELETE_WINDOW_MS;
+    // Only the owner's own entries: a visitor's request would be refused by the server anyway.
+    return (
+      this.isOwnProfile() && Date.now() - new Date(event.created).getTime() <= DELETE_WINDOW_MS
+    );
   }
 
   protected onNotesClick(event: MyEvent): void {
@@ -517,6 +538,10 @@ export class MySpottingsComponent {
       if (data.deleteEvent.ok) {
         this._ownEvents.update((list) => list.filter((event) => event.id !== eventId));
         this.toast.success(`Deletion of spotting entry #${eventId} successful.`);
+        // Deleting a whole page of a longer history must not read as "no spottings": fetch the older ones.
+        if (this._ownEvents().length === 0 && this._hasMore()) {
+          void this.loadMore();
+        }
       } else {
         this.toast.error("Unknown error on deletion", "Please refresh the page and try again.");
       }

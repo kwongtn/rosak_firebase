@@ -233,13 +233,15 @@ Directory map:
     disabled while a delete is in flight. A delete from another tab cannot be seen from here and can still
     shift the pages: that limit is inherent to offset paging, and a stable cursor would need a backend filter.
   - `_canDelete(event)` recomputes the 3-day window client-side (`Date.now() - created <= DELETE_WINDOW_MS`).
-    The window is 3 days (matching the server); never a 10-day constant. It does not look at
-    `isOwnProfile()`, so a visitor also sees the button on another user's recent entry (the server refuses it
-    with `ok: false`).
+    The window is 3 days (matching the server); never a 10-day constant. It also requires
+    `isOwnProfile()`, so a visitor never sees a delete button on another user's entry.
   - `deleteEvent(id)` asks `confirm()` first (cancel does nothing). On `ok: true` it drops the row from
-    `_ownEvents` (the next page's offset is the new length) and toasts success. `ok: false` and a thrown
-    request keep the row and toast the error. Nothing retries a failed first page by itself: an empty list
-    reads "No spottings logged yet." until `loadMore()` runs again.
+    `_ownEvents` (the next page's offset is the new length) and toasts success; if that emptied the list
+    while `_hasMore()` is true, it fetches the next page so older history is not hidden. `ok: false` and a
+    thrown request keep the row and toast the error.
+  - `_loadFailed` is set when a page request throws. With rows on screen "Load more" stays and retries the
+    same offset. With none (the first page failed), the list shows "Couldn't load your spottings." and a
+    Retry button (`data-testid="retry-spottings"`) that calls `loadMore()`, instead of the empty message.
   - An `isDestroyed` flag stops an in-flight `loadMore()` from writing into a destroyed component.
 - **`FleetProgressComponent` / `FleetProgressLineComponent`:** the Fleet progress card.
   - **Own profile only, by privacy.** The numbers come from `GET_FLEET_PROGRESS_QUERY`, the caller's own

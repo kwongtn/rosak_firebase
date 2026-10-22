@@ -241,16 +241,22 @@ describe("MySpottingsComponent", () => {
       );
     });
 
-    it("loads the first page on a second try after the first one failed", async () => {
+    it("offers a Retry, not the empty message, when the first page fails, and loads it on press", async () => {
       requestMock.mockRejectedValueOnce(new Error("Network down"));
       await render(makeUser(null), true);
       await vi.waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.textContent).not.toContain("No spottings logged yet.");
+      expect(root.textContent).toContain("Couldn't load your spottings.");
 
       requestMock.mockResolvedValueOnce({ events: makeEvents(2) });
-      await fixture.componentInstance.loadMore();
-      fixture.detectChanges();
-
-      expect((fixture.nativeElement as HTMLElement).querySelectorAll("li")).toHaveLength(2);
+      root.querySelector<HTMLButtonElement>('[data-testid="retry-spottings"]')?.click();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(root.querySelectorAll("li")).toHaveLength(2);
+      });
+      expect(root.querySelector('[data-testid="retry-spottings"]')).toBeNull();
       // The failure did not move the offset on, and did not leave the loader stuck.
       expect(requestMock.mock.calls.map(([, vars]) => vars)).toEqual([
         { limit: 30, offset: 0 },
@@ -401,6 +407,29 @@ describe("MySpottingsComponent", () => {
       fixture.detectChanges();
       expect(rowNumbers()).toEqual(["V1"]);
       expect(deleteButtons()[0].disabled).toBe(false);
+    });
+
+    it("never offers delete on another user's recent entry", async () => {
+      await render(makeUser([eventAged("1", HOUR_MS)]), false);
+
+      expect(vehicleLinks()).toHaveLength(1);
+      expect(deleteButtons()).toHaveLength(0);
+    });
+
+    it("fetches the older page when the owner deletes every row that was loaded", async () => {
+      await renderOwner([eventAged("1", HOUR_MS)]);
+      // As after a full page: more history sits behind it, so the list must not read as empty.
+      fixture.componentInstance["_hasMore"].set(true);
+      requestMock.mockResolvedValueOnce({ deleteEvent: { ok: true } });
+      requestMock.mockResolvedValueOnce({ events: [eventAged("2", 5 * 24 * HOUR_MS)] });
+
+      deleteButtons()[0].click();
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(rowNumbers()).toEqual(["V2"]);
+      });
+      expect(requestMock.mock.calls.at(-1)![1]).toEqual({ limit: 30, offset: 0 });
     });
 
     it("does nothing when the owner cancels the confirmation", async () => {
