@@ -14,7 +14,6 @@ import {
   PASSENGER_LABEL,
   PASSENGER_NO_DATA_BAR_CLASS,
 } from "../data/passenger-status.util";
-import { SERVICE_DAY_START_HOUR } from "../data/status-history-display.util";
 import { PASSENGER_SCALE } from "../data/status-info.util";
 
 /** Bucket hours are Malaysia service hours — formatted in MYT so every viewer reads the same day. */
@@ -208,7 +207,7 @@ export class LineStatusChartComponent {
     }
     return {
       query: LINE_STATUS_HISTORY_QUERY,
-      variables: { lineId: this.lineId(), dayStartHour: SERVICE_DAY_START_HOUR },
+      variables: { lineId: this.lineId() },
     };
   });
 

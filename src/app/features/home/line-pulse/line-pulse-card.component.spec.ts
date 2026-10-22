@@ -502,10 +502,7 @@ describe("LinePulseCardComponent", () => {
     fixture.detectChanges();
 
     const historyRequest = httpMock.expectOne((r) => r.body.query.includes("LineStatusHistory"));
-    expect(historyRequest.request.body.variables).toEqual({
-      lineId: "line-7",
-      dayStartHour: 3,
-    });
+    expect(historyRequest.request.body.variables).toEqual({ lineId: "line-7" });
     historyRequest.flush({
       data: {
         lineStatusHistory: [

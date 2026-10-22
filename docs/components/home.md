@@ -151,8 +151,9 @@
     `LineStatusHourBucket` fields, pinned in the spec); `LINE_STATUS_WEEK_PROFILE_QUERY`
     (`lineStatusWeekProfile(lineId, weeks, dayStartHour)`: one slot per weekday and hour, with the hourly
     bucket's `count` / `dominantStatus` / `statusCounts`) backs the expanded panel's typical week. Its
-    `weeks` and `dayStartHour` are SENT, as literals (`WEEK_PROFILE_WEEKS`, and `SERVICE_DAY_START_HOUR`,
-    the one constant the hourly chart sends too), because the grid is laid out from them;
+    `weeks` and `dayStartHour` are SENT, as literals (`WEEK_PROFILE_WEEKS` and `SERVICE_DAY_START_HOUR`),
+    because the grid is laid out from them (the hourly chart sends only `lineId` and takes the
+    backend's default start hour);
     `SUBMIT_LINE_STATUS_REPORT_MUTATION`
     (`submitLineStatusReport(input: LineStatusReportInput!)`), sent only through
     `submitLineStatusReport(graphql, auth, input, { quiet })` (`data/submit-line-status-report.ts`),
@@ -1111,9 +1112,10 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
   none). `flex-col-reverse`; only the topmost segment rounds its top. Hover readout and each bar's
   `title`/`aria-label` carry the hour range, total and per-status breakdown. All 24 hours labelled on a
   `min-w-[24rem]` strip in an `overflow-x-auto` lane; the skeleton, empty and loaded states share the
-  exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card never jumps. The `dayStartHour` it
-  sends is the shared `SERVICE_DAY_START_HOUR` (`data/status-history-display.util.ts`), the constant the
-  typical week below sends and lays its columns out from, so the two cannot drift apart.
+  exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card never jumps. It sends only `lineId`:
+  the backend's default `dayStartHour` applies (as for the network reads), and the bar labels come from
+  each bucket's own `hourStart`, so the chart holds no copy of the service-day start hour. The typical
+  week below sends `SERVICE_DAY_START_HOUR` and lays its columns out from it.
 - **`LineWeekProfileComponent`** (`line-pulse/line-week-profile.component.ts`, `app-line-week-profile`,
   input `lineId`) — the "Typical week" under today's chart: for ONE line, the status riders most often
   reported in each hour of each weekday over the last `WEEK_PROFILE_WEEKS` (6) weeks, as a 7-row (Mon to

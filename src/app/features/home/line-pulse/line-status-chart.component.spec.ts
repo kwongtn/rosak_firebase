@@ -160,7 +160,8 @@ describe("LineStatusChartComponent", () => {
     const fixture = render(true, "line-9");
 
     const request = httpMock.expectOne((r) => r.body.query.includes("LineStatusHistory"));
-    expect(request.request.body.variables).toEqual({ lineId: "line-9", dayStartHour: 3 });
+    // No dayStartHour: the backend's own default applies, as for the network reads.
+    expect(request.request.body.variables).toEqual({ lineId: "line-9" });
 
     request.flush({ data: { lineStatusHistory: makeBuckets() } });
     await fixture.whenStable();
