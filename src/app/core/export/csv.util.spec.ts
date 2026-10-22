@@ -74,6 +74,12 @@ describe("csv.util: toCsv", () => {
     expect(visible(csv)).toBe('title<CRLF>"carriage<CRLF>return"<CRLF>');
   });
 
+  it("quotes a value containing a bare CR, which some readers treat as a row break", () => {
+    const csv = toCsv(["title"], [{ title: "old\rmac" }]);
+
+    expect(visible(csv)).toBe('title<CRLF>"old<CR>mac"<CRLF>');
+  });
+
   it("leaves an ordinary value unquoted", () => {
     // Quoting everything is valid CSV and unreadable in a diff; the escaping must be minimal.
     expect(toCsv(["code"], [{ code: "K10" }])).toBe("code\r\nK10\r\n");

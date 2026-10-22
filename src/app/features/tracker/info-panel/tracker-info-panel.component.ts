@@ -12,6 +12,7 @@ import {
 } from "@angular/core";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { observeHeight } from "../../../core/dom/observe-height";
+import { downloadCsv, toCsv } from "../../../core/export/csv.util";
 import { HlmButton } from "../../../ui/button/button";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { GtfsRealtimeService } from "../data/gtfs-realtime.service";
@@ -29,22 +30,6 @@ type SortDir = 1 | -1;
 
 const RING_RADIUS = 8;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
-function toCsv(rows: TableRow[]): string {
-  if (rows.length === 0) {
-    return "";
-  }
-  const columns = Object.keys(rows[0]);
-  const escape = (value: string | number) => {
-    const str = String(value);
-    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-  };
-  const lines = [
-    columns.join(","),
-    ...rows.map((row) => columns.map((col) => escape(row[col] ?? "")).join(",")),
-  ];
-  return lines.join("\n");
-}
 
 /** Escapes text for safe interpolation inside the `<span>` wrapper tags `highlightJson` itself
  * introduces — the *only* markup this ever produces, so escaping the raw text first and never
@@ -570,16 +555,10 @@ export class TrackerInfoPanelComponent {
   }
 
   protected onExportCsv(): void {
-    if (!this.isBrowser) {
-      return;
-    }
-    const csv = toCsv(this.sortedRows());
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${this.sourceKey() ?? this.kind()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      `${this.sourceKey() ?? this.kind()}.csv`,
+      toCsv(this.tableColumns(), this.sortedRows()),
+      this.isBrowser,
+    );
   }
 }

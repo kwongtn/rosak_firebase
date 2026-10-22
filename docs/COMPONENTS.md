@@ -79,8 +79,8 @@ itself.
   included, by the owner's choice.
 - `core/export/`: file downloads of data the page already holds. `csv.util.ts` (`toCsv` is pure and always
   emits a header row; `downloadCsv`) and `json.util.ts` (`downloadJson`) share one contract: the platform
-  flag is a parameter and the download is a no-op on the server. Consumers: home's Pro lines widget (CSV)
-  and profile's spotting history (CSV and JSON).
+  flag is a parameter and the download is a no-op on the server. Consumers: home's Pro lines widget (CSV),
+  profile's spotting history (CSV and JSON) and tracker's info panel (CSV).
 - `core/time/kl-date.ts`: `klDateKey(now?)`, the Asia/Kuala_Lumpur `YYYY-MM-DD` (fixed UTC+8, the
   same in every zone), is the one "today" for `/insiden`, its calendar and the link list.
 - `core/network/`: `OnlineService.isOnline` (root signal: `navigator.onLine` at startup, then the
@@ -561,8 +561,7 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
    spelled `downloadCsv` / `downloadIcs`), `core/export/json.util.ts` (`downloadJson`) and `core/export/ics.util.ts`
    (`buildIcs`: RFC 5545 escaping, 75-octet folding, KL `TZID` times, pure) exist. Consumers: home's
    Pro lines widget (CSV), profile's spotting history (CSV and JSON, paged from the API) and insiden
-   ("Add to calendar" and "Export month", `.csv`/`.ics`); tracker's info panel keeps a private
-   `toCsv`. Still wanted, with data already client-side and no backend change: console (filtered
+   ("Add to calendar" and "Export month", `.csv`/`.ics`) and tracker's info panel (CSV). Still wanted, with data already client-side and no backend change: console (filtered
    queue), gallery (per-year zip). No zip helper yet. `downloadJson` still copies the blob-and-anchor
    steps that `downloadText` now holds once for CSV and iCalendar; point it at `downloadText`.
 3. **User preferences / persistence.** `core/preferences/preferences.service.ts`
