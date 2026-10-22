@@ -19,13 +19,15 @@ Three files under `src/app/core/methodology/`:
 
 - `methodology.constants.ts`: `METHODOLOGY_CONSTANTS`, every number that appears in copy, each tagged
   with its owning `source` spec (seven at present). Header comments separate frontend rules and
-  display caps from values that mirror backend enums. Transit numbers (reliability, episodes,
+  display caps from values that mirror backend values. A mirrored value (the service-day hour and bucket
+  count, the push cooldown) is pinned only against frontend code, so a backend change fails no test and has
+  to be mirrored by hand. Transit numbers (reliability, episodes,
   arrivals, staleness windows) are backend-owned and do not belong here.
 - `methodology.content.ts`: `METHODOLOGY_SECTIONS` (8 anchored sections, all `inProgress: true` in v1)
   and `METRIC_DOCS` (one `MetricDoc` per metric, keyed by `id`), with the `MethodologySection` and
   `MetricDoc` interfaces.
 - `methodology-render.util.ts`: `renderMethodologyCopy()`, `methodologyTokenValues()`, `metricDoc(id)`,
-  `metricTooltip(id)`, `section(id)`.
+  `metricTooltip(id)`, `section(id)`, `isReviewStale(lastReviewed, now?)`.
 
 **Loading.** No file in the initial graph imports the registry, so it ships as a shared lazy chunk
 (about 20 kB, nearly all of it section and `MetricDoc` prose) fetched by the first page that reads
@@ -116,8 +118,11 @@ deliberately not built in v1: there is no `onSnapshot`, no editor, and the page 
 - **`MethodologySectionComponent`** (`input.required<MethodologySection>()`): renders the anchored
   `<section [id]>`, the "Last reviewed" date, the body, the in-progress note, the owning-route link (or
   the `sourceSpec` when `ownerRoute` is `null`), and one `app-info-popover` per `MetricDoc` whose
-  `sectionId` matches. The body, `lastReviewed` and each metric's `content` all go through
-  `renderMethodologyCopy()`.
+  `sectionId` matches, with that metric's own `lastReviewed` beside it (`data-testid="metric-reviewed"`).
+  The body, the section's `lastReviewed` and each metric's `content` go through `renderMethodologyCopy()`.
+  A section or metric whose `lastReviewed` is more than `STALE_REVIEW_MONTHS` (6) old, by
+  `isReviewStale()` against the clock, gets a "Needs review" pill (`data-testid="needs-review"`). The
+  pill is public and informational: it never fails a build, because a calendar date must not break CI.
 - **`InfoPopover`** (`src/app/ui/info-popover/info-popover.ts`, selector `app-info-popover`). Inputs:
   - `label`, `content` (already-rendered text), `link`, `testId`
   - `align`: `"start" | "end" | "center"`
@@ -194,9 +199,6 @@ deliberately not built in v1: there is no `onSnapshot`, no editor, and the page 
 
 ## 💡 Potential Feature Opportunities
 
-- **Admin "needs review" badge:** `STALE_REVIEW_MONTHS` (6) exists, but nothing reads it yet. A
-  section whose `lastReviewed` is older than that window could show a badge, visible only to
-  `AuthService.isAdmin`, never a CI failure.
 - **Deep-linked per-metric anchors:** each `MetricDoc.id` is stable. Rendering a per-metric `<a id>`
   (with popovers linking to `#<metricId>`) would let a shared link land on one definition. Not rendered today.
 - **Search/filter over definitions:** `METRIC_DOCS` is plain data, so a client-side filter over

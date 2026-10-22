@@ -1240,7 +1240,9 @@ rows.
 - **`status-history-display.util.ts`** is the one place the history widgets describe an hour:
   `serviceHourLabel` / `serviceHourRangeLabel` (MYT, so any-timezone readers line bars up with the
   backend's hours), `reportsPhrase`, `historyBarHeightPct` (scaled to the busiest hour **in the same
-  series**, with a visible floor), `historyBreakdownPhrase` / `historyBarTitle`, `historySummaryLabel`,
+  series**, with a visible floor), `historyBreakdownPhrase` / `historyBarTitle`, `historySummaryLabel` (names the service day from the
+  first and last bucket the backend sent; `SERVICE_DAY_LABEL`, derived from `SERVICE_DAY_START_HOUR` and
+  `HISTORY_BUCKETS_PER_DAY`, is only the caption drawn before any bucket exists),
   `currentServiceBucketIndex` (which bucket an instant is in — half-open `[start, end)`, so a seam
   instant belongs to the LATER hour; `-1` for an empty or out-of-series answer; the row's "this hour"
   figure and the grid's current-hour marker both read it — a client clock is the one thing neither may
@@ -1612,8 +1614,8 @@ hourly and the header says so).
   popover; `PLANNED_WORKS_WINDOW_DAYS` and `LINE_NOTICE_MAX_CHIPS` live in `METHODOLOGY_CONSTANTS`,
   section `episodes`, bumped by `REVIEWED_AT_LINE_NOTICES`). `network.severity-order` is
   reachable only through `/methodology`. When a documented value changes, bump the owning section's
-  `lastReviewed` (history widgets: `REVIEWED_AT_HISTORY_WIDGETS` in `methodology.content.ts`; see
-  `methodology.md`).
+  `lastReviewed` (history widgets: the `line-status` section and the `network.*` history metrics in
+  `methodology.content.ts`; see `methodology.md`).
 
 ### Seams & testids
 
