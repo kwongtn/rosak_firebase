@@ -33,13 +33,6 @@ import {
   vehicleParentCodesOf,
 } from "./link-reference.util";
 import {
-  appliedFiltersAreUnfiltered,
-  queueQueryVars,
-  type AppliedQueueFilters,
-  type CompletedFilter,
-  type VisibilityFilter,
-} from "./link-queue-filter.util";
-import {
   AssetMultiSelectComponent,
   type AssetMultiSelectOption,
 } from "../../../insiden/asset-multi-select/asset-multi-select.component";
@@ -54,19 +47,11 @@ import {
   MARK_LINK_COMPLETED_MUTATION,
   MarkLinkCompletedData,
   MarkLinkCompletedVars,
-  SOCIAL_MEDIA_LINKS_QUERY,
   SocialMediaLinkRow,
-  SocialMediaLinksQueryData,
-  SocialMediaLinksQueryVars,
   UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
   UpdateSocialMediaLinkData,
   UpdateSocialMediaLinkVars,
 } from "../data/insiden-console.queries";
-import {
-  SEARCH_DEBOUNCE_MS,
-  createTrailingDebounce,
-  searchTermOrUndefined,
-} from "../data/search-debounce.util";
 import { isSameMinute } from "../data/same-minute.util";
 import { linkStatusInput } from "../data/link-status-input.util";
 import {
@@ -87,6 +72,7 @@ import {
   UngroupSocialMediaLinksVars,
 } from "../../../insiden/data/social-links.queries";
 import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
+import { injectLinksQueue } from "./links-queue";
 import { useLinksTree } from "./links-tree";
 
 /**
@@ -312,97 +298,38 @@ import { useLinksTree } from "./links-tree";
   templateUrl: "./links.component.html",
 })
 export class SocialMediaLinksComponent {
-  private readonly graphql = inject(GraphQLClient);
-  private readonly auth = inject(AuthService);
-  private readonly toast = inject(ToastService);
-  /** One trailing debounce serves search AND the filter controls — last change wins. */
-  private readonly queueDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
+  /* The queue's data and filters live in `links-queue.ts`, the selection and conversation tree in
+   * `links-tree.ts`. The template and the spec read every member off this class, so those members
+   * are re-exposed here under their own names. */
+  private readonly queue = injectLinksQueue();
+  protected readonly links = this.queue.links;
+  protected readonly isLoading = this.queue.isLoading;
+  protected readonly queueIsComplete = this.queue.queueIsComplete;
+  protected readonly searchTerm = this.queue.searchTerm;
+  protected readonly categoryId = this.queue.categoryId;
+  protected readonly completedFilter = this.queue.completedFilter;
+  protected readonly visibilityFilter = this.queue.visibilityFilter;
+  protected readonly filterLineId = this.queue.filterLineId;
+  protected readonly filterVehicleId = this.queue.filterVehicleId;
+  protected readonly filterStationId = this.queue.filterStationId;
+  protected readonly filterDateFrom = this.queue.filterDateFrom;
+  protected readonly filterDateTo = this.queue.filterDateTo;
+  protected readonly onSearchInput = this.queue.onSearchInput;
+  protected readonly onCategoryChange = this.queue.onCategoryChange;
+  protected readonly onCompletedFilterChange = this.queue.onCompletedFilterChange;
+  protected readonly onVisibilityFilterChange = this.queue.onVisibilityFilterChange;
+  protected readonly onFilterLineChange = this.queue.onFilterLineChange;
+  protected readonly onFilterVehicleChange = this.queue.onFilterVehicleChange;
+  protected readonly onFilterStationChange = this.queue.onFilterStationChange;
+  protected readonly onDateFromInput = this.queue.onDateFromInput;
+  protected readonly onDateToInput = this.queue.onDateToInput;
+  protected readonly resetFilters = this.queue.resetFilters;
+  protected readonly showAllLinks = this.queue.showAllLinks;
+  private readonly load = this.queue.load;
+  private readonly finishLoading = this.queue.finishLoading;
+  private readonly fetchLinks = this.queue.fetchLinks;
 
-  protected readonly links = signal<SocialMediaLinkRow[]>([]);
-  protected readonly isLoading = signal(false);
-
-  protected readonly skeletonRows = [0, 1, 2, 3, 4];
-
-  protected readonly searchTerm = signal("");
-  protected readonly categoryId = signal("");
-  /** Defaults to PENDING per the spec ("by default only view entries that are
-   * NOT completed"); All/Completed options remain available. */
-  protected readonly completedFilter = signal<CompletedFilter>("pending");
-
-  /** The FEED-VISIBILITY axis, independent of the completed filter above.
-   * Defaults to "all" (every row, hidden included) so the admin queue shows the
-   * whole moderation surface until they narrow it. */
-  protected readonly visibilityFilter = signal<VisibilityFilter>("all");
-
-  /** Server-side queue filters (Task 10 resolver args), debounced like search.
-   * Empty string = no filter on that axis; the applied snapshot is taken when
-   * the debounce fires so a slow dial of the selects sends one coherent query. */
-  protected readonly filterLineId = signal("");
-  protected readonly filterVehicleId = signal("");
-  protected readonly filterStationId = signal("");
-  protected readonly filterDateFrom = signal("");
-  protected readonly filterDateTo = signal("");
-
-  protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
-
-  /** Typed `$event.target.value` for the edit panel's inputs (no `$any` in a template). */
-  protected readonly eventValue = eventValue;
-
-  /** Re-exposed, not re-implemented: an Angular template can only read members off
-   *  the component class, and the pluralisation of a CONVERSATION SIZE is decided in
-   *  exactly one module so this table and the profile surface's badge cannot end
-   *  up disagreeing ("1 links" vs "2 link"). */
-  protected readonly threadLabel = threadLabel;
-
-  /** Re-exposed for the same reason, and with the same "one definition" rule: the
-   *  minute-bucketing that decides whether the Submitted cell needs a second line
-   *  lives in `same-minute.util.ts`, so its NaN guard and truncation rule cannot
-   *  be re-invented inline in a template binding. */
-  protected readonly isSameMinute = isSameMinute;
-
-  /* ---- Hierarchy: depth, sequence, nesting ------------------------------- */
-
-  /** Is the loaded queue EVERY link there is?
-   *
-   *  🔴 This is the precondition for the sequence actions, and the reason they are
-   *  disabled under any filter: `reorderSocialMediaLinks` permutes ONE sibling
-   *  SET, so a payload built from a filtered page is a PARTIAL permutation. That
-   *  does not fail loudly — the server writes the named ids first and leaves every
-   *  unnamed sibling after them — so the call SUCCEEDS and silently shoves a row
-   *  the admin cannot see to the end of the conversation. Offering it here would
-   *  let the stored order quietly disagree with the order on screen, which is
-   *  worse than not offering the action at all.
-   *
-   *  Only an unfiltered queue proves otherwise: the console resolver has no
-   *  pagination and no row cap (backend `get_social_media_links`), so "no search,
-   *  no category, no line/vehicle/station, no date window, Status on All" means
-   *  the loaded set is the whole table and therefore the whole of every sibling
-   *  set in it. The status filter counts: the queue DEFAULTS to Pending, which
-   *  already hides every completed row.
-   *
-   *  It is a SIGNAL, not a computed over the filter controls, because the answer
-   *  belongs to the ROWS and not to the dials: a dial changes up to a trailing
-   *  debounce before any refetch, so a computed would re-enable the action while
-   *  a filtered page was still on screen. `fetchLinks` writes it from the same
-   *  applied filter snapshot that built the query — SNAPSHOT BEFORE that query is
-   *  awaited, not read back after it, see that method — so the flag and the rows
-   *  it describes cannot disagree. The toolbar's "Show all links" action
-   *  (`showAllLinks`) writes that unfiltered snapshot in one click, which is what
-   *  makes the state reachable from the default (Pending) queue.
-   *
-   *  🔴 READ AS A RENDER GATE, NOT ONLY AS A DISABLED STATE. The per-row Move up /
-   *  Move down buttons are not drawn at all while this is false. Nothing is
-   *  weakened by that — `reorderSiblings` refuses on the same condition, and the
-   *  per-button `[disabled]` keeps the run-end reasons once the queue IS whole —
-   *  but two permanently greyed buttons on every row of the default Pending queue
-   *  read as BROKEN rather than as unavailable, and the toolbar hint names the one
-   *  click that resolves them. */
-  protected readonly queueIsComplete = signal(false);
-
-  /* The selection and conversation tree lives in `links-tree.ts`.
-   * The template and the spec read every member off this class, so those members are re-exposed
-   * here under their own names. */
-  private readonly tree = useLinksTree(this.links, this.queueIsComplete);
+  private readonly tree = useLinksTree(this.queue.links, this.queue.queueIsComplete);
   protected readonly selectedIds = this.tree.selectedIds;
   protected readonly visibleLinkIds = this.tree.visibleLinkIds;
   protected readonly selectedCount = this.tree.selectedCount;
@@ -431,6 +358,29 @@ export class SocialMediaLinksComponent {
   protected readonly clearSelection = this.tree.clearSelection;
   private readonly _runsByParentId = this.tree.runsByParentId;
   private readonly scopedSelection = this.tree.scopedSelection;
+
+  private readonly graphql = inject(GraphQLClient);
+  private readonly auth = inject(AuthService);
+  private readonly toast = inject(ToastService);
+
+  protected readonly skeletonRows = [0, 1, 2, 3, 4];
+
+  protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
+
+  /** Typed `$event.target.value` for the edit panel's inputs (no `$any` in a template). */
+  protected readonly eventValue = eventValue;
+
+  /** Re-exposed, not re-implemented: an Angular template can only read members off
+   *  the component class, and the pluralisation of a CONVERSATION SIZE is decided in
+   *  exactly one module so this table and the profile surface's badge cannot end
+   *  up disagreeing ("1 links" vs "2 link"). */
+  protected readonly threadLabel = threadLabel;
+
+  /** Re-exposed for the same reason, and with the same "one definition" rule: the
+   *  minute-bucketing that decides whether the Submitted cell needs a second line
+   *  lives in `same-minute.util.ts`, so its NaN guard and truncation rule cannot
+   *  be re-invented inline in a template binding. */
+  protected readonly isSameMinute = isSameMinute;
 
   /** Edit form state — same signals as LinkFormComponent's fields, driven by
    * the console's own sheet instead of LinkSheetService. */
@@ -513,138 +463,8 @@ export class SocialMediaLinksComponent {
   /** Mirrors link-form.schema's `required(f.url)` — Save is disabled while the URL is blank. */
   protected readonly canSave = computed(() => this.editUrl().trim().length > 0);
 
-  /** The APPLIED filter snapshot the queue's query (and its completeness answer) is built from —
-   *  written when a control commits, never the live signals. Always REPLACED, never mutated, so a
-   *  snapshot a request captured keeps describing that request. */
-  private applied: AppliedQueueFilters = {
-    categoryId: "",
-    completed: "pending",
-    visibility: "all",
-  };
-
-  /** Is a `load()` waiting for the current one to finish before it runs? A plain
-   *  field, not a signal: nothing renders from it, it is read and written only
-   *  inside `load()`. See that method for why a mid-load call is queued rather
-   *  than dropped. */
-  private reloadQueued = false;
-
   constructor() {
     this.load();
-  }
-
-  protected onSearchInput(value: string): void {
-    this.searchTerm.set(value);
-    this.queueDebouncer.push(() => {
-      this.applied = { ...this.applied, search: searchTermOrUndefined(this.searchTerm()) };
-      this.load();
-    });
-  }
-
-  protected onCategoryChange(value: string): void {
-    this.categoryId.set(value);
-    this.applied = { ...this.applied, categoryId: value };
-    this.load();
-  }
-
-  protected onCompletedFilterChange(value: CompletedFilter): void {
-    this.completedFilter.set(value);
-    this.applied = { ...this.applied, completed: value };
-    this.load();
-  }
-
-  /** Visibility refetches immediately, exactly like the Status select above. */
-  protected onVisibilityFilterChange(value: VisibilityFilter): void {
-    this.visibilityFilter.set(value);
-    this.applied = { ...this.applied, visibility: value };
-    this.load();
-  }
-
-  private pushFilterChange(): void {
-    this.queueDebouncer.push(() => {
-      this.applied = {
-        ...this.applied,
-        lineId: this.filterLineId() || undefined,
-        vehicleId: this.filterVehicleId() || undefined,
-        stationId: this.filterStationId() || undefined,
-        dateFrom: this.filterDateFrom() || undefined,
-        dateTo: this.filterDateTo() || undefined,
-      };
-      this.load();
-    });
-  }
-
-  protected onFilterLineChange(value: string): void {
-    this.filterLineId.set(value);
-    // A vehicle/station hidden by the new line must not keep narrowing the query.
-    this.filterVehicleId.set("");
-    this.filterStationId.set("");
-    this.pushFilterChange();
-  }
-
-  protected onFilterVehicleChange(value: string): void {
-    this.filterVehicleId.set(value);
-    this.pushFilterChange();
-  }
-
-  protected onFilterStationChange(value: string): void {
-    this.filterStationId.set(value);
-    this.pushFilterChange();
-  }
-
-  protected onDateFromInput(value: string): void {
-    this.filterDateFrom.set(value);
-    this.pushFilterChange();
-  }
-
-  protected onDateToInput(value: string): void {
-    this.filterDateTo.set(value);
-    this.pushFilterChange();
-  }
-
-  protected resetFilters(): void {
-    this.applyQueueFilters("pending");
-    this.load();
-  }
-
-  /** Drop EVERY filter and load the queue with Status on All — the state
-   *  `queueIsComplete` exists to certify, offered as one click because the
-   *  sequence actions are otherwise unreachable from the default (Pending) view:
-   *  they are NOT DRAWN there at all, so this button is the whole route to the
-   *  enabled state. "Reset" deliberately cannot stand in for it — Reset restores
-   *  the QUEUE DEFAULT, which is Pending, and Pending is itself the filter that
-   *  keeps reordering off. The applied snapshot is written synchronously with the
-   *  controls (no debounce) so `fetchLinks` reads a complete, coherent state on
-   *  the very query this triggers.
-   *
-   *  ⚠️ IT IS NEVER DISABLED, not even while a load is in flight, and that is a
-   *  deliberate combination with `load()`'s queue-and-replay: an admin who clicks
-   *  it during the first load gets the unfiltered queue, not a dropped click over
-   *  controls that have already moved. The snapshot written above is the one the
-   *  replayed (or the in-flight mutation's own) `fetchLinks` reads. */
-  protected showAllLinks(): void {
-    this.applyQueueFilters("any");
-    this.load();
-  }
-
-  /** Write one coherent filter snapshot — live controls AND the applied fields
-   *  `fetchLinks` reads — for the two whole-queue actions above. `completed` is
-   *  the one axis they disagree on, which is exactly why it is the parameter:
-   *  every other axis is cleared in both. The trailing debounce the search and
-   *  the multi-selects otherwise sit behind is cancelled because a pending
-   *  keystroke firing after this write would re-apply a filter the admin just
-   *  cleared. */
-  private applyQueueFilters(completed: CompletedFilter): void {
-    this.queueDebouncer.cancel();
-    this.searchTerm.set("");
-    this.categoryId.set("");
-    this.completedFilter.set(completed);
-    this.visibilityFilter.set("all");
-    this.filterLineId.set("");
-    this.filterVehicleId.set("");
-    this.filterStationId.set("");
-    this.filterDateFrom.set("");
-    this.filterDateTo.set("");
-    this.applied = { categoryId: "", completed, visibility: "all" };
   }
 
   /** Start a NEW conversation from the ticked rows.
@@ -1369,118 +1189,6 @@ export class SocialMediaLinksComponent {
       );
     } finally {
       this.isDeleting.set(false);
-    }
-  }
-
-  /** 🔴 A `load()` ARRIVING MID-LOAD IS QUEUED, NOT SWALLOWED.
-   *
-   *  The re-entrancy guard below exists so two filter changes cannot interleave
-   *  two queries, and it does that job. What it used to do to the toolbar's "Show
-   *  all links" was drop the click on the floor, and the drop was SILENT: the
-   *  button had been disabled while `isLoading()` (the reason it was greyed), so
-   *  the click could not land at all; the button is no longer disabled — it is the
-   *  one action that must look ready — and `showAllLinks` has ALREADY rewritten
-   *  the applied filter snapshot by the time it calls this. Swallowing the call
-   *  would therefore leave the controls showing "All" over the PENDING rows that
-   *  the in-flight query is still returning: the admin clicks "Show all links",
-   *  the dials visibly change, and nothing happens.
-   *
-   *  So a second arrival parks a reload and `finishLoading()` replays it once the
-   *  flag drops. The replay is what makes the click take effect; the filter
-   *  snapshot it reads is already the unfiltered one.
-   *
-   *  ⚠️ THE DRAIN IS IN `finishLoading()`, NOT HERE, and that is load-bearing
-   *  rather than tidiness. Six of the seven verbs that hold this flag — grouping,
-   *  ungrouping, reordering, approve, hide, mark-completed — set it themselves and
-   *  run `fetchLinks()` directly, so they never pass through this method. An admin
-   *  who clicks "Show all links" while one of THEIR refetches is in flight parks a
-   *  reload here, and if the drain lived in this `finally` it would sit unclaimed
-   *  until some later unrelated `load()` spent it: the dials would read "All" over
-   *  the PENDING rows the refetch returned, the hint would still be on screen, and
-   *  the admin's click would appear to do nothing until they pressed it a second
-   *  time — the swallowed click, relocated by one window. `finishLoading` is called
-   *  from every site that drops the flag, so no in-flight request can strand it. */
-  private async load(): Promise<void> {
-    if (this.isLoading()) {
-      this.reloadQueued = true;
-      return;
-    }
-    this.isLoading.set(true);
-    try {
-      await this.fetchLinks();
-    } finally {
-      this.finishLoading();
-    }
-  }
-
-  /** 🔴 THE ONE PLACE `isLoading` DROPS, and therefore the one place a reload
-   *  parked by `load()` is drained.
-   *
-   *  Every verb that occupies the queue — `load()` itself and all six mutations —
-   *  ends in a `finally` that hands off here, which is what makes the guarantee
-   *  "a 'Show all links' click is never silently dropped" hold for ALL of them and
-   *  not just for the one that goes through `load()`. The window that needs this is
-   *  spelled out on `load()`: a mutation's own post-write refetch holds the flag
-   *  long enough for the admin to click, and that refetch never returns here.
-   *
-   *  A METHOD RATHER THAN INLINE CODE in seven `finally` blocks because the rule has
-   *  to hold for the NEXT verb too. An eighth site that cleared the flag directly
-   *  would compile, pass every spec, and strand the next parked reload — the failure
-   *  is invisible until an admin hits that exact window, so it belongs in one place
-   *  a reader can check rather than in seven places a reader has to.
-   *
-   *  `void this.load()` is deliberate: the caller is inside its own `finally` and
-   *  must not have its return value (the mutation's success/failure) overwritten by
-   *  a follow-up query's outcome. It is fire-and-forget because `load()` is a pure
-   *  side effect on signals, and re-entering it here is exactly the mid-load case it
-   *  handles — `isLoading` is already false, so this is a normal fresh load, not a
-   *  second arrival.
-   *
-   *  ⚠️ NOT FOR `isSaving` / `isDeleting`. Those are the DETAIL SHEET's two flags
-   *  with their own lifecycles and their own buttons; routing them here would make a
-   *  save replay a queued "Show all links", which no click asked for. */
-  private finishLoading(): void {
-    this.isLoading.set(false);
-    if (this.reloadQueued) {
-      this.reloadQueued = false;
-      void this.load();
-    }
-  }
-
-  /** The actual links query, without load()'s re-entrancy guard — callers
-   * that already hold the loading flag (markCompleted) use this directly. */
-  private async fetchLinks(): Promise<void> {
-    /* 🔴 SNAPSHOT THE COMPLETENESS ANSWER BEFORE THE FIRST `await`, never read it
-     * back after the request. `vars` below is built from the applied snapshot
-     * in the same synchronous run, so the flag has to describe THAT query — and
-     * `applied` is a plain field that every commit replaces, so a later read describes
-     * whatever the admin has done since.
-     *
-     * The window is real: `showAllLinks` rewrites every applied field to the
-     * unfiltered snapshot and calls `load()` while a FILTERED request is still in
-     * flight. Reading `appliedFiltersAreUnfiltered()` after that request resolves
-     * would read the NEW snapshot over rows the FILTERED query produced — the flag
-     * would claim a whole queue over a partial page, and the sequence buttons would
-     * light up over rows whose siblings are not loaded, which is precisely the state
-     * the flag exists to prevent. Capturing it here is what keeps the flag and the
-     * rows it describes from ever disagreeing. */
-    const applied = this.applied;
-    const queueIsComplete = appliedFiltersAreUnfiltered(applied);
-    try {
-      const idToken = await this.auth.idToken();
-      const vars = queueQueryVars(applied);
-      const data = await this.graphql.request<SocialMediaLinksQueryData, SocialMediaLinksQueryVars>(
-        SOCIAL_MEDIA_LINKS_QUERY,
-        vars,
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
-      this.links.set(data.socialMediaLinks);
-      // The CAPTURED answer, not a fresh read — see the note above. Written only on
-      // success, so the flag can never claim a whole queue over rows a failed query
-      // never replaced. This is what gates the sequence actions.
-      this.queueIsComplete.set(queueIsComplete);
-    } catch (err) {
-      this.toast.error("Couldn't load links", err instanceof Error ? err.message : "Unknown error");
     }
   }
 }
