@@ -25,7 +25,11 @@ import {
   UPVOTE_SOCIAL_MEDIA_LINK_MUTATION,
 } from "./home-feed-mutations.queries";
 import { FEED_QUERY } from "./home-feed.queries";
-import { LINES_STATUS_HISTORY_QUERY, NETWORK_STATUS_HISTORY_QUERY } from "./home-history.queries";
+import {
+  LINES_STATUS_HISTORY_QUERY,
+  LINE_STATUS_WEEK_PROFILE_QUERY,
+  NETWORK_STATUS_HISTORY_QUERY,
+} from "./home-history.queries";
 import {
   HOME_PLANNED_WORKS_VARS,
   HOME_RECENT_INCIDENT_VARS,
@@ -432,6 +436,34 @@ describe("the service-day history documents", () => {
     ).toBe(BUCKET_FIELDS.length);
     expect(NETWORK_STATUS_HISTORY_QUERY).not.toContain("linesStatusHistory");
     expect(LINES_STATUS_HISTORY_QUERY).not.toContain("networkStatusHistory");
+  });
+});
+
+describe("LINE_STATUS_WEEK_PROFILE_QUERY", () => {
+  it("selects the slot shape the typical-week grid reads, and nothing else", () => {
+    const slots = selectionUnderArgs(LINE_STATUS_WEEK_PROFILE_QUERY, "lineStatusWeekProfile");
+    // `weekday` and `hour` place a slot in the grid; without either the strip would have to guess a
+    // slot's position from its place in the list, which the display util deliberately never does.
+    expect(slots.fields).toEqual(["weekday", "hour", "count", "dominantStatus", "statusCounts"]);
+    expect(slots.nested["statusCounts"]?.fields).toEqual(["status", "count"]);
+  });
+
+  it("declares and passes all three arguments, so the explicit window and day start are legal", () => {
+    // The strip sends `weeks` and `dayStartHour` as literals instead of relying on the backend's
+    // defaults (see the document's note), so a variable that was declared and not passed on, or
+    // passed on and not declared, would turn the read into a validation error.
+    const bare = withoutComments(LINE_STATUS_WEEK_PROFILE_QUERY);
+    expect(bare).toMatch(/\$lineId:\s*ID!/);
+    expect(bare).toMatch(/\$weeks:\s*Int\b/);
+    expect(bare).toMatch(/\$dayStartHour:\s*Int\b/);
+    expect(bare).toMatch(
+      /lineStatusWeekProfile\(\s*lineId:\s*\$lineId,\s*weeks:\s*\$weeks,\s*dayStartHour:\s*\$dayStartHour\s*\)/,
+    );
+  });
+
+  it("is a separate operation from the hourly history, which other reads match by name", () => {
+    expect(LINE_STATUS_WEEK_PROFILE_QUERY).toContain("query LineStatusWeekProfile(");
+    expect(LINE_STATUS_WEEK_PROFILE_QUERY).not.toContain("LineStatusHistory");
   });
 });
 

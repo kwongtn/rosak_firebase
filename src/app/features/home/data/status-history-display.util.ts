@@ -81,8 +81,12 @@ export function historyBarHeightPct(count: number, max: number): number {
  * omitted, so the order here is the server's severity order and needs no sort. An hour whose
  * tallies somehow sum to nothing falls back to the dominant status's own label rather than to an
  * empty string, so the hour's tooltip still says what it was.
+ *
+ * It reads only the tallies, so a typical-week slot (`LineStatusWeekBucket`) goes through it too.
  */
-export function historyBreakdownPhrase(bucket: LineStatusHourBucket): string {
+export function historyBreakdownPhrase(
+  bucket: Pick<LineStatusHourBucket, "count" | "dominantStatus" | "statusCounts">,
+): string {
   const parts = (bucket.statusCounts ?? [])
     .filter((entry) => entry.count > 0)
     .map((entry) => `${PASSENGER_LABEL[entry.status]} ${entry.count}`);

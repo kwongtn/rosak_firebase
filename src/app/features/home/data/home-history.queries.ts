@@ -1,8 +1,9 @@
 /**
  * GraphQL documents + hand-written types for the line-status history and report surfaces:
- * the per-line hourly buckets, the network / multi-line service-day history, the per-line
- * keyset-paginated report list and its submit mutation. Field names are copied verbatim
- * from the deployed Strawberry schema. Split out of the former monolithic `home.queries.ts`.
+ * the per-line hourly buckets, the per-line typical week, the network / multi-line service-day
+ * history, the per-line keyset-paginated report list and its submit mutation. Field names are
+ * copied verbatim from the deployed Strawberry schema. Split out of the former monolithic
+ * `home.queries.ts`.
  */
 
 import type { PassengerStatus } from "./home.queries";
@@ -43,6 +44,66 @@ export interface LineStatusHourBucket {
   dominantStatus: PassengerStatus | null;
   /** The hour's per-status tallies in `PassengerStatus` declaration order, zero counts omitted
    * (an empty hour returns `[]`). Always sums to `count`. */
+  statusCounts: Array<{ status: PassengerStatus; count: number }>;
+}
+
+/* ---------------------------------------------------------------------- *
+ * lineStatusWeekProfile — the typical week of one line
+ * ---------------------------------------------------------------------- */
+
+/**
+ * One line's reports tallied by weekday and hour over a rolling window of `weeks` weeks ending now:
+ * "is this line usually bad, and when?".
+ *
+ * Unlike the hourly documents above, BOTH arguments are sent, as the literals the caller names
+ * (`WEEK_PROFILE_WEEKS`, `SERVICE_DAY_START_HOUR`), because the grid is laid out from them: it starts
+ * its columns at `dayStartHour`, and a backend default that moved would silently shift every column
+ * against its label. They are constants, never clock-derived, so the variables stay equal between the
+ * server render and the client (the rule the hourly documents give for omitting them).
+ *
+ * The backend answers `[]` for a line with no report in the window, and otherwise ALL 168 slots
+ * (empty ones carry `count: 0`), Monday first and, inside a weekday, in service-day hour order. The
+ * display util does not rely on that order.
+ */
+export const LINE_STATUS_WEEK_PROFILE_QUERY = /* GraphQL */ `
+  query LineStatusWeekProfile($lineId: ID!, $weeks: Int, $dayStartHour: Int) {
+    lineStatusWeekProfile(lineId: $lineId, weeks: $weeks, dayStartHour: $dayStartHour) {
+      weekday
+      hour
+      count
+      dominantStatus
+      statusCounts {
+        status
+        count
+      }
+    }
+  }
+`;
+
+export interface LineStatusWeekProfileQueryVars {
+  lineId: string;
+  /** 1 to 12 on the backend (default 6). */
+  weeks?: number | null;
+  /** 0 to 23 on the backend (default 3). */
+  dayStartHour?: number | null;
+}
+
+export interface LineStatusWeekProfileQueryData {
+  lineStatusWeekProfile: LineStatusWeekBucket[];
+}
+
+/**
+ * One weekday-hour slot of a typical week. `weekday` is 0 (Monday) to 6 (Sunday) of the SERVICE day
+ * the report belongs to, so with the default 03:00 start a 01:30 Tuesday report is Monday, hour 1.
+ * `hour` is the local clock hour, 0 to 23. `count` is a raw total over the window's weeks, not an
+ * average, so a slot holds `weeks` or `weeks + 1` occurrences of its hour. `dominantStatus` and
+ * `statusCounts` follow the hourly buckets' rules (null and `[]` for an empty slot).
+ */
+export interface LineStatusWeekBucket {
+  weekday: number;
+  hour: number;
+  count: number;
+  dominantStatus: PassengerStatus | null;
   statusCounts: Array<{ status: PassengerStatus; count: number }>;
 }
 
