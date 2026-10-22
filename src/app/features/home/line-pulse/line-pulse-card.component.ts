@@ -1,12 +1,7 @@
-import { Component, computed, inject, input, signal } from "@angular/core";
+import { Component, computed, inject, input } from "@angular/core";
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
-import {
-  metricDoc,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
-import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -14,18 +9,10 @@ import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { faviconHostnameOf } from "../../insiden/data/social-link.util";
 import { humanizeSince } from "../../spotting/data/humanize-since.util";
 import { LinePulse } from "../data/home-board.queries";
+import { injectLinePulseView } from "../data/line-pulse-view";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
-import type { StatusConfidence } from "../data/status-confidence.util";
-import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
-import {
-  StatusInfo,
-  lineStatusInfo,
-  passengerInfo,
-  passengerScale,
-  vehicleBreakdownRows,
-  vehicleCountInfo,
-} from "../data/status-info.util";
+import { lineStatusInfo, passengerInfo, passengerScale } from "../data/status-info.util";
 import { LineNoticesComponent } from "./line-notices.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
@@ -103,9 +90,9 @@ const MAX_PULSE_LINKS = 5;
                   type="button"
                   class="focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-3"
                   data-testid="line-card-toggle"
-                  [attr.aria-expanded]="_expanded()"
-                  [attr.aria-controls]="_expandedPanelId()"
-                  (click)="toggleExpanded()"
+                  [attr.aria-expanded]="view.expanded()"
+                  [attr.aria-controls]="view.expandedPanelId()"
+                  (click)="view.toggleExpanded()"
                 >
                   <span
                     class="border-border size-3 shrink-0 rounded-full border"
@@ -119,7 +106,7 @@ const MAX_PULSE_LINKS = 5;
                   <svg
                     viewBox="0 0 24 24"
                     class="text-muted-foreground size-4 shrink-0 transition-transform duration-150 motion-reduce:transition-none"
-                    [class.rotate-180]="_expanded()"
+                    [class.rotate-180]="view.expanded()"
                     fill="none"
                     stroke="currentColor"
                     stroke-width="2"
@@ -147,13 +134,13 @@ const MAX_PULSE_LINKS = 5;
                      status is the unremarkable default, so the chip does not restate what a badge
                      would already have said. -->
                 @if (line().status === "ACTIVE") {
-                  <app-status-info-chip [info]="_confidenceInfo()">
+                  <app-status-info-chip [info]="view.confidenceInfo()">
                     <span
                       hlmBadge
                       data-testid="line-card-confidence"
-                      [variant]="_confidence().variant"
+                      [variant]="view.confidence().variant"
                     >
-                      {{ _confidence().label }}
+                      {{ view.confidence().label }}
                     </span>
                   </app-status-info-chip>
                   <app-status-info-chip
@@ -172,14 +159,14 @@ const MAX_PULSE_LINKS = 5;
                   </app-status-info-chip>
                 }
                 <app-status-info-chip
-                  [info]="_vehicleCountInfo()"
-                  [breakdown]="_vehicleBreakdown()"
+                  [info]="view.vehicleCountInfo()"
+                  [breakdown]="view.vehicleBreakdown()"
                 >
                   <span
                     hlmBadge
                     variant="secondary"
                     data-testid="line-vehicle-count"
-                    [attr.aria-label]="_vehicleCountLabel()"
+                    [attr.aria-label]="view.vehicleCountLabel()"
                   >
                     {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
                   </span>
@@ -196,7 +183,7 @@ const MAX_PULSE_LINKS = 5;
           <app-line-notices
             [lineId]="line().id"
             [lineName]="line().displayName"
-            [planned]="_isPinned()"
+            [planned]="view.isPinned()"
           />
 
           @if (_links().length > 0) {
@@ -236,8 +223,8 @@ const MAX_PULSE_LINKS = 5;
              baseline. -->
         <div class="flex flex-col items-start gap-2 sm:flex-row sm:shrink-0">
           <app-info-popover
-            [label]="_pinHintTitle()"
-            [content]="_pinHint()"
+            [label]="view.pinHintTitle()"
+            [content]="view.pinHint()"
             [showIcon]="false"
             [showMethodologyLink]="false"
             [triggerTpl]="cardPinTpl"
@@ -267,21 +254,21 @@ const MAX_PULSE_LINKS = 5;
         </div>
       </div>
 
-      @if (_expanded()) {
+      @if (view.expanded()) {
         <div
           class="border-border flex flex-col gap-4 border-t pt-3"
-          [attr.id]="_expandedPanelId()"
+          [attr.id]="view.expandedPanelId()"
           data-testid="line-card-expanded"
         >
           <app-line-status-chart
             [lineId]="line().id"
-            [expanded]="_expanded()"
+            [expanded]="view.expanded()"
             [refreshTick]="refreshTick()"
           />
           <app-line-week-profile [lineId]="line().id" />
           <app-line-status-reports
             [lineId]="line().id"
-            [expanded]="_expanded()"
+            [expanded]="view.expanded()"
             [refreshTick]="refreshTick()"
           />
         </div>
@@ -297,16 +284,16 @@ const MAX_PULSE_LINKS = 5;
         size="icon-sm"
         variant="ghost"
         data-testid="line-card-pin"
-        [attr.aria-pressed]="_isPinned()"
-        [attr.aria-label]="_isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
-        (click)="togglePin()"
+        [attr.aria-pressed]="view.isPinned()"
+        [attr.aria-label]="view.isPinned() ? 'Unpin ' + line().code : 'Pin ' + line().code"
+        (click)="view.togglePin()"
       >
         <!-- The glyph FILLS when pinned, same as the row: aria-pressed alone leaves the icon
              saying "pin available" about a pin that is already on. -->
         <ng-icon
           name="lucidePin"
           class="size-4"
-          [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
+          [class]="view.isPinned() ? '[&>svg]:fill-current' : ''"
           aria-hidden="true"
         />
       </button>
@@ -319,7 +306,6 @@ export class LinePulseCardComponent {
   readonly refreshTick = input(0);
 
   protected readonly sheet = inject(LineStatusSheetService);
-  private readonly preferences = inject(PreferencesService);
 
   protected readonly passengerLabel = passengerLabel;
   protected readonly passengerVariant = passengerVariant;
@@ -329,85 +315,19 @@ export class LinePulseCardComponent {
   protected readonly _humanizeSince = humanizeSince;
   protected readonly _hostname = faviconHostnameOf;
 
-  protected readonly _expanded = signal(false);
-
   /**
-   * The id the toggle's `aria-controls` points at, and the panel's own `id`.
-   *
-   * Scoped to the line because the board mounts one card per attention line: a bare id would put the
-   * same attribute on every card's panel and every toggle would resolve to the FIRST one on the
-   * page. The panel stays behind its `@if` — it holds two lazy reads (the chart and the reports
-   * list), so keeping it unmounted is what stops sixteen cards requesting sixteen charts on load.
+   * The state the card shares with the compact row (expand toggle, pin, confidence, fleet copy). The
+   * panel id is scoped to the line because the board mounts one card per attention line: a bare id
+   * would put the same attribute on every card's panel and every toggle would resolve to the FIRST
+   * one on the page. The panel stays behind its `@if` — it holds two lazy reads (the chart and the
+   * reports list), so keeping it unmounted is what stops sixteen cards requesting sixteen charts on
+   * load.
    */
-  protected readonly _expandedPanelId = computed(() => `line-card-expanded-${this.line().id}`);
-
-  /** Reads the pin signal through a `computed`, so the pin button repaints on toggle. */
-  protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));
+  protected readonly view = injectLinePulseView(this.line, "line-card-expanded");
 
   protected readonly _links = computed(() => this.line().pulseLinks.slice(0, MAX_PULSE_LINKS));
-
-  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => vehicleCountInfo());
-
-  protected readonly _vehicleCountLabel = computed(
-    () =>
-      `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service`,
-  );
-
-  protected readonly _vehicleBreakdown = computed(() =>
-    vehicleBreakdownRows(this.line().vehicleStatusCounts),
-  );
-
-  /** The pin button's tooltip heading; the copy is a plain instruction, so it travels with state. */
-  protected readonly _pinHintTitle = computed(() =>
-    this._isPinned() ? "Click to unpin" : "Click to pin",
-  );
-
-  /** The pin button's tooltip body — says what pinning does, and how to undo it. */
-  protected readonly _pinHint = computed(() =>
-    this._isPinned()
-      ? "Unpin this line to return it to its regular group on the board."
-      : "Pin this line to keep it in My lines at the top of the board.",
-  );
 
   protected readonly _passengerWindowMinutes = computed(() =>
     this.line().passengerStatus ? this.line().statusWindowMinutes : null,
   );
-
-  /**
-   * How much this line's reported status can be trusted. The rule (and its four levels) is the pure
-   * `statusConfidence`, so the card and the compact row cannot spell the same evidence differently.
-   */
-  protected readonly _confidence = computed<StatusConfidence>(() =>
-    statusConfidence({
-      reportCount: this.line().statusReportCount,
-      passengerStatus: this.line().passengerStatus,
-      status: this.line().status,
-      hasOfficialPost: hasOfficialPulseLink(this.line().pulseLinks),
-    }),
-  );
-
-  /**
-   * The chip's popover copy, read from the methodology registry through the resolved level's own
-   * `metricId` — so the panel explains the level actually on screen (an official post is explained
-   * differently from a three-rider tally) and `/methodology` cannot drift from the chip.
-   */
-  protected readonly _confidenceInfo = computed<StatusInfo>(() => {
-    const doc = metricDoc(this._confidence().metricId);
-    return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
-  });
-
-  protected toggleExpanded(): void {
-    const opening = !this._expanded();
-    this._expanded.set(opening);
-    if (opening) {
-      // Opening the panel IS looking at this line, so it joins the recents list the board's later
-      // "jump back to a line you were reading" affordance will read. Recorded on the OPEN edge only,
-      // so collapsing does not push a line nobody is looking at any further up the list.
-      this.preferences.pushRecentLine(this.line().id);
-    }
-  }
-
-  protected togglePin(): void {
-    this.preferences.togglePin(this.line().id);
-  }
 }

@@ -3,15 +3,8 @@ import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucidePin } from "@ng-icons/lucide";
 import { RouterLink } from "@angular/router";
 
-import {
-  metricDoc,
-  metricTooltip,
-  renderMethodologyCopy,
-} from "../../../core/methodology/methodology-render.util";
-import {
-  PreferencesService,
-  PreferencesViewMode,
-} from "../../../core/preferences/preferences.service";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
+import { PreferencesViewMode } from "../../../core/preferences/preferences.service";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { LineStatusBadge } from "../../../domain-ui/line-status-badge/line-status-badge";
 import { HlmBadge } from "../../../ui/badge/badge";
@@ -19,16 +12,10 @@ import { HlmButton } from "../../../ui/button/button";
 import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { HomeStore } from "../data/home.store";
 import { LinePulse } from "../data/home-board.queries";
+import { injectLinePulseView } from "../data/line-pulse-view";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
 import { passengerLabel, passengerVariant } from "../data/passenger-status.util";
-import {
-  StatusInfo,
-  lineStatusInfo,
-  vehicleBreakdownRows,
-  vehicleCountInfo,
-} from "../data/status-info.util";
-import type { StatusConfidence } from "../data/status-confidence.util";
-import { hasOfficialPulseLink, statusConfidence } from "../data/status-confidence.util";
+import { StatusInfo, lineStatusInfo } from "../data/status-info.util";
 import { currentServiceBucketIndex, historyTotal } from "../data/status-history-display.util";
 import { LineAlertBellComponent } from "./line-alert-bell.component";
 import { LineNoticesComponent } from "./line-notices.component";
@@ -127,10 +114,10 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
           type="button"
           class="focus-visible:ring-ring/50 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3"
           data-testid="line-row-toggle"
-          [attr.aria-expanded]="_expanded()"
-          [attr.aria-controls]="_expandedPanelId()"
+          [attr.aria-expanded]="view.expanded()"
+          [attr.aria-controls]="view.expandedPanelId()"
           [attr.aria-label]="'Show detail for ' + line().code"
-          (click)="toggleExpanded()"
+          (click)="view.toggleExpanded()"
         >
           <span
             class="border-border size-2.5 shrink-0 rounded-full border"
@@ -146,7 +133,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
           <svg
             viewBox="0 0 24 24"
             class="text-muted-foreground size-4 shrink-0 transition-transform duration-150 motion-reduce:transition-none"
-            [class.rotate-180]="_expanded()"
+            [class.rotate-180]="view.expanded()"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -160,8 +147,8 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
 
         <div class="flex shrink-0 items-center gap-1.5">
           <app-info-popover
-            [label]="_pinHintTitle()"
-            [content]="_pinHint()"
+            [label]="view.pinHintTitle()"
+            [content]="view.pinHint()"
             [showIcon]="false"
             [showMethodologyLink]="false"
             [triggerTpl]="rowPinTpl"
@@ -173,9 +160,9 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
               size="icon-sm"
               variant="ghost"
               data-testid="line-row-pin"
-              [attr.aria-pressed]="_isPinned()"
-              [attr.aria-label]="(_isPinned() ? 'Unpin ' : 'Pin ') + line().displayName"
-              (click)="togglePin()"
+              [attr.aria-pressed]="view.isPinned()"
+              [attr.aria-label]="(view.isPinned() ? 'Unpin ' : 'Pin ') + line().displayName"
+              (click)="view.togglePin()"
             >
               <!-- 🔴 The icon FILLS when the row is pinned. aria-pressed alone leaves the glyph saying
                "pin available" about a pin that is already on, and a 16px outline pin is the one
@@ -185,14 +172,14 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
               <ng-icon
                 name="lucidePin"
                 class="size-4"
-                [class]="_isPinned() ? '[&>svg]:fill-current' : ''"
+                [class]="view.isPinned() ? '[&>svg]:fill-current' : ''"
                 aria-hidden="true"
               />
             </button>
           </ng-template>
           <!-- Alerts are for the rider's own lines, so the bell rides on a pinned row only (a pinned
                row is a My lines row; a pinned line that needs attention is a card and has none). -->
-          @if (_isPinned()) {
+          @if (view.isPinned()) {
             <app-line-alert-bell [line]="line()" />
           }
           <!-- The visible labels are the same on every row, so each names its line for a screen
@@ -232,9 +219,9 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
              qualification. The confidence chip qualifies the operational state exactly where the
              status is the unremarkable default. -->
         @if (line().status === "ACTIVE") {
-          <app-status-info-chip [info]="_confidenceInfo()">
-            <span hlmBadge data-testid="line-row-confidence" [variant]="_confidence().variant">
-              {{ _confidence().label }}
+          <app-status-info-chip [info]="view.confidenceInfo()">
+            <span hlmBadge data-testid="line-row-confidence" [variant]="view.confidence().variant">
+              {{ view.confidence().label }}
             </span>
           </app-status-info-chip>
           <span
@@ -255,7 +242,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
         class="mt-1.5"
         [lineId]="line().id"
         [lineName]="line().displayName"
-        [planned]="_isPinned()"
+        [planned]="view.isPinned()"
       />
 
       <!-- 🔴 The fleet count and the report count are ONE fragment, and they sit on their OWN strip.
@@ -271,15 +258,15 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
            testids are unchanged, and both come back from sm up. -->
       <div class="mt-1 flex flex-wrap items-center gap-1.5" data-testid="line-row-meta">
         <app-status-info-chip
-          [info]="_vehicleCountInfo()"
-          [breakdown]="_vehicleBreakdown()"
+          [info]="view.vehicleCountInfo()"
+          [breakdown]="view.vehicleBreakdown()"
           [showIcon]="true"
         >
           <span
             hlmBadge
             variant="secondary"
             data-testid="line-row-vehicles"
-            [attr.aria-label]="_vehicleCountLabel()"
+            [attr.aria-label]="view.vehicleCountLabel()"
           >
             {{ line().inServiceVehicleCount }}/{{ line().totalVehicleCount }} in service
           </span>
@@ -332,21 +319,21 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
         </div>
       }
 
-      @if (_expanded()) {
+      @if (view.expanded()) {
         <div
           class="border-border mt-2.5 flex flex-col gap-3 border-t pt-2.5"
-          [attr.id]="_expandedPanelId()"
+          [attr.id]="view.expandedPanelId()"
           data-testid="line-row-expanded"
         >
           <app-line-status-chart
             [lineId]="line().id"
-            [expanded]="_expanded()"
+            [expanded]="view.expanded()"
             [refreshTick]="refreshTick()"
           />
           <app-line-week-profile [lineId]="line().id" />
           <app-line-status-reports
             [lineId]="line().id"
-            [expanded]="_expanded()"
+            [expanded]="view.expanded()"
             [refreshTick]="refreshTick()"
           />
         </div>
@@ -362,27 +349,21 @@ export class LinePulseRowComponent {
   readonly viewMode = input<PreferencesViewMode>("rider");
 
   protected readonly sheet = inject(LineStatusSheetService);
-  private readonly preferences = inject(PreferencesService);
   private readonly store = inject(HomeStore);
   private readonly isBrowser = injectIsBrowser();
 
   protected readonly passengerLabel = passengerLabel;
   protected readonly passengerVariant = passengerVariant;
 
-  protected readonly _expanded = signal(false);
-
   /**
-   * The id the row toggle's `aria-controls` points at, and the panel's own `id`.
-   *
-   * Scoped to the line because the board mounts one row per line in TWO groups at once ("My lines"
-   * and "All lines" can hold the same pinned line), so a bare id would collide and every toggle would
-   * resolve to whichever copy came first in the DOM. Behind its `@if` for the same reason as the
-   * card's: the panel owns two lazy reads and must not be mounted sixteen times on load.
+   * The state the row shares with the full card (expand toggle, pin, confidence, fleet copy). The
+   * panel id is scoped to the line because the board mounts one row per line in TWO groups at once
+   * ("My lines" and "All lines" can hold the same pinned line), so a bare id would collide and every
+   * toggle would resolve to whichever copy came first in the DOM. The panel sits behind its `@if` for
+   * the same reason as the card's: it owns two lazy reads and must not be mounted sixteen times on
+   * load.
    */
-  protected readonly _expandedPanelId = computed(() => `line-row-expanded-${this.line().id}`);
-
-  /** Reads the pin signal through a `computed`, so the toggle repaints on click. */
-  protected readonly _isPinned = computed(() => this.preferences.isPinned(this.line().id));
+  protected readonly view = injectLinePulseView(this.line, "line-row-expanded");
 
   /** This line's service-day buckets — the store's ONE per-line read, shared with the heat grid. */
   protected readonly _buckets = computed(() => this.store.linesHistoryFor(this.line().id));
@@ -423,67 +404,9 @@ export class LinePulseRowComponent {
     metricTooltip("network.line-reports-summary"),
   );
 
-  protected readonly _confidence = computed<StatusConfidence>(() =>
-    statusConfidence({
-      reportCount: this.line().statusReportCount,
-      passengerStatus: this.line().passengerStatus,
-      status: this.line().status,
-      hasOfficialPost: hasOfficialPulseLink(this.line().pulseLinks),
-    }),
-  );
-
-  /**
-   * The confidence popover's copy, read from the methodology registry through the level's own
-   * `metricId` — so the chip explains the level the reader is looking at rather than one generic
-   * paragraph, and `/methodology` cannot drift from the row.
-   */
-  protected readonly _confidenceInfo = computed<StatusInfo>(() => {
-    const doc = metricDoc(this._confidence().metricId);
-    return { title: doc.title, body: renderMethodologyCopy(doc.definition) };
-  });
-
   /** The operational status pill's own popover — the same lookup table the card and the hero's
    * callout read, so a status name is never spelled two ways on one screen. */
   protected readonly _statusInfo = computed<StatusInfo>(() => lineStatusInfo(this.line().status));
-
-  /** 🔴 The fleet badge's popover: the SAME registry definition and breakdown the card's chip uses,
-   * so "N/M in service" is explained one way on every board surface. */
-  protected readonly _vehicleCountInfo = computed<StatusInfo>(() => vehicleCountInfo());
-
-  protected readonly _vehicleBreakdown = computed(() =>
-    vehicleBreakdownRows(this.line().vehicleStatusCounts),
-  );
-
-  protected readonly _vehicleCountLabel = computed(
-    () =>
-      `${this.line().inServiceVehicleCount} of ${this.line().totalVehicleCount} vehicles in service`,
-  );
-
-  /** The pin button's tooltip heading; the copy is a plain instruction, so it travels with state. */
-  protected readonly _pinHintTitle = computed(() =>
-    this._isPinned() ? "Click to unpin" : "Click to pin",
-  );
-
-  /** The pin button's tooltip body — says what pinning does, and how to undo it. */
-  protected readonly _pinHint = computed(() =>
-    this._isPinned()
-      ? "Unpin this line to return it to its regular group on the board."
-      : "Pin this line to keep it in My lines at the top of the board.",
-  );
-
-  protected toggleExpanded(): void {
-    const opening = !this._expanded();
-    this._expanded.set(opening);
-    if (opening) {
-      // Same rule as the card: opening the panel IS looking at this line, so it joins the recents
-      // list. Recorded on the OPEN edge only, so collapsing does not push a line further up it.
-      this.preferences.pushRecentLine(this.line().id);
-    }
-  }
-
-  protected togglePin(): void {
-    this.preferences.togglePin(this.line().id);
-  }
 
   constructor() {
     if (this.isBrowser) {
