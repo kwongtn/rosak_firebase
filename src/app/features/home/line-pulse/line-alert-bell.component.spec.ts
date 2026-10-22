@@ -163,6 +163,23 @@ describe("LineAlertBellComponent", () => {
     expect(document.activeElement).toBe(bell());
   });
 
+  it("leaves nothing of the closed pre-prompt to tab into or to read as a dialog", async () => {
+    render();
+    await waitForState("off");
+    await click(bell());
+    expect(byTestId("line-alert-prompt")!.getAttribute("aria-modal")).toBe("true");
+
+    await click(byTestId("line-alert-dismiss")!);
+
+    // The sheet stays mounted after it closes. A focus-trap anchor that kept its tabindex sent the
+    // next Tab from the bell into the hidden panel, with no way out.
+    const sheet = (fixture.nativeElement as HTMLElement).querySelector("hlm-sheet")!;
+    expect(sheet.querySelectorAll('[tabindex]:not([tabindex="-1"])')).toHaveLength(0);
+    expect(byTestId("line-alert-prompt")!.closest("[inert]")).not.toBeNull();
+    expect(sheet.querySelector("[aria-modal]")).toBeNull();
+    expect(sheet.querySelector('[role="dialog"]')).toBeNull();
+  });
+
   it("toggles the line without a prompt once notifications are allowed", async () => {
     push.needsPermission.set(false);
     render();

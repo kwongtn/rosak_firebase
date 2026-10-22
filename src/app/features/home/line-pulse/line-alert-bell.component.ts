@@ -102,11 +102,13 @@ const INERT: ReadonlySet<BellState> = new Set([
     </ng-template>
 
     <hlm-sheet side="bottom" [open]="_promptOpen()" (openChange)="onPromptOpenChange($event)">
+      <!-- A dialog only while open: the closed sheet stays mounted, and a hidden aria-modal dialog
+           after every pinned row could hide the rest of the page from a screen reader. -->
       <div
-        role="dialog"
-        aria-modal="true"
         class="mx-auto flex w-full max-w-lg flex-col"
         data-testid="line-alert-prompt"
+        [attr.role]="_promptOpen() ? 'dialog' : null"
+        [attr.aria-modal]="_promptOpen() ? 'true' : null"
         [attr.aria-labelledby]="_promptTitleId()"
       >
         <div hlmSheetHeader>
