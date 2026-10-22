@@ -1,5 +1,5 @@
 import { AuthService } from "../../../core/auth/auth.service";
-import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { GraphQLClient, type GraphQLRequestOptions } from "../../../core/graphql/graphql-client";
 import type { QueuedLineStatusReport } from "../../../core/offline/report-outbox.service";
 import { PASSENGER_STATUSES } from "./board-lines.util";
 import {
@@ -26,28 +26,32 @@ export const LINE_STATUS_SUBMIT_TIMEOUT_MS = 15_000;
  * checks `IsLoggedIn`.
  *
  * Resolves the payload's `ok`. Rejects with `GraphQLRequestError` when the server answered with
- * errors (`GraphQLClient` has already toasted it), and with anything else when the request did not
- * complete (a failed token refresh, or {@link LINE_STATUS_SUBMIT_TIMEOUT_MS} passing, included).
+ * errors (`GraphQLClient` has already toasted it, unless `quiet`), and with anything else when the
+ * request did not complete (a failed token refresh, or {@link LINE_STATUS_SUBMIT_TIMEOUT_MS}
+ * passing, included). `quiet` is for the background flush, which toasts with its own words.
  */
 export async function submitLineStatusReport(
   graphql: GraphQLClient,
   auth: AuthService,
   input: LineStatusReportInput,
+  options: Pick<GraphQLRequestOptions, "quiet"> = {},
 ): Promise<boolean> {
   const idToken = await auth.idToken();
   const data = await graphql.request<SubmitLineStatusReportData, SubmitLineStatusReportVars>(
     SUBMIT_LINE_STATUS_REPORT_MUTATION,
     { input },
     idToken ? { "firebase-auth-key": idToken } : {},
-    { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS },
+    { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS, ...options },
   );
   return data.submitLineStatusReport.ok;
 }
 
 /**
- * A queued report back into the mutation's input, then the same send path. The outbox stores the
- * status as a plain string (`core/` does not know the enum), so one that is not a `PassengerStatus`
- * (only possible if storage was edited) is refused here as not `ok`, without a request.
+ * A queued report back into the mutation's input, then the same send path, quietly: the outbox
+ * toasts a refusal itself ("Saved report not sent"), so the client's own toast would say it twice.
+ * The outbox stores the status as a plain string (`core/` does not know the enum), so one that is
+ * not a `PassengerStatus` (only possible if storage was edited) is refused here as not `ok`,
+ * without a request.
  */
 export function sendQueuedLineStatusReport(
   graphql: GraphQLClient,
@@ -57,11 +61,16 @@ export function sendQueuedLineStatusReport(
   if (!(PASSENGER_STATUSES as readonly string[]).includes(report.status)) {
     return Promise.resolve(false);
   }
-  return submitLineStatusReport(graphql, auth, {
-    lineId: report.lineId,
-    status: report.status as PassengerStatus,
-    stationIds: report.stationIds,
-    delayMinutes: report.delayMinutes,
-    notes: report.notes,
-  });
+  return submitLineStatusReport(
+    graphql,
+    auth,
+    {
+      lineId: report.lineId,
+      status: report.status as PassengerStatus,
+      stationIds: report.stationIds,
+      delayMinutes: report.delayMinutes,
+      notes: report.notes,
+    },
+    { quiet: true },
+  );
 }

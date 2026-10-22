@@ -4,7 +4,13 @@ import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GraphQLClient, graphqlResource, type GraphQLRequestOptions } from "./graphql-client";
+import { ToastService } from "../../ui/toast/toast.service";
+import {
+  GraphQLClient,
+  GraphQLRequestError,
+  graphqlResource,
+  type GraphQLRequestOptions,
+} from "./graphql-client";
 
 interface LinesData {
   lines: { id: string }[];
@@ -344,6 +350,26 @@ describe("graphql-client", () => {
       const sent = await send({ "firebase-auth-key": "tok-1" });
 
       expect(sent.transferCache).toBe(false);
+    });
+
+    it("toasts a GraphQL error itself unless the caller asks it to stay quiet", async () => {
+      const toastError = vi.spyOn(TestBed.inject(ToastService), "error");
+      const client = TestBed.inject(GraphQLClient);
+      const answerWithError = () =>
+        httpMock
+          .expectOne((r) => r.method === "POST" && r.body.query === query)
+          .flush({ errors: [{ message: "No such line" }] });
+
+      const loud = client.request<LinesData>(query, {});
+      answerWithError();
+      await expect(loud).rejects.toBeInstanceOf(GraphQLRequestError);
+      expect(toastError).toHaveBeenCalledExactlyOnceWith("GraphQL Error", "No such line");
+
+      toastError.mockClear();
+      const quiet = client.request<LinesData>(query, {}, undefined, { quiet: true });
+      answerWithError();
+      await expect(quiet).rejects.toThrow("No such line");
+      expect(toastError).not.toHaveBeenCalled();
     });
 
     it("hands a timeout to HttpClient, and sets none unless asked", async () => {

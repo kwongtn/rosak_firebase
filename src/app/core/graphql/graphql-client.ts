@@ -243,6 +243,11 @@ export interface GraphQLRequestOptions {
    * status 0, the same shape as a dropped connection. Unset, only the browser gives up.
    */
   timeout?: number;
+  /**
+   * Skip the client's own "GraphQL Error" toast, for a background caller that tells the rider with
+   * its own words. The error is still thrown and still reported to Sentry.
+   */
+  quiet?: boolean;
 }
 
 /**
@@ -281,21 +286,28 @@ export class GraphQLClient {
     // throw GraphQLRequestError so callers (mutations/imperative requests) properly catch
     // failures even if partial or null data was returned alongside errors.
     if (response.errors && response.errors.length > 0) {
-      const error = new GraphQLRequestError(response.errors);
-      if (isPlatformBrowser(this.platformId)) {
-        this.toast.error("GraphQL Error", error.message);
-        Sentry.captureException(error);
-      }
-      throw error;
+      throw this.surface(new GraphQLRequestError(response.errors), options);
     }
     if (response.data !== undefined) {
       return response.data;
     }
-    const error = new GraphQLRequestError([{ message: "GraphQL response had no data" }]);
+    throw this.surface(
+      new GraphQLRequestError([{ message: "GraphQL response had no data" }]),
+      options,
+    );
+  }
+
+  /** In the browser, toasts the error (unless `quiet`) and reports it to Sentry; returns it. */
+  private surface(
+    error: GraphQLRequestError,
+    options?: GraphQLRequestOptions,
+  ): GraphQLRequestError {
     if (isPlatformBrowser(this.platformId)) {
-      this.toast.error("GraphQL Error", error.message);
+      if (!options?.quiet) {
+        this.toast.error("GraphQL Error", error.message);
+      }
       Sentry.captureException(error);
     }
-    throw error;
+    return error;
   }
 }

@@ -116,7 +116,7 @@ describe("provideReportOutboxFlush", () => {
         },
       },
       { "firebase-auth-key": "fresh-token" },
-      { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS },
+      { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS, quiet: true },
     );
   });
 });

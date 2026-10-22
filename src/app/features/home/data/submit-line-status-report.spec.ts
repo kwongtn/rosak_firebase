@@ -91,6 +91,11 @@ describe("sendQueuedLineStatusReport", () => {
     await expect(sendQueuedLineStatusReport(graphql, auth, queued)).resolves.toBe(true);
 
     expect(request.mock.calls[0][1]).toEqual({ input: INPUT });
+    // Quiet: the outbox toasts a refusal itself, so the client's own toast would be a second one.
+    expect(request.mock.calls[0][3]).toEqual({
+      timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS,
+      quiet: true,
+    });
   });
 
   it("refuses a stored status that is not a passenger status, without a request", async () => {
