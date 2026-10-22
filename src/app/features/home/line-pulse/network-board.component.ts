@@ -555,10 +555,12 @@ export class NetworkBoardComponent {
    * "All lines" split into the rows that say something and the quiet ones folded into the summary.
    * The split is over the store's already-partitioned `allLines`, so a quiet line is never also in
    * another group. `_quietExpanded` is store-owned: the choice survives a re-mount within the page.
+   * A line with a Notice says something, so it stays out of the fold (see `isQuietLine`).
    */
   private readonly _allSplit = computed(() =>
     this.foldQuiet()
-      ? splitQuietLines(this._all())
+      ? // A line with a Notice is not quiet: the fold would hide the very chip that says why.
+        splitQuietLines(this._all(), (lineId) => this.store.noticesFor(lineId).length > 0)
       : { loud: [...this._all()], quiet: [] as LinePulse[] },
   );
   protected readonly _allLoud = computed(() => this._allSplit().loud);

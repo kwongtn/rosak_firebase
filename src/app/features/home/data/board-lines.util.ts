@@ -104,22 +104,36 @@ function sortBoardGroup(lines: readonly LinePulse[], sort: BoardSort): LinePulse
 /** The four board groups, in render order. A PARTITION of the `visible` input — see
  * {@link partitionBoardLines}. */
 /**
- * A "quiet" line: in service, running normally, and with no reports in its rolling window. Quiet
- * lines fold into one summary row on the board and render only when the reader expands it.
+ * A "quiet" line: in service, running normally, with no reports in its rolling window and no Notice
+ * (an approved incident running on it, `hasNotice`). Quiet lines fold into one summary row on the
+ * board and render only when the reader expands it.
+ *
+ * 🔴 A Notice makes a line loud. The fold is for lines with nothing to say, and the case the Notice
+ * chip exists for is exactly a line that reads Normal while an approved incident is open on it: left
+ * quiet, that line would sit folded away and its chip would never be seen.
  */
-export function isQuietLine(line: LinePulse): boolean {
-  return isInService(line) && !lineNeedsAttention(line) && line.statusReportCount === 0;
+export function isQuietLine(line: LinePulse, hasNotice = false): boolean {
+  return (
+    isInService(line) && !lineNeedsAttention(line) && line.statusReportCount === 0 && !hasNotice
+  );
 }
 
-/** Splits lines into the ones that carry a signal (`loud`) and the quiet ones, keeping order. */
-export function splitQuietLines(lines: readonly LinePulse[]): {
+/**
+ * Splits lines into the ones that carry a signal (`loud`) and the quiet ones, keeping order.
+ * `hasNotice` answers, per line id, whether an approved incident is running on it; the default is
+ * "none", which is the board before (or without) its incidents read.
+ */
+export function splitQuietLines(
+  lines: readonly LinePulse[],
+  hasNotice: (lineId: string) => boolean = () => false,
+): {
   loud: LinePulse[];
   quiet: LinePulse[];
 } {
   const loud: LinePulse[] = [];
   const quiet: LinePulse[] = [];
   for (const line of lines) {
-    (isQuietLine(line) ? quiet : loud).push(line);
+    (isQuietLine(line, hasNotice(line.id)) ? quiet : loud).push(line);
   }
   return { loud, quiet };
 }

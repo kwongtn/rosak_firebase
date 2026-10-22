@@ -248,4 +248,27 @@ describe("board-lines.util: quiet lines", () => {
     expect(ids(loud)).toEqual(["a"]);
     expect(quiet).toEqual([]);
   });
+
+  it("keeps a Normal line with a Notice out of the quiet set: the fold would hide its chip", () => {
+    // The Notice chip exists for a line that READS Normal while an approved incident is open on it —
+    // exactly the line the fold would otherwise tuck away.
+    expect(isQuietLine(makeLine("ok"), true)).toBe(false);
+    expect(isQuietLine(makeLine("ok"), false)).toBe(true);
+  });
+
+  it("splits by the lines that have a Notice, keeping each side in input order", () => {
+    const lines = [makeLine("a"), makeLine("b"), makeLine("c"), makeLine("d")];
+
+    const { loud, quiet } = splitQuietLines(lines, (lineId) => lineId === "b" || lineId === "d");
+
+    expect(ids(loud)).toEqual(["b", "d"]);
+    expect(ids(quiet)).toEqual(["a", "c"]);
+  });
+
+  it("treats every line as without a Notice when none is supplied", () => {
+    const { loud, quiet } = splitQuietLines([makeLine("a"), makeLine("b")]);
+
+    expect(loud).toEqual([]);
+    expect(ids(quiet)).toEqual(["a", "b"]);
+  });
 });

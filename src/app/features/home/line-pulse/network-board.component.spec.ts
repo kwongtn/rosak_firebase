@@ -1031,6 +1031,58 @@ describe("NetworkBoardComponent", () => {
     ).toHaveLength(0);
   });
 
+  it("takes a Normal line out of the fold when an approved incident is running on it", async () => {
+    // The headline case of the Notice chip: the line READS Normal, so the fold would tuck it away
+    // with its chip. A line with a Notice has something to say.
+    const root = await board([makeLine("a"), makeLine("b"), makeLine("c")], {
+      quietExpanded: false,
+    });
+    expect(codesIn(root, "all")).toEqual([]);
+    expect(quietToggle(root).textContent?.trim()).toBe("3 lines running normally");
+
+    storeMock.notices.set({ b: [incident("1", { title: "Signal fault" })] });
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(codesIn(root, "all")).toEqual(["B"]);
+    expect(quietToggle(root).textContent?.trim()).toBe("2 other lines running normally");
+    expect(
+      root
+        .querySelector('[id="line-b"]')
+        ?.querySelector('[data-testid="line-notice"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Notice: Signal fault");
+  });
+
+  it("puts the line back into the fold when its Notice goes away", async () => {
+    const root = await board([makeLine("a"), makeLine("b")], { quietExpanded: false });
+    storeMock.notices.set({ b: [incident("1")] });
+    TestBed.tick();
+    fixture.detectChanges();
+    expect(codesIn(root, "all")).toEqual(["B"]);
+
+    storeMock.notices.set({});
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(codesIn(root, "all")).toEqual([]);
+    expect(quietToggle(root).textContent?.trim()).toBe("2 lines running normally");
+  });
+
+  it("leaves the Pro board alone: with the fold off every line is a row, Notice or not", async () => {
+    const root = await board([makeLine("a"), makeLine("b")], {
+      quietExpanded: false,
+      foldQuiet: false,
+    });
+    storeMock.notices.set({ b: [incident("1")] });
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="line-board-quiet"]')).toBeNull();
+    expect(codesIn(root, "all")).toEqual(["A", "B"]);
+    expect(root.querySelectorAll('[data-testid="line-notice"]')).toHaveLength(1);
+  });
+
   it("renders every quiet row once the summary is expanded, and folds them again on collapse", async () => {
     const root = await board(
       [makeLine("a"), makeLine("b"), makeLine("busy", { statusReportCount: 3 })],
