@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -91,7 +92,17 @@ describe("IncidentCalendarComponent", () => {
     expect(month.value).toBe("February");
   });
 
-  it("steps back a month from Jan 31 into December's last day", () => {
+  it("clamps a backward step from March 31 into February's last day", () => {
+    const fixture = render("2026-10-20T18:30:00Z", "2026-03-31");
+    const days: string[] = [];
+    fixture.componentInstance.daySelected.subscribe((dateKey) => days.push(dateKey));
+
+    root(fixture).querySelector<HTMLButtonElement>('button[aria-label="Previous month"]')?.click();
+
+    expect(days).toEqual(["2026-02-28"]);
+  });
+
+  it("rolls back from Jan 31 into December 2025 without clamping", () => {
     const fixture = render("2026-10-20T18:30:00Z", "2026-01-31");
     const days: string[] = [];
     fixture.componentInstance.daySelected.subscribe((dateKey) => days.push(dateKey));
@@ -209,6 +220,86 @@ describe("IncidentCalendarComponent", () => {
       expect(dots(fixture, 3)).toEqual([]);
       expect(dots(fixture, 1)).toEqual([]);
       expect(cell(fixture, 2).title).toBe("1 incident");
+    });
+  });
+
+  describe("month and year jump countdown", () => {
+    let fixture: ComponentFixture<IncidentCalendarComponent>;
+    let days: string[];
+
+    afterEach(() => vi.restoreAllMocks());
+
+    beforeEach(() => {
+      vi.useFakeTimers({
+        toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      });
+      vi.setSystemTime(new Date("2026-10-20T18:30:00Z"));
+      fixture = TestBed.createComponent(IncidentCalendarComponent);
+      fixture.componentRef.setInput("incidents", []);
+      fixture.componentRef.setInput("selectedDate", "2026-01-31");
+      fixture.detectChanges();
+      days = [];
+      fixture.componentInstance.daySelected.subscribe((dateKey) => days.push(dateKey));
+    });
+
+    /** Picks an item in the month (0) or year (1) combobox, as its valueChange would. */
+    function pick(field: 0 | 1, value: number): void {
+      fixture.debugElement
+        .queryAll(By.css("hlm-combobox"))
+        [field].triggerEventHandler("valueChange", value);
+    }
+
+    it("commits the clamped day only after the 3 s wait", () => {
+      pick(0, 1); // February
+
+      vi.advanceTimersByTime(2999);
+      expect(days).toEqual([]);
+
+      vi.advanceTimersByTime(1);
+      expect(days).toEqual(["2026-02-28"]);
+      fixture.detectChanges();
+      const [month] = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>(
+          "hlm-combobox input",
+        ),
+      );
+      expect(month.value).toBe("February");
+    });
+
+    it("restarts the wait when the year is picked, and commits once with both", () => {
+      pick(0, 2); // March
+      vi.advanceTimersByTime(2000);
+      pick(1, 2027);
+
+      vi.advanceTimersByTime(2999);
+      expect(days).toEqual([]);
+
+      vi.advanceTimersByTime(1);
+      expect(days).toEqual(["2027-03-31"]);
+    });
+
+    it("commits at once when a combobox loses focus", () => {
+      pick(0, 1);
+
+      fixture.debugElement
+        .queryAll(By.css("hlm-combobox"))[0]
+        .triggerEventHandler("focusout", null);
+      expect(days).toEqual(["2026-02-28"]);
+
+      vi.advanceTimersByTime(5000);
+      expect(days).toEqual(["2026-02-28"]);
+    });
+
+    it("cancels the pending jump timers when the calendar is destroyed mid-countdown", () => {
+      pick(0, 1);
+      // Angular's scheduler also uses fake timers, so count calls rather than pending timers.
+      const clearTimer = vi.spyOn(globalThis, "clearTimeout");
+      const clearRepeat = vi.spyOn(globalThis, "clearInterval");
+
+      fixture.destroy();
+
+      expect(clearTimer).toHaveBeenCalledWith(expect.anything());
+      expect(clearRepeat).toHaveBeenCalledWith(expect.anything());
     });
   });
 
