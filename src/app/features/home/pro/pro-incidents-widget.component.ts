@@ -3,17 +3,9 @@ import { Component, computed, inject } from "@angular/core";
 import { RouterLink } from "@angular/router";
 
 import { HlmBadge } from "../../../ui/badge/badge";
-import { HomeIncidentItem, HomeIncidentSeverity } from "../data/home-incidents.queries";
+import { HomeIncidentItem } from "../data/home-incidents.queries";
 import { HomeStore } from "../data/home.store";
-
-/** `CalendarIncidentSeverity` → badge variant, so a MAJOR row cannot read as quieter than a MINOR
- *  one by accident. The map is exhaustive over the enum: adding a severity fails to compile here
- *  rather than rendering an unstyled row. */
-const SEVERITY_VARIANT = {
-  MAJOR: "destructive",
-  MINOR: "warning",
-  OTHERS: "neutral",
-} as const;
+import { incidentSeverityLabel, incidentSeverityVariant } from "../data/incident-notices.util";
 
 /**
  * The Pro dashboard's RECENT INCIDENTS widget.
@@ -27,13 +19,18 @@ const SEVERITY_VARIANT = {
  * "Updating" label open. That asymmetry is the store's documented rule, not a special case here.
  *
  * 🔴 **The window is the BACKEND's, not a date this side computes.** The read asks for
- * `ongoing: true` — incidents with no end date yet — ordered by `startDatetime DESC`, from a
+ * `status: LIVE` + `activeNow: true` — approved incidents that have started and not yet ended, an
+ * incident with no end time included — ordered by `startDatetime DESC`, from a
  * compile-time-constant variables object (see `HOME_RECENT_INCIDENT_VARS` for why a client clock in
  * query variables is banned in this project). So the widget is honest about what it shows: the
  * heading says "Recent incidents" and the sub-label says **ongoing · newest first**, because that is
  * precisely the set. A "last 7 days" reading would need a date range this client cannot compute
  * without breaking SSR's variable equality, and a widget that quietly claimed a window it does not
  * have would be worse than a narrower honest one.
+ *
+ * 🔴 **`status: LIVE` is what keeps drafts out.** This widget used to filter on `ongoing` alone,
+ * which only looks at the end time, so it listed drafts and pending reports on a public page. The
+ * board's Notice chips share this read (and this list, uncapped), so a fix here is a fix there.
  *
  * The backend returns an ordered LIST with no limit argument, so the newest `PRO_INCIDENT_LIMIT` rows
  * are sliced client-side. The count in the sub-label is the number SHOWN, not the number returned —
@@ -117,13 +114,9 @@ export class ProIncidentsWidgetComponent {
     () => !this.store.incidentsFailed() && this._incidents().length > 0,
   );
 
-  protected _severityLabel(severity: HomeIncidentSeverity): string {
-    return severity === "MAJOR" ? "Major" : severity === "MINOR" ? "Minor" : "Other";
-  }
-
-  protected _severityVariant(severity: HomeIncidentSeverity) {
-    return SEVERITY_VARIANT[severity] ?? "neutral";
-  }
+  /** The same severity words and colours the board's Notice chips use (one table, `incident-notices.util`). */
+  protected readonly _severityLabel = incidentSeverityLabel;
+  protected readonly _severityVariant = incidentSeverityVariant;
 
   constructor() {
     // 🔴 The opt-in is the whole reason this read is lazy. `graphqlResource` installs an effect that

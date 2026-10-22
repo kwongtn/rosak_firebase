@@ -2392,8 +2392,10 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
     const request = httpMock.expectOne(
       (r) => r.method === "POST" && r.body.query.includes("HomeRecentIncidents"),
     );
+    // 🔴 `status: LIVE` is the rider-facing gate: the root field has none of its own and would answer an
+    // anonymous caller with drafts. `activeNow` is the backend's clock ("started, not yet ended").
     expect(request.request.body.variables).toEqual({
-      filters: { OR: { ongoing: true } },
+      filters: { status: "LIVE", activeNow: true },
       order: { startDatetime: "DESC" },
     });
     request.flush({ data: { calendarIncidents: [] } });

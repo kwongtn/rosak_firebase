@@ -450,12 +450,13 @@ describe("HOME_RECENT_INCIDENTS_QUERY", () => {
   });
 
   it("sends the CONTINUING window, never a date this client computed", () => {
-    // The whole reason this document exists. `ongoing: true` is the backend's `end_datetime IS NULL` and
-    // `startDatetime: DESC` puts the newest first, so a "recent" list needs no clock at all — and the
-    // variables are therefore byte-identical in every process, which is the property the whole home
-    // contract rests on (the same rule that makes the feed's `lastWeekOnly` a backend boolean).
+    // The whole reason this document exists. `activeNow: true` is the backend's "started and not yet
+    // ended" (an incident with no end time included) and `startDatetime: DESC` puts the newest first, so
+    // a "recent" list needs no clock at all — and the variables are therefore byte-identical in every
+    // process, which is the property the whole home contract rests on (the same rule that makes the
+    // feed's `lastWeekOnly` a backend boolean).
     expect(HOME_RECENT_INCIDENT_VARS).toEqual({
-      filters: { OR: { ongoing: true } },
+      filters: { status: "LIVE", activeNow: true },
       order: { startDatetime: "DESC" },
     });
     expect(JSON.stringify(HOME_RECENT_INCIDENT_VARS)).not.toMatch(/20\d\d-\d\d-\d\d/);
@@ -463,6 +464,17 @@ describe("HOME_RECENT_INCIDENTS_QUERY", () => {
 
   it("freezes the variables so no caller can mutate the constant the server render sent", () => {
     expect(Object.isFrozen(HOME_RECENT_INCIDENT_VARS)).toBe(true);
+    // All the way down: `VARS.filters.status = "DRAFT"` would put drafts on a public page with the
+    // outer freeze still intact.
+    expect(Object.isFrozen(HOME_RECENT_INCIDENT_VARS.filters)).toBe(true);
+    expect(Object.isFrozen(HOME_RECENT_INCIDENT_VARS.order)).toBe(true);
+  });
+
+  it("sends status LIVE, because the root field has no status gate of its own", () => {
+    // `calendarIncidents` answers an anonymous caller with drafts, pending and rejected incidents
+    // unless it is told `status: LIVE`. Every rider-facing read of it must say so; a filter added to
+    // these variables that dropped this key would publish drafts.
+    expect(HOME_RECENT_INCIDENT_VARS.filters.status).toBe("LIVE");
   });
 
   it("asks for a MINIMAL row — no details, medias, chronologies or nested links", () => {
