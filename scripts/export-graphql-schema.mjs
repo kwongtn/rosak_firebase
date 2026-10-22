@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertSchemaSdl } from "./graphql-schema-guard.mjs";
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const composeFile =
@@ -23,11 +24,7 @@ const sdl = execFileSync(
 );
 
 // Refuse to overwrite the snapshot with anything that is not a schema.
-if (!/^type Query\b/m.test(sdl)) {
-  throw new Error(
-    `export-graphql-schema: no "type Query" in the backend output:\n${sdl.slice(0, 500)}`,
-  );
-}
+assertSchemaSdl(sdl);
 
 const outPath = join(rootDir, "src/app/core/graphql/schema.graphql");
 writeFileSync(outPath, sdl);
