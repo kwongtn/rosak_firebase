@@ -11,6 +11,15 @@
 
 ---
 
+## [2026-10-23] deps/sentry: Sentry 11 collects more by default than 10 did, and the gate cannot tell (F520)
+
+**Problem**: Bumping `@sentry/angular` and `@sentry/node` from 10.69.0 to 11.8.0 compiled, passed every spec, kept Replay and feedback lazy and booted the SSR server, so nothing in the gate said the upgrade changed what the app sends to Sentry.
+**Root Cause**: v11 replaces `sendDefaultPii` with a `dataCollection` option whose unset value collects client IP, cookies, request and response headers, HTTP bodies, GraphQL documents and variables, database query data and queue data. The app sends `firebase-auth-key` headers, GraphQL bodies and photo uploads, and `src/sentry-options.ts` sets no `dataCollection`. TypeScript and the specs do not cover what the SDK attaches to an event.
+**Fix**: Not done. The bump was reverted before commit; `@sentry/cli` alone moved to 3.8.2 (`2745e71`). The recipe that compiled: a `dataCollection` block in `sentrySharedOptions` with the v10 baseline from the "`sendDefaultPii` is replaced by `dataCollection`" section of `MIGRATION.md` in getsentry/sentry-javascript (`userInfo: false`, `cookies: false`, header deny lists, `httpBodies: []`, `graphQL: { document: false, variables: false }`), plus a spec that pins it.
+**Prevention**: Treat a Sentry major as a privacy change, not a dependency change: read the `MIGRATION.md` section on defaults before the bump, write the baseline options explicitly and pin them with a spec, and only then run the gate. The same applies to any SDK that attaches request data on its own.
+
+---
+
 ## [2026-10-22] core/http: a read that continues an anonymous list was signed once the interceptor signed everything (F191)
 
 **Problem**: After the auth interceptor landed, a signed-in viewer's imperative reads that continue an anonymous `graphqlResource` list were signed, so one list mixed vote states. Page 1 of the links tab came from the anonymous resource (`userVote` 0) and the appended pages came back signed. The home feed's Load More (today and last week), the gallery's `loadMore` and photo deep link, and the incident card's `loadMoreLinks` had the same split.

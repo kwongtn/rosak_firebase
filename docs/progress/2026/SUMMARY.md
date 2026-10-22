@@ -31,6 +31,7 @@
 - Docs squash to current state; profile reload/error-state/null-guard fixes and home `feed-link-<id>` anchors (Oct 21).
 - Audit fix pass (Oct 21): the 24 Fix-first and Quick-win findings of the 2026-10-21 audit are fixed (F044 partly). Changes: lazy Sentry chunks, sheet forms created on open, Kuala Lumpur day keys, a client Exif GPS strip, gallery `media(id)` deep links and share tags, Angular 22.2.3. Anonymous spottings now hide their location, profile rows, counts and photo uploader from everyone but the owner and admins. A follow-up accepts every image: HEIC, WebP and other formats the GPS strip cannot clean upload as they are, by the owner's choice. Suite at 178 files / 2432 tests.
 - Audit feature pass (Oct 22): sixteen feature findings of the same audit. Board Notice and Planned works chips, a `/station/:id` page, web push line alerts (frontend complete, VAPID key pending), an offline strip with a report outbox and restored drafts, an installable app with a service worker, calendar filters and `.ics`/`.csv` export, a 12-month incident chart and a typical-week strip, fleet progress and history export on the profile, viewer stepping and share, Fill from link mapping, spotting history details and asset status. The front page moved into its lazy route (initial bundle 997.74 → 841.90 kB) and spec files are isolated. Suite at 222 files / 3481 tests.
+- Audit quality pass (Oct 22–23): 57 testing, tooling and code-quality findings of the same audit plus the auth-header one; 42 fixed, 14 partly fixed, F072 already done. `strict` and `strictTemplates` on, ESLint, a committed GraphQL schema snapshot with a validation spec, report-only coverage, a functions CI job, an SSR smoke job and Dependabot; one auth interceptor replaces 43 hand-attached headers; shared insiden form helpers, immutable chronology edits, URL-derived sort on the line page, a ref-counted sheet scroll lock, status colour tokens, an icon-button directive, the console links component split into composables; dependency bumps with Sentry 11 deferred. The new specs found seven real defects (see MISTAKES.md, 2026-10-22). Suite at 265 files / 4035 tests, initial bundle 842.69 kB.
 
 ---
 
@@ -73,7 +74,7 @@
 | Oct 1–20              | 152               | 10, see [SUMMARY](./10/SUMMARY.md) |
 | **Total (to Oct 20)** | **378**           |                                    |
 
-Counted with `git log --no-merges` on the checked-out branch on 2026-10-21. Oct 21 onward (73 commits for the audit fix pass, 189 for the Oct 22 feature pass to `28bc9b2`): see [10/SUMMARY](./10/SUMMARY.md).
+Counted with `git log --no-merges` on the checked-out branch on 2026-10-21. Oct 21 onward (73 commits for the audit fix pass, 189 for the Oct 22 feature pass to `28bc9b2`, 211 for the Oct 22–23 quality pass to `30201a2d`): see [10/SUMMARY](./10/SUMMARY.md).
 
 ---
 
