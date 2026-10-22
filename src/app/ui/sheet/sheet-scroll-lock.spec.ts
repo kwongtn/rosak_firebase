@@ -118,6 +118,8 @@ describe("HlmSheet scrim layering", () => {
     document.body.style.overflow = "";
   });
 
+  // 45 mirrors AppNav's `z-[45]` (app-nav.component.ts) and 50 the sheet panel: move the nav and this
+  // number has to follow. jsdom has no layout, so the real stacking is only checked in a browser.
   it("paints the scrim above the sticky nav (z-45) and below the panel (z-50)", async () => {
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
     const fixture = TestBed.createComponent(TwoSheetsHostComponent);

@@ -21,6 +21,8 @@ export class ScrollLock {
   }
 
   release(): void {
+    // A stray release must not drive the count negative, or the next acquire would not lock.
+    if (this.holders === 0) return;
     this.holders -= 1;
     if (this.holders === 0) this.apply("");
   }
