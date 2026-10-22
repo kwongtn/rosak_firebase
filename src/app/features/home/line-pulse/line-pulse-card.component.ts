@@ -29,6 +29,7 @@ import {
 import { LineNoticesComponent } from "./line-notices.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
+import { LineWeekProfileComponent } from "./line-week-profile.component";
 import { StatusInfoChipComponent } from "./status-info-chip.component";
 
 /** Related links are a supporting signal on the card — never a feed of their own. */
@@ -59,8 +60,8 @@ const MAX_PULSE_LINKS = 5;
  * pure rule is `statusConfidence`). Under the header, `app-line-notices` draws the line's Notice
  * chips when an approved incident is running on it and, for a pinned line, its Planned works. The
  * title row is
- * the expand/collapse toggle for the lazy detail panel — the hourly report chart
- * and the recent reports list, both of which only read once expanded. Mobile-first: the card is a
+ * the expand/collapse toggle for the lazy detail panel — the hourly report chart, the typical week
+ * and the recent reports list, all of which only read once expanded. Mobile-first: the card is a
  * single column with full-width, content-sized actions; from `sm:` the actions move to the right
  * of the title row. Links are plain anchors (compact) rather than link cards.
  */
@@ -76,6 +77,7 @@ const MAX_PULSE_LINKS = 5;
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
+    LineWeekProfileComponent,
     StatusInfoChipComponent,
   ],
   providers: [provideIcons({ lucidePin })],
@@ -276,6 +278,7 @@ const MAX_PULSE_LINKS = 5;
             [expanded]="_expanded()"
             [refreshTick]="refreshTick()"
           />
+          <app-line-week-profile [lineId]="line().id" />
           <app-line-status-reports
             [lineId]="line().id"
             [expanded]="_expanded()"

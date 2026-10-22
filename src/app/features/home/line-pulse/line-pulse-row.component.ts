@@ -34,6 +34,7 @@ import { LineAlertBellComponent } from "./line-alert-bell.component";
 import { LineNoticesComponent } from "./line-notices.component";
 import { LineStatusChartComponent } from "./line-status-chart.component";
 import { LineStatusReportsComponent } from "./line-status-reports.component";
+import { LineWeekProfileComponent } from "./line-week-profile.component";
 import { StatusInfoChipComponent } from "./status-info-chip.component";
 
 /**
@@ -66,9 +67,11 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
  * the board has gone with it. Presentation stays the one thing it always was — it never changes what
  * is counted, never which actions exist, never whether a group renders.
  *
- * The expanded panel reuses `app-line-status-chart` and `app-line-status-reports` verbatim, both
- * gated on the same `expanded` input the card passes — so an expanded row's chart and reports are
- * lazy in exactly the same way, and a `refreshTick` from the poll beat reloads them the same way.
+ * The expanded panel reuses `app-line-status-chart`, `app-line-week-profile` and
+ * `app-line-status-reports` verbatim. The chart and the reports are gated on the same `expanded`
+ * input the card passes, and the typical week exists only inside that block, so an expanded row's
+ * reads are lazy in exactly the same way. A `refreshTick` from the poll beat reloads the chart and
+ * the reports the same way; the typical week is a six-week summary and is not re-read on the beat.
  *
  * 🔴 **The report tally is read from the store's service-day buckets, not from the line.** It reads
  * `N reports (X this hour)` — the whole community service day so far, plus how much of it landed in
@@ -101,6 +104,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
     LineStatusBadge,
     LineStatusChartComponent,
     LineStatusReportsComponent,
+    LineWeekProfileComponent,
     StatusInfoChipComponent,
   ],
   providers: [provideIcons({ lucidePin })],
@@ -339,6 +343,7 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
             [expanded]="_expanded()"
             [refreshTick]="refreshTick()"
           />
+          <app-line-week-profile [lineId]="line().id" />
           <app-line-status-reports
             [lineId]="line().id"
             [expanded]="_expanded()"

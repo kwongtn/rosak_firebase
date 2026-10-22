@@ -493,7 +493,7 @@ describe("LinePulseCardComponent", () => {
     flushPendingRequests();
   });
 
-  it("fetches nothing until expanded, then loads the hourly chart and the report list", async () => {
+  it("fetches nothing until expanded, then loads the hourly chart, the typical week and the report list", async () => {
     const root = render(makeLine({ id: "line-7" }));
 
     expect(httpMock.match(() => true)).toHaveLength(0);
@@ -547,12 +547,50 @@ describe("LinePulseCardComponent", () => {
       },
     });
 
+    // The typical week is the third lazy read, with the literal window and the service-day start.
+    const weekRequest = httpMock.expectOne((r) => r.body.query.includes("LineStatusWeekProfile"));
+    expect(weekRequest.request.body.variables).toEqual({
+      lineId: "line-7",
+      weeks: 6,
+      dayStartHour: 3,
+    });
+    weekRequest.flush({
+      data: {
+        lineStatusWeekProfile: [
+          {
+            weekday: 3,
+            hour: 15,
+            count: 4,
+            dominantStatus: "CROWDED",
+            statusCounts: [{ status: "CROWDED", count: 4 }],
+          },
+        ],
+      },
+    });
+
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(root.querySelector('[data-testid="line-status-chart"]')).not.toBeNull();
     expect(root.querySelectorAll('[data-testid="line-status-bar"]')).toHaveLength(1);
     expect(root.querySelectorAll('[data-testid="line-status-report"]')).toHaveLength(1);
+    expect(root.querySelectorAll('[data-testid="line-week-cell"]')).toHaveLength(168);
+  });
+
+  it("puts the typical week under today's chart and above the recent reports", () => {
+    const root = render(makeLine({ id: "line-7" }));
+    root.querySelector<HTMLElement>('[data-testid="line-card-toggle"]')?.click();
+    fixture.detectChanges();
+    flushPendingRequests();
+    fixture.detectChanges();
+
+    const chart = root.querySelector('[data-testid="line-status-chart"]');
+    const week = root.querySelector('[data-testid="line-week-profile"]');
+    const reports = root.querySelector('[data-testid="line-status-reports"]');
+    expect(chart && week && reports).toBeTruthy();
+    expect(chart?.compareDocumentPosition(week as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(week?.compareDocumentPosition(reports as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(root.querySelector('[data-testid="line-card-expanded"]')?.contains(week)).toBe(true);
   });
 
   it("forwards refreshTick to the expanded chart and reports", () => {

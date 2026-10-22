@@ -386,7 +386,7 @@ describe("LinePulseRowComponent", () => {
     expect(reportSheetMock.openFor).not.toHaveBeenCalled();
   });
 
-  it("fetches nothing of its own until expanded, then loads the chart and the report list", () => {
+  it("fetches nothing of its own until expanded, then loads the chart, the typical week and the report list", () => {
     const root = render(makeLine({ id: "line-7" }));
 
     // The row's only outbound request is the expanded panel's, fed by the MOCK store here — the real
@@ -402,10 +402,27 @@ describe("LinePulseRowComponent", () => {
     expect(toggle?.getAttribute("aria-expanded")).toBe("true");
     expect(httpMock.match((r) => r.body.query.includes("LineStatusHistory"))).toHaveLength(1);
     expect(httpMock.match((r) => r.body.query.includes("LineStatusReports"))).toHaveLength(1);
+    expect(httpMock.match((r) => r.body.query.includes("LineStatusWeekProfile"))).toHaveLength(1);
 
     flushPendingRequests();
     fixture.detectChanges();
     expect(root.querySelector('[data-testid="line-row-expanded"]')).not.toBeNull();
+  });
+
+  it("puts the typical week under today's chart and above the recent reports", () => {
+    const root = render(makeLine({ id: "line-7" }));
+    root.querySelector<HTMLElement>('[data-testid="line-row-toggle"]')?.click();
+    fixture.detectChanges();
+    flushPendingRequests();
+    fixture.detectChanges();
+
+    const chart = root.querySelector('[data-testid="line-status-chart"]');
+    const week = root.querySelector('[data-testid="line-week-profile"]');
+    const reports = root.querySelector('[data-testid="line-status-reports"]');
+    expect(chart && week && reports).toBeTruthy();
+    expect(chart?.compareDocumentPosition(week as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(week?.compareDocumentPosition(reports as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(root.querySelector('[data-testid="line-row-expanded"]')?.contains(week)).toBe(true);
   });
 
   it("points the toggle's aria-controls at this line's OWN panel id", () => {
