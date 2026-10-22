@@ -78,9 +78,10 @@ export class ImageCompressionService {
     }
   }
 
+  /** Re-attaches `src`'s Exif to `dest`; the result keeps `dest`'s name. */
   private async copyExif(src: File, dest: File): Promise<File> {
     const exif = await this.retrieveExif(src);
-    return new File([dest.slice(0, 2), exif, dest.slice(2)], src.name, {
+    return new File([dest.slice(0, 2), exif, dest.slice(2)], dest.name, {
       type: "image/jpeg",
     });
   }
@@ -126,11 +127,17 @@ export class ImageCompressionService {
       // The browser gives up on an image it cannot allocate (a huge canvas, low memory).
       throw new Error("The browser could not re-encode the image");
     }
-    // The bytes are what the canvas encoded, whatever the source was: a PNG in becomes a JPEG out.
-    return new File([blob], file.name, { type: blob.type });
+    // The bytes are what the canvas encoded, whatever the source was: a PNG in becomes a JPEG out,
+    // and the backend names the stored file by its extension, so `photo.png` becomes `photo.jpg`.
+    const name =
+      blob.type === "image/jpeg" && !/\.jpe?g$/i.test(file.name)
+        ? `${file.name.replace(/\.[^./\\]*$/, "")}.jpg`
+        : file.name;
+    return new File([blob], name, { type: blob.type });
   }
 
-  /** Binary-searches a resize factor until the file lands at/under maxSizeBytes. */
+  /** Binary-searches a resize factor until the re-encoded image lands at/under maxSizeBytes. The
+   * Exif segment re-attached afterwards (up to 64 KB) comes on top of that size. */
   async resizeToSize(
     file: File,
     maxSizeBytes: number,

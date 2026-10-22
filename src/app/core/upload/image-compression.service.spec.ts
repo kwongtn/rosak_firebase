@@ -117,8 +117,8 @@ describe("ImageCompressionService", () => {
     vi.unstubAllGlobals();
   });
 
-  const file = (bytes: Uint8Array<ArrayBuffer>, type = "image/jpeg") =>
-    new File([bytes], "train.jpg", { type, lastModified: 1_700_000_000_000 });
+  const file = (bytes: Uint8Array<ArrayBuffer>, type = "image/jpeg", name = "train.jpg") =>
+    new File([bytes], name, { type, lastModified: 1_700_000_000_000 });
 
   describe("resizeToSize", () => {
     it("re-attaches a JPEG's Exif segment, Make included, with the Orientation reset to 1", async () => {
@@ -160,11 +160,24 @@ describe("ImageCompressionService", () => {
     });
 
     it("compresses a PNG without Exif, as a JPEG, instead of rejecting", async () => {
-      const out = await service.resizeToSize(file(PNG, "image/png"), 1_000_000);
+      const out = await service.resizeToSize(file(PNG, "image/png", "train.png"), 1_000_000);
 
       expect(await bytesOf(out)).toEqual(encoded(NATURAL, NATURAL));
       // The bytes are the canvas's JPEG, so the label says so and not "image/png".
       expect(out.type).toBe("image/jpeg");
+      // ... and the extension, which the backend stores the file under.
+      expect(out.name).toBe("train.jpg");
+    });
+
+    it.each([
+      ["photo.png", "photo.jpg"],
+      ["my.holiday.WEBP", "my.holiday.jpg"],
+      ["noextension", "noextension.jpg"],
+      ["photo.JPEG", "photo.JPEG"],
+    ])("renames %s to %s when the output is a JPEG", async (name, expected) => {
+      const out = await service.resizeToSize(file(PNG, "image/png", name), 1_000_000);
+
+      expect(out.name).toBe(expected);
     });
 
     it.each([
@@ -199,7 +212,7 @@ describe("ImageCompressionService", () => {
       expect(draws).toEqual([{ width: NATURAL, height: NATURAL }]);
     });
 
-    it("takes several steps to reach a size limit, and lands at or under it", async () => {
+    it("takes several steps to reach a size limit, and the image lands at or under it", async () => {
       const limit = 3_000; // the full size is 10,000 bytes
       const input = exifJpeg({ orientation: 1, gps: false });
       const exifSize = ((input[4] << 8) | input[5]) + 2; // APP1 length field, plus the marker
