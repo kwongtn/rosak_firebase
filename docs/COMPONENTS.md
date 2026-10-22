@@ -55,7 +55,13 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   for any error the client did not already toast, before rethrowing to Sentry. A request that carries
   `firebase-auth-key` opts out of the SSR transfer cache (`transferCache: false`): the cache keys on
   method, URL and body, not headers, so it would answer a signed-in viewer with the server's
-  anonymous render of the same query.
+  anonymous render of the same query. `request()`'s fourth argument takes `timeout` (ms, handed to
+  `HttpClient`, which then rejects with a status-0 `HttpErrorResponse`) and `quiet` (no "GraphQL
+  Error" toast from the client, for a background caller that toasts itself; Sentry still gets it).
+- `core/auth/`: `AuthService` (lazy, with Firebase Auth). `whenReady` resolves once Firebase has
+  restored or ruled out a session, also when the admin claim cannot be read (offline with an
+  expired token: `isAdmin` stays `false` and the error goes to the `ErrorHandler`). Every auth
+  state change runs `claimSessionDrafts(uid)` (see `core/util/` below).
 - `core/sentry/`: Session Replay is a dynamic `import()` after bootstrap, at idle (`main.ts`). The
   "Report a bug" widget loads on first use through `FeedbackService.openForm()` (browser only; one
   shared in-flight open; the current theme is applied on every open). Both load `?lazy` private
@@ -83,17 +89,24 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 - `core/offline/`: `ReportOutboxService` (root, lazy), the outbox for line status reports the
   server could not take (audit F211). Storage is `localStorage` key `rosak:report-outbox:v1`, because
   it must survive a killed tab and holds at most one small entry per line; IndexedDB was not used,
-  since `core/upload/upload-queue-db.ts` is hard-wired to one store of photo records. `enqueue()`
-  keeps one entry per line (latest wins) and records `queuedAt` and the Firebase uid. `flush(send)`
+  since `core/upload/upload-queue-db.ts` is hard-wired to one store of photo records.
+  `enqueue(report, statusWindowMinutes)` keeps one entry per line (latest wins) and records
+  `queuedAt`, the Firebase uid and the line's own `statusWindowMinutes` from the board. The backend
+  stamps a report on arrival and takes no client time, so an entry is dropped once it is older than
+  that window, the longest it could still have counted had it arrived on time.
+  `REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES` (15) is a frontend fallback for a caller that did not know
+  the window, not a copy of the backend's. `flush(send)` first awaits `AuthService.whenReady`,
+  outside its busy flag and the Web Lock, so a slow session restore blocks no other flush. It then
   runs only online, one at a time, inside the Web Lock `rosak:report-outbox` where the browser has
-  one (so two tabs that reconnect together send a report once), and re-reads storage first. It awaits
-  `AuthService.whenReady`, then drops entries older than `REPORT_OUTBOX_MAX_AGE_MINUTES` (15, the
-  backend's status window, because the backend stamps a report on arrival and takes no client time),
-  with a toast to the account that queued them. For the signed-in account only, it then sends the
-  rest oldest first through the caller's sender. A `GraphQLRequestError` or a payload that is not
-  `ok` drops the entry and toasts why (the server's message for the former). A transport failure
-  keeps the entry and everything after it for the next try, and is not rethrown: the submit that
-  queued it already reached Sentry. An empty outbox returns before the lock, so the home route can
+  one (so two tabs that reconnect together send a report once), and re-reads storage first. It drops
+  expired entries with a toast to the account that queued them. For the signed-in account only, it
+  then sends the rest oldest first through the caller's sender. `isRetryableSendFailure(err)`, which
+  the line-status sheet also uses to decide what to queue, keeps the entry and everything after it
+  for the next try on a status-0 `HttpErrorResponse` (a dead link or a request timeout),
+  502/503/504 or `auth/network-request-failed`; that is not rethrown, since the submit that queued it
+  already reached Sentry. Any other answer drops the entry and toasts why: a `GraphQLRequestError`
+  (the server's message), a payload that is not `ok`, or another HTTP error, which also goes to the
+  `ErrorHandler`. An empty outbox returns before the session wait and the lock, so the home route can
   flush on every board beat for the price of one storage read.
   `core/` cannot import the feature's mutation, so the service registers no trigger of its own. The
   home route registers one (`features/home/data/report-outbox-flush.ts`, see
@@ -102,7 +115,13 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 - `core/util/web-storage.util.ts`: `readStorageItem` / `writeStorageItem` / `removeStorageItem` over
   `"local" | "session"`, the try/catch wrappers `PreferencesService` keeps for itself (a failed read
   is `null`, a failed write or removal is dropped). Used by the outbox and by the two report drafts
-  (home's line-status sheet, spotting's report form), which live in `sessionStorage`.
+  (home's line-status sheet, spotting's report form), which live in `sessionStorage` under
+  `SESSION_DRAFT_PREFIX` (`rosak:draft:`). A draft is one account's typing: `claimSessionDrafts(uid)`
+  records the uid this tab's drafts belong to (`rosak:draft-owner`) and removes every draft when a
+  different account, or nobody, is signed in, so a sign-out in another tab still counts once this
+  page restores its session; a draft saved while signed out survives the sign-in.
+  `readSessionDraft(key, uid)` hides a draft recorded for another account, for the moment before a
+  new page knows who is signed in.
 - `core/version/`: `NewVersionService` polls `/version.json` every 10 minutes while online
   (`cache: "no-store"` plus an `ngsw-bypass` header, so neither the HTTP cache nor the service worker
   answers it) and prompts for a reload on a failed same-origin chunk only.

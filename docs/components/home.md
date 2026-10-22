@@ -145,9 +145,11 @@
     (`linesStatusHistory(lineIds)`) back the sparkline, row tally, heat grid and Pro ranking (same
     `LineStatusHourBucket` fields, pinned in the spec); `SUBMIT_LINE_STATUS_REPORT_MUTATION`
     (`submitLineStatusReport(input: LineStatusReportInput!)`), sent only through
-    `submitLineStatusReport(graphql, auth, input)` (`data/submit-line-status-report.ts`), the one path
-    the sheet's Submit and the outbox flush share. It reads the ID token at send time; the mutation
-    checks `IsLoggedIn` only (no reCAPTCHA).
+    `submitLineStatusReport(graphql, auth, input, { quiet })` (`data/submit-line-status-report.ts`),
+    the one path the sheet's Submit and the outbox flush share. It reads the ID token at send time,
+    and gives the request `LINE_STATUS_SUBMIT_TIMEOUT_MS` (15 s), after which it rejects like a
+    dropped connection; the flush's `sendQueuedLineStatusReport` sends `quiet`, so the outbox's own
+    toast is the only one. The mutation checks `IsLoggedIn` only (no reCAPTCHA).
   - `FEED_QUERY` (`home-feed.queries.ts`): the `publicSocialMediaLinks` connection. Args: `first`,
     `after`, `status`, `currentServiceDayOnly`, `lastWeekOnly`, `alignPageToDay`, `collapseThreads`,
     `lineId`. Returns `edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }` and a
@@ -564,8 +566,10 @@ typed URL as one-shot prefill (its form adds title + asset tags). Local state: `
 
 Local signals: `status` (`PassengerStatus | null`), `delayMinutes` (string, parsed on submit), `notes`,
 `selectedStationIds`, `isSubmitting`, `submitError` (inline `line-status-submit-error`, `role="alert"`;
-set on `ok: false`, a `GraphQLRequestError` (server message mirrored) or a submit-time guard; only a
-truthy `ok` closes and emits), `draftRestored`. `cancel-line-status-report` closes without
+set on `ok: false`, a `GraphQLRequestError` (server message mirrored), an HTTP error that
+`isRetryableSendFailure` rejects, or a submit-time guard; only a truthy `ok` closes and emits),
+`draftRestored`. `submit()` returns at once while a submit is in flight or the sheet is closed (the
+Submit button keeps focus while the sheet slides out). `cancel-line-status-report` closes without
 submitting. `lineId` is computed from the input or the service. `stationsResource` is a lazy
 `graphqlResource`, inert until the sheet is open on a known line (`STATION_LINES_QUERY`, reused from
 spotting).
@@ -582,10 +586,15 @@ spotting).
   same `_wasOpen` latch.
 - **Saved draft (per line, `sessionStorage`).** A second effect, browser-only, saves
   `{ status, delayMinutes, notes, stationIds }` under `lineStatusDraftKey(lineId)`
-  (`rosak:line-status-draft:v1:<lineId>`, `line-status-draft.util.ts`) while the sheet is open. It
+  (`rosak:draft:line-status:v1:<lineId>`, `line-status-draft.util.ts`) while the sheet is open. It
   is gated on `_draftLineId`/`_draftBaseline`, which only the open edge sets, so it can never write
   over a saved draft before the open edge has read it. A blank draft, or an untouched one that was not
-  restored (a chooser preset alone), is removed instead of saved. The close edge resets memory only,
+  restored (a chooser preset alone), is not saved, and is removed only by the open that restored or
+  wrote it. The draft belongs to an account: `AuthService` removes every `rosak:draft:` key when a
+  different account, or nobody, is signed in (`claimSessionDrafts`, `core/util/web-storage.util.ts`),
+  and the open edge reads through `readSessionDraft`, which hides a draft saved for another account
+  until the page knows who is signed in. A draft saved while signed out survives the sign-in. The
+  close edge resets memory only,
   so an accidental close or a reload loses nothing: the next open on THAT line restores it and shows
   `line-status-draft-restored` ("Draft restored." + `line-status-draft-discard`). The line sits BELOW
   the status chips because the sheet's focus trap takes the first control on open. Discard moves focus
@@ -593,13 +602,15 @@ spotting).
   submit forgets it too. `parseLineStatusDraft` returns `null` for unknown, malformed or blank storage
   and never throws.
 - 🔴 **Outbox: a report the server cannot take is queued, not lost.** Offline at Submit
-  (`OnlineService.isOnline()` false: nothing is tried), or a failure that is NOT a
-  `GraphQLRequestError` (the request never completed: lie-fi, a 5xx, a token refresh that could not
-  reach Firebase), hands `{ lineId, status, stationIds, delayMinutes, notes }` to
+  (`OnlineService.isOnline()` false: nothing is tried), or a failure that `isRetryableSendFailure`
+  (`core/offline/`) accepts (a status-0 `HttpErrorResponse` from lie-fi or the 15 s request timeout,
+  502/503/504, a token refresh that could not reach Firebase), hands
+  `{ lineId, status, stationIds, delayMinutes, notes }` and the line's `statusWindowMinutes` to
   `ReportOutboxService.enqueue()`, toasts **"Saved" / "It will send when you're back online."**, records
   the line like a sent report, forgets the saved draft and closes the sheet without emitting
-  `submitted`. The transport error is still rethrown to Sentry. A `GraphQLRequestError` or `ok: false`
-  keeps the old inline path (the server answered).
+  `submitted`. The error is still rethrown to Sentry. A `GraphQLRequestError`, `ok: false` or any
+  other HTTP error keeps the inline path with the draft (the server answered), and the HTTP error is
+  rethrown too.
 - `line-status-outbox-note` says what Submit will do while offline, or that this line already has a
   report waiting (`ReportOutboxService.hasQueued`, this account only). Its `app-info-popover`
   (`line-status-outbox-popover`) carries `metricTooltip("line-status.queued-report-expiry")`.
@@ -1315,7 +1326,8 @@ hourly and the header says so).
 - **`LineStatusSheetService`** — any card or page opens the report sheet with `openFor(lineId)`, or
   `openFor(lineId, { presetStatus })` when it already knows the condition, without wiring the sheet.
 - **`submitLineStatusReport()` + `ReportOutboxService`** — a new way to file a status report sends
-  through `submitLineStatusReport` and, on a transport failure, calls `outbox.enqueue()`; the route's
+  through `submitLineStatusReport` and, on a failure `isRetryableSendFailure` accepts, calls
+  `outbox.enqueue(report, line.statusWindowMinutes)`; the route's
   `provideReportOutboxFlush()` already sends what is queued. The outbox is status-report shaped
   (`QueuedLineStatusReport`); another report kind needs its own entry type and sender, not a
   generalised queue.
@@ -1358,7 +1370,7 @@ hourly and the header says so).
   `line-status.operator-family` (family chips), `line-pulse.vehicle-count` (vehicle chips),
   `status-confidence.official|confirmed|unconfirmed|none` (confidence chip),
   `line-status.queued-report-expiry` (the status sheet's outbox line;
-  `REPORT_OUTBOX_MAX_AGE_MINUTES` lives in `METHODOLOGY_CONSTANTS`, pinned against the outbox's own
+  `REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES` lives in `METHODOLOGY_CONSTANTS`, pinned against the outbox's own
   constant in `report-outbox.service.spec.ts`). `network.severity-order` is
   reachable only through `/methodology`. When a documented value changes, bump the owning section's
   `lastReviewed` (history widgets: `REVIEWED_AT_HISTORY_WIDGETS` in `methodology.content.ts`; see
