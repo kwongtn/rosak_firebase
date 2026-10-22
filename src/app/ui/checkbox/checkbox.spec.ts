@@ -93,11 +93,13 @@ describe("HlmCheckbox", () => {
       expect(isChecked(fixture)).toBe(false);
     });
 
-    it("follows [disabled] and ignores a click while disabled", async () => {
+    it("follows [disabled]: a disabled control is inert", async () => {
       fixture.componentInstance.disabled.set(true);
       await fixture.whenStable();
       expect(control(fixture).disabled).toBe(true);
 
+      // A natively disabled button dispatches no click, so this proves the attribute, not the
+      // `_handleChange` guard (defence in depth for a programmatic checkedChange).
       control(fixture).click();
       await fixture.whenStable();
 
