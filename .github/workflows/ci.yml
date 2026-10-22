@@ -197,6 +197,13 @@ jobs:
           NODE_ENV=production NG_ALLOWED_HOSTS=localhost PORT=4000 node dist/web/server/server.mjs &
           trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
 
+          # The mock must be up, or the SSR render would silently fall back to its error states.
+          for _ in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:4301/ && break
+            sleep 1
+          done
+          curl -sf -o /dev/null http://localhost:4301/ || { echo "Mock GraphQL server did not start"; exit 1; }
+
           for _ in $(seq 1 30); do
             curl -sf -o /dev/null http://localhost:4000/about && break
             sleep 1
