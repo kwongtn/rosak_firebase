@@ -1,5 +1,4 @@
 import { inject } from "@angular/core";
-import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
@@ -36,7 +35,6 @@ import type { LinksTree } from "./links-tree";
  */
 export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
   const graphql = inject(GraphQLClient);
-  const auth = inject(AuthService);
   const toast = inject(ToastService);
 
   /** Start a NEW conversation from the ticked rows.
@@ -130,8 +128,7 @@ export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
   }
 
   /** The one call both group verbs make, so the tri-state `parentId` spelling, the
-   *  auth header, the reload and the all-or-nothing failure handling cannot drift
-   *  between them.
+   *  reload and the all-or-nothing failure handling cannot drift between them.
    *
    *  `parentId === undefined` OMITS the key (start a new conversation); a string
    *  sends it (nest under that link). The two are not the same request, which is
@@ -149,11 +146,9 @@ export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
     }
     queue.isLoading.set(true);
     try {
-      const idToken = await auth.idToken();
       await graphql.request<GroupSocialMediaLinksData, GroupSocialMediaLinksVars>(
         GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
         vars,
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       toast.success(successTitle, successBody);
       await queue.fetchLinks();
@@ -185,11 +180,9 @@ export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
     }
     queue.isLoading.set(true);
     try {
-      const idToken = await auth.idToken();
       await graphql.request<UngroupSocialMediaLinksData, UngroupSocialMediaLinksVars>(
         UNGROUP_SOCIAL_MEDIA_LINKS_MUTATION,
         { linkIds: [link.id].filter(Boolean) },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       toast.success("Link removed from its parent", link.url);
       await queue.fetchLinks();
@@ -283,12 +276,10 @@ export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
     const linkIds = reordered.map((row) => row.id);
     queue.isLoading.set(true);
     try {
-      const idToken = await auth.idToken();
       await graphql.request<ReorderSocialMediaLinksData, ReorderSocialMediaLinksVars>(
         REORDER_SOCIAL_MEDIA_LINKS_MUTATION,
         // ALWAYS both keys — see the note above.
         { linkIds, parentId: link.parentId ?? null },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       toast.success("Sequence updated", `${linkIds.length} links reordered.`);
       await queue.fetchLinks();
@@ -462,11 +453,9 @@ export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
     link: SocialMediaLinkRow,
     status: SocialMediaLinkStatus,
   ): Promise<void> {
-    const idToken = await auth.idToken();
     await graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
       UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
       { socialMediaLinkId: link.id, input: linkStatusInput(link, status) },
-      idToken ? { "firebase-auth-key": idToken } : {},
     );
   }
 
@@ -474,11 +463,9 @@ export function injectLinksActions(queue: LinksQueue, tree: LinksTree) {
    *  `approveLink` needs the mutation WITHOUT the standalone action's reload, or
    *  approving would refetch twice. Rejects on failure. */
   async function sendMarkCompleted(link: SocialMediaLinkRow): Promise<void> {
-    const idToken = await auth.idToken();
     await graphql.request<MarkLinkCompletedData, MarkLinkCompletedVars>(
       MARK_LINK_COMPLETED_MUTATION,
       { linkId: link.id },
-      idToken ? { "firebase-auth-key": idToken } : {},
     );
   }
 

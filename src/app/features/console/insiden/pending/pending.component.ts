@@ -165,11 +165,10 @@ export class PendingIncidentsComponent {
     params: () => ({ search: this.appliedSearch() }),
     loader: async ({ params, abortSignal }) => {
       try {
-        const idToken = await this.auth.idToken();
         const data = await this.graphql.request<
           PendingIncidentsQueryData,
           PendingIncidentsQueryVars
-        >(PENDING_INCIDENTS_QUERY, params, idToken ? { "firebase-auth-key": idToken } : {});
+        >(PENDING_INCIDENTS_QUERY, params);
         return data.pendingCalendarIncidents;
       } catch (err) {
         // A read superseded by a newer search is discarded, so its failure is not the admin's.
@@ -434,11 +433,9 @@ export class PendingIncidentsComponent {
     this.isMutating.set(true);
     this.deletingChronologyId.set(variables.chronologyId);
     try {
-      const idToken = await this.auth.idToken();
       await this.graphql.request<ChronologyDeletionDecisionData, ChronologyDeletionDecisionVars>(
         mutation,
         variables,
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       const selectedId = this.selectedRow()?.id ?? null;
       this.selectedRow.update((row) => (row ? patchRow(row) : row));
@@ -699,7 +696,6 @@ export class PendingIncidentsComponent {
     try {
       const ok = await submit(this.incidentForm, async () => {
         const m = this.model();
-        const idToken = await this.auth.idToken();
         await this.graphql.request<UpdateCalendarIncidentData, UpdateCalendarIncidentVars>(
           UPDATE_CALENDAR_INCIDENT_MUTATION,
           {
@@ -721,7 +717,6 @@ export class PendingIncidentsComponent {
               chronologies: chronologyInputs(this.chronologies()),
             },
           },
-          idToken ? { "firebase-auth-key": idToken } : {},
         );
         return [];
       });
@@ -767,12 +762,7 @@ export class PendingIncidentsComponent {
   ): Promise<boolean> {
     this.isMutating.set(true);
     try {
-      const idToken = await this.auth.idToken();
-      await this.graphql.request<IncidentMutationData, typeof variables>(
-        mutation,
-        variables,
-        idToken ? { "firebase-auth-key": idToken } : {},
-      );
+      await this.graphql.request<IncidentMutationData, typeof variables>(mutation, variables);
       return true;
     } catch (err) {
       this.toast.error("Action failed", err instanceof Error ? err.message : "Unknown error");

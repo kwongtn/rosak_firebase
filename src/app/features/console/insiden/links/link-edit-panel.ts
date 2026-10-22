@@ -1,5 +1,4 @@
 import { computed, inject, signal, type WritableSignal } from "@angular/core";
-import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
@@ -36,7 +35,6 @@ export function injectLinkEditPanel(
   referenceData: () => ReferenceData,
 ) {
   const graphql = inject(GraphQLClient);
-  const auth = inject(AuthService);
   const toast = inject(ToastService);
 
   const selectedLink = signal<SocialMediaLinkRow | null>(null);
@@ -120,7 +118,6 @@ export function injectLinkEditPanel(
     }
     isSaving.set(true);
     try {
-      const idToken = await auth.idToken();
       await graphql.request<UpdateSocialMediaLinkData, UpdateSocialMediaLinkVars>(
         UPDATE_SOCIAL_MEDIA_LINK_MUTATION,
         {
@@ -149,7 +146,6 @@ export function injectLinkEditPanel(
             occurredAt: occurredAtInputToIso(editOccurredAt()),
           },
         },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       const updated = buildUpdatedLink(link);
       links.update((list) =>
@@ -265,11 +261,9 @@ export function injectLinkEditPanel(
     }
     isDeleting.set(true);
     try {
-      const idToken = await auth.idToken();
       await graphql.request<DeleteSocialMediaLinkData, DeleteSocialMediaLinkVars>(
         DELETE_SOCIAL_MEDIA_LINK_MUTATION,
         { linkId: link.id },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       links.update((list) => list.filter((existing) => existing.id !== link.id));
       if (selectedLink()?.id === link.id) {

@@ -1078,9 +1078,11 @@ describe("SocialMediaLinksComponent", () => {
       input: { status: "LIVE" },
     });
     // 🔴 Unhiding is a FEED decision, not a "handled it" gesture: unlike Approve it
-    // must never retire the row from the queue.
+    // must never retire the row from the queue. The reload follows the update's answer.
+    await vi.waitFor(() =>
+      expect(operationSequence()).toEqual(["UpdateSocialMediaLink", "ConsoleSocialMediaLinks"]),
+    );
     expect(completeCalls()).toHaveLength(0);
-    expect(operationSequence()).toEqual(["UpdateSocialMediaLink", "ConsoleSocialMediaLinks"]);
   });
 
   it("toasts when the unhide mutation fails and leaves the list alone", async () => {

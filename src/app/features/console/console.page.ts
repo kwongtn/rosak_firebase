@@ -4,7 +4,6 @@ import { RouterLink } from "@angular/router";
 import { firstValueFrom } from "rxjs";
 import { ReCaptchaV3Service } from "ng-recaptcha-2";
 import { GraphQLClient } from "../../core/graphql/graphql-client";
-import { AuthService } from "../../core/auth/auth.service";
 import { ToastService } from "../../ui/toast/toast.service";
 import { HlmButton } from "../../ui/button/button";
 import { HlmInput } from "../../ui/input/input";
@@ -117,7 +116,6 @@ function emptyFilterForm(): FilterFormModel {
 })
 export class ConsolePage {
   private readonly graphql = inject(GraphQLClient);
-  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly recaptcha = inject(ReCaptchaV3Service);
   protected readonly vehicleLinesLabel = vehicleLinesLabel;
@@ -231,17 +229,11 @@ export class ConsolePage {
     }
     this.isLoading.set(true);
     try {
-      const [recaptchaToken, idToken] = await Promise.all([
-        firstValueFrom(this.recaptcha.execute("markAsRead")),
-        this.auth.idToken(),
-      ]);
+      const recaptchaToken = await firstValueFrom(this.recaptcha.execute("markAsRead"));
       const data = await this.graphql.request<MarkAsReadData, MarkAsReadVars>(
         MARK_AS_READ_MUTATION,
         { input: { eventIds: ids } },
-        {
-          "g-recaptcha-response": recaptchaToken,
-          ...(idToken ? { "firebase-auth-key": idToken } : {}),
-        },
+        { "g-recaptcha-response": recaptchaToken },
       );
       if (data.markAsRead.ok) {
         this.events.update((list) => list.filter((e) => !ids.includes(e.id)));
@@ -271,7 +263,6 @@ export class ConsolePage {
     this.bulkActions.resetAnchor();
     this.isLoading.set(true);
     try {
-      const idToken = await this.auth.idToken();
       const data = await this.graphql.request<ConsoleEventsQueryData, ConsoleEventsQueryVars>(
         CONSOLE_EVENTS_QUERY,
         {
@@ -279,7 +270,6 @@ export class ConsolePage {
           eventPagination: { limit: PAGE_SIZE, offset: this.events().length },
           eventOrder: { created: "DESC" },
         },
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       this.events.update((list) => [...list, ...data.events]);
       this.totalCount.set(data.eventsCount);

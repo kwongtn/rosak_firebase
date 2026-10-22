@@ -1,5 +1,4 @@
 import { inject, signal } from "@angular/core";
-import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
@@ -30,7 +29,6 @@ import {
  */
 export function injectLinksQueue() {
   const graphql = inject(GraphQLClient);
-  const auth = inject(AuthService);
   const toast = inject(ToastService);
   /** One trailing debounce serves search AND the filter controls — last change wins. */
   const queueDebouncer = createTrailingDebounce(SEARCH_DEBOUNCE_MS);
@@ -320,12 +318,10 @@ export function injectLinksQueue() {
     const snapshot = applied;
     const isComplete = appliedFiltersAreUnfiltered(snapshot);
     try {
-      const idToken = await auth.idToken();
       const vars = queueQueryVars(snapshot);
       const data = await graphql.request<SocialMediaLinksQueryData, SocialMediaLinksQueryVars>(
         SOCIAL_MEDIA_LINKS_QUERY,
         vars,
-        idToken ? { "firebase-auth-key": idToken } : {},
       );
       links.set(data.socialMediaLinks);
       // The CAPTURED answer, not a fresh read — see the note above. Written only on

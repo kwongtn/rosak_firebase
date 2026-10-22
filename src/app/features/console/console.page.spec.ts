@@ -396,10 +396,8 @@ describe("ConsolePage selection UX", () => {
       (c[0] as string).includes("mutation MarkAsRead"),
     );
     expect(call?.[1]).toEqual({ input: { eventIds: ["e1", "e3"] } });
-    expect(call?.[2]).toEqual({
-      "g-recaptcha-response": "recaptcha-token",
-      "firebase-auth-key": "token",
-    });
+    // The token is the auth interceptor's; the call carries the captcha only.
+    expect(call?.[2]).toEqual({ "g-recaptcha-response": "recaptcha-token" });
     expect(recaptchaMock).toHaveBeenCalledWith("markAsRead");
 
     await vi.waitFor(() => expect(rows()).toHaveLength(1));
