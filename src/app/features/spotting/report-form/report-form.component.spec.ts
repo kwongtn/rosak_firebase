@@ -310,6 +310,17 @@ describe("ReportFormComponent", () => {
       );
     });
 
+    it("keeps the photo count of a restored draft through the next edit", async () => {
+      saveDraft({ notes: "With photos" }, 2);
+      sheet.open();
+      await settle();
+
+      component().model.update((m) => ({ ...m, notes: "With photos, and a note" }));
+      await settle();
+
+      expect(savedDraft()).toMatchObject({ notes: "With photos, and a note", photoCount: 2 });
+    });
+
     it("leaves a draft for another line saved when a line-seeded open is for a different line", async () => {
       saveDraft({ lineId: "7", notes: "For line 7" });
 

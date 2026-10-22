@@ -278,7 +278,9 @@ export class ReportFormComponent {
     // run in, nothing is written over a saved draft before the open edge has read it.
     effect(() => {
       const model = this.model();
-      const photoCount = this.photos().length;
+      // A restored draft keeps its photo count until the form resets, though the files are gone, so
+      // a reload after an edit still asks for the photos again.
+      const photoCount = Math.max(this.restoredPhotoCount(), this.photos().length);
       const restored = this.draftRestored();
       const baseline = this._draftBaseline;
       if (!this.isBrowser || !this.reportSheet.isOpen() || baseline === null) {
