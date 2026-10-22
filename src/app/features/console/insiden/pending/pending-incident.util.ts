@@ -3,7 +3,10 @@ import type {
   CalendarIncident,
   CalendarIncidentSeverity,
 } from "../../../insiden/data/insiden.queries";
-import type { ChronologyDraft } from "../../../insiden/incident-form/chronology-list.util";
+import {
+  chronologyInputs,
+  type ChronologyDraft,
+} from "../../../insiden/incident-form/chronology-list.util";
 import type { IncidentFormModel } from "../../../insiden/incident-form/incident-form.schema";
 import type { ExtractedIncidentData } from "../../../insiden/data/incident-ai.service";
 import type { PendingIncident } from "../data/insiden-console.queries";
@@ -130,12 +133,14 @@ export function buildUpdatedIncidentRow(args: {
     categories: resolve(args.selectedCategoryIds, args.row.categories, (id) =>
       args.categoriesById.get(id),
     ),
-    chronologies: args.chronologies.map((chronology, index) => ({
+    // The rows the save sent (`chronologyInputs`: blank rows dropped, text trimmed), so the
+    // local row matches what the backend stored.
+    chronologies: chronologyInputs(args.chronologies).map((chronology, index) => ({
       order: index,
       indicator: chronology.indicator,
-      datetime: chronology.datetime ? new Date(chronology.datetime).toISOString() : "",
-      content: chronology.content || "",
-      sourceUrl: chronology.sourceUrl || null,
+      datetime: chronology.datetime ?? "",
+      content: chronology.content ?? "",
+      sourceUrl: chronology.sourceUrl,
     })),
   };
 }

@@ -190,6 +190,44 @@ describe("pending-incident.util", () => {
     ]);
   });
 
+  it("buildUpdatedIncidentRow keeps only the chronology rows a save sends, trimmed", () => {
+    const updated = buildUpdatedIncidentRow({
+      row: makeRow(),
+      model: makeModel(),
+      impactFactor: 0,
+      chronologies: [
+        {
+          key: 1,
+          indicator: "GREEN",
+          datetime: "",
+          sourceUrl: " ",
+          content: "  ",
+          collapsed: false,
+        },
+        {
+          key: 2,
+          indicator: "RED",
+          datetime: "",
+          sourceUrl: " https://x.com/a ",
+          content: " Halt ",
+          collapsed: false,
+        },
+      ],
+      selectedLineIds: [],
+      selectedVehicleIds: [],
+      selectedStationIds: [],
+      selectedCategoryIds: [],
+      linesById: new Map(),
+      vehiclesById: new Map(),
+      stationsById: new Map(),
+      categoriesById: new Map(),
+    });
+
+    expect(updated.chronologies).toEqual([
+      { order: 0, indicator: "RED", datetime: "", content: "Halt", sourceUrl: "https://x.com/a" },
+    ]);
+  });
+
   it("buildUpdatedIncidentRow falls back to the row's own objects when reference data is missing", () => {
     const existing = { id: "l1", code: "OLD", displayName: "Old line" };
     const row = makeRow({ lines: [existing] });

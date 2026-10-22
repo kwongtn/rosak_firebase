@@ -559,6 +559,37 @@ describe("PendingIncidentsComponent", () => {
     expect(component.selectedRow()?.title).toBe("Fixed title");
   });
 
+  it("savePanelEdit sends the chronology rows the public form would: blank ones dropped, text trimmed", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+    requestMock.mockResolvedValue({ updateCalendarIncident: { ok: true } });
+
+    const component = asTestable(fixture);
+    const row = makeRow();
+    component.rows.set([row]);
+    component.openDetail(row);
+    component.chronologies.set([
+      { key: 1, indicator: "GREEN", datetime: "", sourceUrl: "", content: " ", collapsed: false },
+      {
+        key: 2,
+        indicator: "RED",
+        datetime: "",
+        sourceUrl: " https://x.com/a ",
+        content: " Halt ",
+        collapsed: false,
+      },
+    ]);
+    await component.savePanelEdit();
+
+    const [, vars] = callsFor("updateCalendarIncident")[0];
+    expect((vars["input"] as { chronologies: unknown }).chronologies).toEqual([
+      { indicator: "RED", datetime: null, sourceUrl: "https://x.com/a", content: "Halt" },
+    ]);
+    expect(component.rows()[0].chronologies).toEqual([
+      { order: 0, indicator: "RED", datetime: "", content: "Halt", sourceUrl: "https://x.com/a" },
+    ]);
+  });
+
   it("savePanelEdit refuses to fire while the form is invalid", async () => {
     await initialLoadsSettled(asTestable(fixture));
     requestMock.mockClear();

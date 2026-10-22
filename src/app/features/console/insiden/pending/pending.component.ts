@@ -27,6 +27,7 @@ import {
 } from "../../../insiden/data/incident-ai.service";
 import { IncidentCardComponent } from "../../../insiden/incident-card/incident-card.component";
 import {
+  chronologyInputs,
   emptyChronology,
   moveChronology,
   removeChronology,
@@ -652,12 +653,7 @@ export class PendingIncidentsComponent {
               vehicleIds: this.selectedVehicleIds(),
               stationIds: this.selectedStationIds(),
               categoryIds: this.selectedCategoryIds(),
-              chronologies: this.chronologies().map((chronology) => ({
-                indicator: chronology.indicator,
-                datetime: chronology.datetime ? new Date(chronology.datetime).toISOString() : null,
-                sourceUrl: chronology.sourceUrl || null,
-                content: chronology.content || null,
-              })),
+              chronologies: chronologyInputs(this.chronologies()),
             },
           },
           idToken ? { "firebase-auth-key": idToken } : {},
