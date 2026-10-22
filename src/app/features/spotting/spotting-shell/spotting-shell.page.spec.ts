@@ -8,10 +8,11 @@ import {
 } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { ImageCompressionService } from "../../../core/upload/image-compression.service";
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import { AppFooterComponent } from "../../../shell/app-footer/app-footer.component";
 import { AppNavComponent } from "../../../shell/app-nav/app-nav.component";
@@ -19,6 +20,7 @@ import { AdSlotComponent } from "../../../ui/ad-slot/ad-slot.component";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { ReportSheetService } from "../data/report-sheet.service";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
+import { PhotoPickerComponent } from "../report-form/photo-picker/photo-picker.component";
 import { ReportFormComponent } from "../report-form/report-form.component";
 import { SpottingShellPage } from "./spotting-shell.page";
 
@@ -39,6 +41,7 @@ async function configureShell(deferBlockBehavior?: DeferBlockBehavior): Promise<
       provideRouter([]),
       { provide: SpottingLinesStore, useValue: { lines: signal([]) } },
       { provide: ImageUploadService, useValue: { addToQueue: vi.fn() } },
+      { provide: ImageCompressionService, useValue: { resizeToSize: vi.fn() } },
       {
         provide: AuthService,
         useValue: {
@@ -109,6 +112,8 @@ describe("SpottingShellPage report sheet", () => {
 
   afterEach(() => {
     httpMock.verify();
+    // A picked photo makes the form save a draft, which a later test's open would restore.
+    sessionStorage.clear();
   });
 
   it("creates no report form, and so no fleet-wide read, while the sheet stays closed", () => {
@@ -136,6 +141,38 @@ describe("SpottingShellPage report sheet", () => {
 
     expect(submit).toHaveBeenCalledTimes(1);
     expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds Submit back while a picked photo is still being compressed", async () => {
+    // Spied and restored, never deleted: later spec files in this worker share this `URL`.
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    onTestFinished(() => {
+      createObjectURL.mockRestore();
+      revokeObjectURL.mockRestore();
+    });
+    let finish!: (file: File) => void;
+    vi.mocked(TestBed.inject(ImageCompressionService).resizeToSize).mockReturnValue(
+      new Promise<File>((resolve) => (finish = resolve)),
+    );
+    sheet.open();
+    await settleOpenedSheet();
+    const picker = fixture.debugElement.query(By.directive(PhotoPickerComponent));
+    const big = new File([new Uint8Array(9_000_001)], "big.jpg", { type: "image/jpeg" });
+
+    const picking = (
+      picker.componentInstance as { _onFilesPicked(event: Event): Promise<void> }
+    )._onFilesPicked({ target: { files: [big], value: "picked" } } as unknown as Event);
+    await fixture.whenStable();
+
+    // A photo queued before its compression settles is never uploaded (PhotoPickerComponent).
+    expect(footerButton(fixture, "Processing photos…").disabled).toBe(true);
+
+    finish(new File([new Uint8Array(8)], "big.jpg", { type: "image/jpeg" }));
+    await picking;
+    await fixture.whenStable();
+
+    expect(footerButton(fixture, "Submit").disabled).toBe(false);
   });
 
   it("hands the form a line chosen before the form existed, once, and does not keep it", async () => {

@@ -1,4 +1,4 @@
-import { Component, computed, inject, model, signal } from "@angular/core";
+import { Component, computed, effect, inject, model, signal } from "@angular/core";
 import { HlmButton } from "../../../../ui/button/button";
 import { ImageCompressionService } from "../../../../core/upload/image-compression.service";
 import { ImageFile } from "../../../../core/upload/image-file";
@@ -61,6 +61,25 @@ export class PhotoPickerComponent {
    * exact object's `isCompressed` flag, not whatever `files()` says now. */
   private readonly _compressingCount = signal(0);
   readonly isCompressing = computed(() => this._compressingCount() > 0);
+
+  constructor() {
+    // Each preview URL pins the original, full-size file in memory until it is revoked, so revoke
+    // it when its photo leaves the list: removed here, or the host reset its form (the report sheet
+    // closing, Clear form, a submit). shortcut: a photo still listed when the picker is destroyed
+    // keeps its URL, because a host can re-create the picker over the same list (incident-card's
+    // collapsible photo section); revoke in a host that drops such a list after the picker is gone.
+    let listed: ImageFile[] = [];
+    effect(() => {
+      const next = this.files();
+      const kept = new Set(next.map((image) => image.previewUrl));
+      for (const image of listed) {
+        if (image.previewUrl && !kept.has(image.previewUrl)) {
+          URL.revokeObjectURL(image.previewUrl);
+        }
+      }
+      listed = next;
+    });
+  }
 
   protected async _onFilesPicked(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;

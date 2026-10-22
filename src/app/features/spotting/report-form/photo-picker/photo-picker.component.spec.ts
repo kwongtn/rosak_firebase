@@ -1,8 +1,9 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageCompressionService } from "../../../../core/upload/image-compression.service";
+import type { ImageFile } from "../../../../core/upload/image-file";
 import { PhotoPickerComponent } from "./photo-picker.component";
 
 const JPEG = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01];
@@ -20,9 +21,16 @@ function photo(name: string, type: string, bytes: number[]): File {
   return new File([new Uint8Array(bytes)], name, { type });
 }
 
+/** Over the picker's 9 MB limit, so it is compressed before upload. */
+function bigPhoto(name: string): File {
+  return new File([new Uint8Array(9_000_001)], name, { type: "image/jpeg" });
+}
+
 describe("PhotoPickerComponent", () => {
+  let fixture: ComponentFixture<PhotoPickerComponent>;
   let component: PhotoPickerComponent;
   let createObjectURL: MockInstance<typeof URL.createObjectURL>;
+  let revokeObjectURL: MockInstance<typeof URL.revokeObjectURL>;
   let resizeToSize: ReturnType<typeof vi.fn>;
 
   /** Runs the picker's change handler on these files, as the browser does after a file dialog. */
@@ -33,10 +41,17 @@ describe("PhotoPickerComponent", () => {
     );
   }
 
+  /** Runs the picker's remove button handler, then its effects. */
+  function remove(image: ImageFile): void {
+    (component as unknown as { _remove(image: ImageFile): void })._remove(image);
+    fixture.detectChanges();
+  }
+
   beforeEach(() => {
     // The picker only needs a string for each preview. Spied and restored, never deleted: later spec
     // files in this worker share this `URL` (see "Unit-test isolation" in docs/COMPONENTS.md).
     createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+    revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     resizeToSize = vi.fn();
     TestBed.configureTestingModule({
       providers: [
@@ -44,7 +59,9 @@ describe("PhotoPickerComponent", () => {
         { provide: ImageCompressionService, useValue: { resizeToSize } },
       ],
     });
-    component = TestBed.createComponent(PhotoPickerComponent).componentInstance;
+    fixture = TestBed.createComponent(PhotoPickerComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
   afterEach(() => {
@@ -85,5 +102,81 @@ describe("PhotoPickerComponent", () => {
       { file: big, previewUrl: "blob:preview", toCompress: false, isCompressed: false },
     ]);
     expect(component.isCompressing()).toBe(false);
+  });
+
+  it("reports compressing until a big photo is compressed, then lists the compressed file", async () => {
+    let finish!: (file: File) => void;
+    resizeToSize.mockReturnValue(new Promise<File>((resolve) => (finish = resolve)));
+    const big = bigPhoto("IMG_0005.jpg");
+
+    const picking = pick(big);
+
+    expect(component.isCompressing()).toBe(true);
+    expect(component.files()).toEqual([
+      { file: big, previewUrl: "blob:preview", toCompress: true, isCompressed: false },
+    ]);
+
+    const small = photo("IMG_0005.jpg", "image/jpeg", JPEG);
+    finish(small);
+    await picking;
+
+    expect(component.isCompressing()).toBe(false);
+    expect(component.files()).toEqual([
+      { file: small, previewUrl: "blob:preview", toCompress: true, isCompressed: true },
+    ]);
+    // The compressed entry keeps the preview URL it was listed with, so it is not revoked.
+    fixture.detectChanges();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("stays compressing while any photo is still being compressed", async () => {
+    const finishers: Array<(file: File) => void> = [];
+    resizeToSize.mockImplementation(() => new Promise<File>((resolve) => finishers.push(resolve)));
+
+    const picking = pick(bigPhoto("a.jpg"), bigPhoto("b.jpg"));
+    expect(component.isCompressing()).toBe(true);
+
+    finishers[0](photo("a.jpg", "image/jpeg", JPEG));
+    await vi.waitFor(() => expect(finishers).toHaveLength(2));
+    expect(component.isCompressing()).toBe(true);
+
+    finishers[1](photo("b.jpg", "image/jpeg", JPEG));
+    await picking;
+    expect(component.isCompressing()).toBe(false);
+  });
+
+  describe("preview URLs", () => {
+    beforeEach(() => {
+      createObjectURL.mockImplementation((file) => `blob:${(file as File).name}`);
+    });
+
+    it("revokes a removed photo's preview URL, and only that one", async () => {
+      await pick(photo("a.jpg", "image/jpeg", JPEG), photo("b.jpg", "image/jpeg", JPEG));
+      fixture.detectChanges();
+
+      remove(component.files()[0]);
+
+      expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:a.jpg");
+      expect(component.files().map((image) => image.previewUrl)).toEqual(["blob:b.jpg"]);
+    });
+
+    it("revokes every preview URL when the host empties the list (the sheet closing)", async () => {
+      await pick(photo("a.jpg", "image/jpeg", JPEG), photo("b.jpg", "image/jpeg", JPEG));
+      fixture.detectChanges();
+
+      component.files.set([]);
+      fixture.detectChanges();
+
+      expect(revokeObjectURL.mock.calls).toEqual([["blob:a.jpg"], ["blob:b.jpg"]]);
+    });
+
+    it("leaves the URLs of a list it was created over alone when it is destroyed", async () => {
+      await pick(photo("a.jpg", "image/jpeg", JPEG));
+      fixture.detectChanges();
+
+      fixture.destroy();
+
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+    });
   });
 });
