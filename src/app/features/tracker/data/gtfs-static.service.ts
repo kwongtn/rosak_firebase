@@ -92,7 +92,7 @@ export class GtfsStaticService {
 
   private async fetchAndLoad(source: StaticSource, url: string): Promise<void> {
     try {
-      // Routed through our own server (see server.ts's /api/gtfs-proxy) — api.data.gov.my
+      // Routed through our own server (see server-gtfs-proxy.ts's /api/gtfs-proxy handler) — api.data.gov.my
       // redirects to an S3 bucket that sends no CORS headers at all, so a direct browser
       // fetch is blocked outright regardless of how it's made; a server-to-server fetch
       // isn't subject to that browser-side restriction.

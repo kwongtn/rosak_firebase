@@ -12,7 +12,7 @@ import type { Request, Response as ExpressResponse } from "express";
  */
 const GTFS_PROXY_ALLOWED_HOST = "api.data.gov.my";
 
-/** Bounds a slow upstream so one stalled download cannot hold a request open indefinitely. */
+/** Caps how long a slow upstream can hold a request open (undici's own headers timeout is ~5 min, so this is tighter, not a fix for an infinite hang). */
 export const GTFS_UPSTREAM_TIMEOUT_MS = 15_000;
 
 /** Each StaticSource loads once per tab, and the static feed changes slowly, so an hour is safe. */
