@@ -73,29 +73,8 @@ import {
   isoToOccurredAtInput,
   occurredAtInputToIso,
 } from "../../../insiden/data/link-occurred-at.util";
-import {
-  areAllSelected,
-  canGroup,
-  canNest,
-  selectedWithin,
-  threadLabel,
-  toggleSelection,
-} from "../../../insiden/data/link-thread-selection.util";
-import {
-  DEPTH_INDENT_PX,
-  canMoveDown,
-  canMoveUp,
-  canNestUnder,
-  childCountOf,
-  computeDepths,
-  depthRailsFor,
-  groupRunsByParentId,
-  moveBlockedReason,
-  nestBlockedReason,
-  renderedLinksOf,
-  runOrderIsKnown,
-  siblingsOf,
-} from "./link-tree.util";
+import { canGroup, canNest, threadLabel } from "../../../insiden/data/link-thread-selection.util";
+import { runOrderIsKnown, siblingsOf } from "./link-tree.util";
 import {
   GROUP_SOCIAL_MEDIA_LINKS_MUTATION,
   GroupSocialMediaLinksData,
@@ -108,6 +87,7 @@ import {
   UngroupSocialMediaLinksVars,
 } from "../../../insiden/data/social-links.queries";
 import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
+import { useLinksTree } from "./links-tree";
 
 /**
  * /console/links — triage queue for crowd-submitted social media
@@ -365,64 +345,6 @@ export class SocialMediaLinksComponent {
 
   protected readonly selectedLink = signal<SocialMediaLinkRow | null>(null);
 
-  /** Rows ticked for the group action. Built ONLY through `toggleSelection` from
-   *  `link-thread-selection.util.ts` and never by concatenation, because that
-   *  module's contract is what makes this safe to feed straight back into a
-   *  signal: every helper returns a NEW array, and a duplicate id (or a blank
-   *  one) is a hard rejection server-side (`[ID!]!` plus an explicit repeat
-   *  check).
-   *
-   *  The selection deliberately SURVIVES a refetch — narrowing a filter is not an
-   *  intent to forget — so every mutation scopes it to `visibleLinkIds` before
-   *  sending. Without that, ticking three rows, narrowing the search and hitting
-   *  Group would post ids the admin can no longer see, and the all-or-nothing
-   *  rejection would read as a plain "grouping failed". */
-  protected readonly selectedIds = signal<string[]>([]);
-
-  /** Every LOADED row's id, collapsed children included — the scope of every
-   *  grouping mutation. 🔴 NOT the rendered set: see the accordion note in the
-   *  class docstring. Collapsing a conversation is a view gesture, and a mutation
-   *  scoped to what happens to be open would quietly drop the admin's own ticks. */
-  protected readonly visibleLinkIds = computed(() => this.links().map((link) => link.id));
-
-  protected readonly selectedCount = computed(() => this.selectedIds().length);
-
-  /** At least TWO links. Delegated to `canGroup` rather than re-derived, so the
-   *  "a one-link thread is a no-op that renders as a thread" rule lives in
-   *  exactly one place — the one the profile surface's grouping UI also reads. */
-  protected readonly canGroupSelection = computed(() => canGroup(this.selectedIds()));
-
-  /** Is there any payload at all to nest? ONE tick is enough (see `canNest`), and
-   *  this is the ROW-BUTTON's gate rather than the per-row one.
-   *
-   *  🔴 WHY THE PER-ROW BUTTON IS DRAWN ONLY PAST THIS POINT, while the toolbar's
-   *  "Group into thread" stays permanently visible and merely disabled. Two
-   *  buttons that are dead on every row of an untouched queue are read as broken,
-   *  not as unavailable — and nesting is the one tree-building verb an admin uses
-   *  on a SINGLE link, so it is the one that has to look ready. The toolbar hint
-   *  already spells out the gate ("Tick a link to nest it under another"), so the
-   *  affordance appears with the first tick and the discovery cost is the one
-   *  sentence already on screen.
-   *
-   *  `canNestUnder` (per row) stays the authority on whether a PARTICULAR row can
-   *  be the target: a row inside the selection is a cycle the server rejects
-   *  wholesale, so once a selection exists the button is drawn there too — disabled,
-   *  with that reason on hover. Hidden-until-ticked is not hidden-forever-disabled. */
-  protected readonly nestSelectionReady = computed(() => canNest(this.selectedIds()));
-
-  /** The rows the ACCORDION is currently showing — `links()` minus every row
-   *  whose loaded ancestors are all collapsed. This is what Select-all and the
-   *  header's checked state read, so a closed conversation is never half-ticked
-   *  from under the admin; see the class docstring for why the MUTATIONS still
-   *  scope to `visibleLinkIds`. */
-  protected readonly renderedLinkIds = computed(() => this.renderedLinks().map((link) => link.id));
-
-  /** Drives the header Select-all checkbox. False over an empty page on purpose
-   *  (see `areAllSelected`). */
-  protected readonly allVisibleSelected = computed(() =>
-    areAllSelected(this.selectedIds(), this.renderedLinkIds()),
-  );
-
   /** Typed `$event.target.value` for the edit panel's inputs (no `$any` in a template). */
   protected readonly eventValue = eventValue;
 
@@ -437,25 +359,6 @@ export class SocialMediaLinksComponent {
    *  lives in `same-minute.util.ts`, so its NaN guard and truncation rule cannot
    *  be re-invented inline in a template binding. */
   protected readonly isSameMinute = isSameMinute;
-
-  /* ---- Icon-only row verbs: the hover copy ------------------------------- */
-
-  /** 🔴 THE HOVER/AT HELP COPY, DECLARED ONCE EACH, and that is the whole point of
-   *  this block. The three tree verbs are icon-only buttons (see the action cell),
-   *  so a label can no longer be read off the button's own text: an icon has to
-   *  carry its meaning in `aria-label` AND `title`, and those two are set from the
-   *  SAME field precisely so a screen reader and a mouse user cannot be told
-   *  different things by a copy change. Literal strings in the template would drift
-   *  the moment one of the two was edited.
-   *
-   *  Each is the `?? ` FALLBACK of its button's title — what the tooltip says when
-   *  the action is AVAILABLE. The blocked case is the other branch of the same
-   *  binding and it stays a `null`-returning method (`moveBlockedReason`,
-   *  `nestBlockedReason`), because the reason is per ROW and per QUEUE STATE while
-   *  this is constant. */
-  protected readonly moveUpHelp = "Move this link one place earlier in the conversation.";
-  protected readonly moveDownHelp = "Move this link one place later in the conversation.";
-  protected readonly nestHelp = "Nest the ticked links under this one.";
 
   /* ---- Hierarchy: depth, sequence, nesting ------------------------------- */
 
@@ -496,99 +399,38 @@ export class SocialMediaLinksComponent {
    *  click that resolves them. */
   protected readonly queueIsComplete = signal(false);
 
-  /** Each loaded row's depth, computed by walking its `parentId` chain inside the
-   *  loaded set — see `computeDepths` for the walk and its cycle safety. A method
-   *  rather than a per-row signal: the map behind it is one computed over the
-   *  whole queue, and the template asks once per row. */
-  private readonly _depths = computed(() => computeDepths(this.links()));
-
-  protected depthOf(link: SocialMediaLinkRow): number {
-    return this._depths().get(link.id) ?? 0;
-  }
-
-  /** The width of ONE rail, which the template BINDS rather than restates; see
-   *  `DEPTH_INDENT_PX` for why the rail step is a single definition. */
-  protected readonly depthIndentPx = DEPTH_INDENT_PX;
-
-  /** One entry per ancestor level, so the URL cell can draw that many vertical
-   *  rails. `depthRailsFor` is the pure helper; the depth still has exactly one
-   *  definition in `_depths`. */
-  protected depthRails(link: SocialMediaLinkRow): number[] {
-    return depthRailsFor(this.depthOf(link));
-  }
-
-  /* ---- Hierarchy: the accordion ---------------------------------------- */
-
-  /** Which conversations are open. COLLAPSED BY DEFAULT (an empty set), the same
-   *  rule and the same reason as the public feed's `app-link-thread`: a triage
-   *  queue is read for its newest rows, and nobody should have to close a
-   *  conversation before reading it.
-   *
-   *  IMMUTABLE UPDATES ARE LOAD-BEARING, not hygiene: a signal compares by
-   *  reference, so an in-place `add`/`delete` would produce the SAME `Set`, change
-   *  detection would never fire, and the chevron would stop responding. Every
-   *  toggle therefore copies (see `toggleExpanded`).
-   *
-   *  It is keyed by id and deliberately SURVIVES a refetch: ids are stable across
-   *  reloads, so a conversation the admin opened stays open through the reload a
-   *  grouping or a reorder triggers — collapsing it under them mid-write would be
-   *  the one thing the accordion could not plausibly explain. An id that no longer
-   *  exists is simply inert. */
-  protected readonly expandedIds = signal<ReadonlySet<string>>(new Set<string>());
-
-  /** Open/close one conversation. A NEW set every call, for the reason above. */
-  protected toggleExpanded(id: string): void {
-    const next = new Set(this.expandedIds());
-    if (!next.delete(id)) {
-      next.add(id);
-    }
-    this.expandedIds.set(next);
-  }
-
-  protected isExpanded(id: string): boolean {
-    return this.expandedIds().has(id);
-  }
-
-  /** Every loaded row grouped by the id of its PARENT, each group in the STORED
-   *  order — the ONE map a sibling run is built from (`groupRunsByParentId`). */
-  private readonly _runsByParentId = computed(() => groupRunsByParentId(this.links()));
-
-  /** A row's direct children, in the STORED order. The chevron's gate: a row is a
-   *  PARENT iff it has LOADED children (`childCountOf`). */
-  protected childCountOf(link: SocialMediaLinkRow): number {
-    return childCountOf(this._runsByParentId(), link);
-  }
-
-  /** The rows the accordion actually draws, in display order — see
-   *  `renderedLinksOf` for the walk and its cycle safety net. */
-  protected readonly renderedLinks = computed<SocialMediaLinkRow[]>(() =>
-    renderedLinksOf(this.links(), this.expandedIds(), this._runsByParentId()),
-  );
-
-  /** Offered at every row except the head of its run (`canMoveUp`). */
-  protected canMoveUp(link: SocialMediaLinkRow): boolean {
-    return canMoveUp(this._runsByParentId(), link, this.queueIsComplete());
-  }
-
-  /** Offered at every row except the tail of its run (`canMoveDown`). */
-  protected canMoveDown(link: SocialMediaLinkRow): boolean {
-    return canMoveDown(this._runsByParentId(), link, this.queueIsComplete());
-  }
-
-  /** Why a sequence action is off, or `null` when it IS available (`moveBlockedReason`). */
-  protected moveBlockedReason(link: SocialMediaLinkRow, direction: "up" | "down"): string | null {
-    return moveBlockedReason(this._runsByParentId(), link, direction, this.queueIsComplete());
-  }
-
-  /** May the ticked rows be nested under this row? ONE tick is enough (`canNestUnder`). */
-  protected canNestUnder(link: SocialMediaLinkRow): boolean {
-    return canNestUnder(this.selectedIds(), link);
-  }
-
-  /** Why Nest-under is off, or `null` when it is available (`nestBlockedReason`). */
-  protected nestBlockedReason(link: SocialMediaLinkRow): string | null {
-    return nestBlockedReason(this.selectedIds(), link);
-  }
+  /* The selection and conversation tree lives in `links-tree.ts`.
+   * The template and the spec read every member off this class, so those members are re-exposed
+   * here under their own names. */
+  private readonly tree = useLinksTree(this.links, this.queueIsComplete);
+  protected readonly selectedIds = this.tree.selectedIds;
+  protected readonly visibleLinkIds = this.tree.visibleLinkIds;
+  protected readonly selectedCount = this.tree.selectedCount;
+  protected readonly canGroupSelection = this.tree.canGroupSelection;
+  protected readonly nestSelectionReady = this.tree.nestSelectionReady;
+  protected readonly renderedLinkIds = this.tree.renderedLinkIds;
+  protected readonly allVisibleSelected = this.tree.allVisibleSelected;
+  protected readonly moveUpHelp = this.tree.moveUpHelp;
+  protected readonly moveDownHelp = this.tree.moveDownHelp;
+  protected readonly nestHelp = this.tree.nestHelp;
+  protected readonly depthOf = this.tree.depthOf;
+  protected readonly depthIndentPx = this.tree.depthIndentPx;
+  protected readonly depthRails = this.tree.depthRails;
+  protected readonly expandedIds = this.tree.expandedIds;
+  protected readonly toggleExpanded = this.tree.toggleExpanded;
+  protected readonly isExpanded = this.tree.isExpanded;
+  protected readonly childCountOf = this.tree.childCountOf;
+  protected readonly renderedLinks = this.tree.renderedLinks;
+  protected readonly canMoveUp = this.tree.canMoveUp;
+  protected readonly canMoveDown = this.tree.canMoveDown;
+  protected readonly moveBlockedReason = this.tree.moveBlockedReason;
+  protected readonly canNestUnder = this.tree.canNestUnder;
+  protected readonly nestBlockedReason = this.tree.nestBlockedReason;
+  protected readonly toggleRowSelection = this.tree.toggleRowSelection;
+  protected readonly toggleSelectAll = this.tree.toggleSelectAll;
+  protected readonly clearSelection = this.tree.clearSelection;
+  private readonly _runsByParentId = this.tree.runsByParentId;
+  private readonly scopedSelection = this.tree.scopedSelection;
 
   /** Edit form state — same signals as LinkFormComponent's fields, driven by
    * the console's own sheet instead of LinkSheetService. */
@@ -803,52 +645,6 @@ export class SocialMediaLinksComponent {
     this.filterDateFrom.set("");
     this.filterDateTo.set("");
     this.applied = { categoryId: "", completed, visibility: "all" };
-  }
-
-  /* ---- Multi-select + conversation grouping ---------------------------- */
-
-  /** One row's checkbox. Routed through the shared helper because the result is
-   *  written straight back into a signal: an in-place `push`/`splice` would
-   *  produce the SAME array reference, change detection would never fire, and
-   *  the checkbox would silently stop responding. */
-  protected toggleRowSelection(id: string): void {
-    this.selectedIds.set(toggleSelection(this.selectedIds(), id));
-  }
-
-  /** The header checkbox. REPLACES the selection with every RENDERED row, or clears
-   *  it when they are all already selected — a replacement, never a merge, so repeated
-   *  clicks can't accumulate a hidden selection from a previous filter. Stays unchecked
-   *  over an empty page: "select all" of nothing is a lie, and an invitation to post an
-   *  empty selection.
-   *
-   *  🔴 REPLACING MEANS COLLAPSING CAN DROP TICKS. Tick a conversation's children, close
-   *  it, then press Select-all: those hidden ticks are gone, because the rendered set no
-   *  longer contains them. That is deliberate — a checkbox is a statement about what is on
-   *  screen, and preserving ticks the admin cannot see would make the header read
-   *  "all selected" over a list it does not describe. It is also the exact OPPOSITE of
-   *  `scopedSelection`, which scopes to every loaded row so a collapse cannot discard a
-   *  decision already made: a mutation is about what they had already decided. */
-  protected toggleSelectAll(): void {
-    this.selectedIds.set(this.allVisibleSelected() ? [] : [...this.renderedLinkIds()]);
-  }
-
-  protected clearSelection(): void {
-    this.selectedIds.set([]);
-  }
-
-  /** The selection scoped to the LOADED rows, blanks dropped. Applied by BOTH group
-   *  verbs before anything is sent: `linkIds` is `[ID!]!`, so an empty element is a
-   *  hard validation error, and the server rejects the whole call if one id is not
-   *  the admin's to touch — an id filtered out would make every grouping action
-   *  fail for no visible reason.
-   *
-   *  ⚠️ NOT `renderedLinkIds`. The accordion can hide a loaded row the admin
-   *  already ticked (open a conversation, tick two children, close it again), and
-   *  scoping to the rendered set would silently drop those two from the payload —
-   *  a collapse reading as "those links are no longer selected". Collapsing is a
-   *  view gesture; the selection outlives it. */
-  private scopedSelection(): string[] {
-    return selectedWithin(this.selectedIds(), this.visibleLinkIds()).filter(Boolean);
   }
 
   /** Start a NEW conversation from the ticked rows.
