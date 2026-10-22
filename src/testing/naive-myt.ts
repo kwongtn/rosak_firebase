@@ -12,7 +12,8 @@ export function naiveMyt(day: string, time = "00:00:00", micros?: number): strin
 
 /** The instant a naive Kuala Lumpur wall time names (fixed UTC+8, no DST), for `vi.setSystemTime`. */
 export function mytInstant(day: string, time = "00:00:00"): Date {
-  return new Date(`${naiveMyt(day, time)}+08:00`);
+  // Date parses milliseconds only; cut any micros so the result does not rely on engine leniency.
+  return new Date(`${naiveMyt(day, time).slice(0, 23)}+08:00`);
 }
 
 /** The zones a date spec runs in: UTC is the SSR server's, Kuala Lumpur the riders' browsers'. */
