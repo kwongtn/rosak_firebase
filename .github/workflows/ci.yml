@@ -134,9 +134,85 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      # The bundle bakes the backend URLs in at build time, so point them at the mock GraphQL
+      # server the ssr-smoke job starts: its SSR render then needs no live backend. Sourcemaps are
+      # uploaded to Sentry only for pushes, never for a pull request's throwaway merge commit.
+      - name: Build
+        shell: bash
+        run: |
+          npm run build 2>&1 | tee build.log
+          if grep -q css-syntax-error build.log; then
+            echo "::error::The build log contains css-syntax-error, so a generated CSS rule is invalid."
+            exit 1
+          fi
         env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
+          BACKEND_URL: http://localhost:4301/
+          BACKEND_GRAPHQL_URL: http://localhost:4301/graphql/
+
+      # Sourcemaps stay out (51 of the 64 MB): the smoke test does not read them.
+      - uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: |
+            dist/web
+            !dist/web/**/*.map
+          retention-days: 1
+          if-no-files-found: error
+
+  # Boots the built SSR server against the mock backend and probes the routes that server.ts owns.
+  ssr-smoke:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist
+          path: dist/web
+
+      - name: Smoke-test the SSR server
+        run: |
+          test -f dist/web/server/server.mjs
+          node e2e/mock-graphql.server.mjs &
+          NG_ALLOWED_HOSTS=localhost PORT=4000 node dist/web/server/server.mjs &
+          trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:4000/about && break
+            sleep 1
+          done
+          curl -sf -o /dev/null http://localhost:4000/about || { echo "SSR server did not start"; exit 1; }
+
+          fail=0
+          # check <path> <expected status> [response header that must be present]
+          check() {
+            local code
+            code=$(curl -sS -o "$RUNNER_TEMP/body.txt" -D "$RUNNER_TEMP/headers.txt" -w '%{http_code}' --path-as-is "http://localhost:4000$1")
+            echo "$1 -> $code"
+            if [ "$code" != "$2" ]; then echo "FAIL $1: expected HTTP $2, got $code"; fail=1; fi
+            if grep -q 'Error:' "$RUNNER_TEMP/body.txt"; then echo "FAIL $1: body contains 'Error:'"; fail=1; fi
+            if [ -n "${3:-}" ] && ! grep -qi "^$3:" "$RUNNER_TEMP/headers.txt"; then echo "FAIL $1: no $3 header"; fail=1; fi
+          }
+          check / 200 cache-control
+          check /about 200
+          check /nope 404
+
+          # Warning only: a malformed percent-encoding currently makes the SSR router throw and
+          # answer 500 with the stack trace (F401). Make this a check once the server returns 400.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --path-as-is 'http://localhost:4000/%E0%A4%A')
+          echo "/%E0%A4%A -> $code"
+          if [ "$code" != 400 ]; then
+            echo "::warning title=SSR smoke::/%E0%A4%A answered HTTP $code, expected 400 (F401)"
+          fi
+
+          exit $fail
 
   e2e:
     needs: [lint, test]
