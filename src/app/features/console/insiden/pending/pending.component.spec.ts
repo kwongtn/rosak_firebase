@@ -644,6 +644,63 @@ describe("PendingIncidentsComponent", () => {
     expect(component.rows()).toHaveLength(1);
   });
 
+  describe("chronology field edits", () => {
+    async function openWithOneEntry(component: ComponentUnderTest): Promise<void> {
+      component.openDetail(
+        makeRow({
+          chronologies: [
+            {
+              order: 0,
+              indicator: "RED",
+              datetime: "2026-08-01T08:30:00Z",
+              content: "typed by hand",
+              sourceUrl: "https://x.com/halt",
+            },
+          ],
+        }),
+      );
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    function control<T extends HTMLElement>(selector: string): T {
+      const found = (fixture.nativeElement as HTMLElement).querySelector<T>(
+        `section[app-pending-chronology-editor] ${selector}`,
+      );
+      if (!found) throw new Error(`${selector} not rendered`);
+      return found;
+    }
+
+    it("replaces the edited draft in a new list instead of mutating it in place", async () => {
+      const component = asTestable(fixture);
+      await openWithOneEntry(component);
+      const listBefore = component.chronologies();
+      const draftBefore = listBefore[0];
+
+      const textarea = control<HTMLTextAreaElement>("textarea");
+      textarea.value = "edited";
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(component.chronologies()).not.toBe(listBefore);
+      expect(component.chronologies()[0].content).toBe("edited");
+      expect(component.chronologies()[0].key).toBe(draftBefore.key);
+      expect(draftBefore.content).toBe("typed by hand");
+    });
+
+    it("applies an indicator change to the matching entry only", async () => {
+      const component = asTestable(fixture);
+      await openWithOneEntry(component);
+
+      const select = control<HTMLSelectElement>("select");
+      select.value = "BLUE";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+
+      expect(component.chronologies()[0].indicator).toBe("BLUE");
+      expect(component.chronologies()[0].content).toBe("typed by hand");
+    });
+  });
+
   describe("Extract Data", () => {
     const EXTRACTED: ExtractedIncidentData = {
       title: "Halt at KL Sentral",

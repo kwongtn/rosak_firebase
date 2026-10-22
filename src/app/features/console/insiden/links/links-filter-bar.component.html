@@ -6,17 +6,13 @@
       type="text"
       placeholder="e.g. twitter.com, LRT"
       [value]="searchTerm()"
-      (input)="searchInput.emit($any($event.target).value)"
+      (input)="searchInput.emit(eventValue($event))"
     />
   </label>
 
   <label class="flex flex-col gap-1.5 text-sm">
     Category
-    <select
-      hlmSelect
-      [value]="categoryId()"
-      (change)="categoryChange.emit($any($event.target).value)"
-    >
+    <select hlmSelect [value]="categoryId()" (change)="categoryChange.emit(eventValue($event))">
       <option value="">All categories</option>
       @for (category of categories(); track category.id) {
         <option [value]="category.id">{{ category.name }}</option>
@@ -26,11 +22,7 @@
 
   <label class="flex flex-col gap-1.5 text-sm">
     Status
-    <select
-      hlmSelect
-      [value]="completedFilter()"
-      (change)="completedChange.emit($any($event.target).value)"
-    >
+    <select hlmSelect [value]="completedFilter()" (change)="onCompletedChange($event)">
       <option value="any">{{ completedFilterLabel.any }}</option>
       <option value="pending">{{ completedFilterLabel.pending }}</option>
       <option value="completed">{{ completedFilterLabel.completed }}</option>
@@ -43,7 +35,7 @@
       hlmSelect
       data-testid="links-visibility-filter"
       [value]="visibilityFilter()"
-      (change)="visibilityChange.emit($any($event.target).value)"
+      (change)="onVisibilityChange($event)"
     >
       <option value="all">{{ visibilityFilterLabel.all }}</option>
       <option value="visible">{{ visibilityFilterLabel.visible }}</option>
@@ -53,11 +45,7 @@
 
   <label class="flex flex-col gap-1.5 text-sm">
     Line
-    <select
-      hlmSelect
-      [value]="filterLineId()"
-      (change)="filterLineChange.emit($any($event.target).value)"
-    >
+    <select hlmSelect [value]="filterLineId()" (change)="filterLineChange.emit(eventValue($event))">
       <option value="">All lines</option>
       @for (line of lineOptions(); track line.id) {
         <option [value]="line.id">{{ line.label }}</option>
@@ -70,7 +58,7 @@
     <select
       hlmSelect
       [value]="filterVehicleId()"
-      (change)="filterVehicleChange.emit($any($event.target).value)"
+      (change)="filterVehicleChange.emit(eventValue($event))"
     >
       <option value="">All vehicles</option>
       @for (vehicle of filterVehicleOptions(); track vehicle.id) {
@@ -84,7 +72,7 @@
     <select
       hlmSelect
       [value]="filterStationId()"
-      (change)="filterStationChange.emit($any($event.target).value)"
+      (change)="filterStationChange.emit(eventValue($event))"
     >
       <option value="">All stations</option>
       @for (station of filterStationOptions(); track station.id) {
@@ -117,14 +105,14 @@
         type="date"
         aria-label="Occurred from date"
         [value]="filterDateFrom()"
-        (input)="dateFromInput.emit($any($event.target).value)"
+        (input)="dateFromInput.emit(eventValue($event))"
       />
       <input
         hlmInput
         type="date"
         aria-label="Occurred to date"
         [value]="filterDateTo()"
-        (input)="dateToInput.emit($any($event.target).value)"
+        (input)="dateToInput.emit(eventValue($event))"
       />
     </div>
   </div>

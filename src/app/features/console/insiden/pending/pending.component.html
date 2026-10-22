@@ -364,6 +364,7 @@
               (remove)="removeChronology($event)"
               (toggleCollapsed)="toggleChronologyCollapsed($event)"
               (moveBy)="moveChronologyBy($event.index, $event.offset)"
+              (patch)="patchChronology($event)"
               (extract)="extractChronology($event)"
               (replace)="replaceWithExtraction($event)"
               (undo)="undoExtraction($event)"

@@ -2,6 +2,7 @@ import { DatePipe } from "@angular/common";
 import { Component, computed, inject, signal } from "@angular/core";
 import { AuthService } from "../../../../core/auth/auth.service";
 import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql-client";
+import { eventValue } from "../../../../core/util/dom-event.util";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
@@ -422,6 +423,9 @@ export class SocialMediaLinksComponent {
   protected readonly allVisibleSelected = computed(() =>
     areAllSelected(this.selectedIds(), this.renderedLinkIds()),
   );
+
+  /** Typed `$event.target.value` for the edit panel's inputs (no `$any` in a template). */
+  protected readonly eventValue = eventValue;
 
   /** Re-exposed, not re-implemented: an Angular template can only read members off
    *  the component class, and the pluralisation of a CONVERSATION SIZE is decided in

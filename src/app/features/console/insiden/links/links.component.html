@@ -276,7 +276,7 @@
                   type="url"
                   placeholder="https://x.com/prasarana/status/…"
                   [value]="editUrl()"
-                  (input)="onEditUrlInput($any($event.target).value)"
+                  (input)="onEditUrlInput(eventValue($event))"
                 />
                 @if (urlTouched() && !editUrl().trim()) {
                   <p class="text-destructive text-xs">Enter a URL</p>
@@ -293,7 +293,7 @@
                   type="text"
                   placeholder="What is this about?"
                   [value]="editTitle()"
-                  (input)="onEditTitleInput($any($event.target).value)"
+                  (input)="onEditTitleInput(eventValue($event))"
                 />
               </label>
 
@@ -316,7 +316,7 @@
                   type="datetime-local"
                   data-testid="edit-occurred-at"
                   [value]="editOccurredAt()"
-                  (input)="onEditOccurredAtInput($any($event.target).value)"
+                  (input)="onEditOccurredAtInput(eventValue($event))"
                 />
                 <p class="text-muted-foreground text-xs">
                   Clear it to fall back to the report time. This is the column the public feed sorts

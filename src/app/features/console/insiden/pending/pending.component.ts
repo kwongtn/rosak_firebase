@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../../core/auth/auth.service";
 import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql-client";
+import { eventValue } from "../../../../core/util/dom-event.util";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmCardImports } from "../../../../ui/card/card";
@@ -72,7 +73,10 @@ import {
 import { isPendingIncidentStatus } from "../../../insiden/data/incident-status.util";
 import { isChronologyPendingDeletion } from "../../../insiden/data/chronology-status.util";
 import { PendingRowComponent } from "./pending-row.component";
-import { PendingChronologyEditorComponent } from "./pending-chronology-editor.component";
+import {
+  PendingChronologyEditorComponent,
+  type ChronologyPatch,
+} from "./pending-chronology-editor.component";
 import { PendingDeletionRequestsComponent } from "./pending-deletion-requests.component";
 import {
   asCalendarIncident,
@@ -313,9 +317,7 @@ export class PendingIncidentsComponent {
     this.load();
   }
 
-  protected eventValue(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
-  }
+  protected readonly eventValue = eventValue;
 
   protected readonly severityLabel = severityLabelText;
 
@@ -676,6 +678,14 @@ export class PendingIncidentsComponent {
 
   protected moveChronologyBy(index: number, offset: -1 | 1): void {
     this.chronologies.update((list) => moveChronology(list, index, index + offset));
+  }
+
+  /** A field edit from the chronology editor — a new draft object in a new list, never an
+   * in-place write, so the signal notifies. */
+  protected patchChronology({ key, field, value }: ChronologyPatch): void {
+    this.chronologies.update((list) =>
+      list.map((c) => (c.key === key ? { ...c, [field]: value } : c)),
+    );
   }
 
   /** "Summarize Incident" — asks the Gemini-backed summarizeIncident callable to condense

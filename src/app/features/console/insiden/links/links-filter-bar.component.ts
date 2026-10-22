@@ -1,4 +1,5 @@
 import { Component, input, output } from "@angular/core";
+import { eventValue } from "../../../../core/util/dom-event.util";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmInput } from "../../../../ui/input/input";
@@ -51,4 +52,15 @@ export class LinksFilterBarComponent {
 
   protected readonly completedFilterLabel = COMPLETED_LABEL;
   protected readonly visibilityFilterLabel = VISIBILITY_LABEL;
+  protected readonly eventValue = eventValue;
+
+  // The <option> values in the template are exactly the members of these two unions, so the
+  // select can only report one of them.
+  protected onCompletedChange(event: Event): void {
+    this.completedChange.emit(eventValue(event) as CompletedFilter);
+  }
+
+  protected onVisibilityChange(event: Event): void {
+    this.visibilityChange.emit(eventValue(event) as VisibilityFilter);
+  }
 }

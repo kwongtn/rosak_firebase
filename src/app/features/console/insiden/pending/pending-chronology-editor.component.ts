@@ -1,4 +1,5 @@
 import { Component, input, output } from "@angular/core";
+import { eventValue } from "../../../../core/util/dom-event.util";
 import { HlmButton } from "../../../../ui/button/button";
 import { HlmInput } from "../../../../ui/input/input";
 import { HlmNativeSelect } from "../../../../ui/select/native-select";
@@ -12,12 +13,19 @@ import type { ChronologyExtractState } from "./pending-incident.util";
 
 const INDICATORS: ChronologyIndicator[] = ["GREEN", "RED", "BLUE", "GRAY"];
 
+/** One edited text field of one draft, as the editor reports it to the parent. */
+export interface ChronologyPatch {
+  key: number;
+  field: "indicator" | "datetime" | "sourceUrl" | "content";
+  value: string;
+}
+
 /**
  * The detail panel's chronology editor: the list of draft entries with collapse/move/remove,
  * the per-entry AI "Extract Data" flow surface, and the "Summarize Incident" action. Purely
  * presentational — the host IS the parent's `<section>` (attribute selector); every list
- * mutation is emitted to the parent, which owns the `chronologies` signal and the extract
- * bookkeeping. The child only derives the per-key disabled/flag state from its inputs.
+ * mutation, field edits included (`patch`), is emitted to the parent, which owns the
+ * `chronologies` signal and the extract bookkeeping. The child only derives the per-key disabled/flag state from its inputs.
  */
 @Component({
   selector: "section[app-pending-chronology-editor]",
@@ -33,12 +41,14 @@ export class PendingChronologyEditorComponent {
   readonly remove = output<number>();
   readonly toggleCollapsed = output<number>();
   readonly moveBy = output<{ index: number; offset: -1 | 1 }>();
+  readonly patch = output<ChronologyPatch>();
   readonly extract = output<number>();
   readonly replace = output<number>();
   readonly undo = output<number>();
   readonly summarize = output<void>();
 
   protected readonly indicators = INDICATORS;
+  protected readonly eventValue = eventValue;
 
   protected canMove(index: number, direction: "up" | "down"): boolean {
     return direction === "up"

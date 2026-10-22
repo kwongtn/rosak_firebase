@@ -164,6 +164,9 @@ itself.
     push). That rule is published as the
     `incidents.push-alerts` metric. `app.routes.spec.ts` keeps `core/push/` out of the initial
     bundle.
+- `core/util/dom-event.util.ts`: `eventValue(event)`, the typed `$event.target.value` for an `input`
+  or `change` handler. A component exposes it as `protected readonly eventValue = eventValue` and the
+  template calls `eventValue($event)`, so no template needs `$any`.
 - `core/util/web-storage.util.ts`: `readStorageItem` / `writeStorageItem` / `removeStorageItem` over
   `"local" | "session"`, the try/catch wrappers `PreferencesService` keeps for itself (a failed read
   is `null`, a failed write or removal is dropped). Used by the outbox, the line alerts and the two
