@@ -16,8 +16,8 @@ import { dayKey, LINE, vehicle, vehicleRange, vehicleType } from "./helpers/spot
  *
  * The development bundle points at the backend URL in the environment, so this spec installs
  * its own GraphQL route instead of using the shared pass-through helper. That lets the return
- * revalidation response be held open long enough to prove that retained data stays mounted while
- * a background request is in flight.
+ * revalidation response be held open, behind a gate the test releases, to prove that retained data
+ * stays mounted while a background request is in flight.
  */
 
 const DESKTOP_VIEWPORT = { width: 1280, height: 900 };
@@ -63,22 +63,29 @@ interface MockRouteState {
   vehicleTypesCalls: number;
   delayedResponseStarted: boolean;
   delayedResponseResolved: boolean;
+  /** Lets every held response through; the test calls it once it has asserted the in-flight state. */
+  release: () => void;
 }
 
 /**
  * Routes GraphQL traffic to the mock and optionally holds VehicleTypesByLine responses from a
- * call number onward. The state flags let the test observe that the delayed request is genuinely
- * open before asserting the no-skeleton state.
+ * call number onward, until the test calls `release()`. The state flags let the test observe that
+ * the held request is genuinely open before asserting the no-skeleton state.
  */
 async function routeGraphQLToMockWithDelay(
   page: Page,
   delayVehicleTypesFrom?: number,
 ): Promise<MockRouteState> {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
   const state: MockRouteState = {
     vehicleTypesCalls: 0,
     delayedResponseStarted: false,
     delayedResponseResolved: false,
+    release,
   };
+  // A test that fails while a response is held must not leave its handler waiting forever.
+  page.once("close", release);
 
   await page.route("**/graphql/", async (route) => {
     const body = route.request().postDataJSON() as { query?: string } | undefined;
@@ -91,7 +98,7 @@ async function routeGraphQLToMockWithDelay(
 
     if (shouldDelay) {
       state.delayedResponseStarted = true;
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await gate;
     }
 
     await route.fulfill({ response });
@@ -205,12 +212,12 @@ test.describe("spotting keep-alive navigation", () => {
           .some((call) => call.operationName === "VehicleTypesByLine");
       })
       .toBe(true);
-    expect(routeState.delayedResponseStarted).toBe(true);
-    expect(routeState.delayedResponseResolved).toBe(false);
+    await expect.poll(() => routeState.delayedResponseStarted).toBe(true);
     await expect.poll(async () => page.locator("[hlmSkeleton]").count()).toBe(0);
     await expectWindowScrollNear(page, 600);
     expect(routeState.delayedResponseResolved).toBe(false);
 
+    routeState.release();
     await expect.poll(() => routeState.delayedResponseResolved).toBe(true);
     await expect(retainedOverview).toBeAttached();
     await expectWindowScrollNear(page, 600);
