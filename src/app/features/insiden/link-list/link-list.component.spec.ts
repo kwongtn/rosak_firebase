@@ -172,11 +172,14 @@ describe("LinkListComponent pending and approved links", () => {
     expect(pendingToggle()).toBeUndefined();
   });
 
-  it("emits sheetClosed once on the open-to-closed edge only", () => {
-    fixture.componentRef.setInput("links", [makeLink("a", "2026-10-19T10:00:00")]);
-    fixture.detectChanges();
+  it("emits sheetClosed once per open-to-closed edge, never on mount", () => {
+    // A fresh fixture so the subscription exists before the first effect run (the mount).
+    const fresh = TestBed.createComponent(LinkListComponent);
+    fresh.componentRef.setInput("links", [makeLink("a", "2026-10-19T10:00:00")]);
     let closed = 0;
-    fixture.componentInstance.sheetClosed.subscribe(() => closed++);
+    fresh.componentInstance.sheetClosed.subscribe(() => closed++);
+    fresh.detectChanges();
+    expect(closed).toBe(0);
 
     sheet.open();
     TestBed.tick();
@@ -186,9 +189,11 @@ describe("LinkListComponent pending and approved links", () => {
     TestBed.tick();
     expect(closed).toBe(1);
 
-    // Already closed: no open-to-closed edge, so no reload.
-    sheet.setOpen(false);
+    // Re-arms: a second open-to-closed edge emits again.
+    sheet.open();
     TestBed.tick();
-    expect(closed).toBe(1);
+    sheet.close();
+    TestBed.tick();
+    expect(closed).toBe(2);
   });
 });
