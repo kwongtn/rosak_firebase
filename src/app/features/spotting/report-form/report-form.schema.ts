@@ -60,7 +60,7 @@ export const reportFormSchema = (selectedVehicleStatus: () => string) =>
     required(f.status, { message: "Select a status" });
     required(f.type, { message: "Select a spotting type" });
 
-    validateTree(f, ({ value }) => {
+    validateTree(f, ({ value, fieldTreeOf }) => {
       const model = value();
       const errors = [];
 
@@ -69,14 +69,14 @@ export const reportFormSchema = (selectedVehicleStatus: () => string) =>
           errors.push({
             kind: "required",
             message: "Select an origin station",
-            field: f.originStation,
+            fieldTree: fieldTreeOf(f.originStation),
           });
         }
         if (!model.destinationStation) {
           errors.push({
             kind: "required",
             message: "Select a destination station",
-            field: f.destinationStation,
+            fieldTree: fieldTreeOf(f.destinationStation),
           });
         }
       }
@@ -85,7 +85,7 @@ export const reportFormSchema = (selectedVehicleStatus: () => string) =>
         errors.push({
           kind: "required",
           message: "Select a station",
-          field: f.atStation,
+          fieldTree: fieldTreeOf(f.atStation),
         });
       }
 
@@ -93,7 +93,7 @@ export const reportFormSchema = (selectedVehicleStatus: () => string) =>
         errors.push({
           kind: "required",
           message: "Confirm you meant to report against this vehicle",
-          field: f.sanityTest,
+          fieldTree: fieldTreeOf(f.sanityTest),
         });
       }
 
