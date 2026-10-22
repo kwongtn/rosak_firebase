@@ -148,6 +148,53 @@ describe("PushService", () => {
     });
   });
 
+  describe("another tab", () => {
+    /** What this tab sees when another tab of the app writes `value` (null: removes) to the key. */
+    function otherTabWrites(value: string | null, key: string | null = PUSH_STORAGE_KEY): void {
+      if (key !== null) {
+        if (value === null) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, value);
+        }
+      }
+      window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
+    }
+
+    it("takes a sign-out there: this tab's lines go, and the next account here starts clean", () => {
+      writePushState({ token: "fcm-token", lines: [KJL] });
+      const push = create();
+      expect(push.lines()).toEqual([KJL]);
+
+      otherTabWrites(null);
+
+      expect(push.lines()).toEqual([]);
+      expect(push.isSubscribed("1")).toBe(false);
+    });
+
+    it("takes a change of lines made there, and a cleared storage", () => {
+      writePushState({ token: "fcm-token", lines: [KJL] });
+      const push = create();
+
+      otherTabWrites(JSON.stringify({ token: "fcm-token", lines: [KJL, AGL] }));
+      expect(push.lines()).toEqual([KJL, AGL]);
+
+      localStorage.clear();
+      otherTabWrites(null, null);
+      expect(push.lines()).toEqual([]);
+    });
+
+    it("ignores the other keys", () => {
+      writePushState({ token: "fcm-token", lines: [KJL] });
+      const push = create();
+
+      localStorage.removeItem(PUSH_STORAGE_KEY);
+      otherTabWrites("{}", "rosak:preferences:v1");
+
+      expect(push.lines()).toEqual([KJL]);
+    });
+  });
+
   describe("subscribe (the token flow)", () => {
     it("asks for permission in the same tick as the tap, then registers the token for the line", async () => {
       const push = create();

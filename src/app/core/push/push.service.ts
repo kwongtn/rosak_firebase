@@ -1,4 +1,12 @@
-import { ErrorHandler, Injectable, InjectionToken, computed, inject, signal } from "@angular/core";
+import {
+  DestroyRef,
+  ErrorHandler,
+  Injectable,
+  InjectionToken,
+  computed,
+  inject,
+  signal,
+} from "@angular/core";
 import { getApps, initializeApp } from "firebase/app";
 import type { MessagePayload } from "firebase/messaging";
 
@@ -8,7 +16,13 @@ import { AuthService } from "../auth/auth.service";
 import { injectIsBrowser } from "../composables/is-browser";
 import { GraphQLClient, GraphQLRequestError } from "../graphql/graphql-client";
 import { FCM_VAPID_KEY } from "./push-loader";
-import { PushLine, StoredPushState, readPushState, writePushState } from "./push-storage";
+import {
+  PUSH_STORAGE_KEY,
+  PushLine,
+  StoredPushState,
+  readPushState,
+  writePushState,
+} from "./push-storage";
 import {
   PUSH_SUBSCRIPTION_QUERY,
   PushSubscriptionData,
@@ -122,6 +136,16 @@ export class PushService {
     this._state.set(readPushState());
     this._support.set(inject(PUSH_SUPPORT));
     this.syncPermission();
+    // Another tab's change is this tab's too: a sign-out there clears the alerts, which the next
+    // account to sign in here must not inherit, and a bell tapped there changes the lines.
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === PUSH_STORAGE_KEY || event.key === null) {
+        this._changes++;
+        this._state.set(readPushState());
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    inject(DestroyRef).onDestroy(() => window.removeEventListener("storage", onStorage));
   }
 
   /**
