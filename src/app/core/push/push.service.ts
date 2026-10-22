@@ -7,6 +7,7 @@ import { ToastService } from "../../ui/toast/toast.service";
 import { AuthService } from "../auth/auth.service";
 import { injectIsBrowser } from "../composables/is-browser";
 import { GraphQLClient, GraphQLRequestError } from "../graphql/graphql-client";
+import { FCM_VAPID_KEY } from "./push-loader";
 import { PushLine, StoredPushState, readPushState, writePushState } from "./push-storage";
 import {
   PUSH_SUBSCRIPTION_QUERY,
@@ -20,19 +21,15 @@ import {
   UnregisterPushTokenVars,
 } from "./push.queries";
 
-/** The project's Web Push (VAPID) public key; empty while alerts are not set up. A token for specs. */
-export const FCM_VAPID_KEY = new InjectionToken<string>("FCM_VAPID_KEY", {
-  providedIn: "root",
-  factory: () => environment.fcm.vapidKey,
-});
-
 /**
- * What the alert controls can offer in this browser, most blocking first: `unconfigured` (no VAPID
- * key in this build), `install` (Safari on iOS or iPadOS in a browser tab: web push there needs the
- * app on the Home Screen), `unsupported` (no Notification, service worker or Push API, or the SDK said
- * no), `blocked` (the rider denied notifications for this site), else `ready`.
+ * What the alert controls can offer here, most blocking first: `unconfigured` (no VAPID key in this
+ * build), `install` (a browser tab on iOS or iPadOS: web push there needs the app on the Home
+ * Screen), `unsupported` (no Notification, service worker or Push API, or the SDK said no), `blocked`
+ * (the rider denied notifications for this site), `signed-out` (the backend keeps alerts per
+ * account), else `ready`.
  */
-export type PushAvailability = "unconfigured" | "install" | "unsupported" | "blocked" | "ready";
+export type PushAvailability =
+  "unconfigured" | "install" | "unsupported" | "blocked" | "signed-out" | "ready";
 
 export type PushSupport = "supported" | "install" | "unsupported";
 
@@ -70,10 +67,12 @@ function firebaseApp() {
  * Every change sends the FULL line list (`registerPushToken` replaces it), or `unregisterPushToken`
  * once the list is empty, and stores the answer only after the backend took it.
  *
- * Firebase Messaging itself is a dynamic `import()` on first use (a tap on Allow, or a session that
- * already has alerts), so nobody downloads it before they want alerts and it never reaches `main`.
- * `AuthService` drives the two session hooks through a dynamic import too: `resume()` after a sign-in
- * when a token is stored, `forget()` before a sign-out.
+ * This file is itself a dynamic `import()`: the alert controls reach the service through
+ * `injectPushService()` (`push-loader.ts`, which loads nothing in a build without a VAPID key), and
+ * `AuthService` drives the two session hooks through its own: `resume()` after a sign-in when a token
+ * is stored, `forget()` before a sign-out. Firebase Messaging is a further dynamic `import()` on
+ * first use (a tap on Allow, or a session that already has alerts), so nobody downloads it before
+ * they want alerts, and none of it reaches `main`.
  *
  * Rider actions never throw: a failure is toasted (GraphQLClient toasts its own) and reported, and
  * the stored state is left as it was, so the bell keeps telling the truth.
@@ -106,7 +105,10 @@ export class PushService {
     if (support !== "supported") {
       return support;
     }
-    return this._permission() === "denied" ? "blocked" : "ready";
+    if (this._permission() === "denied") {
+      return "blocked";
+    }
+    return this.auth.isLoggedIn() ? "ready" : "signed-out";
   });
   /** True until the rider has answered the browser's prompt: the bell shows the pre-prompt first. */
   readonly needsPermission = computed(() => this._permission() === "default");

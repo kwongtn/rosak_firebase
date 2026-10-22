@@ -11,13 +11,8 @@ import {
   REGISTER_PUSH_TOKEN_MUTATION,
   UNREGISTER_PUSH_TOKEN_MUTATION,
 } from "./push.queries";
-import {
-  FCM_VAPID_KEY,
-  PUSH_SUPPORT,
-  PushService,
-  PushSupport,
-  browserPushSupport,
-} from "./push.service";
+import { FCM_VAPID_KEY } from "./push-loader";
+import { PUSH_SUPPORT, PushService, PushSupport, browserPushSupport } from "./push.service";
 
 // The unit-test builder shares one module cache across spec files (`isolate: false`), so reset it on
 // both sides of this file; see "Unit-test isolation" in docs/COMPONENTS.md.
@@ -59,7 +54,9 @@ describe("PushService", () => {
     requestPermission: ReturnType<typeof vi.fn>;
   };
 
-  function create(options: { vapidKey?: string; support?: PushSupport } = {}): PushService {
+  function create(
+    options: { vapidKey?: string; support?: PushSupport; signedIn?: boolean } = {},
+  ): PushService {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
@@ -67,7 +64,10 @@ describe("PushService", () => {
         { provide: PUSH_SUPPORT, useValue: options.support ?? "supported" },
         {
           provide: AuthService,
-          useValue: { idToken: async () => "id-token", isLoggedIn: signal(true) },
+          useValue: {
+            idToken: async () => "id-token",
+            isLoggedIn: signal(options.signedIn ?? true),
+          },
         },
         { provide: GraphQLClient, useValue: { request } },
         { provide: ToastService, useValue: toast },
@@ -133,6 +133,18 @@ describe("PushService", () => {
       const fresh = create();
       expect(fresh.availability()).toBe("ready");
       expect(fresh.needsPermission()).toBe(true);
+    });
+
+    it("needs a signed-in rider, after everything the browser decides", async () => {
+      const push = create({ signedIn: false });
+      expect(push.availability()).toBe("signed-out");
+
+      await push.subscribe(KJL);
+      expect(notification.requestPermission).not.toHaveBeenCalled();
+
+      TestBed.resetTestingModule();
+      notification.permission = "denied";
+      expect(create({ signedIn: false }).availability()).toBe("blocked");
     });
   });
 
