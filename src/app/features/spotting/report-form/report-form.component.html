@@ -31,6 +31,33 @@
     }
   </div>
 
+  <!-- Below the Line field, not above it: the sheet's focus trap and the form's own first-render
+       focus take the first control, and that must never be Discard. -->
+  @if (draftRestored()) {
+    <p
+      class="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs"
+      data-testid="report-form-draft-restored"
+    >
+      <span>
+        Draft restored.
+        @if (restoredPhotoCount() > 0) {
+          Photos aren't saved with a draft, so add them again.
+        }
+      </span>
+      <button
+        hlmBtn
+        type="button"
+        variant="link"
+        size="sm"
+        class="px-0"
+        data-testid="report-form-draft-discard"
+        (click)="discardDraft()"
+      >
+        Discard
+      </button>
+    </p>
+  }
+
   @if (reportForm.lineId().value()) {
     <div class="flex flex-col gap-1.5 text-sm">
       Vehicle

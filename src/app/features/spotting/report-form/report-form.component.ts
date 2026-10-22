@@ -7,6 +7,7 @@ import {
   inject,
   output,
   signal,
+  untracked,
   viewChild,
 } from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
@@ -18,6 +19,12 @@ import {
 import { toastSubmitFailure } from "../../../core/graphql/submit-failure";
 import { SpottingType, VehicleStatus, WheelStatus } from "../../../core/graphql/types";
 import { AuthService } from "../../../core/auth/auth.service";
+import { injectIsBrowser } from "../../../core/composables/is-browser";
+import {
+  readStorageItem,
+  removeStorageItem,
+  writeStorageItem,
+} from "../../../core/util/web-storage.util";
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import { ReportSheetService } from "../data/report-sheet.service";
 import { HlmButton } from "../../../ui/button/button";
@@ -44,7 +51,13 @@ import {
   StationLinesQueryData,
   StationLinesQueryVars,
 } from "../data/spotting.queries";
-import { emptyReportFormModel, reportFormSchema } from "./report-form.schema";
+import { emptyReportFormModel, reportFormSchema, type ReportFormModel } from "./report-form.schema";
+import {
+  parseReportFormDraft,
+  REPORT_FORM_DRAFT_KEY,
+  sameReportFormDraft,
+  serializeReportFormDraft,
+} from "./report-form-draft.util";
 import { PhotoPickerComponent } from "./photo-picker/photo-picker.component";
 import { ImageFile } from "../../../core/upload/image-file";
 
@@ -88,6 +101,8 @@ export class ReportFormComponent {
   private readonly toast = inject(ToastService);
   private readonly uploads = inject(ImageUploadService);
   private readonly reportSheet = inject(ReportSheetService);
+  private readonly isBrowser = injectIsBrowser();
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly photos = signal<ImageFile[]>([]);
   private readonly photoPickerRef = viewChild(PhotoPickerComponent);
@@ -175,17 +190,31 @@ export class ReportFormComponent {
   /** Public so the sheet shell hosting this form can drive its own Submit/Clear footer buttons. */
   readonly isSubmitting = signal(false);
 
+  /**
+   * True from the open that restored a saved draft until the draft is discarded, cleared, submitted
+   * or the sheet closes. Drives the "Draft restored" line.
+   */
+  protected readonly draftRestored = signal(false);
+  /** Photos the restored draft had. Files are not saved, so the line asks for them again. */
+  protected readonly restoredPhotoCount = signal(0);
+
   private _lastLineId = "";
   private _wasSheetOpen = false;
+  /**
+   * The model as the open edge left it (restored draft and line seed applied); `null` while the
+   * sheet is closed, which is also what keeps the persist effect from writing before the restore.
+   */
+  private _draftBaseline: ReportFormModel | null = null;
+  /** Whether this open wrote the saved draft, so a return to the baseline may remove it again. */
+  private _wroteDraft = false;
 
   constructor() {
     // The form is created lazily, so on a cold first open the sheet's focus trap has already
     // captured focus (onto the footer's "Clear form") before this exists: move it in once rendered.
     // On a warm open this re-focuses the control the trap chose, so it is harmless.
-    const host = inject<ElementRef<HTMLElement>>(ElementRef);
     afterNextRender(() => {
       if (this.reportSheet.isOpen()) {
-        host.nativeElement.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
+        this.host.nativeElement.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
       }
     });
 
@@ -210,30 +239,102 @@ export class ReportFormComponent {
 
     // Sheet-state edge handling, deliberately one effect (not two) so the seed and the reset
     // can never race against each other or the `_wasSheetOpen` latch: on close, reset the whole
-    // draft including touched state (see clear()) — otherwise a field like line, once touched,
+    // form including touched state (see resetForm()) — otherwise a field like line, once touched,
     // stays filled in and "touched" for the next time the sheet opens, regardless of *how* it
     // closed (Cancel, backdrop click, Escape — anything that isn't the submit-success path,
-    // which already calls clear() itself; calling it again here on that same edge is harmless).
+    // which already calls clear() itself; resetting again here on that same edge is harmless).
     // On open, apply ReportSheetService's one-shot line seed when a trigger supplied one (the
-    // home page's line cards do); without a seed the line and vehicle fields start blank, even
-    // when opened from a vehicle-detail page's own "Add a Spotting Entry" button — the vehicle
-    // you were just looking at isn't necessarily the one you're reporting on.
+    // home page's line cards do); without a seed or a saved draft the line and vehicle fields
+    // start blank, even when opened from a vehicle-detail page's own "Add a Spotting Entry"
+    // button — the vehicle you were just looking at isn't necessarily the one you're reporting on.
+    //
+    // The saved draft (sessionStorage, see report-form-draft.util.ts) is restored on the same open
+    // edge, BEFORE the seed: a closed sheet resets the form in memory but keeps the saved draft, so
+    // an accidental close (backdrop, Escape, a swipe) loses nothing. Only Clear form, Discard and a
+    // successful submit forget it (`clear()`).
     effect(() => {
       const isSheetOpen = this.reportSheet.isOpen();
       if (isSheetOpen && !this._wasSheetOpen) {
         const seedLineId = this.reportSheet.lineId();
+        untracked(() => this.restoreDraft(seedLineId));
         if (seedLineId) {
           // Consumed here, never retained: a later seedless open() (the /spotting shell's own
           // buttons) must not resurrect a line from an unrelated, already-closed sheet.
           this.reportSheet.lineId.set(null);
           this.model.update((m) => ({ ...m, lineId: seedLineId }));
         }
+        this._draftBaseline = untracked(() => this.model());
+        this._wroteDraft = false;
       }
       if (!isSheetOpen && this._wasSheetOpen) {
-        this.clear();
+        this._draftBaseline = null;
+        this.resetForm();
       }
       this._wasSheetOpen = isSheetOpen;
     });
+
+    // Saves the draft while the sheet is open, behind the browser check. Created after the edge
+    // effect, and gated on `_draftBaseline`, which only the open edge sets: whichever order the two
+    // run in, nothing is written over a saved draft before the open edge has read it.
+    effect(() => {
+      const model = this.model();
+      const photoCount = this.photos().length;
+      const restored = this.draftRestored();
+      const baseline = this._draftBaseline;
+      if (!this.isBrowser || !this.reportSheet.isOpen() || baseline === null) {
+        return;
+      }
+      if (!restored && photoCount === 0 && sameReportFormDraft(model, baseline)) {
+        // Untouched since the sheet opened, so nothing here is the rider's. A saved draft this open
+        // did not write (one for another line, left alone by a line-seeded open) is not ours to
+        // remove; one it wrote is, now that the rider has undone it.
+        if (this._wroteDraft) {
+          removeStorageItem("session", REPORT_FORM_DRAFT_KEY);
+          this._wroteDraft = false;
+        }
+        return;
+      }
+      writeStorageItem(
+        "session",
+        REPORT_FORM_DRAFT_KEY,
+        serializeReportFormDraft(model, photoCount),
+      );
+      this._wroteDraft = true;
+    });
+  }
+
+  /**
+   * Restores the saved draft on the open edge. A line-seeded open (home's line cards) is for that
+   * line, so a draft for a different line is left saved for its own open; a draft without a line
+   * takes the seed. Browser only: the form is created inside `@defer`, which never renders on the
+   * server, but the guard keeps that a property of this file rather than of its hosts.
+   */
+  private restoreDraft(seedLineId: string | null): void {
+    if (!this.isBrowser) {
+      return;
+    }
+    const draft = parseReportFormDraft(readStorageItem("session", REPORT_FORM_DRAFT_KEY));
+    if (!draft || (seedLineId && draft.model.lineId !== "" && draft.model.lineId !== seedLineId)) {
+      return;
+    }
+    // Set first, or the line-change effect would read the restored line as a change and drop the
+    // restored vehicle.
+    this._lastLineId = draft.model.lineId;
+    this.model.set(draft.model);
+    this.restoredPhotoCount.set(draft.photoCount);
+    this.draftRestored.set(true);
+    if (draft.model.type === "LOCATION") {
+      // The position is never saved (it would be stale): ask for a fresh one, as choosing the type does.
+      this.onTypeChanged();
+    }
+  }
+
+  /** Discard on the "Draft restored" line: forget the saved draft and start the form over. */
+  protected discardDraft(): void {
+    // The button removes itself, and a removed focused control drops focus to `body`, outside the
+    // sheet's focus trap (MISTAKES.md, a11y): hand focus to the Line picker first.
+    this.host.nativeElement.querySelector<HTMLElement>("hlm-combobox input")?.focus();
+    this.clear();
   }
 
   protected onTypeChanged(): void {
@@ -355,10 +456,26 @@ export class ReportFormComponent {
   }
 
   /** Public so the sheet shell's "Clear form" footer button can reset the draft in place
-   * without closing the sheet. */
+   * without closing the sheet. Also forgets the saved draft: Clear form, Discard and a successful
+   * submit are the three ways a draft ends. */
   clear(): void {
+    this.resetForm();
+    if (this.isBrowser) {
+      removeStorageItem("session", REPORT_FORM_DRAFT_KEY);
+    }
+    this._wroteDraft = false;
+    if (this._draftBaseline !== null) {
+      // Still open: the cleared form is the new untouched state.
+      this._draftBaseline = this.model();
+    }
+  }
+
+  /** The in-memory reset, shared by `clear()` and the close edge (which keeps the saved draft). */
+  private resetForm(): void {
     this.model.set(emptyReportFormModel());
     this.photos.set([]);
+    this.draftRestored.set(false);
+    this.restoredPhotoCount.set(0);
     // A cleared form is untouched, not "touched-and-now-invalid" — without this, required
     // fields like lineId immediately show their error again since clearing doesn't undo the
     // touched state from before.

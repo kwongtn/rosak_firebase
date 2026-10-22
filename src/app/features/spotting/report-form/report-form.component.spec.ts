@@ -12,7 +12,8 @@ import { ReportSheetService } from "../data/report-sheet.service";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
 import type { Line } from "../data/spotting.queries";
 import { ReportFormComponent } from "./report-form.component";
-import type { ReportFormModel } from "./report-form.schema";
+import { REPORT_FORM_DRAFT_KEY, serializeReportFormDraft } from "./report-form-draft.util";
+import { emptyReportFormModel, type ReportFormModel } from "./report-form.schema";
 
 interface ComponentUnderTest {
   model: WritableSignal<ReportFormModel>;
@@ -118,6 +119,8 @@ describe("ReportFormComponent", () => {
 
   afterEach(() => {
     httpMock.verify();
+    // The form saves its draft to sessionStorage, which outlives a test inside this file.
+    sessionStorage.clear();
   });
 
   it("seeds the model's lineId when opened with a line via openFor", async () => {
@@ -196,6 +199,182 @@ describe("ReportFormComponent", () => {
     expect(model().lineId ?? "").toBe("");
     // The vehicle picker is gated on a selected line, so it goes away with it.
     expect(root.textContent).not.toContain("Vehicle");
+  });
+
+  describe("draft persistence", () => {
+    function component(): ComponentUnderTest & { submit(): Promise<void>; clear(): void } {
+      return fixture.componentInstance as unknown as ComponentUnderTest & {
+        submit(): Promise<void>;
+        clear(): void;
+      };
+    }
+
+    function savedDraft(): Record<string, unknown> | null {
+      const raw = sessionStorage.getItem(REPORT_FORM_DRAFT_KEY);
+      return raw === null ? null : (JSON.parse(raw) as Record<string, unknown>);
+    }
+
+    function restoredLine(): HTMLElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+        '[data-testid="report-form-draft-restored"]',
+      );
+    }
+
+    function saveDraft(fields: Partial<ReportFormModel>, photoCount = 0): void {
+      sessionStorage.setItem(
+        REPORT_FORM_DRAFT_KEY,
+        serializeReportFormDraft({ ...emptyReportFormModel(), ...fields }, photoCount),
+      );
+    }
+
+    it("saves the draft while open, keeps it through a close, and restores it on the next open", async () => {
+      sheet.open();
+      await settle();
+      expect(restoredLine()).toBeNull();
+
+      component().model.update((m) => ({ ...m, lineId: "4" }));
+      await settle();
+      component().model.update((m) => ({
+        ...m,
+        vehicleId: "v1",
+        notes: "Screeching on the curve",
+      }));
+      await settle();
+      expect(savedDraft()).toMatchObject({
+        lineId: "4",
+        vehicleId: "v1",
+        notes: "Screeching on the curve",
+      });
+
+      // An accidental close (backdrop, Escape, a swipe) resets the form but not the saved draft.
+      sheet.setOpen(false);
+      await settle();
+      expect(model().notes).toBe("");
+      expect(savedDraft()).toMatchObject({ notes: "Screeching on the curve" });
+
+      sheet.open();
+      await settle();
+      expect(model()).toMatchObject({
+        lineId: "4",
+        vehicleId: "v1",
+        notes: "Screeching on the curve",
+      });
+      expect(restoredLine()?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+        "Draft restored. Discard",
+      );
+    });
+
+    it("forgets the saved draft on Discard and hands focus to the Line picker", async () => {
+      saveDraft({ lineId: "4", notes: "Saved earlier" });
+      sheet.open();
+      await settle();
+      expect(model().notes).toBe("Saved earlier");
+
+      const root = fixture.nativeElement as HTMLElement;
+      root.querySelector<HTMLButtonElement>('[data-testid="report-form-draft-discard"]')?.click();
+      await settle();
+
+      expect(savedDraft()).toBeNull();
+      expect(model().lineId).toBe("");
+      expect(model().notes).toBe("");
+      expect(restoredLine()).toBeNull();
+      expect(document.activeElement).toBe(root.querySelector("hlm-combobox input"));
+    });
+
+    it("asks for the photos again when the restored draft had some", async () => {
+      saveDraft({ notes: "With photos" }, 2);
+      sheet.open();
+      await settle();
+
+      expect(restoredLine()?.textContent).toContain(
+        "Photos aren't saved with a draft, so add them again.",
+      );
+    });
+
+    it("leaves a draft for another line saved when a line-seeded open is for a different line", async () => {
+      saveDraft({ lineId: "7", notes: "For line 7" });
+
+      sheet.openFor("4");
+      await settle();
+      expect(model().lineId).toBe("4");
+      expect(model().notes).toBe("");
+      expect(restoredLine()).toBeNull();
+      expect(savedDraft()).toMatchObject({ lineId: "7", notes: "For line 7" });
+
+      // A later open without a seed is where that draft comes back.
+      sheet.setOpen(false);
+      await settle();
+      sheet.open();
+      await settle();
+      expect(model()).toMatchObject({ lineId: "7", notes: "For line 7" });
+    });
+
+    it("restores a draft for the seeded line", async () => {
+      saveDraft({ lineId: "4", notes: "Same line" });
+
+      sheet.openFor("4");
+      await settle();
+
+      expect(model()).toMatchObject({ lineId: "4", notes: "Same line" });
+      expect(restoredLine()).not.toBeNull();
+    });
+
+    it("saves nothing for an open the rider has not touched", async () => {
+      sheet.openFor("4");
+      await settle();
+
+      expect(savedDraft()).toBeNull();
+    });
+
+    it("removes a draft it wrote once the rider undoes every change", async () => {
+      sheet.open();
+      await settle();
+      component().model.update((m) => ({ ...m, notes: "typo" }));
+      await settle();
+      expect(savedDraft()).not.toBeNull();
+
+      component().model.update((m) => ({ ...m, notes: "" }));
+      await settle();
+
+      expect(savedDraft()).toBeNull();
+    });
+
+    it("forgets the saved draft on Clear form", async () => {
+      sheet.open();
+      await settle();
+      component().model.update((m) => ({ ...m, notes: "about to clear" }));
+      await settle();
+      expect(savedDraft()).not.toBeNull();
+
+      component().clear();
+      await settle();
+      expect(savedDraft()).toBeNull();
+
+      sheet.setOpen(false);
+      await settle();
+      sheet.open();
+      await settle();
+      expect(model().notes).toBe("");
+      expect(restoredLine()).toBeNull();
+    });
+
+    it("forgets the saved draft after a successful submit", async () => {
+      (TestBed.inject(AuthService).isLoggedIn as unknown as WritableSignal<boolean>).set(true);
+      vi.mocked(TestBed.inject(GraphQLClient).request).mockResolvedValueOnce({
+        addEvent: { id: 1 },
+      });
+      sheet.openFor("4");
+      await settle();
+      component().model.update((m) => ({ ...m, vehicleId: "v1", sanityTest: true }));
+      await settle();
+      expect(savedDraft()).not.toBeNull();
+
+      await component().submit();
+      await settle();
+
+      expect(TestBed.inject(GraphQLClient).request).toHaveBeenCalledTimes(1);
+      expect(savedDraft()).toBeNull();
+    });
   });
 
   describe("when the submit request fails", () => {
