@@ -398,6 +398,44 @@ test.describe("community front page", () => {
       });
   });
 
+  test("VISITOR: a Notice goes away on Refresh once its incident has ended", async ({ page }) => {
+    // The chips ride the page's beat. Without it a tab left open would keep saying an incident is
+    // running after it ended; the countdown button is the manual beat (the timer is 30 seconds).
+    const stubs = (calendarIncidents: unknown[]) => ({
+      FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
+      Feed: feedPage(),
+      HomeRecentIncidents: { calendarIncidents },
+    });
+    const running = {
+      id: "201",
+      startDatetime: "2026-10-20T08:30:00",
+      endDatetime: null,
+      severity: "MINOR",
+      title: "Track inspection",
+      brief: "",
+      lines: [{ id: "1", code: "KJL" }],
+    };
+    await configureMock(stubs([running]));
+
+    await page.goto("/");
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await expect(kjl.getByTestId("line-notice")).toHaveCount(1);
+    const ongoingReads = async () =>
+      (await recordedCalls()).filter(
+        (call) =>
+          call.operationName === "HomeRecentIncidents" &&
+          "activeNow" in (call.variables["filters"] as object),
+      ).length;
+    expect(await ongoingReads()).toBe(1);
+
+    // The incident ends: the next answer no longer lists it.
+    await configureMock(stubs([]));
+    await page.getByTestId("line-refresh-countdown").click();
+
+    await expect(kjl.getByTestId("line-notice")).toHaveCount(0);
+    expect(await ongoingReads()).toBe(2);
+  });
+
   test("VISITOR: pinning a line that needs attention keeps it a card and asks for its planned works", async ({
     page,
   }) => {
