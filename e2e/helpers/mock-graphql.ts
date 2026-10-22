@@ -61,7 +61,14 @@ export async function recordedCalls(): Promise<RecordedCall[]> {
 /** Names of the operations the mock received without a stub this test, first seen first. */
 export async function unstubbedOperations(): Promise<string[]> {
   const res = await fetch(`${MOCK_GRAPHQL_URL}/__unstubbed`);
-  return (await res.json()) as string[];
+  const names: unknown = res.ok ? await res.json() : null;
+  if (!Array.isArray(names)) {
+    // A server left running from older code (the ports are shared across checkouts) has no such route.
+    throw new Error(
+      `mock GraphQL server on ${MOCK_GRAPHQL_URL} predates /__unstubbed: stop it and rerun`,
+    );
+  }
+  return names as string[];
 }
 
 /** Clears stubs, recorded calls and unstubbed names. */
