@@ -1,7 +1,7 @@
 /**
- * Enums/scalars mirrored from the rosak_backend Strawberry schema, scoped to what
- * /spotting needs. See archive/frontend-map/spotting.md and shared-services-and-plumbing.md
- * in the repo root for the source-verified field-by-field mapping.
+ * Enums/scalars mirrored from the rosak_backend Strawberry schema. The one copy of each enum
+ * union: a feature that needs one imports it from here (or re-exports it, as
+ * `features/home/data/home.queries.ts` does) rather than declaring its own.
  */
 
 export type LineStatus =
@@ -17,8 +17,24 @@ export type VehicleStatus =
   | "TESTING"
   | "UNKNOWN";
 
-/** spotting.enums.SpottingVehicleStatus — the narrower set a user can report. */
-export type SpottingVehicleStatus = "IN_SERVICE" | "NOT_IN_SERVICE" | "DECOMMISSIONED" | "TESTING";
+/** spotting.enums.SpottingVehicleStatus — a spotting event's status (`EventScalar.status`). The
+ * report form offers only IN_SERVICE, NOT_IN_SERVICE, DECOMMISSIONED and TESTING. */
+export type SpottingVehicleStatus =
+  | "IN_SERVICE"
+  | "NOT_IN_SERVICE"
+  | "DECOMMISSIONED"
+  | "TESTING"
+  | "NOT_SPOTTED"
+  | "MARRIED"
+  | "UNKNOWN";
+
+export type PassengerStatus =
+  "NORMAL" | "BUSY" | "CROWDED" | "EXTREMELY_CROWDED" | "BACKLOGGED" | "DELAYED" | "DISRUPTED";
+
+/** `HIDDEN` is the backend's moderation state (rosak_backend `SocialMediaLinkStatus.HIDDEN`):
+ * the row exists and admins still see it in the console so they can un-hide it, but the public
+ * feed never returns it — not even through an explicit `status: HIDDEN` narrowing. */
+export type SocialMediaLinkStatus = "LIVE" | "PENDING_APPROVAL" | "HIDDEN";
 
 /** operation.enums.AssetStatus — whether a station asset (lift, escalator) is working. */
 export type AssetStatus = "IN_OPERATION" | "UNDER_MAINTENANCE";

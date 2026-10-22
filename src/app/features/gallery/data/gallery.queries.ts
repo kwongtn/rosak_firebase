@@ -52,7 +52,7 @@ export interface MediaNode {
 
 export interface MediasFeedQueryData {
   medias: {
-    totalCount: number;
+    totalCount: number | null;
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
     edges: Array<{ cursor: string; node: MediaNode }>;
   };

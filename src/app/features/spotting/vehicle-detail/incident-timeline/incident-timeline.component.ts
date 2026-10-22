@@ -36,7 +36,9 @@ const DOT_CLASS_BY_SEVERITY: Record<IncidentSeverity, string> = {
                 <span class="text-sm font-medium">{{ incident.title }}</span>
                 <span class="text-muted-foreground text-xs">{{ incident.date | date }}</span>
               </div>
-              <p class="text-muted-foreground text-sm">{{ incident.brief }}</p>
+              @if (incident.brief) {
+                <p class="text-muted-foreground text-sm">{{ incident.brief }}</p>
+              }
             </div>
           </li>
         }

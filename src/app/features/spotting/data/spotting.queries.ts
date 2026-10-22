@@ -3,6 +3,7 @@ import {
   IncidentSeverity,
   LineStatus,
   SpottingType,
+  SpottingVehicleStatus,
   VehicleStatus,
   WheelStatus,
 } from "../../../core/graphql/types";
@@ -210,7 +211,7 @@ export interface StationLinesQueryData {
 interface StationLine {
   id: string;
   displayName: string;
-  internalRepresentation: string;
+  internalRepresentation: string | null;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -260,7 +261,7 @@ export interface VehicleEventsQueryData {
 export interface SpottingEvent {
   id: string;
   spottingDate: string;
-  status: VehicleStatus;
+  status: SpottingVehicleStatus;
   type: SpottingType;
   notes: string | null;
   runNumber: string | null;
@@ -333,7 +334,7 @@ export interface VehicleIncident {
   date: string;
   severity: IncidentSeverity;
   title: string;
-  brief: string;
+  brief: string | null;
   isLast: boolean;
 }
 
