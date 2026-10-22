@@ -1,12 +1,14 @@
 import { provideZonelessChangeDetection, signal, type WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
+import { HlmCheckbox } from "../../../ui/checkbox/checkbox";
 import { ToastService } from "../../../ui/toast/toast.service";
-import type { UserData } from "../data/profile.queries";
+import { UPDATE_USER_MUTATION, type UserData } from "../data/profile.queries";
 import { UserCardComponent } from "./user-card.component";
 
 /** The signed-in Firebase user. On someone else's profile this is the viewer, not the owner. */
@@ -19,7 +21,11 @@ const VIEWER = {
   photoURL: "https://example.com/viewer.png",
 };
 
-function makeUser(favouriteVehicles: UserData["favouriteVehicles"], nickname = "Alice"): UserData {
+function makeUser(
+  favouriteVehicles: UserData["favouriteVehicles"],
+  nickname = "Alice",
+  spottingDataPublic = true,
+): UserData {
   return {
     nickname,
     spottingsCount: 3,
@@ -28,13 +34,14 @@ function makeUser(favouriteVehicles: UserData["favouriteVehicles"], nickname = "
     withMostEntriesMonth: null,
     withMostEntriesDay: null,
     favouriteVehicles,
-    spottingDataPublic: true,
+    spottingDataPublic,
   };
 }
 
 describe("UserCardComponent", () => {
   let fixture: ComponentFixture<UserCardComponent>;
   let viewer: WritableSignal<typeof VIEWER | null>;
+  let request: ReturnType<typeof vi.fn>;
   let toast: {
     success: ReturnType<typeof vi.fn>;
     error: ReturnType<typeof vi.fn>;
@@ -60,16 +67,14 @@ describe("UserCardComponent", () => {
 
     viewer = signal<typeof VIEWER | null>(null);
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    request = vi.fn().mockResolvedValue({ myVotesCast: 0 });
     await TestBed.configureTestingModule({
       imports: [UserCardComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: viewer, idToken: vi.fn() } },
-        {
-          provide: GraphQLClient,
-          useValue: { request: vi.fn().mockResolvedValue({ myVotesCast: 0 }) },
-        },
+        { provide: GraphQLClient, useValue: { request } },
         { provide: ToastService, useValue: toast },
       ],
     }).compileComponents();
@@ -85,10 +90,14 @@ describe("UserCardComponent", () => {
     {
       isOwnProfile = false,
       nickname = "Alice",
-    }: { isOwnProfile?: boolean; nickname?: string } = {},
+      spottingDataPublic = true,
+    }: { isOwnProfile?: boolean; nickname?: string; spottingDataPublic?: boolean } = {},
   ): Promise<string> {
     fixture = TestBed.createComponent(UserCardComponent);
-    fixture.componentRef.setInput("user", makeUser(favouriteVehicles, nickname));
+    fixture.componentRef.setInput(
+      "user",
+      makeUser(favouriteVehicles, nickname, spottingDataPublic),
+    );
     // A non-owner view skips the votes-cast request, which is not under test here.
     fixture.componentRef.setInput("isOwnProfile", isOwnProfile);
     fixture.detectChanges();
@@ -293,6 +302,205 @@ describe("UserCardComponent", () => {
         expect(toast.info).toHaveBeenCalledWith("Copy your profile link", profileUrl()),
       );
       expect(toast.success).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("nickname editing", () => {
+    const nicknameInput = (): HTMLInputElement | null =>
+      fixture.nativeElement.querySelector("input");
+
+    function buttonWithText(text: string): HTMLButtonElement {
+      const match = [...fixture.nativeElement.querySelectorAll("button")].find(
+        (b) => (b as HTMLButtonElement).textContent?.trim() === text,
+      );
+      if (!match) throw new Error(`button "${text}" not rendered`);
+      return match as HTMLButtonElement;
+    }
+
+    /** Opens the editor on the owner's card and types `value` into it. */
+    async function typeNickname(value: string): Promise<string[]> {
+      viewer.set(VIEWER);
+      await render([], { isOwnProfile: true });
+      const saved: string[] = [];
+      fixture.componentInstance.nicknameSaved.subscribe((nickname) => saved.push(nickname));
+      buttonWithText("Edit").click();
+      fixture.detectChanges();
+      await fixture.whenStable(); // ngModel writes the draft into the input a microtask later
+      const input = nicknameInput()!;
+      expect(input.value).toBe("Alice");
+      input.value = value;
+      input.dispatchEvent(new Event("input"));
+      return saved;
+    }
+
+    const updateCalls = () =>
+      request.mock.calls.filter(([query]) => query === UPDATE_USER_MUTATION);
+
+    it("offers Edit to the owner only", async () => {
+      await render([], { isOwnProfile: false });
+
+      expect(fixture.nativeElement.querySelector("button")).toBeNull();
+    });
+
+    it("saves the draft, shows it at once and tells the parent", async () => {
+      request.mockImplementation(async (query: string) =>
+        query === UPDATE_USER_MUTATION ? { updateUser: { nickname: "Bob" } } : { myVotesCast: 0 },
+      );
+      const saved = await typeNickname("Bob");
+
+      buttonWithText("✓").click();
+
+      await vi.waitFor(() => expect(saved).toEqual(["Bob"]));
+      fixture.detectChanges();
+      expect(updateCalls()).toHaveLength(1);
+      expect(updateCalls()[0][1]).toEqual({ data: { nickname: "Bob" } });
+      expect(nicknameInput()).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain("Bob");
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("keeps the editor open and says so when the save fails", async () => {
+      request.mockImplementation(async (query: string) => {
+        if (query === UPDATE_USER_MUTATION) throw new Error("Nickname taken");
+        return { myVotesCast: 0 };
+      });
+      const saved = await typeNickname("Bob");
+
+      buttonWithText("✓").click();
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Save failed", "Nickname taken"),
+      );
+      fixture.detectChanges();
+      expect(saved).toEqual([]);
+      expect(nicknameInput()?.value).toBe("Bob");
+      expect(buttonWithText("✓").disabled).toBe(false);
+    });
+
+    it("drops the draft on cancel without asking the backend", async () => {
+      await typeNickname("Bob");
+
+      buttonWithText("✕").click();
+      fixture.detectChanges();
+
+      expect(updateCalls()).toHaveLength(0);
+      expect(nicknameInput()).toBeNull();
+      expect(heading()).toBe(VIEWER.displayName);
+      expect(fixture.nativeElement.textContent).toContain("Alice");
+    });
+  });
+
+  describe("privacy setting", () => {
+    let confirm: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      confirm.mockRestore();
+    });
+
+    /** Opens the sheet on the owner's card, as the Privacy Settings button does. */
+    async function openSheet(spottingDataPublic: boolean): Promise<boolean[]> {
+      viewer.set(VIEWER);
+      await render([], { isOwnProfile: true, spottingDataPublic });
+      const saved: boolean[] = [];
+      fixture.componentInstance.privacySaved.subscribe((value) => saved.push(value));
+      const open = [...fixture.nativeElement.querySelectorAll("button")].find((b) =>
+        (b as HTMLButtonElement).textContent?.includes("Privacy Settings"),
+      ) as HTMLButtonElement;
+      open.click();
+      fixture.detectChanges();
+      return saved;
+    }
+
+    const checkbox = () => fixture.debugElement.query(By.directive(HlmCheckbox));
+    const isChecked = (): boolean => (checkbox().componentInstance as HlmCheckbox).checkedInput();
+    const toggle = (value: boolean): void => {
+      checkbox().triggerEventHandler("checkedChange", value);
+    };
+    const updateCalls = () =>
+      request.mock.calls.filter(([query]) => query === UPDATE_USER_MUTATION);
+
+    it("starts from the saved setting", async () => {
+      await openSheet(true);
+      expect(isChecked()).toBe(true);
+      fixture.destroy();
+
+      await openSheet(false);
+      expect(isChecked()).toBe(false);
+    });
+
+    it("asks first, then saves with the nickname and tells the parent", async () => {
+      request.mockImplementation(async (query: string) =>
+        query === UPDATE_USER_MUTATION ? { updateUser: { nickname: "Alice" } } : { myVotesCast: 0 },
+      );
+      const saved = await openSheet(false);
+
+      toggle(true);
+
+      await vi.waitFor(() => expect(saved).toEqual([true]));
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(updateCalls()[0][1]).toEqual({
+        data: { nickname: "Alice", spottingDataPublic: true },
+      });
+      expect(toast.success).toHaveBeenCalledWith("Spotting history is now public");
+      fixture.detectChanges();
+      expect(isChecked()).toBe(true);
+    });
+
+    it("does nothing when the owner declines to go public", async () => {
+      confirm.mockReturnValue(false);
+      const saved = await openSheet(false);
+
+      toggle(true);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(updateCalls()).toHaveLength(0);
+      expect(saved).toEqual([]);
+      expect(isChecked()).toBe(false);
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("puts the checkbox back and says so when going public fails", async () => {
+      request.mockImplementation(async (query: string) => {
+        if (query === UPDATE_USER_MUTATION) throw new Error("Network down");
+        return { myVotesCast: 0 };
+      });
+      const saved = await openSheet(false);
+
+      toggle(true);
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Save failed", "Network down"),
+      );
+      fixture.detectChanges();
+      expect(saved).toEqual([]);
+      expect(isChecked()).toBe(false);
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("turns it off without asking, and puts it back on when that save fails", async () => {
+      request.mockImplementation(async (query: string) => {
+        if (query === UPDATE_USER_MUTATION) throw new Error("Network down");
+        return { myVotesCast: 0 };
+      });
+      const saved = await openSheet(true);
+
+      toggle(false);
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Save failed", "Network down"),
+      );
+      fixture.detectChanges();
+      expect(confirm).not.toHaveBeenCalled();
+      expect(updateCalls()[0][1]).toEqual({
+        data: { nickname: "Alice", spottingDataPublic: false },
+      });
+      expect(saved).toEqual([]);
+      expect(isChecked()).toBe(true);
     });
   });
 });
