@@ -234,5 +234,20 @@ describe("authInterceptor", () => {
       call.flush({ data: { me: { id: "u1" } } });
       await vi.waitFor(() => expect(resource.data()).toEqual({ me: { id: "u1" } }));
     });
+
+    it("sends an authenticated graphqlResource read unsigned once ready for a signed-out viewer", async () => {
+      isLoggedIn.set(false);
+      TestBed.runInInjectionContext(() =>
+        graphqlResource(() => ({ query }), { authenticated: true }),
+      );
+      resolveReady();
+      await flushToken();
+      TestBed.tick();
+
+      const call = httpMock.expectOne(isGraphql);
+      expect(call.request.headers.has("firebase-auth-key")).toBe(false);
+      expect(idToken).not.toHaveBeenCalled();
+      call.flush({ data: {} });
+    });
   });
 });

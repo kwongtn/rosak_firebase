@@ -86,7 +86,9 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  * A read is anonymous by default ({@link ANONYMOUS}): a public answer, the same for everyone, that
  * the SSR transfer cache can hand over. With `authenticated: true` the auth interceptor adds the
  * signed-in viewer's token, and the first request waits for `AuthService.whenReady`, so a session
- * that Firebase is still restoring is not read as signed out.
+ * that Firebase is still restoring is not read as signed out. That wait happens once: the resource
+ * does not refetch on a later sign-in or sign-out, and a signed-out viewer's read goes out unsigned.
+ * A `requestFn` that must follow the viewer reads `auth.user()` or `auth.isLoggedIn()` itself.
  *
  * Only for queries (idempotent reads). Mutations should call
  * `inject(GraphQLClient).request(query, variables, headers)` directly from an event handler —
