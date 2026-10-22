@@ -22,6 +22,7 @@ function fakePush() {
     busy: signal(false),
     lines,
     isSubscribed: (lineId: string) => lines().some((line) => line.id === lineId),
+    syncPermission: vi.fn(),
     subscribe: vi.fn(async () => undefined),
     unsubscribe: vi.fn(async () => undefined),
   };
@@ -220,6 +221,25 @@ describe("LineAlertBellComponent", () => {
     expect(push.subscribe).not.toHaveBeenCalled();
     expect(promptIsOpen()).toBe(false);
     expect(login).not.toHaveBeenCalled();
+  });
+
+  it("reads the permission again on a tap, so a site unblocked since the page loaded asks first", async () => {
+    push.availability.set("blocked");
+    push.needsPermission.set(false);
+    render();
+    await waitForState("blocked");
+    // What the service does when the browser now answers "default" (the rider reset the setting).
+    push.syncPermission.mockImplementation(() => {
+      push.availability.set("ready");
+      push.needsPermission.set(true);
+    });
+
+    await click(bell());
+
+    expect(push.syncPermission).toHaveBeenCalledTimes(1);
+    expect(bell().getAttribute("data-state")).toBe("off");
+    expect(promptIsOpen()).toBe(true);
+    expect(push.subscribe).not.toHaveBeenCalled();
   });
 
   it("ignores taps while a change is on its way", async () => {

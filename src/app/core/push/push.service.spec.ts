@@ -239,6 +239,30 @@ describe("PushService", () => {
       );
     });
 
+    it("reads the permission again first: a site reset to 'ask' since load asks inside the tap", async () => {
+      notification.permission = "granted";
+      const push = create();
+      expect(push.needsPermission()).toBe(false);
+      notification.permission = "default";
+
+      const done = push.subscribe(KJL);
+      expect(notification.requestPermission).toHaveBeenCalledTimes(1);
+      await done;
+
+      expect(readPushState()).toEqual({ token: "fcm-token", lines: [KJL] });
+    });
+
+    it("turns blocked without asking when the site was blocked since load", async () => {
+      const push = create();
+      notification.permission = "denied";
+
+      await push.subscribe(KJL);
+
+      expect(notification.requestPermission).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+      expect(push.availability()).toBe("blocked");
+    });
+
     it("never asks or sends while alerts cannot work here", async () => {
       const push = create({ vapidKey: "" });
 

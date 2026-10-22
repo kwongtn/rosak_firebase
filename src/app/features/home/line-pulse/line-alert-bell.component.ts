@@ -193,6 +193,9 @@ export class LineAlertBellComponent {
 
   protected onBell(): void {
     const push = this.push();
+    // The rider may have changed the site's notification setting since this page loaded: a blocked
+    // bell that is now allowed acts on this tap, and a reset one asks again.
+    push?.syncPermission();
     if (!push || this._inert()) {
       return;
     }

@@ -121,6 +121,16 @@ export class PushService {
     }
     this._state.set(readPushState());
     this._support.set(inject(PUSH_SUPPORT));
+    this.syncPermission();
+  }
+
+  /**
+   * Reads the browser's notification permission again. The rider can change it in the site settings
+   * at any time and no event says so everywhere, so a tap reads it before it decides anything: an
+   * unblocked site stops showing "blocked", and a reset one gets the pre-prompt and the browser's
+   * prompt again, inside the tap.
+   */
+  syncPermission(): void {
     if (this._support() === "supported") {
       this._permission.set(Notification.permission);
     }
@@ -136,6 +146,7 @@ export class PushService {
    * activation, which an awaited import or request would use up.
    */
   async subscribe(line: PushLine): Promise<void> {
+    this.syncPermission();
     if (this._busy() || this.availability() !== "ready") {
       return;
     }
