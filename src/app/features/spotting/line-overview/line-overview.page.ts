@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   input,
+  linkedSignal,
   signal,
   untracked,
   viewChild,
@@ -16,6 +17,7 @@ import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { graphqlResource } from "../../../core/graphql/graphql-client";
 import { revalidateOnReturn } from "../../../core/routing/revalidate-on-return";
+import { queryParamForWrite, writeQueryParams } from "../../../core/url-state/query-param.util";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { HlmBadge } from "../../../ui/badge/badge";
 import { HlmButton } from "../../../ui/button/button";
@@ -203,18 +205,30 @@ export class LineOverviewPage {
   private readonly isBrowser = injectIsBrowser();
 
   protected readonly _line = computed(() => this.linesStore.lineById(this.lineId()));
-  protected readonly statusFilter = signal<VehicleStatus | null>(null);
+  /** Resets to "no filter" on every line change: a filter must not silently carry over and hide
+   * vehicles on a line the user hasn't looked at yet. */
+  protected readonly statusFilter = linkedSignal<string, VehicleStatus | null>({
+    source: this.lineId,
+    computation: () => null,
+  });
 
-  /** Sort state for every vehicle-type table on this line, all kept in lockstep — see
-   * VehicleListComponent's own doc comment on `sortColumn`/`sortDirection`. URL-synced (`sort`/
-   * `dir` query params) so a sorted view is deep-linkable and survives a reload, but the params
-   * only ever appear once the user actually changes the sort away from the default; see the two
-   * effects below for the read (URL → signal) and write (signal → URL) halves of that sync. */
-  protected readonly sortColumn = signal<SortColumn>(DEFAULT_SORT_COLUMN);
-  protected readonly sortDirection = signal<SortDirection>(DEFAULT_SORT_DIRECTION);
   private readonly queryParamMap = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
   });
+  /** Sort state for every vehicle-type table on this line, all kept in lockstep — see
+   * VehicleListComponent's own doc comment on `sortColumn`/`sortDirection`. Derived from the
+   * `sort`/`dir` query params (the URL is the only source of truth), so a sorted view is
+   * deep-linkable, survives a reload and follows back/forward and the nav chips' `preserve`/reset
+   * handling. A missing or unrecognized value reads as the default, which is what makes "no query
+   * params" and "the default sort" the same state. SSR-safe: pure param parsing. `onSortChanged`
+   * is the write half. */
+  protected readonly sortColumn = computed<SortColumn>(() => {
+    const sort = this.queryParamMap().get("sort");
+    return isSortColumn(sort) ? sort : DEFAULT_SORT_COLUMN;
+  });
+  protected readonly sortDirection = computed<SortDirection>(() =>
+    this.queryParamMap().get("dir") === "desc" ? "desc" : DEFAULT_SORT_DIRECTION,
+  );
 
   protected readonly vehicleTypesResource = graphqlResource<
     VehicleTypesQueryData,
@@ -266,49 +280,6 @@ export class LineOverviewPage {
   constructor() {
     // Revalidate silently on return; the keep-alive page retains its existing data.
     revalidateOnReturn(isSpottingLineRoute, () => this.vehicleTypesResource.reload());
-
-    // Clear the status filter when navigating to a different line — it shouldn't silently
-    // carry over and hide vehicles on a line the user hasn't looked at yet.
-    effect(() => {
-      this.lineId();
-      this.statusFilter.set(null);
-    });
-
-    // URL → signal: read `sort`/`dir` out of the query params on every navigation (initial
-    // load, a deep link, browser back/forward, or the desktop nav chips' own `preserve`/reset
-    // handling below) rather than just once — an unrecognized/missing value on either falls
-    // back to the shared default, which is what makes "no query params" and "the default sort"
-    // the same state. SSR-safe (pure param parsing, no browser APIs), unlike the write-back
-    // effect below.
-    effect(() => {
-      const params = this.queryParamMap();
-      const sort = params.get("sort");
-      this.sortColumn.set(isSortColumn(sort) ? sort : DEFAULT_SORT_COLUMN);
-      this.sortDirection.set(params.get("dir") === "desc" ? "desc" : DEFAULT_SORT_DIRECTION);
-    });
-
-    // Signal → URL: mirrors a user-driven sort change into `sort`/`dir` query params, omitting
-    // whichever half already matches the default so a still-default sort never shows up in the
-    // URL at all. `replaceUrl` keeps every column click from piling up its own back-button stop.
-    // Browser-only — see the existing not-found redirect below for why a *reactive* navigate()
-    // during SSR is a known hang, not just an unnecessary one; this would otherwise fire on the
-    // very first render pass too.
-    effect(() => {
-      const column = this.sortColumn();
-      const direction = this.sortDirection();
-      if (!this.isBrowser) {
-        return;
-      }
-      this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: {
-          sort: column === DEFAULT_SORT_COLUMN ? null : column,
-          dir: direction === DEFAULT_SORT_DIRECTION ? null : direction,
-        },
-        queryParamsHandling: "merge",
-        replaceUrl: true,
-      });
-    });
 
     // Top rootMargin = vehicle-list's own sticky offset (nav + this page's sticky row,
     // *measured*, not guessed — see stickyBarHeight above). That shifts the observer's
@@ -399,9 +370,20 @@ export class LineOverviewPage {
     });
   }
 
+  /** Signal → URL: writes a user-driven sort change into `sort`/`dir`, omitting whichever half
+   * matches the default so a default sort never shows in the URL, and replacing the history entry
+   * so column clicks don't pile up back-button stops. `sortColumn`/`sortDirection` follow once the
+   * navigation lands. Browser-only (`writeQueryParams`' guard), like the not-found redirect above. */
   protected onSortChanged(change: SortChange): void {
-    this.sortColumn.set(change.column);
-    this.sortDirection.set(change.direction);
+    writeQueryParams(
+      this.router,
+      this.route,
+      {
+        sort: queryParamForWrite(change.column, DEFAULT_SORT_COLUMN),
+        dir: queryParamForWrite(change.direction, DEFAULT_SORT_DIRECTION),
+      },
+      this.isBrowser,
+    );
   }
 
   protected onSwitchLine(lineId: string): void {

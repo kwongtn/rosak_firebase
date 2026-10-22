@@ -18,9 +18,14 @@ describe("LineOverviewPage", () => {
   let navigate: ReturnType<typeof vi.spyOn>;
   let notFoundToast: ReturnType<typeof vi.spyOn>;
 
-  /** The page's template is not under test, only its not-found effect; the real ToastService is
-   * used because the bug is a toast reading then rewriting the shared toast list. */
-  async function render(lineId: string, platform: "browser" | "server" = "browser"): Promise<void> {
+  /** The page's template is not under test, only its not-found effect and its URL-synced sort; the
+   * real ToastService is used because the bug is a toast reading then rewriting the shared toast
+   * list. `url` is navigated to (for real) before the page is created. */
+  async function render(
+    lineId: string,
+    platform: "browser" | "server" = "browser",
+    url = "/",
+  ): Promise<void> {
     TestBed.overrideComponent(LineOverviewPage, { set: { template: "", imports: [] } });
     const lines = signal([LINE]);
     await TestBed.configureTestingModule({
@@ -28,7 +33,8 @@ describe("LineOverviewPage", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
-        provideRouter([]),
+        // Matches every URL, so a sort write or a redirect really navigates.
+        provideRouter([{ path: "**", children: [] }]),
         { provide: PLATFORM_ID, useValue: platform },
         {
           provide: SpottingLinesStore,
@@ -43,7 +49,9 @@ describe("LineOverviewPage", () => {
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
-    navigate = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+    await TestBed.inject(Router).navigateByUrl(url);
+    // Calls through: the sort round trip needs the URL to really change.
+    navigate = vi.spyOn(TestBed.inject(Router), "navigate");
     // Without untracked() the effect re-raises this toast on every run, and render()'s tick loop
     // then never returns, so no test timeout can fire. Let one raise through and throw on the next,
     // before its toast write re-dirties the effect, so the lost wrap fails the test instead.
@@ -64,7 +72,7 @@ describe("LineOverviewPage", () => {
     }
   }
 
-  /** The sort-sync effect also navigates (to the same line, merging query params). */
+  /** The not-found redirects, apart from any sort write (which navigates to `[]`). */
   function redirects(): unknown[][] {
     return navigate.mock.calls.filter(([commands]: [unknown[]]) => commands[0] === "/spotting");
   }
@@ -90,6 +98,72 @@ describe("LineOverviewPage", () => {
 
     expect(toastState.toasts()).toHaveLength(0);
     expect(redirects()).toEqual([]);
+  });
+
+  describe("sort query params", () => {
+    type SortChange = { column: string; direction: "asc" | "desc" };
+    function page(): {
+      sortColumn(): string;
+      sortDirection(): string;
+      onSortChanged(change: SortChange): void;
+    } {
+      return fixture.componentInstance as unknown as ReturnType<typeof page>;
+    }
+
+    async function settle(): Promise<void> {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      TestBed.tick();
+    }
+
+    it("reads the sort from the URL, and falls back to the default for an unknown value", async () => {
+      await render("4", "browser", "/?sort=status&dir=desc");
+      expect([page().sortColumn(), page().sortDirection()]).toEqual(["status", "desc"]);
+
+      await TestBed.inject(Router).navigateByUrl("/?sort=bogus&dir=sideways");
+      await settle();
+      expect([page().sortColumn(), page().sortDirection()]).toEqual(["identificationNo", "asc"]);
+    });
+
+    it("writes a sort change to the URL and reads it back, leaving the default out", async () => {
+      await render("4");
+      const router = TestBed.inject(Router);
+      // Mounting writes nothing: only a sort change does.
+      expect(navigate).not.toHaveBeenCalled();
+
+      page().onSortChanged({ column: "wheelStatus", direction: "desc" });
+      await settle();
+      expect(router.url).toBe("/?sort=wheelStatus&dir=desc");
+      expect([page().sortColumn(), page().sortDirection()]).toEqual(["wheelStatus", "desc"]);
+      expect(navigate).toHaveBeenLastCalledWith([], expect.objectContaining({ replaceUrl: true }));
+
+      page().onSortChanged({ column: "wheelStatus", direction: "asc" });
+      await settle();
+      expect(router.url).toBe("/?sort=wheelStatus");
+
+      page().onSortChanged({ column: "identificationNo", direction: "asc" });
+      await settle();
+      expect(router.url).toBe("/");
+      expect([page().sortColumn(), page().sortDirection()]).toEqual(["identificationNo", "asc"]);
+    });
+
+    it("keeps an unrelated query param when it writes the sort", async () => {
+      await render("4", "browser", "/?tab=x");
+
+      page().onSortChanged({ column: "status", direction: "asc" });
+      await settle();
+
+      expect(TestBed.inject(Router).url).toBe("/?tab=x&sort=status");
+    });
+
+    it("does not navigate during the server render", async () => {
+      await render("4", "server", "/?sort=status");
+
+      page().onSortChanged({ column: "wheelStatus", direction: "desc" });
+      await settle();
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(page().sortColumn()).toBe("status");
+    });
   });
 
   it("leaves the redirect to the browser, not the server render", async () => {
