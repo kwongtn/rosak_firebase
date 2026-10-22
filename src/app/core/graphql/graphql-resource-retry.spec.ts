@@ -1,6 +1,6 @@
 import { provideHttpClient } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
-import { provideZonelessChangeDetection } from "@angular/core";
+import { PLATFORM_ID, provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -148,6 +148,49 @@ describe("graphqlResource retry schedule", () => {
     TestBed.resetTestingModule();
     await vi.advanceTimersByTimeAsync(60_000);
 
+    httpMock.expectNone(() => true);
+  });
+});
+
+/** The retry loop is a browser concern: during SSR no timer may outlive the response. */
+describe("graphqlResource on the server", () => {
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: PLATFORM_ID, useValue: "server" },
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    vi.useRealTimers();
+  });
+
+  it("starts no retry timer after a failure and never sends the request again", async () => {
+    const resource = TestBed.runInInjectionContext(() =>
+      graphqlResource<LinesData>(() => ({ query })),
+    );
+    TestBed.tick();
+    httpMock
+      .expectOne((r) => r.method === "POST" && r.body.query === query)
+      .flush({ message: "boom" }, { status: 500, statusText: "Error" });
+    await vi.advanceTimersByTimeAsync(0);
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(resource.transportError()).toBeDefined();
+    // The settle effect is browser-only: the flag stays down on the server, `transportError` has it.
+    expect(resource.hasError()).toBe(false);
+    expect(resource.retryCountdownSec()).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
     httpMock.expectNone(() => true);
   });
 });
