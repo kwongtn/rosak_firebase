@@ -21,6 +21,7 @@ import { ToastService } from "../../../ui/toast/toast.service";
 import { ReportSheetService } from "../data/report-sheet.service";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
 import { PhotoPickerComponent } from "../report-form/photo-picker/photo-picker.component";
+import { REPORT_FORM_DRAFT_KEY } from "../report-form/report-form-draft.util";
 import { ReportFormComponent } from "../report-form/report-form.component";
 import { SpottingShellPage } from "./spotting-shell.page";
 
@@ -111,9 +112,10 @@ describe("SpottingShellPage report sheet", () => {
   });
 
   afterEach(() => {
+    // A picked photo makes the form save a draft, which a later test's open would restore. Removed
+    // before verify(), which can throw, and only this key: the worker shares sessionStorage.
+    sessionStorage.removeItem(REPORT_FORM_DRAFT_KEY);
     httpMock.verify();
-    // A picked photo makes the form save a draft, which a later test's open would restore.
-    sessionStorage.clear();
   });
 
   it("creates no report form, and so no fleet-wide read, while the sheet stays closed", () => {
