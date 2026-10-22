@@ -1,5 +1,5 @@
 import { BrnButton } from "@spartan-ng/brain/button";
-import { Directive, computed, input } from "@angular/core";
+import { Directive, ElementRef, computed, inject, input } from "@angular/core";
 import { cva, type VariantProps } from "class-variance-authority";
 import { hlm } from "../utils/hlm";
 
@@ -35,6 +35,7 @@ export type ButtonVariants = VariantProps<typeof buttonVariants>;
   hostDirectives: [{ directive: BrnButton, inputs: ["disabled"] }],
   host: {
     "data-slot": "button",
+    "[attr.type]": "_type()",
     "[class]": "_computedClass()",
   },
 })
@@ -42,7 +43,15 @@ export class HlmButton {
   readonly variant = input<ButtonVariants["variant"]>("default");
   readonly size = input<ButtonVariants["size"]>("default");
   readonly userClass = input<string>("", { alias: "class" });
+  /** A `<button>` defaults to `button`, not the native `submit`, so one inside a `<form>` never
+   * submits it by accident. A submit button asks for it with `type="submit"`. */
+  readonly type = input<"button" | "submit" | "reset">("button");
 
+  // An anchor takes no `type` (there it is a MIME hint), so only a `<button>` gets the attribute.
+  private readonly isButton =
+    inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.tagName === "BUTTON";
+
+  protected readonly _type = computed(() => (this.isButton ? this.type() : null));
   protected readonly _computedClass = computed(() =>
     hlm(buttonVariants({ variant: this.variant(), size: this.size() }), this.userClass()),
   );
