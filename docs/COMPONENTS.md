@@ -52,7 +52,10 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
 - `core/graphql/`: `graphqlResource()` reads (`data()` and `errors()` never throw; `data()` keeps the
   last good payload while the SAME request fails or retries, and a changed request clears it) and
   `GraphQLClient.request` writes. `toastSubmitFailure(toast)` is what a form's submit `catch` calls
-  for any error the client did not already toast, before rethrowing to Sentry.
+  for any error the client did not already toast, before rethrowing to Sentry. A request that carries
+  `firebase-auth-key` opts out of the SSR transfer cache (`transferCache: false`): the cache keys on
+  method, URL and body, not headers, so it would answer a signed-in viewer with the server's
+  anonymous render of the same query.
 - `core/sentry/`: Session Replay is a dynamic `import()` after bootstrap, at idle (`main.ts`). The
   "Report a bug" widget loads on first use through `FeedbackService.openForm()` (browser only; one
   shared in-flight open; the current theme is applied on every open). Both load `?lazy` private
