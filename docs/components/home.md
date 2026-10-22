@@ -8,7 +8,8 @@
     indicator;
   - the **network board** — per-line status grouped `Needs attention` (full cards) → `My lines` →
     `All lines` → `Others` (compact rows): each line's live operational + passenger status, how far to
-    trust it, and the social entries behind it;
+    trust it, the social entries behind it, and a **Notice** chip when an approved incident is running
+    on it (a pinned line's row adds **Planned works**);
   - a global rolling **feed** of approved links (voting, conversations) behind a Today / Last Week tab
     set, headed by a login-gated link submit box;
   - an alternate **Pro dashboard** layout (bento of six widgets), chosen by `?view=pro` or a stored
@@ -35,7 +36,7 @@
     `index.html`.
   - `hero/` — `home-hero.component.ts` (`app-home-hero`), `network-sparkline.component.ts`
     (`app-network-sparkline`).
-  - `line-pulse/` — `network-board`, `line-pulse-card`, `line-pulse-row`, `line-status-chart`,
+  - `line-pulse/` — `network-board`, `line-pulse-card`, `line-pulse-row`, `line-notices`, `line-status-chart`,
     `line-status-reports`, `status-info-chip` (thin wrapper over the shared `app-info-popover`:
     `showIcon=false`, forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
     through the real server path to guard SSR/hydration) — each `*.component.ts`.
@@ -54,9 +55,9 @@
     `home-incidents.queries.ts`, `home-feed-mutations.queries.ts`; `home.store.ts`;
     `home-view-mode.service.ts`; `line-status-sheet.service.ts`; `submit-line-status-report.ts` (the
     one send path for a status report); `report-outbox-flush.ts` (`provideReportOutboxFlush()`);
-    pure utils `network-summary`, `board-lines`, `status-confidence`, `status-history-display`,
-    `status-info`, `line-status-metrics`, `passenger-status`, `home-feed`, `feed-filter`,
-    `feed-day-groups`, `line-family` (each `*.util.ts`).
+    pure utils `incident-notices`, `network-summary`, `board-lines`, `status-confidence`,
+    `status-history-display`, `status-info`, `line-status-metrics`, `passenger-status`, `home-feed`,
+    `feed-filter`, `feed-day-groups`, `line-family` (each `*.util.ts`).
     Specs sit beside each file.
 
 ## 🔌 Interface & Data Flow
@@ -199,8 +200,22 @@
     `REMOVE_SOCIAL_MEDIA_LINK_VOTE_MUTATION` (shared vote button): each selects
     `{ ok userVote voteScore upvotes downvotes }`; the button repaints from that acknowledgement rather
     than projecting the score.
-  - `HOME_RECENT_INCIDENTS_QUERY` + frozen `HOME_RECENT_INCIDENT_VARS` + `PRO_INCIDENT_LIMIT`
-    (`home-incidents.queries.ts`) — the Pro incidents read.
+  - `HOME_RECENT_INCIDENTS_QUERY` + frozen `HOME_RECENT_INCIDENT_VARS` / `HOME_PLANNED_WORKS_VARS` +
+    `PRO_INCIDENT_LIMIT` (`home-incidents.queries.ts`) — ONE document, two reads: the **ongoing** list
+    (the Pro incidents widget AND the board's Notice chips) and the **planned-works** list (the board's
+    Planned works chips). The variables are literals, frozen all the way down:
+    `{ filters: { status: LIVE, activeNow: true }, order: { startDatetime: DESC } }` and
+    `{ filters: { status: LIVE, upcomingWithinDays: 7 }, order: { startDatetime: ASC } }`.
+    - 🔴 **`status: LIVE` is mandatory on every rider-facing read of `calendarIncidents`.** The root
+      field has no status gate of its own: without a `status` filter it answers anonymous callers with
+      drafts, reports pending approval and rejected ones. The Pro widget used to filter on
+      `OR: { ongoing: true }`, which only looks at the end time, so this public widget listed drafts;
+      that was wrong, and the shared read is now `LIVE` + `activeNow`. `home.queries.spec.ts` pins
+      `LIVE` on both objects.
+    - `activeNow` is the backend's "started and not yet ended" (an incident with no end time
+      included); `upcomingWithinDays: N` (1..60) is `now < start <= now + N days`. The backend counts,
+      so neither variable needs a `new Date()` (SSR TransferState equality, as with `lastWeekOnly`).
+      The 7 is the methodology constant `PLANNED_WORKS_WINDOW_DAYS`, pinned by the same spec.
   - Input types:
     `FeedLinkInput { url, title?, occurredAt?, lineIds?, stationIds?, status?, delayMinutes?, notes? }`
     and `LineStatusReportInput { lineId, status, stationIds?, delayMinutes?, notes? }`.
@@ -271,8 +286,22 @@ The single source of truth for page data.
     `networkHistoryFailed`, `linesHistoryFailed`. Failed or empty hides the widget (`[]` is the
     backend's "nothing reported this service day"); exceptions under Service-day widgets. `reloadAll()`
     re-reads both; the beat does not (a chart redrawing every 30s is noise).
-  - **Incidents:** `incidentsResource`, gated on `requestIncidentsRead()`; `recentIncidents` /
-    `incidentsFailed` (no loading flag).
+  - **Incidents (ongoing):** `incidentsResource`, gated on `requestIncidentsRead()`, which the Pro
+    widget's constructor AND the network board's constructor call (idempotent: a Pro reader whose
+    board and widget both ask still sends one request). Projections: `recentIncidents` (the newest
+    `PRO_INCIDENT_LIMIT`, the widget's slice), `noticesFor(lineId)` (the UNCAPPED list grouped by
+    `lines[].id` through `groupIncidentsByLine`: one computed, O(1) per row, because a line's incident
+    can sit past the widget's slice) and `incidentsFailed`. There is no loading flag: `noticesFor`
+    answers the same shared empty array while the read is unrequested, in flight or failed, and a row
+    draws nothing for it (no skeleton).
+  - **Planned works:** `plannedWorksResource` (the same document, `HOME_PLANNED_WORKS_VARS`), gated on
+    `requestPlannedWorksRead()`, which the board calls from an `effect` once the My lines group has a
+    row. An unpinned reader never sends it, and neither does a server render (pins hydrate in
+    `afterNextRender`, so `myLines` is empty there). `plannedWorksFor(lineId)`; its failure flag is
+    private and hides its chips only.
+  - Both incident reads are absent from `reloadAll()` and the beat: they are read once per store, when
+    their surface first asks, so a tab left open for hours keeps the notices of its first read (the chip
+    links to the live day page). See Feature Opportunities.
   - **Official-notices archive:** `officialNoticesResource` re-issues `FEED_QUERY` with frozen
     `OFFICIAL_NOTICES_VARS`; gated on `requestOfficialNotices()`; `officialNotices` /
     `officialNoticesFailed` / `officialNoticesLoading`. Absent from `reloadAll()` and the beat (like
@@ -790,8 +819,11 @@ hook). Group `h2`s carry the breathing dot (Motion).
   pin list is a gap, not an invitation; no empty state). Pinned out-of-service lines stay ("pin wins").
 - `All lines` (`line-board-all` / `-heading`) — compact rows; hidden when empty. 🔴 **Quiet lines fold**
   when `foldQuiet` (default `true`): a line that is in service, has no attention state,
-  `statusReportCount` 0 and is not pinned (`isQuietLine` / `splitQuietLines` in
-  `data/board-lines.util.ts`) is not drawn as a row. They sit behind one toggle
+  `statusReportCount` 0, is not pinned and has no **Notice** (an approved incident running on it;
+  `isQuietLine(line, hasNotice)` / `splitQuietLines(lines, hasNotice)` in `data/board-lines.util.ts`,
+  the board passes `store.noticesFor(id).length > 0`) is not drawn as a row. 🔴 **A Notice makes a
+  line loud**: the case the chip exists for is a line that reads Normal while an incident is open on
+  it, and left folded it would hide the chip with it. They sit behind one toggle
   (`line-board-quiet-toggle`, `aria-controls="line-board-quiet-panel"`, "N lines running normally",
   state `HomeStore.quietLinesExpanded`); the panel renders rows only when expanded. A pinned quiet line
   stays a row under `My lines`. The one piece of onboarding sits in the collapsed summary only: "Pin your
@@ -800,6 +832,18 @@ hook). Group `h2`s carry the breathing dot (Motion).
 - `Others` (`line-board-others` / `-heading`) — compact rows, LAST, hidden when empty: unpinned
   out-of-service lines (TESTING pre-opening / DEFUNCT closed). Inventory no longer masquerades as
   service.
+- **Incident chips.** The board opts the ongoing read in from its constructor
+  (`store.requestIncidentsRead()`) and the planned-works read from an `effect` over `myLines()`
+  (`requestPlannedWorksRead()`). Every row and card embeds `app-line-notices` (see Incident notices):
+  the row passes `[planned]="_isPinned()"`, which is the My lines test because a pin takes a line out
+  of All lines and Others; the card passes nothing. So **Planned works draw on the compact rows of My
+  lines only**: a pinned line that needs attention is a card and shows its Notices alone. Until the
+  store has an answer for a line there is no chip, strip, gap or skeleton for it, and a failed read
+  never raises the retry banner.
+  - **SSR.** The ongoing read starts in the board's constructor, so it is issued during the server
+    render: its answer rides TransferState, the Notice chips (and the rows a Notice takes out of the
+    quiet fold) are in the server HTML, and the hydrated page sends no second request for it. The
+    planned-works read is client-only. The cost is one more backend read per front-page render.
 - 🔴 **Dividers are per-section and CONDITIONAL.** A lower group carries `border-t pt-4` only when a
   section actually precedes it; `_attentionRendered()` / `_mineRendered()` / `_allRendered()` are the
   SAME length predicates the groups' `@if`s use, exposed as signals. The **first visible group** draws
@@ -900,6 +944,10 @@ hook). Group `h2`s carry the breathing dot (Motion).
   and on `line-row-chips` the `line-row-confidence` chip + `line-row-passenger` badge — 🔴 **both ONLY
   for an ACTIVE line** (a non-Active badge already tells the story; confidence is asked where status is
   the unremarkable default).
+- **Incident chips** sit between `line-row-chips` and `line-row-meta`:
+  `<app-line-notices class="mt-1.5" [lineId]="line().id" [planned]="_isPinned()" />`. The host is
+  `empty:hidden`, so a row with nothing to say gains no margin. The card embeds the same component under
+  its header, without `[planned]`.
 - `line-row-pin` (`aria-pressed`, action-naming `aria-label`; 🔴 the glyph FILLS when pinned —
   `[&>svg]:fill-current` on the `ng-icon` while `_isPinned()` — because `aria-pressed` alone leaves a
   16px outline pin saying "pin available" about a pin already on), `line-row-details`, `line-row-report`
@@ -944,6 +992,44 @@ hook). Group `h2`s carry the breathing dot (Motion).
     `relative inline-flex` and `.inline-flex` is emitted after `.hidden`, so a same-specificity
     `display` tie leaves it visible (`MISTAKES.md`); hiding only the projected span leaves a lone "i"
     beside no number.
+
+### Incident notices (`line-pulse/line-notices.component.ts`, `data/incident-notices.util.ts`)
+
+Approved incidents, per line, on the board. `app-line-notices` takes `lineId = input.required<string>()`
+and `planned = input(false)`, injects `HomeStore`, and reads only `noticesFor(lineId)` and, when
+`planned`, `plannedWorksFor(lineId)`. It renders a `<ul data-testid="line-notices">` or NOTHING.
+
+- **Notice** (`line-notice`): an approved incident running on the line now (the ongoing read). It shows
+  `Notice`, the severity word (`line-notice-severity`) and the title (`line-notice-title`, truncated,
+  full text on `title`). The colour is `incidentSeverityVariant`: Major `destructive`, Minor `warning`,
+  Other `neutral`, the pairing `/insiden` cards already use (the Pro widget imports the same table from
+  the util instead of keeping a copy).
+- **Planned works** (`line-planned`): `Planned works`, the start day (`line-planned-date`, `Sat 25 Oct`,
+  Angular `formatDate(…, "EEE d MMM", "en-US", "UTC")`) and the title, in the `outline` variant: it has
+  not happened yet and carries no severity colour.
+- **Cap and overflow.** At most `MAX_LINE_CHIPS` (2) chips per line, Notices first (`pickLineChips`).
+  `+N` (`line-notices-more`, `aria-label` "N more on the incident calendar") links to `/insiden`, with N
+  every chip not drawn. An incident that sits in both lists (it started between the two reads) is drawn
+  once, as the Notice.
+- **Link.** `/insiden/<YYYY-MM-DD of startDatetime>`. The day comes from the offset-free datetime
+  STRING (`incidentDayKey`), never from a `Date`: the server render and the hydrated page must write the
+  same `href` whatever their timezones (the util spec runs it under UTC+14 and UTC−11). An unreadable
+  datetime links to `/insiden`.
+- **Accessibility.** The Notice link's accessible name is `Notice: <title>` (`aria-label`). That label
+  replaces the link's content as its name, so the visible severity word is the link's DESCRIPTION
+  (`aria-describedby` points at its id, `line-notice-severity-<lineId>-<incidentId>`, unique per line
+  because one incident tags several lines): severity is a colour AND a word. The Planned works name is
+  `Planned works: <title>, starts <date>`.
+- **Popover.** One `app-info-popover` (`line-notices-popover`) ends the strip, with
+  `metricTooltip("incidents.line-notices")` (section `episodes`). Its tokens `PLANNED_WORKS_WINDOW_DAYS`
+  (7) and `LINE_NOTICE_MAX_CHIPS` (2) are pinned by `home.queries.spec.ts` and
+  `incident-notices.util.spec.ts`.
+- **Pure util** (`incident-notices.util.ts`): `groupIncidentsByLine` keeps the INPUT order inside a line,
+  so the read's ORDER BY decides what comes first (DESC: newest; ASC: soonest) and one fixed sort cannot
+  be wrong for one of the two; `pickLineChips`; `incidentDayKey`; `incidentDayLabel`;
+  `incidentSeverityVariant` / `incidentSeverityLabel`; `MAX_LINE_CHIPS`.
+- **Not covered.** An incident with no `lines` has no row to sit on (6 of the 280 dev incidents are
+  untagged); station tags are ignored; `longTerm` and `inaccurate` are not selected.
 
 ### Expanded panel: chart and reports
 
@@ -1244,11 +1330,17 @@ shows **ongoing incidents, newest first** and says so (`Ongoing · newest first 
 `/insiden` rather than duplicating the calendar (`calendarIncidents` is public and takes `filters` /
 `order`).
 
-- ✅ Variables are `{ OR: { ongoing: true } }` + `{ startDatetime: "DESC" }` — **compile-time constants**
-  (`HOME_RECENT_INCIDENT_VARS`, frozen). Deciding factor: a "last 7 days" `date.range` needs
+- ✅ Variables are `{ status: "LIVE", activeNow: true }` + `{ startDatetime: "DESC" }` — **compile-time
+  constants** (`HOME_RECENT_INCIDENT_VARS`, frozen). Deciding factor: a "last 7 days" `date.range` needs
   `new Date()`, and a client clock in query variables makes server render and hydration compute
   different variables, so the SSR TransferState payload is discarded and every read fires twice (the
-  same rule that makes `lastWeekOnly` a backend-computed boolean).
+  same rule that makes `lastWeekOnly` a backend-computed boolean). `activeNow` is the backend's clock.
+- 🔴 **`status: "LIVE"` is what keeps drafts out.** The widget used to send `{ OR: { ongoing: true } }`,
+  which only looks at the end time, and the root `calendarIncidents` field has no status gate of its
+  own, so this public widget listed drafts and reports pending approval. It now reads the same
+  `LIVE` + `activeNow` resource as the board's Notice chips, which also made it list incidents that
+  have started and not ended, an end time in the future included (before: end-less ones, even if not
+  yet started).
 - ⚠️ `calendarIncidents` returns a **list, not a connection, and takes no `first`/`after`**: "newest N"
   is the ORDER plus a client slice at `PRO_INCIDENT_LIMIT` (6) — one full payload of ongoing incidents
   per Pro reader. The document selects only six scalars plus the lines, far smaller than `/insiden`'s
@@ -1355,6 +1447,11 @@ hourly and the header says so).
 - **`hlmTickUp`** (`src/app/ui/motion/tick-up.directive.ts`) — the one motion primitive in
   `src/app/ui/`: a new number wanting the reveal is one binding; a new KIND of motion needs its own
   directive.
+- **`incident-notices.util.ts` + `app-line-notices`** — the incident-on-a-line seam. A surface that
+  wants the chips embeds `<app-line-notices [lineId]>` and opts the reads in (`requestIncidentsRead()`,
+  `requestPlannedWorksRead()`); a new chip kind is a `LineChip.kind`, a branch in `pickLineChips` and a
+  template branch. The backend also filters by `lines: { id }` and `stations`, so a per-line or
+  per-station read is new variables on the same document.
 - **Reused shared primitives** stay the seams for new surfaces: `AssetMultiSelectComponent`,
   `VoteButtonComponent` (`targetType` supports `"link"`), Hlm `sheet`/`skeleton`/`badge`/`button`,
   `RetryBannerComponent` (structural `RetryableResource`, so `HomeStore` need not expose raw resources),
@@ -1371,7 +1468,9 @@ hourly and the header says so).
   `status-confidence.official|confirmed|unconfirmed|none` (confidence chip),
   `line-status.queued-report-expiry` (the status sheet's outbox line;
   `REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES` lives in `METHODOLOGY_CONSTANTS`, pinned against the outbox's own
-  constant in `report-outbox.service.spec.ts`). `network.severity-order` is
+  constant in `report-outbox.service.spec.ts`), `incidents.line-notices` (the Notice / Planned works
+  popover; `PLANNED_WORKS_WINDOW_DAYS` and `LINE_NOTICE_MAX_CHIPS` live in `METHODOLOGY_CONSTANTS`,
+  section `episodes`, bumped by `REVIEWED_AT_LINE_NOTICES`). `network.severity-order` is
   reachable only through `/methodology`. When a documented value changes, bump the owning section's
   `lastReviewed` (history widgets: `REVIEWED_AT_HISTORY_WIDGETS` in `methodology.content.ts`; see
   `methodology.md`).
@@ -1432,6 +1531,9 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
 - **Pro feed:** `pro-feed-widget`, `pro-feed-window`, `pro-feed-filters`, `pro-feed-search`,
   `pro-feed-line`, `pro-feed-status`, `pro-feed-skeleton`, `pro-feed-empty`, `pro-feed-list`,
   `pro-feed-footer`, `pro-feed-count`, `pro-feed-load-more`.
+- **Incident chips:** `line-notices`, `line-notice`, `line-notice-severity`, `line-notice-title`,
+  `line-planned`, `line-planned-date`, `line-planned-title`, `line-notices-more`,
+  `line-notices-popover`.
 - **Pro incidents / ranking / official:** `pro-incidents-widget` (+ `-window`, `-list`, `-row`,
   `-title`, `-since`, `-all`); `pro-report-ranking`, `pro-report-ranking-list`,
   `pro-report-ranking-popover`, `ranking-row`, `ranking-row-code`, `ranking-row-count`, `ranking-bar`;
@@ -1592,6 +1694,9 @@ accessible name and `focus-visible` ring from their primitives.
   list).
 - **Focus order:** skip link first; mobile action bar after the main content; the feed tablist's roving
   `tabindex` so `Tab` enters the pair once and leaves once.
+- **Notice chips name themselves and say their severity in words.** The link is `Notice: <title>`, its
+  severity word is its `aria-describedby` description, and the colour is never the only channel (see
+  Incident notices). Planned works are named `Planned works: <title>, starts <date>`.
 - **The network tone is never the only channel.** `hero-status-line` is `aria-hidden` (colour alone is
   not information); every fact it carries is also text on screen — the `h1` sentence, the "Refreshing in
   Ns" label, the board's named lines. A fifth tone must add its sentence too.
@@ -1623,6 +1728,14 @@ accessible name and `focus-visible` ring from their primitives.
 - **Cause and direction on the expanded line row.** Not in the GraphQL `Line` schema, so neither the
   expanded row nor the Pro table can say why a line is disrupted or which way it runs. Needs an additive
   backend field first.
+- **Revalidate the notice reads.** The two incident reads are not on the 30s beat or in `reloadAll()`:
+  the lists change on a moderator's schedule rather than a rider's, and a failed refresh would hide the
+  chips under the failure-wins rule. A long-open tab therefore keeps the notices of its first read.
+  Reload them on `start()` re-entry and on a tab's return to visible, and keep the last good list for
+  the chips when a refresh fails.
+- **Network-wide notices.** An approved incident with no line tags has no row to sit on, so the board
+  says nothing about it. A board-level banner, or station-tagged chips through the backend's `stations`
+  filter, would.
 - **Operator grouping is a heuristic.** `lineFamily()` takes the leading letters of the line code
   because the schema has no operator field. Replace it when the backend exposes one.
 - **Pro table last-report precision.** The column shows the HOUR (history is hourly); minute precision
