@@ -247,21 +247,14 @@ describe("MySpottingsComponent", () => {
     beforeEach(() => {
       downloads = [];
       let lastBlob: Blob | undefined;
-      // jsdom has no object URLs. They are defined on the real `URL` (not a replacement object, which
-      // would break `new URL()` for everything else in the page) and removed again below.
-      Object.defineProperty(URL, "createObjectURL", {
-        configurable: true,
-        writable: true,
-        value: vi.fn((blob: Blob) => {
-          lastBlob = blob;
-          return "blob:fake";
-        }),
+      // Spied on the real `URL` (a replacement object would break `new URL()` for everything else in
+      // the page) and restored below, never deleted: later spec files in this worker share this `URL`
+      // (see "Unit-test isolation" in docs/COMPONENTS.md).
+      vi.spyOn(URL, "createObjectURL").mockImplementation((blob: Blob | MediaSource) => {
+        lastBlob = blob as Blob;
+        return "blob:fake";
       });
-      Object.defineProperty(URL, "revokeObjectURL", {
-        configurable: true,
-        writable: true,
-        value: vi.fn(),
-      });
+      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
       vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
         this: HTMLAnchorElement,
       ) {
@@ -271,8 +264,6 @@ describe("MySpottingsComponent", () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
-      Reflect.deleteProperty(URL, "createObjectURL");
-      Reflect.deleteProperty(URL, "revokeObjectURL");
     });
 
     const byTestId = (id: string): HTMLButtonElement | null =>

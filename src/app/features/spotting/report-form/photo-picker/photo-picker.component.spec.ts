@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageCompressionService } from "../../../../core/upload/image-compression.service";
 import { PhotoPickerComponent } from "./photo-picker.component";
@@ -22,7 +22,7 @@ function photo(name: string, type: string, bytes: number[]): File {
 
 describe("PhotoPickerComponent", () => {
   let component: PhotoPickerComponent;
-  let createObjectURL: ReturnType<typeof vi.fn>;
+  let createObjectURL: MockInstance<typeof URL.createObjectURL>;
   let resizeToSize: ReturnType<typeof vi.fn>;
 
   /** Runs the picker's change handler on these files, as the browser does after a file dialog. */
@@ -34,9 +34,9 @@ describe("PhotoPickerComponent", () => {
   }
 
   beforeEach(() => {
-    // jsdom has no object URLs; the picker only needs a string for each preview.
-    createObjectURL = vi.fn(() => "blob:preview");
-    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    // The picker only needs a string for each preview. Spied and restored, never deleted: later spec
+    // files in this worker share this `URL` (see "Unit-test isolation" in docs/COMPONENTS.md).
+    createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
     resizeToSize = vi.fn();
     TestBed.configureTestingModule({
       providers: [
@@ -48,7 +48,7 @@ describe("PhotoPickerComponent", () => {
   });
 
   afterEach(() => {
-    delete (URL as unknown as { createObjectURL?: unknown }).createObjectURL;
+    vi.restoreAllMocks();
   });
 
   it.each([
