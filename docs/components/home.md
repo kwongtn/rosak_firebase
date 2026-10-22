@@ -56,6 +56,9 @@
     `home-incidents.queries.ts`, `home-feed-mutations.queries.ts`; `home.store.ts`;
     `home-view-mode.service.ts`; `line-status-sheet.service.ts`; `submit-line-status-report.ts` (the
     one send path for a status report); `report-outbox-flush.ts` (`provideReportOutboxFlush()`);
+    `paged-feed.ts` (`PagedFeed`, one feed window's first page + Load More pages, built twice by the
+    store); `line-pulse-view.ts` (`injectLinePulseView`, the expand/pin/confidence/fleet-copy state the
+    card and the row share);
     pure utils `incident-notices`, `network-summary`, `board-lines`, `status-confidence`,
     `status-history-display`, `week-profile-display`, `status-info`, `line-status-metrics`,
     `passenger-status`, `home-feed`,
@@ -359,8 +362,9 @@ The single source of truth for page data.
   client-side grouping of a flat page is unsound — a sublink can arrive with its root nowhere on the
   page. Collapsing makes the backend return **roots only** with each subtree under `sublinks`.
   Knock-ons: `totalCount` counts rendered roots ("Showing X of Y" does not inflate); continuation pages
-  must agree with page one (a continuation is a fresh request, so the constant is repeated, not
-  inherited — an uncollapsed page 2 re-lists every root and renders sublinks as loose rows); the overlay
+  must agree with page one (a continuation is a fresh request that sends the window's whole variables
+  again — `PagedFeed` builds it from the same `todayVars()` / `lastWeekVars()` the resource uses, plus
+  `after` — because an uncollapsed page 2 re-lists every root and renders sublinks as loose rows); the overlay
   is only complete if it asks for the same shape. `/insiden`, situasi, per-incident cards and My Links
   stay flat and omit the key.
 - **Derived state.** `lines`; `feedLinks` (first + appended pages, de-duplicated by `node.id`);
@@ -382,16 +386,22 @@ The single source of truth for page data.
     data." instead of "Couldn't load the front page."
   - `isRefreshing` ORs the three resources' **`isFetching`** (observable for every reload); its one
     consumer-side exclusion is the pristine first fetch (`isLoading() || isLoadingLastWeek()`).
-  - ⚠️ `edges` / `lastWeekEdges` de-duplicate by `edge.node.id` on merge, first wins:
+  - ⚠️ `PagedFeed` de-duplicates first page + appended pages by `edge.node.id` on merge, first wins:
     `reloadFirstPages()` refetches page one while appended pages stay, and an edit/delete between reads
     can shift a row into a position appended pages already cover; a duplicate id throws on
     `@for (…; track link.id)`. Overlap only — a row DELETED server-side since a page was appended
     lingers until `reloadAll()` drops the appended pages.
-- **Cursor pagination.** `appendedEdges` / `appendedHasNext` / `appendedTotalCount` / `nextCursor` /
-  `loadingMore`; `loadMore()` re-issues `FEED_QUERY` via `GraphQLClient.request` with the last cursor
-  and appends, coalesced by `loadingMore` (no-op without next page/cursor). Last Week mirror:
-  `lastWeekAppended*`, `lastWeekNextCursor`, `lastWeekLoadingMore`, `loadMoreLastWeek()`,
-  `isLoadingMoreLastWeek`.
+- **Cursor pagination.** Two `PagedFeed` instances (`data/paged-feed.ts`), `today` and `lastWeek`, each
+  built from `(first-page data, variables(), request(variables))`. A window's variables are written
+  once: the module constants `TODAY_FEED_VARS` / `LAST_WEEK_FEED_VARS` (window flags, page size,
+  collapse) plus the `lineId` spread in `todayVars()` / `lastWeekVars()`. The resource, the
+  `loadMore*` continuation (`{ ...variables(), after }`) and — as the bare constants, `lineId` omitted by
+  construction — the overlay read all take their shape from there. `PagedFeed` owns the appended
+  edges / `hasNextPage` / `totalCount` / cursor / in-flight flag and exposes `links`, `pageInfo`,
+  `totalCount`, `isLoadingMore`, `reset()` and `loadMore()` (coalesced; no-op without a next page or
+  cursor). The store's `feedLinks` / `feedPageInfo` / `feedTotalCount` / `isLoadingMore` and their
+  `lastWeek*` mirrors are those members; `loadMore()` / `loadMoreLastWeek()` delegate. `reset()` runs
+  from `setLineFilter` and `reloadAll()` for both windows.
 - **Polling.** Public `polling = new PollingSource(() => this.reloadFirstPages())`, 30s default.
   - `reloadFirstPages()` re-reads page one of all three resources (Last Week only once requested) and
     bumps `linesRefreshTick` (page → board → card/row → open chart/reports). It touches **no
@@ -830,8 +840,9 @@ a RELOAD completing": `graphqlResource.isLoading` is pristine-only, so the contr
 
 Four groups over ONE partition. Order: `line-skeleton` rows while the first read is in flight AND
 nothing shows (a later reload never blanks the board), the dashed `line-board-empty` ("No lines yet."),
-the `board-controls` row, the groups. Every row wrapper keeps `line-board-row` (stable order/partition
-hook). Group `h2`s carry the breathing dot (Motion).
+the `board-controls` row, the groups. Every line's wrapper keeps `line-board-row` (stable order/partition
+hook); it is ONE `ng-template` (`#boardRow`, card for Needs attention, row elsewhere) stamped through
+`ngTemplateOutlet` by all five `@for`s, so the anchor, the ring and the testid cannot drift between groups. Group `h2`s carry the breathing dot (Motion).
 
 - `Needs attention · N` (`line-board-attention` / `-heading`) — full `app-line-pulse-card`s, in-service
   only, **hidden entirely when empty** (nobody should scroll past a "· 0" heading).
@@ -897,7 +908,7 @@ hook). Group `h2`s carry the breathing dot (Motion).
     `preferences.setViewMode`), or the board would revert once the reader edited the URL away;
     `signal.set` with an equal value does not notify, so this never fights a toggle that already wrote
     both halves.
-- **`#line-<id>` anchors + highlight ring.** Every row wrapper in **all four groups** carries the stable
+- **`#line-<id>` anchors + highlight ring.** The shared `boardRow` wrapper (used by **all four groups**) carries the stable
   `id="line-<id>"` (an anchor only on compact rows would fail for exactly the lines needing attention)
   and `scroll-mt-24` so the sticky nav cannot cover it. The ring
   (`ring-2 ring-brand ring-offset-2 ring-offset-background` + a `data-highlighted` marker on the same
@@ -921,6 +932,11 @@ hook). Group `h2`s carry the breathing dot (Motion).
 
 ### Line pulse card (`line-pulse/line-pulse-card.component.ts`)
 
+- The state it shares with the row (expand toggle and panel id, pin and its tooltip copy, the
+  confidence rule and its popover copy, the fleet-count label/breakdown, `toggleExpanded` /
+  `togglePin`) comes from `injectLinePulseView(line, "line-card-expanded")` (`data/line-pulse-view.ts`),
+  exposed as `view`; the template reads `view.expanded()`, `view.isPinned()` and so on. The prefix only
+  scopes the panel id (`line-card-expanded-<lineId>`).
 - `_links` caps related `pulseLinks` at 5 (`MAX_PULSE_LINKS`); passenger badge/label via pure
   `passengerLabel` / `passengerVariant`. There is no standalone status-count badge: the passenger chip's
   severity legend carries per-status counts via
@@ -960,16 +976,18 @@ hook). Group `h2`s carry the breathing dot (Motion).
 
 ### Line pulse row (`line-pulse/line-pulse-row.component.ts`)
 
+- Same shared state as the card, from `injectLinePulseView(line, "line-row-expanded")` as `view`
+  (`view.isPinned()` etc.); the row adds only the `_reportsLabel` clock/history tally and `_statusInfo`.
 - Backend-hex rail, `code · name`, `line-row-status` (operational `LineStatusBadge`, non-ACTIVE only),
   and on `line-row-chips` the `line-row-confidence` chip + `line-row-passenger` badge — 🔴 **both ONLY
   for an ACTIVE line** (a non-Active badge already tells the story; confidence is asked where status is
   the unremarkable default).
 - **Incident chips** sit between `line-row-chips` and `line-row-meta`:
-  `<app-line-notices class="mt-1.5" [lineId]="line().id" [lineName]="line().displayName" [planned]="_isPinned()" />`.
+  `<app-line-notices class="mt-1.5" [lineId]="line().id" [lineName]="line().displayName" [planned]="view.isPinned()" />`.
   The host is `empty:hidden`, so a row with nothing to say gains no margin. The card embeds the same
   component under its header, with the same three inputs.
 - `line-row-pin` (`aria-pressed`, action-naming `aria-label`; 🔴 the glyph FILLS when pinned —
-  `[&>svg]:fill-current` on the `ng-icon` while `_isPinned()` — because `aria-pressed` alone leaves a
+  `[&>svg]:fill-current` on the `ng-icon` while `view.isPinned()` — because `aria-pressed` alone leaves a
   16px outline pin saying "pin available" about a pin already on), `line-row-details`, `line-row-report`
   → `LineStatusSheetService.openFor(line.id)`. 🔴 The row's report button reports on **the line the
   reader is looking at** and is deliberately NOT routed through the chooser (a rider on a row knows the
