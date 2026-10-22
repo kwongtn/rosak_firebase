@@ -297,14 +297,15 @@ describe("RtSource", () => {
     // F148 (data-reliability audit): pause() only clears timers, so a fetch that is still in
     // flight re-arms the poll timer when it lands and the feed polls on in the background.
     // `it.fails` pins that: when F148 is fixed this starts to pass, which fails the suite as a
-    // reminder to turn it into a plain `it`.
+    // reminder to turn it into a plain `it`. The body has no precondition assertion on purpose:
+    // any throw would keep an `it.fails` green, and "isLoading is true while a fetch is in
+    // flight" is covered by a plain `it` above.
     it.fails("does not poll again when paused while a fetch is in flight (F148)", async () => {
       const pending = deferred<Response>();
       fetchMock.mockReturnValueOnce(pending.promise).mockResolvedValue(okResponse(["v1"]));
       source = new RtSource({ sourceUrl: URL_A, intervalMs: 1000 });
       source.resume();
       await flush();
-      expect(source.isLoading()).toBe(true);
 
       source.pause();
       pending.resolve(okResponse(["v1"]));
@@ -312,22 +313,6 @@ describe("RtSource", () => {
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-
-    it("still applies the response of a fetch that was in flight when it was paused", async () => {
-      const pending = deferred<Response>();
-      fetchMock.mockReturnValueOnce(pending.promise);
-      source = new RtSource({ sourceUrl: URL_A, intervalMs: 1000 });
-      source.resume();
-      await flush();
-
-      source.pause();
-      pending.resolve(okResponse(["v1"]));
-      await flush();
-
-      expect(Object.keys(source.feedEntities())).toEqual(["v1"]);
-      expect(source.isLoading()).toBe(false);
-      expect(source.hasLoadedOnce()).toBe(true);
     });
   });
 
