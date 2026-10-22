@@ -31,6 +31,7 @@ import {
   MarkAsReadData,
   MarkAsReadVars,
 } from "./data/console.queries";
+import { eventValue } from "../../core/util/dom-event.util";
 import { vehicleLinesLabel } from "../../core/util/lines-label.util";
 
 const PAGE_SIZE = 100;
@@ -179,11 +180,8 @@ export class ConsolePage {
     this.filterForm.update((f) => ({ ...f, [field]: value }));
   }
 
-  /** Type-safe value extraction for change/input events. Avoids `$any()` and the
-   * inline `as` cast that Angular's template parser rejects inside event bindings. */
-  protected eventValue(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
-  }
+  /** Type-safe value extraction for change/input events (shared helper; avoids `$any()`). */
+  protected readonly eventValue = eventValue;
 
   protected search(): void {
     this.appliedFilters = this.buildFilters();
