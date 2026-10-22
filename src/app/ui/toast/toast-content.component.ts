@@ -3,6 +3,12 @@ import { toastState } from "@spartan-ng/brain/sonner";
 
 export type ToastVisualType = "success" | "error" | "info";
 
+/** A link under a toast's text. `href` is a plain URL: following it loads that page. */
+export interface ToastLink {
+  label: string;
+  href: string;
+}
+
 const TYPE_ICON_CLASS: Record<ToastVisualType, string> = {
   success: "text-green-600",
   error: "text-red-600",
@@ -66,6 +72,15 @@ const TYPE_ICON_CLASS: Record<ToastVisualType, string> = {
         @if (description()) {
           <div data-description class="text-muted-foreground text-xs">{{ description() }}</div>
         }
+        @if (link(); as toastLink) {
+          <a
+            data-link
+            class="text-primary w-fit text-xs font-medium underline-offset-4 hover:underline"
+            [href]="toastLink.href"
+          >
+            {{ toastLink.label }}
+          </a>
+        }
       </div>
 
       <div
@@ -120,6 +135,7 @@ export class ToastContentComponent {
   readonly title = input<string>("");
   readonly description = input<string>("");
   readonly type = input<ToastVisualType>("info");
+  readonly link = input<ToastLink | null>(null);
 
   protected readonly pinned = signal(false);
 

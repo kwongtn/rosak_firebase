@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { toast, toastState } from "@spartan-ng/brain/sonner";
 
-import { ToastContentComponent, ToastVisualType } from "./toast-content.component";
+import { ToastContentComponent, ToastLink, ToastVisualType } from "./toast-content.component";
 
 let toastCounter = 0;
 
@@ -21,11 +21,12 @@ export class ToastService {
     this.show("error", title, description);
   }
 
-  info(title: string, description?: string): void {
-    this.show("info", title, description);
+  /** `link` adds one plain link under the text, e.g. a line alert's "Open". */
+  info(title: string, description?: string, link?: ToastLink): void {
+    this.show("info", title, description, link);
   }
 
-  private show(type: ToastVisualType, title: string, description?: string): void {
+  private show(type: ToastVisualType, title: string, description?: string, link?: ToastLink): void {
     const id = `${type}-${toastCounter++}`;
     toastState.create({
       id,
@@ -33,7 +34,13 @@ export class ToastService {
       type,
       description: description ?? "",
       component: ToastContentComponent,
-      componentProps: { toastId: id, title, description: description ?? "", type },
+      componentProps: {
+        toastId: id,
+        title,
+        description: description ?? "",
+        type,
+        link: link ?? null,
+      },
     });
   }
 }

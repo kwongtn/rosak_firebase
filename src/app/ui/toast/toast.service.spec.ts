@@ -1,3 +1,4 @@
+import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ToastService } from "./toast.service";
@@ -65,5 +66,40 @@ describe("ToastService", () => {
       type: "info",
       component: ToastContentComponent,
     });
+  });
+
+  it("passes an info toast's link through, and no link by default", () => {
+    service.info("KJL: Signal fault", "Trains held", {
+      label: "Open",
+      href: "/insiden/2026-10-22",
+    });
+    expect(lastCreateCall()["componentProps"]).toMatchObject({
+      link: { label: "Open", href: "/insiden/2026-10-22" },
+    });
+
+    service.info("Info message");
+    expect(lastCreateCall()["componentProps"]).toMatchObject({ link: null });
+  });
+});
+
+describe("ToastContentComponent", () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
+  });
+
+  it("renders the link as a plain anchor under the text, and nothing without one", () => {
+    const fixture = TestBed.createComponent(ToastContentComponent);
+    fixture.componentRef.setInput("toastId", "info-1");
+    fixture.componentRef.setInput("title", "KJL: Signal fault");
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector("[data-link]")).toBeNull();
+
+    fixture.componentRef.setInput("link", { label: "Open", href: "/insiden/2026-10-22" });
+    fixture.detectChanges();
+
+    const link = root.querySelector<HTMLAnchorElement>("[data-link]");
+    expect(link?.textContent?.trim()).toBe("Open");
+    expect(link?.getAttribute("href")).toBe("/insiden/2026-10-22");
   });
 });
