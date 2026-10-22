@@ -10,6 +10,8 @@ Strict mode, ESLint, coverage, CI hygiene and dependency automation are missing,
 
 **medium** · effort S · code-quality · core-shell
 
+**Status, quality pass 2026-10-22:** Fixed (`d62db3f`, `02dcc46`, `df2ca27`, `c720d37`). `AnalyticsService` creates analytics with `send_page_view: false` behind `isSupported()` and starts from `afterNextRender`, injected by `App` (no app initializer). It logs one `page_view` a microtask after `NavigationEnd`, with the current title and with `page_path` and `page_location` set to the route pattern, so a query string, fragment, profile id or `utm_*` value is never sent. The analytics spec runs on the real route tree and fails if a marker placed in any route parameter reaches `page_path`; `app.spec.ts` checks that `App` creates the service.
+
 **Where:** `src/app/core/analytics/analytics.service.ts:44`, `src/app/core/analytics/analytics.service.ts:64`, `src/app/core/analytics/analytics.service.ts:67`, `src/app/app.routes.ts:33`
 
 **Problem.** getAnalytics() leaves GA4's automatic page_view enabled, and the service also logs a manual page_view on the first NavigationEnd, so every landing is counted twice (the code comment claims the SDK's own event fires 'only once', which is exactly the duplicate). The router's TitleStrategy updates document.title after it emits NavigationEnd, so page_title carries the previous page's title (and all lazy routes share only a handful of static titles anyway). page_path is urlAfterRedirects, so it includes query strings and fragments and, for /profile/<firebase uid>, a per-user identifier, producing high-cardinality paths in reports. getAnalytics is also called without isSupported(), and it runs inside an app initializer, so the gtag script starts loading during bootstrap.
@@ -62,6 +64,8 @@ build.log: "main-PHLJPND6.js | main | 290.04 kB | 73.54 kB" ... "Initial total |
 
 **medium** · effort S · code-quality · deps-tooling · already documented
 
+**Status, quality pass 2026-10-22:** Fixed (`a541d97`). `tsconfig.json` sets `strict` and `angularCompilerOptions` sets `strictTemplates`, both explicitly. The app and the specs already satisfied both: the production build reports zero template errors. The dead `?? 0` after `link.userVote` is removed from both bindings in `link-list.component.ts`, which clears two NG8102 warnings, and `AGENTS.md`, which said `strictTemplates` was not set, is corrected. Narrowing `types` in `tsconfig.app.json` is F324.
+
 **Where:** `tsconfig.json:4-20`, `tsconfig.app.json:1-9`, `src/app/features/insiden/link-list/link-list.component.ts:45`, `src/app/features/insiden/link-list/link-list.component.ts:82`
 
 **Problem.** The repo guidance treats strict as deliberately off and asks developers to guard by hand. The measurements show that the code already satisfies strict null checks and strict template checks, so the guard-by-hand policy is only a rule, not a need. Leaving strict off means future regressions (for example a missing null guard) reach production silently. Strict mode also has no price today. The four NG8102 warnings are the only findings, and they point at dead nullish fallbacks that can be removed.
@@ -86,6 +90,8 @@ tsconfig.json has no "strict" key; it sets only "noImplicitOverride", "noPropert
 
 **medium** · effort S · code-quality · deps-tooling
 
+**Status, quality pass 2026-10-22:** Fixed (`c75d799`). `@antv/l7-map`, `@antv/l7-component` and `@antv/l7-utils` are declared at 2.29.1, the version `@antv/l7` resolves, and `@types/geojson` is a devDependency. The lockfile diff is four added lines. **Left:** `@antv/l7-maps` stays a direct dependency. The recommendation removes it only once the MapLibre finding is resolved.
+
 **Where:** `src/styles.css:16-17`, `src/app/features/tracker/map/rt-marker-layer.controller.ts:3`, `src/app/features/tracker/data/geojson-storage.service.ts:7`, `src/app/features/tracker/data/gtfs-static.service.ts:7`, `package.json:43`
 
 **Problem.** These imports resolve only because npm hoists transitive dependencies into node_modules. A future @antv/l7 upgrade, an npm dedupe, or a lockfile regeneration can move or drop these packages and break the build or the tracker styling without any change in this repo. The declared @antv/l7-maps entry is the reverse problem: it is a direct dependency that nothing imports directly, and it is the package whose barrel pulls in MapLibre (see the MapLibre finding).
@@ -107,6 +113,8 @@ styles.css:16: "@import \"@antv/l7-map/es/map/css/l7.css\";" and styles.css:17: 
 #### F076 · Functions tests and deploy do not run on pull requests
 
 **medium** · effort S · testing · deps-tooling
+
+**Status, quality pass 2026-10-22:** Fixed (`c78e67b`, `8769abc`, `544cc3f`). `ci.yml` has a `functions` job (Node 20, `working-directory: functions`, `npm ci`, `npm run build`, `npm test`, plus a report-only `npm audit`). `deploy-functions.yml` runs `npm test` as a required step, without `--if-present`.
 
 **Where:** `.github/workflows/deploy-functions.yml:13-18`, `.github/workflows/deploy-functions.yml:63`, `.github/workflows/ci.yml:4-9`
 
@@ -156,6 +164,8 @@ const data = await this.graphql.request<...>(QUERY, vars, idToken ? { "firebase-
 
 **medium** · effort M · testing · core-shell
 
+**Status, quality pass 2026-10-22:** Partly fixed (`31bd096`, `63ba5a7`, `ee42649`, `3cc94bb`, `0b08dbf`, `7b5e081`, `850c3a6`). Specs now cover `AuthService` (override branch, session restore, admin claim and login errors, in the new `auth.service.firebase.spec.ts`), `ImageCompressionService`, `NewVersionService` (the version poll and rejected chunk imports), `ThemeService`, `AnalyticsService`, `graphqlResource` (retry schedule, countdown, reset, GraphQL-errors answer, destroy, and on the server: no timer, nothing re-sent, `hasError` stays false) and the upload queue with `upload-queue-db`. The retry-schedule spec found a real bug: the first retry waited 10 s instead of 5 s, because `scheduleRetry` read the attempt counter after the effect had incremented it. It is fixed with `2 ** (attempt() - 1)` (`3cc94bbe`), and the schedule is 5, 10, 20, 40, 80, 160, 180, 180 s. **Left:** Two scenarios are not written because the code has no such behaviour: `graphqlResource` '4xx terminal' (every error retries on the same schedule) and the upload queue '4xx dropped, backoff, uid mismatch' (it retries forever every second; F045, F194 and F219 are open and no package owns them). `RecaptchaService`, the redirect-to-own-profile guard and the `AppNav` component still have no specs.
+
 **Where:** `src/app/core/auth/auth.service.ts:66`, `src/app/core/upload/image-compression.service.ts:45`, `src/app/core/analytics/analytics.service.ts:41`, `src/app/core/version/new-version.service.ts:37`, `src/app/core/theme/theme.service.ts:27`
 
 **Problem.** The riskiest code (token and claim handling, EXIF and canvas compression, the version poller and chunk-error listeners, analytics page_view wiring, the retry schedule in graphqlResource) is the code without specs, and several of the defects listed in this report live exactly there. The graphql-client spec confirms a countdown exists but not its values, non-transient handling or SSR behaviour.
@@ -177,6 +187,8 @@ Existing specs in scope: admin-only.guard, graphql-client, image-upload.service,
 #### F206 · No ESLint or angular-eslint, so template accessibility and typed-linting checks never run
 
 **medium** · effort M · dx-tooling · deps-tooling
+
+**Status, quality pass 2026-10-22:** Fixed (`08751c6`, `819eae7`, `7555c10`, `8769abc`). `eslint.config.mjs` (flat config, typed linting through `projectService`, inline templates linted) and an `npm run lint` script are added, and lint-staged runs ESLint after Prettier on staged `.ts` and `.html` files. `alt-text` is an error (0 findings); `click-events-have-key-events`, `interactive-supports-focus`, `label-has-associated-control`, `no-explicit-any` and `no-floating-promises` are warnings, and the merged tree reports 81 warnings and 0 errors. The CI lint job runs `npm run lint --if-present`, so only errors fail it. **Left:** The warning rules are not promoted to errors until their 81 warnings are fixed. ESLint covers `src/**` only, because `e2e/` and `functions/` have no tsconfig for typed linting.
 
 **Where:** `package.json:61-82`, `.github/workflows/ci.yml:11-24`, `.husky/pre-commit:2`
 
@@ -201,6 +213,8 @@ package.json devDependencies contain no eslint, typescript-eslint or @angular-es
 #### F223 · Auth and write journeys have almost no unit or e2e coverage, and the e2e login helper never exercises the token path
 
 **medium** · effort M · testing · gap-2
+
+**Status, quality pass 2026-10-22:** Fixed (`a1e329b`, `ae35e46`, `d7850f3`). `loginAs()` seeds a persisted Firebase session in the SDK's own IndexedDB store (an unexpired fake JWT with the admin claim, `accounts:lookup` routed), so the real `User`, `idToken()` and `firebase-auth-key` header path run, and it returns the token. The mock server answers any mutation without that header with `UNAUTHENTICATED`. `e2e/auth.spec.ts` covers the visitor to session transition, the account panel, the token on `RequestVerificationCode`, and logout from `/console/links` with the guards sending the user back to `/spotting`. `home.spec` covers the offline outbox (queued offline, sent with the token on reconnect). The unit specs the finding lists are under F203 and F271. **Left:** The `__e2eAuthOverride__` branch in `auth.service.ts` stays: `e2e/dom-visual-checks.mjs`, `e2e/capture-visual-evidence.mjs` and two unit specs still set it.
 
 **Where:** `e2e/helpers/auth.ts:10`, `src/app/core/auth/auth.service.ts:72`, `e2e/mock-graphql.server.mjs:91`
 
@@ -227,6 +241,8 @@ package.json devDependencies contain no eslint, typescript-eslint or @angular-es
 
 **medium** · effort M · testing · gap-4
 
+**Status, quality pass 2026-10-22:** Partly fixed (`1d65fc7`, `796f2f5`, `3325a61`). Spotting part, partly fixed: `humanize-since.util.spec.ts` and `spotting-activity-heatmap.spec.ts` run on the API's real shapes (date-only days and naive Kuala Lumpur wall times) with a fixed clock, under `TZ=UTC` and `TZ=Asia/Kuala_Lumpur`. The 8 cases that are wrong today assert the right answer as `it.fails` and name their open finding (F090, F438, F436). Insiden part, fixed: `data/naive-myt.testing.ts` holds `naiveMyt`, `mytInstant` and `SPEC_ZONES`, and the link-day-group and calendar-date specs run in both zones with a fixed system time, asserting day keys, Today and Yesterday, the 00:00 MYT turnover and the month window. **Left:** F090, F438 and F436 are not fixed. The spotting specs keep their own copy of `mytInstant`; merging it with the insiden helper needs a shared testing location, because `domain-ui` must not import from `features/insiden`. The insiden card's 'Ongoing for' and duration still parse naive times in the viewer's zone (F358).
+
 **Where:** `src/app/features/insiden/data/link-day-group.util.spec.ts:30-80`, `src/app/features/spotting/data/humanize-since.util.spec.ts`, `src/test-setup.ts`, `package.json`
 
 **Problem.** Because every fixture carries a Z, the defects above are invisible: with Z strings the UTC getters are correct, so the specs pass on both machines while production data is wrong. The suite also silently exercises different code paths on CI and on the developer machine, which is why the 8-hour bugs survived despite many specs and long comments.
@@ -248,6 +264,8 @@ link-day-group.util.spec.ts fixtures all use Z-suffixed strings, e.g. `created: 
 #### F235 · Port the vehicle-parent fix to the link form so an edit-hydrated vehicle is never hidden but still submitted
 
 **medium** · effort M · code-quality · insiden-data
+
+**Status, quality pass 2026-10-22:** Fixed (`ca106a8`, `c888a65`, `097abe2`). `injectInsidenReferenceOptions(selectedLineIds, selectedVehicleIds)` in `insiden/data/insiden-reference-options.ts` returns the line, vehicle, station and category options, the parent-union rule is the pure `vehicleOptionsFor()`, and `injectDefaultCategory()` holds the default category as a `linkedSignal`. Both forms use them, so the link form gets the vehicle-parent rule the incident form had. A direct spec flushes one reference read and checks the line labels, the station `parentCode`s, the category options and the vehicle list following both selection signals.
 
 **Where:** `src/app/features/insiden/link-form/link-form.component.ts:284`, `src/app/features/insiden/incident-form/incident-form.component.ts:210`, `src/app/features/insiden/incident-form/incident-form.component.ts:153`, `src/app/features/insiden/link-form/link-form.component.ts:253`
 
@@ -272,6 +290,8 @@ const lines = selected.length > 0 ? selected.map((id) => this._linesById().get(i
 #### F237 · Validate chronology rows and stop mutating them in place through $any event handlers
 
 **medium** · effort M · code-quality · insiden-data · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`15adfb9`, `709d530`, `cbc62e6`, `34f2af8`). `updateChronology`, `isBlankChronology`, `chronologyErrors` and `chronologyInputs` in `incident-form/chronology-list.util.ts` replace the four `$any` handlers in the incident form, and rows are edited without mutating the draft in place. Blank rows are dropped, and a row without a description blocks Submit and marks every field touched on that press, so the other errors show too. `chronologyInputs` trims `sourceUrl` and `content`, so a whitespace-only URL is sent as null. Both behaviour fixes have specs that failed without them, and the indicator `<select>` handler has a component spec.
 
 **Where:** `src/app/features/insiden/incident-form/incident-form.component.html:306`, `src/app/features/insiden/incident-form/incident-form.component.html:318`, `src/app/features/insiden/incident-form/incident-form.component.html:329`, `src/app/features/insiden/incident-form/incident-form.component.html:379`, `src/app/features/insiden/incident-form/incident-form.component.ts:603`, `src/app/features/insiden/incident-form/chronology-list.util.ts:9`
 
@@ -304,6 +324,8 @@ chronologies: this.chronologies().map((c) => ({
 
 **medium** · effort M · testing · insiden-data
 
+**Status, quality pass 2026-10-22:** Fixed (`204edf9`, `4940e32`). The incident-form spec stubs `IncidentAiService` through providers and covers the late-result Replace button, summarize success and summarize failure, and `AssetMultiSelect` has behaviour specs. The double-submit guard is in its own `fix(insiden)` commit with two specs (F106). The date utilities run under both zones with the 00:00 to 08:00 cases in `3325a617` (F228).
+
 **Where:** `src/app/features/insiden/data/incident-ai.service.ts:1`, `src/app/features/insiden/incident-form/incident-form.component.ts:380`, `src/app/features/insiden/asset-multi-select/asset-multi-select.component.spec.ts:1`, `src/app/features/insiden/data/calendar-date.util.spec.ts:1`
 
 **Problem.** The riskiest code in the slice is untested: the extract state machine (the stuck-disabled bug above would have been caught by a single test), the late-result and undo flow, the AI service's error mapping, search filtering, parentCodes matching, pinnedSelected ordering and toggle behaviour in asset-multi-select, double submit, and time-zone behaviour of the date keys (specs pass whatever the machine's TZ is).
@@ -328,6 +350,8 @@ chronologies: this.chronologies().map((c) => ({
 
 **medium** · effort M · testing · insiden-ui
 
+**Status, quality pass 2026-10-22:** Partly fixed (`fa4dc0b`, `198db7f`, `2a04bf1`, `4c738a5`, `673aff1`). Specs now cover the calendar (`shiftMonth` from Jan 31 and the backward clamp from Mar 31 to Feb 28, Today at 18:30Z, prev and next labels, the day-dot rules, and the 3 s month and year jump: commit at 3000 ms, restart on a second pick, commit on focusout, timers cancelled on destroy), the link list (pending split, collapsed toggle, `sheetClosed` firing once per open-to-closed edge and never on mount) and the link sheet (the Submit a link heading and the in-flight footer). No component code changed. **Left:** Arrow-key month movement has no spec, because the calendar has no keydown handling; it needs a component change first (F037).
+
 **Where:** `src/app/features/insiden/calendar/calendar.component.ts`, `src/app/features/insiden/link-list/link-list.component.ts`, `src/app/features/insiden/link-sheet/link-sheet.component.ts`
 
 **Problem.** The timer-driven month jump, the clamp-to-last-day logic when moving from the 31st, the single-dot rule for open-ended incidents, the pending/approved split in the link list and the sheet's edit-versus-create headings are all behaviour that regressions would silently break, and several of the findings above (time zone, keyboard navigation) need a spec to be fixed safely.
@@ -349,6 +373,8 @@ find of *.spec.ts under src/app/features/insiden lists specs for the page, incid
 #### F248 · Fix the Sentry release and source-map pipeline so production errors can actually be symbolicated
 
 **medium** · effort M · dx-tooling · platform · partially confirmed
+
+**Status, quality pass 2026-10-22:** Partly fixed (`a1a48dd`, `9eb8daa`, `4b776cd`, `21c7163`). The Sentry release name is now the full 40-character hash from `public/version.json` (`readRelease(root)` in `scripts/sentry-sourcemaps.mjs`), the same value the runtime reports as `buildInfo.hash`. With no token, or a token but no usable hash, the script logs one line and exits 0, and a malformed `version.json` counts as no release. CI uploads sourcemaps on push events only, and the stale 'short git hash' comment in `src/sentry-options.ts` is corrected. **Left:** `apphosting.yaml` and `apphosting.staging.yaml` declare no `SENTRY_AUTH_TOKEN`, so the owner must say whether App Hosting builds get one. A CI push build cannot match a deployed bundle byte for byte, and a `sentry-cli` failure with a token present still fails the build.
 
 **Where:** `scripts/sentry-sourcemaps.mjs:25`, `scripts/sentry-sourcemaps.mjs:46`, `scripts/generate-build-info.mjs:19`, `apphosting.yaml:17`, `.github/workflows/ci.yml:84`
 
@@ -376,6 +402,8 @@ generate-build-info.mjs: const hash = git("git rev-parse HEAD", "unknown");  sen
 
 **medium** · effort M · testing · profile-about-misc
 
+**Status, quality pass 2026-10-22:** Fixed (`42ea584`, `2daf051`, `c3a33be`, `dc422cf`). New and extended specs for `my-spottings`, `user-card` and the GDPR page (`gdpr.page.spec.ts`) cover the cases the finding lists. They found real bugs, now fixed: `deleteEvent` toasted success but never removed the row; `_canDelete` ignored `isOwnProfile()`, so a visitor saw Delete on another user's recent entry; a failed first page showed 'No spottings logged yet.' with no retry, and now shows 'Couldn't load your spottings.' with a Retry button (`retry-spottings`); and deleting every loaded row while more pages exist now fetches the next page.
+
 **Where:** `src/app/features/profile/my-spottings/my-spottings.component.ts`, `src/app/features/profile/user-card/user-card.component.ts:285-343`, `src/app/features/gdpr/gdpr.page.ts`, `src/app/features/profile/user-card/user-card.component.spec.ts:24-93`
 
 **Problem.** The destructive and privacy-sensitive logic has no coverage: the 3-day delete window (_canDelete), delete success and failure, the 'private history' branch, pagination, the confirm-then-save privacy toggle with rollback (savePrivacySetting), nickname save, and the non-owner header (which is where the identity bug above hides). The GDPR page, which renders admin HTML through [innerHTML], has no spec for loading, error and retry. AGENTS.md requires a test for every feature and fix.
@@ -397,6 +425,8 @@ find shows no spec for my-spottings or gdpr; user-card.component.spec.ts contain
 #### F269 · Risky logic in the photo, history and heatmap paths has no tests
 
 **medium** · effort M · testing · spotting
+
+**Status, quality pass 2026-10-22:** Fixed (`63ba5a7`, `462699c`, `68dc654`, `1d65fc7`, `49d1f07`, `de14fb2`). Item 1 (core): the image-compression spec uses a crafted Exif JPEG in both byte orders, a PNG, five truncations, an empty file, a null `toBlob` and a multi-step limit, and one test runs the compressor output through `stripGps` and asserts no GPS bytes while Make survives. Item 2 (spotting): photo-picker specs cover the deferred compression gate and the preview-URL revoke, and the shell spec covers the Submit gate and the revoke on sheet close. Item 3 was already on staging (`spotting-history.component.spec.ts`: two vehicles, out-of-order answers). Item 4: pure-function specs for `toSpottingActivityPoints`, `dateKeyOf`, `spottingIntensityClass` and `humanizeSince`. Item 5: the line-overview sort query-param round trip. **Left:** Item 2's 'rejected compression removes the entry and toasts' variant is not written, because the owner chose to upload the original instead (`c955733`). The item 4 cases that are wrong today are pinned as `it.fails` (F090, F438, F436).
 
 **Where:** `src/app/core/upload/image-compression.service.ts:1`, `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:1`, `src/app/features/spotting/vehicle-detail/spotting-history/spotting-history.component.ts:1`, `src/app/domain-ui/spotting-activity-heatmap/spotting-activity-heatmap.spec.ts:1`
 
@@ -420,6 +450,8 @@ The only heatmap spec is a smoke test: it('creates and renders without throwing'
 
 **medium** · effort M · testing · test-gaps · partially confirmed · severity adjusted from high
 
+**Status, quality pass 2026-10-22:** Partly fixed (`bf4f98b`, `f0923ef`, `31422ba`, `125d8a0`, `7603787`, `fee7337`, `68c329f`). Scenarios 1 to 5 are covered by new e2e specs: a spotting report with a generated JPEG (the `AddSpottingEntry` variables, the token, and the routed REST upload with `related_id` and `upload_type`), an admin reject with a reason (`RejectIncident`), the `/profile` redirect and the owner read, a protobuf GTFS-RT tracker feed with two vehicles (two markers, one popup label read), and the upvote and status-report failure paths. The failure stub is `graphqlError()`, because the vote control rolls back only on a thrown GraphQL error and never on `ok:false`. The line history expectation drops `dayStartHour` after F424. **Left:** Not done: the Firebase-emulator sign-in smoke (no emulator in CI), my-spottings deletion (reCAPTCHA), gallery, about and gdpr. The tracker spec finds markers by their inline colour (`#map div[style*="rgb(37, 99, 235)"]`) until `createVehicleMarkerElement` carries a `data-testid`.
+
 **Where:** `e2e/home.spec.ts`, `e2e/incident-workflows.spec.ts`, `e2e/spotting-details.spec.ts`, `e2e/spotting-keep-alive.spec.ts`, `src/app/features/console/insiden/pending/pending-row.component.ts:60`
 
 **Problem.** The spotting report with photos is the main contribution journey, and it has no end-to-end test, although the failure in the first finding would have been caught by one. The admin Reject action (pending-row.component.ts:60) and the deletion-request decisions are not exercised. Profile, my-spottings deletion (which needs reCAPTCHA), the gallery, the tracker map and layer toggles, and the about and gdpr pages have no e2e coverage. Sign-in is always bypassed through the E2E override, so the real Firebase session restore path is never tested in CI.
@@ -442,6 +474,8 @@ No e2e file mentions photo, upload, reject, profile or tracker.
 #### F271 · Largest unit-test gaps are in the data-path services, compression, auth and form validators
 
 **medium** · effort M · testing · test-gaps
+
+**Status, quality pass 2026-10-22:** Fixed (`ab86eaf`, `31bd096`, `63ba5a7`, `0b08dbf`, `462699c`, `a8a04a2`, `49b52c7`, `2bd45f1`, `f1b7876`, `5f448ea`, `11e100b`). All eight files the finding lists have specs. Spotting: `report-form.schema.spec.ts` covers the required fields, the station rules and the sanity gate for DECOMMISSIONED, MARRIED, OUT_OF_SERVICE and UNKNOWN. Core: `AuthService` (admin claim, cached given name, popup-closed branch), `image-compression.service.ts` (JPEG with and without a GPS APP1 segment, PNG, truncated JPEGs, a limit that needs several steps) and `upload-queue-db.ts`. Tracker: `gtfs-realtime.service.spec.ts` (28 cases: success, HTTP and network errors, backoff from 5 s doubling to the 300 s cap and its reset, pause, resume, `retryNow`, countdown ticks, `setRefreshInterval(null)`) and `layer-selection.service.spec.ts` (toggles, counts, apply, undo). Insiden: `incident-form.schema.spec.ts` and `incident-ai.service.spec.ts` (F383). The schema specs found a real bug: `validateTree` errors carried a `field:` key, which Signal Forms ignores, so the report form's station and sanity-gate errors and the incident form's end-before-start error landed on the form root and never showed under their controls. They now use `fieldTree: fieldTreeOf(f.<field>)` in the report form and `validate(f.endDatetime, ...)` in the incident form. The CI coverage report the finding suggests is F320. **Left:** No spec counts the decodes of the compression search, which still re-reads and re-decodes the file at every step (F197, F260).
 
 **Where:** `src/app/features/tracker/data/gtfs-realtime.service.ts:200`, `src/app/core/upload/image-compression.service.ts:136`, `src/app/core/auth/auth.service.ts:134`, `src/app/features/insiden/data/incident-ai.service.ts:152`, `src/app/core/upload/upload-queue-db.ts:73`, `src/app/features/tracker/data/layer-selection.service.ts:91`, `src/app/features/spotting/report-form/report-form.schema.ts:95`, `src/app/features/insiden/incident-form/incident-form.schema.ts:49`
 
@@ -472,6 +506,8 @@ Non-component logic files with no sibling *.spec.ts, ranked by risk (size, auth,
 
 **medium** · effort M · testing · tracker-gallery
 
+**Status, quality pass 2026-10-22:** Fixed (`a8a04a2`, `49b52c7`, `e8ef8fe`, `3c73cba`, `de5795b`). Tracker part: `gtfs-realtime.service.spec.ts` and `layer-selection.service.spec.ts` (see F271) found two real bugs. `RtSource` read its interval with `config.intervalMs ?? DEFAULT`, so null ('Do not refresh') became 30 s; it is now `=== undefined ? DEFAULT : value`. That exposed a second bug: `tick()` wrote `Infinity` into `secondsRemaining` and `NaN` into `percentRemaining` (and into the info panel ring's `stroke-dashoffset`) for any source on a null interval, and it now reads 0 remaining when nothing is scheduled. Gallery part: the `GalleryPage` and media-viewer specs cover concurrent `loadMore` sharing one request, a failed page (false, toast, retry), a year jump that stops on error and one that runs out of feed, the 100-page cap with the 200 ms throttle, and the viewer's body scroll lock on open, release in `ngOnDestroy` and no lock on the server. The 'deep link on page 3' case is obsolete, because a deep link now fetches by id and never pages. **Left:** The 'pause during fetch' scenario is pinned as an `it.fails` case for F148, which is open.
+
 **Where:** `src/app/features/tracker/data/gtfs-realtime.service.ts:1`, `src/app/features/tracker/data/layer-selection.service.ts:1`, `src/app/features/gallery/gallery.page.ts:158`, `src/app/features/gallery/media-viewer/media-viewer.component.ts:1`
 
 **Problem.** The most failure-prone code in the slice has no tests: exponential backoff and the 5 minute cap, pause/resume semantics (where the background-polling bug above lives), the draft/apply/undo state machine, the `inFlightLoad` dedupe that the comments say was fixed after a real race, the `loadUntil` cap and delay loop, and the viewer's body scroll lock.
@@ -494,6 +530,8 @@ No spec for: gtfs-realtime.service, layer-selection.service, gallery.page, media
 #### F307 · Use typed event helpers and signal updates in console templates instead of $any and in-place draft mutation
 
 **low** · effort S · code-quality · console
+
+**Status, quality pass 2026-10-22:** Fixed (`15453cc`, `2613639`, `e2d18e3`). `eventValue()` in `core/util/dom-event.util.ts` replaces all 16 `$any($event.target).value` bindings in the console templates, and `console.page.ts` uses it instead of its own copy. The chronology editor emits `(patch)` and the parent's `patchChronology` does `chronologies.update(list.map(...))`, so no signal state is mutated in place; the textarea uses `(input)`. Specs cover a two-entry edit routed by key (the other draft keeps its object) and the links edit panel's url, title and occurred-at inputs. The incident form's four `$any` bindings and its in-place chronology edits, which this change did not reach, were removed by `15adfb91` (F237).
 
 **Where:** `src/app/features/console/insiden/links/links-filter-bar.component.html:9`, `src/app/features/console/insiden/links/links.component.html:279`, `src/app/features/console/insiden/pending/pending-chronology-editor.component.html:109`, `src/app/features/console/insiden/pending/pending-chronology-editor.component.html:181`
 
@@ -518,6 +556,8 @@ No spec for: gtfs-realtime.service, layer-selection.service, gallery.page, media
 
 **low** · effort S · code-quality · console · already documented
 
+**Status, quality pass 2026-10-22:** Fixed (`c85a614`). `ITEMS` is deleted from `console-nav.component.ts`, which now renders `CONSOLE_LINKS` from `shell/nav-config.ts` with `ariaCurrentWhenActive="page"` on every anchor. The spec asserts that the rendered links equal `CONSOLE_LINKS` and that only the active pill has `aria-current="page"`.
+
 **Where:** `src/app/features/console/console-nav.component.ts:12`, `src/app/shell/nav-config.ts:17`, `src/app/features/console/console-nav.component.ts:30`
 
 **Problem.** A new console section must be added in two places and a doc note is the only guard. The active page is shown by background colour only, with no `aria-current`.
@@ -540,6 +580,8 @@ routerLinkActive="bg-primary text-primary-foreground border-primary"   // colour
 #### F319 · Consolidate duplicated nav code and the two module link lists
 
 **low** · effort S · code-quality · core-shell
+
+**Status, quality pass 2026-10-22:** Partly fixed (`8b4a33e`, `1105084`). `shell/nav-config.ts` holds one `NAV_LINKS` list (`MODULE_NAV_LINKS` is gone) and the compact nav filters it. `svg[app-brand-logo]`, `button[app-report-bug-button]` and `div[app-console-menu]` are shared by both navs, each with a spec, and the console menu owns its open state and hover timer. `HoverPreloadStrategy` lost its dead members and has a spec. **Left:** The update, upload and login indicators are not added to the compact nav, a deliberate deferral because the change kept the compact nav's DOM as it was.
 
 **Where:** `src/app/shell/nav-config.ts:37`, `src/app/shell/app-nav/app-nav.util.ts:11`, `src/app/shell/compact-nav/compact-nav.component.ts:266`, `src/app/shell/app-nav/app-nav-icon-tray.component.ts:328`, `src/app/core/routing/hover-preload.strategy.ts:18`
 
@@ -565,6 +607,8 @@ export const NAV_LINKS: NavLink[] = [{ path: "/", label: "Home", exact: true }, 
 
 **low** · effort S · testing · deps-tooling · severity adjusted from medium
 
+**Status, quality pass 2026-10-22:** Fixed (`65b00e1`, `8769abc`). `npm run test:coverage` runs the unit tests with `@vitest/coverage-v8` pinned to vitest's version (4.1.10), prints a text summary and writes lcov. The first run reported Statements 74.5%, Branches 76.81%, Functions 73.46% and Lines 77.08%. The CI test job runs it with a junit reporter and uploads `coverage/` as the `coverage` artifact, report-only. **Left:** No floor is set for the pure util and service folders.
+
 **Where:** `angular.json:96-103`, `package-lock.json (no @vitest/coverage-* package present)`
 
 **Problem.** The suite has 158 spec files and a large set of pure utilities, yet nobody can see which modules are untested. Coverage would also show the gaps that MISTAKES.md describes as real traps, such as the unit-test builder isolation issue. Without a number, coverage cannot be used as a gate.
@@ -586,6 +630,8 @@ angular.json test target: "builder": "@angular/build:unit-test", "options": { "s
 #### F321 · Unit-test isolation is not pinned in angular.json, so the documented leak trap depends on memory
 
 **low** · effort S · testing · deps-tooling · partially confirmed · already documented
+
+**Status, quality pass 2026-10-22:** Fixed (`65b00e1`). `angular.json` pins `"isolate": false` in the unit-test options, so the setting that the documented leak trap depends on is in the repository and no longer in memory.
 
 **Where:** `angular.json:98-103`, `MISTAKES.md:452`
 
@@ -611,6 +657,8 @@ angular.json: "test": { "builder": "@angular/build:unit-test", "options": { "set
 
 **low** · effort S · dx-tooling · deps-tooling
 
+**Status, quality pass 2026-10-22:** Fixed (`c78e67b`, `8769abc`, `544cc3f`, `4b4a379`). `.github/dependabot.yml` covers npm at `/` and `/functions` and github-actions, weekly, grouped by Angular and Firebase. A non-blocking `npm audit --omit=dev` runs in the root lint job and in the functions job. `deploy-functions.yml` pins `npx firebase-tools@15.34.0`. **Left:** Dependabot cannot bump an `npx` pin, so that pin is raised by hand (a comment in the workflow says so).
+
 **Where:** `.github/workflows/ci.yml:26-36`, `/home/kwongtn/rosak/rosak_firebase (no .github/dependabot.yml or renovate.json present)`, `.github/workflows/deploy-functions.yml:77`
 
 **Problem.** Nothing opens update pull requests, and nothing reports known vulnerabilities for the root package or for functions/. The deploy job also runs npx firebase-tools without a pinned version, so the CLI that performs production deploys can change between runs.
@@ -632,6 +680,8 @@ deploy-functions.yml line 77: "run: npx firebase-tools deploy --only functions -
 #### F324 · Types for Node are pinned to version 20 while the runtime and CI use Node 24
 
 **low** · effort S · code-quality · deps-tooling · partially confirmed
+
+**Status, quality pass 2026-10-22:** Partly fixed (`c09f650`). `@types/node` is `^24`, matching `engines` and CI, and `tsconfig.server.json` (`src/server*.ts`, types `node`) is a new project reference. `node` is gone from the explicit `types` of `tsconfig.app.json`. **Left:** `tsconfig.app.json` still includes the server files, because excluding them stopped `ng build` from type-checking them. jszip's typings reference the Node types, so browser code still sees Node globals through that import.
 
 **Where:** `package.json:72`, `package.json:17`, `tsconfig.app.json:6`
 
@@ -657,6 +707,8 @@ package.json: "@types/node": "^20.17.19" with "engines": { "node": ">=24" } and 
 
 **low** · effort S · dx-tooling · gap-1
 
+**Status, quality pass 2026-10-22:** Partly fixed (`8e3d653`, `7197a87`, `cafcfce`, `a4ef653`, `db80ba6`). Five unused `REVIEWED_AT_*` constants are deleted. /methodology shows each metric's own `lastReviewed`, and `isReviewStale()` with `STALE_REVIEW_MONTHS` drives a Needs review pill, shown to admins only (`AuthService.isAdmin()`; the dates stay public). `SERVICE_DAY_LABEL` is derived from `SERVICE_DAY_START_HOUR` and `HISTORY_BUCKETS_PER_DAY`, `historySummaryLabel` names its window from the first and last bucket and says 'of N hours' from `buckets.length`, and the comment in `methodology.constants.ts` is corrected. No section `lastReviewed` was bumped, because no documented rule changed. **Left:** Four static captions (`network-sparkline`, `network-heat-strip`, `pro-report-ranking`, `line-week-profile`) still use `SERVICE_DAY_LABEL`, because they render before any bucket exists. The mirrored backend values (3 and 24) remain frontend literals pinned only against the registry, so no test fails when the backend changes them.
+
 **Where:** `src/app/core/methodology/methodology.content.ts:65-102`, `src/app/core/methodology/methodology.constants.ts:40-41`, `src/app/core/methodology/methodology.constants.ts:50`, `src/app/features/methodology/methodology-section.component.ts:75-77`
 
 **Problem.** Five REVIEWED_AT_* constants are declared and never used, each with a long justification for why it must stay separate. STALE_REVIEW_MONTHS (6) is never applied, so nothing marks a section needing review. Per-metric lastReviewed values are never displayed, and the one visible date is per section (line-status shows 2026-10-19 although most of its entries were last reviewed on 2026-10-03 or 2026-10-07). The status-history spec compares frontend constants with other frontend constants, so a backend change to DAY_START_HOUR does not fail any test, contrary to the comment; AGENTS.md also says backend values must not be mirrored as literals.
@@ -681,6 +733,8 @@ STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },   // never rea
 #### F342 · Derive the line page's status filter and sort state with linkedSignal or from the URL instead of effects
 
 **low** · effort S · angular-modernization · gap-1 · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`49d1f07`, `4e9a7b9`). The filter-reset effect and both sort-sync effects in `line-overview.page.ts` are gone: `statusFilter` is a `linkedSignal` over `lineId`, and the sort is derived from the URL and written through `writeQueryParams`. Specs cover the sort read from the URL with a fallback for unknown values, a write and read round trip with defaults left out, an unrelated param kept on merge, no navigation on mount or on the server, and the status filter resetting when `lineId` changes but not when the same `lineId` is set again.
 
 **Where:** `src/app/features/spotting/line-overview/line-overview.page.ts:271-274`, `src/app/features/spotting/line-overview/line-overview.page.ts:282-303`
 
@@ -712,6 +766,8 @@ effect(() => { ... this.router.navigate([], {...}) });
 
 **low** · effort S · angular-modernization · gap-2 · partially confirmed
 
+**Status, quality pass 2026-10-22:** Fixed (`e1ad59e`, `ca106a8`). Report-form part: `selectedVehicleStatus` is removed from `ReportFormModel`, and `reportFormSchema` is a factory, `reportFormSchema(selectedVehicleStatus: () => string)`, so the sanity gate reads the derived computed. The stale-station bug the finding names is fixed in the same commit: a line change also clears `atStation`, `originStation` and `destinationStation` (F080). Link-form part: invalid as written. The link form has no line-change handler and never narrows `stationOptions` by line; the real hidden-but-still-sent case was a vehicle tagged without its line, which `vehicleOptionsFor` fixes (`ca106a83`) and the link form's 'tags' spec covers. **Left:** The report form's line-change effect stays on purpose (see F569).
+
 **Where:** `src/app/features/spotting/report-form/report-form.component.ts:172`, `src/app/features/spotting/report-form/report-form.component.ts:182`, `src/app/features/insiden/link-form/link-form.component.ts:313`, `src/app/features/insiden/link-form/link-form.component.ts:374`
 
 **Problem.** selectedVehicleStatus is pure derived state kept in the form model by an effect that writes the same model it reads, so validation sees one extra pass of stale data and the schema depends on a field no user edits. Line-change reset, sheet open/close edge handling, hydration and default-line seeding in link-form are all separate effects that write signals, which is how the stale-station bug above slipped in (the reset covers one field list by hand). This is the pattern linkedSignal and computed are meant to replace.
@@ -742,6 +798,8 @@ effect(() => {
 
 **low** · effort S · testing · gap-3 · severity adjusted from medium
 
+**Status, quality pass 2026-10-22:** Fixed (`a67e132`, `e1723b5`, `e39d5c8`, `7555c10`, `e988315`). `scripts/export-graphql-schema.mjs` (`npm run schema:refresh`) writes the committed `schema.graphql` snapshot (1235 lines), and `documents.spec.ts` validates all 74 operation documents and the runtime-built station document against it. It also compares each union in `core/graphql/types.ts` with its schema enum, including the aliases `SpottingType` to `SpottingEventType` and `WheelStatus` to `SpottingWheelStatus`. `assertSchemaSdl` in `scripts/graphql-schema-guard.mjs` refuses to write a file that does not parse or has no `Query` type, with a 5-case spec. The `SpottingVehicleStatus` drift was fixed by F354, so the `KNOWN_DRIFT` map is empty and the `it.fails` mechanism stays. **Left:** No CI step warns when the snapshot is older than the backend (it needs `.github`). `CalendarIncidentStatus` in `insiden.queries.ts` lacks the schema's `PENDING_DELETION`, and the union check does not see it because it reads `core/graphql/types.ts` only. The Docker call in `export-graphql-schema.mjs` is untested.
+
 **Where:** `package.json`, `src/app/features/home/data/home.queries.ts:1`, `src/app/core/graphql/types.ts:1`
 
 **Problem.** Today every document is correct, but only because the maintainers copied names carefully (the contract rule 'schema is the single source of truth' has no automated enforcement). A backend rename or removal (the backend deploys first) will first show up as a runtime 'Cannot query field' error that, as shown above, is retried silently for ever and never reaches Sentry. Hand-written response interfaces can also drift unnoticed (see the type-drift finding).
@@ -763,6 +821,8 @@ I extracted every query, mutation and fragment-free document with the TypeScript
 #### F354 · Hand-written response types have drifted from the live schema in a few places
 
 **low** · effort S · code-quality · gap-3
+
+**Status, quality pass 2026-10-22:** Fixed (`6d58a17`, `666528d`). `SpottingEvent.status` is `SpottingVehicleStatus`, widened to the schema's 7 values (checked against the live SDL), and `StationLine.internalRepresentation`, `VehicleIncident.brief` and `MediaTypeConnection.totalCount` are nullable. `PassengerStatus` and `SocialMediaLinkStatus` moved into `core/graphql/types.ts`, and `home.queries.ts` re-exports the enums from there, so each union has one copy. `incident-timeline.component.spec.ts` checks that an incident with a null brief renders its title and no brief paragraph. **Left:** `MyEvent.status` in `profile.queries.ts:341` is still typed `VehicleStatus`. `CalendarIncidentSeverity` is declared three times (two insiden query files, plus `HomeIncidentSeverity` in `home-incidents.queries.ts`).
 
 **Where:** `src/app/features/spotting/data/spotting.queries.ts:234`, `src/app/core/graphql/types.ts:21`, `src/app/features/spotting/data/spotting.queries.ts:178`, `src/app/features/spotting/data/spotting.queries.ts:315`, `src/app/features/gallery/data/gallery.queries.ts:52`
 
@@ -789,6 +849,8 @@ gallery.queries.ts:52: totalCount: number;  (schema MediaTypeConnection.totalCou
 #### F383 · Reuse AuthService for the AI token and share one AI request helper instead of a second Firebase auth bootstrap
 
 **low** · effort S · code-quality · insiden-data · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`5f448ea`). `IncidentAiService` takes its token from `AuthService.idToken()` and no longer bootstraps Firebase itself, and one private `post<T>()` helper serves both calls. `incident-ai.service.spec.ts` stubs `fetch` and covers both endpoints, 401, 429 and 502, a network error, no user and the server platform.
 
 **Where:** `src/app/features/insiden/data/incident-ai.service.ts:43`, `src/app/features/insiden/data/incident-ai.service.ts:64`, `src/app/features/insiden/incident-form/incident-form.component.ts:578`
 
@@ -817,6 +879,8 @@ async function currentIdToken() { const user = getAuth(firebaseApp()).currentUse
 
 **low** · effort S · angular-modernization · insiden-ui · partially confirmed
 
+**Status, quality pass 2026-10-22:** Fixed (`160d6c9`, `34f2af8`, `11e100b`). The /insiden page reloads the month only on the form's new `saved` output, so Cancel no longer reloads it. The card's continuation state and viewer are `linkedSignal`s keyed on the incident payload. The form spec asserts that `saved` emits once after a create (chained and admin) and after an edit, and not after a failed create, a GraphQL rejection, a chronology block, Cancel or Escape. **Left:** A `loadMoreLinks` still in flight across a payload refresh appends its stale page; this predates the change.
+
 **Where:** `src/app/features/insiden/insiden.page.ts:102-119`, `src/app/features/insiden/incident-card/incident-card.component.ts:308-328`
 
 **Problem.** The comment concedes that success and cancel both trigger a reload, so a rider who opens the form and cancels pays for another 48 KB, five-second fetch. The edge detector is an effect that reads and writes its own signal; the card's effect is a derive-state-by-writing-signals pattern that also wipes loaded link pages on any payload change. These are the effect-for-derived-state patterns Angular recommends replacing.
@@ -840,6 +904,8 @@ effect(() => { const open = this.incidentSheet.isOpen(); const wasOpen = this.sh
 #### F404 · Stop Tailwind auto-scanning docs, e2e specs and graph output (invalid CSS rule and wasted global CSS)
 
 **low** · effort S · performance · platform · severity adjusted from medium
+
+**Status, quality pass 2026-10-22:** Fixed (`b5a1b36`, `9eb8daa`). `src/styles.css` limits Tailwind source detection to `src/`, so docs, `MISTAKES.md`, e2e specs and `graphify-out` no longer produce utility rules. Global styles fell from 101.54 kB to 96.26 kB raw (15.40 to 14.65 kB gzip), the initial total from 843.67 kB to 838.39 kB, and the `css-syntax-error` warning is gone. The CI build job tees its output to `build.log` and fails with an error annotation if it contains `css-syntax-error`.
 
 **Where:** `src/styles.css:1`, `src/styles.css:4`, `e2e/spotting-keep-alive.spec.ts:232`, `.omo/evidence/audit-2026-10-21/build/build.log:77`
 
@@ -889,6 +955,8 @@ index.ts exports extractIncidentData and summarizeIncident via `functions.region
 
 **low** · effort S · dx-tooling · platform
 
+**Status, quality pass 2026-10-22:** Fixed (`8769abc`, `497c4e5`). `ci.yml` has top-level `permissions: contents: read`, a `ci-${{ github.ref }}` concurrency group, `timeout-minutes: 20` on all six jobs, and a Playwright browser cache keyed on the installed `@playwright/test` version. `cancel-in-progress` is true for pull requests only, so a newer push to main or staging does not cancel the previous push build, which is the only Sentry release path. The dependabot file the recommendation names is under F323.
+
 **Where:** `.github/workflows/ci.yml:1`, `.github/workflows/ci.yml:10`, `.github/workflows/ci.yml:22`, `.github/pull_request_template.md:1`
 
 **Problem.** The default GITHUB_TOKEN may have write scope for the whole workflow, superseded pushes to a PR keep running full test, build and e2e jobs, and a hung browser test can run for six hours. For a production app on Express, Firebase, Sentry, Angular 22 and a Node functions project, there is no automated notice of security updates for either package.json.
@@ -911,6 +979,8 @@ ci.yml has no top-level `permissions:`, no `timeout-minutes`, no `concurrency:` 
 
 **low** · effort S · code-quality · profile-about-misc
 
+**Status, quality pass 2026-10-22:** Fixed (`ce8a14a`, `f1fc46c`). The stale comment blocks in `profile.page.ts` and `profile.routes.ts` are replaced with short accurate ones, and the last two `archive/frontend-map` pointers in `profile.queries.ts` are removed. **Left:** Other `archive/frontend-map` pointers remain in `gallery.page.ts`, `imgur.util.ts`, `gallery.queries.ts`, the spotting feature, `core/graphql/types.ts` and `domain-ui`; they are outside this finding.
+
 **Where:** `src/app/features/profile/profile.page.ts:37-48`, `src/app/features/profile/profile.routes.ts:11-13`
 
 **Problem.** The code below the comment calls GET_PUBLIC_USER_QUERY(publicUser(id)), and the backend schema (Query.publicUser(id: ID!) in common/schema/schema.py) exists. The comment tells the next maintainer, and any AI agent reading it, that non-owner profiles cannot work and must show 'not found'. That is false and contradicts the component's own behaviour, and it is the kind of comment that gets 'fixed' by deleting the working public path.
@@ -932,6 +1002,8 @@ ci.yml has no top-level `permissions:`, no `timeout-minutes`, no `concurrency:` 
 #### F424 · Keep the methodology constants truly single-sourced: an unpinned duplicate of the service-day hour is sent to the backend
 
 **low** · effort S · code-quality · profile-about-misc · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`e3c6242`, `68c329f`). `line-status-chart.component.ts` no longer sends `dayStartHour`: its variables are `{ lineId }` and the backend default of 3 applies. Bar labels come from each bucket's `hourStart`, and only the typical week still sends `dayStartHour`. The chart and line-pulse-card specs and the util header comment are updated, and the e2e line-history expectation drops the variable.
 
 **Where:** `src/app/features/home/line-pulse/line-status-chart.component.ts:20`, `src/app/features/home/line-pulse/line-status-chart.component.ts:213`, `src/app/features/home/data/status-history-display.util.ts:25`, `src/app/core/methodology/methodology.constants.ts:268-276`
 
@@ -960,6 +1032,8 @@ methodology.constants.ts:  SERVICE_DAY_START_HOUR: { value: 3, source: "LINE_STA
 
 **low** · effort S · code-quality · security · partially confirmed
 
+**Status, quality pass 2026-10-22:** Fixed (`928799e`). `core/util/escape-html.util.ts` is the single `escapeHtml` (the popup version, escaping `&`, `<`, `>` and both quote kinds), with a spec. The info panel's JSON highlighter matches on the raw JSON and escapes each piece. The vehicle popup is built with `createElement` and `textContent` (`buildVehiclePopupHtml` is now `buildVehiclePopupElement`, passed to the L7 popup as an `HTMLElement`) and the marker glyph with `createElementNS`, so no `innerHTML` is left in `vehicle-popup-content.ts` or `vehicle-marker-icon.ts`. New specs drive the popup, the marker, `escapeHtml` and the highlighter with a hostile label. **Left:** `escapeHtml` is used in the info panel only, because the popup and the marker build no markup string. Not checked in a running browser: that a repeated `setOptions({ html: HTMLElement })` on an already open popup replaces its content (L7's `setDOMContent` clears first, but nothing ran the app).
+
 **Where:** `src/app/features/tracker/info-panel/tracker-info-panel.component.ts:53`, `src/app/features/tracker/map/vehicle-popup-content.ts:29`, `src/app/features/tracker/map/vehicle-marker-icon.ts:41`
 
 **Problem.** I traced each use and found no exploitable injection today: the info-panel output goes through [innerHTML] (Angular sanitises it again) and only the text content of GTFS-realtime feed strings is interpolated; the popup helper escapes quotes; the marker SVG interpolates compile-time constants. But the two escapers have different coverage (the info-panel one does not escape quotes), the popup one uses a non-null assertion, and feed strings come from a third-party GTFS feed, so a future change that places a value in an attribute would be unsafe in one copy and safe in the other.
@@ -983,6 +1057,8 @@ wrapper.innerHTML = `<svg ...>${mode === "train" ? TRAIN_PATH : BUS_PATH}</svg>`
 #### F440 · Tracker CSV export duplicates the shared helper, skips CR quoting and revokes the object URL synchronously
 
 **low** · effort S · testing · test-gaps · partially confirmed · severity adjusted from medium
+
+**Status, quality pass 2026-10-22:** Fixed (`2781cf2`, `6957fc1`, `b12fbb6`). The info panel's private `toCsv` and its inline Blob and anchor code are gone. `onExportCsv` now calls the shared `downloadCsv` with `toCsv(tableColumns(), sortedRows())` and a `<sourceKey or kind>.csv` file name, with the same columns (id first) and the displayed row order, and lines now end in CRLF instead of LF. `core/export` already quoted CR and revoked on the next tick; a bare-CR case is added to `csv.util.spec.ts`, and the info panel spec checks the exact bytes, the sort order, the deferred revoke and the SSR no-op. **Left:** Tracker rows carry third-party feed text (label, vehicle id, trip id, stop id, stop name) and are not passed through `neutralizeSpreadsheetFormula`. That predates this change and is outside the recommendation.
 
 **Where:** `src/app/features/tracker/info-panel/tracker-info-panel.component.ts:33-46`, `src/app/features/tracker/info-panel/tracker-info-panel.component.ts:572-584`, `src/app/core/export/csv.util.ts:92-106`
 
@@ -1018,6 +1094,8 @@ const escape = (value: string | number) => {
 
 **low** · effort S · testing · test-gaps
 
+**Status, quality pass 2026-10-22:** Fixed (`68dc654`, `de14fb2`, `c00b223`). The picker revokes the preview object URL of every photo that leaves `files()`: removed with its button, or dropped by the host's reset on sheet close, Clear form or submit. A compressed entry keeps its URL. Picker specs cover the deferred compression gate and the revoke on remove and on emptying the list, and the shell spec drives the real close path (`sheet.setOpen(false)` resets the form and the picker revokes `blob:preview`). **Left:** 'A rejected compression removes the entry and shows a toast' is not done: the owner chose to upload the original (`c955733`), and an existing spec covers that path. A photo still listed when the picker is destroyed keeps its URL (a recorded shortcut), because `incident-card` re-creates the picker over the same list.
+
 **Where:** `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:64`, `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:77`, `src/app/features/spotting/report-form/photo-picker/photo-picker.component.ts:97-99`
 
 **Problem.** The component's isCompressing signal is the only thing that stops a report from being submitted before its photo is ready, and a long comment explains why it matters, yet no test covers it. Each picked photo creates an object URL that is never revoked, not even when the photo is removed or the sheet closes, so the original full-size File stays in memory for the rest of the session.
@@ -1044,6 +1122,8 @@ protected _remove(image: ImageFile): void {
 
 **low** · effort S · testing · test-gaps
 
+**Status, quality pass 2026-10-22:** Fixed (`a1e329b`, `3be7b5f`, `d7850f3`). The mock records unstubbed operation names (`GET /__unstubbed`, cleared by `/__reset`). The shared `test` in `e2e/helpers/mock-graphql.ts` resets the mock before each test and fails it afterwards, naming the operations that had no stub, and the specs received the stubs they lacked. `unstubbedOperations()` throws a clear error when a stale shared mock server predates `/__unstubbed`.
+
 **Where:** `e2e/mock-graphql.server.mjs:91-94`, `e2e/helpers/mock-graphql.ts:21-45`
 
 **Problem.** An unstubbed operation returns a GraphQL error with HTTP 200. The app may render that as an empty state, and an assertion that a row or card is not visible will then pass for the wrong reason. Nothing checks for unstubbed calls after a test, and the configuration is not re-verified between tests.
@@ -1068,6 +1148,8 @@ if (!(name in stubs)) {
 #### F446 · Timing-based waits in unit and e2e specs make them slow or flaky under load
 
 **low** · effort S · testing · test-gaps · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`56fba92`, `d7850f3`). The 1200 ms hold in `spotting-keep-alive.spec` is a gate promise that the test releases after it has seen the held request (and on page close). `routeGraphQLToMock` takes an optional `hold(body)` hook, so the spec no longer carries its own copy of the GraphQL bridge.
 
 **Where:** `src/app/ui/combobox/combobox.spec.ts:62-65`, `e2e/spotting-keep-alive.spec.ts:131-138`, `src/app/features/tracker/data/gtfs-static.service.spec.ts:45`, `src/app/features/tracker/map/tracker-map.component.spec.ts:34`
 
@@ -1096,6 +1178,8 @@ _Original suggestion (corrected by the verifier):_ In Vitest, use vi.useFakeTime
 
 **low** · effort S · testing · test-gaps
 
+**Status, quality pass 2026-10-22:** Fixed (`fa85f64`, `a1a48dd`, `540a6b2`, `8769abc`). `resolveRuntimeConfig(env)`, `resolveFirebaseConfig(env)` and `readRelease(root)` are exported pure functions, and the scripts write files only when run directly. Three `node:test` files (24 tests) cover empty strings, a non-numeric `UPLOAD_CONCURRENCY` (falls back to 5 with a warning), a missing, empty or wrongly typed Firebase config field and the valid path. `npm run test:scripts` (`node --test "scripts/*.test.mjs"`) is part of `npm run verify` and the CI test job.
+
 **Where:** `scripts/generate-runtime-config.mjs:26`, `scripts/generate-runtime-config.mjs:31`, `scripts/generate-firebase-config.mjs:32`, `../AGENTS.md:131`
 
 **Problem.** The repo rule requires tests for build-script logic, and none of the six scripts in scripts/ has one. The ?? operator does not fall back on an empty string, so an empty BACKEND_URL ships as an empty base URL and every request becomes relative to the site origin. Number('abc') is NaN, which JSON.stringify writes as null, so uploadConcurrency becomes null. generate-firebase-config spreads whatever JSON.parse returns, so a partial or wrongly typed config is accepted without a check.
@@ -1121,6 +1205,8 @@ backendUrl: process.env["BACKEND_URL"] ?? FALLBACK.backendUrl,
 #### F454 · HlmCheckbox keeps state in plain mutable fields mirrored by two effects, and has no spec
 
 **low** · effort S · angular-modernization · ui-system · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`2bef145`, `0980238`). In `ui/checkbox/checkbox.ts`, `checked` and `disabled` are `linkedSignal`s over the inputs; `writeValue`, `setDisabledState` and a click set them, and both effects are deleted. `checkbox.spec.ts` (9 tests) covers the plain `[checked]` and `(checkedChange)` path, `[formControl]` write, reset, disable and enable, and `[formField]` model writes and clicks, with no manual `detectChanges`.
 
 **Where:** `src/app/ui/checkbox/checkbox.ts:67`, `src/app/ui/checkbox/checkbox.ts:74`, `src/app/ui/checkbox/checkbox.ts:90`
 
@@ -1150,6 +1236,8 @@ writeValue(value: boolean): void { this.checked = value; }
 
 **low** · effort S · angular-modernization · ui-system · partially confirmed · already documented
 
+**Status, quality pass 2026-10-22:** Fixed (`4c4296a`, `9168ca7`, `a4cf2bc`). `HlmButton` defaults a `<button>` to `type="button"` (anchors get none). Auditing all six forms found three untyped `hlmBtn` buttons that were double-firing submit handlers (the link-form and incident-form sign-in buttons and the line-status retry banner). `HlmCard`, `HlmCardContent`, `HlmSkeleton` and `HlmTr` now merge a consumer class through `hlm()`, because concrete conflicts existed (dead `gap`, `p`, `rounded` and `hover:bg` overrides), and `button`, `card`, `skeleton` and `table` have specs. **Left:** Two known conflicts stay unmerged: `hlmTh` with `!text-end` in `incident-history` and `hlmCardHeader` with `flex-row` on the about page. The now-live overrides (for example cards moving from `p-5` and `gap-4` to the authored `p-4` and `gap-3`) were not checked in a browser.
+
 **Where:** `src/app/ui/button/button.ts:33`, `src/app/ui/card/card.ts:4`, `src/app/ui/table/table.ts:2`, `src/app/ui/skeleton/skeleton.ts:5`
 
 **Problem.** A <button hlmBtn> placed inside a <form> and not marked type="button" submits it, a known footgun (MISTAKES.md already records forms with manual submit handlers). Card, table parts and skeleton use static host classes, so a consumer's class competes by stylesheet order instead of twMerge; MISTAKES.md (2026-10 entry about hlmCard host-class rules) already records the resulting workarounds.
@@ -1174,6 +1262,8 @@ HlmCard: host: { class: "bg-card text-card-foreground border-border flex flex-co
 #### F508 · Run axe in the test pipeline so these regressions are caught
 
 **low** · effort M · testing · accessibility · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`9c5e2be`, `68f6449`, `819eae7`). `src/testing/axe.ts` exports `expectNoAxeViolations(fixture)`, which runs axe-core with structural tags only (aria, name-role-value, text-alternatives, forms, structure) and prints readable violation text. Its own spec proves that axe flags an unnamed button in jsdom, and `sheet.spec.ts` and `combobox.spec.ts` each run it and are clean. Importing axe sets `window.axe` and adds one inert window message listener per worker, which nothing reads, so `isolate: false` stays safe. **Left:** Contrast and target-size checks, which the recommendation leaves to a browser-based pass, are not added; the e2e axe scans (F560) also run with `color-contrast` off.
 
 **Where:** `src/test-setup.ts`, `src/app/ui/sheet/sheet.spec.ts`, `src/app/ui/combobox`
 
@@ -1248,6 +1338,8 @@ package-lock.json pins @angular/cdk 22.0.0 while @angular/core, @angular/common 
 
 **low** · effort M · architecture · home-data · partially confirmed · severity adjusted from medium
 
+**Status, quality pass 2026-10-22:** Partly fixed (`0786811`, `434e3aa`, `6430c5e`, `b598258`, `a325c21`, `d8b06cf`, `d5c64e3`). `HomeStore` has one `PagedFeed` class (`data/paged-feed.ts`), built twice for today and last week. The card and the row share one `injectLinePulseView` (`data/line-pulse-view.ts`), and the network board stamps one `ng-template #boardRow` five times, with a type-only `BoardRowTemplate` guard directive keeping the `LinePulse` typing. The write-up's ten appended signals, two `loadMore` copies, twelve shared card and row members and five wrapper copies are now one each, and `home.store.ts` lost 193 lines against 93 added. Specs pin `PagedFeed` (9 tests) and the view (5 tests). **Left:** The store-level shared `now` signal for the 16 rows' `_now` and effect (it changes row timing and the row spec's `HomeStore` stub shape), and moving the Pro filter signals into a route service.
+
 **Where:** `src/app/features/home/data/home.store.ts:740`, `src/app/features/home/data/home.store.ts:1116`, `src/app/features/home/data/home.store.ts:1148`, `src/app/features/home/line-pulse/line-pulse-card.component.ts:338`, `src/app/features/home/line-pulse/line-pulse-row.component.ts:419`, `src/app/features/home/line-pulse/network-board.component.ts:230`
 
 **Problem.** The store's invariants (cursor reset on filter, overlap dedupe, overlay coverage, variables parity) are written twice and must be kept in sync by hand, which is exactly how the overlay and Load More gap arose. Card and row copy the same derived state, and each beat 16 rows each hold their own _now signal and effect for the same clock.
@@ -1271,6 +1363,8 @@ HomeStore is 1,280 lines with ten near-identical appended/lastWeekAppended signa
 #### F550 · Replace the state-propagating effects in both forms with derived signals and explicit close handlers
 
 **low** · effort M · angular-modernization · insiden-data · partially confirmed
+
+**Status, quality pass 2026-10-22:** Partly fixed (`4d8f24f`, `ca106a8`, `11e100b`). The default category is the `injectDefaultCategory()` `linkedSignal` in both forms. In the incident form, Cancel, the sheet's `openChange` and a successful submit all call `close()`, and `IncidentSheetService.close()` nulls `editTarget`, so the reset effect is gone. `docs/components/insiden.md` records that the link form still resets from its `_wasSheetOpen` effect. **Left:** The link form's `_wasSheetOpen` close-reset effect remains. Removing it needs `link-sheet/` to call a form close path from Cancel and `(openChange)`.
 
 **Where:** `src/app/features/insiden/incident-form/incident-form.component.ts:276`, `src/app/features/insiden/incident-form/incident-form.component.ts:287`, `src/app/features/insiden/incident-form/incident-form.component.ts:302`, `src/app/features/insiden/link-form/link-form.component.ts:347`, `src/app/features/insiden/link-form/link-form.component.ts:391`
 
@@ -1300,6 +1394,8 @@ effect(() => {
 
 **low** · effort M · testing · platform · partially confirmed · severity adjusted from medium
 
+**Status, quality pass 2026-10-22:** Partly fixed (`9eb8daa`, `56a11e7`, `44ef9c6`, `d5e0b04`, `c449af1`). CI part: the build job uploads `dist/web` minus `*.map` as the `dist` artifact, and a new `ssr-smoke` job runs the mock GraphQL server and the SSR server and checks `/` for 200 and `Cache-Control`, `/about` for 200, `/nope` for 404 and no `Error:` in any body. The smoke server runs as `NODE_ENV=production` with `ENVIRONMENT_NAME=ci` and the Sentry ingest host blackholed, so it files no events in production Sentry, and the job fails if the mock on :4301 does not start. Playwright part: `playwright.config.ts` has desktop and mobile (Pixel 7) projects, `forbidOnly` and one retry on CI, a github reporter beside list on CI and `reuseExistingServer` off CI, and `@axe-core/playwright` scans home, `/spotting/1` and `/spotting/1/vehicle/1` against a per-spec baseline with `color-contrast` off. **Left:** `/%E0%A4%A` answers 500 and not 400, because the 400 handler in `server.ts` is F401, so that check is a `::warning::`. The axe scans report app defects that are baselined and not fixed: `region`, `label-content-name-mismatch`, `heading-order` (an h3 on `/spotting/1`) and, on mobile, `link-name` and `page-has-heading-one`. The build job points `BACKEND_URL` at the mock, because the production build bakes the live API URL.
+
 **Where:** `playwright.config.ts:4`, `playwright.config.ts:17`, `playwright.config.ts:19`, `playwright.config.ts:26`, `e2e/static-server.mjs:1`, `package.json:13`, `.github/workflows/ci.yml:84`
 
 **Problem.** Everything that makes this app special in production, server.ts, host validation, the cache header, the gtfs proxy, render modes, hydration and SSR error handling, is never exercised before a deploy. The three problems above (empty allowedHosts, 500 on a bad URL, no deadline) could all have been caught by a 20-line smoke test. Tests also run only at desktop size although the audience is mostly on phones, there is no coverage for gallery, tracker, profile, methodology or photo upload, and no automated accessibility assertion. retries: 0 and no forbidOnly make CI flaky-prone for browser tests.
@@ -1321,6 +1417,8 @@ playwright.config.ts: 'E2E specs run against a CSR-only static build of the app 
 #### F569 · Several effects copy or derive state that should be computed or linked signals, including a URL to signal to URL sort loop
 
 **low** · effort M · angular-modernization · spotting · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`49d1f07`, `e1ad59e`). In `line-overview.page.ts`, `sortColumn` and `sortDirection` are computeds over `queryParamMap`, and `onSortChanged` writes through the core `writeQueryParams` helper (browser-only, merging, `replaceUrl`, defaults left out), so mounting the page no longer navigates. `statusFilter` is `linkedSignal({ source: lineId, computation: () => null })`. In the report form the vehicle status is a computed (`selectedVehicleStatusValue`) and its mirror effect is deleted. **Left:** The report form's line-change effect stays on purpose: it must react to every `lineId` write (seed, draft restore, model writes), which an event handler would miss.
 
 **Where:** `src/app/features/spotting/line-overview/line-overview.page.ts:271`, `src/app/features/spotting/line-overview/line-overview.page.ts:282`, `src/app/features/spotting/line-overview/line-overview.page.ts:295`, `src/app/features/spotting/report-form/report-form.component.ts:172`, `src/app/features/spotting/report-form/report-form.component.ts:182`
 
@@ -1347,6 +1445,8 @@ effect(() => { const status = this._vehiclesForLine().find((v) => v.id === vehic
 #### F573 · The GTFS proxy route in server.ts has no tests, no upstream timeout and no cache headers
 
 **low** · effort M · testing · test-gaps · partially confirmed · severity adjusted from medium
+
+**Status, quality pass 2026-10-22:** Fixed (`5292361`, `9c3fe1a`, `4c38d1f`). The proxy handler moved from `src/server.ts` into `src/server-gtfs-proxy.ts` (`createGtfsProxyHandler`, taking `fetch` and `captureException`). The upstream fetch is bounded by `AbortSignal.timeout(15000)`, and a stalled upstream answers 502 and reports to Sentry. A 2xx answer sends `Cache-Control: public, max-age=3600` and other statuses send none. `server-gtfs-proxy.spec.ts` covers success, the content-type fallback, non-2xx, a fetch throw, the timeout (including that fetch received the 15 s signal), a missing or unparseable url and three disallowed hosts. The finding's unknown-feed-id case does not apply, because the endpoint takes a `url`, so the host-allowlist cases replace it. **Left:** Redirects are followed without re-checking the host, and only the first URL is checked against the allowlist.
 
 **Where:** `src/server.ts:43-78`, `src/server-cache-control.spec.ts:1-20`
 
@@ -1377,6 +1477,8 @@ app.get("/api/gtfs-proxy", async (req, res) => {
 #### F577 · Sheet scroll lock is an order-dependent global effect, and the nav paints above the scrim
 
 **low** · effort M · architecture · ui-system · partially confirmed · already documented
+
+**Status, quality pass 2026-10-22:** Fixed (`08be18e`, `12ad80f`). A new root `ScrollLock` service (`ui/sheet/scroll-lock.ts`) ref-counts holders and writes body and html overflow only on the 0 to 1 and 1 to 0 transitions (SSR-guarded), and `HlmSheet` holds it at most once per open. The sheet scrim moved from `z-40` to `z-[48]`, above the nav (`z-[45]`); the panel stays `z-50`. Specs cover two sheets in both handover orders, destroy, the scrim layering, and the service's counts, including a stray release and the server no-op. **Left:** The `home.page.spec.ts` assertion that the report chooser is hosted before every other sheet, and two comments in `home.page.ts` and `report-chooser.component.ts`, now document an invariant that no longer exists.
 
 **Where:** `src/app/ui/sheet/sheet.ts:92`, `src/app/ui/sheet/sheet.ts:103`, `src/app/ui/sheet/sheet.ts:42`
 
@@ -1429,6 +1531,8 @@ class="focus-visible:ring-ring/50 cursor-pointer rounded-md px-2 py-1 text-xs fo
 #### F582 · Status colours are raw palette utilities (153 uses in 18 files) instead of semantic success/warning/info tokens
 
 **low** · effort M · ui-visual · ui-system · partially confirmed
+
+**Status, quality pass 2026-10-22:** Fixed (`a2e7610`, `0980238`). `styles.css` defines `--success`, `--warning` and `--info` with `-foreground` pairs for light and dark, exposed through `@theme inline` as `bg-success`, `text-info-foreground` and so on. `badge.ts`, `toast-content`, `home-hero` and `vote-button` use them instead of raw palette utilities. Badges move to token tints (green, not emerald), toast and vote icons gain dark-mode pairs, and `badge.spec.ts` pins the three status variants to token tints. **Left:** About 150 raw status palette utilities in other files (`home-refresh-control`, `domain-ui` badges, `fleet-summary`, `network-heat-strip` and others) are not migrated, and the hero's degraded orange has no token. The token variables are not tested (the test builder cannot read `styles.css`), and the dark-mode look of the new tints was not checked in a browser.
 
 **Where:** `src/styles.css:261`, `src/app/ui/badge/badge.ts:21`, `src/app/ui/toast/toast-content.component.ts:7`, `src/app/features/home/hero/home-hero.component.ts:465`, `src/app/features/insiden/vote-button/vote-button.component.ts:80`
 
