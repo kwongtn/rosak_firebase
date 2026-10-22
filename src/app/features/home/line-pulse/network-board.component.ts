@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from "@angular/common";
 import { Component, computed, effect, inject, input } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -104,6 +105,7 @@ const SORT_PARAM = "sort";
     LinePulseCardComponent,
     LinePulseRowComponent,
     NetworkHeatStripComponent,
+    NgTemplateOutlet,
   ],
   template: `
     <div class="flex flex-col gap-4" data-testid="network-board">
@@ -245,18 +247,9 @@ const SORT_PARAM = "sort";
             </h2>
             <div class="flex flex-col gap-3">
               @for (line of _attention(); track line.id) {
-                <div
-                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
-                  [class.ring-2]="_isHighlighted(line.id)"
-                  [class.ring-brand]="_isHighlighted(line.id)"
-                  [class.ring-offset-2]="_isHighlighted(line.id)"
-                  [class.ring-offset-background]="_isHighlighted(line.id)"
-                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
-                  [attr.id]="'line-' + line.id"
-                  data-testid="line-board-row"
-                >
-                  <app-line-pulse-card [line]="line" [refreshTick]="_refreshTick()" />
-                </div>
+                <ng-container
+                  *ngTemplateOutlet="boardRow; context: { $implicit: line, card: true }"
+                />
               }
             </div>
           </section>
@@ -281,22 +274,7 @@ const SORT_PARAM = "sort";
             </h2>
             <div class="flex flex-col gap-2">
               @for (line of _mine(); track line.id) {
-                <div
-                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
-                  [class.ring-2]="_isHighlighted(line.id)"
-                  [class.ring-brand]="_isHighlighted(line.id)"
-                  [class.ring-offset-2]="_isHighlighted(line.id)"
-                  [class.ring-offset-background]="_isHighlighted(line.id)"
-                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
-                  [attr.id]="'line-' + line.id"
-                  data-testid="line-board-row"
-                >
-                  <app-line-pulse-row
-                    [line]="line"
-                    [refreshTick]="_refreshTick()"
-                    [viewMode]="_view()"
-                  />
-                </div>
+                <ng-container *ngTemplateOutlet="boardRow; context: { $implicit: line }" />
               }
             </div>
           </section>
@@ -318,22 +296,7 @@ const SORT_PARAM = "sort";
             @if (_allLoud().length > 0) {
               <div class="flex flex-col gap-2">
                 @for (line of _allLoud(); track line.id) {
-                  <div
-                    class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
-                    [class.ring-2]="_isHighlighted(line.id)"
-                    [class.ring-brand]="_isHighlighted(line.id)"
-                    [class.ring-offset-2]="_isHighlighted(line.id)"
-                    [class.ring-offset-background]="_isHighlighted(line.id)"
-                    [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
-                    [attr.id]="'line-' + line.id"
-                    data-testid="line-board-row"
-                  >
-                    <app-line-pulse-row
-                      [line]="line"
-                      [refreshTick]="_refreshTick()"
-                      [viewMode]="_view()"
-                    />
-                  </div>
+                  <ng-container *ngTemplateOutlet="boardRow; context: { $implicit: line }" />
                 }
               </div>
             }
@@ -407,22 +370,7 @@ const SORT_PARAM = "sort";
                 >
                   @if (_quietExpanded()) {
                     @for (line of _quiet(); track line.id) {
-                      <div
-                        class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
-                        [class.ring-2]="_isHighlighted(line.id)"
-                        [class.ring-brand]="_isHighlighted(line.id)"
-                        [class.ring-offset-2]="_isHighlighted(line.id)"
-                        [class.ring-offset-background]="_isHighlighted(line.id)"
-                        [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
-                        [attr.id]="'line-' + line.id"
-                        data-testid="line-board-row"
-                      >
-                        <app-line-pulse-row
-                          [line]="line"
-                          [refreshTick]="_refreshTick()"
-                          [viewMode]="_view()"
-                        />
-                      </div>
+                      <ng-container *ngTemplateOutlet="boardRow; context: { $implicit: line }" />
                     }
                   }
                 </div>
@@ -452,28 +400,38 @@ const SORT_PARAM = "sort";
             </h2>
             <div class="flex flex-col gap-2">
               @for (line of _others(); track line.id) {
-                <div
-                  class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
-                  [class.ring-2]="_isHighlighted(line.id)"
-                  [class.ring-brand]="_isHighlighted(line.id)"
-                  [class.ring-offset-2]="_isHighlighted(line.id)"
-                  [class.ring-offset-background]="_isHighlighted(line.id)"
-                  [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
-                  [attr.id]="'line-' + line.id"
-                  data-testid="line-board-row"
-                >
-                  <app-line-pulse-row
-                    [line]="line"
-                    [refreshTick]="_refreshTick()"
-                    [viewMode]="_view()"
-                  />
-                </div>
+                <ng-container *ngTemplateOutlet="boardRow; context: { $implicit: line }" />
               }
             </div>
           </section>
         }
       }
     </div>
+
+    <!-- ONE wrapper for every line on the board, in all five places a line can render (the attention
+         cards and the four row groups). It is the anchor the post-submit scroll finds (the
+         line-<id> element id) and the thing the store's highlight rings, so the five copies have to
+         agree exactly: a ring that lands on the card in one group and the row in another would
+         report the same event two different ways. data-highlighted is on the same element as the
+         ring classes so a spec can assert the highlight through the DOM as well as the signal. -->
+    <ng-template #boardRow let-line let-card="card">
+      <div
+        class="scroll-mt-24 rounded-xl transition-shadow duration-1000 motion-reduce:transition-none"
+        [class.ring-2]="_isHighlighted(line.id)"
+        [class.ring-brand]="_isHighlighted(line.id)"
+        [class.ring-offset-2]="_isHighlighted(line.id)"
+        [class.ring-offset-background]="_isHighlighted(line.id)"
+        [attr.data-highlighted]="_isHighlighted(line.id) ? '' : null"
+        [attr.id]="'line-' + line.id"
+        data-testid="line-board-row"
+      >
+        @if (card) {
+          <app-line-pulse-card [line]="line" [refreshTick]="_refreshTick()" />
+        } @else {
+          <app-line-pulse-row [line]="line" [refreshTick]="_refreshTick()" [viewMode]="_view()" />
+        }
+      </div>
+    </ng-template>
   `,
 })
 export class NetworkBoardComponent {
@@ -638,11 +596,9 @@ export class NetworkBoardComponent {
   /**
    * The line the store is currently ringing, and the one predicate every row wrapper asks.
    *
-   * A METHOD rather than an inline `_highlightedLineId() === line.id` in three templates, because
-   * these three wrappers have to agree exactly — a ring that lands on the card in one group and the
-   * row in another would report the same event two different ways. `data-highlighted` is on the same
-   * element as the ring classes so a spec can assert the highlight through the DOM as well as
-   * through the signal.
+   * A METHOD rather than an inline `_highlightedLineId() === line.id` in the template, so the one
+   * `boardRow` wrapper asks a single question. data-highlighted is on the same element as the ring
+   * classes so a spec can assert the highlight through the DOM as well as through the signal.
    */
   protected readonly _highlightedLineId = this.store.highlightedLineId;
 
