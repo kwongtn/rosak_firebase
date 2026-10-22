@@ -154,7 +154,7 @@ export class PendingIncidentsComponent {
    *  flight supersedes it, and the late answer of the superseded read is discarded. */
   private readonly queue = resource({
     params: () => ({ search: this.appliedSearch() }),
-    loader: async ({ params }) => {
+    loader: async ({ params, abortSignal }) => {
       try {
         const idToken = await this.auth.idToken();
         const data = await this.graphql.request<
@@ -163,10 +163,13 @@ export class PendingIncidentsComponent {
         >(PENDING_INCIDENTS_QUERY, params, idToken ? { "firebase-auth-key": idToken } : {});
         return data.pendingCalendarIncidents;
       } catch (err) {
-        this.toast.error(
-          "Couldn't load the approval queue",
-          err instanceof Error ? err.message : "Unknown error",
-        );
+        // A read superseded by a newer search is discarded, so its failure is not the admin's.
+        if (!abortSignal.aborted) {
+          this.toast.error(
+            "Couldn't load the approval queue",
+            err instanceof Error ? err.message : "Unknown error",
+          );
+        }
         throw err;
       }
     },

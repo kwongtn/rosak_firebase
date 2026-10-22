@@ -274,6 +274,32 @@ describe("PendingIncidentsComponent", () => {
     ]);
   });
 
+  it("does not toast when a read superseded by a newer search fails", async () => {
+    const component = asTestable(fixture);
+    await initialLoadsSettled(component);
+    const answers: { resolve: (rows: PendingIncident[]) => void; reject: (err: Error) => void }[] =
+      [];
+    requestMock.mockImplementation(
+      () =>
+        new Promise((resolve, reject) =>
+          answers.push({ resolve: (rows) => resolve({ pendingCalendarIncidents: rows }), reject }),
+        ),
+    );
+
+    component.onSearchInput("lrt");
+    await vi.waitFor(() => expect(callsFor("pendingCalendarIncidents")).toHaveLength(2));
+    component.onSearchInput("kl sentral");
+    await vi.waitFor(() => expect(callsFor("pendingCalendarIncidents")).toHaveLength(3));
+
+    answers[1].resolve([makeRow({ id: "kl" })]);
+    await vi.waitFor(() => expect(component.rows().map((row) => row.id)).toEqual(["kl"]));
+    answers[0].reject(new Error("stale read failed"));
+    await new Promise((done) => setTimeout(done, 0));
+
+    expect(TestBed.inject(ToastService).error).not.toHaveBeenCalled();
+    expect(component.rows().map((row) => row.id)).toEqual(["kl"]);
+  });
+
   it("approve calls the approve mutation and removes the row", async () => {
     await initialLoadsSettled(asTestable(fixture));
     requestMock.mockClear();
