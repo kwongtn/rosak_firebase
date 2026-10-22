@@ -239,7 +239,12 @@ import { StatusInfoChipComponent } from "./status-info-chip.component";
            until the store has an answer for this line — no skeleton, no gap: the host is empty:hidden.
            A pinned row is a row in My lines (a pin takes a line out of All lines and Others), so the
            pin state IS the "My lines" test for Planned works. -->
-      <app-line-notices class="mt-1.5" [lineId]="line().id" [planned]="_isPinned()" />
+      <app-line-notices
+        class="mt-1.5"
+        [lineId]="line().id"
+        [lineName]="line().displayName"
+        [planned]="_isPinned()"
+      />
 
       <!-- 🔴 The fleet count and the report count are ONE fragment, and they sit on their OWN strip.
            A 390px phone could not fit the status pill, the confidence chip ("Unconfirmed (0 reports)"), the

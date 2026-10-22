@@ -724,10 +724,13 @@ describe("LinePulseRowComponent", () => {
       const root = render(makeLine());
 
       const chip = root.querySelector('[data-testid="line-notice"]');
-      expect(chip?.getAttribute("aria-label")).toBe("Notice: Signal fault");
       expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-22");
       expect(textOf(root, "line-notice-severity")).toBe("Major");
       expect(textOf(root, "line-notice-title")).toBe("Signal fault");
+      // The strip is named by THIS row's line, so sixteen rows of the same words still say whose they are.
+      expect(root.querySelector('[data-testid="line-notices"]')?.getAttribute("aria-label")).toBe(
+        "Incidents on Kelana Jaya Line",
+      );
     });
 
     it("lets a chip land after the first paint, without the row remounting", () => {

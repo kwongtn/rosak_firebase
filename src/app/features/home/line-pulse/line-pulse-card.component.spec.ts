@@ -678,8 +678,12 @@ describe("LinePulseCardComponent", () => {
       const root = render(makeLine({ status: "PARTIAL_DISRUPTION" }));
 
       const chip = root.querySelector('[data-testid="line-notice"]');
-      expect(chip?.getAttribute("aria-label")).toBe("Notice: Signal fault");
+      expect(textOf(root, "line-notice-title")).toBe("Signal fault");
       expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-22");
+      // The strip is named by this card's line.
+      expect(root.querySelector('[data-testid="line-notices"]')?.getAttribute("aria-label")).toBe(
+        "Incidents on Kelana Jaya Line",
+      );
     });
 
     it("never draws Planned works: those belong to the rows of My lines", () => {

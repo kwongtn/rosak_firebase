@@ -189,7 +189,7 @@ const MAX_PULSE_LINKS = 5;
                needs attention is exactly where one is most likely, so the card draws them too (the
                compact row does). No Planned works here — those are for the rows of My lines. Renders
                nothing without an answer, and the host is empty:hidden so the column's gap closes. -->
-          <app-line-notices [lineId]="line().id" />
+          <app-line-notices [lineId]="line().id" [lineName]="line().displayName" />
 
           @if (_links().length > 0) {
             <ul class="flex flex-col gap-1.5">

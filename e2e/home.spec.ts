@@ -347,14 +347,22 @@ test.describe("community front page", () => {
     // A Normal line still gets its notice: two chips at most, the rest behind "+N".
     const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
     await expect(kjl.getByTestId("line-notice")).toHaveCount(2);
-    const first = kjl.getByTestId("line-notice").first();
-    await expect(first).toHaveAttribute("aria-label", "Notice: Signal fault at KL Sentral");
+    // 🔴 Label in name (WCAG 2.5.3): the link is named by the words it shows, severity included, so a
+    // voice-control user can say "click Major". It carries no aria-label override.
+    const first = kjl.getByRole("link", {
+      name: "Notice Major Signal fault at KL Sentral",
+      exact: true,
+    });
+    await expect(first).toHaveCount(1);
+    await expect(first).not.toHaveAttribute("aria-label", /.*/);
     await expect(first).toHaveAttribute("href", "/insiden/2026-10-20");
     await expect(first.getByTestId("line-notice-severity")).toHaveText("Major");
-    // The severity word is the link's description, so a screen reader still hears it.
-    await expect(first).toHaveAccessibleDescription("Major");
-    await expect(kjl.getByTestId("line-notices-more")).toHaveText("+1");
-    await expect(kjl.getByTestId("line-notices-more")).toHaveAttribute("href", "/insiden");
+    // The strip is named by its line.
+    await expect(kjl.getByRole("list", { name: "Incidents on Kelana Jaya Line" })).toBeVisible();
+    // The "+N" link's name starts with the "+1" it shows.
+    const more = kjl.getByRole("link", { name: "+1 more on the incident calendar", exact: true });
+    await expect(more).toHaveText("+1");
+    await expect(more).toHaveAttribute("href", "/insiden");
 
     // A line that needs attention is a card, and the card draws its Notice too.
     const mrl = page
@@ -362,10 +370,9 @@ test.describe("community front page", () => {
       .locator("app-line-pulse-card")
       .filter({ hasText: "Monorail Line" });
     await expect(mrl.getByTestId("line-notice")).toHaveCount(1);
-    await expect(mrl.getByTestId("line-notice")).toHaveAttribute(
-      "aria-label",
-      "Notice: Train fault",
-    );
+    await expect(
+      mrl.getByRole("link", { name: "Notice Major Train fault", exact: true }),
+    ).toHaveCount(1);
 
     // The board asked for ONE read, with the literal LIVE + activeNow variables, and nothing for
     // planned works (no line is pinned).

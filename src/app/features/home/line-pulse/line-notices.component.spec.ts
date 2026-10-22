@@ -11,17 +11,6 @@ import { LineNoticesComponent } from "./line-notices.component";
 @Component({ selector: "app-notices-route-stub", template: "" })
 class RouteStub {}
 
-/** Two chip strips for two lines, to prove the ids a chip points `aria-describedby` at cannot collide. */
-@Component({
-  selector: "app-notices-pair-host",
-  imports: [LineNoticesComponent],
-  template: `
-    <app-line-notices lineId="1" />
-    <app-line-notices lineId="2" />
-  `,
-})
-class PairHost {}
-
 function makeIncident(id: string, overrides: Partial<HomeIncidentItem> = {}): HomeIncidentItem {
   return {
     id,
@@ -57,6 +46,12 @@ function textOf(element: Element | null): string {
   return (element?.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
+/** The words a chip shows, in reading order: its flex items joined by the space the gap stands for. */
+function visibleWords(link: Element | null): string {
+  const parts = [...(link?.children ?? [])].map((part) => textOf(part));
+  return parts.length > 0 ? parts.join(" ") : textOf(link);
+}
+
 /** Runs `body` with the runner's zone forced to `tz`, then restores it. */
 function withTimeZone(tz: string, body: () => void): void {
   const previous = process.env["TZ"];
@@ -80,7 +75,7 @@ describe("LineNoticesComponent", () => {
     store = makeStore();
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
-      imports: [LineNoticesComponent, PairHost],
+      imports: [LineNoticesComponent],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([
@@ -92,9 +87,12 @@ describe("LineNoticesComponent", () => {
     }).compileComponents();
   });
 
-  function render(inputs: { lineId?: string; planned?: boolean } = {}): HTMLElement {
+  function render(
+    inputs: { lineId?: string; lineName?: string; planned?: boolean } = {},
+  ): HTMLElement {
     fixture = TestBed.createComponent(LineNoticesComponent);
     fixture.componentRef.setInput("lineId", inputs.lineId ?? "1");
+    fixture.componentRef.setInput("lineName", inputs.lineName ?? "Kelana Jaya Line");
     if (inputs.planned !== undefined) {
       fixture.componentRef.setInput("planned", inputs.planned);
     }
@@ -184,27 +182,17 @@ describe("LineNoticesComponent", () => {
       );
     });
 
-    it('has the accessible name "Notice: <title>"', () => {
-      store.notices.set({ "1": [makeIncident("a", { title: "Signal fault" })] });
-      const root = render();
-
-      expect(root.querySelector('[data-testid="line-notice"]')?.getAttribute("aria-label")).toBe(
-        "Notice: Signal fault",
-      );
-    });
-
-    it("keeps the severity word reachable for a screen reader: it is the link's description", () => {
-      // `aria-label` replaces the link's content as its NAME, so the severity word would be lost
-      // behind it; `aria-describedby` points the link at the visible word instead.
-      store.notices.set({ "1": [makeIncident("a", { severity: "MAJOR" })] });
+    it("is named by its visible words: no aria-label or description overrides them", () => {
+      // 🔴 WCAG 2.5.3 (label in name). An `aria-label` of `Notice: <title>` replaced the content as the
+      // link's name, so a voice-control user who said "click Major" reached nothing. With no override
+      // the name is the visible text — `Notice Major <title>` — and the severity word is part of it.
+      store.notices.set({ "1": [makeIncident("a", { title: "Signal fault", severity: "MAJOR" })] });
       const root = render();
 
       const chip = root.querySelector('[data-testid="line-notice"]');
-      const describedBy = chip?.getAttribute("aria-describedby") ?? "";
-      expect(describedBy).not.toBe("");
-      const description = root.querySelector(`[id="${describedBy}"]`);
-      expect(textOf(description)).toBe("Major");
-      expect(chip?.contains(description)).toBe(true);
+      expect(visibleWords(chip)).toBe("Notice Major Signal fault");
+      expect(chip?.hasAttribute("aria-label")).toBe(false);
+      expect(chip?.hasAttribute("aria-describedby")).toBe(false);
     });
 
     it("uses the severity colours /insiden uses: red for Major, amber for Minor, neutral for Other", () => {
@@ -225,25 +213,6 @@ describe("LineNoticesComponent", () => {
       expect(classes[0]).toContain("text-destructive");
       expect(classes[1]).toContain("text-amber-800");
       expect(otherClass).toContain("text-neutral-700");
-    });
-
-    it("never repeats an id between two strips, even for the same incident on two lines", () => {
-      const shared = makeIncident("a", {
-        severity: "MAJOR",
-        lines: [
-          { id: "1", code: "KJL" },
-          { id: "2", code: "MRL" },
-        ],
-      });
-      store.notices.set({ "1": [shared], "2": [shared] });
-      const pair = TestBed.createComponent(PairHost);
-      pair.detectChanges();
-
-      const ids = [...(pair.nativeElement as HTMLElement).querySelectorAll("[id]")].map(
-        (element) => element.id,
-      );
-      expect(ids).toHaveLength(2);
-      expect(new Set(ids).size).toBe(2);
     });
   });
 
@@ -277,15 +246,16 @@ describe("LineNoticesComponent", () => {
       expect(textOf(root.querySelector('[data-testid="line-planned-title"]'))).toBe("Track works");
     });
 
-    it("links to the day the works start, and names itself with title and date", () => {
+    it("links to the day the works start, and is named by its visible words", () => {
       store.planned.set({ "1": [works("p")] });
       const root = render({ planned: true });
 
       const chip = root.querySelector('[data-testid="line-planned"]');
       expect(chip?.getAttribute("href")).toBe("/insiden/2026-10-24");
-      expect(chip?.getAttribute("aria-label")).toBe(
-        "Planned works: Track works, starts Sat 24 Oct",
-      );
+      // Label in name: the date the chip shows is part of the name, so there is no aria-label to
+      // reorder or drop it.
+      expect(visibleWords(chip)).toBe("Planned works Sat 24 Oct Track works");
+      expect(chip?.hasAttribute("aria-label")).toBe(false);
     });
 
     it("drops the date, not the chip, when the datetime is unreadable", () => {
@@ -294,7 +264,7 @@ describe("LineNoticesComponent", () => {
 
       const chip = root.querySelector('[data-testid="line-planned"]');
       expect(root.querySelector('[data-testid="line-planned-date"]')).toBeNull();
-      expect(chip?.getAttribute("aria-label")).toBe("Planned works: Track works");
+      expect(visibleWords(chip)).toBe("Planned works Track works");
       expect(chip?.getAttribute("href")).toBe("/insiden");
     });
 
@@ -319,7 +289,8 @@ describe("LineNoticesComponent", () => {
       const more = root.querySelector('[data-testid="line-notices-more"]');
       expect(textOf(more)).toBe("+1");
       expect(more?.getAttribute("href")).toBe("/insiden");
-      expect(more?.getAttribute("aria-label")).toBe("1 more on the incident calendar");
+      // The name STARTS with the visible "+1", so a voice-control user can say it.
+      expect(more?.getAttribute("aria-label")).toBe("+1 more on the incident calendar");
     });
 
     it("counts every chip it left out, notices and planned works together", () => {
@@ -356,6 +327,38 @@ describe("LineNoticesComponent", () => {
       const root = render();
 
       expect(root.querySelector('[data-testid="line-notices-more"]')).toBeNull();
+    });
+  });
+
+  describe("accessible names", () => {
+    it("names the strip by its line, so the same words on every row still say whose they are", () => {
+      store.notices.set({ "1": [makeIncident("a")] });
+      const root = render({ lineName: "Monorail Line" });
+
+      expect(root.querySelector('[data-testid="line-notices"]')?.getAttribute("aria-label")).toBe(
+        "Incidents on Monorail Line",
+      );
+    });
+
+    it("never overrides the words a link shows: any aria-label contains them (label in name)", () => {
+      // WCAG 2.5.3 for the whole strip, whatever kind of chip it holds. A name that only paraphrased
+      // the visible words would leave voice control and speech-to-text users unable to say what they
+      // see.
+      store.notices.set({
+        "1": [makeIncident("a", { severity: "MAJOR" }), makeIncident("b"), makeIncident("c")],
+      });
+      store.planned.set({ "1": [makeIncident("p", { startDatetime: "2026-10-24T22:00:00" })] });
+      const root = render({ planned: true });
+
+      const links = [...root.querySelectorAll("a")];
+      // Two Notice chips, then the "+2" link for the third Notice and the Planned works.
+      expect(links).toHaveLength(3);
+      for (const link of links) {
+        const label = link.getAttribute("aria-label");
+        if (label !== null) {
+          expect(label.toLowerCase()).toContain(visibleWords(link).toLowerCase());
+        }
+      }
     });
   });
 

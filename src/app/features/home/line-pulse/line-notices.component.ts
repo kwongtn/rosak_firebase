@@ -23,17 +23,14 @@ interface ChipView {
   /** `routerLink` commands: the calendar day the incident starts on, or the calendar's own landing
    *  day when the datetime cannot be read (a wrong day would be worse than today). */
   link: string[];
-  /** The link's accessible name — the visible words minus the decoration. */
-  accessibleName: string;
-  /** Notice only: the severity's badge colour, the word, and the id the link's description points at. */
+  /** Notice only: the severity's badge colour and its word. */
   variant: BadgeVariants["variant"];
   severityLabel: string;
-  severityId: string;
   /** Planned works only: the start day, written like the rest of the board (`Sat 25 Oct`). */
   dateLabel: string | null;
 }
 
-function chipView(lineId: string, chip: LineChip): ChipView {
+function chipView(chip: LineChip): ChipView {
   const { incident } = chip;
   const dayKey = incidentDayKey(incident.startDatetime);
   const dateLabel = chip.kind === "planned" ? incidentDayLabel(incident.startDatetime) : null;
@@ -42,14 +39,8 @@ function chipView(lineId: string, chip: LineChip): ChipView {
     kind: chip.kind,
     title: incident.title,
     link: dayKey ? ["/insiden", dayKey] : ["/insiden"],
-    accessibleName:
-      chip.kind === "notice"
-        ? `Notice: ${incident.title}`
-        : `Planned works: ${incident.title}${dateLabel ? `, starts ${dateLabel}` : ""}`,
     variant: incidentSeverityVariant(incident.severity),
     severityLabel: incidentSeverityLabel(incident.severity),
-    // Per line AND incident: one incident tags several lines, and each line draws its own chip.
-    severityId: `line-notice-severity-${lineId}-${incident.id}`,
     dateLabel,
   };
 }
@@ -75,9 +66,12 @@ function chipView(lineId: string, chip: LineChip): ChipView {
  * backend's offset-free datetime STRING, never from a `Date`, so the server render and the hydrated
  * page produce the same href.
  *
- * Severity is a colour AND a word. The Notice link's accessible name is `Notice: <title>`; its
- * visible severity word is the link's description (`aria-describedby`), so a screen reader hears the
- * severity after the name instead of losing it behind the `aria-label`.
+ * Severity is a colour AND a word, and every word on a chip is part of the link's accessible name.
+ * 🔴 **The links carry no `aria-label`.** An override replaces the content as the name, so it could
+ * only drop or reorder the visible words, and a voice-control user who says "click Major" would reach
+ * nothing (WCAG 2.5.3, label in name). The name is the visible text itself: `Notice Major <title>`,
+ * `Planned works Sat 25 Oct <title>`. The strip is named by its line (`lineName`), so the same words on
+ * sixteen rows still say which line they are about.
  */
 @Component({
   selector: "app-line-notices",
@@ -87,7 +81,11 @@ function chipView(lineId: string, chip: LineChip): ChipView {
     @if (_view().chips.length > 0) {
       <!-- A chip is capped at the strip's width minus the trailing info glyph (16px + gap), so a long
            title truncates instead of pushing the glyph alone onto its own line on a phone. -->
-      <ul class="flex flex-wrap items-center gap-1.5" data-testid="line-notices">
+      <ul
+        class="flex flex-wrap items-center gap-1.5"
+        [attr.aria-label]="'Incidents on ' + lineName()"
+        data-testid="line-notices"
+      >
         @for (chip of _view().chips; track chip.key) {
           <li class="flex max-w-[calc(100%-1.75rem)] min-w-0">
             @if (chip.kind === "notice") {
@@ -96,17 +94,12 @@ function chipView(lineId: string, chip: LineChip): ChipView {
                 [variant]="chip.variant"
                 class="focus-visible:ring-ring/50 max-w-full gap-1.5 py-1 underline-offset-2 outline-none hover:underline focus-visible:ring-2"
                 [routerLink]="chip.link"
-                [attr.aria-label]="chip.accessibleName"
-                [attr.aria-describedby]="chip.severityId"
                 data-testid="line-notice"
               >
                 <span class="font-semibold">Notice</span>
-                <span
-                  class="font-normal opacity-80"
-                  [id]="chip.severityId"
-                  data-testid="line-notice-severity"
-                  >{{ chip.severityLabel }}</span
-                >
+                <span class="font-normal opacity-80" data-testid="line-notice-severity">{{
+                  chip.severityLabel
+                }}</span>
                 <span
                   class="min-w-0 truncate"
                   [attr.title]="chip.title"
@@ -120,7 +113,6 @@ function chipView(lineId: string, chip: LineChip): ChipView {
                 variant="outline"
                 class="focus-visible:ring-ring/50 max-w-full gap-1.5 py-1 underline-offset-2 outline-none hover:underline focus-visible:ring-2"
                 [routerLink]="chip.link"
-                [attr.aria-label]="chip.accessibleName"
                 data-testid="line-planned"
               >
                 <span class="font-semibold">Planned works</span>
@@ -148,7 +140,7 @@ function chipView(lineId: string, chip: LineChip): ChipView {
               variant="outline"
               class="focus-visible:ring-ring/50 py-1 outline-none hover:underline focus-visible:ring-2"
               routerLink="/insiden"
-              [attr.aria-label]="_view().more + ' more on the incident calendar'"
+              [attr.aria-label]="'+' + _view().more + ' more on the incident calendar'"
               data-testid="line-notices-more"
               >+{{ _view().more }}</a
             >
@@ -169,6 +161,8 @@ function chipView(lineId: string, chip: LineChip): ChipView {
 export class LineNoticesComponent {
   /** The line whose chips to draw. */
   readonly lineId = input.required<string>();
+  /** The line's display name: it names the strip, so a screen reader knows whose incidents these are. */
+  readonly lineName = input.required<string>();
   /** Whether this line also draws its Planned works. The row passes its pin state. */
   readonly planned = input(false);
 
@@ -183,6 +177,6 @@ export class LineNoticesComponent {
       this.store.noticesFor(lineId),
       this.planned() ? this.store.plannedWorksFor(lineId) : [],
     );
-    return { chips: chips.map((chip) => chipView(lineId, chip)), more };
+    return { chips: chips.map(chipView), more };
   });
 }

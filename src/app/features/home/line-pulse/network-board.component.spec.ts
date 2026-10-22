@@ -582,8 +582,11 @@ describe("NetworkBoardComponent", () => {
     }
     // And on the card it is the card's own line: the chip is inside the row wrapper of its line.
     const deadRow = root.querySelector('[id="line-dead"]');
-    expect(deadRow?.querySelector('[data-testid="line-notice"]')?.getAttribute("aria-label")).toBe(
-      "Notice: Signal fault",
+    expect(deadRow?.querySelector('[data-testid="line-notice-title"]')?.textContent?.trim()).toBe(
+      "Signal fault",
+    );
+    expect(deadRow?.querySelector('[data-testid="line-notices"]')?.getAttribute("aria-label")).toBe(
+      "Incidents on Line dead",
     );
   });
 
@@ -622,9 +625,9 @@ describe("NetworkBoardComponent", () => {
     expect(more?.getAttribute("href")).toBe("/insiden");
   });
 
-  it("keeps every id on the board unique with chips in every group", async () => {
-    // The Notice link points `aria-describedby` at its severity word by id, so the ids are
-    // per line AND incident; two groups drawing the same incident for two lines must not collide.
+  it("adds no element id of its own: a chip is named by its visible words, not by a pointer to one", async () => {
+    // The chips used to point `aria-describedby` at a per-line id. They are named by their content now,
+    // so two groups drawing the same incident for two lines have nothing to collide on.
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedLineIds: ["mine"] }));
     const root = await board(
       [
@@ -648,8 +651,12 @@ describe("NetworkBoardComponent", () => {
     TestBed.tick();
     fixture.detectChanges();
 
+    expect(root.querySelectorAll('[data-testid="line-notice"]')).toHaveLength(4);
     const ids = [...root.querySelectorAll("[id]")].map((element) => element.id);
-    expect(ids.filter((id) => id.startsWith("line-notice-severity-"))).toHaveLength(4);
+    expect(ids.filter((id) => id.startsWith("line-notice"))).toEqual([]);
+    expect(root.querySelectorAll('[data-testid="line-notices"] [aria-describedby]')).toHaveLength(
+      0,
+    );
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -1049,9 +1056,9 @@ describe("NetworkBoardComponent", () => {
     expect(
       root
         .querySelector('[id="line-b"]')
-        ?.querySelector('[data-testid="line-notice"]')
-        ?.getAttribute("aria-label"),
-    ).toBe("Notice: Signal fault");
+        ?.querySelector('[data-testid="line-notice-title"]')
+        ?.textContent?.trim(),
+    ).toBe("Signal fault");
   });
 
   it("puts the line back into the fold when its Notice goes away", async () => {
