@@ -11,7 +11,10 @@ import type { LineStatusWeekBucket } from "../data/home-history.queries";
 import { PASSENGER_BAR_CLASS, PASSENGER_NO_DATA_BAR_CLASS } from "../data/passenger-status.util";
 import { SERVICE_DAY_START_HOUR } from "../data/status-history-display.util";
 import { MIN_REPORTS_PER_WEEK_SLOT, WEEK_PROFILE_WEEKS } from "../data/week-profile-display.util";
-import { LineWeekProfileComponent } from "./line-week-profile.component";
+import {
+  LineWeekProfileComponent,
+  WEEK_STATE_MIN_HEIGHT_CLASS,
+} from "./line-week-profile.component";
 
 function slot(
   weekday: number,
@@ -148,6 +151,71 @@ describe("LineWeekProfileComponent", () => {
 
     expect(byTestId(fixture, "line-week-profile-skeleton")).toBeNull();
     expect(byTestId(fixture, "line-week-profile-table")).not.toBeNull();
+  });
+
+  it("draws every state inside one block that reserves the strip's height, so the reports below never jump", async () => {
+    // jsdom performs no layout, so this pins the single source of truth: one block carries the
+    // minimum height and every state is drawn inside it. The measurement itself, in Chromium, is in
+    // e2e/home.spec.ts. Before, only the skeleton held the height, and a one-line sentence dragged the
+    // reports list up by about 200px under the rider's finger.
+    const fixture = render("line-1");
+    const section = byTestId(fixture, "line-week-profile") as HTMLElement;
+    const body = byTestId(fixture, "line-week-profile-body") as HTMLElement;
+    expect(body.parentElement).toBe(section);
+    expect([...body.classList]).toContain(WEEK_STATE_MIN_HEIGHT_CLASS);
+    // A minimum, not a fixed height: a body taller than the reserve (390px) still shows all of itself.
+    expect([...body.classList].filter((name) => /^h-\d/.test(name))).toEqual([]);
+
+    const states = [
+      "line-week-profile-skeleton",
+      "line-week-profile-table",
+      "line-week-profile-readout",
+      "line-week-profile-legend",
+      "line-week-profile-empty",
+      "line-week-profile-sparse",
+    ];
+    const present = (): string[] => states.filter((testId) => byTestId(fixture, testId) !== null);
+    const expectOnlyInBody = (shown: string[]): void => {
+      expect(present()).toEqual(shown);
+      for (const testId of shown) {
+        expect(body.contains(byTestId(fixture, testId)), testId).toBe(true);
+      }
+    };
+
+    // Each answer goes through a new line id, so the same component shows every state in turn.
+    const startLine = (lineId: string): void => {
+      fixture.componentRef.setInput("lineId", lineId);
+      fixture.detectChanges();
+    };
+
+    expectOnlyInBody(["line-week-profile-skeleton"]);
+    await flushWeek(fixture, sampleWeek());
+    expectOnlyInBody([
+      "line-week-profile-table",
+      "line-week-profile-readout",
+      "line-week-profile-legend",
+    ]);
+
+    startLine("line-2");
+    expectOnlyInBody(["line-week-profile-skeleton"]);
+    await flushWeek(fixture, []);
+    expectOnlyInBody(["line-week-profile-empty"]);
+
+    startLine("line-3");
+    expectOnlyInBody(["line-week-profile-skeleton"]);
+    await flushWeek(fixture, fullWeek([slot(3, 15, 2)]));
+    expectOnlyInBody(["line-week-profile-sparse"]);
+
+    startLine("line-4");
+    expectOnlyInBody(["line-week-profile-skeleton"]);
+    const failing = httpMock.expectOne((r) => r.body.query.includes("LineStatusWeekProfile"));
+    failing.flush({ errors: [{ message: "boom" }] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const banner = fixture.debugElement.query(By.directive(RetryBannerComponent));
+    expect(banner).not.toBeNull();
+    expect(body.contains(banner.nativeElement)).toBe(true);
+    expectOnlyInBody([]);
   });
 
   it("draws seven weekday rows of 24 hour cells, Monday first, from the service-day start", async () => {

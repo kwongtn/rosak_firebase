@@ -179,6 +179,15 @@ function weekProfileSlots(): Array<Record<string, unknown>> {
   return slots;
 }
 
+/** The same week with every slot under the 3-report minimum: reports exist, none is enough. */
+function sparseWeekProfileSlots(): Array<Record<string, unknown>> {
+  return weekProfileSlots().map((slot) =>
+    Number(slot["count"]) >= 3
+      ? { ...slot, count: 2, statusCounts: [{ status: "CROWDED", count: 2 }] }
+      : slot,
+  );
+}
+
 /** One page of KJL community reports: the first carries a delay, a station and notes, the
  * second only a badge. Both are created at `created` so the row's right-aligned relative time
  * (and the exact timestamp on its `title`) is deterministic. */
@@ -794,6 +803,124 @@ test.describe("community front page", () => {
     await expect(readout).toContainText("Hover or tap an hour");
     expect((await table.boundingBox())?.y).toBe(tableBefore.y);
   });
+
+  // The typical week keeps one height whatever the answer is. A line with no reports (or too
+  // few) gets a one-line sentence, and when only the skeleton held the height that sentence dragged
+  // the reports list up by about 200px under the finger of a rider who had just expanded the row.
+  // The request is held until the skeleton has been measured, so both states are seen in one load.
+  const WEEK_ANSWERS = [
+    {
+      name: "no reports",
+      viewport: { width: 390, height: 844 },
+      slots: [],
+      answer: "line-week-profile-empty",
+      maxGrowth: 0,
+    },
+    {
+      name: "too few reports",
+      viewport: { width: 390, height: 844 },
+      slots: sparseWeekProfileSlots(),
+      answer: "line-week-profile-sparse",
+      maxGrowth: 0,
+    },
+    {
+      name: "a failed read",
+      viewport: { width: 390, height: 844 },
+      slots: null,
+      answer: null,
+      maxGrowth: 0,
+    },
+    // The table is a little taller than the reserve where its legend wraps to three lines (390px), so
+    // there it may grow by a few pixels, but never by the strip.
+    {
+      name: "a full week at 390px",
+      viewport: { width: 390, height: 844 },
+      slots: weekProfileSlots(),
+      answer: "line-week-profile-table",
+      maxGrowth: 16,
+    },
+    {
+      name: "a full week at 1280px",
+      viewport: { width: 1280, height: 900 },
+      slots: weekProfileSlots(),
+      answer: "line-week-profile-table",
+      maxGrowth: 16,
+    },
+  ];
+
+  for (const scenario of WEEK_ANSWERS) {
+    test(`VISITOR: the typical week keeps its place in the panel from loading to ${scenario.name}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(scenario.viewport);
+      await configureMock({
+        FrontPageLines: { lines: [KJL_LINE] },
+        Feed: feedPage(),
+        LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
+        LineStatusWeekProfile: { lineStatusWeekProfile: scenario.slots ?? [] },
+        LineStatusReports: reportsPage(new Date().toISOString()),
+      });
+
+      let release: () => void = () => undefined;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // Registered after the mock bridge, so it runs first: it holds the week's request, then hands
+      // it on (or answers it with a GraphQL error) once the test lets it go.
+      await page.route("**/graphql/", async (route) => {
+        if (!route.request().postData()?.includes("LineStatusWeekProfile")) {
+          await route.fallback();
+          return;
+        }
+        await released;
+        if (scenario.slots === null) {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ errors: [{ message: "boom" }] }),
+          });
+          return;
+        }
+        await route.fallback();
+      });
+
+      await page.goto("/");
+      const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+      await kjl.getByTestId("line-row-toggle").click();
+
+      const week = kjl.getByTestId("line-week-profile");
+      const reports = kjl.getByTestId("line-status-reports");
+      // The chart and the reports list have settled, so only the typical week can move them.
+      await expect(kjl.getByTestId("line-status-bar")).toHaveCount(HISTORY_BUCKETS.length);
+      await expect(reports.getByTestId("line-status-report")).toHaveCount(2);
+      await expect(week.getByTestId("line-week-profile-skeleton")).toBeVisible();
+
+      const loadingWeek = await week.boundingBox();
+      const loadingReports = await reports.boundingBox();
+      if (!loadingWeek || !loadingReports) {
+        throw new Error("the typical week or the reports list has no layout box");
+      }
+
+      release();
+      if (scenario.answer === null) {
+        await expect(week.getByText("Couldn't load this line's typical week.")).toBeVisible();
+      } else {
+        await expect(week.getByTestId(scenario.answer)).toBeVisible();
+      }
+      await expect(week.getByTestId("line-week-profile-skeleton")).toHaveCount(0);
+
+      const answeredWeek = await week.boundingBox();
+      const answeredReports = await reports.boundingBox();
+      if (!answeredWeek || !answeredReports) {
+        throw new Error("the typical week or the reports list has no layout box");
+      }
+      const growth = answeredWeek.height - loadingWeek.height;
+      expect(growth).toBeGreaterThanOrEqual(0);
+      expect(growth).toBeLessThanOrEqual(scenario.maxGrowth);
+      // What a rider feels: the reports list is where it was, give or take the growth above.
+      expect(answeredReports.y - loadingReports.y).toBe(growth);
+    });
+  }
 
   test("VISITOR: clamps a right-edge popover into the viewport", async ({ page }) => {
     // The clamp only matters on a narrow-enough board: the two-column grid starts at lg (1024), so
