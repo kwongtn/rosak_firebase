@@ -38,7 +38,7 @@ home-incidents.queries.ts:56  export const HOME_RECENT_INCIDENT_VARS = Object.fr
 
 **medium** · effort S · feature · features · already documented
 
-**Status, feature pass 2026-10-22:** Done (`6de8ffb`, `71ebf78`, `165a106`, `75f8014`, `cddd5c5`, `0957fe5`, `d376289`, `b9f8123`, `80cbea7`, `b8727a6`, `60d31ac`). /insiden has line and severity filters and a "My lines" toggle seeded from the pinned lines, all kept in the URL. Each incident has "Add to calendar" (`.ics`), and the calendar header has "Export month" (`.csv` or `.ics`, approved incidents only). **Open:** the station filter, and a subscribable `.ics` feed, which needs a backend endpoint.
+**Status, feature pass 2026-10-22:** Fixed (`6de8ffb`, `71ebf78`, `165a106`, `75f8014`, `cddd5c5`, `0957fe5`, `d376289`, `b9f8123`, `80cbea7`, `b8727a6`, `60d31ac`). /insiden has line and severity filters and a "My lines" toggle seeded from the pinned lines, all kept in the URL. Each incident has "Add to calendar" (`.ics`), and the calendar header has "Export month" (`.csv` or `.ics`, approved incidents only). **Left:** the station filter, and a subscribable `.ics` feed, which needs a backend endpoint.
 
 **Where:** `src/app/features/insiden/insiden.page.ts:92`, `src/app/features/insiden/insiden.page.ts:124`, `docs/components/insiden.md:161`, `docs/components/insiden.md:162`, `docs/COMPONENTS.md:202`, `src/app/core/preferences/preferences.service.ts:34`
 
@@ -72,7 +72,7 @@ insiden.md:162  Calendar export (iCal/.ics): ready ...
 
 **medium** · effort M · feature · features
 
-**Status, feature pass 2026-10-22:** Done (`07f3977`, `0e510dc`, `468b8ad`, `5d303af`, `1038cf0`). The own profile has a Fleet progress card with one progress bar per line (distinct vehicles spotted out of the line's total) and a lazily read list of the unspotted vehicles, each linking to its vehicle page. The card reads `favouriteVehicles(count: 1000)` in its own request after the first paint, on the own profile only, so the public query is unchanged. **Open:** lines with no spotted vehicle are not listed, and the backend cuts the list at the count without saying so (the card reports a list that reaches it).
+**Status, feature pass 2026-10-22:** Fixed (`07f3977`, `0e510dc`, `468b8ad`, `5d303af`, `1038cf0`). The own profile has a Fleet progress card with one progress bar per line (distinct vehicles spotted out of the line's total) and a lazily read list of the unspotted vehicles, each linking to its vehicle page. The card reads `favouriteVehicles(count: 1000)` in its own request after the first paint, on the own profile only, so the public query is unchanged. **Left:** lines with no spotted vehicle are not listed, and the backend cuts the list at the count without saying so (the card reports a list that reaches it).
 
 **Where:** `src/app/features/profile/data/profile.queries.ts:37`, `src/app/features/profile/user-card/user-card.component.ts:231`, `../rosak_backend/common/schema/scalars.py:85`, `src/app/features/spotting/data/spotting.queries.ts:51`
 
@@ -103,7 +103,7 @@ profile.queries.ts:37  favouriteVehicles {  (no count argument, so only the top 
 
 **medium** · effort M · feature · features
 
-**Status, feature pass 2026-10-22:** Done (`507886e`, `9214c3f`, `3add1d8`, `2dd0c2a`, `95f970e`). `public/manifest.webmanifest`, install icons and theme colours make the app installable, and a service worker precaches the hashed JS and CSS and the CSR shell in production builds. No GraphQL data group was added, because ngsw caches only GET and HEAD and every app read is a POST. **Open:** last-known data offline (see F295).
+**Status, feature pass 2026-10-22:** Fixed (`507886e`, `9214c3f`, `3add1d8`, `2dd0c2a`, `95f970e`). `public/manifest.webmanifest`, install icons and theme colours make the app installable, and a service worker precaches the hashed JS and CSS and the CSR shell in production builds. No GraphQL data group was added, because ngsw caches only GET and HEAD and every app read is a POST. **Left:** last-known data offline (see F295).
 
 **Where:** `src/index.html:2`, `public/`, `angular.json:22`, `package.json`, `src/app/core/version/new-version.service.ts:14`
 
@@ -177,7 +177,7 @@ Live schema: Mutation.updateUser exists (profile nickname and privacy only); no 
 
 **medium** · effort M · feature · features
 
-**Status, feature pass 2026-10-22:** Partial (`dca6a37`, `9ba407d`, `6cc2843`, `ee468be`, `5ae999d`). Slice 1 is done: /insiden has a "Last 12 months" section, collapsed until it is opened, with Major and Minor bars per month and a table fallback. It counts approved incidents on the client from `calendarIncidents`, because `calendarIncidentsBySeverityCount(groupBy: MONTH)` is a running total that resets each January, and a backend fix is in progress. **Open:** slice 2, the "Typical week" strip per line (in progress).
+**Status, feature pass 2026-10-22:** Partly fixed (`dca6a37`, `9ba407d`, `6cc2843`, `ee468be`, `5ae999d`). Slice 1 is done: /insiden has a "Last 12 months" section, collapsed until it is opened, with Major and Minor bars per month and a table fallback. It counts approved incidents on the client from `calendarIncidents`, because `calendarIncidentsBySeverityCount(groupBy: MONTH)` was a running total that reset each January. The backend has since fixed it (backend `9832a3d`), and the page does not use the fixed aggregate yet. **Left:** slice 2, the "Typical week" strip per line. Its backend inputs (`daysAgo` on the status-history queries and `lineStatusWeekProfile`) have landed.
 
 **Where:** `src/app/features/home/data/home-history.queries.ts:15`, `src/app/features/home/data/home-history.queries.ts:48`, `src/app/features/insiden/data/insiden.queries.ts:27`, `docs/components/home.md:1551`
 
@@ -273,7 +273,7 @@ rg for firebase/messaging, getMessaging and PushManager in src/ finds nothing; r
 
 **medium** · effort L · feature · ux-home
 
-**Status, feature pass 2026-10-22:** Partial (`9b06ad2`, `d40f3b7`, `5738111`, `7d6ad87`, `3add1d8`). Step 1 is done: an `OnlineService` and a "You're offline" strip, polling that pauses offline and refreshes on reconnect, and a failed chunk that says "You're offline" instead of blaming a deploy (it asks `/version.json` first, so only a different build lights the update button). The manifest and service worker from F210 cover the install part of step 2, and an offline navigation opens the cached app shell. **Open:** the last-known data cache of step 2, so the board still has nothing to show offline, because ngsw cannot cache the POST reads.
+**Status, feature pass 2026-10-22:** Partly fixed (`9b06ad2`, `d40f3b7`, `5738111`, `7d6ad87`, `3add1d8`). Step 1 is done: an `OnlineService` and a "You're offline" strip, polling that pauses offline and refreshes on reconnect, and a failed chunk that says "You're offline" instead of blaming a deploy (it asks `/version.json` first, so only a different build lights the update button). The manifest and service worker from F210 cover the install part of step 2, and an offline navigation opens the cached app shell. **Left:** the last-known data cache of step 2, so the board still has nothing to show offline, because ngsw cannot cache the POST reads.
 
 **Where:** `src/app/core/version/new-version.service.ts:131`, `src/app/core/polling/polling-source.ts`, `src/index.html:4`, `.omo/evidence/audit-2026-10-21/interactions/offline__insiden-offline-3s.png`
 
@@ -322,7 +322,7 @@ report-form.component.ts:228  navigator.geolocation.getCurrentPosition(  (the on
 
 **low** · effort S · feature · features · already documented
 
-**Status, feature pass 2026-10-22:** Done (`2defcf9`, `6ed1ff3`, `27c55b4`). The owner has "Export CSV" and "Export JSON" on the spotting history. The export pages past the loaded rows in 200-row pages, shows "Preparing N rows…" and downloads nothing if a page fails, and delete and export cannot run at the same time. **Open:** an abort button for a very long export, and a delete made in another tab in the middle of an export can still skip a row (offset paging).
+**Status, feature pass 2026-10-22:** Fixed (`2defcf9`, `6ed1ff3`, `27c55b4`). The owner has "Export CSV" and "Export JSON" on the spotting history. The export pages past the loaded rows in 200-row pages, shows "Preparing N rows…" and downloads nothing if a page fails, and delete and export cannot run at the same time. **Left:** an abort button for a very long export, and a delete made in another tab in the middle of an export can still skip a row (offset paging).
 
 **Where:** `docs/components/profile.md:276`, `src/app/features/profile/my-spottings/my-spottings.component.ts:230`, `src/app/features/profile/data/profile.queries.ts:196`, `docs/COMPONENTS.md:202`
 
@@ -347,7 +347,7 @@ profile.md:276  Export historical spottings (CSV or JSON): `_ownEvents` already 
 
 **low** · effort S · feature · gap-2 · partially confirmed
 
-**Status, feature pass 2026-10-22:** Done (`efd8c12`, `9f83fff`, `52b7a0f`, `8afa4ed`, `f0c562c`) in the scope the verifier narrowed it to. The Telegram link code has a Copy button and sits in a `role="status"` region that announces it digit by digit. Request code is disabled while a request is in flight and while a code is live, and focus moves to Copy when the code arrives. **Open:** the "Open in Telegram" deep link and the "Linked as" status, which are outside the narrowed scope. The disabled button is a UI guard only.
+**Status, feature pass 2026-10-22:** Fixed (`efd8c12`, `9f83fff`, `52b7a0f`, `8afa4ed`, `f0c562c`) in the scope the verifier narrowed it to. The Telegram link code has a Copy button and sits in a `role="status"` region that announces it digit by digit. Request code is disabled while a request is in flight and while a code is live, and focus moves to Copy when the code arrives. **Left:** the "Open in Telegram" deep link and the "Linked as" status, which are outside the narrowed scope. The disabled button is a UI guard only.
 
 **Where:** `src/app/shell/account-panel/account-panel.component.ts:92`, `src/app/shell/account-panel/account-panel.component.ts:98`, `src/app/shell/account-panel/account-panel.component.ts:164`
 
@@ -559,7 +559,7 @@ rg setLineFilter: only pro/pro-feed-widget.component.ts:227 and pro/pro-dashboar
 
 **low** · effort M · feature · insiden-data
 
-**Status, feature pass 2026-10-22:** Done (`2f075fa`, `8759fb1`, `8bc1d00`, `95fbc33`, `de86c4d`, `fe8db5e`, `19b1ac5`). The incident form's button is now "Fill from link": it fills the title, severity, lines and stations where they are empty and shows matched lines and stations as dismissible chips. The Gemini prompt carries the Kuala Lumpur date and time, the title is cut to the 64-character column, and an extracted time is refused when it is more than a day ahead or earlier than the Start date (or, with Start empty, 31 days ago). **Open:** Start is not filled from the extracted time, and the console review panel still applies only the datetime and content.
+**Status, feature pass 2026-10-22:** Fixed (`2f075fa`, `8759fb1`, `8bc1d00`, `95fbc33`, `de86c4d`, `fe8db5e`, `19b1ac5`). The incident form's button is now "Fill from link": it fills the title, severity, lines and stations where they are empty and shows matched lines and stations as dismissible chips. The Gemini prompt carries the Kuala Lumpur date and time, the title is cut to the 64-character column, and an extracted time is refused when it is more than a day ahead or earlier than the Start date (or, with Start empty, 31 days ago). **Left:** Start is not filled from the extracted time, and the console review panel still applies only the datetime and content.
 
 **Where:** `src/app/features/insiden/incident-form/extract-data.util.ts:24`, `src/app/features/insiden/data/incident-ai.service.ts:25`, `functions/src/api.ts:105`
 
@@ -610,7 +610,7 @@ The card root is `<div hlmCard class="gap-3 p-4">` with no id, and the only deep
 
 **low** · effort M · feature · profile-about-misc · partially confirmed
 
-**Status, feature pass 2026-10-22:** Done (`1b31f81`, `1960685`, `54e74b6`, `1ac5d01`). The favourite train and every history row link to the vehicle page, the owner has a "Copy profile link" button, and the tab is titled "<nickname> | MLPTF" once a profile loads.
+**Status, feature pass 2026-10-22:** Fixed (`1b31f81`, `1960685`, `54e74b6`, `1ac5d01`). The favourite train and every history row link to the vehicle page, the owner has a "Copy profile link" button, and the tab is titled "<nickname> | MLPTF" once a profile loads. **Left:** a visitor has no copy-link action, because the recommendation scopes the button to the owner.
 
 **Where:** `src/app/features/profile/user-card/user-card.component.ts:134-144`, `src/app/features/profile/my-spottings/my-spottings.component.ts:107-115`, `src/app/features/spotting/spotting.routes.ts:41`
 
@@ -634,7 +634,7 @@ The favourite train card renders `{{ fav.vehicle.identificationNo }}` as plain t
 
 **low** · effort M · feature · tracker-gallery · severity adjusted from medium · already documented
 
-**Status, feature pass 2026-10-22:** Done (`280e620`, `907501c`, `26dcb5c`, `326c7d4`, `dee273d`, `562785f`). The photo viewer steps between photos with the arrow keys, a touch swipe and Previous and Next buttons (the URL is replaced, so Back returns to the grid), and a Share button uses the system share sheet on touch devices and copies the link elsewhere. **Open:** announcing a photo change to screen readers and preloading the neighbours. The feed drops repeated photos on the client, but the `medias` order still needs a tie-break in the backend.
+**Status, feature pass 2026-10-22:** Fixed (`280e620`, `907501c`, `26dcb5c`, `326c7d4`, `dee273d`, `562785f`). The photo viewer steps between photos with the arrow keys, a touch swipe and Previous and Next buttons (the URL is replaced, so Back returns to the grid), and a Share button uses the system share sheet on touch devices and copies the link elsewhere. **Left:** announcing a photo change to screen readers and preloading the neighbours. The feed drops repeated photos on the client. The backend has since added the primary key as the final sort key of the `medias` order (backend `7a02ef4`).
 
 **Where:** `src/app/features/gallery/media-viewer/media-viewer.component.ts:62`, `src/app/features/gallery/gallery.page.ts:148`, `src/app/features/gallery/gallery.page.html:85`
 
