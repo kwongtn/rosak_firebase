@@ -132,6 +132,89 @@ describe("NewVersionService stale-chunk detection", () => {
     expect(toast.info).toHaveBeenCalledTimes(1);
   });
 
+  describe("the /version.json poll", () => {
+    const TEN_MINUTES = 10 * 60 * 1000;
+
+    /** Runs one 10-minute poll to the end, answer included. */
+    const poll = () => vi.advanceTimersByTimeAsync(TEN_MINUTES);
+
+    it("lights the update button when the server names a different build", async () => {
+      fetchMock.mockResolvedValueOnce(versionResponse("0000000"));
+
+      await poll();
+
+      expect(service.hasNewVersion()).toBe(true);
+    });
+
+    it("stays dark while the server runs this build, whether it names it in full or by its short hash", async () => {
+      fetchMock.mockResolvedValueOnce(versionResponse(buildInfo.hash));
+      await poll();
+      fetchMock.mockResolvedValueOnce(versionResponse(buildInfo.hash.slice(0, 7)));
+      await poll();
+
+      expect(service.hasNewVersion()).toBe(false);
+      // Asked again at every interval: once at start-up and once for each of the two polls.
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([
+      ["an error status", () => new Response("", { status: 503 })],
+      ["a manifest with no hash", () => new Response("{}", { status: 200 })],
+    ])("does not take %s for a new version", async (_name, answer) => {
+      fetchMock.mockResolvedValueOnce(answer());
+
+      await poll();
+
+      expect(service.hasNewVersion()).toBe(false);
+    });
+
+    it("tries again at the next interval after a request fails, without raising a prompt", async () => {
+      fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      await poll();
+      expect(service.hasNewVersion()).toBe(false);
+
+      fetchMock.mockResolvedValueOnce(versionResponse("0000000"));
+      await poll();
+
+      expect(service.hasNewVersion()).toBe(true);
+    });
+
+    it("stops asking once a new version is known", async () => {
+      fetchMock.mockResolvedValueOnce(versionResponse("0000000"));
+      await poll();
+      fetchMock.mockClear();
+
+      await poll();
+
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a rejected dynamic import", () => {
+    /** What the browser dispatches when a `import()` promise rejects and nothing handles it. */
+    function rejectWith(reason: unknown): void {
+      window.dispatchEvent(Object.assign(new Event("unhandledrejection"), { reason }));
+    }
+
+    it("prompts, as a failed chunk script does, once /version.json names a newer build", async () => {
+      fetchMock.mockResolvedValueOnce(versionResponse("0000000"));
+
+      rejectWith(new Error("Failed to fetch dynamically imported module: /chunk-D4-DL31Z2.js"));
+
+      await vi.waitFor(() => expect(service.hasNewVersion()).toBe(true));
+    });
+
+    it("ignores a rejection that is no chunk failure", () => {
+      fetchMock.mockClear();
+
+      rejectWith(new Error("Cannot read properties of undefined"));
+      rejectWith(undefined);
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(toast.info).not.toHaveBeenCalled();
+    });
+  });
+
   describe("while offline", () => {
     it("says the page needs a connection instead of offering an update", () => {
       isOnline.set(false);
