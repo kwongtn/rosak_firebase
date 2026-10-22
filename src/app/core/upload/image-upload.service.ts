@@ -6,7 +6,6 @@ import { firstValueFrom } from "rxjs";
 
 import { injectIsBrowser } from "../composables/is-browser";
 import { environment } from "../../../environments/environment";
-import { AuthService } from "../auth/auth.service";
 import { ImageFile } from "./image-file";
 import { deletePendingUpload, loadAllPendingUploads, savePendingUpload } from "./upload-queue-db";
 import { stripGps } from "./strip-gps.util";
@@ -42,7 +41,7 @@ interface PendingUpload {
 /**
  * App-wide photo upload queue, ported from src/app/services/image-upload.service.ts.
  * Same REST contract (`POST {backendUrl}upload/`, multipart `related_id`/`upload_type`/
- * `image`, `Firebase-Auth-Key` header), same unbounded-retry-on-error behavior, same
+ * `image`, `Firebase-Auth-Key` header from the auth interceptor), same unbounded-retry-on-error behavior, same
  * PromisePool-bounded concurrency. Rewritten on signals instead of RxJS BehaviorSubjects;
  * exposes counts only — callers (e.g. the spotting shell) decide how to surface progress/
  * completion in the UI, keeping this core service UI-library-agnostic.
@@ -69,7 +68,6 @@ interface PendingUpload {
 @Injectable({ providedIn: "root" })
 export class ImageUploadService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
   private readonly reportError = inject(UPLOAD_ERROR_REPORTER);
   private readonly isBrowser = injectIsBrowser();
 
@@ -156,14 +154,10 @@ export class ImageUploadService {
         body.append("related_id", relatedId.toString());
         body.append("upload_type", type);
 
-        const idToken = await this.auth.idToken();
         try {
           body.append("image", await this.withoutGps(item));
-          await firstValueFrom(
-            this.http.post(`${environment.backendUrl}upload/`, body, {
-              headers: idToken ? { "Firebase-Auth-Key": idToken } : {},
-            }),
-          );
+          // The auth interceptor adds the viewer's token; a failed refresh lands in the catch below.
+          await firstValueFrom(this.http.post(`${environment.backendUrl}upload/`, body));
           this.pendingCount.update((n) => n - 1);
           this.recomputePercent();
           if (dbId !== undefined) {

@@ -39,7 +39,6 @@ afterAll(() => vi.resetModules());
 
 const KJL = { id: "1", code: "KJL" };
 const AGL = { id: "2", code: "AGL" };
-const HEADERS = { "firebase-auth-key": "id-token" };
 const FIREBASE_APP = { name: "[DEFAULT]" };
 const MESSAGING = { messaging: true };
 
@@ -65,7 +64,6 @@ describe("PushService", () => {
       vapidKey?: string;
       support?: PushSupport;
       signedIn?: boolean;
-      idToken?: () => Promise<string | null>;
     } = {},
   ): PushService {
     TestBed.configureTestingModule({
@@ -75,10 +73,7 @@ describe("PushService", () => {
         { provide: PUSH_SUPPORT, useValue: options.support ?? "supported" },
         {
           provide: AuthService,
-          useValue: {
-            idToken: options.idToken ?? (async () => "id-token"),
-            isLoggedIn: signal(options.signedIn ?? true),
-          },
+          useValue: { isLoggedIn: signal(options.signedIn ?? true) },
         },
         { provide: GraphQLClient, useValue: { request } },
         { provide: ToastService, useValue: toast },
@@ -219,7 +214,7 @@ describe("PushService", () => {
       expect(sdk.getMessaging).toHaveBeenCalledExactlyOnceWith(FIREBASE_APP);
       expect(sdk.getToken).toHaveBeenCalledExactlyOnceWith(MESSAGING, { vapidKey: "vapid-key" });
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token", lineIds: ["1"] }, HEADERS, { quiet: false }],
+        [{ token: "fcm-token", lineIds: ["1"] }, undefined, { quiet: false }],
       ]);
       expect(push.lines()).toEqual([KJL]);
       expect(push.isSubscribed("1")).toBe(true);
@@ -240,7 +235,7 @@ describe("PushService", () => {
 
       expect(notification.requestPermission).not.toHaveBeenCalled();
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token", lineIds: ["1", "2"] }, HEADERS, { quiet: false }],
+        [{ token: "fcm-token", lineIds: ["1", "2"] }, undefined, { quiet: false }],
       ]);
       expect(readPushState()?.lines).toEqual([KJL, AGL]);
     });
@@ -254,7 +249,7 @@ describe("PushService", () => {
       await push.subscribe(AGL);
 
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "new-token", lineIds: ["1", "2"] }, HEADERS, { quiet: false }],
+        [{ token: "new-token", lineIds: ["1", "2"] }, undefined, { quiet: false }],
       ]);
       expect(readPushState()?.token).toBe("new-token");
     });
@@ -383,7 +378,7 @@ describe("PushService", () => {
       await push.unsubscribe("1");
 
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token", lineIds: ["2"] }, HEADERS, { quiet: false }],
+        [{ token: "fcm-token", lineIds: ["2"] }, undefined, { quiet: false }],
       ]);
       expect(readPushState()).toEqual({ token: "fcm-token", lines: [AGL] });
       expect(toast.success).toHaveBeenCalledWith("Alerts off for KJL");
@@ -396,7 +391,7 @@ describe("PushService", () => {
       await push.unsubscribe("1");
 
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([]);
-      expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([[{ token: "fcm-token" }, HEADERS]]);
+      expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([[{ token: "fcm-token" }]]);
       expect(localStorage.getItem(PUSH_STORAGE_KEY)).toBeNull();
       expect(push.lines()).toEqual([]);
     });
@@ -414,7 +409,7 @@ describe("PushService", () => {
 
       await push.turnOff();
 
-      expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([[{ token: "fcm-token" }, HEADERS]]);
+      expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([[{ token: "fcm-token" }]]);
       expect(readPushState()).toBeNull();
       expect(toast.success).toHaveBeenCalledWith(
         "Alerts turned off",
@@ -456,7 +451,7 @@ describe("PushService", () => {
       await push.resume();
 
       expect(callsOf(PUSH_SUBSCRIPTION_QUERY)).toEqual([
-        [{ token: "fcm-token" }, HEADERS, { quiet: true }],
+        [{ token: "fcm-token" }, undefined, { quiet: true }],
       ]);
       expect(push.lines()).toEqual([AGL]);
       expect(readPushState()).toEqual({ token: "fcm-token", lines: [AGL] });
@@ -473,7 +468,7 @@ describe("PushService", () => {
 
       expect(sdk.getToken).toHaveBeenCalledWith(MESSAGING, { vapidKey: "vapid-key" });
       expect(callsOf(REGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "new-token", lineIds: ["1", "2"] }, HEADERS, { quiet: true }],
+        [{ token: "new-token", lineIds: ["1", "2"] }, undefined, { quiet: true }],
       ]);
       expect(readPushState()).toEqual({ token: "new-token", lines: [KJL, AGL] });
       expect(toast.success).not.toHaveBeenCalled();
@@ -597,6 +592,8 @@ describe("PushService", () => {
   describe("forget (before sign-out)", () => {
     it("clears the alerts at once and unregisters the token without waiting for it", async () => {
       writePushState({ token: "fcm-token", lines: [KJL] });
+      // The request never settles here, as when the interceptor waits out Firebase Auth's 30 s
+      // refresh of an expired ID token on a dead link.
       let settle: (value: unknown) => void = () => undefined;
       answers[UNREGISTER_PUSH_TOKEN_MUTATION] = () => new Promise((resolve) => (settle = resolve));
       const push = create();
@@ -607,21 +604,10 @@ describe("PushService", () => {
       expect(readPushState()).toBeNull();
       await vi.waitFor(() =>
         expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-          [{ token: "fcm-token" }, HEADERS, { quiet: true }],
+          [{ token: "fcm-token" }, undefined, { quiet: true }],
         ]),
       );
       settle({ unregisterPushToken: { ok: true } });
-    });
-
-    it("does not wait for an ID token that is still refreshing on a dead link", async () => {
-      writePushState({ token: "fcm-token", lines: [KJL] });
-      // Firebase Auth's refresh of an expired token can take its 30 s network timeout.
-      const push = create({ idToken: () => new Promise<string | null>(() => undefined) });
-
-      await push.forget();
-
-      expect(readPushState()).toBeNull();
-      expect(request).not.toHaveBeenCalled();
     });
 
     it("reports a failed unregister after the fact", async () => {

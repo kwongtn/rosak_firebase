@@ -3,7 +3,6 @@ import { HttpClient, HttpErrorResponse, HttpResponse } from "@angular/common/htt
 import { PLATFORM_ID } from "@angular/core";
 import { of, throwError } from "rxjs";
 import { ImageUploadService, UPLOAD_ERROR_REPORTER } from "./image-upload.service";
-import { AuthService } from "../auth/auth.service";
 import { ImageFile } from "./image-file";
 import { savePendingUpload } from "./upload-queue-db";
 import { environment } from "../../../environments/environment";
@@ -136,7 +135,6 @@ describe("ImageUploadService", () => {
             post: vi.fn().mockReturnValue(of(new HttpResponse({ status: 200 }))),
           },
         },
-        { provide: AuthService, useValue: { idToken: vi.fn().mockResolvedValue("token") } },
         { provide: UPLOAD_ERROR_REPORTER, useValue: reportError },
       ],
     });
@@ -295,7 +293,7 @@ describe("ImageUploadService", () => {
       vi.unstubAllGlobals();
     });
 
-    it("posts a photo as multipart form data with its owner, its type and the viewer's token", async () => {
+    it("posts a photo as multipart form data with its owner and its type", async () => {
       const service = TestBed.inject(ImageUploadService);
       const file = photo();
 
@@ -308,17 +306,8 @@ describe("ImageUploadService", () => {
       expect((body as FormData).get("related_id")).toBe("7");
       expect((body as FormData).get("upload_type")).toBe("SPOTTING_EVENT");
       expect(((body as FormData).get("image") as File).name).toBe("train.jpg");
-      expect(options).toEqual({ headers: { "Firebase-Auth-Key": "token" } });
-    });
-
-    it("sends no auth header when nobody is signed in", async () => {
-      const service = TestBed.inject(ImageUploadService);
-      vi.mocked(TestBed.inject(AuthService).idToken).mockResolvedValue(null);
-
-      service.addToQueue(7, READY(photo()), "SPOTTING_EVENT");
-      await vi.advanceTimersByTimeAsync(1000);
-
-      expect(post().mock.calls[0][2]).toEqual({ headers: {} });
+      // The viewer's token is the auth interceptor's (core/http/auth.interceptor.spec.ts).
+      expect(options).toBeUndefined();
     });
 
     it("counts the queue down as photos go out, and stops its timer once it is empty", async () => {

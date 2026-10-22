@@ -18,8 +18,8 @@ export const ANONYMOUS = new HttpContextToken<boolean>(() => false);
 /**
  * The signed-in session the interceptor reads. `AuthService` puts itself here when it starts: it
  * carries Firebase Auth (a lazy chunk of about 91 kB) and this interceptor is in `main`, so the
- * interceptor must not import it. Until then nothing has restored a session, so a request is
- * anonymous, which is what an early `auth.idToken()` gave the call sites before this interceptor.
+ * interceptor must not import it. Every page's nav starts it. Before that nothing has restored a
+ * session, so a request is anonymous, as an early `auth.idToken()` was before this interceptor.
  */
 export const AUTH_SESSION = new InjectionToken<WritableSignal<AuthSession | null>>("AUTH_SESSION", {
   providedIn: "root",

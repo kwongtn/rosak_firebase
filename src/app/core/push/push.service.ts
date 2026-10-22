@@ -265,7 +265,7 @@ export class PushService {
       const data = await this.graphql.request<PushSubscriptionData, PushSubscriptionVars>(
         PUSH_SUBSCRIPTION_QUERY,
         { token: state.token },
-        await this.authHeaders(),
+        undefined,
         { quiet: true },
       );
       if (changes !== this._changes) {
@@ -287,9 +287,10 @@ export class PushService {
 
   /**
    * Before a sign-out (`AuthService.logout`): forgets this browser's alerts at once and asks the
-   * backend to drop the token, best effort. Nothing here is awaited. The ID token is asked for now,
-   * from the account that is still signed in, but refreshing an expired one can wait out Firebase
-   * Auth's 30 s network timeout on a dead link, and the sign-out must not wait for it or the request.
+   * backend to drop the token, best effort. Nothing here is awaited. The auth interceptor asks for
+   * the ID token as the request is made, so from the account that is still signed in, but refreshing
+   * an expired one can wait out Firebase Auth's 30 s network timeout on a dead link, and the sign-out
+   * must not wait for it or the request.
    */
   async forget(): Promise<void> {
     const state = this._state();
@@ -297,14 +298,12 @@ export class PushService {
     if (!state) {
       return;
     }
-    void this.authHeaders()
-      .then((headers) =>
-        this.graphql.request<UnregisterPushTokenData, UnregisterPushTokenVars>(
-          UNREGISTER_PUSH_TOKEN_MUTATION,
-          { token: state.token },
-          headers,
-          { quiet: true },
-        ),
+    void this.graphql
+      .request<UnregisterPushTokenData, UnregisterPushTokenVars>(
+        UNREGISTER_PUSH_TOKEN_MUTATION,
+        { token: state.token },
+        undefined,
+        { quiet: true },
       )
       .catch((err: unknown) => {
         if (!(err instanceof GraphQLRequestError)) {
@@ -334,7 +333,7 @@ export class PushService {
     const data = await this.graphql.request<RegisterPushTokenData, RegisterPushTokenVars>(
       REGISTER_PUSH_TOKEN_MUTATION,
       { token, lineIds: lines.map((line) => line.id) },
-      await this.authHeaders(),
+      undefined,
       { quiet },
     );
     if (!data.registerPushToken.ok) {
@@ -347,7 +346,6 @@ export class PushService {
     const data = await this.graphql.request<UnregisterPushTokenData, UnregisterPushTokenVars>(
       UNREGISTER_PUSH_TOKEN_MUTATION,
       { token },
-      await this.authHeaders(),
     );
     if (!data.unregisterPushToken.ok) {
       throw new Error("unregisterPushToken answered ok: false");
@@ -359,11 +357,6 @@ export class PushService {
     this._changes++;
     this._state.set(state);
     writePushState(state);
-  }
-
-  private async authHeaders(): Promise<Record<string, string>> {
-    const idToken = await this.auth.idToken();
-    return idToken ? { "firebase-auth-key": idToken } : {};
   }
 
   /** Firebase Messaging, imported once on first use; `null` where the SDK says web push cannot work. */
