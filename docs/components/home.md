@@ -36,10 +36,11 @@
     `index.html`.
   - `hero/` — `home-hero.component.ts` (`app-home-hero`), `network-sparkline.component.ts`
     (`app-network-sparkline`).
-  - `line-pulse/` — `network-board`, `line-pulse-card`, `line-pulse-row`, `line-notices`, `line-status-chart`,
-    `line-status-reports`, `status-info-chip` (thin wrapper over the shared `app-info-popover`:
-    `showIcon=false`, forwards `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it
-    through the real server path to guard SSR/hydration) — each `*.component.ts`.
+  - `line-pulse/` — `network-board`, `line-pulse-card`, `line-pulse-row`, `line-alert-bell`,
+    `line-notices`, `line-status-chart`, `line-status-reports`, `status-info-chip` (thin wrapper over
+    the shared `app-info-popover`: `showIcon=false`, forwards `showMethodologyLink`;
+    `status-info-chip.server.spec.ts` renders it through the real server path to guard
+    SSR/hydration) — each `*.component.ts`.
   - `pro/` — `pro-dashboard`, `pro-lines-widget` (+ `pro-lines-table.component.ts` / `.util.ts`),
     `pro-feed-widget`, `network-heat-strip`, `pro-incidents-widget`, `pro-report-ranking`,
     `pro-official-widget.ts`.
@@ -100,6 +101,8 @@
     forwarded to the expanded chart/reports). `LinePulseRowComponent`: `line`, `refreshTick`,
     `viewMode = input<PreferencesViewMode>("rider")`; padding is fixed (`p-3 pl-4`), no `density` input;
     the row injects `HomeStore` and calls `requestHistoryReads()` itself, so sixteen rows cost ONE read.
+    `LineAlertBellComponent`: `line = input.required<Pick<LinePulse, "id" | "code" | "displayName">>()`,
+    nothing else (its state is `PushService`'s, see Alert bell).
   - `NetworkBoardComponent`: **no data inputs** — it injects `HomeStore` (`lines()`, `isLoading()`,
     `linesRefreshTick()`, `highlightedLineId()`, its group views); the partition RULE and the
     post-submit highlight live in the store for that reason. Two layout inputs:
@@ -963,6 +966,8 @@ hook). Group `h2`s carry the breathing dot (Motion).
   → `LineStatusSheetService.openFor(line.id)`. 🔴 The row's report button reports on **the line the
   reader is looking at** and is deliberately NOT routed through the chooser (a rider on a row knows the
   line; the chooser serves hero/mobile-bar readers with no line in mind).
+- A pinned row adds `app-line-alert-bell` right after the pin (see Alert bell). A pinned row is a My
+  lines row, so the bell is on every My lines row and nowhere else; the card does not carry it.
 - Expand toggle `line-row-toggle` (`aria-expanded`) → `line-row-expanded` holding the SAME lazy
   `app-line-status-chart` + `app-line-status-reports` as the card, gated on the same `expanded` input.
   Opening calls `pushRecentLine()` on the OPEN edge only.
@@ -1001,6 +1006,34 @@ hook). Group `h2`s carry the breathing dot (Motion).
     `relative inline-flex` and `.inline-flex` is emitted after `.hidden`, so a same-specificity
     `display` tie leaves it visible (`MISTAKES.md`); hiding only the projected span leaves a lone "i"
     beside no number.
+
+### Alert bell (`line-pulse/line-alert-bell.component.ts`)
+
+Web push for a MAJOR incident on a pinned line (audit F294). `PushService` (`core/push/`) owns every
+fact; the bell maps it to one `icon-sm` ghost button inside an `app-info-popover` (`[triggerTpl]`, like
+the pin). It reaches the service through `injectPushService()`, a dynamic import after the first
+render, so neither the service nor Firebase Messaging is in the home chunk.
+
+- **States** (`data-state` on `line-alert-bell`): `unconfigured` (no VAPID key: nothing is loaded, and
+  the state never changes), `loading` (until the service lands; an inert placeholder of the same
+  size), `install`, `unsupported`, `blocked`, `signed-out`, `off` and `on`. The tooltip heading names
+  the state ("Alerts are not set up yet", "Install MLPTF to your Home Screen to get alerts",
+  "Notifications are blocked in your browser settings", "Sign in to get alerts", ...) and its body is
+  `metricTooltip("incidents.push-alerts")`.
+- 🔴 **Disabled is `aria-disabled`, never `disabled`.** A `disabled` button swallows the tap, and the
+  tooltip that says why would never open. `onBell()` returns early in those states and while
+  `busy()`. The `aria-label` is "Alerts for <name>", plus ": <reason>" when alerts cannot work here;
+  signed out it is "Sign in to get alerts for <name>". `aria-pressed` is set for `on` and `off` only,
+  and the glyph fills while on, like the pin. The unavailable states draw `lucideBellOff`.
+- **Flow.** Signed out, a tap calls `AuthService.login()` (looked up through the injector at tap time,
+  so a build without a key creates no `AuthService` for the bell). With permission not yet answered
+  (`needsPermission()`), the first tap opens the soft pre-prompt: an `hlm-sheet side="bottom"` holding a
+  `role="dialog"` "Get an alert when <name> has a major incident?" with Not now and Allow. Allow closes
+  the sheet and calls `subscribe({ id, code })` in the same click, so the browser's prompt still has
+  the tap's user activation. Once permission is granted a tap toggles: `subscribe` or
+  `unsubscribe(id)`. Focus goes back to the bell whenever the sheet closes (Allow, Not now, backdrop,
+  Escape), because the sheet stays mounted and hidden.
+- The host is `inline-flex` with no gap, so the sheet (fixed) takes no room in the row's action group.
 
 ### Incident notices (`line-pulse/line-notices.component.ts`, `data/incident-notices.util.ts`)
 
@@ -1536,6 +1569,8 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
   `line-row-meta`, `line-row-vehicles`, `line-row-reports`, `line-row-reports-wrap`,
   `line-row-reports-popover`, `line-row-pin`, `line-row-pin-popover`, `line-row-details`,
   `line-row-report`, `line-row-toggle`, `line-row-expanded`, `line-row-pro`, `line-row-report-window`.
+- **Alert bell:** `line-alert-bell` (its `data-state` is the bell's state), `line-alert-bell-popover`,
+  `line-alert-prompt` (the dialog inside the sheet), `line-alert-allow`, `line-alert-dismiss`.
 - **Expanded panel:** `line-status-chart`, `line-status-reports`, `line-status-reports-scroll`,
   `report-station`, `report-time`, `station-strip`, `station-strip-link`, `station-strip-count`.
 - **Sheets:** `line-status-submit-error`, `cancel-line-status-report`, `login-button`,
@@ -1766,6 +1801,10 @@ accessible name and `focus-visible` ring from their primitives.
   refresh it disappears (and its neighbours reflow) until the read's own retry (5s, doubling) succeeds.
   Drop `!incidentsFailed()` from its visibility check if that flicker matters; it then shows the last
   good rows like the chips do.
+- **The alert bell on a card.** A pinned line that needs attention is a card in Needs attention, and
+  the card has no bell, so while the line is broken its alerts change only from the profile's Alerts
+  card. `app-line-alert-bell` needs only `{ id, code, displayName }` and would fit the card's action row
+  next to `line-card-pin`.
 - **Network-wide notices.** An approved incident with no line tags has no row to sit on, so the board
   says nothing about it. A board-level banner, or station-tagged chips through the backend's `stations`
   filter, would.

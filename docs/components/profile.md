@@ -3,7 +3,8 @@
 ## 📌 Purpose & Scope
 
 - **Core Responsibility:** The personal dashboard: identity header with editable nickname, spotting
-  stats, a spotting-activity heatmap, a fleet-progress card (own profile only), a paginated,
+  stats, a spotting-activity heatmap, a fleet-progress card and this browser's line alerts (both own
+  profile only), a paginated,
   deletable and exportable history of the caller's own submissions, and the caller's own social-link
   submissions with a conversation hierarchy. The same page renders another user's public profile,
   gated by their privacy setting. Every vehicle number it shows links to that vehicle's page.
@@ -18,8 +19,9 @@
 Directory map:
 
 - `profile.page.ts`: route container (`ProfilePage`, `app-profile`), inline template. Hosts
-  `<app-profile-user-card>`, `<app-fleet-progress>` (own profile only), `<app-my-spottings>` and
-  `<app-my-links>`. Also names the document once a profile has loaded (see Internal State).
+  `<app-profile-user-card>`, `<app-fleet-progress>` and `<app-profile-alerts>` (both own profile
+  only), `<app-my-spottings>` and `<app-my-links>`. Also names the document once a profile has
+  loaded (see Internal State).
 - `profile.routes.ts`: `""` (guarded redirect) and `":id"`, both lazy `loadComponent` entries for `ProfilePage`.
 - `data/profile.queries.ts`: every GraphQL document, variable and response type for this feature (no components).
 - `data/vehicle-link.util.ts`: `vehiclePagePath(lineId, vehicleId)` and `firstLineVehiclePath(vehicle)`,
@@ -35,6 +37,8 @@ Directory map:
   has an `app-info-popover` on its title.
   - `fleet-progress/fleet-progress-line.component.ts`: one line's row (`FleetProgressLineComponent`,
     `app-fleet-progress-line`): the bar, "N of M spotted", and the lazily loaded list of vehicles not yet spotted.
+- `alerts/profile-alerts.component.ts`: the "Alerts" card (`ProfileAlertsComponent`,
+  `app-profile-alerts`): this browser's line alerts as removable chips, and "Turn off all alerts".
 - `my-spottings/my-spottings.component.ts`: "Historical Spottings", a paginated list with delete, a
   notes popover and an owner-only CSV/JSON export (`MySpottingsComponent`, `app-my-spottings`).
 - `my-links/my-links.component.ts`: "My Submitted Links" (`MyLinksComponent`, `app-my-links`). The
@@ -59,6 +63,9 @@ Directory map:
   - `FleetProgressComponent` has no inputs: it reads its own data (see Internal State). `ProfilePage`
     mounts `<app-fleet-progress />` in the own-profile branch only.
     `FleetProgressLineComponent.row`: `input.required<LineProgress>()`.
+  - `ProfileAlertsComponent` has no inputs either: its state is `PushService`'s (`core/push/`).
+    `ProfilePage` mounts `<app-profile-alerts />` right after the Fleet progress card, in the
+    own-profile branch only.
   - `MyLinksComponent.isOwnProfile`: `input.required<boolean>()`, passed as `true`. A constructor
     `effect` calls `loadMore()` (untracked) when it becomes true.
   - `ProfilePage` internal state: `isAuthReady`, `isOwnProfile` (`auth.user()?.uid === id()`),
@@ -124,7 +131,10 @@ Directory map:
   - `core/export/csv.util.ts` (`toCsv`, `downloadCsv`) and `core/export/json.util.ts` (`downloadJson`):
     the history export.
   - `core/methodology/` (`metricTooltip("fleet.progress")`) and `ui/info-popover`: the Fleet progress
-    title's explanation. The metric lives in the `sightings` section.
+    title's explanation. The metric lives in the `sightings` section. The Alerts title reads
+    `metricTooltip("incidents.push-alerts")` from the `episodes` section.
+  - `core/push/push-loader.ts`: `injectPushService()`, the root `PushService` after a dynamic import
+    (the Alerts card). Nothing else here imports `core/push/`.
   - `@angular/platform-browser`'s `Title` (`ProfilePage`) and `@angular/router`'s `RouterLink` (vehicle links).
   - `core/recaptcha/recaptcha.service.ts`: `RecaptchaService.execute(action)` lazy-loads reCAPTCHA v3 and
     returns a token. Required by `deleteEvent`, since the server enforces `IsRecaptchaChallengePassed`.
@@ -259,6 +269,25 @@ Directory map:
   - The metric is `fleet.progress` in the `sightings` methodology section (what counts as spotted: any entry
     for the vehicle, whatever status or place was recorded; what the total includes: every assigned vehicle,
     whatever its status). The popover is on the card title.
+- **`ProfileAlertsComponent`:** the Alerts card (audit F294).
+  - **It is this browser's, not the account's.** The lines come from the FCM token this browser stored
+    (`rosak:push:v1`), restored from `pushSubscription(token)` when the session starts (`AuthService` →
+    `PushService.resume()`). Another device has its own token and its own lines, and the card does not
+    list them.
+  - **It appears once the service lands.** `injectPushService()` loads `PushService` after the first
+    render. The card is absent until then and for good in a build without a VAPID key. The host is
+    `display: contents`, like the Fleet progress card's, so the absent card leaves no gap.
+  - With lines: one `hlmBadge` chip per line (`profile-alert-line`, its code) with a remove button
+    (`profile-alert-remove`, "Turn off alerts for <code>") that calls `unsubscribe(id)`, and "Turn off
+    all alerts" (`profile-alerts-off`) that calls `turnOff()`. Without lines: `profile-alerts-empty`
+    points at the front page, where a pinned row's bell turns a line on. When this browser cannot take
+    new alerts, `profile-alerts-note` says why (blocked, an iOS tab, no web push); the lines it has stay
+    listed and removable.
+  - 🔴 **A removed chip takes its focused button with it.** After the render that drops it, focus that
+    fell to `body` moves to the card's heading (`tabindex="-1"`). Busy controls use `aria-disabled`,
+    never `disabled`, for the same reason, and the handlers return early while `busy()`.
+  - The metric is `incidents.push-alerts` (`profile-alerts-popover` on the title, with a link to
+    `/methodology#episodes`).
 - **`MyLinksComponent`:** the list stays **flat** on purpose. The backend never collapses `mine`, so a
   person can see and ungroup every submission they made, including any an admin hid. Hierarchy is shown
   by **indent**, because a row carries nothing to expand.
@@ -422,7 +451,13 @@ Directory map:
 - **New aggregate stat cards** (e.g. spotting streak, most-visited station): the frontend pattern is
   ready, but the data is not. The metric must be computed server-side and added to the `user` query and
   the `UserData` interface before a matching `@if` card can be wired.
-- **Settings sub-page** (e.g. notification or extra privacy preferences): `PROFILE_ROUTES` can take a new
+- **Alerts on the account's other devices:** the Alerts card lists this browser's token only. The backend
+  keeps up to 20 tokens per account (`MAX_TOKENS_PER_USER`) but has no field that lists them, so "your
+  other devices" needs a backend query first.
+- **Turning a line on from the profile:** new alerts start from a pinned row's bell on the front page. A
+  line picker on the card (for example over `SpottingLinesStore`) could call `PushService.subscribe()`
+  with the same pre-prompt, so a rider does not have to pin a line to follow it.
+- **Settings sub-page** (e.g. extra privacy preferences): `PROFILE_ROUTES` can take a new
   route without touching `ProfilePage`. Privacy already lives in a sheet on `UserCardComponent`. A real page
   needs a new GraphQL type and a query/mutation pair (modeled on `UPDATE_USER_MUTATION` / `UserInput`)
   before it can hold content beyond a placeholder.

@@ -30,6 +30,8 @@ integrations — most features use one; several straddle two:
 │ (+IndexedDB Q) │   │ Storage        │   │ Railway GeoJSON overlay    │
 │ ThemeService   │   │ (tracker       │   │ (Firebase Storage)         │
 │ observeHeight  │   │  railway file) │   │ thecatapi/dog.ceo (404 pg) │
+│ PushService    │   │ Messaging      │   │                            │
+│ (web push)     │   │ (web push)     │   │                            │
 └───────┬────────┘   └────────────────┘   └────────────────────────────┘
         │
         ▼
@@ -112,11 +114,42 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   home route registers one (`features/home/data/report-outbox-flush.ts`, see
   [home](components/home.md) → Line-status sheet). `app.routes.spec.ts` keeps `core/offline/` out of
   the initial bundle.
+- `core/push/`: web push alerts for a rider's lines (audit F294), every file lazy.
+  `PushService` (root, `push.service.ts`) keeps this browser's FCM token and the lines registered
+  with it in `localStorage` key `rosak:push:v1` (`push-storage.ts`, through the web-storage
+  wrappers; nothing is stored while no line has alerts, so "a token is stored" means "alerts are
+  on"). `availability()` is, most blocking first, `unconfigured` (no VAPID key), `install` (a tab
+  on iOS or iPadOS: `navigator.standalone === false` with touch points), `unsupported`, `blocked`
+  (permission denied), `signed-out` or `ready`. `subscribe(line)` calls
+  `Notification.requestPermission()` (unless already granted) before its first `await`, because the
+  prompt needs the tap's user activation, then `getToken(messaging, { vapidKey })` and
+  `registerPushToken(token, lineIds)` with the FULL list (the backend replaces it).
+  `unsubscribe(lineId)` re-registers the rest, or calls `unregisterPushToken(token)` once none is
+  left, and `turnOff()` unregisters. State changes only after the backend said `ok`. A failure is
+  toasted and reported, never thrown. Firebase Messaging is a further dynamic `import()` on first
+  use, and `firebaseApp()` reuses the app that Auth created. A visible tab gets no system
+  notification, so `onMessage` shows an info toast with the title, the body and an "Open" link
+  (`ToastService.info(title, description, link)`).
+  - `push-loader.ts`: `FCM_VAPID_KEY` (token, from `environment.fcm.vapidKey`) and
+    `injectPushService()`, the only way a control reaches the service: a signal that is `null` until
+    a dynamic import lands after the first render. In a build without a key it loads nothing and
+    stays `null`. Consumers: home's alert bell on pinned rows and profile's Alerts card.
+  - `AuthService` drives two hooks through its own dynamic import, and only when a token is stored:
+    `resume()` after a sign-in reads `pushSubscription(token)` once (the backend's lines win, and
+    `null`, an unknown token or another account's, clears them; offline or on a failed read the
+    stored lines stand) and, with permission granted, starts the foreground listener. `forget()`
+    runs before `signOut`, because `unregisterPushToken` needs the session that registered the
+    token. It clears the stored state at once and sends the unregister without waiting for it.
+  - The backend sends one notification per newly approved MAJOR incident per subscribed line, at
+    most once per line in 30 minutes, with `webpush.fcm_options.link` set to `/insiden/<start date>`
+    (`rosak_backend/docs/components/incident.md` → Web push). That rule is published as the
+    `incidents.push-alerts` metric. `app.routes.spec.ts` keeps `core/push/` out of the initial
+    bundle.
 - `core/util/web-storage.util.ts`: `readStorageItem` / `writeStorageItem` / `removeStorageItem` over
   `"local" | "session"`, the try/catch wrappers `PreferencesService` keeps for itself (a failed read
-  is `null`, a failed write or removal is dropped). Used by the outbox and by the two report drafts
-  (home's line-status sheet, spotting's report form), which live in `sessionStorage` under
-  `SESSION_DRAFT_PREFIX` (`rosak:draft:`). A draft is one account's typing: `claimSessionDrafts(uid)`
+  is `null`, a failed write or removal is dropped). Used by the outbox, the line alerts and the two
+  report drafts (home's line-status sheet, spotting's report form), which live in `sessionStorage`
+  under `SESSION_DRAFT_PREFIX` (`rosak:draft:`). A draft is one account's typing: `claimSessionDrafts(uid)`
   records the uid this tab's drafts belong to (`rosak:draft-owner`) and removes every draft when a
   different account, or nobody, is signed in, so a sign-out in another tab still counts once this
   page restores its session; a draft saved while signed out survives the sign-in.
@@ -147,7 +180,8 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
     production configuration sets `"serviceWorker": "ngsw-config.json"`, so `ng serve` and the e2e
     dev build have no worker.
   - `ngsw-config.json`: group `app` prefetches `/*.css`, `/*.js` (all hashed; about 1.7 MB gzip
-    today, more than half of it the tracker chunk) and `/index.csr.html`, the CSR shell. Group
+    today, more than half of it the tracker chunk) and `/index.csr.html`, the CSR shell, but not
+    `/firebase-messaging-sw.js`, which the browser fetches itself as a worker script. Group
     `media` caches images lazily. `navigationRequestStrategy` is `freshness` with the default
     `navigationUrls`, so every navigation goes to the network first and SSR answers it. Only when
     that request fails does the worker serve the cached CSR shell. The SSR HTML itself is never
@@ -163,9 +197,30 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
     installed and finished its prefetch (a first visit: up to 30 s, then the download), an offline
     reload still gets the browser's own error page.
   - `src/server.ts` serves `browser/` with a one-year `max-age`, except the files
-    `staticCacheControl()` (`src/server-cache-control.ts`) lists: the worker files, `ngsw.json`,
-    the web app manifest, `icons/`, `index.csr.html` and `version.json` get `no-cache`, since
-    their names survive a deploy.
+    `staticCacheControl()` (`src/server-cache-control.ts`) lists: the worker files (the FCM worker
+    too), `ngsw.json`, the web app manifest, `icons/`, `index.csr.html` and `version.json` get
+    `no-cache`, since their names survive a deploy.
+  - **A second worker, for web push only:** `public/firebase-messaging-sw.js`. It is generated on
+    every `npm run generate` by `scripts/generate-firebase-config.mjs` (builder
+    `scripts/firebase-messaging-sw.mjs`, spec `src/app/firebase-messaging-sw.spec.ts`) and
+    gitignored, like `favicon.svg`, because a worker cannot import the app and needs the Firebase
+    config as literals. It loads the compat SDK of the installed `firebase` version from
+    `www.gstatic.com` through `importScripts` (the one external script the app loads this way) and
+    calls `firebase.messaging()`, which shows a notification that arrives while no tab is visible.
+    Its own `notificationclick` handler runs before the SDK's: it focuses a tab already on the
+    alert's same-origin link, or opens the link. The SDK registers the file on the first
+    `getToken()` at its default scope `/firebase-cloud-messaging-push-scope`, so the worker
+    controls no page and never meets `ngsw-worker.js` at `/`. `ng serve`, which has no ngsw, serves
+    it too.
+  - **To turn the line alerts on:** in the Firebase console, open Project settings, then Cloud
+    Messaging, then Web Push certificates, and generate a key pair. Paste the public key as the
+    value of `FCM_VAPID_KEY` in `apphosting.yaml` (and in `apphosting.staging.yaml` for staging).
+    The key is public, because the browser receives it. `scripts/generate-runtime-config.mjs` writes
+    it into `environment.fcm.vapidKey`. While it is empty, every bell is an aria-disabled "Alerts are
+    not set up yet", the profile has no Alerts card, and no push code is downloaded. Locally,
+    `FCM_VAPID_KEY=<key> npm start` turns them on. The backend must send from an https
+    `FRONTEND_BASE_URL`, and its Celery worker needs the same `GOOGLE_APPLICATION_CREDENTIALS` as
+    the API.
   - `@angular/service-worker` declares the exact `@angular/core` version as a peer dependency: bump
     it together with the other `@angular/*` packages.
   - **To disable it:** remove `"serviceWorker"` from `angular.json` and `provideServiceWorker` from
@@ -257,7 +312,7 @@ Firebase Auth (a shared chunk of about 91 kB), `GraphQLClient`, `PreferencesServ
 methodology registry and the report outbox. A static import of any of them from `main.ts`,
 `app.config.ts`, `app.routes.ts` or anything they import moves it into `main`. `app.routes.spec.ts`
 walks the static imports from `main.ts` and fails when it reaches `features/`, `shell/` or
-`core/{auth,graphql,preferences,methodology,offline}/`.
+`core/{auth,graphql,preferences,methodology,offline,push}/`.
 
 **Last measured** (`npx ng build`, 2026-10-22, after the home route's providers moved out of
 `app.routes.ts`):
@@ -302,7 +357,8 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   tiles, intent CTAs, refresh donut) over the **network board** — a three-group partition of the
   line read (`Needs attention`, `My lines`, `All lines`) with a five-intent report chooser, a
   draft-first line-status sheet (its draft saved per line, and a report the server cannot take
-  queued in the outbox and flushed on reconnect), 24-hour history strips, and, for `?view=pro`, a
+  queued in the outbox and flushed on reconnect), an alert bell on each pinned row (web push,
+  `core/push/`), 24-hour history strips, and, for `?view=pro`, a
   bento dashboard (extra filters, heat grid, CSV export, ongoing incidents, Line HQ, `/` `r` `p`
   shortcuts).
   - Deps: `graphqlResource`/`GraphQLClient`, `AuthService`; route-scoped
@@ -359,14 +415,16 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   - Extend: `ReportSheetService` (cross-page sheet trigger seam); `report-form.schema.ts`
     (declarative validation); `spotting.queries.ts` (single GraphQL contract seam, including the
     one-vehicle `VEHICLE_HEADER_QUERY` behind the vehicle page).
-- **profile** (`features/profile/` — page + `user-card`/`fleet-progress`/`my-spottings`/`my-links`;
-  [doc](components/profile.md)) — Signed-in user's dashboard: identity, editable nickname, spotting
-  stats/heatmap, own-profile fleet progress (distinct vehicles spotted per line, with the missing ones
-  listed), deletable and exportable (CSV/JSON) spotting history, own submitted links with thread grouping.
-  Vehicle numbers link to the vehicle page, the owner can copy a share link, and the tab is titled
-  after the spotter.
+- **profile** (`features/profile/` — page +
+  `user-card`/`fleet-progress`/`alerts`/`my-spottings`/`my-links`; [doc](components/profile.md)) —
+  Signed-in user's dashboard: identity, editable nickname, spotting stats/heatmap, own-profile fleet
+  progress (distinct vehicles spotted per line, with the missing ones listed), this browser's line
+  alerts (own profile), deletable and exportable (CSV/JSON) spotting history, own submitted links
+  with thread grouping. Vehicle numbers link to the vehicle page, the owner can copy a share link,
+  and the tab is titled after the spotter.
   - Deps: `GraphQLClient`, `AuthService`, `RecaptchaService`, domain-ui heatmap/badges, `core/export`,
-    the methodology registry (`fleet.progress`).
+    `core/push` (`injectPushService()`), the methodology registry (`fleet.progress`,
+    `incidents.push-alerts`).
   - Extend: `data/profile.queries.ts` (single seam for query/type changes); `UserCardComponent`'s
     `isOwnProfile` input picks the own branch (signed-in identity, edit, privacy, votes) or the
     public branch (the owner's nickname, no controls). `data/fleet-progress.util.ts` and
@@ -480,9 +538,9 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
    (`PreferencesService`, localStorage key `rosak:preferences:v1`) holds home's pinned lines, view
    mode, density, etc.; home is the only writer, and insiden's "My lines" filter reads the
    pinned lines. The report drafts (home's line-status sheet per line, spotting's report form in one
-   slot) live in `sessionStorage`, and the status-report outbox (`core/offline/`) in `localStorage`,
-   all through `core/util/web-storage.util.ts`. Still missing: tracker saved layer presets, profile
-   settings. The only other persistence is the upload queue's IndexedDB.
+   slot) live in `sessionStorage`, and the status-report outbox (`core/offline/`) and this browser's
+   line alerts (`core/push/`) in `localStorage`, all through `core/util/web-storage.util.ts`. Still
+   missing: tracker saved layer presets, profile settings. The only other persistence is the upload queue's IndexedDB.
 4. **"Select rows, then act" bulk actions (console + profile).** **Status: split (2026-10-01)** —
    there are two shared implementations, not the one extraction originally asked for:
    `core/composables/use-bulk-actions.ts` (console's spotting queue: always-on selection,
